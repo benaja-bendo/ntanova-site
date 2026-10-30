@@ -1,0 +1,21 @@
+---
+import PagePublique from '../ui/PagePublique.astro';
+---
+
+<PagePublique titre="Page introuvable · NTanova" description="Cette page n'existe pas.">
+  <section class="introuvable">
+    <h1>Page introuvable</h1>
+    <p>L'adresse est peut-être incomplète, ou la page a été déplacée.</p>
+    <a class="bouton bouton-secondaire" href="/">
+      Revenir à l'accueil
+    </a>
+  </section>
+</PagePublique>
+
+<style>
+  .introuvable {
+    display: grid;
+    gap: var(--espace-4);
+    justify-items: start;
+  }
+</style>

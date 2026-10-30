@@ -1,0 +1,15 @@
+# En-têtes servis par Cloudflare (Workers, fichiers statiques).
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Fichiers nommés d'après leur contenu : gardés un an.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Polices : gardées un mois (changer le nom du fichier si la police change).
+/polices/*
+  Cache-Control: public, max-age=2592000

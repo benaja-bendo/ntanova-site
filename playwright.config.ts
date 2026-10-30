@@ -1,0 +1,24 @@
+import { defineConfig, devices } from '@playwright/test';
+
+// Les parcours tournent sur le site construit (dist/), servi par wrangler comme en
+// production (pages 404, barres obliques, en-têtes), dans un téléphone Android de
+// 360 px de large : la taille des écrans des relais et des familles.
+const port = 4329;
+
+export default defineConfig({
+  testDir: 'tests/parcours',
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  use: {
+    baseURL: `http://127.0.0.1:${port}`,
+    trace: 'retain-on-failure',
+  },
+  projects: [{ name: 'android-360', use: { ...devices['Moto G4'] } }],
+  webServer: {
+    command: `pnpm exec wrangler dev --ip 127.0.0.1 --port ${port}`,
+    env: { WRANGLER_SEND_METRICS: 'false' },
+    url: `http://127.0.0.1:${port}`,
+    reuseExistingServer: false,
+  },
+});
