@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Le site public : les fichiers statiques construits par Astro dans dist/.
+  // La mise en ligne passe par GitHub Actions, jamais depuis un poste (voir CLAUDE.md).
+  "name": "ntanova-site",
+  "compatibility_date": "2026-10-15",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash",
+  },
+  "routes": [{ "pattern": "ntanova.com", "custom_domain": true }],
+  "env": {
+    // Le site d'essai : une adresse fixe, la seule déclarée chez Google pour la connexion.
+    "essai": {
+      "name": "ntanova-site-essai",
+      "assets": {
+        "directory": "./dist",
+        "not_found_handling": "404-page",
+        "html_handling": "auto-trailing-slash",
+      },
+      "routes": [{ "pattern": "essai.ntanova.com", "custom_domain": true }],
+    },
+  },
+}
