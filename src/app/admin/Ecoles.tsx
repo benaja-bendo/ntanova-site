@@ -4,10 +4,15 @@
  * une école, tout un arrondissement, ou un lot.
  */
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { arrondissementDeLaPosition } from '../../modele/carte/plan';
+import { ecrirePosition, lienGoogleMaps } from '../../modele/coordonnees';
 import {
   erreursFormulaireEcole,
   formulaireDe,
+  formulaireVide,
+  lireChampPosition,
   versCorrection,
+  versNouvelleEcole,
   type FormulaireEcole,
 } from '../../modele/correction-ecole';
 import type { Erreurs } from '../../modele/fiche';
@@ -57,19 +62,21 @@ function LigneEcole({
   e,
   ecoles,
   relais,
+  ouverts,
   admin,
   surChangement,
 }: {
   e: EcoleVue;
   ecoles: EcoleVue[];
   relais: RelaisVu[];
+  ouverts: string[];
   admin: PortAdministration;
   surChangement: (texte: string) => void;
 }) {
   const etat = etatDe(e);
   const [relaisId, setRelaisId] = useState(e.confiee?.relaisId ?? relais[0]?.id ?? '');
   const [note, setNote] = useState(e.confiee?.note ?? '');
-  const [mode, setMode] = useState<'retirer' | 'fusionner' | 'modifier' | null>(null);
+  const [mode, setMode] = useState<'retirer' | 'fusionner' | 'modifier' | 'situer' | null>(null);
   const [motif, setMotif] = useState<Valeur<'motif_retrait'>>('demande_ecole');
   const [noteRetrait, setNoteRetrait] = useState('');
   const [gardee, setGardee] = useState('');
@@ -104,6 +111,14 @@ function LigneEcole({
           {libelleTypeEcole[e.typeEcole]} ·{' '}
           {e.niveaux.map((n) => libelleNiveau[n]).join(', ') || 'aucun niveau'}
         </span>
+        {e.position && (
+          <span className="mention admin-sous-ligne">
+            Position{' '}
+            <a href={lienGoogleMaps(e.position)} target="_blank" rel="noopener noreferrer">
+              {ecrirePosition(e.position)}
+            </a>
+          </span>
+        )}
         {e.retrait && (
           <span className="mention admin-sous-ligne">
             {libelleMotifRetrait[e.retrait.motif]}, le {jour(e.retrait.le)}
@@ -216,6 +231,16 @@ function LigneEcole({
           {etat !== 'retiree' && (
             <button
               type="button"
+              className={`bouton bouton-petit${e.aSituer ? '' : ' bouton-secondaire'}`}
+              aria-expanded={mode === 'situer'}
+              onClick={() => setMode(mode === 'situer' ? null : 'situer')}
+            >
+              {e.aSituer ? 'Situer' : 'Changer la position'}
+            </button>
+          )}
+          {etat !== 'retiree' && (
+            <button
+              type="button"
               className="bouton bouton-secondaire bouton-petit"
               aria-expanded={mode === 'modifier'}
               onClick={() => setMode(mode === 'modifier' ? null : 'modifier')}
@@ -301,6 +326,19 @@ function LigneEcole({
           </form>
         )}
 
+        {mode === 'situer' && (
+          <FormulairePosition
+            e={e}
+            ouverts={ouverts}
+            admin={admin}
+            surEnregistre={(texte) => {
+              setMode(null);
+              surChangement(texte);
+            }}
+            surAnnuler={() => setMode(null)}
+          />
+        )}
+
         {mode === 'modifier' && (
           <FormulaireEcole
             e={e}
@@ -344,13 +382,6 @@ function FormulaireEcole({
     setChamps((avant) => ({ ...avant, ...nouveaux }));
     setRienADire(false);
   };
-  const basculerNiveau = (n: Valeur<'niveau'>) =>
-    changer({
-      niveaux: champs.niveaux.includes(n)
-        ? champs.niveaux.filter((x) => x !== n)
-        : listes.niveau.filter((x) => x === n || champs.niveaux.includes(x)),
-    });
-
   const enregistrer = async (ev: FormEvent) => {
     ev.preventDefault();
     setErreur(null);
@@ -383,6 +414,47 @@ function FormulaireEcole({
       noValidate
       onSubmit={(ev) => void enregistrer(ev)}
     >
+      <ChampsFiche champs={champs} erreurs={erreurs} changer={changer} />
+      {rienADire && (
+        <p className="mention admin-pleine-largeur" aria-live="polite">
+          Rien n’a changé.
+        </p>
+      )}
+      {erreur && (
+        <p className="message-erreur admin-pleine-largeur" role="alert">
+          {erreur}
+        </p>
+      )}
+      <div className="admin-actions admin-pleine-largeur">
+        <button type="submit" className="bouton" disabled={enCours}>
+          Enregistrer
+        </button>
+        <button type="button" className="bouton bouton-secondaire" onClick={surAnnuler}>
+          Annuler
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** Les champs d'une fiche : ceux qu'on corrige, et ceux d'une école qu'on ajoute. */
+function ChampsFiche({
+  champs,
+  erreurs,
+  changer,
+}: {
+  champs: FormulaireEcole;
+  erreurs: Erreurs;
+  changer: (nouveaux: Partial<FormulaireEcole>) => void;
+}) {
+  const basculerNiveau = (n: Valeur<'niveau'>) =>
+    changer({
+      niveaux: champs.niveaux.includes(n)
+        ? champs.niveaux.filter((x) => x !== n)
+        : listes.niveau.filter((x) => x === n || champs.niveaux.includes(x)),
+    });
+  return (
+    <>
       <Champ libelle="Nom" erreur={erreurs.nom}>
         {(a) => (
           <input
@@ -458,11 +530,124 @@ function FormulaireEcole({
           />
         )}
       </Champ>
-      {rienADire && (
-        <p className="mention admin-pleine-largeur" aria-live="polite">
-          Rien n’a changé.
+    </>
+  );
+}
+
+/**
+ * Le champ « Position » : ce que Google Maps donne (un appui long sur l'entrée de l'école, puis
+ * copier les chiffres), son adresse de partage, ou des degrés. On voit tout de suite où la
+ * position tombe, et on peut la vérifier sur Google Maps avant d'enregistrer.
+ */
+function ChampPosition({
+  valeur,
+  surChange,
+  ouverts,
+  erreur,
+  facultatif = false,
+}: {
+  valeur: string;
+  surChange: (texte: string) => void;
+  ouverts: string[];
+  erreur?: string | undefined;
+  facultatif?: boolean;
+}) {
+  const { position } = lireChampPosition(valeur);
+  const dessine = position ? arrondissementDeLaPosition(position) : null;
+  const ou = !position
+    ? null
+    : !dessine
+      ? 'Hors de Pointe-Noire : vérifie les coordonnées, la latitude d’abord (-4,…).'
+      : ouverts.includes(dessine.nom)
+        ? `À ${dessine.nom}.`
+        : `À ${dessine.nom} : cet arrondissement n’est pas encore ouvert au relevé, la base refusera.`;
+  return (
+    <div className="admin-pleine-largeur champ-position">
+      <Champ
+        libelle="Position"
+        facultatif={facultatif}
+        erreur={erreur}
+        aide="Sur Google Maps : un appui long (ou un clic droit) sur l’entrée de l’école, puis copie les chiffres qui s’affichent, par exemple -4.79105, 11.92500. Un lien de partage marche aussi."
+      >
+        {(a) => (
+          <input
+            {...a}
+            className="champ"
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            placeholder="-4.79105, 11.92500"
+            value={valeur}
+            onChange={(ev) => surChange(ev.target.value)}
+          />
+        )}
+      </Champ>
+      {position && (
+        <p className="mention" aria-live="polite">
+          Lu : {ecrirePosition(position)}. {ou}{' '}
+          <a href={lienGoogleMaps(position)} target="_blank" rel="noopener noreferrer">
+            Vérifier sur Google Maps
+          </a>
         </p>
       )}
+    </div>
+  );
+}
+
+/** Donner la position d'une école connue : elle passe sur la carte, et devient prête si elle était à situer. */
+function FormulairePosition({
+  e,
+  ouverts,
+  admin,
+  surEnregistre,
+  surAnnuler,
+}: {
+  e: EcoleVue;
+  ouverts: string[];
+  admin: PortAdministration;
+  surEnregistre: (texte: string) => void;
+  surAnnuler: () => void;
+}) {
+  const [texte, setTexte] = useState(e.position ? ecrirePosition(e.position) : '');
+  const [erreurChamp, setErreurChamp] = useState<string | undefined>();
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+
+  const enregistrer = async (ev: FormEvent) => {
+    ev.preventDefault();
+    setErreur(null);
+    const { position, erreur: illisible } = lireChampPosition(texte);
+    if (!position) {
+      setErreurChamp(illisible ?? 'Colle la position de l’école.');
+      return;
+    }
+    setErreurChamp(undefined);
+    setEnCours(true);
+    try {
+      const ou = await admin.situerEcole(e.id, position);
+      surEnregistre(
+        `${e.nom} est située à ${ou}.` +
+          (e.publication === 'brouillon'
+            ? ' Elle est prête : publie-la quand tu veux.'
+            : e.publication === 'publiee'
+              ? ' La nouvelle position paraît sur ntanova.com après la prochaine mise à jour du site (cette nuit à 2 h).'
+              : ''),
+      );
+    } catch (err) {
+      setErreur(message(err));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <form
+      className="admin-motif"
+      aria-label={`Situer ${e.nom}`}
+      noValidate
+      onSubmit={(ev) => void enregistrer(ev)}
+    >
+      <ChampPosition valeur={texte} surChange={setTexte} ouverts={ouverts} erreur={erreurChamp} />
       {erreur && (
         <p className="message-erreur admin-pleine-largeur" role="alert">
           {erreur}
@@ -470,7 +655,102 @@ function FormulaireEcole({
       )}
       <div className="admin-actions admin-pleine-largeur">
         <button type="submit" className="bouton" disabled={enCours}>
-          Enregistrer
+          Enregistrer la position
+        </button>
+        <button type="button" className="bouton bouton-secondaire" onClick={surAnnuler}>
+          Annuler
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Ajouter une école que la base ne connaît pas : une école que tu connais. Avec sa position, elle
+ * est prête (à publier) ; sans, elle attend d'être située, comme une école importée.
+ */
+function FormulaireAjout({
+  ouverts,
+  admin,
+  surEnregistre,
+  surAnnuler,
+}: {
+  ouverts: string[];
+  admin: PortAdministration;
+  surEnregistre: (texte: string) => void;
+  surAnnuler: () => void;
+}) {
+  const [champs, setChamps] = useState<FormulaireEcole>(formulaireVide);
+  const [quartier, setQuartier] = useState('');
+  const [texte, setTexte] = useState('');
+  const [erreurs, setErreurs] = useState<Erreurs>({});
+  const [erreurPosition, setErreurPosition] = useState<string | undefined>();
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+  const changer = (nouveaux: Partial<FormulaireEcole>) =>
+    setChamps((avant) => ({ ...avant, ...nouveaux }));
+
+  const enregistrer = async (ev: FormEvent) => {
+    ev.preventDefault();
+    setErreur(null);
+    const trouvees = erreursFormulaireEcole(champs);
+    const { position, erreur: illisible } = lireChampPosition(texte);
+    setErreurs(trouvees);
+    setErreurPosition(illisible);
+    if (Object.keys(trouvees).length > 0 || illisible) return;
+    setEnCours(true);
+    try {
+      const nouvelle = versNouvelleEcole(champs, quartier, position);
+      await admin.ajouterEcole(nouvelle);
+      surEnregistre(
+        position
+          ? `${nouvelle.nom} est ajoutée, prête : publie-la quand tu veux.`
+          : `${nouvelle.nom} est ajoutée, à situer : donne sa position, ou confie-la à un relais.`,
+      );
+    } catch (err) {
+      setErreur(message(err));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <form
+      className="admin-motif carte-blanche"
+      aria-label="Ajouter une école"
+      noValidate
+      onSubmit={(ev) => void enregistrer(ev)}
+    >
+      <h2 className="titre-section admin-pleine-largeur">Ajouter une école</h2>
+      <ChampPosition
+        valeur={texte}
+        surChange={setTexte}
+        ouverts={ouverts}
+        erreur={erreurPosition}
+        facultatif
+      />
+      <ChampsFiche champs={champs} erreurs={erreurs} changer={changer} />
+      <Champ libelle="Quartier, tel qu’on le dit sur place" facultatif>
+        {(a) => (
+          <input
+            {...a}
+            className="champ"
+            type="text"
+            autoComplete="off"
+            maxLength={100}
+            value={quartier}
+            onChange={(ev) => setQuartier(ev.target.value)}
+          />
+        )}
+      </Champ>
+      {erreur && (
+        <p className="message-erreur admin-pleine-largeur" role="alert">
+          {erreur}
+        </p>
+      )}
+      <div className="admin-actions admin-pleine-largeur">
+        <button type="submit" className="bouton" disabled={enCours}>
+          Ajouter l’école
         </button>
         <button type="button" className="bouton bouton-secondaire" onClick={surAnnuler}>
           Annuler
@@ -492,6 +772,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   const [erreur, setErreur] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const [ajout, setAjout] = useState(false);
 
   const charger = useCallback(() => {
     Promise.all([admin.ecoles(), admin.relais(), admin.lots(), admin.arrondissements()])
@@ -547,8 +828,8 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           <h1>Écoles</h1>
           <p className="texte-doux">
             Accepter une fiche rend l'école <b>prête</b> ; tu choisis quand la <b>publier</b> : une
-            école, tout un arrondissement, ou un lot. Une école à situer attend la contre-visite
-            d'un relais.
+            école, tout un arrondissement, ou un lot. Une école à situer attend sa position : tu la
+            donnes toi-même (prise sur Google Maps), ou tu la confies à un relais.
           </p>
         </div>
         <div className="filtres" role="group" aria-label="Filtrer par état">
@@ -565,6 +846,25 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           ))}
         </div>
       </div>
+
+      {ajout ? (
+        <FormulaireAjout
+          ouverts={arrondissements.map((a) => a.nom)}
+          admin={admin}
+          surEnregistre={(texte) => {
+            setAjout(false);
+            setAnnonce(texte);
+            charger();
+          }}
+          surAnnuler={() => setAjout(false)}
+        />
+      ) : (
+        <div className="admin-actions">
+          <button type="button" className="bouton" onClick={() => setAjout(true)}>
+            Ajouter une école
+          </button>
+        </div>
+      )}
 
       {compte('prete') > 0 && (
         <section className="carte-blanche pile-serree" aria-label="Publier d'un coup">
@@ -662,6 +962,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
                 e={e}
                 ecoles={ecoles ?? []}
                 relais={relais}
+                ouverts={arrondissements.map((a) => a.nom)}
                 admin={admin}
                 surChangement={(texte) => {
                   setAnnonce(texte);

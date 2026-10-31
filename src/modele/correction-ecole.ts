@@ -6,7 +6,9 @@
 import { z } from 'zod';
 import { erreursDe, type Erreurs } from './fiche';
 import { listes, niveauxConnus, type Valeur } from './listes';
-import type { CorrectionEcole, EcoleVue } from './ports';
+import { lirePosition } from './coordonnees';
+import type { Point } from './geo';
+import type { CorrectionEcole, EcoleVue, NouvelleEcole } from './ports';
 import { afficherTelephone, normaliserTelephone } from './telephone';
 
 export interface FormulaireEcole {
@@ -68,4 +70,55 @@ export function versCorrection(avant: EcoleVue, champs: FormulaireEcole): Correc
   const numero = normaliserTelephone(champs.numeroEnseigne);
   if (numero !== avant.numeroEnseigne) correction.numeroEnseigne = numero;
   return correction;
+}
+
+// Ajouter une école que la base ne connaît pas ----------------------------------------------
+
+/** Le formulaire d'une école à ajouter : vide, rien de coché d'avance. */
+export function formulaireVide(): FormulaireEcole {
+  return {
+    nom: '',
+    typeEcole: 'non_indique',
+    niveaux: [],
+    programme: '',
+    repere: '',
+    numeroEnseigne: '',
+  };
+}
+
+/**
+ * Ce que dit le champ « Position » : rien (facultatif quand on ajoute une école), la position
+ * lue, ou une erreur à afficher.
+ */
+export function lireChampPosition(texte: string): {
+  position: Point | null;
+  erreur: string | undefined;
+} {
+  if (!texte.trim()) return { position: null, erreur: undefined };
+  const position = lirePosition(texte);
+  return position
+    ? { position, erreur: undefined }
+    : {
+        position: null,
+        erreur:
+          'Position illisible : colle la latitude puis la longitude, par exemple -4.79105, 11.92500.',
+      };
+}
+
+/** Ce qui part vers la base pour une école ajoutée : les champs vides deviennent « rien ». */
+export function versNouvelleEcole(
+  champs: FormulaireEcole,
+  quartier: string,
+  position: Point | null,
+): NouvelleEcole {
+  return {
+    nom: champs.nom.trim(),
+    position,
+    typeEcole: champs.typeEcole,
+    niveaux: niveauxConnus(champs.niveaux),
+    programme: champs.programme.trim() || null,
+    repere: champs.repere.trim() || null,
+    numeroEnseigne: normaliserTelephone(champs.numeroEnseigne),
+    quartier: quartier.trim() || null,
+  };
 }

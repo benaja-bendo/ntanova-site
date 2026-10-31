@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Point } from '../../modele/geo';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import {
   ErreurDecision,
@@ -304,6 +305,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
               }
             : null,
         aSituer: e.position === null,
+        position: lirePoint(e.position),
         confiee: e.ecoles_confiees
           ? {
               relaisId: e.ecoles_confiees.relais_id,
@@ -317,6 +319,38 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         repere: e.repere,
         numeroEnseigne: e.numero_enseigne,
       }));
+    },
+
+    async situerEcole(ecoleId, position) {
+      const { data, error } = await supabase().rpc('situer_ecole', {
+        ecole: ecoleId,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      });
+      // La base refuse une position hors de Tié-Tié et Ngoyo, avec un message écrit pour toi.
+      decider(error);
+      return typeof data === 'string' ? data : '';
+    },
+
+    async ajouterEcole(ecole) {
+      const { data, error } = await supabase().rpc('ajouter_ecole', {
+        nom: ecole.nom,
+        latitude: ecole.position?.latitude ?? null,
+        longitude: ecole.position?.longitude ?? null,
+        type_ecole: ecole.typeEcole,
+        niveaux: ecole.niveaux,
+        programme: ecole.programme,
+        repere: ecole.repere,
+        numero_enseigne: ecole.numeroEnseigne,
+        quartier: ecole.quartier,
+      });
+      if (error?.code === '23514') {
+        throw new ErreurDecision(
+          'La base refuse une valeur : vérifie le nom, le programme, le repère et le numéro.',
+        );
+      }
+      decider(error);
+      return typeof data === 'string' ? data : '';
     },
 
     async modifierEcole(ecoleId, correction) {
@@ -637,4 +671,17 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       if (!data || data.length === 0) throw new Error('Relais introuvable.');
     },
   };
+}
+
+/**
+ * La position telle que l'API la rend (GeoJSON : `{ type: 'Point', coordinates: [lng, lat] }`),
+ * ou null. Une forme inattendue se lit « pas de position connue », sans erreur.
+ */
+function lirePoint(valeur: unknown): Point | null {
+  const coordonnees = (valeur as { coordinates?: unknown } | null)?.coordinates;
+  if (!Array.isArray(coordonnees)) return null;
+  const [longitude, latitude] = coordonnees as unknown[];
+  return typeof latitude === 'number' && typeof longitude === 'number'
+    ? { latitude, longitude }
+    : null;
 }

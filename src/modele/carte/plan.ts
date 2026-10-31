@@ -6,7 +6,8 @@
  *   change de page) ;
  * - une école : un petit plan sur sa fiche.
  */
-import type { MultiPolygone, Point } from '../geo';
+import { dansContour, type MultiPolygone, type Point } from '../geo';
+import { provenanceDe, type Provenance } from '../libelles';
 import donnees from './pointe-noire.json';
 import {
   boiteDeContours,
@@ -51,6 +52,11 @@ export function arrondissementDessine(slug: string): ArrondissementDessine | nul
   return arrondissementsDessines.find((a) => a.slug === slug) ?? null;
 }
 
+/** L'arrondissement dessiné qui contient la position, ou null (hors de Pointe-Noire). */
+export function arrondissementDeLaPosition(position: Point): ArrondissementDessine | null {
+  return arrondissementsDessines.find((a) => dansContour(position, a.contour)) ?? null;
+}
+
 /** Un arrondissement tel que la carte le dessine. */
 export interface ArrondissementSurCarte {
   arrondissement: ArrondissementDessine;
@@ -72,7 +78,8 @@ export interface EcoleSurCarte extends Point {
   nom: string;
   /** L'adresse de sa fiche. */
   lien: string;
-  etat: 'verifiee' | 'relevee';
+  /** Le drapeau : vert si vérifiée, blanc sinon (relevée de la rue, ou ajoutée par NTanova). */
+  etat: Provenance;
 }
 
 export interface MarqueEcole {
@@ -205,6 +212,8 @@ export function surCarte(
     arrondissement: string;
     slug: string;
     etat: 'verifiee' | 'relevee';
+    releveeLe: string | null;
+    situeeLe: string | null;
     latitude: number | null;
     longitude: number | null;
   }[],
@@ -213,7 +222,7 @@ export function surCarte(
     id: e.id,
     nom: e.nom,
     lien: `/ecoles/${e.arrondissement}/${e.slug}/`,
-    etat: e.etat,
+    etat: provenanceDe(e),
     latitude: e.latitude,
     longitude: e.longitude,
   }));
