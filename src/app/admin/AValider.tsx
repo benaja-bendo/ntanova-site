@@ -4,6 +4,7 @@ import {
   libelleFonction,
   libelleMotif,
   libelleNiveau,
+  libelleStatutReleve,
   libelleTypeEcole,
 } from '../../modele/libelles';
 import {
@@ -12,17 +13,28 @@ import {
   type DetailReleve,
   type PortAdministration,
   type ReleveAValider,
+  type ReleveDecide,
 } from '../../modele/ports';
 import { afficherTelephone } from '../../modele/telephone';
 import { Bandeau, Champ, Icone, jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
 
-type Filtre = 'tout' | 'releve' | 'correction' | 'contre_visite';
+type Filtre = 'tout' | 'releve' | 'correction' | 'contre_visite' | 'decidees';
 
 const libelleType: Record<ReleveAValider['type'], string> = {
   releve: 'Nouvelle fiche',
   correction: 'Correction',
   contre_visite: 'Contre-visite',
+};
+
+const ACCEPTEE =
+  'Acceptée : l’école est prête. Publie-la depuis l’onglet « Écoles » (une école, un arrondissement ou un lot).';
+
+const classeDecision: Record<ReleveDecide['statut'], string> = {
+  a_valider: 'etat-attente',
+  a_corriger: 'etat-a-corriger',
+  accepte: 'etat-verifiee',
+  refuse: 'etat-refusee',
 };
 
 const messageErreur = (e: unknown) =>
@@ -48,15 +60,16 @@ export function AValider({
 }) {
   const [, choisi] = useAdresse();
   const [releves, setReleves] = useState<ReleveAValider[] | null>(null);
+  const [decides, setDecides] = useState<ReleveDecide[] | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [filtre, setFiltre] = useState<Filtre>('tout');
   const [annonce, setAnnonce] = useState<string | null>(null);
 
   const charger = useCallback(() => {
-    admin
-      .relevesAValider()
-      .then((r) => {
+    Promise.all([admin.relevesAValider(), admin.relevesDecides()])
+      .then(([r, d]) => {
         setReleves(r);
+        setDecides(d);
         setErreur(null);
         surCompte(r.length);
       })
@@ -68,7 +81,10 @@ export function AValider({
   }, [charger]);
 
   const visibles = (releves ?? []).filter((r) => filtre === 'tout' || r.type === filtre);
-  const selection = visibles.find((r) => r.id === choisi) ?? null;
+  const selection =
+    filtre === 'decidees'
+      ? (decides?.find((r) => r.id === choisi) ?? null)
+      : (visibles.find((r) => r.id === choisi) ?? null);
 
   const apresDecision = (texte: string) => {
     setAnnonce(texte);
@@ -95,6 +111,7 @@ export function AValider({
               ['releve', 'Nouvelles fiches'],
               ['correction', 'Corrections'],
               ['contre_visite', 'Contre-visites'],
+              ['decidees', 'Décidées'],
             ] as const
           ).map(([valeur, libelle]) => (
             <button
@@ -123,38 +140,80 @@ export function AValider({
       )}
 
       <div className={`admin-file${selection ? ' avec-selection' : ''}`}>
-        <ul className="admin-liste" aria-label="Envois à valider">
-          {releves !== null && visibles.length === 0 && (
-            <li className="texte-doux">Rien à valider pour le moment.</li>
-          )}
-          {visibles.map((r) => (
-            <li key={r.id}>
-              <a
-                href={`#valider/${r.id}`}
-                className="admin-ligne"
-                aria-current={r.id === choisi ? 'true' : undefined}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setAnnonce(null);
-                  aller(`valider/${r.id}`);
-                }}
-              >
-                <span className="admin-ligne-tete">
-                  <b>{r.nomEnseigne}</b>
-                  <span className="mention">{jour(r.recuLe)}</span>
-                </span>
-                <span className="mention">
-                  {libelleType[r.type]} · {r.relais}
-                  {r.lot ? ` · Lot ${r.lot}` : ''}
-                </span>
-                <Etiquettes r={r} />
-              </a>
-            </li>
-          ))}
-        </ul>
+        {filtre === 'decidees' ? (
+          <ul className="admin-liste" aria-label="Décisions récentes">
+            {decides !== null && decides.length === 0 && (
+              <li className="texte-doux">Aucune décision pour le moment.</li>
+            )}
+            {decides?.map((r) => (
+              <li key={r.id}>
+                <a
+                  href={`#valider/${r.id}`}
+                  className="admin-ligne"
+                  aria-current={r.id === choisi ? 'true' : undefined}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setAnnonce(null);
+                    aller(`valider/${r.id}`);
+                  }}
+                >
+                  <span className="admin-ligne-tete">
+                    <b>{r.nomEnseigne}</b>
+                    <span className="mention">{r.decideLe ? jour(r.decideLe) : ''}</span>
+                  </span>
+                  <span className="mention">
+                    {libelleType[r.type]} · {r.relais}
+                    {r.lot ? ` · Lot ${r.lot}` : ''}
+                  </span>
+                  <span className="admin-etiquettes">
+                    <span className={`etiquette ${classeDecision[r.statut]}`}>
+                      {libelleStatutReleve[r.statut]}
+                    </span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul className="admin-liste" aria-label="Envois à valider">
+            {releves !== null && visibles.length === 0 && (
+              <li className="texte-doux">Rien à valider pour le moment.</li>
+            )}
+            {visibles.map((r) => (
+              <li key={r.id}>
+                <a
+                  href={`#valider/${r.id}`}
+                  className="admin-ligne"
+                  aria-current={r.id === choisi ? 'true' : undefined}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setAnnonce(null);
+                    aller(`valider/${r.id}`);
+                  }}
+                >
+                  <span className="admin-ligne-tete">
+                    <b>{r.nomEnseigne}</b>
+                    <span className="mention">{jour(r.recuLe)}</span>
+                  </span>
+                  <span className="mention">
+                    {libelleType[r.type]} · {r.relais}
+                    {r.lot ? ` · Lot ${r.lot}` : ''}
+                  </span>
+                  <Etiquettes r={r} />
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {selection && (
-          <Detail key={selection.id} admin={admin} ligne={selection} surDecision={apresDecision} />
+          <Detail
+            key={selection.id}
+            admin={admin}
+            id={selection.id}
+            lectureSeule={filtre === 'decidees'}
+            surDecision={apresDecision}
+          />
         )}
       </div>
     </div>
@@ -163,11 +222,14 @@ export function AValider({
 
 function Detail({
   admin,
-  ligne,
+  id,
+  lectureSeule,
   surDecision,
 }: {
   admin: PortAdministration;
-  ligne: ReleveAValider;
+  id: string;
+  /** Une décision déjà prise : on la relit, on peut encore effacer, on ne décide plus. */
+  lectureSeule: boolean;
   surDecision: (texte: string) => void;
 }) {
   const [detail, setDetail] = useState<DetailReleve | null>(null);
@@ -179,20 +241,62 @@ function Detail({
   const [message, setMessage] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [contactConfirme, setContactConfirme] = useState(false);
+  const [aEffacer, setAEffacer] = useState<'contact' | 'photo' | null>(null);
+  const [efface, setEfface] = useState<string | null>(null);
+
+  // Droit d'effacement : tracé dans la base (qui, quand), confirmé en deux temps.
+  const effacer = async (quoi: 'contact' | 'photo') => {
+    setErreur(null);
+    try {
+      if (quoi === 'contact') {
+        await admin.effacerContact(id, null);
+        setContact(null);
+        setEfface('Le contact de la direction est effacé.');
+      } else {
+        await admin.effacerPhoto(id, null);
+        setPhoto(null);
+        setEfface('La photo est effacée.');
+      }
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setAEffacer(null);
+    }
+  };
+
+  const boutonEffacer = (quoi: 'contact' | 'photo', libelle: string) =>
+    aEffacer === quoi ? (
+      <span className="admin-actions">
+        <button
+          type="button"
+          className="bouton bouton-petit admin-bouton-refus"
+          onClick={() => void effacer(quoi)}
+        >
+          Confirmer : {libelle.toLowerCase()}
+        </button>
+        <button
+          type="button"
+          className="bouton bouton-secondaire bouton-petit"
+          onClick={() => setAEffacer(null)}
+        >
+          Annuler
+        </button>
+      </span>
+    ) : (
+      <button type="button" className="lien" onClick={() => setAEffacer(quoi)}>
+        {libelle}
+      </button>
+    );
 
   useEffect(() => {
-    Promise.all([
-      admin.detailReleve(ligne.id),
-      admin.photoReleve(ligne.id),
-      admin.contactReleve(ligne.id),
-    ])
+    Promise.all([admin.detailReleve(id), admin.photoReleve(id), admin.contactReleve(id)])
       .then(([d, p, c]) => {
         setDetail(d);
         setPhoto(p);
         setContact(c);
       })
       .catch((e: unknown) => setErreur(messageErreur(e)));
-  }, [admin, ligne.id]);
+  }, [admin, id]);
 
   const agir = async (action: () => Promise<unknown>, texte: string) => {
     setEnCours(true);
@@ -210,7 +314,7 @@ function Detail({
   const confirmer = async (fonction: Valeur<'fonction_direction'>) => {
     setErreur(null);
     try {
-      await admin.confirmerContact(ligne.id, fonction);
+      await admin.confirmerContact(id, fonction);
       setContactConfirme(true);
     } catch (e) {
       setErreur(messageErreur(e));
@@ -250,6 +354,7 @@ function Detail({
           ) : (
             <div className="apercu-vide">Photo pas encore reçue</div>
           )}
+          {photo && boutonEffacer('photo', 'Effacer la photo')}
           <figcaption className="mention">
             Photo de l'enseigne. Nette, cadrée, sans enfant&nbsp;?
           </figcaption>
@@ -382,139 +487,152 @@ function Detail({
                   </button>
                 ))}
             </div>
+            {boutonEffacer('contact', "Effacer le contact (droit d'effacement)")}
           </>
         )}
       </section>
 
+      {efface && (
+        <p className="bandeau bandeau-envoye" role="status">
+          {efface}
+        </p>
+      )}
       {erreur && (
         <p className="message-erreur" role="alert">
           {erreur}
         </p>
       )}
 
-      <div className="admin-decision pile">
-        {detail.essai && (
-          <Bandeau ton="attente" icone="alerte">
-            <p>
-              <b>Lot d'entraînement</b> : cette fiche ne sera jamais publiée. Demande une correction
-              pour entraîner le relais, ou refuse-la.
-            </p>
-          </Bandeau>
-        )}
-        <div className="admin-actions">
-          {!detail.essai &&
-            (memeEcole && detail.doublonDe ? (
-              <>
+      {lectureSeule ? (
+        <p className="admin-decision mention">
+          Décision prise. Pour revenir dessus : demander au relais une nouvelle fiche (un refus est
+          définitif), ou agir sur l'école dans l'onglet « Écoles ».
+        </p>
+      ) : (
+        <div className="admin-decision pile">
+          {detail.essai && (
+            <Bandeau ton="attente" icone="alerte">
+              <p>
+                <b>Lot d'entraînement</b> : cette fiche ne sera jamais publiée. Demande une
+                correction pour entraîner le relais, ou refuse-la.
+              </p>
+            </Bandeau>
+          )}
+          <div className="admin-actions">
+            {!detail.essai &&
+              (memeEcole && detail.doublonDe ? (
+                <>
+                  <button
+                    type="button"
+                    className="bouton"
+                    disabled={enCours}
+                    onClick={() =>
+                      void agir(
+                        () => admin.accepter(id, detail.doublonDe?.id),
+                        `${detail.doublonDe?.nom} est mise à jour. Si elle était déjà en ligne, la correction paraît cette nuit ; sinon, publie-la depuis « Écoles ».`,
+                      )
+                    }
+                  >
+                    {detail.type === 'contre_visite' ? 'Situer' : 'Mettre à jour'}{' '}
+                    {detail.doublonDe.nom}
+                  </button>
+                  <button
+                    type="button"
+                    className="bouton bouton-secondaire"
+                    disabled={enCours}
+                    onClick={() => void agir(() => admin.accepter(id), ACCEPTEE)}
+                  >
+                    Accepter comme une autre école
+                  </button>
+                </>
+              ) : (
                 <button
                   type="button"
                   className="bouton"
                   disabled={enCours}
-                  onClick={() =>
-                    void agir(
-                      () => admin.accepter(ligne.id, detail.doublonDe?.id),
-                      `${detail.doublonDe?.nom} est mise à jour.`,
-                    )
-                  }
+                  onClick={() => void agir(() => admin.accepter(id), ACCEPTEE)}
                 >
-                  {detail.type === 'contre_visite' ? 'Situer et publier' : 'Mettre à jour'}{' '}
-                  {detail.doublonDe.nom}
+                  Accepter la fiche
                 </button>
-                <button
-                  type="button"
-                  className="bouton bouton-secondaire"
-                  disabled={enCours}
-                  onClick={() => void agir(() => admin.accepter(ligne.id), 'La fiche est publiée.')}
-                >
-                  Publier comme une autre école
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="bouton"
-                disabled={enCours}
-                onClick={() => void agir(() => admin.accepter(ligne.id), 'La fiche est publiée.')}
-              >
-                Accepter et publier la fiche relevée
-              </button>
-            ))}
-          <button
-            type="button"
-            className="bouton bouton-secondaire"
-            aria-expanded={mode === 'correction'}
-            onClick={() => setMode(mode === 'correction' ? null : 'correction')}
-          >
-            Demander une correction
-          </button>
-          <button
-            type="button"
-            className="bouton bouton-secondaire admin-bouton-refus"
-            aria-expanded={mode === 'refus'}
-            onClick={() => {
-              setMode(mode === 'refus' ? null : 'refus');
-              setMotif('autre');
-            }}
-          >
-            Refuser
-          </button>
-        </div>
-
-        {mode && (
-          <form
-            className="admin-motif"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const texte = message.trim() || null;
-              void agir(
-                () =>
-                  mode === 'correction'
-                    ? admin.demanderCorrection(ligne.id, motif, texte)
-                    : admin.refuser(ligne.id, motif, texte),
-                mode === 'correction'
-                  ? 'La demande de correction part au relais.'
-                  : 'La fiche est refusée.',
-              );
-            }}
-          >
-            <Champ libelle="Motif">
-              {(a) => (
-                <select
-                  {...a}
-                  className="champ"
-                  value={motif}
-                  onChange={(e) => setMotif(e.target.value as Valeur<'motif_decision'>)}
-                >
-                  {listes.motif_decision.map((m) => (
-                    <option key={m} value={m}>
-                      {libelleMotif[m]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Champ>
-            <Champ
-              libelle="Message au relais"
-              facultatif
-              aide="Le relais le lit dans « Mes fiches ». Vouvoie-le."
+              ))}
+            <button
+              type="button"
+              className="bouton bouton-secondaire"
+              aria-expanded={mode === 'correction'}
+              onClick={() => setMode(mode === 'correction' ? null : 'correction')}
             >
-              {(a) => (
-                <textarea
-                  {...a}
-                  className="champ"
-                  rows={2}
-                  maxLength={500}
-                  placeholder="Ex. : la photo est floue, reprenez-la de face."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                />
-              )}
-            </Champ>
-            <button type="submit" className="bouton" disabled={enCours}>
-              {mode === 'correction' ? 'Envoyer la demande' : 'Refuser la fiche'}
+              Demander une correction
             </button>
-          </form>
-        )}
-      </div>
+            <button
+              type="button"
+              className="bouton bouton-secondaire admin-bouton-refus"
+              aria-expanded={mode === 'refus'}
+              onClick={() => {
+                setMode(mode === 'refus' ? null : 'refus');
+                setMotif('autre');
+              }}
+            >
+              Refuser
+            </button>
+          </div>
+
+          {mode && (
+            <form
+              className="admin-motif"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const texte = message.trim() || null;
+                void agir(
+                  () =>
+                    mode === 'correction'
+                      ? admin.demanderCorrection(id, motif, texte)
+                      : admin.refuser(id, motif, texte),
+                  mode === 'correction'
+                    ? 'La demande de correction part au relais.'
+                    : 'La fiche est refusée.',
+                );
+              }}
+            >
+              <Champ libelle="Motif">
+                {(a) => (
+                  <select
+                    {...a}
+                    className="champ"
+                    value={motif}
+                    onChange={(e) => setMotif(e.target.value as Valeur<'motif_decision'>)}
+                  >
+                    {listes.motif_decision.map((m) => (
+                      <option key={m} value={m}>
+                        {libelleMotif[m]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Champ>
+              <Champ
+                libelle="Message au relais"
+                facultatif
+                aide="Le relais le lit dans « Mes fiches ». Vouvoie-le."
+              >
+                {(a) => (
+                  <textarea
+                    {...a}
+                    className="champ"
+                    rows={2}
+                    maxLength={500}
+                    placeholder="Ex. : la photo est floue, reprenez-la de face."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  />
+                )}
+              </Champ>
+              <button type="submit" className="bouton" disabled={enCours}>
+                {mode === 'correction' ? 'Envoyer la demande' : 'Refuser la fiche'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
     </section>
   );
 }
