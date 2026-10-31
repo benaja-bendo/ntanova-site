@@ -1,0 +1,429 @@
+---
+// La carte détourée du canevas « Site NTanova » : un plateau vu d'en haut, la terre de
+// l'arrondissement en relief, ses rues, des maisons à drapeau pour les écoles (vert : vérifiée
+// par l'école ; blanc : relevée de la rue) et des pastilles quand elles se toucheraient.
+// Un SVG calculé à la construction, sans JavaScript : chaque école et chaque pastille est un lien.
+// Les couleurs : les jetons `--carte-…` de jetons.css.
+import { cheminContour, cheminLignes, pointDuNom } from '../modele/carte/geometrie';
+import type { Projection } from '../modele/carte/geometrie';
+import type {
+  ArrondissementDessine,
+  ArrondissementSurCarte,
+  MarqueGroupe,
+  MarqueSurCarte,
+  Rues,
+} from '../modele/carte/plan';
+import type { Repere } from '../modele/carte/reperes';
+import type { Point } from '../modele/geo';
+
+interface Props {
+  /** Ce que la carte montre, pour un lecteur d'écran. */
+  titre: string;
+  /** Unique dans la page (il nomme le découpage des rues). */
+  id: string;
+  projection: Projection;
+  arrondissements: ArrondissementSurCarte[];
+  rues?: Rues | null;
+  marques?: MarqueSurCarte[];
+  /** Où mène une pastille : la page du coin, ou la liste en dessous. */
+  lienGroupe?: (groupe: MarqueGroupe) => string;
+  reperes?: readonly Repere[];
+  /** Un halo jaune sous une école (le plan d'une fiche). */
+  halo?: Point;
+  /** Écrire le nom des arrondissements (la ville). */
+  noms?: boolean;
+  /** Écrire le nom de chaque école sous sa maison (un coin vu de près). */
+  nomsEcoles?: boolean;
+}
+
+const {
+  titre,
+  id,
+  projection: p,
+  arrondissements,
+  rues = null,
+  marques = [],
+  lienGroupe = (g) => `#${g.id}`,
+  reperes = [],
+  halo,
+  noms = false,
+  nomsEcoles = false,
+} = Astro.props;
+
+const contour = (a: ArrondissementDessine) => cheminContour(a.contour, p);
+const focus = arrondissements.find((a) => a.role === 'focus')?.arrondissement;
+const ville = arrondissements.filter((a) => a.role === 'en-cours' || a.role === 'pas-encore');
+const decoupe = `decoupe-${id}`;
+
+const dedans = ([x, y]: [number, number]) =>
+  x >= -40 && x <= p.largeur + 40 && y >= -40 && y <= p.hauteur + 40;
+const reperesVus = reperes
+  .map((r) => ({ ...r, ecran: p.versEcran(r) }))
+  .filter((r) => dedans(r.ecran));
+const [haloX, haloY] = halo ? p.versEcran(halo) : [0, 0];
+
+const ecoles = (n: number) => `${n} école${n > 1 ? 's' : ''}`;
+const court = (nom: string) => (nom.length > 24 ? `${nom.slice(0, 23).trimEnd()}…` : nom);
+
+// Vues de près, les rues s'élargissent un peu, comme sur une vraie carte qu'on zoome :
+// une rue fait environ 7 m, une avenue 14 m, sans descendre sous le trait de la carte entière.
+const borne = (v: number, min: number, max: number) =>
+  Math.round(Math.min(max, Math.max(min, v)) * 10) / 10;
+const largeurRue = borne(7 / p.metresParUnite, 1.5, 6);
+const largeurAvenue = borne(14 / p.metresParUnite, 4.5, 12);
+const epaisseurs = `--rue: ${largeurRue}px; --avenue: ${largeurAvenue}px; --avenue-bord: ${largeurAvenue + 2.5}px`;
+---
+
+<figure class="carte-detouree">
+  <svg
+    viewBox={`0 0 ${p.largeur} ${p.hauteur}`}
+    role="group"
+    aria-label={titre}
+    class="plateau"
+    style={epaisseurs}
+  >
+    {focus && (
+      <defs>
+        <clipPath id={decoupe}>
+          <path d={contour(focus)} />
+        </clipPath>
+      </defs>
+    )}
+
+    {/* Les voisins, pâles, autour de l'arrondissement qu'on regarde. */}
+    {arrondissements
+      .filter((a) => a.role === 'voisin')
+      .map((a) => (
+        <path class="voisin" d={contour(a.arrondissement)} aria-hidden="true" />
+      ))}
+
+    {/* La ville : toute la terre en relief, puis chaque arrondissement. */}
+    {ville.length > 0 && (
+      <g class="ombre" aria-hidden="true">
+        {ville.map((a) => (
+          <path d={contour(a.arrondissement)} />
+        ))}
+      </g>
+    )}
+    {ville.map((a) => {
+      const forme = <path class:list={['quartier', a.role]} d={contour(a.arrondissement)} />;
+      return a.lien ? (
+        <a href={a.lien} aria-label={`${a.arrondissement.nom} : ${a.etiquette ?? ''}`}>
+          {forme}
+        </a>
+      ) : (
+        <g aria-hidden="true">{forme}</g>
+      );
+    })}
+
+    {/* L'arrondissement qu'on regarde : son épaisseur, sa terre, ses rues, son bord. */}
+    {focus && (
+      <g aria-hidden="true">
+        <path class="ombre" d={contour(focus)} />
+        <path class="terre" d={contour(focus)} />
+        {rues && (
+          <g clip-path={`url(#${decoupe})`}>
+            <path class="rue" d={cheminLignes(rues.rues, p)} />
+            <path class="avenue-bord" d={cheminLignes(rues.avenues, p)} />
+            <path class="avenue" d={cheminLignes(rues.avenues, p)} />
+          </g>
+        )}
+        <path class="bord" d={contour(focus)} />
+      </g>
+    )}
+
+    {halo && <circle class="halo" cx={haloX} cy={haloY - 18} r="30" aria-hidden="true" />}
+
+    {/* Les repères du quartier (src/modele/carte/reperes.ts). */}
+    {reperesVus.map(({ nom, ecran: [x, y] }) => (
+      <g class="repere" aria-hidden="true">
+        <circle cx={x} cy={y} r="6" />
+        <text x={x + 10} y={y + 4}>
+          {nom}
+        </text>
+      </g>
+    ))}
+
+    {/* Les noms des arrondissements (la ville). */}
+    {noms &&
+      ville.map((a) => {
+        const [x, y] = pointDuNom(a.arrondissement.contour, p);
+        return (
+          <g class:list={['nom', a.role]} aria-hidden="true">
+            <text x={x} y={y}>
+              {a.arrondissement.nom}
+            </text>
+            {a.etiquette &&
+              (a.role === 'en-cours' ? (
+                <g class="nom-pastille">
+                  <rect
+                    x={x - (a.etiquette.length * 6.3 + 18) / 2}
+                    y={y + 6}
+                    width={a.etiquette.length * 6.3 + 18}
+                    height="20"
+                    rx="10"
+                  />
+                  <text x={x} y={y + 20}>
+                    {a.etiquette}
+                  </text>
+                </g>
+              ) : (
+                <text class="nom-detail" x={x} y={y + 16}>
+                  {a.etiquette}
+                </text>
+              ))}
+          </g>
+        );
+      })}
+
+    {/* Les écoles : une maison à drapeau, ou une pastille avec leur nombre. */}
+    {marques.map((m) =>
+      m.genre === 'ecole' ? (
+        <a
+          class="marque"
+          href={m.ecole.lien}
+          aria-label={`${m.ecole.nom}, ${m.ecole.etat === 'verifiee' ? 'vérifiée par l’école' : 'relevée de la rue'}`}
+        >
+          <g transform={`translate(${m.x} ${m.y})`}>
+            <rect class="cible" x="-26" y="-55" width="54" height="56" rx="12" />
+            <g class="maison">
+              <path class="mat" d="M8 -21V-51" />
+              <path class:list={['drapeau', m.ecole.etat]} d="M8 -51L22 -47L8 -43Z" />
+              <rect class="mur" x="-11" y="-16" width="22" height="16" />
+              <path class="toit" d="M-14 -16L0 -28L14 -16Z" />
+              <rect class="porte" x="-2.5" y="-10" width="5" height="10" />
+            </g>
+            {nomsEcoles && (
+              <text class="nom-ecole" y="16">
+                {court(m.ecole.nom)}
+              </text>
+            )}
+          </g>
+        </a>
+      ) : (
+        <a
+          class="marque"
+          href={lienGroupe(m)}
+          aria-label={`Un groupe de ${ecoles(m.ecoles.length)}${m.verifiee ? ', dont au moins une vérifiée' : ''} : ${lienGroupe(m).startsWith('#') ? 'voir leur liste' : 'le voir de près'}`}
+        >
+          <g transform={`translate(${m.x} ${m.y})`}>
+            <rect class="cible" x="-27" y="-46" width="54" height="54" rx="12" />
+            <g class="groupe">
+              {m.verifiee && (
+                <>
+                  <path class="mat" d="M17 -28V-42" />
+                  <path class="drapeau verifiee" d="M17 -42L27 -39L17 -36Z" />
+                </>
+              )}
+              <rect class="pastille" x="-24" y="-30" width="48" height="28" rx="14" />
+              <rect class="mur" x="-15" y="-15" width="12" height="8" />
+              <path class="toit" d="M-17 -15L-9 -22L-1 -15Z" />
+              <text class="nombre" x="10" y="-10.5">
+                {m.ecoles.length}
+              </text>
+            </g>
+          </g>
+        </a>
+      ),
+    )}
+  </svg>
+  <figcaption class="attribution">
+    <a href="https://www.openstreetmap.org/copyright">© les contributeurs d’OpenStreetMap</a>
+  </figcaption>
+</figure>
+
+<style>
+  .carte-detouree {
+    position: relative;
+    margin: 0;
+    overflow: hidden;
+    border-radius: var(--rayon-l);
+    background: var(--carte-fond);
+  }
+  .plateau {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .attribution {
+    display: flex;
+    justify-content: flex-end;
+    padding-inline: var(--espace-3);
+    font-size: var(--taille-mention);
+  }
+  .attribution a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--carte-nom-doux);
+  }
+
+  /* La terre */
+  .voisin {
+    fill: var(--carte-voisin);
+    stroke: var(--carte-voisin-trait);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .ombre {
+    fill: var(--carte-terre-ombre);
+    transform: translateY(7px);
+  }
+  .terre {
+    fill: var(--carte-terre);
+  }
+  .quartier {
+    stroke: var(--carte-limite);
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+  }
+  .quartier.pas-encore {
+    fill: var(--carte-pas-encore);
+  }
+  .quartier.en-cours {
+    fill: var(--carte-releve-en-cours);
+    stroke: var(--carte-contour);
+    stroke-width: 2.5;
+  }
+  .bord {
+    fill: none;
+    stroke: var(--carte-contour);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+  }
+
+  /* Les rues */
+  .rue,
+  .avenue,
+  .avenue-bord {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .rue {
+    stroke: var(--carte-rue);
+    stroke-width: var(--rue);
+  }
+  .avenue-bord {
+    stroke: var(--carte-avenue-bord);
+    stroke-width: var(--avenue-bord);
+  }
+  .avenue {
+    stroke: var(--carte-avenue);
+    stroke-width: var(--avenue);
+  }
+
+  /* Les noms */
+  /* Les noms se lisent mais ne se touchent pas : le doigt atteint l'arrondissement en dessous. */
+  .nom,
+  .repere {
+    pointer-events: none;
+  }
+  .nom text,
+  .repere text,
+  .nom-ecole {
+    paint-order: stroke;
+    stroke: var(--carte-fond);
+    stroke-width: 3.5px;
+    stroke-linejoin: round;
+  }
+  .nom text {
+    fill: var(--carte-nom-doux);
+    font-size: 12px;
+    text-anchor: middle;
+  }
+  .nom.en-cours > text {
+    fill: var(--carte-nom-actif);
+    font-size: 14px;
+    stroke: var(--carte-releve-en-cours);
+  }
+  .nom .nom-detail {
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .nom-pastille rect {
+    fill: var(--carte-contour);
+  }
+  .nom .nom-pastille text {
+    fill: var(--texte-sur-marque);
+    stroke: none;
+    font-size: 11px;
+  }
+  .repere circle {
+    fill: var(--carte-repere);
+    stroke: var(--carte-trait);
+    stroke-width: 2;
+  }
+  .repere text {
+    fill: var(--carte-nom);
+    font-size: 11px;
+  }
+  .nom-ecole {
+    fill: var(--carte-nom);
+    font-size: 11px;
+    text-anchor: middle;
+  }
+
+  /* Les écoles */
+  .halo {
+    fill: var(--carte-halo);
+    opacity: 0.45;
+  }
+  .cible {
+    fill: transparent;
+  }
+  .maison,
+  .groupe {
+    stroke: var(--carte-trait);
+    stroke-width: 2;
+    stroke-linejoin: round;
+  }
+  .mat {
+    fill: none;
+    stroke-linecap: round;
+  }
+  .toit {
+    fill: var(--carte-toit);
+  }
+  .mur {
+    fill: var(--carte-mur);
+  }
+  .porte {
+    fill: var(--carte-porte);
+    stroke: none;
+  }
+  .drapeau.verifiee {
+    fill: var(--carte-drapeau-verifiee);
+  }
+  .drapeau.relevee {
+    fill: var(--carte-drapeau-relevee);
+  }
+  .pastille {
+    fill: var(--carte-pastille);
+  }
+  .groupe .mur,
+  .groupe .toit {
+    stroke-width: 1.5;
+  }
+  .nombre {
+    fill: var(--carte-nom);
+    stroke: none;
+    font-size: 15px;
+    font-weight: 700;
+    text-anchor: middle;
+  }
+  .marque:focus-visible {
+    outline: none;
+  }
+  .marque:focus-visible .cible,
+  a:focus-visible > .quartier {
+    stroke: var(--focus);
+    stroke-width: var(--epaisseur-focus);
+  }
+  .marque:hover .cible {
+    fill: var(--carte-halo);
+    fill-opacity: 0.3;
+  }
+</style>

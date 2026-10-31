@@ -29,6 +29,16 @@
   /* Une crème plus foncée : la bande de fond d'une section, sur grand écran (texte courant 6,2:1) */
   --creme-fonce: #f1e9db;
 
+  /* La carte détourée : les couleurs du canevas « Site NTanova », un plateau de jeu vu d'en haut */
+  --sable: #efe2bf; /* la terre de l'arrondissement qu'on regarde */
+  --sable-ombre: #d8c393; /* son épaisseur, décalée vers le bas */
+  --sable-pale: #efe7d6; /* les arrondissements voisins */
+  --sable-pale-trait: #e2d6bd;
+  --sable-ville: #f3e9d2; /* sur la carte de la ville, pas encore relevé */
+  --blanc-casse: #fffaf0; /* les rues */
+  --ocre: #d6b25e; /* le bord des grandes avenues */
+  --jaune-avenue: #f6d27d;
+
   /* 2. Rôles : les composants n'utilisent que ceux-ci */
   --fond: var(--creme);
   --fond-releve: var(--blanc);
@@ -60,6 +70,35 @@
   --etat-telephone-texte: var(--encre);
   --etat-envoye-fond: var(--vert-pale);
   --etat-envoye-texte: var(--vert-profond);
+
+  /*
+   * La carte détourée (src/ui/Carte.astro). Changer ici le style de toute la carte : terre, rues,
+   * maisons, drapeaux, pastilles. Chaque cadrage (ville, arrondissement, coin, fiche) les reprend.
+   */
+  --carte-fond: var(--creme);
+  --carte-terre: var(--sable);
+  --carte-terre-ombre: var(--sable-ombre);
+  --carte-voisin: var(--sable-pale);
+  --carte-voisin-trait: var(--sable-pale-trait);
+  --carte-pas-encore: var(--sable-ville);
+  --carte-releve-en-cours: var(--vert-pale);
+  --carte-limite: var(--blanc-casse);
+  --carte-contour: var(--vert);
+  --carte-rue: var(--blanc-casse);
+  --carte-avenue: var(--jaune-avenue);
+  --carte-avenue-bord: var(--ocre);
+  --carte-trait: var(--encre); /* le contour des maisons et des pastilles */
+  --carte-toit: var(--vert);
+  --carte-mur: var(--blanc);
+  --carte-porte: var(--jaune);
+  --carte-drapeau-verifiee: var(--vert);
+  --carte-drapeau-relevee: var(--blanc);
+  --carte-pastille: var(--blanc);
+  --carte-halo: var(--jaune);
+  --carte-nom: var(--encre);
+  --carte-nom-doux: var(--encre-75);
+  --carte-nom-actif: var(--vert-profond);
+  --carte-repere: var(--rouge);
 
   /* 3. Typographie : échelle pour un écran de 360 px, texte courant à 16 px */
   --police-titre: 'Poppins', system-ui, sans-serif;

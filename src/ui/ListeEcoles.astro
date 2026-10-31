@@ -1,0 +1,84 @@
+---
+// Les écoles en cartes cliquables : la liste d'un arrondissement, ou celle d'un coin vu de près.
+import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../modele/libelles';
+import type { EcolePubliee } from '../modele/ports';
+
+interface Props {
+  ecoles: EcolePubliee[];
+  id?: string;
+}
+const { ecoles, id } = Astro.props;
+const resume = (e: EcolePubliee) =>
+  [
+    e.niveaux.map((n) => libelleNiveau[n]).join(' · '),
+    typeInformatif(e.typeEcole) ? libelleTypeEcole[e.typeEcole] : null,
+    e.repere,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+---
+
+<ul class="ecoles" id={id}>
+  {ecoles.map((e) => (
+    <li>
+      <a class="ecole" href={`/ecoles/${e.arrondissement}/${e.slug}/`}>
+        <span class="ecole-nom">{e.nom}</span>
+        {resume(e) && <span class="ecole-detail">{resume(e)}</span>}
+        <span class="ecole-etat">
+          {e.etat === 'verifiee' ? 'Vérifiée par l’école' : 'Relevée de la rue'}
+        </span>
+      </a>
+    </li>
+  ))}
+</ul>
+
+<style>
+  .ecoles {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ecole {
+    display: grid;
+    gap: var(--espace-1);
+    padding: var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .ecole-nom {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .ecole-detail,
+  .ecole-etat {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .ecole-etat {
+    font-weight: 700;
+  }
+
+  /* À partir de 48 rem : les écoles en grille. */
+  @media (min-width: 48rem) {
+    .ecoles {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+      gap: var(--espace-4);
+    }
+    .ecole {
+      align-content: start;
+      padding: var(--espace-5);
+      border-radius: var(--rayon-l);
+    }
+    .ecole:hover {
+      border-color: var(--marque);
+    }
+    .ecole-nom {
+      font-size: var(--taille-intertitre);
+    }
+  }
+</style>
