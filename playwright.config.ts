@@ -2,7 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 // Les parcours tournent sur le site construit (dist/), servi par wrangler comme en
 // production (pages 404, barres obliques, en-têtes), dans un téléphone Android de
-// 360 px de large : la taille des écrans des relais et des familles.
+// 360 px de large : la taille des écrans des relais et des familles. La mise en page
+// (mise-en-page.spec.ts) tourne aussi sur une tablette (768 px) et un ordinateur
+// (1 280 px).
 const port = 4329;
 
 export default defineConfig({
@@ -14,7 +16,19 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${port}`,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'android-360', use: { ...devices['Moto G4'] } }],
+  projects: [
+    { name: 'android-360', use: { ...devices['Moto G4'] } },
+    {
+      name: 'tablette-768',
+      testMatch: /mise-en-page\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 768, height: 1024 } },
+    },
+    {
+      name: 'ordinateur-1280',
+      testMatch: /mise-en-page\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+    },
+  ],
   webServer: {
     command: `pnpm exec wrangler dev --ip 127.0.0.1 --port ${port}`,
     env: { WRANGLER_SEND_METRICS: 'false' },

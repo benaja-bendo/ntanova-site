@@ -48,7 +48,7 @@
   font-weight: 700;
 }
 
-/* Le côté : une colonne sur ordinateur, une barre en haut sur téléphone. */
+/* Le côté : une colonne sur ordinateur, une barre en haut jusqu'à 64 rem (voir plus bas). */
 .admin-cote {
   display: flex;
   flex: 1 1 220px;
@@ -105,10 +105,23 @@
   padding: var(--espace-5) var(--espace-5) var(--espace-7);
 }
 
-@media (max-width: 800px) {
+/*
+ * Jusqu'à 64 rem (1 024 px), le côté devient une barre en haut. Les tableaux ont besoin
+ * de 720 px : à côté d'une colonne de 220 px, ils défileraient dans leur cadre en
+ * dessous de 1 024 px environ.
+ */
+@media (max-width: 64rem) {
+  /* Sans cela, la barre et le contenu (deux lignes) se partagent la hauteur de l'écran : la barre s'étire. */
+  .admin {
+    align-content: flex-start;
+  }
+
   .admin-cote {
     flex-basis: 100%;
-    gap: var(--espace-3);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-2) var(--espace-5);
     padding: var(--espace-3) var(--espace-4);
   }
 
@@ -117,9 +130,20 @@
   }
 
   .admin-compte {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--espace-3);
     margin-top: 0;
+    margin-left: auto;
   }
 
+  .admin-compte .lien {
+    align-self: center;
+  }
+}
+
+@media (max-width: 40rem) {
   .admin-contenu {
     padding: var(--espace-4);
   }
@@ -267,6 +291,11 @@
   color: var(--vert-pale);
 }
 
+/* Un lien est vert : sur ce panneau vert foncé il serait presque invisible (1,4:1). */
+.admin-prive .lien {
+  color: var(--texte-sur-marque);
+}
+
 .admin-actions {
   display: flex;
   flex-wrap: wrap;
@@ -287,8 +316,17 @@
   color: var(--texte);
 }
 
+/* Un bouton qui retire ou efface : rouge sur blanc, partout, quelle que soit sa classe de base. */
 .admin-bouton-refus {
   border-color: var(--erreur);
+  background: var(--fond-releve);
+  color: var(--erreur);
+}
+
+.admin-bouton-refus:hover:not(:disabled),
+.admin-bouton-refus:active:not(:disabled) {
+  border-color: var(--erreur);
+  background: var(--rouge-pale);
   color: var(--erreur);
 }
 

@@ -1,37 +1,10 @@
-import { expect, test, type Page } from '@playwright/test';
-import { ajouterUneEcole, seConnecter } from './aides';
+import { expect, test } from '@playwright/test';
+import { ouvrirLaFiche, seConnecter, textesPeuLisibles, uneFicheEnvoyee } from './aides';
 
 // L'administration, construite avec le faux serveur : l'utilisateur du faux
 // serveur est à la fois relais (lot Tié-Tié) et administrateur.
 
 test.use({ permissions: ['geolocation'] });
-
-async function uneFicheEnvoyee(page: Page, context: import('@playwright/test').BrowserContext) {
-  await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
-  await seConnecter(page, '/relais/');
-  await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-  await ajouterUneEcole(page, 1);
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
-  // Le faux serveur a bien reçu le relevé, la photo et le contact.
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const etat = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as Record<
-          string,
-          Record<string, unknown> | undefined
-        >;
-        return ['releves', 'photos', 'contacts'].map((t) => Object.keys(etat[t] ?? {}).length);
-      }),
-    )
-    .toEqual([1, 1, 1]);
-}
-
-async function ouvrirLaFiche(page: Page) {
-  await page.goto('/admin/');
-  await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
-  await page.getByRole('link', { name: /\[École 1\]/ }).click();
-  await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
-}
 
 test.describe('administration', () => {
   test('une fiche acceptée devient prête, se publie, et le relais la voit « Acceptée »', async ({
@@ -96,6 +69,9 @@ test.describe('administration', () => {
     await expect(page.getByRole('status')).toHaveText(/1 école de Tié-Tié publiée/);
 
     const ligne = () => page.getByRole('row', { name: /\[École 1\]/ });
+    // La liste se rafraîchit après « Publier » et remet la ligne à zéro : on attend qu'elle soit à
+    // jour, sinon le formulaire ouvert par le clic suivant se referme sous les doigts.
+    await expect(ligne().getByText('Publiée', { exact: true })).toBeVisible();
     await ligne().getByRole('button', { name: 'Retirer du site' }).click();
     await ligne().getByLabel('Motif').selectOption('demande_ecole');
     await ligne()
@@ -144,6 +120,35 @@ test.describe('administration', () => {
     await page.waitForTimeout(1200);
     await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'À valider' })).toHaveCount(0);
+  });
+
+  test('aucun texte de l’administration ne se lit mal (contraste d’au moins 4,5:1)', async ({
+    page,
+    context,
+  }) => {
+    await uneFicheEnvoyee(page, context);
+    await ouvrirLaFiche(page);
+    // La partie privée est un panneau sombre : ses liens et ses boutons doivent s'y lire.
+    expect(await textesPeuLisibles(page, 'body'), 'À valider, une fiche').toEqual([]);
+    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+
+    await page.getByRole('button', { name: 'Décidées' }).click();
+    await page.getByRole('link', { name: /\[École 1\]/ }).click();
+    await page.getByRole('button', { name: /Effacer le contact/ }).click();
+    await expect(
+      page.getByRole('button', { name: /Confirmer : effacer le contact/ }),
+    ).toBeVisible();
+    expect(await textesPeuLisibles(page, 'body'), 'Décidées, effacer le contact').toEqual([]);
+
+    await page.getByRole('link', { name: 'Écoles' }).click();
+    await page.getByRole('button', { name: /Publier l’école prête de Tié-Tié/ }).click();
+    await expect(page.getByRole('status')).toHaveText(/1 école de Tié-Tié publiée/);
+    const ligne = page.getByRole('row', { name: /\[École 1\]/ });
+    await expect(ligne.getByText('Publiée', { exact: true })).toBeVisible();
+    await ligne.getByRole('button', { name: 'Retirer du site' }).click();
+    await expect(ligne.getByLabel('Motif')).toBeVisible();
+    expect(await textesPeuLisibles(page, 'body'), 'Écoles, retirer du site').toEqual([]);
   });
 
   test('un relais en attente est activé sur un lot', async ({ page }) => {
