@@ -1,11 +1,25 @@
 /**
- * Les listes fermées, copie de celles de la base (domaines SQL de
- * supabase/migrations/20261031010000_tables.sql). Un test vérifie qu'elles
- * restent identiques : changer une liste, c'est changer les deux.
+ * Les listes fermées, copie de celles de la base (domaines SQL des migrations, dont
+ * 20261031010000_tables.sql et 20261031190000_types_niveaux_programme.sql). Un test
+ * vérifie qu'elles restent identiques : changer une liste, c'est changer les deux.
+ *
+ * Une liste a toujours une case de sortie (« autre », « non_indique »), on n'y retire et
+ * on n'y renomme jamais une valeur (pour changer un mot, on change le libellé), et les
+ * lectures sont tolérantes (voir `typeConnu` et `niveauxConnus`). La recette pour ajouter
+ * une valeur : supabase/schema.md, « Les listes ».
  */
 export const listes = {
-  type_ecole: ['publique', 'privee', 'confessionnelle', 'non_indique'],
-  niveau: ['maternelle', 'primaire', 'college', 'lycee', 'technique', 'superieur'],
+  type_ecole: ['publique', 'privee', 'confessionnelle', 'communautaire', 'autre', 'non_indique'],
+  niveau: [
+    'creche',
+    'maternelle',
+    'primaire',
+    'college',
+    'lycee',
+    'technique',
+    'superieur',
+    'autre_formation',
+  ],
   fonction_direction: [
     'promoteur',
     'directeur_general',
@@ -28,3 +42,21 @@ export const listes = {
 
 export type Liste = keyof typeof listes;
 export type Valeur<L extends Liste> = (typeof listes)[L][number];
+
+// Des lectures tolérantes ---------------------------------------------------------------
+//
+// Une valeur que cette version du code ne connaît pas encore (une valeur ajoutée à la base
+// entre deux mises en ligne, un téléphone qui n'a pas reçu la mise à jour) ne casse rien et
+// ne bloque personne : ni erreur, ni libellé vide, ni écran qui ne répond plus.
+
+/** Un type inconnu se lit « Pas indiqué ». */
+export function typeConnu(valeur: string): Valeur<'type_ecole'> {
+  return (listes.type_ecole as readonly string[]).includes(valeur)
+    ? (valeur as Valeur<'type_ecole'>)
+    : 'non_indique';
+}
+
+/** Les niveaux que cette version connaît, dans l'ordre de la liste ; les autres sont laissés de côté. */
+export function niveauxConnus(valeurs: readonly string[]): Valeur<'niveau'>[] {
+  return listes.niveau.filter((niveau) => valeurs.includes(niveau));
+}

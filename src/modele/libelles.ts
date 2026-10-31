@@ -1,22 +1,36 @@
 /** Les mots affichés pour chaque valeur des listes fermées (src/modele/listes.ts). */
 import type { Valeur } from './listes';
 
+/** Dans l'ordre de l'écran Ajouter 2/3 : de la crèche au supérieur, la case de sortie en dernier. */
 export const libelleNiveau: Record<Valeur<'niveau'>, string> = {
+  creche: 'Crèche ou garderie',
   maternelle: 'Maternelle',
   primaire: 'Primaire',
   college: 'Collège',
   lycee: 'Lycée',
-  technique: 'Technique',
+  technique: 'Technique ou professionnel',
   superieur: 'Supérieur',
+  autre_formation: 'Autre formation',
 };
 
-/** Dans l'ordre de l'écran Ajouter 2/3. */
+/** Dans l'ordre de l'écran Ajouter 2/3 : les deux cases de sortie en dernier. */
 export const libelleTypeEcole: Record<Valeur<'type_ecole'>, string> = {
   privee: 'Privée',
   publique: 'Publique',
   confessionnelle: 'Confessionnelle',
+  communautaire: 'Communautaire',
+  autre: 'Autre',
   non_indique: 'Pas indiqué',
 };
+
+/**
+ * Un type qui dit quelque chose au visiteur. « Pas indiqué » (rien n'est écrit) et « Autre »
+ * (c'est écrit, mais ça ne rentre dans aucune case) ne s'écrivent pas sur la fiche : ils
+ * rejoignent « Pas encore sur la fiche ».
+ */
+export function typeInformatif(type: Valeur<'type_ecole'>): boolean {
+  return type !== 'non_indique' && type !== 'autre';
+}
 
 export const libelleFonction: Record<Valeur<'fonction_direction'>, string> = {
   promoteur: 'Promoteur ou promotrice',

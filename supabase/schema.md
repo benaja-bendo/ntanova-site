@@ -33,7 +33,7 @@ La photo de l'enseigne va dans le stockage de Supabase (seau privé `releves`), 
 | `arrondissements` | Tié-Tié et Ngoyo : nom, slug, ville, contour OpenStreetMap, relation OSM | Tout le monde | Migration |
 | `lots` | Nom, arrondissement, contour (vide : tout l'arrondissement), à rendre le, rendu le, **essai** | Le relais actif (le sien), l'admin | L'admin |
 | `relais` | Compte, identifiant Google (`sub`), prénom, statut (en attente, actif, suspendu), lot | Le relais (sa ligne), l'admin | Créé à la première connexion ; l'admin l'active |
-| `ecoles` | Ce qui peut être publié : nom, slug, arrondissement, quartier (tel qu'on le dit sur place), type, niveaux, repère, numéro de l'enseigne, position, état, publication, dates | Tout le monde : les fiches publiées | L'admin |
+| `ecoles` | Ce qui peut être publié : nom, slug, arrondissement, quartier (tel qu'on le dit sur place), type, niveaux, programme, repère, numéro de l'enseigne, position, état, publication, dates | Tout le monde : les fiches publiées | L'admin |
 | `releves` | Voir ci-dessous | Le relais (les siens), l'admin | Le relais crée ; l'admin décide |
 | `echanges` | Par école, des dates : premier message, réponse (et fonction de l'auteur), échange avec le décideur (appel ou rendez-vous), relances. Jamais le contenu | L'admin | L'admin |
 | `erreurs` | Le journal de l'application relais, sans donnée personnelle | L'admin | Tout relais connecté (ajout seul) |
@@ -49,7 +49,7 @@ La photo de l'enseigne va dans le stockage de Supabase (seau privé `releves`), 
 | `lot_id`, `type`, `corrige_releve_id` | — | Type : relevé, correction (liée au relevé corrigé), contre-visite |
 | `position`, `precision_m`, `pris_le` | 1/3 | Point PostGIS ; précision en mètres ; l'heure du téléphone |
 | `reponse_doublon`, `doublon_de` | 1/3 | Ce que le relais a répondu à « une école est déjà relevée à 40 m » |
-| `nom_enseigne`, `niveaux`, `type_ecole`, `repere`, `numero_enseigne` | 2/3 | Public : ce qui se voit de la rue |
+| `nom_enseigne`, `niveaux`, `type_ecole`, `programme`, `repere`, `numero_enseigne` | 2/3 | Public : ce qui se voit de la rue. `type_ecole` vaut `non_indique` et `niveaux` `{}` tant que le relais n'a rien lu ; `programme` est une ligne libre et facultative (200 signes) |
 | `direction`, `fiche_liaison_remise`, `code_liaison`, `repasser` | 3/3 | Ce que « Mes fiches » montre au relais. Le contact lui-même part à part |
 | `hors_lot`, `doublon_possible` | — | **Calculés par la base** : hors du contour du lot ; une école ou un autre relevé à moins de 40 m |
 | `motif`, `message_au_relais`, `decide_le`, `ecole_id` | Admin | La décision |
@@ -123,7 +123,7 @@ Des écoles connues autrement que par un relevé (les entretiens) entrent **en b
 Fixé en écrivant les migrations :
 
 - **Le lot est sur le relais** (`relais.lot_id`) et non l'inverse : plusieurs relais peuvent s'entraîner en même temps sur le lot « Essai ».
-- **Une seule liste de niveaux** pour le relais et l'administration : maternelle, primaire, collège, lycée, technique, supérieur. L'« Institut » de l'écran Ajouter 2/3 devient « Technique » ou « Supérieur ».
+- **Une seule liste de niveaux** pour le relais et l'administration (voir « Les listes »). L'« Institut » de l'écran Ajouter 2/3 devient « Technique ou professionnel » ou « Supérieur ».
 - **Les listes fermées sont des domaines SQL**, copiés dans `src/modele/listes.ts` ; un test vérifie qu'ils restent identiques.
 
 ## Les droits
@@ -140,7 +140,7 @@ Fixé en écrivant les migrations :
 | --- | --- | --- |
 | `envoyer_contact(releve, fonction, nom, whatsapp, accord, accord_le, note)` | Relais actif | Range le contact ; répond `recu` ou `deja_recu`. Sans accord, aucun numéro |
 | `activer_relais(relais, lot)` | Admin | Active un relais après sa formation et lui donne un lot |
-| `accepter_releve(releve, ecole)` | Admin | Crée et publie la fiche relevée (ou met à jour l'école donnée, sauf si elle est vérifiée) ; jamais pour le lot d'essai. Une **correction** reprend l'école de la fiche corrigée et clôt celle-ci (« acceptée », même école) |
+| `accepter_releve(releve, ecole)` | Admin | Crée la fiche relevée, prête (ou met à jour l'école donnée, sauf si elle est vérifiée) ; jamais pour le lot d'essai. Une **correction** reprend l'école de la fiche corrigée et clôt celle-ci (« acceptée », même école). Sur une école connue, **« Pas indiqué » et « aucun niveau » n'effacent rien** (comme le repère et le numéro vides) : un relevé qui dit quelque chose remplace, un relevé muet laisse ce que l'école savait |
 | `demander_correction(releve, motif, message)` | Admin | « La photo est floue, reprenez-la de face » |
 | `refuser_releve(releve, motif, message)` | Admin | Refuse, avec un motif de la liste |
 | `confirmer_contact(releve, fonction)` | Admin | La personne a confirmé sa fonction sur WhatsApp |
@@ -148,9 +148,38 @@ Fixé en écrivant les migrations :
 
 Deux vues : `ecoles_publiees` (ce que lit le site public) et `releves_a_valider` (la file de l'administration, avec photo reçue et contact reçu).
 
+## Les listes (types, niveaux…) : des listes qui ne bloquent personne
+
+Ticket #12, décidé le 31/10 : le fondateur n'a pas de faits pour trancher une typologie (les neuf lignes du Sheet sont toutes des écoles privées), et il veut un système qui ne le bloque pas, avec les cases qu'il faut aux relais et aux visiteurs. D'où des règles, qui valent pour **toute liste fermée** d'un écran relais ou administration :
+
+- **Une case de sortie**, toujours : `autre` (c'est écrit, mais ça ne rentre dans aucune case) et `non_indique` (rien n'est écrit).
+- **Rien n'est obligatoire** pour envoyer une fiche, et rien n'est coché d'avance si cela fausse la donnée : le défaut est `non_indique`, comme dans la base.
+- **Un texte libre facultatif** capte ce que la liste ne sait pas encore (`programme`). On structure plus tard, à partir des mots qui reviennent.
+- **On ne retire et on ne renomme jamais une valeur.** Pour changer un mot, on change le libellé. Un test refuse qu'une migration retire une valeur.
+- **Les lectures sont tolérantes** : une valeur que le code ne connaît pas encore (`typeConnu`, `niveauxConnus` dans `src/modele/listes.ts`) se lit « Pas indiqué » ou se laisse de côté, sur le site, dans l'administration et dans le relais. Jamais d'erreur, jamais d'écran qui ne répond plus.
+- **L'administration corrige** une fiche sans repasser par le relais.
+- Chacun voit sa vue de la même liste : le relais, de grosses cases ; l'administration, le détail ; le visiteur, des mots simples (« Pas indiqué » et « Autre » ne s'écrivent pas : ils rejoignent « Pas encore sur la fiche »).
+
+| Liste | Valeurs (dans l'ordre de l'écran du relais) |
+| --- | --- |
+| `type_ecole` | Privée · Publique · Confessionnelle · **Communautaire** · **Autre** · Pas indiqué (défaut) |
+| `niveau` (plusieurs possibles, aucun n'est obligatoire) | **Crèche ou garderie** · Maternelle · Primaire · Collège · Lycée · **Technique ou professionnel** (valeur `technique`) · Supérieur · **Autre formation** |
+
+En gras : ajouté par le ticket #12. L'alphabétisation n'a pas sa case : aucune école n'en a été vue, « Autre formation » la reçoit, et la recette ci-dessous l'ajoute le jour où l'on en voit une.
+
+### La recette : ajouter une valeur à une liste
+
+1. **Une migration** : `alter domain public.<liste> drop constraint <liste>_check;` puis `alter domain public.<liste> add constraint <liste>_check check (value in (…)) not valid;`. **`not valid` est obligatoire** : `niveaux` est une colonne en tableau (`niveau[]`), que PostgreSQL ne sait pas revalider, et il refuse sinon (« cannot alter type … because column … uses it »). Sans danger : élargir une liste n'invalide aucune ligne, et la contrainte refuse toujours une valeur inconnue dans les données qui arrivent. Ne jamais lancer `validate constraint`.
+2. **`src/modele/listes.ts`** : la valeur, dans le même ordre que la migration.
+3. **`src/modele/libelles.ts`** : son mot.
+4. **`pnpm verif`** : le test des listes compare le code et les migrations (même valeurs, même ordre) et refuse qu'une migration retire une valeur ; le test des libellés vérifie que chaque valeur a son mot.
+5. **`pnpm exec supabase db push` AVANT la mise en ligne** du code qui la propose : sinon un téléphone enverrait une valeur que la base refuse.
+
+Un quart d'heure, sans toucher aux écrans : le relais et l'administration lisent les listes dans le code, le site aussi.
+
 ## Les tests
 
-`pnpm base:tests` (pgTAP, `supabase/tests/`) : 76 vérifications (39 pour les droits, 20 pour les décisions de l'administration, 17 pour les écoles à situer), dont celles du « fini quand » de la base : un relais ne lit aucun contact, même le sien ; un second envoi du même relevé répond « déjà reçu ». Ils tournent aussi dans la CI. Vérifié le 31/10 : en donnant à tort un droit aux relais, les tests échouent.
+`pnpm base:tests` (pgTAP, `supabase/tests/`) : 114 vérifications (39 pour les droits, 20 pour les décisions de l'administration, 17 pour les écoles à situer, 22 pour le cycle de vie, 16 pour les listes et le programme), dont celles du « fini quand » de la base : un relais ne lit aucun contact, même le sien ; un second envoi du même relevé répond « déjà reçu ». Ils tournent aussi dans la CI. Vérifié le 31/10 : en donnant à tort un droit aux relais, les tests échouent.
 
 ## Voir le schéma en local
 
