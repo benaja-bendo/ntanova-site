@@ -1,0 +1,96 @@
+---
+// Le catalogue du système de design. Réservé au développement :
+// en production, getStaticPaths ne renvoie rien et la page n'existe pas.
+import jetons from '../../ui/jetons.css?raw';
+import PagePublique from '../../ui/PagePublique.astro';
+
+export function getStaticPaths() {
+  return import.meta.env.DEV ? [{ params: { page: 'catalogue' } }] : [];
+}
+
+const noms = [...jetons.matchAll(/^\s*--([a-z0-9-]+):/gm)].map((m) => m[1] ?? '');
+const couleurs = noms.filter(
+  (n) => !/^(police|taille|interligne|espace|rayon|cible|hauteur|ecart|largeur|epaisseur)/.test(n),
+);
+const tailles = noms.filter((n) => n.startsWith('taille-'));
+const etats = ['verifiee', 'relevee', 'attente', 'a-corriger', 'refusee', 'telephone', 'envoye'];
+---
+
+<PagePublique titre="Catalogue · NTanova" description="Catalogue du système de design.">
+  <div class="catalogue">
+    <h1>Catalogue</h1>
+
+    <h2>Couleurs</h2>
+    <ul class="nuancier">
+      {couleurs.map((n) => (
+        <li>
+          <span class="pastille" style={`background: var(--${n})`} />
+          <code>--{n}</code>
+        </li>
+      ))}
+    </ul>
+
+    <h2>Typographie</h2>
+    {tailles.map((n) => (
+      <p style={`font-size: var(--${n})`}>--{n} : Les écoles de Tié-Tié</p>
+    ))}
+
+    <h2>Boutons</h2>
+    <div class="rangee">
+      <button class="bouton" type="button">
+        Envoyer
+      </button>
+      <button class="bouton bouton-secondaire" type="button">
+        Plus tard
+      </button>
+      <button class="bouton" type="button" disabled>
+        Désactivé
+      </button>
+    </div>
+
+    <h2>Champs</h2>
+    <label>
+      Nom de l'école <input class="champ" placeholder="[nom de l'école]" />
+    </label>
+    <label>
+      Avec une erreur <input class="champ" aria-invalid="true" value="[valeur]" />
+    </label>
+
+    <h2>États</h2>
+    <div class="rangee">
+      {etats.map((e) => (
+        <span class={`etiquette etat-${e}`}>{e}</span>
+      ))}
+    </div>
+  </div>
+</PagePublique>
+
+<style>
+  .catalogue {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .nuancier {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: var(--espace-2);
+    padding: 0;
+    list-style: none;
+  }
+  .nuancier li {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-2);
+  }
+  .pastille {
+    width: var(--hauteur-pastille);
+    height: var(--hauteur-pastille);
+    border: 1px solid var(--trait-fort);
+    border-radius: var(--rayon-s);
+  }
+  .rangee {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ecart-cibles);
+  }
+</style>

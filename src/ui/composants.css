@@ -1,0 +1,110 @@
+/* Les classes de composants, partagées par les pages Astro et les écrans React. */
+
+.bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-2);
+  min-height: var(--cible-principale);
+  padding: var(--espace-3) var(--espace-5);
+  border: 2px solid var(--marque);
+  border-radius: var(--rayon-pilule);
+  background: var(--marque);
+  color: var(--texte-sur-marque);
+  font-family: var(--police-titre);
+  font-size: var(--taille-courante);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.bouton:hover,
+.bouton:active {
+  background: var(--marque-appuyee);
+  border-color: var(--marque-appuyee);
+}
+
+.bouton:disabled,
+.bouton[aria-disabled='true'] {
+  background: var(--encre-10);
+  border-color: var(--encre-10);
+  color: var(--texte-doux);
+  cursor: not-allowed;
+}
+
+.bouton-secondaire {
+  background: var(--fond-releve);
+  color: var(--marque);
+}
+
+.bouton-secondaire:hover,
+.bouton-secondaire:active {
+  background: var(--vert-pale);
+  color: var(--marque-appuyee);
+}
+
+.champ {
+  display: block;
+  width: 100%;
+  min-height: var(--hauteur-champ);
+  padding: var(--espace-3) var(--espace-4);
+  border: 2px solid var(--trait-fort);
+  border-radius: var(--rayon-s);
+  background: var(--fond-releve);
+  color: var(--texte);
+  font: inherit;
+}
+
+.champ[aria-invalid='true'] {
+  border-color: var(--erreur);
+}
+
+.etiquette {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hauteur-pastille);
+  padding: 0 var(--espace-3);
+  border: 2px solid transparent;
+  border-radius: var(--rayon-pilule);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+}
+
+.etat-verifiee {
+  background: var(--etat-verifiee-fond);
+  color: var(--etat-verifiee-texte);
+}
+.etat-relevee {
+  background: var(--etat-relevee-fond);
+  color: var(--etat-relevee-texte);
+  border-color: var(--etat-relevee-trait);
+}
+.etat-attente {
+  background: var(--etat-attente-fond);
+  color: var(--etat-attente-texte);
+}
+.etat-a-corriger {
+  background: var(--etat-a-corriger-fond);
+  color: var(--etat-a-corriger-texte);
+}
+.etat-refusee {
+  background: var(--etat-refusee-fond);
+  color: var(--etat-refusee-texte);
+}
+.etat-telephone {
+  background: var(--etat-telephone-fond);
+  color: var(--etat-telephone-texte);
+}
+.etat-envoye {
+  background: var(--etat-envoye-fond);
+  color: var(--etat-envoye-texte);
+}
+
+.carte {
+  padding: var(--espace-5);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+}

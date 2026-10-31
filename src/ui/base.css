@@ -1,0 +1,98 @@
+/* Polices servies par le site (sous-ensemble latin, qui couvre le français). */
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/polices/poppins-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/polices/nunito-sans-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Nunito Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/polices/nunito-sans-latin-700-normal.woff2') format('woff2');
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--fond);
+  color: var(--texte);
+  font-family: var(--police-texte);
+  font-size: var(--taille-courante);
+  line-height: var(--interligne);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-weight: 700;
+  line-height: var(--interligne-titre);
+}
+
+h1 {
+  font-size: var(--taille-titre-page);
+}
+
+h2 {
+  font-size: var(--taille-titre-fiche);
+}
+
+h3 {
+  font-size: var(--taille-intertitre);
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--marque);
+  text-underline-offset: 0.15em;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: var(--epaisseur-focus) solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Un groupe de mots qu'on ne coupe pas (Pointe-Noire, 44 px…). */
+.insecable {
+  white-space: nowrap;
+}
+
+.visuellement-cache {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

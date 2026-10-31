@@ -1,0 +1,78 @@
+---
+// Le gabarit des pages publiques : aucun JavaScript, du HTML et du CSS.
+import './jetons.css';
+import './base.css';
+import './composants.css';
+import Marque from './Marque.astro';
+
+interface Props {
+  titre: string;
+  description: string;
+}
+const { titre, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titre}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="/polices/nunito-sans-latin-400-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+  </head>
+  <body>
+    <header class="entete">
+      <a class="lien-marque" href="/">
+        <Marque taille={28} />
+        <span>NTanova</span>
+      </a>
+    </header>
+    <main class="contenu">
+      <slot />
+    </main>
+    <footer class="pied">
+      <p>NTanova · Pointe-Noire, République du Congo</p>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .entete,
+  .contenu,
+  .pied {
+    width: 100%;
+    max-width: var(--largeur-texte);
+    margin-inline: auto;
+    padding-inline: var(--espace-4);
+  }
+  .entete {
+    padding-block: var(--espace-4);
+  }
+  .lien-marque {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espace-2);
+    min-height: var(--cible-min);
+    color: var(--texte);
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .contenu {
+    padding-block: var(--espace-6);
+  }
+  .pied {
+    padding-block: var(--espace-6);
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+</style>

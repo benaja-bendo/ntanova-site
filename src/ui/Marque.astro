@@ -1,0 +1,47 @@
+---
+// La marque de NTanova : les trois barres, avec leur contour (décision du 30/10).
+// Les couleurs viennent des jetons, pas du fichier d'origine.
+interface Props {
+  taille?: number;
+}
+const { taille = 40 } = Astro.props;
+---
+
+<svg
+  class="marque"
+  viewBox="-2.5 -2.5 163 125"
+  width={Math.round((taille * 163) / 125)}
+  height={taille}
+  aria-hidden="true"
+  focusable="false"
+>
+  <path
+    class="barre-creme"
+    d="M0.00,7.00Q0.00,2.00 5.00,2.00L24.80,2.00Q29.80,2.00 29.80,7.00L29.80,112.80Q29.80,117.80 24.80,117.80L5.00,117.80Q0.00,117.80 0.00,112.80Z"
+  ></path>
+  <path
+    class="barre-jaune"
+    d="M82.13,2.80Q83.20,0.00 86.20,0.00L118.20,0.00Q121.20,0.00 120.13,2.80L76.37,117.00Q75.30,119.80 72.30,119.80L40.30,119.80Q37.30,119.80 38.37,117.00Z"
+  ></path>
+  <path
+    class="barre-rouge"
+    d="M128.00,7.00Q128.00,2.00 133.00,2.00L152.80,2.00Q157.80,2.00 157.80,7.00L157.80,112.80Q157.80,117.80 152.80,117.80L133.00,117.80Q128.00,117.80 128.00,112.80Z"
+  ></path>
+</svg>
+
+<style>
+  .marque path {
+    stroke: var(--encre);
+    stroke-width: 3.2;
+    stroke-linejoin: round;
+  }
+  .barre-creme {
+    fill: var(--creme);
+  }
+  .barre-jaune {
+    fill: var(--jaune);
+  }
+  .barre-rouge {
+    fill: var(--rouge);
+  }
+</style>

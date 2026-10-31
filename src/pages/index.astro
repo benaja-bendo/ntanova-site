@@ -1,0 +1,45 @@
+---
+// Page d'attente, en ligne tant que l'annuaire n'est pas ouvert.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { lienWhatsApp } from '../modele/whatsapp';
+import PagePublique from '../ui/PagePublique.astro';
+
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+---
+
+<PagePublique
+  titre="NTanova · Les écoles de Pointe-Noire, quartier par quartier"
+  description="NTanova prépare l'annuaire des écoles de Pointe-Noire, quartier par quartier."
+>
+  <section class="attente">
+    <h1>
+      Les écoles de <span class="insecable">Pointe-Noire</span>, quartier par quartier
+    </h1>
+    <p>
+      NTanova prépare l'annuaire des écoles de Pointe-Noire, en commençant par Tié-Tié et Ngoyo.
+    </p>
+    <p>Le site ouvre bientôt.</p>
+    {whatsapp && (
+      <div class="carte appel">
+        <p>
+          Vous dirigez une école à <span class="insecable">Pointe-Noire&nbsp;?</span>
+        </p>
+        <a class="bouton" href={whatsapp}>
+          Nous écrire sur WhatsApp
+        </a>
+      </div>
+    )}
+  </section>
+</PagePublique>
+
+<style>
+  .attente {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .appel {
+    display: grid;
+    gap: var(--espace-4);
+    margin-top: var(--espace-4);
+  }
+</style>

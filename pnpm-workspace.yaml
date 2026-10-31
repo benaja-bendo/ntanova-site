@@ -1,0 +1,12 @@
+# Réglages de pnpm (pas de monorepo : un seul paquet).
+
+# Une version publiée depuis moins de 24 h n'est pas installée :
+# laisse le temps de repérer un paquet piégé.
+minimumReleaseAge: 1440
+
+# Seuls ces paquets peuvent lancer un script d'installation.
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - supabase
+  - workerd

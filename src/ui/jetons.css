@@ -1,0 +1,97 @@
+/*
+ * Les jetons du système de design de NTanova.
+ * C'est le SEUL fichier où une couleur s'écrit en valeur : partout ailleurs,
+ * on utilise ces variables (contrôlé par `pnpm couleurs`).
+ * Thème clair d'abord : on lit l'écran dehors, en plein soleil.
+ */
+
+:root {
+  /* 1. Couleurs de base, celles des cartes terrain */
+  --vert-profond: #084337;
+  --vert: #0b5d4a;
+  --creme: #f9f4ec;
+  --jaune: #f2b738;
+  --rouge: #e2543c;
+  --encre: #14231f;
+  --blanc: #ffffff;
+
+  /* Neutres tirés de l'encre (contraste mesuré sur la crème) */
+  --encre-75: #4d5752; /* 6,9:1 : texte secondaire */
+  --encre-50: #868c86; /* 3,1:1 : bords des champs, jamais du texte */
+  --encre-10: #e2dfd8; /* filets décoratifs */
+
+  /* Teintes pâles des états, et un rouge lisible pour le texte (5,5:1) */
+  --vert-pale: #dae7e4;
+  --jaune-pale: #fcedcd;
+  --rouge-pale: #f9ddd8;
+  --rouge-texte: #a44533;
+
+  /* 2. Rôles : les composants n'utilisent que ceux-ci */
+  --fond: var(--creme);
+  --fond-releve: var(--blanc);
+  --texte: var(--encre);
+  --texte-doux: var(--encre-75);
+  --trait: var(--encre-10);
+  --trait-fort: var(--encre-50);
+  --marque: var(--vert);
+  --marque-appuyee: var(--vert-profond);
+  --texte-sur-marque: var(--creme);
+  --accent: var(--jaune);
+  --focus: var(--vert-profond);
+  --erreur: var(--rouge-texte);
+
+  /* Les états d'une fiche ou d'un envoi */
+  --etat-verifiee-fond: var(--vert);
+  --etat-verifiee-texte: var(--creme);
+  --etat-relevee-fond: var(--blanc);
+  --etat-relevee-texte: var(--encre);
+  --etat-relevee-trait: var(--encre);
+  --etat-attente-fond: var(--jaune-pale);
+  --etat-attente-texte: var(--encre);
+  --etat-a-corriger-fond: var(--jaune);
+  --etat-a-corriger-texte: var(--encre);
+  --etat-refusee-fond: var(--rouge-pale);
+  --etat-refusee-texte: var(--rouge-texte);
+  --etat-telephone-fond: var(--encre-10);
+  --etat-telephone-texte: var(--encre);
+  --etat-envoye-fond: var(--vert-pale);
+  --etat-envoye-texte: var(--vert-profond);
+
+  /* 3. Typographie : échelle pour un écran de 360 px, texte courant à 16 px */
+  --police-titre: 'Poppins', system-ui, sans-serif;
+  --police-texte: 'Nunito Sans', system-ui, sans-serif;
+  --taille-mention: 0.75rem; /* 12 px */
+  --taille-secondaire: 0.875rem; /* 14 px */
+  --taille-courante: 1rem; /* 16 px */
+  --taille-intertitre: 1.125rem; /* 18 px */
+  --taille-titre-fiche: 1.375rem; /* 22 px */
+  --taille-titre-page: 1.75rem; /* 28 px */
+  --interligne: 1.5;
+  --interligne-titre: 1.2;
+
+  /* Espacements, sur une base de 4 */
+  --espace-1: 0.25rem; /* 4 */
+  --espace-2: 0.5rem; /* 8 */
+  --espace-3: 0.75rem; /* 12 */
+  --espace-4: 1rem; /* 16 */
+  --espace-5: 1.5rem; /* 24 */
+  --espace-6: 2rem; /* 32 */
+  --espace-7: 3rem; /* 48 */
+
+  /* Rayons */
+  --rayon-s: 8px;
+  --rayon-m: 16px;
+  --rayon-l: 24px;
+  --rayon-pilule: 999px;
+
+  /* Cibles à toucher */
+  --cible-min: 44px;
+  --cible-principale: 48px;
+  --hauteur-champ: 52px;
+  --hauteur-pastille: 32px;
+  --ecart-cibles: 8px;
+
+  /* Mise en page */
+  --largeur-texte: 36rem;
+  --epaisseur-focus: 3px;
+}
