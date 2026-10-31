@@ -4,12 +4,13 @@
  * (`PUBLIC_ADAPTATEUR=faux` à la construction).
  */
 import { PUBLIC_ADAPTATEUR } from 'astro:env/client';
-import type { PortRelais, PortSession } from '../modele/ports';
+import type { PortAdministration, PortRelais, PortSession } from '../modele/ports';
 
 export interface Adaptateurs {
   nom: 'supabase' | 'faux';
   session: PortSession;
   relais: PortRelais;
+  admin: PortAdministration;
 }
 
 let adaptateurs: Promise<Adaptateurs> | null = null;
@@ -23,10 +24,12 @@ export function obtenirAdaptateurs(): Promise<Adaptateurs> {
           import('./supabase/client'),
           import('./supabase/session'),
           import('./supabase/relais'),
-        ]).then(([c, s, r]): Adaptateurs => ({
+          import('./supabase/administration'),
+        ]).then(([c, s, r, a]): Adaptateurs => ({
           nom: 'supabase',
           session: s.session,
           relais: r.creerPortRelais(c.supabase),
+          admin: a.creerPortAdministration(c.supabase),
         }));
   return adaptateurs;
 }

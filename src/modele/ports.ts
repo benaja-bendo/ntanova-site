@@ -126,6 +126,103 @@ export interface PortRelais {
   signalerErreur(erreur: ErreurAEnvoyer): Promise<Reponse>;
 }
 
+// L'administration -----------------------------------------------------------
+
+/** Une ligne de la file « À valider ». */
+export interface ReleveAValider {
+  id: string;
+  recuLe: string;
+  type: Valeur<'type_releve'>;
+  nomEnseigne: string;
+  relais: string;
+  lot: string | null;
+  essai: boolean;
+  horsLot: boolean | null;
+  doublonPossible: boolean;
+  reponseDoublon: Valeur<'reponse_doublon'> | null;
+  precisionM: number | null;
+  photoRecue: boolean;
+  contactRecu: boolean;
+}
+
+/** Tout ce qu'un relevé contient, sauf le contact (lu à part). */
+export interface DetailReleve extends ReleveAValider {
+  prisLe: string;
+  position: Point | null;
+  niveaux: Valeur<'niveau'>[];
+  typeEcole: Valeur<'type_ecole'>;
+  repere: string | null;
+  numeroEnseigne: string | null;
+  direction: Valeur<'direction_vue'> | null;
+  repasser: string | null;
+  doublonDe: { id: string; nom: string } | null;
+  corrigeReleveId: string | null;
+  contactConfirmeLe: string | null;
+  contactFonction: Valeur<'fonction_direction'> | null;
+}
+
+export interface ContactDirection {
+  fonction: Valeur<'fonction_direction'> | null;
+  nom: string | null;
+  whatsapp: string | null;
+  accord: boolean;
+  accordLe: string | null;
+  note: string | null;
+  recuLe: string;
+}
+
+export interface RelaisVu {
+  id: string;
+  prenom: string;
+  statut: Valeur<'statut_relais'>;
+  lotId: string | null;
+  creeLe: string;
+  activeLe: string | null;
+  /** Les relevés reçus de ce relais. */
+  fiches: number;
+}
+
+export interface LotVu {
+  id: string;
+  nom: string;
+  essai: boolean;
+  aRendreLe: string | null;
+}
+
+export interface PortAdministration {
+  /** Le rôle vient de la base, pas de Google. `GET /moi` */
+  suisAdmin(): Promise<boolean>;
+  /** `GET /admin/releves` */
+  relevesAValider(): Promise<ReleveAValider[]>;
+  /** `GET /admin/releves/{id}` */
+  detailReleve(id: string): Promise<DetailReleve>;
+  /** Une adresse temporaire de la photo, ou null si elle n'est pas encore arrivée. */
+  photoReleve(id: string): Promise<string | null>;
+  /** `GET /admin/releves/{id}/contact` */
+  contactReleve(id: string): Promise<ContactDirection | null>;
+  /** Publie la fiche ; avec `ecoleId`, met à jour cette école. Rend l'école. `POST /admin/releves/{id}/decision` */
+  accepter(id: string, ecoleId?: string | null): Promise<string>;
+  demanderCorrection(
+    id: string,
+    motif: Valeur<'motif_decision'>,
+    message: string | null,
+  ): Promise<void>;
+  refuser(id: string, motif: Valeur<'motif_decision'>, message: string | null): Promise<void>;
+  confirmerContact(id: string, fonction: Valeur<'fonction_direction'>): Promise<void>;
+  /** `GET /admin/relais` */
+  relais(): Promise<RelaisVu[]>;
+  /** `GET /admin/lots` */
+  lots(): Promise<LotVu[]>;
+  /** `POST /admin/relais/{id}/activation` */
+  activerRelais(relaisId: string, lotId: string): Promise<void>;
+  suspendreRelais(relaisId: string): Promise<void>;
+}
+
+/** Une décision refusée par la base, avec son message (écrit en français dans la base). */
+export class ErreurDecision extends Error {
+  override name = 'ErreurDecision';
+}
+
 /** Une erreur de réseau : l'envoi sera rejoué plus tard. */
 export class ErreurReseau extends Error {
   override name = 'ErreurReseau';

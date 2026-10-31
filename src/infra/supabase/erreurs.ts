@@ -1,6 +1,6 @@
 // Les réponses de Supabase traduites dans les termes des ports.
 import { isAuthRetryableFetchError } from '@supabase/supabase-js';
-import { ErreurReseau, ErreurSession, type Reponse } from '../../modele/ports';
+import { ErreurDecision, ErreurReseau, ErreurSession, type Reponse } from '../../modele/ports';
 
 export interface ErreurApi {
   code?: string | undefined;
@@ -42,4 +42,16 @@ export function lire<T>(reponse: { data: T | null; error: ErreurApi | null }): T
   if (reponse.error) traduire(reponse.error);
   if (reponse.data === null) throw new Error('Réponse vide');
   return reponse.data;
+}
+
+/**
+ * Pour une décision de l'administration : la base refuse avec un message écrit
+ * pour un humain (« Relevé du lot d'essai : il ne se publie jamais. »), qu'on garde.
+ */
+export function decider(erreur: ErreurApi | null): void {
+  if (erreur === null) return;
+  if (erreur.code && ['P0002', '22023', '42501', '23514'].includes(erreur.code)) {
+    throw new ErreurDecision(erreur.message ?? 'Décision refusée.');
+  }
+  traduire(erreur);
 }
