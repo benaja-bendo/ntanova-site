@@ -209,7 +209,15 @@ export interface EcoleVue {
   nom: string;
   quartier: string | null;
   arrondissement: string | null;
+  arrondissementId: number | null;
   publication: Valeur<'publication'>;
+  /** Pour une école retirée : pourquoi, quand, et vers quelle école un doublon renvoie. */
+  retrait: {
+    motif: Valeur<'motif_retrait'>;
+    le: string;
+    note: string | null;
+    remplaceePar: string | null;
+  } | null;
   /** Sans position : l'école attend qu'un relais la situe. */
   aSituer: boolean;
   confiee: { relaisId: string; prenom: string; note: string | null } | null;
@@ -247,6 +255,36 @@ export interface PortAdministration {
   /** Confie une école à un relais actif, avec ce qu'il doit vérifier. `POST /admin/ecoles/{id}/confier` */
   confierEcole(ecoleId: string, relaisId: string, note: string | null): Promise<void>;
   reprendreEcole(ecoleId: string): Promise<void>;
+  /** `GET /public/quartiers` (avec leur identifiant, pour publier tout un arrondissement) */
+  arrondissements(): Promise<{ id: number; slug: string; nom: string }[]>;
+  /** Une école prête (ou retirée) passe en ligne. `POST /admin/ecoles/{id}/publication` */
+  publierEcole(ecoleId: string): Promise<void>;
+  /** Toutes les écoles prêtes d'un arrondissement ; rend leur nombre. */
+  publierArrondissement(arrondissementId: number): Promise<number>;
+  /** Les écoles prêtes relevées dans un lot ; rend leur nombre. */
+  publierLot(lotId: string): Promise<number>;
+  /** Retirer du site, avec un motif. `POST /admin/ecoles/{id}/retrait` */
+  retirerEcole(ecoleId: string, motif: Valeur<'motif_retrait'>, note: string | null): Promise<void>;
+  /** La première école est retirée et renvoie vers la seconde. */
+  fusionnerEcoles(doublonId: string, gardeeId: string): Promise<void>;
+  /** Droit d'effacement : le contact de la direction d'un relevé. */
+  effacerContact(releveId: string, note: string | null): Promise<void>;
+  /** La photo de l'enseigne d'un relevé. */
+  effacerPhoto(releveId: string, note: string | null): Promise<void>;
+  /** Les décisions récentes (acceptées, à corriger, refusées). `GET /admin/releves?decides` */
+  relevesDecides(): Promise<ReleveDecide[]>;
+}
+
+export interface ReleveDecide {
+  id: string;
+  nomEnseigne: string;
+  relais: string;
+  lot: string | null;
+  type: Valeur<'type_releve'>;
+  statut: Valeur<'statut_releve'>;
+  decideLe: string | null;
+  motif: Valeur<'motif_decision'> | null;
+  messageAuRelais: string | null;
 }
 
 /** Une décision refusée par la base, avec son message (écrit en français dans la base). */
@@ -294,4 +332,11 @@ export interface PortCatalogue {
   arrondissements(): Promise<ArrondissementPublic[]>;
   /** `GET /public/ecoles` */
   ecoles(): Promise<EcolePubliee[]>;
+  /** Les anciennes adresses des doublons fusionnés, et l'école qu'elles rejoignent. */
+  redirections(): Promise<Redirection[]>;
+}
+
+export interface Redirection {
+  de: { arrondissement: string; slug: string };
+  vers: { arrondissement: string; slug: string };
 }

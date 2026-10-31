@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { seConnecter } from './aides';
 
 // Une école connue sans position, confiée à un relais, relevée sur place, puis
-// situee et publiée par l'administration (faux serveur : l'utilisateur est les deux).
+// située puis publiée par l'administration (faux serveur : l'utilisateur est les deux).
 
 const photo = new URL('./fichiers/enseigne.jpg', import.meta.url).pathname;
 
@@ -46,9 +46,12 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.goto('/admin/');
   await page.getByRole('link', { name: /\[École à situer, nom exact\]/ }).click();
   await expect(page.getByText('Contre-visite', { exact: true }).first()).toBeVisible();
-  await page.getByRole('button', { name: /Situer et publier/ }).click();
+  await page.getByRole('button', { name: /^Situer/ }).click();
   await expect(page.getByRole('status')).toHaveText(/est mise à jour/);
   await page.getByRole('link', { name: 'Écoles' }).click();
+  const situee = page.getByRole('row', { name: /\[École à situer, nom exact\]/ });
+  await expect(situee.getByText('Prête', { exact: true })).toBeVisible();
+  await situee.getByRole('button', { name: 'Publier', exact: true }).click();
   const publiee = page.getByRole('row', { name: /\[École à situer, nom exact\]/ });
   await expect(publiee.getByText('Publiée', { exact: true })).toBeVisible();
   // Le quartier et l'arrondissement du même nom ne s'affichent qu'une fois.

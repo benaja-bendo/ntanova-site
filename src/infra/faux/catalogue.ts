@@ -2,6 +2,14 @@ import type { PortCatalogue } from '../../modele/ports';
 
 /** Un catalogue fictif, pour les parcours Playwright (`PUBLIC_ADAPTATEUR=faux`). */
 export const catalogueFaux: PortCatalogue = {
+  async redirections() {
+    return [
+      {
+        de: { arrondissement: 'tie-tie', slug: 'ancienne-fiche-exemple' },
+        vers: { arrondissement: 'tie-tie', slug: 'complexe-scolaire-exemple' },
+      },
+    ];
+  },
   async arrondissements() {
     return [
       { slug: 'ngoyo', nom: 'Ngoyo' },

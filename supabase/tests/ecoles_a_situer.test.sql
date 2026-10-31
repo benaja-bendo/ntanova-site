@@ -112,11 +112,12 @@ select is(
   (select a.slug || ' · ' || e.publication || ' · ' || (e.position is not null)::text
    from public.ecoles e join public.arrondissements a on a.id = e.arrondissement_id
    where e.id = '40000000-0000-4000-8000-000000000001'),
-  'ngoyo · publiee · true',
-  'L''école prend la position et l''arrondissement du relevé, et elle est publiée'
+  'ngoyo · prete · true',
+  'L''école prend la position et l''arrondissement du relevé, et elle est prête à publier'
 );
+select public.publier_ecole('40000000-0000-4000-8000-000000000001');
 select is((select nom from public.ecoles_publiees where id = '40000000-0000-4000-8000-000000000001'),
-  '[École à situer, nom exact]', 'Le public voit l''école avec le nom relevé sur place');
+  '[École à situer, nom exact]', 'Une fois publiée, le public voit l''école avec le nom relevé sur place');
 select is((select count(*)::int from public.ecoles_confiees), 0, 'La mission du relais est terminée');
 select public.confier_ecole('40000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-0000000000a2');
 reset role;

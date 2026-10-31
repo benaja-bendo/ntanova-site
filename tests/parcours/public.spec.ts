@@ -85,9 +85,23 @@ test.describe('site public', () => {
     await expect(page.getByText(/loi congolaise n°\s29-2019 du 10\soctobre 2019/)).toBeVisible();
   });
 
+  test('l’ancienne adresse d’une fiche fusionnée renvoie vers l’école gardée, sans JavaScript', async ({
+    request,
+  }) => {
+    const reponse = await request.get('/ecoles/tie-tie/ancienne-fiche-exemple/');
+    expect(reponse.status()).toBe(200);
+    const html = await reponse.text();
+    expect(html).toContain(
+      '<meta http-equiv="refresh" content="0; url=/ecoles/tie-tie/complexe-scolaire-exemple/">',
+    );
+    expect(html).not.toMatch(/<script(?![^>]*application\/ld\+json)/);
+  });
+
   test('une adresse inconnue renvoie la page introuvable', async ({ page }) => {
     const reponse = await page.goto('/cette-page-n-existe-pas/');
     expect(reponse?.status()).toBe(404);
     await expect(page.getByRole('heading', { name: 'Page introuvable' })).toBeVisible();
+    // Une école retirée n'a plus de page : rien d'elle n'est dit, pas même son nom.
+    await expect(page.getByText(/n'est plus publiée/)).toBeVisible();
   });
 });

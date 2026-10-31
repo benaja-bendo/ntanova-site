@@ -6,13 +6,18 @@ import { listes } from '../../src/modele/listes';
 // Les domaines SQL de toutes les migrations : `create domain public.<nom> as text check (value in (...))`.
 const dossier = 'supabase/migrations';
 const sql = readdirSync(dossier)
+  .sort()
   .filter((f) => f.endsWith('.sql'))
   .map((f) => readFileSync(join(dossier, f), 'utf8'))
   .join('\n');
+// Une migration peut redéfinir la liste (`alter domain … add constraint … check (value in (...))`) :
+// la dernière définition, dans l'ordre des migrations, fait foi.
 const domaines = new Map(
-  [...sql.matchAll(/create domain public\.(\w+) as text\s+check \(value in \(([^)]*)\)\)/g)].map(
-    (m) => [m[1], [...(m[2] ?? '').matchAll(/'([^']*)'/g)].map((v) => v[1])],
-  ),
+  [
+    ...sql.matchAll(
+      /(?:create domain public\.(\w+) as text|alter domain public\.(\w+) add constraint \w+)\s+check \(value in \(([^)]*)\)\)/g,
+    ),
+  ].map((m) => [m[1] ?? m[2], [...(m[3] ?? '').matchAll(/'([^']*)'/g)].map((v) => v[1])]),
 );
 
 describe('listes fermées', () => {

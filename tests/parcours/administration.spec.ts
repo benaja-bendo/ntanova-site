@@ -34,7 +34,7 @@ async function ouvrirLaFiche(page: Page) {
 }
 
 test.describe('administration', () => {
-  test('une fiche acceptée est publiée, et le relais la voit « Acceptée »', async ({
+  test('une fiche acceptée devient prête, se publie, et le relais la voit « Acceptée »', async ({
     page,
     context,
   }) => {
@@ -50,9 +50,19 @@ test.describe('administration', () => {
     await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
     await expect(page.getByText('Fonction confirmée')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Accepter et publier la fiche relevée' }).click();
-    await expect(page.getByRole('status')).toHaveText(/La fiche est publiée/);
+    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
     await expect(page.getByText('Rien à valider pour le moment.')).toBeVisible();
+
+    // Accepter ne publie pas : l'école attend le geste « Publier ».
+    await page.getByRole('link', { name: 'Écoles' }).click();
+    const ligne = page.getByRole('row', { name: /\[École 1\]/ });
+    await expect(ligne.getByText('Prête', { exact: true })).toBeVisible();
+    await ligne.getByRole('button', { name: 'Publier', exact: true }).click();
+    await expect(page.getByRole('status')).toHaveText(/est publiée.*cette nuit/);
+    await expect(
+      page.getByRole('row', { name: /\[École 1\]/ }).getByText('Publiée', { exact: true }),
+    ).toBeVisible();
 
     await page.goto('/relais/#fiches');
     await expect(page.getByText('Acceptée')).toBeVisible({ timeout: 15_000 });
@@ -74,6 +84,66 @@ test.describe('administration', () => {
       timeout: 15_000,
     });
     await expect(page.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
+  });
+
+  test('une école publiée se retire avec un motif, puis se republie', async ({ page, context }) => {
+    await uneFicheEnvoyee(page, context);
+    await ouvrirLaFiche(page);
+    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+    await page.getByRole('link', { name: 'Écoles' }).click();
+    await page.getByRole('button', { name: /Publier l’école prête de Tié-Tié/ }).click();
+    await expect(page.getByRole('status')).toHaveText(/1 école de Tié-Tié publiée/);
+
+    const ligne = () => page.getByRole('row', { name: /\[École 1\]/ });
+    await ligne().getByRole('button', { name: 'Retirer du site' }).click();
+    await ligne().getByLabel('Motif').selectOption('demande_ecole');
+    await ligne()
+      .getByRole('button', { name: /Retirer \[École 1\] du site/ })
+      .click();
+    await expect(page.getByRole('status')).toHaveText(/retirée du site.*sans son nom/);
+    await expect(ligne().getByText('Retirée', { exact: true })).toBeVisible();
+    await expect(ligne().getByText(/À la demande de l'école/)).toBeVisible();
+
+    await ligne().getByRole('button', { name: 'Republier' }).click();
+    await expect(ligne().getByText('Publiée', { exact: true })).toBeVisible();
+  });
+
+  test('« Décidées » relit une décision sans la changer, et efface un contact', async ({
+    page,
+    context,
+  }) => {
+    await uneFicheEnvoyee(page, context);
+    await ouvrirLaFiche(page);
+    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+    await page.getByRole('button', { name: 'Décidées' }).click();
+    await page.getByRole('link', { name: /\[École 1\]/ }).click();
+    await expect(page.getByText('Acceptée', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Accepter la fiche' })).toHaveCount(0);
+    await expect(page.getByText(/un refus est définitif/)).toBeVisible();
+
+    await page.getByRole('button', { name: /Effacer le contact/ }).click();
+    await page.getByRole('button', { name: /Confirmer : effacer le contact/ }).click();
+    await expect(page.getByText('Le contact de la direction est effacé.')).toBeVisible();
+    await expect(page.getByText('+242 06 123 45 61')).toHaveCount(0);
+  });
+
+  test('une décision qui arrive tard ne ramène pas sur « À valider »', async ({
+    page,
+    context,
+  }) => {
+    await uneFicheEnvoyee(page, context);
+    await ouvrirLaFiche(page);
+    // Une 3G qui traîne : la base répond après que l'on a changé d'onglet.
+    await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '600'));
+    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await page.getByRole('link', { name: 'Écoles' }).click();
+    await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeVisible();
+    // Le temps que la réponse arrive : on reste sur « Écoles ».
+    await page.waitForTimeout(1200);
+    await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'À valider' })).toHaveCount(0);
   });
 
   test('un relais en attente est activé sur un lot', async ({ page }) => {

@@ -53,6 +53,14 @@ interface EcoleFausse {
   position: { latitude: number; longitude: number } | null;
   confieeA: string | null;
   note: string | null;
+  retrait?: {
+    motif: Valeur<'motif_retrait'>;
+    le: string;
+    note: string | null;
+    remplaceePar: string | null;
+  } | null;
+  /** Le lot du relevé qui a fait l'école (pour « Publier un lot »). */
+  lotId?: string | null;
 }
 
 const ECOLE_A_SITUER = '40000000-0000-4000-8000-000000000001';
@@ -92,7 +100,10 @@ function ecrire(modifier: (etat: Etat) => void): void {
 }
 
 async function reseau(): Promise<void> {
-  await new Promise((fin) => setTimeout(fin, 50));
+  // 50 ms ; un parcours peut ralentir la réponse (`ntanova-faux-latence`, en ms) pour
+  // rejouer une 3G qui traîne.
+  const latence = Number(localStorage.getItem('ntanova-faux-latence') ?? 50);
+  await new Promise((fin) => setTimeout(fin, latence));
   if (!navigator.onLine) throw new ErreurReseau('hors ligne');
 }
 
@@ -252,6 +263,25 @@ function decider(id: string, champs: Partial<Decision>): void {
   ecrire((e) => (e.decisions[id] = { ...avant, ...champs }));
 }
 
+/** Une ligne de la file « À valider », comme la vue `releves_a_valider`. */
+function ligneDe(r: ReleveAEnvoyer, e: Etat) {
+  return {
+    id: r.id,
+    recuLe: r.prisLe,
+    type: r.type,
+    nomEnseigne: r.nomEnseigne,
+    relais: '[Prénom]',
+    lot: LOT.nom,
+    essai: false,
+    horsLot: false,
+    doublonPossible: r.reponseDoublon !== null,
+    reponseDoublon: r.reponseDoublon,
+    precisionM: r.precisionM,
+    photoRecue: r.id in e.photos,
+    contactRecu: r.id in e.contacts,
+  };
+}
+
 const admin: PortAdministration = {
   async suisAdmin() {
     await reseau();
@@ -262,26 +292,13 @@ const admin: PortAdministration = {
     const e = lireEtat();
     return Object.values(e.releves)
       .filter((r) => (e.decisions[r.id]?.statut ?? 'a_valider') === 'a_valider')
-      .map((r) => ({
-        id: r.id,
-        recuLe: r.prisLe,
-        type: r.type,
-        nomEnseigne: r.nomEnseigne,
-        relais: '[Prénom]',
-        lot: LOT.nom,
-        essai: false,
-        horsLot: false,
-        doublonPossible: r.reponseDoublon !== null,
-        reponseDoublon: r.reponseDoublon,
-        precisionM: r.precisionM,
-        photoRecue: r.id in e.photos,
-        contactRecu: r.id in e.contacts,
-      }));
+      .map((r) => ligneDe(r, e));
   },
   async detailReleve(id) {
-    const [ligne] = (await admin.relevesAValider()).filter((r) => r.id === id);
+    await reseau();
     const r = lireEtat().releves[id];
-    if (!ligne || !r) throw new ErreurDecision('Relevé introuvable.');
+    if (!r) throw new ErreurDecision('Relevé introuvable.');
+    const ligne = ligneDe(r, lireEtat());
     const d = decision(id);
     return {
       ...ligne,
@@ -323,17 +340,34 @@ const admin: PortAdministration = {
   },
   async accepter(id, ecoleId = null) {
     await reseau();
-    const ecole = ecoleId ?? `ecole-${id}`;
     const releve = lireEtat().releves[id];
+    if (decision(id).statut === 'refuse') {
+      throw new ErreurDecision(
+        'Relevé refusé : un refus est définitif. Le relais peut envoyer une nouvelle fiche.',
+      );
+    }
+    const ecole = ecoleId ?? `ecole-${id}`;
     decider(id, { statut: 'accepte', ecoleId: ecole, motif: null, message: null });
     ecrire((e) => {
       const visee = e.ecoles[ecole];
       if (visee && releve) {
+        // Comme la base : une école à situer devient prête, une école publiée le reste.
         visee.nom = releve.nomEnseigne;
         visee.position = releve.position ?? visee.position;
-        visee.publication = 'publiee';
+        if (visee.publication === 'brouillon') visee.publication = 'prete';
         visee.confieeA = null;
         visee.note = null;
+      } else if (releve) {
+        e.ecoles[ecole] = {
+          id: ecole,
+          nom: releve.nomEnseigne,
+          quartier: null,
+          publication: 'prete',
+          position: releve.position,
+          confieeA: null,
+          note: null,
+          lotId: releve.lotId,
+        };
       }
     });
     return ecole;
@@ -396,7 +430,9 @@ const admin: PortAdministration = {
       nom: e.nom,
       quartier: e.quartier,
       arrondissement: e.position ? LOT.nom : null,
+      arrondissementId: e.position ? 1 : null,
       publication: e.publication,
+      retrait: e.retrait ?? null,
       aSituer: e.position === null,
       confiee: e.confieeA
         ? {
@@ -423,6 +459,111 @@ const admin: PortAdministration = {
       const ecole = etat.ecoles[ecoleId];
       if (ecole) Object.assign(ecole, { confieeA: null, note: null });
     });
+  },
+  async arrondissements() {
+    await reseau();
+    return [
+      { id: 1, slug: 'tie-tie', nom: 'Tié-Tié' },
+      { id: 2, slug: 'ngoyo', nom: 'Ngoyo' },
+    ];
+  },
+  async publierEcole(ecoleId) {
+    await reseau();
+    const ecole = lireEtat().ecoles[ecoleId];
+    if (
+      !ecole ||
+      !['prete', 'retiree'].includes(ecole.publication) ||
+      ecole.retrait?.remplaceePar
+    ) {
+      throw new ErreurDecision('Seule une école prête ou retirée se publie.');
+    }
+    ecrire((e) =>
+      Object.assign(e.ecoles[ecoleId] ?? {}, { publication: 'publiee', retrait: null }),
+    );
+  },
+  async publierArrondissement() {
+    await reseau();
+    let n = 0;
+    ecrire((e) => {
+      for (const ecole of Object.values(e.ecoles)) {
+        if (ecole.publication === 'prete' && ecole.position) {
+          ecole.publication = 'publiee';
+          n++;
+        }
+      }
+    });
+    return n;
+  },
+  async publierLot(lotId) {
+    await reseau();
+    let n = 0;
+    ecrire((e) => {
+      for (const ecole of Object.values(e.ecoles)) {
+        if (ecole.publication === 'prete' && ecole.lotId === lotId) {
+          ecole.publication = 'publiee';
+          n++;
+        }
+      }
+    });
+    return n;
+  },
+  async retirerEcole(ecoleId, motif, note) {
+    await reseau();
+    const ecole = lireEtat().ecoles[ecoleId];
+    if (!ecole || !['prete', 'publiee'].includes(ecole.publication)) {
+      throw new ErreurDecision('Seule une école prête ou publiée se retire.');
+    }
+    ecrire((e) =>
+      Object.assign(e.ecoles[ecoleId] ?? {}, {
+        publication: 'retiree',
+        retrait: { motif, le: new Date().toISOString(), note, remplaceePar: null },
+        confieeA: null,
+      }),
+    );
+  },
+  async fusionnerEcoles(doublonId, gardeeId) {
+    await reseau();
+    ecrire((e) =>
+      Object.assign(e.ecoles[doublonId] ?? {}, {
+        publication: 'retiree',
+        retrait: {
+          motif: 'doublon',
+          le: new Date().toISOString(),
+          note: null,
+          remplaceePar: gardeeId,
+        },
+      }),
+    );
+  },
+  async effacerContact(releveId) {
+    await reseau();
+    if (!(releveId in lireEtat().contacts))
+      throw new ErreurDecision('Aucun contact pour ce relevé.');
+    ecrire((e) => delete e.contacts[releveId]);
+  },
+  async effacerPhoto(releveId) {
+    await reseau();
+    ecrire((e) => delete e.photos[releveId]);
+  },
+  async relevesDecides() {
+    await reseau();
+    const e = lireEtat();
+    return Object.values(e.releves)
+      .filter((r) => (e.decisions[r.id]?.statut ?? 'a_valider') !== 'a_valider')
+      .map((r) => {
+        const d = e.decisions[r.id];
+        return {
+          id: r.id,
+          nomEnseigne: r.nomEnseigne,
+          relais: '[Prénom]',
+          lot: LOT.nom,
+          type: r.type,
+          statut: d?.statut ?? 'a_valider',
+          decideLe: new Date().toISOString(),
+          motif: d?.motif ?? null,
+          messageAuRelais: d?.message ?? null,
+        };
+      });
   },
 };
 
