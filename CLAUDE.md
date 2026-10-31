@@ -101,6 +101,14 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - Chaque nouveau composant entre dans le catalogue (`src/pages/dev/[page].astro`), dans chacun de ses états : normal, focus, désactivé, erreur, chargement.
 - Le code est la source du système de design ; l'artefact de design n'en est qu'une copie.
 
+### La carte détourée (ticket #15)
+
+- **Un SVG calculé à la construction, sans JavaScript ni serveur de cartes** : `src/modele/carte/` (projection, tracés, regroupement des écoles proches, cadrages), `src/ui/Carte.astro` (le dessin). Toucher, c'est changer de page : la ville `/ecoles/`, un arrondissement `/ecoles/<arrondissement>/carte/`, un groupe vu de près `/ecoles/<arrondissement>/carte/coin-N/`, et le petit plan de la fiche.
+- **Le style** : les jetons `--carte-…` de `src/ui/jetons.css` (terre, ombre, rues, avenues, maisons, drapeaux, pastilles). **Les repères** du quartier (marché, rond-point…) : `src/modele/carte/reperes.ts`, des lieux publics seulement.
+- **Les tracés** (`src/modele/carte/pointe-noire.json`, ignoré par Prettier) : les six arrondissements et les rues de Tié-Tié, tirés d'OpenStreetMap (attribution obligatoire, elle est sous chaque carte). Ngoyo n'a pas encore ses rues. Le contrôle « hors du lot » lit les contours de la base, plus précis.
+- **Une cible fait 54 unités du dessin** (400 de large) : 44 px sur un téléphone de 360 px. Deux marques plus proches deviennent une pastille ; ne pas réduire l'une sans l'autre.
+- Une école dont l'adresse serait `carte` serait cachée par la page de la carte : le cas ne s'est pas présenté.
+
 ## Écriture
 
 - Tout en français : l'interface, les noms dans le code, les commits.
