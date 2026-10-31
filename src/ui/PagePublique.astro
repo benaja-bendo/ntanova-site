@@ -11,8 +11,10 @@ interface Props {
   description: string;
   /** Le lien WhatsApp de NTanova, s'il est configuré (voir src/modele/whatsapp.ts). */
   whatsapp?: string | null;
+  /** Une page de renvoi (fiche fusionnée) : l'adresse où aller, sans JavaScript. */
+  renvoi?: string;
 }
-const { titre, description, whatsapp = null } = Astro.props;
+const { titre, description, whatsapp = null, renvoi } = Astro.props;
 ---
 
 <!doctype html>
@@ -22,6 +24,13 @@ const { titre, description, whatsapp = null } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{titre}</title>
     <meta name="description" content={description} />
+    {renvoi && (
+      <>
+        <meta http-equiv="refresh" content={`0; url=${renvoi}`} />
+        <link rel="canonical" href={renvoi} />
+        <meta name="robots" content="noindex" />
+      </>
+    )}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link
       rel="preload"

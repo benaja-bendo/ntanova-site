@@ -1,4 +1,9 @@
-import type { ArrondissementPublic, EcolePubliee, PortCatalogue } from '../../modele/ports';
+import type {
+  ArrondissementPublic,
+  EcolePubliee,
+  PortCatalogue,
+  Redirection,
+} from '../../modele/ports';
 
 /**
  * Le catalogue lu à la construction, par l'API publique de la base (clé
@@ -17,6 +22,16 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
   };
 
   return {
+    async redirections(): Promise<Redirection[]> {
+      const lignes = await lire<
+        { de_arrondissement: string; de_slug: string; vers_arrondissement: string; vers_slug: string }[]
+      >('ecoles_redirections?select=*');
+      return lignes.map((r) => ({
+        de: { arrondissement: r.de_arrondissement, slug: r.de_slug },
+        vers: { arrondissement: r.vers_arrondissement, slug: r.vers_slug },
+      }));
+    },
+
     arrondissements: () =>
       lire<ArrondissementPublic[]>('arrondissements?select=slug,nom&order=nom'),
 

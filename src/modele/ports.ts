@@ -332,4 +332,11 @@ export interface PortCatalogue {
   arrondissements(): Promise<ArrondissementPublic[]>;
   /** `GET /public/ecoles` */
   ecoles(): Promise<EcolePubliee[]>;
+  /** Les anciennes adresses des doublons fusionnés, et l'école qu'elles rejoignent. */
+  redirections(): Promise<Redirection[]>;
+}
+
+export interface Redirection {
+  de: { arrondissement: string; slug: string };
+  vers: { arrondissement: string; slug: string };
 }

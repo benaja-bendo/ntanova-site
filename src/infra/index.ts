@@ -45,7 +45,11 @@ export function obtenirAdaptateurs(): Promise<Adaptateurs> {
 export async function obtenirCatalogue(): Promise<PortCatalogue> {
   if (PUBLIC_ADAPTATEUR === 'faux') return (await import('./faux/catalogue')).catalogueFaux;
   if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
-    return { arrondissements: async () => [], ecoles: async () => [] };
+    return {
+      arrondissements: async () => [],
+      ecoles: async () => [],
+      redirections: async () => [],
+    };
   }
   const { creerCatalogue } = await import('./supabase/catalogue');
   return creerCatalogue(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY);
