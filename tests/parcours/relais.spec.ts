@@ -1,9 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { ajouterUneEcole } from './aides';
 
 // L'espace relais, construit avec le faux serveur (PUBLIC_ADAPTATEUR=faux) : le
 // faux serveur vit dans le navigateur et refuse tout quand le téléphone est hors ligne.
-
-const photo = new URL('./fichiers/enseigne.jpg', import.meta.url).pathname;
 
 /** Ce que le téléphone garde encore : fiches, photos et contacts. */
 function telephone(page: Page) {
@@ -39,28 +38,6 @@ function serveur(page: Page) {
       contacts: Object.values(etat.contacts ?? {}) as { whatsapp: string | null }[],
     };
   });
-}
-
-async function ajouterUneEcole(page: Page, n: number) {
-  await page.getByRole('button', { name: 'Ajouter une école' }).click();
-  await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
-  await page.locator('input[type=file]').first().setInputFiles(photo);
-  await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
-  await expect(page.getByText('Position prise')).toBeVisible();
-  await expect(page.getByText('dans votre lot')).toBeVisible();
-  await page.getByRole('button', { name: 'Suivant' }).click();
-
-  await page.getByLabel("Nom sur l'enseigne").fill(`[École ${n}]`);
-  await page.getByRole('button', { name: 'Primaire' }).click();
-  await page.getByRole('button', { name: 'Suivant' }).click();
-
-  await page.getByRole('button', { name: 'Oui', exact: true }).click();
-  await page.getByLabel('Sa fonction').selectOption('promoteur');
-  await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
-  await page.getByLabel(/Son WhatsApp/).fill(`06 123 45 6${n}`);
-  await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
-  await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await page.getByRole('link', { name: 'Mon lot' }).click();
 }
 
 test.describe('espace relais', () => {
