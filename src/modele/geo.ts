@@ -67,3 +67,15 @@ export function dansContour(point: Point, contour: MultiPolygone): boolean {
       !trous.some((trou) => dansAnneau(point, trou)),
   );
 }
+
+/**
+ * La position est-elle dans le lot ? `null` quand la question n'a pas de sens :
+ * pas de lot, pas de contour, ou le lot d'entraînement (on s'y forme n'importe où).
+ */
+export function dansLeLot(
+  point: Point,
+  lot: { essai: boolean; contour: MultiPolygone | null } | null | undefined,
+): boolean | null {
+  if (!lot || lot.essai || !lot.contour) return null;
+  return dansContour(point, lot.contour);
+}

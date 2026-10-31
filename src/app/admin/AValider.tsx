@@ -26,7 +26,7 @@ function Etiquettes({ r }: { r: ReleveAValider }) {
   return (
     <span className="admin-etiquettes">
       {r.essai && <span className="etiquette etat-telephone">Lot d'essai</span>}
-      {r.horsLot && <span className="etiquette etat-refusee">Hors du lot</span>}
+      {r.horsLot && !r.essai && <span className="etiquette etat-refusee">Hors du lot</span>}
       {r.doublonPossible && <span className="etiquette etat-attente">Doublon possible</span>}
       {!r.photoRecue && <span className="etiquette etat-telephone">Photo pas encore reçue</span>}
     </span>
@@ -219,6 +219,8 @@ function Detail({
   }
 
   const position = detail.position;
+  // Sur le lot d'entraînement, « hors du lot » ne veut rien dire.
+  const horsLot = detail.essai ? null : detail.horsLot;
   const memeEcole = detail.reponseDoublon === 'la_meme' && detail.doublonDe;
 
   return (
@@ -249,14 +251,14 @@ function Detail({
         </figure>
         <div className="pile-serree">
           <p className="rang">
-            <Icone nom={detail.horsLot ? 'alerte' : 'coche'} taille={16} />
+            <Icone nom={horsLot ? 'alerte' : 'coche'} taille={16} />
             <span>
               <b>
                 {position === null
                   ? 'Sans position'
-                  : detail.horsLot
+                  : horsLot
                     ? 'Hors du lot'
-                    : detail.horsLot === false
+                    : horsLot === false
                       ? 'Dans le lot'
                       : 'Position prise'}
               </b>

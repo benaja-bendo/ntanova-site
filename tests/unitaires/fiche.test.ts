@@ -161,3 +161,25 @@ describe('les dates affichées', () => {
     expect(quand(date(9, 31, 8, 0), maintenant)).toBe('le 31/10 à 8\u00a0h\u00a000');
   });
 });
+
+describe('dans le lot', () => {
+  it('ne dit rien pour le lot d’entraînement, où l’on se forme n’importe où', async () => {
+    const { dansLeLot } = await import('../../src/modele/geo');
+    const contour = [
+      [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+          [0, 0],
+        ],
+      ],
+    ];
+    const loin = { latitude: 50, longitude: 50 };
+    expect(dansLeLot(loin, { essai: false, contour })).toBe(false);
+    expect(dansLeLot(loin, { essai: true, contour })).toBeNull();
+    expect(dansLeLot(loin, { essai: false, contour: null })).toBeNull();
+    expect(dansLeLot(loin, null)).toBeNull();
+  });
+});
