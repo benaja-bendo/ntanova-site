@@ -3,8 +3,18 @@
 .ecran {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 40rem;
   min-height: 100dvh;
+  margin-inline: auto;
   background: var(--fond);
+}
+
+/* Sur ordinateur, l'application garde la largeur d'un téléphone, bordée d'un filet. */
+@media (min-width: 48rem) {
+  .ecran {
+    border-inline: 1px solid var(--trait);
+  }
 }
 
 .ecran[aria-busy='true'] {

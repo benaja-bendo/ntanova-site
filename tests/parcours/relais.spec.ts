@@ -109,6 +109,15 @@ test.describe('espace relais', () => {
     await expect(page.getByLabel(/Son WhatsApp/)).toBeDisabled();
   });
 
+  test('sur ordinateur, garde la largeur d’un téléphone', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/relais/');
+    await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
+    const navigation = page.getByRole('navigation', { name: 'Espace relais' });
+    await expect(navigation).toBeVisible();
+    expect((await navigation.boundingBox())?.width).toBeLessThanOrEqual(640);
+  });
+
   test('tient dans 360 px sans défilement horizontal', async ({ page, context }) => {
     await context.setGeolocation({ latitude: -4.79, longitude: 11.93, accuracy: 12 });
     await page.goto('/relais/');
