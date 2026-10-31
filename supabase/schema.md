@@ -152,7 +152,7 @@ Deux vues : `ecoles_publiees` (ce que lit le site public) et `releves_a_valider`
 
 ## Les listes (types, niveaux…) : des listes qui ne bloquent personne
 
-Ticket #12, décidé le 31/10 : le fondateur n'a pas de faits pour trancher une typologie (les neuf lignes du Sheet sont toutes des écoles privées), et il veut un système qui ne le bloque pas, avec les cases qu'il faut aux relais et aux visiteurs. D'où des règles, qui valent pour **toute liste fermée** d'un écran relais ou administration :
+Ticket #12, décidé le 31/10 : le fondateur n'a pas de faits pour trancher une typologie (sur les neuf lignes du Sheet des entretiens, sept sont « Privé » ou « Privé (probable) », une n'a pas de type, une est une université ; aucune publique, confessionnelle ni communautaire), et il veut un système qui ne le bloque pas, avec les cases qu'il faut aux relais et aux visiteurs. D'où des règles, qui valent pour **toute liste fermée** d'un écran relais ou administration :
 
 - **Une case de sortie**, toujours : `autre` (c'est écrit, mais ça ne rentre dans aucune case) et `non_indique` (rien n'est écrit).
 - **Rien n'est obligatoire** pour envoyer une fiche, et rien n'est coché d'avance si cela fausse la donnée : le défaut est `non_indique`, comme dans la base.
