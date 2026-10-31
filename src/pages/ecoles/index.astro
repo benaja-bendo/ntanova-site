@@ -1,0 +1,161 @@
+---
+// La carte de la ville (planche « Carte de la ville » du canevas) : les six arrondissements de
+// Pointe-Noire, en vert ceux où le relevé a commencé. Toucher l'un d'eux ouvre sa carte.
+// Construite à partir de la base ; aucun JavaScript.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirCatalogue } from '../../infra/index';
+import {
+  arrondissementsDessines,
+  cadreVille,
+  type ArrondissementSurCarte,
+} from '../../modele/carte/plan';
+import { lienWhatsApp } from '../../modele/whatsapp';
+import Carte from '../../ui/Carte.astro';
+import PagePublique from '../../ui/PagePublique.astro';
+
+const catalogue = await obtenirCatalogue();
+const [ouverts, ecoles] = await Promise.all([catalogue.arrondissements(), catalogue.ecoles()]);
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+
+const ecolesDit = (n: number) => `${n} école${n > 1 ? 's' : ''}`;
+const surLaCarte: ArrondissementSurCarte[] = arrondissementsDessines.map((a) => {
+  const ouvert = ouverts.some((o) => o.slug === a.slug);
+  const nombre = ecoles.filter((e) => e.arrondissement === a.slug).length;
+  return ouvert
+    ? {
+        arrondissement: a,
+        role: 'en-cours',
+        lien: `/ecoles/${a.slug}/carte/`,
+        etiquette: nombre > 0 ? ecolesDit(nombre) : 'relevé en cours',
+      }
+    : { arrondissement: a, role: 'pas-encore', etiquette: 'pas encore' };
+});
+const enCours = surLaCarte
+  .filter((a) => a.role === 'en-cours')
+  .map((a) => ({
+    ...a,
+    nombre: ecoles.filter((e) => e.arrondissement === a.arrondissement.slug).length,
+  }))
+  .sort((a, b) => b.nombre - a.nombre || a.arrondissement.numero - b.arrondissement.numero);
+const pasEncore = surLaCarte.length - enCours.length;
+const enLettres = ['aucun', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six'];
+---
+
+<PagePublique
+  titre="La carte des écoles de Pointe-Noire · NTanova"
+  description="Les six arrondissements de Pointe-Noire et leurs écoles, relevées sur place, arrondissement par arrondissement."
+  whatsapp={whatsapp}
+>
+  <section class="cadre page vue-ville">
+    <a class="retour" href="/">
+      ← Accueil
+    </a>
+    <div>
+      <h1>Pointe-Noire</h1>
+      <p class="texte-doux">En vert&nbsp;: le relevé a commencé. Touchez un arrondissement.</p>
+    </div>
+
+    <div class="disposition">
+      <Carte
+        id="ville"
+        titre="Carte de Pointe-Noire par arrondissement"
+        projection={cadreVille()}
+        arrondissements={surLaCarte}
+        noms
+      />
+
+      <div class="panneau">
+        <ul class="arrondissements">
+          {enCours.map((a) => (
+            <li>
+              <a class="arrondissement" href={a.lien}>
+                <span class="arrondissement-nom">{a.arrondissement.nom}</span>
+                <span class="arrondissement-detail">
+                  Arrondissement {a.arrondissement.numero} ·{' '}
+                  {a.nombre > 0
+                    ? `${ecolesDit(a.nombre)} relevée${a.nombre > 1 ? 's' : ''}`
+                    : 'relevé en cours'}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+        {pasEncore > 0 && (
+          <p class="texte-doux">
+            {pasEncore === 1
+              ? 'L’autre arrondissement : pas encore relevé.'
+              : `Les ${enLettres[pasEncore]} autres arrondissements : pas encore relevés.`}
+          </p>
+        )}
+      </div>
+    </div>
+  </section>
+</PagePublique>
+
+<style>
+  .vue-ville {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .vue-ville h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .vue-ville p {
+    margin: 0;
+  }
+  .disposition,
+  .panneau {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-4);
+  }
+  .arrondissements {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .arrondissement {
+    display: grid;
+    gap: var(--espace-1);
+    min-height: var(--cible-principale);
+    padding: var(--espace-3) var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--carte-releve-en-cours);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .arrondissement:hover {
+    outline: 2px solid var(--marque);
+  }
+  .arrondissement-nom {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .arrondissement-detail {
+    color: var(--marque-appuyee);
+    font-size: var(--taille-secondaire);
+  }
+
+  @media (min-width: 48rem) {
+    .vue-ville {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .vue-ville h1 {
+      font-size: var(--taille-titre-public);
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .disposition {
+      grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr);
+      gap: var(--espace-6);
+    }
+  }
+</style>

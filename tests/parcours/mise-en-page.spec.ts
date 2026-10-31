@@ -1,5 +1,9 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { seConnecter, textesPeuLisibles } from './aides';
+
+/** Le nom d'une cible pour le message d'erreur : son texte, ou celui qu'elle donne au lecteur d'écran (un lien de la carte, en SVG). */
+const nomDe = async (cible: Locator) =>
+  (await cible.getAttribute('aria-label')) ?? (await cible.textContent()) ?? '';
 
 // La mise en page selon la largeur de l'écran. Ce fichier tourne à trois largeurs
 // (les projets de playwright.config.ts) : 360 px (téléphone), 768 px (tablette) et
@@ -138,7 +142,7 @@ test.describe('site public', () => {
         const boite = await cible.boundingBox();
         expect(
           boite?.height,
-          `${nom} : « ${await cible.innerText()} » est trop basse`,
+          `${nom} : « ${await nomDe(cible)} » est trop basse`,
         ).toBeGreaterThanOrEqual(44);
       }
       expect(await textesPeuLisibles(page, 'body'), nom).toEqual([]);
@@ -190,8 +194,10 @@ test.describe('site public', () => {
         (a?.y ?? 0) + (a?.height ?? 0) - 1,
       );
     }
-    // Pas de carte, pas de mise à jour automatique : tant que ce n'est pas vrai, on ne le dit pas.
-    await expect(page.getByText(/sur la carte|mettent la fiche à jour/)).toHaveCount(0);
+    // Pas de mise à jour automatique : tant que ce n'est pas vrai, on ne le dit pas. La carte,
+    // elle, existe (ticket 15) : l'accueil y mène.
+    await expect(page.getByText(/mettent la fiche à jour/)).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' })).toBeVisible();
   });
 
   test('accueil : l’arrondissement qui a des fiches passe avant celui où le relevé est en cours', async ({

@@ -9,6 +9,16 @@ import type { ArrondissementPublic, EcolePubliee } from '../../../modele/ports';
 import { dateLongue } from '../../../modele/pointe-noire';
 import { afficherTelephone } from '../../../modele/telephone';
 import { lienWhatsApp } from '../../../modele/whatsapp';
+import {
+  arrondissementDessine,
+  arrondissementsDessines,
+  cadreEcole,
+  planer,
+  ruesDe,
+  surCarte,
+} from '../../../modele/carte/plan';
+import { reperes } from '../../../modele/carte/reperes';
+import Carte from '../../../ui/Carte.astro';
 import PagePublique from '../../../ui/PagePublique.astro';
 
 export const getStaticPaths = (async () => {
@@ -62,6 +72,18 @@ const lieu =
 const niveaux = e ? e.niveaux.map((n) => libelleNiveau[n]).join(', ') : '';
 const typeSeLit = e ? typeInformatif(e.typeEcole) : false;
 const aDesProprietes = Boolean(niveaux || typeSeLit || e?.programme || e?.numeroEnseigne);
+
+// Le petit plan de la fiche : l'école dans son quartier. La maison mène à la carte du quartier.
+const dessin = e ? arrondissementDessine(e.arrondissement) : null;
+const [situee] = e ? surCarte([e]) : [];
+const carteDuQuartier = e ? `/ecoles/${e.arrondissement}/carte/` : '';
+const plan =
+  situee && dessin
+    ? (() => {
+        const { boite, projection } = cadreEcole(situee);
+        return planer(boite, [{ ...situee, lien: carteDuQuartier }], projection);
+      })()
+    : null;
 ---
 
 {renvoi ? (
@@ -143,6 +165,21 @@ const aDesProprietes = Boolean(niveaux || typeSeLit || e?.programme || e?.numero
             )}
 
             <section class="carte ou" aria-label="Où est l'école">
+              {plan && dessin && situee && (
+                <Carte
+                  id="fiche"
+                  titre={`${e.nom} sur la carte de ${arrondissement.nom}`}
+                  projection={plan.projection}
+                  arrondissements={arrondissementsDessines.map((a) => ({
+                    arrondissement: a,
+                    role: a.slug === dessin.slug ? 'focus' : 'voisin',
+                  }))}
+                  rues={ruesDe(dessin.slug)}
+                  marques={plan.marques}
+                  reperes={reperes}
+                  halo={situee}
+                />
+              )}
               <p>
                 <b>Repère&nbsp;:</b> {e.repere ?? 'pas encore relevé'}
               </p>
@@ -151,6 +188,7 @@ const aDesProprietes = Boolean(niveaux || typeSeLit || e?.programme || e?.numero
                   Y aller
                 </a>
               )}
+              {plan && <a href={carteDuQuartier}>Voir sur la carte de {arrondissement.nom}</a>}
             </section>
           </div>
 
@@ -237,6 +275,13 @@ const aDesProprietes = Boolean(niveaux || typeSeLit || e?.programme || e?.numero
     display: grid;
     gap: var(--espace-3);
     padding: var(--espace-4);
+  }
+  .ou > a:not(.bouton) {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
   }
   .manque {
     display: grid;

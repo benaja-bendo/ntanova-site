@@ -81,6 +81,9 @@ const quartiers = arrondissements
           </li>
         ))}
       </ul>
+      <a class="lien-carte" href="/ecoles/">
+        Voir la carte de <span class="insecable">Pointe-Noire</span>
+      </a>
     </section>
   </div>
 
@@ -144,6 +147,15 @@ const quartiers = arrondissements
 </PagePublique>
 
 <style>
+  .lien-carte {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    margin-top: var(--espace-3);
+    color: var(--marque);
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
   .accueil {
     display: grid;
     gap: var(--espace-5);

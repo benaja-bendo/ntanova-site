@@ -1,4 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
+
+/** Le nom d'une cible pour le message d'erreur : son texte, ou celui qu'elle donne au lecteur d'écran (un lien de la carte, en SVG). */
+const nomDe = async (cible: Locator) =>
+  (await cible.getAttribute('aria-label')) ?? (await cible.textContent()) ?? '';
 
 // Le site public, construit avec le catalogue fictif (une école publiée à Tié-Tié).
 // Chaque page : en français, sans JavaScript, sans ressource extérieure, lisible
@@ -8,6 +12,10 @@ const pages = [
   '/',
   '/ecoles/tie-tie/',
   '/ecoles/ngoyo/',
+  '/ecoles/',
+  '/ecoles/tie-tie/carte/',
+  '/ecoles/tie-tie/carte/coin-1/',
+  '/ecoles/ngoyo/carte/',
   '/ecoles/tie-tie/complexe-scolaire-exemple/',
   '/ecoles/tie-tie/centre-de-formation-exemple/',
   '/ecoles/tie-tie/ecole-sans-detail-exemple/',
@@ -35,7 +43,7 @@ test.describe('site public', () => {
         // Un lien caché à cette largeur (la navigation du haut, réservée aux écrans larges) n'est pas une cible.
         if (!(await cible.isVisible())) continue;
         const boite = await cible.boundingBox();
-        expect(boite?.height, await cible.innerText()).toBeGreaterThanOrEqual(44);
+        expect(boite?.height, await nomDe(cible)).toBeGreaterThanOrEqual(44);
       }
     });
   }

@@ -3,10 +3,12 @@
 import type { GetStaticPaths } from 'astro';
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirCatalogue } from '../../../infra/index';
-import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../../../modele/libelles';
 import type { ArrondissementPublic, EcolePubliee } from '../../../modele/ports';
 import { numeroArrondissement } from '../../../modele/pointe-noire';
 import { lienWhatsApp } from '../../../modele/whatsapp';
+import { arrondissementDessine } from '../../../modele/carte/plan';
+import BasculeVue from '../../../ui/BasculeVue.astro';
+import ListeEcoles from '../../../ui/ListeEcoles.astro';
 import PagePublique from '../../../ui/PagePublique.astro';
 
 export const getStaticPaths = (async () => {
@@ -33,14 +35,8 @@ const manque = lienWhatsApp(
   PUBLIC_WHATSAPP,
   `Bonjour NTanova, une école manque à ${arrondissement.nom} : `,
 );
-const resume = (e: EcolePubliee) =>
-  [
-    e.niveaux.map((n) => libelleNiveau[n]).join(' · '),
-    typeInformatif(e.typeEcole) ? libelleTypeEcole[e.typeEcole] : null,
-    e.repere,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+// La carte de l'arrondissement, quand son contour est dessiné (src/modele/carte/).
+const aUneCarte = arrondissementDessine(arrondissement.slug) !== null;
 ---
 
 <PagePublique
@@ -52,12 +48,21 @@ const resume = (e: EcolePubliee) =>
     <a class="retour" href="/">
       ← Accueil
     </a>
-    <div>
-      <h1>{arrondissement.nom}</h1>
-      <p class="texte-doux">
-        {numero ? `Arrondissement ${numero} · ` : ''}
-        <span class="insecable">Pointe-Noire</span>
-      </p>
+    <div class="titre-vue">
+      <div>
+        <h1>{arrondissement.nom}</h1>
+        <p class="texte-doux">
+          {numero ? `Arrondissement ${numero} · ` : ''}
+          <span class="insecable">Pointe-Noire</span>
+        </p>
+      </div>
+      {aUneCarte && (
+        <BasculeVue
+          carte={`/ecoles/${arrondissement.slug}/carte/`}
+          liste={`/ecoles/${arrondissement.slug}/`}
+          actuelle="liste"
+        />
+      )}
     </div>
 
     {ecoles.length === 0 ? (
@@ -69,19 +74,7 @@ const resume = (e: EcolePubliee) =>
       </p>
     )}
 
-    <ul class="ecoles">
-      {ecoles.map((e) => (
-        <li>
-          <a class="ecole" href={`/ecoles/${e.arrondissement}/${e.slug}/`}>
-            <span class="ecole-nom">{e.nom}</span>
-            {resume(e) && <span class="ecole-detail">{resume(e)}</span>}
-            <span class="ecole-etat">
-              {e.etat === 'verifiee' ? 'Vérifiée par l’école' : 'Relevée de la rue'}
-            </span>
-          </a>
-        </li>
-      ))}
-    </ul>
+    <ListeEcoles ecoles={ecoles} />
 
     <div class="encadre-pointille">
       <p>Une partie du quartier n'est pas encore relevée&nbsp;: relevé en cours.</p>
@@ -109,35 +102,6 @@ const resume = (e: EcolePubliee) =>
     font-family: var(--police-titre);
     font-weight: 700;
   }
-  .ecoles {
-    display: grid;
-    gap: var(--espace-3);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .ecole {
-    display: grid;
-    gap: var(--espace-1);
-    padding: var(--espace-4);
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-m);
-    background: var(--fond-releve);
-    color: var(--texte);
-    text-decoration: none;
-  }
-  .ecole-nom {
-    font-family: var(--police-titre);
-    font-weight: 700;
-  }
-  .ecole-detail,
-  .ecole-etat {
-    color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
-  }
-  .ecole-etat {
-    font-weight: 700;
-  }
   .encadre-pointille a {
     display: inline-flex;
     align-items: center;
@@ -154,21 +118,6 @@ const resume = (e: EcolePubliee) =>
     }
     .liste h1 {
       font-size: var(--taille-titre-public);
-    }
-    .ecoles {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
-      gap: var(--espace-4);
-    }
-    .ecole {
-      align-content: start;
-      padding: var(--espace-5);
-      border-radius: var(--rayon-l);
-    }
-    .ecole:hover {
-      border-color: var(--marque);
-    }
-    .ecole-nom {
-      font-size: var(--taille-intertitre);
     }
   }
 </style>

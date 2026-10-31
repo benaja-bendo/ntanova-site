@@ -1,0 +1,89 @@
+import { expect, test } from '@playwright/test';
+
+// La carte détourée (ticket 15), sur le catalogue fictif : à Tié-Tié, deux écoles situées à
+// 270 m l'une de l'autre (une pastille de 2 sur la carte de l'arrondissement), une troisième sans
+// position ; à Ngoyo, aucune école. Sans JavaScript : toucher, c'est changer de page.
+
+test('de la ville à la fiche : arrondissement, pastille, coin vu de près, école', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' }).click();
+
+  // La ville : Tié-Tié et Ngoyo en cours, les quatre autres pas encore.
+  await expect(page).toHaveURL(/\/ecoles\/$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pointe-Noire');
+  await expect(
+    page.getByText('Les quatre autres arrondissements : pas encore relevés.'),
+  ).toBeVisible();
+  await page.getByRole('link', { name: 'Tié-Tié : 3 écoles' }).click();
+
+  // L'arrondissement : la pastille regroupe les deux écoles situées.
+  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
+  await expect(page.getByText('2 écoles sur la carte de Tié-Tié')).toBeVisible();
+  await expect(
+    page.getByText('Une autre école n’est pas encore située : elle n’est que dans la liste.'),
+  ).toBeVisible();
+  const pastille = page.getByRole('link', { name: /Un groupe de 2 écoles.*le voir de près/ });
+  await expect(pastille).toBeVisible();
+  await pastille.click();
+
+  // Vu de près : chaque école a sa maison, et la liste du coin suit.
+  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/coin-1\/$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Un coin de Tié-Tié');
+  const carte = page.getByRole('group', { name: /vues de près/ });
+  await expect(
+    carte.getByRole('link', { name: /Complexe scolaire Exemple.*relevée de la rue/ }),
+  ).toBeVisible();
+  await expect(carte.getByRole('link', { name: /Centre de formation Exemple/ })).toBeVisible();
+  await expect(page.locator('#ecoles-du-coin').getByRole('link')).toHaveCount(2);
+  await carte.getByRole('link', { name: /Complexe scolaire Exemple/ }).click();
+
+  // La fiche, et son petit plan qui ramène à la carte du quartier.
+  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/complexe-scolaire-exemple\/$/);
+  await expect(page.getByRole('group', { name: /sur la carte de Tié-Tié/ })).toBeVisible();
+  await page.getByRole('link', { name: 'Voir sur la carte de Tié-Tié' }).click();
+  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
+});
+
+test('« Carte | Liste » : on passe de l’une à l’autre, la vue courante n’est pas un lien', async ({
+  page,
+}) => {
+  await page.goto('/ecoles/tie-tie/');
+  const bascule = page.getByRole('navigation', { name: 'Voir les écoles' });
+  await expect(bascule.getByText('Liste')).toHaveAttribute('aria-current', 'page');
+  await bascule.getByRole('link', { name: 'Carte' }).click();
+  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
+  await expect(bascule.getByText('Carte')).toHaveAttribute('aria-current', 'page');
+  await bascule.getByRole('link', { name: 'Liste' }).click();
+  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/$/);
+});
+
+test('une fiche sans position n’a pas de plan, et un arrondissement sans école dit que le relevé est en cours', async ({
+  page,
+}) => {
+  await page.goto('/ecoles/tie-tie/ecole-sans-detail-exemple/');
+  await expect(page.getByRole('link', { name: /Voir sur la carte/ })).toHaveCount(0);
+
+  await page.goto('/ecoles/ngoyo/carte/');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ngoyo');
+  await expect(
+    page.getByText('Aucune école sur la carte pour l’instant : le relevé est en cours.'),
+  ).toBeVisible();
+  await expect(page.getByRole('group', { name: /Carte de Ngoyo/ }).getByRole('link')).toHaveCount(
+    0,
+  );
+});
+
+test('chaque école et chaque pastille se touchent du doigt : 44 px au moins', async ({ page }) => {
+  for (const adresse of ['/ecoles/tie-tie/carte/', '/ecoles/tie-tie/carte/coin-1/']) {
+    await page.goto(adresse);
+    const marques = page.locator('svg a.marque');
+    expect(await marques.count()).toBeGreaterThan(0);
+    for (const marque of await marques.all()) {
+      const boite = await marque.locator('.cible').boundingBox();
+      expect(boite?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(boite?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
