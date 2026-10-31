@@ -117,83 +117,49 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
   },
 
   async ecolesACompleter(): Promise<EcoleACompleter[]> {
-
     const id = await monId();
-
     const lignes = lire(
-
       await supabase()
-
         .from('ecoles_confiees')
-
-        .select('note, ecoles(id, nom, quartier, type_ecole, niveaux, repere, numero_enseigne)')
-
+        .select(
+          'note, ecoles(id, nom, quartier, type_ecole, niveaux, programme, repere, numero_enseigne)',
+        )
         .eq('relais_id', id)
-
         .returns<
-
           {
-
             note: string | null;
-
             ecoles: {
-
               id: string;
-
               nom: string;
-
               quartier: string | null;
-
-              type_ecole: Valeur<'type_ecole'>;
-
-              niveaux: Valeur<'niveau'>[];
-
+              // Tels que la base les dit : la contre-visite ne reprend que ce que ce téléphone connaît.
+              type_ecole: string;
+              niveaux: string[];
+              programme: string | null;
               repere: string | null;
-
               numero_enseigne: string | null;
-
             } | null;
-
           }[]
-
         >(),
-
     );
-
     return lignes.flatMap((l) =>
-
       l.ecoles
-
         ? [
-
             {
-
               id: l.ecoles.id,
-
               nom: l.ecoles.nom,
-
               quartier: l.ecoles.quartier,
-
               typeEcole: l.ecoles.type_ecole,
-
               niveaux: l.ecoles.niveaux,
-
+              programme: l.ecoles.programme,
               repere: l.ecoles.repere,
-
               numeroEnseigne: l.ecoles.numero_enseigne,
-
               note: l.note,
-
             },
-
           ]
-
         : [],
-
     );
-
   },
-
 
   async envoyerReleve(r) {
     // Sans `.select()` : le relais n'a pas à relire ce qu'il envoie, et un second
@@ -211,6 +177,9 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
       nom_enseigne: r.nomEnseigne,
       niveaux: r.niveaux,
       type_ecole: r.typeEcole,
+      // Seulement s'il y en a un : une base pas encore migrée accepte quand même les fiches
+      // qui n'en ont pas (le `db push` précède la mise en ligne, mais rien ne casse si l'ordre glisse).
+      ...(r.programme === null ? {} : { programme: r.programme }),
       repere: r.repere,
       numero_enseigne: r.numeroEnseigne,
       direction: r.direction,

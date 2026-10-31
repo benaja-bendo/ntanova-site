@@ -418,6 +418,8 @@ function Detail({
           <dd>{libelleTypeEcole[detail.typeEcole]}</dd>
           <dt>Niveaux</dt>
           <dd>{detail.niveaux.map((n) => libelleNiveau[n]).join(', ') || '—'}</dd>
+          <dt>Programme</dt>
+          <dd>{detail.programme ?? '—'}</dd>
           <dt>Repère</dt>
           <dd>{detail.repere ?? '—'}</dd>
           <dt>Numéro sur l'enseigne</dt>

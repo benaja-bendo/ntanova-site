@@ -9,6 +9,8 @@ const pages = [
   '/ecoles/tie-tie/',
   '/ecoles/ngoyo/',
   '/ecoles/tie-tie/complexe-scolaire-exemple/',
+  '/ecoles/tie-tie/centre-de-formation-exemple/',
+  '/ecoles/tie-tie/ecole-sans-detail-exemple/',
   '/pour-les-ecoles/',
   '/a-propos/',
 ];
@@ -41,7 +43,7 @@ test.describe('site public', () => {
   test('de l’accueil à la fiche d’une école, puis vers « Pour les écoles »', async ({ page }) => {
     await page.goto('/');
     await expect(
-      page.getByRole('link', { name: /Tié-Tié.*Arrondissement 3.*1 école/ }),
+      page.getByRole('link', { name: /Tié-Tié.*Arrondissement 3.*3 écoles/ }),
     ).toBeVisible();
     await expect(page.getByRole('link', { name: /Ngoyo.*relevé en cours/ })).toBeVisible();
     await page
@@ -65,6 +67,74 @@ test.describe('site public', () => {
     );
     await page.getByRole('link', { name: 'Confirmer la fiche' }).click();
     await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
+  });
+
+  test.describe('toutes les écoles, de la crèche au supérieur (ticket 12)', () => {
+    test('la fiche dit le type, les niveaux et le programme de l’école', async ({ page }) => {
+      await page.goto('/ecoles/tie-tie/complexe-scolaire-exemple/');
+      const proprietes = page.locator('dl.proprietes');
+      await expect(proprietes.getByText('Privée', { exact: true })).toBeVisible();
+      await expect(proprietes.getByText('Maternelle, Primaire')).toBeVisible();
+      await expect(proprietes.getByText('Programme et langues', { exact: true })).toBeVisible();
+      await expect(proprietes.getByText('Programme français-congolais, bilingue')).toBeVisible();
+      // Tout est renseigné : rien à ranger parmi ce qui manque.
+      const manque = page.locator('ul.pastilles-vides');
+      await expect(manque).not.toContainText("Type d'école");
+      await expect(manque).not.toContainText('Niveaux');
+    });
+
+    test('un type « Pas indiqué » ou l’absence de niveaux ne s’écrit pas : ils rejoignent « Pas encore sur la fiche »', async ({
+      page,
+    }) => {
+      await page.goto('/ecoles/tie-tie/ecole-sans-detail-exemple/');
+      const proprietes = page.locator('dl.proprietes');
+      await expect(proprietes).not.toContainText('Pas indiqué');
+      await expect(proprietes).not.toContainText('Non indiqués');
+      await expect(proprietes.getByText('Type', { exact: true })).toHaveCount(0);
+      await expect(proprietes.getByText('Niveaux', { exact: true })).toHaveCount(0);
+      await expect(proprietes.getByText('Programme et langues')).toHaveCount(0);
+      const manque = page.locator('ul.pastilles-vides');
+      await expect(manque).toContainText("Type d'école");
+      await expect(manque).toContainText('Niveaux');
+    });
+
+    test('un type « Autre » ne s’écrit pas non plus, et « Autre formation » est un niveau comme un autre', async ({
+      page,
+    }) => {
+      await page.goto('/ecoles/tie-tie/centre-de-formation-exemple/');
+      const proprietes = page.locator('dl.proprietes');
+      await expect(proprietes.getByText('Autre formation', { exact: true })).toBeVisible();
+      await expect(proprietes.getByText('Type', { exact: true })).toHaveCount(0);
+      await expect(page.locator('ul.pastilles-vides')).toContainText("Type d'école");
+    });
+
+    test('la liste écrit niveaux, type et repère, sans jamais écrire « Pas indiqué »', async ({
+      page,
+    }) => {
+      await page.goto('/ecoles/tie-tie/');
+      const liste = page.locator('ul.ecoles');
+      await expect(liste.getByRole('link', { name: /Complexe scolaire Exemple/ })).toContainText(
+        'Maternelle · Primaire · Privée',
+      );
+      // Le nom, puis le niveau (le type « Autre » ne s'écrit pas), puis l'état : rien d'autre.
+      await expect(liste.getByRole('link', { name: /Centre de formation Exemple/ })).toHaveText(
+        /^\[Centre de formation Exemple\]\s*Autre formation\s*Relevée de la rue$/,
+      );
+      await expect(liste.getByRole('link', { name: /École sans détail/ })).toHaveText(
+        /^\[École sans détail Exemple\]\s*Relevée de la rue$/,
+      );
+      await expect(liste).not.toContainText('Pas indiqué');
+    });
+
+    test('la description de la page d’un arrondissement va de la crèche au supérieur', async ({
+      page,
+    }) => {
+      await page.goto('/ecoles/tie-tie/');
+      await expect(page.locator('meta[name=description]')).toHaveAttribute(
+        'content',
+        /de la crèche au supérieur/,
+      );
+    });
   });
 
   test('le code de la fiche de liaison part sur WhatsApp, sans JavaScript', async ({ page }) => {

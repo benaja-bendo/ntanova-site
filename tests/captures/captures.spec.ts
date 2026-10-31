@@ -20,6 +20,8 @@ test('une capture de chaque écran', async ({ page, context }) => {
     ['public-accueil', '/'],
     ['public-liste', '/ecoles/tie-tie/'],
     ['public-fiche', '/ecoles/tie-tie/complexe-scolaire-exemple/'],
+    ['public-fiche-autre', '/ecoles/tie-tie/centre-de-formation-exemple/'],
+    ['public-fiche-sans-detail', '/ecoles/tie-tie/ecole-sans-detail-exemple/'],
     ['public-pour-les-ecoles', '/pour-les-ecoles/'],
     ['public-a-propos', '/a-propos/'],
     ['public-introuvable', '/cette-page-n-existe-pas/'],
@@ -28,8 +30,21 @@ test('une capture de chaque écran', async ({ page, context }) => {
     await prendre(ecran);
   }
 
-  await uneFicheEnvoyee(page, context);
+  await uneFicheEnvoyee(page, context, { programme: 'Programme français-congolais, bilingue' });
   await prendre('relais-mon-lot');
+
+  // L'étape 2/3 d'« Ajouter une école » : telle qu'on l'ouvre, puis remplie.
+  await page.goto('/relais/#ajouter/2');
+  await page.getByRole('heading', { name: 'Ce qui se voit de la rue' }).waitFor();
+  await prendre('relais-ajouter-2');
+  await page.getByLabel("Nom sur l'enseigne").fill('[École exemple]');
+  await page.getByRole('button', { name: 'Maternelle', exact: true }).click();
+  await page.getByRole('button', { name: 'Primaire', exact: true }).click();
+  await page.getByRole('button', { name: 'Communautaire', exact: true }).click();
+  await page
+    .getByLabel(/Programme, langues ou autre mention écrite/)
+    .fill('Programme français-congolais, bilingue');
+  await prendre('relais-ajouter-2-rempli');
 
   await ouvrirLaFiche(page);
   await prendre('admin-a-valider');

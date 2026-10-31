@@ -81,6 +81,8 @@ export interface ReleveAEnvoyer {
   nomEnseigne: string;
   niveaux: Valeur<'niveau'>[];
   typeEcole: Valeur<'type_ecole'>;
+  /** Une ligne libre, facultative : « programme français-congolais, bilingue ». */
+  programme: string | null;
   repere: string | null;
   numeroEnseigne: string | null;
   direction: Valeur<'direction_vue'> | null;
@@ -107,13 +109,18 @@ export interface ErreurAEnvoyer {
   appareil: string | null;
 }
 
-/** Une école connue, confiée au relais pour qu'il la situe et la complète sur place. */
+/**
+ * Une école connue, confiée au relais pour qu'il la situe et la complète sur place.
+ * Le type et les niveaux sont dits tels que la base les a : une valeur que ce téléphone ne
+ * connaît pas encore est possible, et la contre-visite ne reprend que ce qu'il connaît.
+ */
 export interface EcoleACompleter {
   id: string;
   nom: string;
   quartier: string | null;
-  typeEcole: Valeur<'type_ecole'>;
-  niveaux: Valeur<'niveau'>[];
+  typeEcole: string;
+  niveaux: string[];
+  programme: string | null;
   repere: string | null;
   numeroEnseigne: string | null;
   /** Ce que NTanova demande de vérifier. */
@@ -166,6 +173,7 @@ export interface DetailReleve extends ReleveAValider {
   position: Point | null;
   niveaux: Valeur<'niveau'>[];
   typeEcole: Valeur<'type_ecole'>;
+  programme: string | null;
   repere: string | null;
   numeroEnseigne: string | null;
   direction: Valeur<'direction_vue'> | null;
@@ -318,6 +326,8 @@ export interface EcolePubliee {
   quartier: string | null;
   typeEcole: Valeur<'type_ecole'>;
   niveaux: Valeur<'niveau'>[];
+  /** « Programme français-congolais, bilingue » : tel que le relais l'a lu, ou rien. */
+  programme: string | null;
   repere: string | null;
   numeroEnseigne: string | null;
   latitude: number | null;

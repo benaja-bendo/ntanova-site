@@ -15,6 +15,8 @@ function fausseApi(rpc: Record<string, Reponse>, tables: Record<string, unknown[
       order: () => constructeur,
       limit: () => constructeur,
       returns: () => constructeur,
+      single: () => Promise.resolve({ data: lignes[0] ?? null, error: null }),
+      maybeSingle: () => Promise.resolve({ data: lignes[0] ?? null, error: null }),
       then: (suite: (r: unknown) => unknown) =>
         Promise.resolve({ data: lignes, error: null }).then(suite),
     };
@@ -146,6 +148,61 @@ describe('l’adaptateur Supabase de l’administration', () => {
       { nom: 'stockage releves', arguments: ['r1/enseigne.jpg'] },
       { nom: 'noter_effacement_photo', arguments: { releve: 'r1', note: null } },
     ]);
+  });
+
+  describe('le détail d’un relevé (ticket 12)', () => {
+    const relevé = (champs: Record<string, unknown>) => ({
+      id: 'r1',
+      recu_le: '2026-11-02T09:00:00Z',
+      pris_le: '2026-11-02T08:00:00Z',
+      type: 'releve',
+      nom_enseigne: '[École]',
+      position: null,
+      precision_m: null,
+      niveaux: ['primaire'],
+      type_ecole: 'privee',
+      repere: null,
+      numero_enseigne: null,
+      direction: null,
+      repasser: null,
+      reponse_doublon: null,
+      corrige_releve_id: null,
+      hors_lot: null,
+      doublon_possible: false,
+      contact_confirme_le: null,
+      contact_fonction: null,
+      relais: { prenom: '[A]' },
+      lots: { nom: 'Tié-Tié', essai: false },
+      doublon: null,
+      ...champs,
+    });
+
+    it('lit le programme, ou rien tant que la colonne n’existe pas dans la base', async () => {
+      const avec = fausseApi(
+        {},
+        { releves: [relevé({ programme: 'Programme français-congolais' })] },
+      );
+      await expect(avec.port.detailReleve('r1')).resolves.toMatchObject({
+        programme: 'Programme français-congolais',
+      });
+      const sans = fausseApi({}, { releves: [relevé({})] });
+      await expect(sans.port.detailReleve('r1')).resolves.toMatchObject({ programme: null });
+    });
+
+    it('ne casse pas devant un type ou un niveau que cette version ne connaît pas encore', async () => {
+      const { port } = fausseApi(
+        {},
+        {
+          releves: [
+            relevé({ type_ecole: 'type_de_demain', niveaux: ['creche', 'niveau_de_demain'] }),
+          ],
+        },
+      );
+      await expect(port.detailReleve('r1')).resolves.toMatchObject({
+        typeEcole: 'non_indique',
+        niveaux: ['creche'],
+      });
+    });
   });
 
   it('rend le refus de la base : un relevé refusé ne s’accepte plus', async () => {

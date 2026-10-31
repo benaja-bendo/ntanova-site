@@ -3,7 +3,7 @@
  * téléphone. Elle part ensuite en trois envois : le relevé, la photo, le contact.
  */
 import { z } from 'zod';
-import { listes, type Valeur } from './listes';
+import { listes, niveauxConnus, typeConnu, type Valeur } from './listes';
 import type { Point } from './geo';
 import type { ContactAEnvoyer, EcoleACompleter, ReleveAEnvoyer } from './ports';
 import { normaliserTelephone } from './telephone';
@@ -40,6 +40,12 @@ export interface FicheLocale {
   nomEnseigne: string;
   niveaux: Valeur<'niveau'>[];
   typeEcole: Valeur<'type_ecole'>;
+  /**
+   * Une ligne libre : le programme, les langues, une mention écrite sur l'enseigne.
+   * Absente des fiches faites avant le ticket 12, qui restent valables : toujours lue
+   * avec `?? ''`.
+   */
+  programme?: string;
   repere: string;
   numeroEnseigne: string;
 
@@ -76,7 +82,10 @@ export function nouvelleFiche(
     reponseDoublon: null,
     nomEnseigne: corrige?.nomEnseigne ?? '',
     niveaux: [],
-    typeEcole: 'privee',
+    // Comme la base : tant que le relais n'a rien lu sur l'enseigne, c'est « Pas indiqué ».
+    // Jamais « Privée » d'avance : un relais pressé déclarerait privée une école publique.
+    typeEcole: 'non_indique',
+    programme: '',
     repere: '',
     numeroEnseigne: '',
     direction: null,
@@ -91,6 +100,9 @@ export function nouvelleFiche(
 /**
  * La contre-visite d'une école connue, confiée au relais : ce qu'on sait déjà est
  * prérempli, le relais le vérifie sur place, et la fiche dit quelle école elle visite.
+ * Elle ne reprend que ce que cette version connaît : un type ou un niveau ajouté à la base
+ * depuis la dernière mise à jour du téléphone devient « Pas indiqué » ou disparaît, et ne
+ * bloque jamais l'étape 2/3.
  */
 export function nouvelleContreVisite(
   id: string,
@@ -104,8 +116,9 @@ export function nouvelleContreVisite(
     doublonPropose: { ecoleId: ecole.id, nom: ecole.nom },
     reponseDoublon: 'la_meme',
     nomEnseigne: ecole.nom,
-    niveaux: ecole.niveaux,
-    typeEcole: ecole.typeEcole,
+    niveaux: niveauxConnus(ecole.niveaux),
+    typeEcole: typeConnu(ecole.typeEcole),
+    programme: ecole.programme ?? '',
     repere: ecole.repere ?? '',
     numeroEnseigne: ecole.numeroEnseigne ? `+${ecole.numeroEnseigne}` : '',
   };
@@ -155,8 +168,11 @@ const etape2 = z.object({
     .trim()
     .min(1, "Écrivez le nom qui est sur l'enseigne.")
     .max(200, 'Ce nom est trop long.'),
-  niveaux: z.array(z.enum(listes.niveau)),
-  typeEcole: z.enum(listes.type_ecole),
+  // Ces deux listes ne bloquent personne : rien n'y est obligatoire. Une valeur que la
+  // version ne connaît pas dit pourquoi, en français, à l'endroit où le relais la voit.
+  niveaux: z.array(z.enum(listes.niveau, { message: 'Choisissez les niveaux dans la liste.' })),
+  typeEcole: z.enum(listes.type_ecole, { message: 'Choisissez un type d’école dans la liste.' }),
+  programme: z.string().max(200, 'Cette ligne est trop longue.').optional(),
   repere: z.string().max(300, 'Ce repère est trop long.'),
   numeroEnseigne: telephoneFacultatif('Ce numéro ne semble pas complet.'),
 });
@@ -222,6 +238,7 @@ export function versReleve(fiche: FicheLocale): ReleveAEnvoyer {
     nomEnseigne: fiche.nomEnseigne.trim(),
     niveaux: fiche.niveaux,
     typeEcole: fiche.typeEcole,
+    programme: vide(fiche.programme ?? ''),
     repere: vide(fiche.repere),
     numeroEnseigne: normaliserTelephone(fiche.numeroEnseigne),
     direction: fiche.direction,

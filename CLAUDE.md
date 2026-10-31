@@ -74,7 +74,8 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - Les contraintes, les déclencheurs (doublon possible à moins de 40 m, hors du lot, heure de réception donnée par le serveur) et les vues (écoles publiées, relevés à valider, à payer par relais, dates des échanges). Ce sont les règles qui doivent survivre à un changement de serveur.
 - Les règles d'accès (RLS) sur chaque table.
 - **Des `grant` explicites** : en ligne, une table créée par `postgres` ne donne rien à `anon` ni à `authenticated` ; en local, Supabase leur donne tout. Chaque migration qui crée une table, une vue ou une fonction retire donc d'abord les droits, puis donne exactement ceux qu'il faut (voir `20261031010200_droits.sql`). Le relais n'a le droit d'écrire que les colonnes remplies par le téléphone.
-- **Les listes fermées sont des domaines SQL**, copiés dans `src/modele/listes.ts` : un test vérifie qu'ils restent identiques.
+- **Les listes fermées sont des domaines SQL**, copiés dans `src/modele/listes.ts` : un test vérifie qu'ils restent identiques. **Une liste ne bloque jamais personne** (ticket #12) : toujours une case de sortie (`autre`, `non_indique`), rien d'obligatoire ni coché d'avance si cela fausse la donnée, un texte libre facultatif (`programme`) pour ce que la liste ne sait pas encore, l'administration qui corrige sans repasser par le relais, des lectures tolérantes (`typeConnu`, `niveauxConnus` : une valeur inconnue se lit « Pas indiqué » ou se laisse de côté, jamais d'erreur). **On ne retire et on ne renomme jamais une valeur** (pour changer un mot, on change le libellé).
+- **Ajouter une valeur à une liste** : 1) une migration `alter domain … drop constraint`, puis `add constraint … check (value in (…)) not valid` (**`not valid` obligatoire** : `niveaux` est un tableau, que PostgreSQL ne sait pas revalider) ; 2) `src/modele/listes.ts` ; 3) `src/modele/libelles.ts` ; 4) `pnpm verif` ; 5) `pnpm exec supabase db push` **avant** la mise en ligne. Le détail : [`supabase/schema.md`](supabase/schema.md), « Les listes ».
 - Les relais sont liés à leur compte Google (l'identifiant `sub`), pas seulement à leur identifiant Supabase.
 - Les photos sous des chemins neutres : `releves/<identifiant>/enseigne.jpg`.
 - Des données d'exemple **fictives** seulement. Les vraies écoles connues par les entretiens entrent par `outils/importer-ecoles.ts` (voir `supabase/schema.md`, « Les écoles à situer ») : le CSV et le SQL réels ne passent jamais par git.
@@ -150,6 +151,7 @@ Les tâches sont des tickets du projet GitHub n° 29 (« NTanova site · feuille
 ## Pièges connus
 
 - **Node 24** : faire `nvm use` dans chaque nouveau terminal (Astro 7 exige Node 22.23.4 au moins).
+- **`alter domain … add constraint` sans `not valid` échoue pour `niveau`** (« cannot alter type "niveau" because column "ecoles.niveaux" uses it ») : les colonnes `niveaux` sont des tableaux de ce domaine. La CI le voit, puisqu'elle rejoue les migrations.
 - **pnpm refuse une version publiée depuis moins de 24 h** (`minimumReleaseAge` dans `pnpm-workspace.yaml`) : c'est voulu.
 - **TypeScript reste en 6.0** : `typescript-eslint` et `@astrojs/check` ne prennent pas encore la 7.
 - **`astro preview` part en arrière-plan quand un agent le lance** (Astro 7) : `pnpm preview` utilise donc `wrangler dev`, qui sert le site comme Cloudflare.
