@@ -180,6 +180,13 @@ export function ListeRelais({ admin }: { admin: PortAdministration }) {
                 }}
               />
             ))}
+            {relais === null && !erreur && (
+              <tr>
+                <td colSpan={5} className="texte-doux" aria-busy="true">
+                  Chargement des relais…
+                </td>
+              </tr>
+            )}
             {relais?.length === 0 && (
               <tr>
                 <td colSpan={5} className="texte-doux">
