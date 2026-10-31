@@ -1,7 +1,8 @@
 import type { Valeur } from '../../modele/listes';
 import type { MultiPolygone } from '../../modele/geo';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EcoleProche, Lot, PortRelais, Profil, ReleveRecu } from '../../modele/ports';
-import { lire, supabase, traduire } from './client';
+import { lire, traduire } from './erreurs';
 
 const point = (p: { latitude: number; longitude: number } | null) =>
   p === null ? null : `SRID=4326;POINT(${p.longitude} ${p.latitude})`;
@@ -10,11 +11,22 @@ interface GeoJson {
   coordinates?: MultiPolygone;
 }
 
-export const relais: PortRelais = {
-  async monProfil(): Promise<Profil> {
-    const { data: auth } = await supabase().auth.getSession();
-    const id = auth.session?.user.id;
+/**
+ * Le port Relais branché sur Supabase. Chaque lecture filtre sur le compte
+ * connecté : les règles de la base laissent un administrateur tout lire, et un
+ * administrateur peut aussi être relais (le lot « Essai » sert à se former).
+ */
+export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
+  const monId = async (): Promise<string> => {
+    const { data } = await supabase().auth.getSession();
+    const id = data.session?.user.id;
     if (!id) throw new Error('Aucune session');
+    return id;
+  };
+
+  return {
+  async monProfil(): Promise<Profil> {
+    const id = await monId();
     const ligne = lire(
       await supabase()
         .from('relais')
@@ -26,10 +38,19 @@ export const relais: PortRelais = {
   },
 
   async monLot(): Promise<Lot | null> {
-    // Le relais ne voit que son lot, et seulement quand il est actif (règles de la base).
+    const id = await monId();
+    const moi = lire(
+      await supabase()
+        .from('relais')
+        .select('lot_id')
+        .eq('id', id)
+        .single<{ lot_id: string | null }>(),
+    );
+    if (!moi.lot_id) return null;
     const { data, error } = await supabase()
       .from('lots')
       .select('id, nom, essai, a_rendre_le, contour, arrondissements(contour)')
+      .eq('id', moi.lot_id)
       .maybeSingle<{
         id: string;
         nom: string;
@@ -61,12 +82,14 @@ export const relais: PortRelais = {
   },
 
   async mesReleves(): Promise<ReleveRecu[]> {
+    const id = await monId();
     const lignes = lire(
       await supabase()
         .from('releves')
         .select(
           'id, nom_enseigne, pris_le, statut, motif, message_au_relais, direction, fiche_liaison_remise, repasser, contact_confirme_le, contact_fonction, ecole_id',
         )
+        .eq('relais_id', id)
         .order('pris_le', { ascending: false })
         .limit(500),
     );
@@ -143,4 +166,5 @@ export const relais: PortRelais = {
     });
     return traduire(error);
   },
-};
+  };
+}

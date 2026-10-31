@@ -19,8 +19,14 @@ export function obtenirAdaptateurs(): Promise<Adaptateurs> {
   adaptateurs ??=
     PUBLIC_ADAPTATEUR === 'faux'
       ? import('./faux/index').then((m) => m.faux)
-      : Promise.all([import('./supabase/session'), import('./supabase/relais')]).then(
-          ([s, r]): Adaptateurs => ({ nom: 'supabase', session: s.session, relais: r.relais }),
-        );
+      : Promise.all([
+          import('./supabase/client'),
+          import('./supabase/session'),
+          import('./supabase/relais'),
+        ]).then(([c, s, r]): Adaptateurs => ({
+          nom: 'supabase',
+          session: s.session,
+          relais: r.creerPortRelais(c.supabase),
+        }));
   return adaptateurs;
 }
