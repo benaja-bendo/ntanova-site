@@ -72,6 +72,18 @@ describe('le catalogue du site public', () => {
     expect(sans?.programme).toBeNull();
   });
 
+  it('lit la date de relevé, ou rien tant que la colonne n’existe pas dans la base', async () => {
+    const [avec, sans] = await lireAvec([
+      ligne({ relevee_le: '2026-11-02T08:00:00Z', mis_a_jour_le: '2026-11-20T10:00:00Z' }),
+      ligne({ slug: 'ecole-sans-colonne' }),
+    ]);
+    expect(avec).toMatchObject({
+      releveeLe: '2026-11-02T08:00:00Z',
+      misAJourLe: '2026-11-20T10:00:00Z',
+    });
+    expect(sans?.releveeLe).toBeNull();
+  });
+
   it('lit les nouveaux types et niveaux tels quels', async () => {
     const [e] = await lireAvec([
       ligne({ type_ecole: 'communautaire', niveaux: ['creche', 'technique', 'autre_formation'] }),

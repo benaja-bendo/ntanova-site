@@ -4,7 +4,7 @@
  * et refuse tout quand le navigateur est hors ligne. Jamais en ligne.
  */
 import type { Adaptateurs } from '../index';
-import type { Valeur } from '../../modele/listes';
+import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import {
   ErreurDecision,
   ErreurReseau,
@@ -65,6 +65,8 @@ interface EcoleFausse {
   typeEcole?: string;
   niveaux?: string[];
   programme?: string | null;
+  repere?: string | null;
+  numeroEnseigne?: string | null;
 }
 
 const ECOLE_A_SITUER = '40000000-0000-4000-8000-000000000001';
@@ -216,8 +218,8 @@ const relais: PortRelais = {
         typeEcole: e.typeEcole ?? 'privee',
         niveaux: e.niveaux ?? ['primaire'],
         programme: e.programme ?? null,
-        repere: null,
-        numeroEnseigne: null,
+        repere: e.repere ?? null,
+        numeroEnseigne: e.numeroEnseigne ?? null,
         note: e.note,
       }));
   },
@@ -357,9 +359,15 @@ const admin: PortAdministration = {
     ecrire((e) => {
       const visee = e.ecoles[ecole];
       if (visee && releve) {
-        // Comme la base : une école à situer devient prête, une école publiée le reste.
+        // Comme la base : une école à situer devient prête, une école publiée le reste ; « Pas indiqué »
+        // et « aucun niveau » n'effacent rien de ce que l'école sait déjà.
         visee.nom = releve.nomEnseigne;
         visee.position = releve.position ?? visee.position;
+        if (releve.typeEcole !== 'non_indique') visee.typeEcole = releve.typeEcole;
+        if (releve.niveaux.length > 0) visee.niveaux = releve.niveaux;
+        visee.programme = releve.programme ?? visee.programme ?? null;
+        visee.repere = releve.repere ?? visee.repere ?? null;
+        visee.numeroEnseigne = releve.numeroEnseigne ?? visee.numeroEnseigne ?? null;
         if (visee.publication === 'brouillon') visee.publication = 'prete';
         visee.confieeA = null;
         visee.note = null;
@@ -373,6 +381,11 @@ const admin: PortAdministration = {
           confieeA: null,
           note: null,
           lotId: releve.lotId,
+          typeEcole: releve.typeEcole,
+          niveaux: releve.niveaux,
+          programme: releve.programme,
+          repere: releve.repere,
+          numeroEnseigne: releve.numeroEnseigne,
         };
       }
     });
@@ -447,7 +460,30 @@ const admin: PortAdministration = {
             note: e.note,
           }
         : null,
+      typeEcole: typeConnu(e.typeEcole ?? 'non_indique'),
+      niveaux: niveauxConnus(e.niveaux ?? []),
+      programme: e.programme ?? null,
+      repere: e.repere ?? null,
+      numeroEnseigne: e.numeroEnseigne ?? null,
     }));
+  },
+  async modifierEcole(ecoleId, correction) {
+    await reseau();
+    if (!lireEtat().ecoles[ecoleId]) {
+      throw new ErreurDecision('École introuvable, ou modification refusée.');
+    }
+    ecrire((e) => {
+      const ecole = e.ecoles[ecoleId];
+      if (!ecole) return;
+      if (correction.nom !== undefined) ecole.nom = correction.nom;
+      if (correction.typeEcole !== undefined) ecole.typeEcole = correction.typeEcole;
+      if (correction.niveaux !== undefined) ecole.niveaux = correction.niveaux;
+      if (correction.programme !== undefined) ecole.programme = correction.programme;
+      if (correction.repere !== undefined) ecole.repere = correction.repere;
+      if (correction.numeroEnseigne !== undefined) {
+        ecole.numeroEnseigne = correction.numeroEnseigne;
+      }
+    });
   },
   async confierEcole(ecoleId, relaisId, note) {
     await reseau();

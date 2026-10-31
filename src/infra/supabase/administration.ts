@@ -1,14 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
-import type {
-  ContactDirection,
-  DetailReleve,
-  EcoleVue,
-  ReleveDecide,
-  LotVu,
-  PortAdministration,
-  RelaisVu,
-  ReleveAValider,
+import {
+  ErreurDecision,
+  type ContactDirection,
+  type DetailReleve,
+  type EcoleVue,
+  type ReleveDecide,
+  type LotVu,
+  type PortAdministration,
+  type RelaisVu,
+  type ReleveAValider,
 } from '../../modele/ports';
 import { decider, lire, traduire } from './erreurs';
 
@@ -251,78 +252,48 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
     },
 
     async ecoles(): Promise<EcoleVue[]> {
-
       const lignes = lire(
-
         await supabase()
-
           .from('ecoles')
-
           .select(
-
-            'id, nom, quartier, publication, position, arrondissement_id, retiree_le, motif_retrait, note_retrait, remplacee_par, arrondissements(nom), ecoles_confiees(relais_id, note, relais(prenom))',
-
+            'id, nom, quartier, publication, position, arrondissement_id, retiree_le, motif_retrait, note_retrait, remplacee_par, type_ecole, niveaux, programme, repere, numero_enseigne, arrondissements(nom), ecoles_confiees(relais_id, note, relais(prenom))',
           )
-
           .order('nom')
-
           .limit(5000)
-
           .returns<
-
             {
-
               id: string;
-
               nom: string;
-
               quartier: string | null;
-
               publication: Valeur<'publication'>;
-
               position: unknown;
-
               arrondissement_id: number | null;
-
               retiree_le: string | null;
-
               motif_retrait: Valeur<'motif_retrait'> | null;
-
               note_retrait: string | null;
-
               remplacee_par: string | null;
-
+              // Tels que la base les dit : une valeur que cette version ne connaît pas encore ne casse rien.
+              type_ecole: string;
+              niveaux: string[];
+              programme: string | null;
+              repere: string | null;
+              numero_enseigne: string | null;
               arrondissements: { nom: string } | null;
-
               ecoles_confiees: {
-
                 relais_id: string;
-
                 note: string | null;
-
                 relais: { prenom: string } | null;
-
               } | null;
-
             }[]
-
           >(),
-
       );
-
       return lignes.map((e) => ({
-
         id: e.id,
-
         nom: e.nom,
-
         quartier: e.quartier,
-
         arrondissement: e.arrondissements?.nom ?? null,
-
         arrondissementId: e.arrondissement_id,
         publication: e.publication,
-
         retrait:
           e.publication === 'retiree' && e.motif_retrait && e.retiree_le
             ? {
@@ -332,27 +303,51 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
                 remplaceePar: e.remplacee_par,
               }
             : null,
-
         aSituer: e.position === null,
-
         confiee: e.ecoles_confiees
-
           ? {
-
               relaisId: e.ecoles_confiees.relais_id,
-
               prenom: e.ecoles_confiees.relais?.prenom ?? '',
-
               note: e.ecoles_confiees.note,
-
             }
-
           : null,
-
+        typeEcole: typeConnu(e.type_ecole),
+        niveaux: niveauxConnus(e.niveaux),
+        programme: e.programme,
+        repere: e.repere,
+        numeroEnseigne: e.numero_enseigne,
       }));
-
     },
 
+    async modifierEcole(ecoleId, correction) {
+      // Seulement ce qui a changé : le reste de la fiche, et sa date de relevé, ne sont pas touchés.
+      const champs: Record<string, unknown> = {};
+      if (correction.nom !== undefined) champs['nom'] = correction.nom;
+      if (correction.typeEcole !== undefined) champs['type_ecole'] = correction.typeEcole;
+      if (correction.niveaux !== undefined) champs['niveaux'] = correction.niveaux;
+      if (correction.programme !== undefined) champs['programme'] = correction.programme;
+      if (correction.repere !== undefined) champs['repere'] = correction.repere;
+      if (correction.numeroEnseigne !== undefined) {
+        champs['numero_enseigne'] = correction.numeroEnseigne;
+      }
+      if (Object.keys(champs).length === 0) return;
+      const { data, error } = await supabase()
+        .from('ecoles')
+        .update(champs)
+        .eq('id', ecoleId)
+        .select('id');
+      // La base refuse un nom vide ou trop long, une ligne trop longue, un numéro incomplet.
+      if (error?.code === '23514') {
+        throw new ErreurDecision(
+          'La base refuse une valeur : vérifie le nom, le programme, le repère et le numéro.',
+        );
+      }
+      decider(error);
+      // Aucune ligne changée : l'école n'existe pas, ou ce compte n'a pas le droit de la modifier.
+      if (!data || data.length === 0) {
+        throw new ErreurDecision('École introuvable, ou modification refusée.');
+      }
+    },
 
     async confierEcole(ecoleId, relaisId, note) {
 

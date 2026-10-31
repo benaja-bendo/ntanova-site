@@ -99,8 +99,8 @@ const aDesProprietes = Boolean(niveaux || typeSeLit || e?.programme || e?.numero
               </p>
             ) : (
               <p class="etat etat-relevee-public">
-                <b>Fiche relevée le {dateLongue(e.misAJourLe)}</b> par un jeune du quartier&nbsp;:
-                seulement ce qui se voit de la rue.
+                <b>Fiche relevée le {dateLongue(e.releveeLe ?? e.misAJourLe)}</b> par un jeune du
+                quartier&nbsp;: seulement ce qui se voit de la rue.
               </p>
             )}
 
