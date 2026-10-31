@@ -51,13 +51,24 @@ Le schéma de la base et la marche à suivre pour la mettre en ligne : [`supabas
 
 ## Mettre en ligne
 
-Par GitHub Actions seulement (`.github/workflows/mise-en-ligne.yml`) : chaque nuit sur `essai.ntanova.com` et `ntanova.com`, ou à la main :
+Par GitHub Actions seulement (`.github/workflows/mise-en-ligne.yml`) : tous les contrôles d'une pull request, une construction, le site d'essai et ses contrôles en ligne, puis la production et ses contrôles en ligne. Chaque nuit, ou à la main :
 
 ```bash
-gh workflow run mise-en-ligne.yml -f cible=essai
+gh workflow run mise-en-ligne.yml -f cible="les deux"
 ```
 
-`cible` vaut `essai`, `production` ou `les deux`. Il faut, dans le dépôt GitHub, les secrets `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID`, et les variables `PUBLIC_WHATSAPP`, `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY` et `PUBLIC_GOOGLE_CLIENT_ID`.
+`cible` vaut `essai`, `production` ou `les deux`. Pour essayer une branche sur `essai.ntanova.com` avant de la fusionner :
+
+```bash
+gh workflow run mise-en-ligne.yml --ref <branche> -f cible=essai
+```
+
+Les contrôles en ligne se lancent aussi depuis le Mac, sans rien écrire dans la base :
+
+```bash
+ADRESSE=https://essai.ntanova.com pnpm test:en-ligne
+```
+ Il faut, dans le dépôt GitHub, les secrets `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID`, et les variables `PUBLIC_WHATSAPP`, `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY` et `PUBLIC_GOOGLE_CLIENT_ID`.
 
 ## Les polices
 

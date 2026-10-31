@@ -4,12 +4,16 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Rappelé par la mise en ligne : rien ne part en ligne sans ces contrôles.
+  workflow_call:
 
 permissions:
   contents: read
 
+# `github.workflow` : appelé par la mise en ligne, ce groupe porte son nom et
+# n'annule pas la vérification d'une poussée sur main.
 concurrency:
-  group: verif-${{ github.ref }}
+  group: verif-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
