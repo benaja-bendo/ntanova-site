@@ -100,7 +100,10 @@ function ecrire(modifier: (etat: Etat) => void): void {
 }
 
 async function reseau(): Promise<void> {
-  await new Promise((fin) => setTimeout(fin, 50));
+  // 50 ms ; un parcours peut ralentir la réponse (`ntanova-faux-latence`, en ms) pour
+  // rejouer une 3G qui traîne.
+  const latence = Number(localStorage.getItem('ntanova-faux-latence') ?? 50);
+  await new Promise((fin) => setTimeout(fin, latence));
   if (!navigator.onLine) throw new ErreurReseau('hors ligne');
 }
 

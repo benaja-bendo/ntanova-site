@@ -88,8 +88,11 @@ export function AValider({
 
   const apresDecision = (texte: string) => {
     setAnnonce(texte);
-    const suivant = visibles.find((r) => r.id !== choisi);
-    aller(suivant ? `valider/${suivant.id}` : 'valider', true);
+    // Seulement si l'on est encore sur « À valider » : un autre onglet ouvert entre-temps reste ouvert.
+    if (location.hash.startsWith('#valider') || location.hash === '') {
+      const suivant = visibles.find((r) => r.id !== choisi);
+      aller(suivant ? `valider/${suivant.id}` : 'valider', true);
+    }
     charger();
   };
 

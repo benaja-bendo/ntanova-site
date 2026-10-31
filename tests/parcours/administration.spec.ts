@@ -129,6 +129,23 @@ test.describe('administration', () => {
     await expect(page.getByText('+242 06 123 45 61')).toHaveCount(0);
   });
 
+  test('une décision qui arrive tard ne ramène pas sur « À valider »', async ({
+    page,
+    context,
+  }) => {
+    await uneFicheEnvoyee(page, context);
+    await ouvrirLaFiche(page);
+    // Une 3G qui traîne : la base répond après que l'on a changé d'onglet.
+    await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '600'));
+    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await page.getByRole('link', { name: 'Écoles' }).click();
+    await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeVisible();
+    // Le temps que la réponse arrive : on reste sur « Écoles ».
+    await page.waitForTimeout(1200);
+    await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'À valider' })).toHaveCount(0);
+  });
+
   test('un relais en attente est activé sur un lot', async ({ page }) => {
     await seConnecter(page, '/admin/');
     await page.getByRole('link', { name: 'Relais' }).click();
