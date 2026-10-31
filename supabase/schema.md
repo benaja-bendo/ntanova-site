@@ -33,7 +33,7 @@ La photo de l'enseigne va dans le stockage de Supabase (seau privé `releves`), 
 | `arrondissements` | Tié-Tié et Ngoyo : nom, slug, ville, contour OpenStreetMap, relation OSM | Tout le monde | Migration |
 | `lots` | Nom, arrondissement, contour (vide : tout l'arrondissement), à rendre le, rendu le, **essai** | Le relais actif (le sien), l'admin | L'admin |
 | `relais` | Compte, identifiant Google (`sub`), prénom, statut (en attente, actif, suspendu), lot | Le relais (sa ligne), l'admin | Créé à la première connexion ; l'admin l'active |
-| `ecoles` | Ce qui peut être publié : nom, slug, arrondissement, quartier (tel qu'on le dit sur place), type, niveaux, programme, repère, numéro de l'enseigne, position, état, publication, dates | Tout le monde : les fiches publiées | L'admin |
+| `ecoles` | Ce qui peut être publié : nom, slug, arrondissement, quartier (tel qu'on le dit sur place), type, niveaux, programme, repère, numéro de l'enseigne, position, état, publication, date de relevé (`relevee_le`), dates | Tout le monde : les fiches publiées | L'admin |
 | `releves` | Voir ci-dessous | Le relais (les siens), l'admin | Le relais crée ; l'admin décide |
 | `echanges` | Par école, des dates : premier message, réponse (et fonction de l'auteur), échange avec le décideur (appel ou rendez-vous), relances. Jamais le contenu | L'admin | L'admin |
 | `erreurs` | Le journal de l'application relais, sans donnée personnelle | L'admin | Tout relais connecté (ajout seul) |
@@ -98,6 +98,8 @@ stateDiagram-v2
 | Retirer du site | `retirer_ecole(ecole, motif, note)` | Motif (`demande_ecole`, `erreur`, `fermeture`, `doublon`, `autre`), date, note ; la mission confiée s'arrête |
 | Fusionner deux doublons | `fusionner_ecoles(doublon, gardee)` | Le doublon est retiré (`doublon`) et renvoie vers l'école gardée ; ses relevés aussi |
 
+- **Corriger une fiche** (onglet « Écoles », « Modifier la fiche », ticket #12) : l'administration change le nom, le type, les niveaux, le programme, le repère et le numéro d'une école à situer, prête ou publiée, **sans repasser par le relais**. Seul ce qui a changé part ; jamais l'adresse de la fiche (le `slug`), ni sa date de relevé. Une école retirée ne se modifie plus. La correction d'une école publiée paraît à la prochaine construction du site.
+- **La date « Fiche relevée le … »** est `relevee_le`, posée quand un relevé est accepté (la date de sa photo). Publier ou corriger ne la rajeunit pas : c'est `mis_a_jour_le`, que le déclencheur remet à jour à chaque modification, qui la rajeunissait. Un relevé plus récent l'avance, un relevé plus ancien ne la fait pas reculer. « Fiche vérifiée par la direction le … » lit encore `mis_a_jour_le` : la fiche vérifiée n'existe pas encore.
 - **Le site public** montre les écoles publiées, lues à la construction (chaque nuit à 2 h, ou une mise en ligne lancée à la main). Une école retirée n'a plus de page : son adresse affiche « n'existe pas ou n'est plus publiée », **sans son nom**. L'ancienne adresse d'un doublon fusionné renvoie vers l'école gardée (`ecoles_redirections`, sans JavaScript).
 - **Jamais de suppression** d'une école ni d'un relevé : l'API n'en a plus le droit. Trois **effacements**, tracés dans `prive.effacements` (quoi, qui, quand) :
   1. `effacer_contact(releve, note)` : le contact de la direction (droit d'effacement, loi n° 29-2019) ;
@@ -140,7 +142,7 @@ Fixé en écrivant les migrations :
 | --- | --- | --- |
 | `envoyer_contact(releve, fonction, nom, whatsapp, accord, accord_le, note)` | Relais actif | Range le contact ; répond `recu` ou `deja_recu`. Sans accord, aucun numéro |
 | `activer_relais(relais, lot)` | Admin | Active un relais après sa formation et lui donne un lot |
-| `accepter_releve(releve, ecole)` | Admin | Crée la fiche relevée, prête (ou met à jour l'école donnée, sauf si elle est vérifiée) ; jamais pour le lot d'essai. Une **correction** reprend l'école de la fiche corrigée et clôt celle-ci (« acceptée », même école). Sur une école connue, **« Pas indiqué » et « aucun niveau » n'effacent rien** (comme le repère et le numéro vides) : un relevé qui dit quelque chose remplace, un relevé muet laisse ce que l'école savait |
+| `accepter_releve(releve, ecole)` | Admin | Crée la fiche relevée, prête (ou met à jour l'école donnée, sauf si elle est vérifiée) ; jamais pour le lot d'essai. Une **correction** reprend l'école de la fiche corrigée et clôt celle-ci (« acceptée », même école). **Pose la date de relevé** de l'école (`relevee_le` : la date de la photo, jamais reculée). Sur une école connue, **« Pas indiqué » et « aucun niveau » n'effacent rien** (comme le repère et le numéro vides) : un relevé qui dit quelque chose remplace, un relevé muet laisse ce que l'école savait |
 | `demander_correction(releve, motif, message)` | Admin | « La photo est floue, reprenez-la de face » |
 | `refuser_releve(releve, motif, message)` | Admin | Refuse, avec un motif de la liste |
 | `confirmer_contact(releve, fonction)` | Admin | La personne a confirmé sa fonction sur WhatsApp |
@@ -179,7 +181,7 @@ Un quart d'heure, sans toucher aux écrans : le relais et l'administration lisen
 
 ## Les tests
 
-`pnpm base:tests` (pgTAP, `supabase/tests/`) : 114 vérifications (39 pour les droits, 20 pour les décisions de l'administration, 17 pour les écoles à situer, 22 pour le cycle de vie, 16 pour les listes et le programme), dont celles du « fini quand » de la base : un relais ne lit aucun contact, même le sien ; un second envoi du même relevé répond « déjà reçu ». Ils tournent aussi dans la CI. Vérifié le 31/10 : en donnant à tort un droit aux relais, les tests échouent.
+`pnpm base:tests` (pgTAP, `supabase/tests/`) : 124 vérifications (39 pour les droits, 20 pour les décisions de l'administration, 17 pour les écoles à situer, 22 pour le cycle de vie, 16 pour les listes et le programme, 10 pour la date de relevé et la correction), dont celles du « fini quand » de la base : un relais ne lit aucun contact, même le sien ; un second envoi du même relevé répond « déjà reçu ». Ils tournent aussi dans la CI. Vérifié le 31/10 : en donnant à tort un droit aux relais, les tests échouent.
 
 ## Voir le schéma en local
 
