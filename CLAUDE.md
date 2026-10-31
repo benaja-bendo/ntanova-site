@@ -18,8 +18,9 @@ Le catalogue du système de design : http://localhost:4321/dev/catalogue/ (en d�
 ## Vérifier
 
 - `pnpm verif` : format, lint (dont les frontières), couleurs, types, tests unitaires, construction, poids des pages. **Rien n'est fini tant qu'elle ne passe pas.** La CI (`.github/workflows/verif.yml`) lance la même commande.
-- `pnpm test:parcours` : les parcours Playwright, dans un téléphone Android de 360 px, sur le site construit servi par wrangler comme en production.
+- `pnpm test:parcours` : les parcours Playwright, dans un téléphone Android de 360 px, sur le site construit servi par wrangler comme en production. La spec `mise-en-page` (les tests qui dépendent de la largeur : barre de l'administration, tableaux, défilement de côté…) tourne aussi à 768 px (tablette) et 1 280 px (ordinateur).
   Le site y est construit avec le **faux serveur** (`PUBLIC_ADAPTATEUR=faux`, `src/infra/faux/`) : l'espace relais tourne sans Supabase, hors ligne compris. Le parcours « trois fiches hors ligne, le réseau revient, tout est parti, le contact a disparu du téléphone » ne doit jamais être affaibli.
+- `pnpm captures` : une image de chaque écran (site public, relais, administration) à 360, 768 et 1 280 px, dans `captures/` (ignoré par git), pour relire une mise en page à l'œil. Elle ne vérifie rien.
 - `pnpm base:tests` : les tests pgTAP des droits et des règles de la base (`supabase/tests/`), sur la base locale (`pnpm base:demarrer`, Docker). La CI les lance aussi.
 
 ## Architecture
@@ -135,11 +136,14 @@ Les tâches sont des tickets du projet GitHub n° 29 (« NTanova site · feuille
 1. **État des lieux**, en commentaire sur le ticket : ce que le ticket doit produire ; ce qui existe (lu dans le code) ; les problèmes ; les options, avec une recommandation ; l'impact (migrations, écrans, tests, mise en ligne, actions du fondateur) ; ce qui reste hors du ticket ; les décisions attendues.
 2. **Le go du fondateur**, tel quel ou modifié. **Rien n'est codé avant.**
 3. **Réalisation** : une branche, une PR « Fixes #N », les tests d'abord (un test par bug, vérifié en échec sans le correctif), un essai sur essai.ntanova.com.
-4. **Compte rendu** sur le ticket : fait, vérifié, pas vérifié. La fusion se fait à la demande du fondateur.
+4. **Compte rendu** sur le ticket : fait, vérifié, pas vérifié. La fusion : voir « Git ».
+
+**Un regard critique à chaque étape** (consigne du fondateur, 31/10). Il va vite : une consigne peut contenir une erreur de détail, et le travail peut s'éloigner du but sans qu'il le voie. D'abord à l'état des lieux, puis en réalisant, **croiser la maquette, le ticket et le code avec tout le contexte connu** (registre, décisions, autres tickets, état réel de la production) et **dire tout ce qui ne colle pas** : une incohérence dans la maquette, une promesse que le site ne tient pas, une façon de faire qui n'amène pas au résultat attendu. Proposer le correctif ; ne pas recopier une maquette telle quelle.
 
 ## Git
 
-- **Jamais de poussée directe sur `main`** : une branche par tâche, puis une pull request ; le fondateur fusionne. (GitHub ne protège pas `main` sur un dépôt privé gratuit : cette règle n'existe qu'ici.)
+- **Jamais de poussée directe sur `main`** : une branche par tâche, puis une pull request. (GitHub ne protège pas `main` sur un dépôt privé gratuit : cette règle n'existe qu'ici.)
+- **Phase d'essai (permission du fondateur, 31/10)** : Claude peut pousser sa branche, ouvrir et fusionner la pull request, lancer une mise en ligne, en le prévenant d'un mot juste avant. Il peut retirer cette permission quand l'enjeu montera ; s'il le fait, le fondateur fusionne de nouveau.
 - Messages de commit en français, préfixe court (`site:`, `relais:`, `admin:`, `base:`, `ui:`, `outils:`, `ci:`, `docs:`), un sujet par commit.
 - Un agent par dossier (`src/pages`, `src/app/relais`, `src/app/admin`, `supabase`) : jamais deux sur les mêmes fichiers.
 
@@ -151,5 +155,6 @@ Les tâches sont des tickets du projet GitHub n° 29 (« NTanova site · feuille
 - **`astro preview` part en arrière-plan quand un agent le lance** (Astro 7) : `pnpm preview` utilise donc `wrangler dev`, qui sert le site comme Cloudflare.
 - **En local, le conteneur des journaux de Supabase (`analytics`) échoue au démarrage** : il est coupé dans `supabase/config.toml`, avec le temps réel et les fonctions edge, inutilisés.
 - **Le service worker de `/relais/`** est écrit à la construction (`outils/integration-relais.mjs`, modèle `outils/sw-relais.js`) avec la liste des fichiers à garder ; il n'est pas enregistré sur `localhost` (`pnpm dev`), seulement sur `127.0.0.1` (parcours) et en ligne.
+- **Un parcours qui agit juste après un message de succès peut agir avant que l'écran se soit rafraîchi** : la ligne est remise à zéro et le formulaire ouvert se referme (« Publier », puis « Retirer du site »). De même, ne pas couper le réseau avant que ce que l'écran doit garder soit affiché (le lot). Attendre l'état final (« Publiée », le nom du lot) avant d'agir. Pour le vérifier : ralentir le faux serveur (`localStorage['ntanova-faux-latence']`, en millisecondes) et voir l'ancien test échouer.
 - **`react-hooks` refuse un `setState` direct dans un effet** : lancer l'action dans l'effet, et changer l'état dans ses rappels (voir `lancer` dans `src/app/relais/App.tsx`).
 - Les règles `no-restricted-imports` d'ESLint ne se cumulent pas : pour un fichier, seul le dernier bloc qui le vise compte. Chaque bloc de `frontiere()` donne donc la liste complète de son dossier.

@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
 
 // Les gestes répétés des parcours, sur le site construit avec le faux serveur.
 
@@ -30,4 +30,104 @@ export async function ajouterUneEcole(page: Page, n: number) {
   await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
   await page.getByRole('link', { name: 'Mon lot' }).click();
+}
+
+/**
+ * Un relais saisit une fiche (« [École 1] ») et l'envoie : le faux serveur la garde
+ * « à valider », avec sa photo et le contact de la direction.
+ * Le test appelant déclare `test.use({ permissions: ['geolocation'] })`.
+ */
+export async function uneFicheEnvoyee(page: Page, context: BrowserContext) {
+  await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
+  await seConnecter(page, '/relais/');
+  await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+  await ajouterUneEcole(page, 1);
+  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  // Le faux serveur a bien reçu le relevé, la photo et le contact.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const etat = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as Record<
+          string,
+          Record<string, unknown> | undefined
+        >;
+        return ['releves', 'photos', 'contacts'].map((t) => Object.keys(etat[t] ?? {}).length);
+      }),
+    )
+    .toEqual([1, 1, 1]);
+}
+
+/** L'administration ouvre la fiche « [École 1] » dans « À valider ». */
+export async function ouvrirLaFiche(page: Page) {
+  await page.goto('/admin/');
+  await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
+  await page.getByRole('link', { name: /\[École 1\]/ }).click();
+  await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
+}
+
+/**
+ * Les textes d'une zone qui se lisent mal : le contraste (WCAG) de leur couleur sur le
+ * fond réel, le premier fond opaque en remontant, est sous 4,5:1 (3:1 pour un grand
+ * texte : 24 px, ou 18,7 px en gras). Un contrôle désactivé n'est pas compté.
+ * Rend une phrase par défaut, pour que l'échec dise ce qu'il faut corriger.
+ */
+export async function textesPeuLisibles(page: Page, selecteur: string): Promise<string[]> {
+  return page.locator(selecteur).evaluateAll((racines) => {
+    type Couleur = [number, number, number, number];
+    const lire = (css: string): Couleur => {
+      const n = (css.match(/[\d.]+/g) ?? []).map(Number);
+      return [n[0] ?? 0, n[1] ?? 0, n[2] ?? 0, n[3] ?? 1];
+    };
+    const sur = (dessus: Couleur, dessous: Couleur): Couleur => {
+      const a = dessus[3];
+      return [
+        dessus[0] * a + dessous[0] * (1 - a),
+        dessus[1] * a + dessous[1] * (1 - a),
+        dessus[2] * a + dessous[2] * (1 - a),
+        1,
+      ];
+    };
+    const fond = (el: Element | null): Couleur => {
+      if (!el) return [255, 255, 255, 1];
+      const c = lire(getComputedStyle(el).backgroundColor);
+      return c[3] >= 1 ? c : sur(c, fond(el.parentElement));
+    };
+    const luminance = (c: Couleur) => {
+      const [r = 0, g = 0, b = 0] = c.slice(0, 3).map((v) => {
+        const s = v / 255;
+        return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+
+    const trouves: string[] = [];
+    for (const racine of racines) {
+      for (const el of [racine, ...racine.querySelectorAll('*')]) {
+        const texte = [...el.childNodes]
+          .filter((n) => n.nodeType === Node.TEXT_NODE)
+          .map((n) => n.textContent ?? '')
+          .join('')
+          .trim();
+        if (!texte) continue;
+        const style = getComputedStyle(el);
+        const boite = el.getBoundingClientRect();
+        if (style.visibility === 'hidden' || boite.width < 2 || boite.height < 2) continue;
+        if (el.closest(':disabled, [aria-disabled="true"]')) continue;
+
+        const dessous = fond(el);
+        const lettres = sur(lire(style.color), dessous);
+        const [claire = 0, sombre = 0] = [luminance(lettres), luminance(dessous)].sort(
+          (a, b) => b - a,
+        );
+        const rapport = (claire + 0.05) / (sombre + 0.05);
+        const taille = parseFloat(style.fontSize);
+        const grand = taille >= 24 || (Number(style.fontWeight) >= 700 && taille >= 18.66);
+        const seuil = grand ? 3 : 4.5;
+        if (rapport < seuil) {
+          trouves.push(`« ${texte.slice(0, 48)} » : ${rapport.toFixed(2)}:1, il faut ${seuil}:1`);
+        }
+      }
+    }
+    return trouves;
+  });
 }

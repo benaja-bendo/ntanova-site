@@ -51,6 +51,9 @@ test.describe('espace relais', () => {
     await page.goto('/relais/');
     await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+    // Le lot est gardé dans le téléphone, pour servir hors ligne : on attend qu'il y soit avant
+    // de couper le réseau (sinon, sur une machine chargée, « dans votre lot » ne vient jamais).
+    await expect(page.getByRole('region', { name: 'Mon lot' }).getByText(/Tié-Tié/)).toBeVisible();
 
     // L'application est gardée dans le téléphone : elle s'ouvre sans réseau.
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
