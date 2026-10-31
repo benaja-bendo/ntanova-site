@@ -14,8 +14,8 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
   description="Qui est NTanova, ce que nous publions sur les écoles de Pointe-Noire, ce que nous gardons pour nous, et vos droits."
   whatsapp={whatsapp}
 >
-  <section class="propos">
-    <div class="bloc">
+  <section class="cadre page propos">
+    <div class="bloc tete">
       <h1>Qui sommes-nous&nbsp;?</h1>
       <p class="texte-doux">
         NTanova recense les écoles de <span class="insecable">Pointe-Noire</span>, quartier par
@@ -70,7 +70,7 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
       </p>
     </section>
 
-    <section class="carte bloc">
+    <section class="carte bloc droits">
       <h2>Vos droits</h2>
       <p>Corriger une fiche, la retirer, effacer un numéro&nbsp;: écrivez-nous, nous le faisons.</p>
       {whatsapp && (
@@ -126,5 +126,31 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
     border-top: 1px solid var(--trait);
     color: var(--texte-doux);
     font-size: var(--taille-mention);
+  }
+
+  /* À partir de 48 rem : les blocs sur deux colonnes, sauf le titre, « Vos droits » et les références. */
+  @media (min-width: 48rem) {
+    .propos {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      padding-block: var(--espace-7);
+    }
+    .propos .bloc {
+      align-content: start;
+    }
+    .droits .bouton {
+      justify-self: start;
+    }
+    .propos h1 {
+      font-size: var(--taille-titre-public);
+    }
+    .tete,
+    .droits,
+    .references {
+      grid-column: 1 / -1;
+    }
+    .propos .carte {
+      padding: var(--espace-5);
+      border-radius: var(--rayon-l);
+    }
   }
 </style>

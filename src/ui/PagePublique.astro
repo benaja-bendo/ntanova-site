@@ -15,6 +15,7 @@ interface Props {
   renvoi?: string;
 }
 const { titre, description, whatsapp = null, renvoi } = Astro.props;
+const surPourLesEcoles = Astro.url.pathname.startsWith('/pour-les-ecoles');
 ---
 
 <!doctype html>
@@ -42,41 +43,54 @@ const { titre, description, whatsapp = null, renvoi } = Astro.props;
   </head>
   <body>
     <header class="entete">
-      <a class="lien-marque" href="/">
-        <Marque taille={28} />
-        <span>NTanova</span>
-      </a>
-      <span class="ville">Pointe-Noire</span>
+      <div class="cadre entete-cadre">
+        <a class="lien-marque" href="/">
+          <Marque taille={28} />
+          <span>NTanova</span>
+        </a>
+        <div class="entete-droite">
+          {/* La navigation du haut n'existe qu'à partir de 48 rem : sur téléphone, le pied la porte. */}
+          <nav aria-label="Navigation principale" class="nav-haut">
+            <a href="/#quartiers">Quartiers</a>
+            <a href="/pour-les-ecoles/" aria-current={surPourLesEcoles ? 'page' : undefined}>
+              Pour les écoles
+            </a>
+          </nav>
+          <span class="ville">Pointe-Noire</span>
+        </div>
+      </div>
     </header>
     <main class="contenu">
       <slot />
     </main>
     <footer class="pied">
-      <nav aria-label="NTanova" class="pied-liens">
-        <a href="/pour-les-ecoles/">Pour les écoles</a>
-        <a href="/a-propos/">À propos et données personnelles</a>
-        {whatsapp && <a href={whatsapp}>Écrire à NTanova sur WhatsApp</a>}
-      </nav>
-      <p>NTanova · Pointe-Noire, République du Congo</p>
+      <div class="cadre pied-cadre">
+        <nav aria-label="NTanova" class="pied-liens">
+          <a href="/pour-les-ecoles/">Pour les écoles</a>
+          <a href="/a-propos/">À propos et données personnelles</a>
+          {whatsapp && <a href={whatsapp}>Écrire à NTanova sur WhatsApp</a>}
+        </nav>
+        <p>NTanova · Pointe-Noire, République du Congo</p>
+      </div>
     </footer>
   </body>
 </html>
 
 <style>
-  .entete,
-  .contenu,
-  .pied {
-    width: 100%;
-    max-width: var(--largeur-texte);
-    margin-inline: auto;
-    padding-inline: var(--espace-4);
-  }
-  .entete {
+  .entete-cadre {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--espace-3);
     padding-block: var(--espace-4);
+  }
+  .entete-droite {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-5);
+  }
+  .nav-haut {
+    display: none;
   }
   .ville {
     padding: var(--espace-1) var(--espace-3);
@@ -98,16 +112,15 @@ const { titre, description, whatsapp = null, renvoi } = Astro.props;
     font-weight: 700;
     text-decoration: none;
   }
-  .contenu {
-    padding-block: var(--espace-6);
-  }
   .pied {
-    display: grid;
-    gap: var(--espace-3);
-    padding-block: var(--espace-6);
     border-top: 1px solid var(--trait);
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
+  }
+  .pied-cadre {
+    display: grid;
+    gap: var(--espace-3);
+    padding-block: var(--espace-6);
   }
   .pied p {
     margin: 0;
@@ -121,5 +134,75 @@ const { titre, description, whatsapp = null, renvoi } = Astro.props;
     min-height: var(--cible-min);
     color: var(--marque);
     font-weight: 700;
+  }
+
+  /* À partir de 48 rem : la barre du haut de la planche « Accueil sur ordinateur », le pied sur une ligne. */
+  @media (min-width: 48rem) {
+    .entete {
+      border-bottom: 1px solid var(--trait);
+    }
+    .entete-cadre {
+      min-height: 4.75rem;
+      padding-block: var(--espace-3);
+    }
+    .lien-marque {
+      gap: var(--espace-3);
+      font-size: var(--taille-titre-fiche);
+    }
+    .lien-marque :global(.marque) {
+      width: auto;
+      height: 2.25rem;
+    }
+    .nav-haut {
+      display: flex;
+      align-items: center;
+      gap: var(--espace-4);
+    }
+    .nav-haut a {
+      display: inline-flex;
+      align-items: center;
+      min-height: var(--cible-min);
+      padding-inline: var(--espace-2);
+      color: var(--texte);
+      font-family: var(--police-titre);
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .nav-haut a:hover {
+      color: var(--marque);
+      text-decoration: underline;
+      text-underline-offset: 0.35em;
+    }
+    .nav-haut a[aria-current='page'] {
+      text-decoration: underline;
+      text-decoration-thickness: 3px;
+      text-underline-offset: 0.35em;
+    }
+    .ville {
+      padding: var(--espace-2) var(--espace-4);
+      font-size: var(--taille-secondaire);
+    }
+    .pied-liens {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0 var(--espace-5);
+    }
+  }
+
+  /* À partir de 64 rem : la phrase à gauche, les liens à droite. */
+  @media (min-width: 64rem) {
+    .pied-cadre {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: 'phrase liens';
+      align-items: center;
+      gap: var(--espace-5);
+    }
+    .pied p {
+      grid-area: phrase;
+    }
+    .pied-liens {
+      grid-area: liens;
+      justify-content: flex-end;
+    }
   }
 </style>

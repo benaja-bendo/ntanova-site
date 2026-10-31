@@ -66,7 +66,7 @@ const lieu =
     whatsapp={whatsapp}
     renvoi={renvoi}
   >
-    <section class="fiche">
+    <section class="cadre page fiche">
       <h1>Cette école a une nouvelle fiche</h1>
       <a class="bouton" href={renvoi}>
         Voir la fiche
@@ -81,75 +81,81 @@ const lieu =
       description={`${e.nom}, à ${arrondissement.nom} (Pointe-Noire) : niveaux, type, repère et itinéraire.`}
       whatsapp={whatsapp}
     >
-      <article class="fiche">
+      <article class="cadre page fiche">
         <a class="retour" href={`/ecoles/${arrondissement.slug}/`}>
           ← Les écoles de {arrondissement.nom}
         </a>
 
-        {e.etat === 'verifiee' ? (
-          <p class="carte etat">
-            <b>Fiche vérifiée par la direction</b> le {dateLongue(e.misAJourLe)}.
-          </p>
-        ) : (
-          <p class="etat etat-relevee-public">
-            <b>Fiche relevée le {dateLongue(e.misAJourLe)}</b> par un jeune du quartier&nbsp;:
-            seulement ce qui se voit de la rue.
-          </p>
-        )}
+        <div class="fiche-corps">
+          <div class="fiche-principale">
+            {e.etat === 'verifiee' ? (
+              <p class="carte etat">
+                <b>Fiche vérifiée par la direction</b> le {dateLongue(e.misAJourLe)}.
+              </p>
+            ) : (
+              <p class="etat etat-relevee-public">
+                <b>Fiche relevée le {dateLongue(e.misAJourLe)}</b> par un jeune du quartier&nbsp;:
+                seulement ce qui se voit de la rue.
+              </p>
+            )}
 
-        <div>
-          <h1>{e.nom}</h1>
-          <p class="texte-doux">
-            {lieu} · <span class="insecable">Pointe-Noire</span>
-          </p>
+            <div>
+              <h1>{e.nom}</h1>
+              <p class="texte-doux">
+                {lieu} · <span class="insecable">Pointe-Noire</span>
+              </p>
+            </div>
+
+            <dl class="carte proprietes">
+              <dt>Niveaux</dt>
+              <dd>{e.niveaux.map((n) => libelleNiveau[n]).join(', ') || 'Non indiqués'}</dd>
+              <dt>Type</dt>
+              <dd>{libelleTypeEcole[e.typeEcole]}</dd>
+              {e.numeroEnseigne && (
+                <>
+                  <dt>Numéro sur l'enseigne</dt>
+                  <dd>
+                    <a href={`tel:+${e.numeroEnseigne}`}>{afficherTelephone(e.numeroEnseigne)}</a>
+                  </dd>
+                </>
+              )}
+            </dl>
+
+            <section class="carte ou" aria-label="Où est l'école">
+              <p>
+                <b>Repère&nbsp;:</b> {e.repere ?? 'pas encore relevé'}
+              </p>
+              {itineraire && (
+                <a class="bouton bouton-secondaire" href={itineraire}>
+                  Y aller
+                </a>
+              )}
+            </section>
+          </div>
+
+          <div class="fiche-cote">
+            <section class="manque">
+              <p class="surtitre-doux-public">Pas encore sur la fiche</p>
+              <ul class="pastilles-vides">
+                <li>Frais</li>
+                <li>Photos de l'école</li>
+                <li>Équipements</li>
+                <li>Contact WhatsApp</li>
+              </ul>
+            </section>
+
+            <aside class="ecoles-appel">
+              <p>
+                <b>Vous dirigez cette école&nbsp;?</b>
+              </p>
+              <p>Confirmez sa fiche et ajoutez photos, frais et contact.</p>
+              <a class="bouton bouton-accent" href="/pour-les-ecoles/">
+                Confirmer la fiche
+              </a>
+              {erreur && <a href={erreur}>Signaler une erreur</a>}
+            </aside>
+          </div>
         </div>
-
-        <dl class="carte proprietes">
-          <dt>Niveaux</dt>
-          <dd>{e.niveaux.map((n) => libelleNiveau[n]).join(', ') || 'Non indiqués'}</dd>
-          <dt>Type</dt>
-          <dd>{libelleTypeEcole[e.typeEcole]}</dd>
-          {e.numeroEnseigne && (
-            <>
-              <dt>Numéro sur l'enseigne</dt>
-              <dd>
-                <a href={`tel:+${e.numeroEnseigne}`}>{afficherTelephone(e.numeroEnseigne)}</a>
-              </dd>
-            </>
-          )}
-        </dl>
-
-        <section class="carte ou" aria-label="Où est l'école">
-          <p>
-            <b>Repère&nbsp;:</b> {e.repere ?? 'pas encore relevé'}
-          </p>
-          {itineraire && (
-            <a class="bouton bouton-secondaire" href={itineraire}>
-              Y aller
-            </a>
-          )}
-        </section>
-
-        <section class="manque">
-          <p class="surtitre-doux-public">Pas encore sur la fiche</p>
-          <ul class="pastilles-vides">
-            <li>Frais</li>
-            <li>Photos de l'école</li>
-            <li>Équipements</li>
-            <li>Contact WhatsApp</li>
-          </ul>
-        </section>
-
-        <aside class="ecoles-appel">
-          <p>
-            <b>Vous dirigez cette école&nbsp;?</b>
-          </p>
-          <p>Confirmez sa fiche et ajoutez photos, frais et contact.</p>
-          <a class="bouton bouton-accent" href="/pour-les-ecoles/">
-            Confirmer la fiche
-          </a>
-          {erreur && <a href={erreur}>Signaler une erreur</a>}
-        </aside>
       </article>
     </PagePublique>
   )
@@ -220,5 +226,53 @@ const lieu =
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+  }
+  /* Sur téléphone, les blocs se suivent : la fiche, puis ce qui manque, puis l'appel aux directions. */
+  .fiche-corps,
+  .fiche-principale,
+  .fiche-cote {
+    display: grid;
+    gap: var(--espace-4);
+  }
+
+  /* À partir de 48 rem : une colonne plus aérée ; à partir de 64 rem, l'appel aux directions passe à droite. */
+  @media (min-width: 48rem) {
+    .fiche {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .fiche h1 {
+      font-size: var(--taille-titre-public);
+    }
+    /* La colonne de la fiche garde la largeur d'une ligne de texte : cadre pointillé, cartes et texte alignés. */
+    .fiche-corps {
+      gap: var(--espace-5);
+      max-width: var(--largeur-texte);
+    }
+    .fiche-principale,
+    .fiche-cote {
+      align-content: start;
+      gap: var(--espace-5);
+    }
+    .proprietes {
+      grid-template-columns: minmax(9rem, auto) 1fr;
+    }
+    .proprietes dt {
+      align-self: center;
+    }
+    .proprietes dd {
+      text-align: left;
+    }
+    .ou .bouton {
+      justify-self: start;
+    }
+  }
+  @media (min-width: 64rem) {
+    .fiche-corps {
+      grid-template-columns: minmax(0, var(--largeur-texte)) 22rem;
+      gap: var(--espace-7);
+      align-items: start;
+      max-width: none;
+    }
   }
 </style>

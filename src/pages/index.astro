@@ -1,6 +1,9 @@
 ---
 // L'accueil : les arrondissements relevés, et ce que chacun compte d'écoles publiées.
 // Construit à partir de la base ; aucun JavaScript.
+// Sous 48 rem, la page d'un téléphone. À partir de 48 rem, la planche « Accueil sur ordinateur »
+// du canevas, sans la recherche ni la carte, qui n'existent pas encore : leur place, à droite de
+// l'ouverture, reste libre pour elles.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirCatalogue } from '../infra/index';
 import { numeroArrondissement } from '../modele/pointe-noire';
@@ -13,15 +16,21 @@ const [arrondissements, ecoles] = await Promise.all([
   catalogue.ecoles(),
 ]);
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
-const quartiers = arrondissements.map((a) => {
-  const siennes = ecoles.filter((e) => e.arrondissement === a.slug);
-  return {
-    ...a,
-    numero: numeroArrondissement[a.slug],
-    verifiees: siennes.filter((e) => e.etat === 'verifiee').length,
-    relevees: siennes.filter((e) => e.etat === 'relevee').length,
-  };
-});
+const quartiers = arrondissements
+  .map((a) => {
+    const siennes = ecoles.filter((e) => e.arrondissement === a.slug);
+    const verifiees = siennes.filter((e) => e.etat === 'verifiee').length;
+    const relevees = siennes.filter((e) => e.etat === 'relevee').length;
+    return {
+      ...a,
+      numero: numeroArrondissement[a.slug],
+      verifiees,
+      relevees,
+      total: verifiees + relevees,
+    };
+  })
+  // Là où l'on a des fiches d'abord (les deux planches mettent Tié-Tié avant Ngoyo), puis par nom.
+  .sort((a, b) => b.total - a.total || a.nom.localeCompare(b.nom, 'fr'));
 ---
 
 <PagePublique
@@ -29,51 +38,122 @@ const quartiers = arrondissements.map((a) => {
   description="Maternelles, écoles, collèges, lycées et instituts de Pointe-Noire, quartier par quartier : trouvez une école près de chez vous."
   whatsapp={whatsapp}
 >
-  <section class="accueil">
-    <p class="surtitre-public">
-      <span class="insecable">Pointe-Noire</span> · <span class="insecable">Congo-Brazzaville</span>
-    </p>
-    <h1>Toutes les écoles, quartier par quartier.</h1>
-    <p class="chapeau">
-      Maternelles, écoles, collèges, lycées et instituts&nbsp;: trouvez une école près de chez vous,
-      ou pour un enfant de la famille.
-    </p>
-    {ecoles.length === 0 && (
-      <p class="carte note">
-        Le relevé commence à <span class="insecable">Tié-Tié</span> et à Ngoyo. Les premières fiches
-        arrivent au fil du relevé.
+  <div class="cadre accueil">
+    <div class="ouverture">
+      <p class="surtitre-public">
+        <span class="insecable">Pointe-Noire</span> ·{' '}
+        <span class="insecable">Congo-Brazzaville</span>
       </p>
-    )}
+      <h1>Toutes les écoles, quartier par quartier.</h1>
+      <p class="chapeau">
+        Maternelles, écoles, collèges, lycées et instituts&nbsp;: trouvez une école près de chez
+        vous, ou pour un enfant de la famille.
+      </p>
+      {ecoles.length === 0 && (
+        <p class="carte note">
+          Le relevé commence à <span class="insecable">Tié-Tié</span> et à Ngoyo. Les premières
+          fiches arrivent au fil du relevé.
+        </p>
+      )}
+    </div>
 
-    <ul class="quartiers">
-      {quartiers.map((q) => (
-        <li>
-          <a class="quartier" href={`/ecoles/${q.slug}/`}>
-            <span class="quartier-nom">{q.nom}</span>
-            <span class="quartier-detail">
-              {q.numero ? `Arrondissement ${q.numero} · ` : ''}
-              {q.relevees + q.verifiees === 0
-                ? 'relevé en cours'
-                : `${q.relevees + q.verifiees} école${q.relevees + q.verifiees > 1 ? 's' : ''}${q.verifiees > 0 ? `, dont ${q.verifiees} vérifiée${q.verifiees > 1 ? 's' : ''}` : ''}`}
-            </span>
-          </a>
+    <section id="quartiers" aria-labelledby="titre-quartiers">
+      <h2 id="titre-quartiers" class="titre-quartiers visuellement-cache">
+        Les quartiers de Pointe-Noire
+      </h2>
+      <ul class="quartiers">
+        {quartiers.map((q) => (
+          <li>
+            <a
+              class:list={['quartier', { 'quartier-plein': q.total > 0 }]}
+              href={`/ecoles/${q.slug}/`}
+            >
+              <span class="quartier-nom">{q.nom}</span>
+              <span class="quartier-detail">
+                {q.numero && <span class="quartier-numero">Arrondissement {q.numero}</span>}
+                <span class="quartier-compte">
+                  {q.total === 0
+                    ? 'relevé en cours'
+                    : `${q.total} école${q.total > 1 ? 's' : ''}${q.verifiees > 0 ? `, dont ${q.verifiees} vérifiée${q.verifiees > 1 ? 's' : ''}` : ''}`}
+                </span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </div>
+
+  {/* Sur téléphone, la page s'arrête aux arrondissements : cette bande n'existe qu'à partir de 48 rem. */}
+  <section class="etapes-bande" aria-labelledby="titre-etapes">
+    <div class="cadre">
+      <h2 id="titre-etapes">Comment les fiches sont tenues</h2>
+      <ol class="etapes">
+        <li class="etape">
+          <span class="etape-numero" aria-hidden="true">
+            1
+          </span>
+          <h3>Relevée par des jeunes du quartier</h3>
+          <p>
+            Chaque école est relevée sur place&nbsp;: enseigne, position, niveaux. Seulement ce qui
+            se voit de la rue.
+          </p>
         </li>
-      ))}
-    </ul>
+        <li class="etape">
+          <span class="etape-numero" aria-hidden="true">
+            2
+          </span>
+          <h3>Vérifiée par l'école</h3>
+          <p>
+            La direction confirme la fiche et nous donne photos, frais, équipements et contact. Rien
+            n'est ajouté sans son accord.
+          </p>
+        </li>
+        <li class="etape">
+          <span class="etape-numero" aria-hidden="true">
+            3
+          </span>
+          <h3>Corrigée sur demande</h3>
+          <p>
+            Une erreur, une école qui a changé&nbsp;? Écrivez-nous sur WhatsApp&nbsp;: nous
+            corrigeons la fiche.
+          </p>
+        </li>
+      </ol>
+    </div>
+  </section>
 
-    <aside class="ecoles-appel">
-      <p>
-        <b>Vous dirigez une école&nbsp;?</b> Confirmez sa fiche avec nous.
-      </p>
+  <div class="cadre accueil-bas">
+    <aside class="ecoles-appel ecoles-appel-large">
+      <div class="appel-texte">
+        <p class="appel-surtitre">Pour les écoles</p>
+        <p class="appel-titre">
+          <b>Vous dirigez une école&nbsp;?</b> Confirmez sa fiche avec nous.
+        </p>
+        <p class="appel-detail">
+          Complétez-la ensuite avec nous&nbsp;: photos, frais, équipements et le numéro WhatsApp que
+          vous voulez publier.
+        </p>
+      </div>
       <a class="bouton bouton-accent" href="/pour-les-ecoles/">
-        Pour les écoles
+        <span class="appel-court">Pour les écoles</span>
+        <span class="appel-long">Confirmer la fiche de mon école</span>
       </a>
     </aside>
-  </section>
+  </div>
 </PagePublique>
 
 <style>
   .accueil {
+    display: grid;
+    gap: var(--espace-5);
+    padding-top: var(--espace-6);
+    padding-bottom: var(--espace-5);
+  }
+  .accueil-bas {
+    padding-bottom: var(--espace-6);
+  }
+  .ouverture {
     display: grid;
     gap: var(--espace-5);
   }
@@ -115,5 +195,156 @@ const quartiers = arrondissements.map((a) => {
   .quartier-detail {
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
+  }
+  /* Sur téléphone, « Arrondissement 3 · 1 école » sur une ligne. */
+  .quartier-numero::after {
+    content: ' · ';
+  }
+  .etapes-bande {
+    display: none;
+  }
+
+  /* À partir de 48 rem : la planche « Accueil sur ordinateur ». */
+  @media (min-width: 48rem) {
+    .accueil {
+      gap: var(--espace-6);
+      padding-top: var(--espace-7);
+      padding-bottom: var(--espace-7);
+    }
+    .accueil-bas {
+      padding-top: var(--espace-7);
+      padding-bottom: var(--espace-7);
+    }
+    .ouverture {
+      gap: var(--espace-4);
+    }
+    .accueil h1 {
+      font-size: var(--taille-titre-accueil);
+      line-height: 1.05;
+      text-wrap: balance;
+    }
+    .chapeau {
+      font-size: var(--taille-chapeau);
+      line-height: 1.55;
+    }
+
+    .titre-quartiers {
+      position: static;
+      width: auto;
+      height: auto;
+      margin-bottom: var(--espace-4);
+      overflow: visible;
+      clip-path: none;
+      color: var(--marque-appuyee);
+      font-size: var(--taille-titre-section);
+      white-space: normal;
+    }
+    .quartiers {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+      gap: var(--espace-4);
+    }
+    .quartiers li {
+      display: grid;
+    }
+    .quartier {
+      display: flex;
+      flex-direction: column;
+      gap: var(--espace-2);
+      min-height: 8.75rem;
+      padding: var(--espace-5);
+      border-radius: var(--rayon-l);
+    }
+    .quartier:hover {
+      border-color: var(--marque);
+    }
+    .quartier-nom {
+      font-size: var(--taille-titre-fiche);
+    }
+    .quartier-detail {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      gap: var(--espace-2);
+    }
+    .quartier-numero::after {
+      content: none;
+    }
+    .quartier-compte {
+      margin-top: auto;
+      align-self: flex-start;
+      padding: var(--espace-1) var(--espace-3);
+      border: 2px solid var(--marque);
+      border-radius: var(--rayon-pilule);
+      color: var(--marque);
+      font-family: var(--police-titre);
+      font-weight: 700;
+    }
+    .quartier-compte::first-letter {
+      text-transform: uppercase;
+    }
+    /* Là où l'on a des fiches : la carte verte, et le compte en jaune. */
+    .quartier-plein {
+      border-color: var(--marque);
+      background: var(--marque);
+      color: var(--texte-sur-marque);
+    }
+    .quartier-plein:hover {
+      border-color: var(--marque-appuyee);
+      background: var(--marque-appuyee);
+    }
+    .quartier-plein .quartier-detail {
+      color: var(--vert-pale);
+    }
+    .quartier-plein .quartier-compte {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: var(--texte);
+    }
+
+    .etapes-bande {
+      display: block;
+      padding-block: var(--espace-7);
+      background: var(--fond-bande);
+    }
+    .etapes-bande h2 {
+      margin-bottom: var(--espace-5);
+      color: var(--marque-appuyee);
+      font-size: var(--taille-titre-section);
+    }
+    .etapes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+      gap: var(--espace-4);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .etape {
+      display: grid;
+      align-content: start;
+      gap: var(--espace-3);
+      padding: var(--espace-5);
+      border-radius: var(--rayon-l);
+      background: var(--fond-releve);
+    }
+    .etape h3,
+    .etape p {
+      margin: 0;
+    }
+    .etape p {
+      color: var(--texte-doux);
+    }
+    .etape-numero {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      background: var(--marque);
+      color: var(--texte-sur-marque);
+      font-family: var(--police-titre);
+      font-weight: 700;
+    }
   }
 </style>

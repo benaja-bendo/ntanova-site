@@ -48,7 +48,7 @@ const resume = (e: EcolePubliee) =>
   description={`Les écoles de ${arrondissement.nom}, à Pointe-Noire : maternelles, primaires, collèges et lycées, relevés sur place.`}
   whatsapp={whatsapp}
 >
-  <section class="liste">
+  <section class="cadre page liste">
     <a class="retour" href="/">
       ← Accueil
     </a>
@@ -144,5 +144,31 @@ const resume = (e: EcolePubliee) =>
     min-height: var(--cible-min);
     color: var(--marque);
     font-weight: 700;
+  }
+
+  /* À partir de 48 rem : les écoles en grille, les titres plus grands. */
+  @media (min-width: 48rem) {
+    .liste {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .liste h1 {
+      font-size: var(--taille-titre-public);
+    }
+    .ecoles {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+      gap: var(--espace-4);
+    }
+    .ecole {
+      align-content: start;
+      padding: var(--espace-5);
+      border-radius: var(--rayon-l);
+    }
+    .ecole:hover {
+      border-color: var(--marque);
+    }
+    .ecole-nom {
+      font-size: var(--taille-intertitre);
+    }
   }
 </style>

@@ -26,9 +26,13 @@
   --rouge-pale: #f9ddd8;
   --rouge-texte: #a44533;
 
+  /* Une crème plus foncée : la bande de fond d'une section, sur grand écran (texte courant 6,2:1) */
+  --creme-fonce: #f1e9db;
+
   /* 2. Rôles : les composants n'utilisent que ceux-ci */
   --fond: var(--creme);
   --fond-releve: var(--blanc);
+  --fond-bande: var(--creme-fonce);
   --texte: var(--encre);
   --texte-doux: var(--encre-75);
   --trait: var(--encre-10);
@@ -69,6 +73,13 @@
   --interligne: 1.5;
   --interligne-titre: 1.2;
 
+  /* Sur grand écran (à partir de 48 rem), les titres des pages publiques montent avec la largeur ; */
+  /* en dessous, les tailles ci-dessus ne changent pas. */
+  --taille-titre-accueil: clamp(1.75rem, 0.9rem + 3.4vw, 3.5rem); /* 40 px à 768, 56 px à 1 280 */
+  --taille-titre-public: clamp(1.75rem, 1.2rem + 1.5vw, 2.5rem); /* 31 px à 768, 38 px à 1 280 */
+  --taille-titre-section: clamp(1.375rem, 1rem + 1.2vw, 1.875rem); /* 22 à 30 px */
+  --taille-chapeau: clamp(1rem, 0.9rem + 0.45vw, 1.125rem); /* 16 à 18 px */
+
   /* Espacements, sur une base de 4 */
   --espace-1: 0.25rem; /* 4 */
   --espace-2: 0.5rem; /* 8 */
@@ -91,7 +102,8 @@
   --hauteur-pastille: 32px;
   --ecart-cibles: 8px;
 
-  /* Mise en page */
+  /* Mise en page : une ligne de texte ne dépasse jamais 36 rem ; une page publique, 75 rem (planche ordinateur) */
   --largeur-texte: 36rem;
+  --largeur-page: 75rem;
   --epaisseur-focus: 3px;
 }
