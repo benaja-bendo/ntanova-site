@@ -16,3 +16,6 @@ test-results/
 
 # système
 .DS_Store
+
+# captures d'écran à relire (pnpm captures)
+/captures/

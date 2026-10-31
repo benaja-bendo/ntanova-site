@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:parcours": "PUBLIC_ADAPTATEUR=faux PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} astro build && playwright test",
+    "captures": "PUBLIC_ADAPTATEUR=faux PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} astro build && playwright test -c playwright.captures.config.ts",
     "couleurs": "node outils/verifier-couleurs.mjs",
     "poids": "node outils/verifier-poids.mjs",
     "base:demarrer": "supabase start",
