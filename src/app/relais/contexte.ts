@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import type { Adaptateurs } from '../../infra/index';
 import type { ResultatEnvoi } from './file-envoi';
 
@@ -19,38 +19,12 @@ export function useRelais(): Contexte {
   return contexte;
 }
 
-function abonnerReseau(rappel: () => void) {
-  addEventListener('online', rappel);
-  addEventListener('offline', rappel);
-  return () => {
-    removeEventListener('online', rappel);
-    removeEventListener('offline', rappel);
-  };
-}
-
-export function useEnLigne(): boolean {
-  return useSyncExternalStore(abonnerReseau, () => navigator.onLine);
-}
+export { useEnLigne } from '../commun/BoutonGoogle';
 
 // La navigation : #lot, #fiches, #ajouter/1… Le dièse survit à la fermeture de
 // l'onglet pendant la photo, et la page /relais/ reste la seule à mettre en cache.
 
-function abonnerAdresse(rappel: () => void) {
-  addEventListener('hashchange', rappel);
-  return () => removeEventListener('hashchange', rappel);
-}
-
-export function useAdresse(): string[] {
-  const diese = useSyncExternalStore(abonnerAdresse, () => location.hash);
-  return diese.replace(/^#\/?/, '').split('/').filter(Boolean);
-}
-
-export function aller(chemin: string, remplacer = false): void {
-  const cible = `#${chemin}`;
-  if (remplacer) history.replaceState(null, '', cible);
-  else history.pushState(null, '', cible);
-  dispatchEvent(new HashChangeEvent('hashchange'));
-}
+export { aller, useAdresse } from '../commun/adresse';
 
 /** L'heure, mise à jour chaque minute (pour « Dernier envoi à 14 h 05 »). */
 export function useMaintenant(): Date {

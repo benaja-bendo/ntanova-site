@@ -10,7 +10,7 @@ import {
   type Erreurs,
   type FicheLocale,
 } from '../../../modele/fiche';
-import { dansContour, plusProche, PRECISION_SUFFISANTE_M, type Point } from '../../../modele/geo';
+import { dansLeLot, plusProche, PRECISION_SUFFISANTE_M, type Point } from '../../../modele/geo';
 import { listes, type Valeur } from '../../../modele/listes';
 import {
   libelleDirection,
@@ -132,11 +132,12 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         nom: f.nomEnseigne || 'une de vos fiches',
       }));
     const proche = plusProche(m, [...ecoles, ...autres]);
+    const dedans = dansLeLot(m, lot);
     const champs: Partial<FicheLocale> = {
       position: { latitude: m.latitude, longitude: m.longitude },
       precisionM: m.precisionM,
       prisLe: m.prisLe,
-      horsLot: lot?.contour ? !dansContour(m, lot.contour) : null,
+      horsLot: dedans === null ? null : !dedans,
       doublonPropose: proche ? { ecoleId: proche.id, nom: proche.nom } : null,
       reponseDoublon: null,
     };

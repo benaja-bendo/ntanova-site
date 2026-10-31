@@ -148,3 +148,38 @@ describe('ce qui part vers la base', () => {
     expect(versReleve({ ...f, reponseDoublon: 'une_autre' }).doublonDe).toBeNull();
   });
 });
+
+describe('les dates affichées', () => {
+  const maintenant = new Date(2026, 10, 2, 15, 0);
+  const date = (mois: number, j: number, h: number, m: number) =>
+    new Date(2026, mois, j, h, m).toISOString();
+
+  it('disent « aujourd’hui », « hier » ou la date, jamais « le Aujourd’hui »', async () => {
+    const { quand } = await import('../../src/ui/composants');
+    expect(quand(date(10, 2, 9, 5), maintenant)).toBe("aujourd'hui à 9\u00a0h\u00a005");
+    expect(quand(date(10, 1, 14, 30), maintenant)).toBe('hier à 14\u00a0h\u00a030');
+    expect(quand(date(9, 31, 8, 0), maintenant)).toBe('le 31/10 à 8\u00a0h\u00a000');
+  });
+});
+
+describe('dans le lot', () => {
+  it('ne dit rien pour le lot d’entraînement, où l’on se forme n’importe où', async () => {
+    const { dansLeLot } = await import('../../src/modele/geo');
+    const contour = [
+      [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+          [0, 0],
+        ],
+      ],
+    ];
+    const loin = { latitude: 50, longitude: 50 };
+    expect(dansLeLot(loin, { essai: false, contour })).toBe(false);
+    expect(dansLeLot(loin, { essai: true, contour })).toBeNull();
+    expect(dansLeLot(loin, { essai: false, contour: null })).toBeNull();
+    expect(dansLeLot(loin, null)).toBeNull();
+  });
+});

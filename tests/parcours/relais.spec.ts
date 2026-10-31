@@ -1,9 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { ajouterUneEcole } from './aides';
 
 // L'espace relais, construit avec le faux serveur (PUBLIC_ADAPTATEUR=faux) : le
 // faux serveur vit dans le navigateur et refuse tout quand le téléphone est hors ligne.
-
-const photo = new URL('./fichiers/enseigne.jpg', import.meta.url).pathname;
 
 /** Ce que le téléphone garde encore : fiches, photos et contacts. */
 function telephone(page: Page) {
@@ -41,28 +40,6 @@ function serveur(page: Page) {
   });
 }
 
-async function ajouterUneEcole(page: Page, n: number) {
-  await page.getByRole('button', { name: 'Ajouter une école' }).click();
-  await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
-  await page.locator('input[type=file]').first().setInputFiles(photo);
-  await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
-  await expect(page.getByText('Position prise')).toBeVisible();
-  await expect(page.getByText('dans votre lot')).toBeVisible();
-  await page.getByRole('button', { name: 'Suivant' }).click();
-
-  await page.getByLabel("Nom sur l'enseigne").fill(`[École ${n}]`);
-  await page.getByRole('button', { name: 'Primaire' }).click();
-  await page.getByRole('button', { name: 'Suivant' }).click();
-
-  await page.getByRole('button', { name: 'Oui', exact: true }).click();
-  await page.getByLabel('Sa fonction').selectOption('promoteur');
-  await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
-  await page.getByLabel(/Son WhatsApp/).fill(`06 123 45 6${n}`);
-  await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
-  await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await page.getByRole('link', { name: 'Mon lot' }).click();
-}
-
 test.describe('espace relais', () => {
   test.use({ permissions: ['geolocation'] });
 
@@ -88,6 +65,21 @@ test.describe('espace relais', () => {
     }
 
     await expect(page.getByText('3 fiches attendent le réseau.')).toBeVisible();
+
+    // En rouvrant l'application, « Tout est envoyé » ne doit jamais s'afficher,
+    // même un instant, tant que des fiches attendent (le relais fermerait l'application).
+    await page.addInitScript(() => {
+      new MutationObserver(() => {
+        if (document.body?.innerText.includes('Tout est envoyé')) {
+          (window as unknown as { toutEnvoyeVu: boolean }).toutEnvoyeVu = true;
+        }
+      }).observe(document, { childList: true, subtree: true, characterData: true });
+    });
+    await page.reload();
+    await expect(page.getByText('3 fiches attendent le réseau.')).toBeVisible();
+    expect(
+      await page.evaluate(() => (window as unknown as { toutEnvoyeVu?: boolean }).toutEnvoyeVu),
+    ).toBeUndefined();
     expect(await telephone(page)).toEqual({ fiches: 3, photos: 3, contacts: 3 });
     expect((await serveur(page)).releves).toBe(0);
 
@@ -115,6 +107,15 @@ test.describe('espace relais', () => {
     await page.goto('/relais/#ajouter/3');
     await page.getByRole('button', { name: 'Oui', exact: true }).click();
     await expect(page.getByLabel(/Son WhatsApp/)).toBeDisabled();
+  });
+
+  test('sur ordinateur, garde la largeur d’un téléphone', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/relais/');
+    await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
+    const navigation = page.getByRole('navigation', { name: 'Espace relais' });
+    await expect(navigation).toBeVisible();
+    expect((await navigation.boundingBox())?.width).toBeLessThanOrEqual(640);
   });
 
   test('tient dans 360 px sans défilement horizontal', async ({ page, context }) => {

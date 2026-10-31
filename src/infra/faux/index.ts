@@ -4,10 +4,13 @@
  * et refuse tout quand le navigateur est hors ligne. Jamais en ligne.
  */
 import type { Adaptateurs } from '../index';
+import type { Valeur } from '../../modele/listes';
 import {
+  ErreurDecision,
   ErreurReseau,
   type ContactAEnvoyer,
   type ErreurAEnvoyer,
+  type PortAdministration,
   type PortRelais,
   type PortSession,
   type Profil,
@@ -17,20 +20,44 @@ import {
 
 const CLE = 'ntanova-faux-serveur';
 
+interface Decision {
+  statut: Valeur<'statut_releve'>;
+  motif: Valeur<'motif_decision'> | null;
+  message: string | null;
+  ecoleId: string | null;
+  contactConfirmeLe: string | null;
+  contactFonction: Valeur<'fonction_direction'> | null;
+}
+
 interface Etat {
   utilisateur: { id: string; email: string } | null;
   statut: Profil['statut'];
+  /** L'utilisateur du faux serveur est aussi administrateur. */
+  admin: boolean;
   releves: Record<string, ReleveAEnvoyer>;
   photos: Record<string, number>;
   contacts: Record<string, ContactAEnvoyer>;
   erreurs: ErreurAEnvoyer[];
+  decisions: Record<string, Decision>;
+  /** Un second relais, fictif, en attente d'activation. */
+  autreRelais: { statut: Profil['statut']; lotId: string | null };
 }
+
+const etatInitial = (): Etat => ({
+  utilisateur: null,
+  statut: 'actif',
+  admin: true,
+  releves: {},
+  photos: {},
+  contacts: {},
+  erreurs: [],
+  decisions: {},
+  autreRelais: { statut: 'en_attente', lotId: null },
+});
 
 function lireEtat(): Etat {
   const garde = localStorage.getItem(CLE);
-  return garde
-    ? (JSON.parse(garde) as Etat)
-    : { utilisateur: null, statut: 'actif', releves: {}, photos: {}, contacts: {}, erreurs: [] };
+  return garde ? { ...etatInitial(), ...(JSON.parse(garde) as Partial<Etat>) } : etatInitial();
 }
 
 function ecrire(modifier: (etat: Etat) => void): void {
@@ -51,6 +78,13 @@ function ajouter<T>(table: Record<string, T>, id: string, valeur: T): Reponse {
 }
 
 const LOT = { id: '00000000-0000-4000-8000-0000000000e1', nom: 'Tié-Tié', essai: false };
+const LOTS = [
+  LOT,
+  { id: '00000000-0000-4000-8000-0000000000e2', nom: 'Ngoyo', essai: false },
+  { id: '00000000-0000-4000-8000-0000000000e3', nom: 'Essai', essai: true },
+];
+const MOI = '00000000-0000-4000-8000-00000000000a';
+const AUTRE = '00000000-0000-4000-8000-00000000000b';
 
 const session: PortSession = {
   async utilisateur() {
@@ -58,10 +92,7 @@ const session: PortSession = {
   },
   async connecterAvecGoogle() {
     await reseau();
-    const utilisateur = {
-      id: '00000000-0000-4000-8000-00000000000a',
-      email: 'relais@exemple.test',
-    };
+    const utilisateur = { id: MOI, email: 'relais@exemple.test' };
     ecrire((e) => (e.utilisateur = utilisateur));
     return utilisateur;
   },
@@ -115,20 +146,24 @@ const relais: PortRelais = {
   },
   async mesReleves() {
     await reseau();
-    return Object.values(lireEtat().releves).map((r) => ({
-      id: r.id,
-      nomEnseigne: r.nomEnseigne,
-      prisLe: r.prisLe,
-      statut: 'a_valider' as const,
-      motif: null,
-      messageAuRelais: null,
-      direction: r.direction,
-      ficheLiaisonRemise: false,
-      repasser: r.repasser,
-      contactConfirmeLe: null,
-      contactFonction: null,
-      ecoleId: null,
-    }));
+    const e = lireEtat();
+    return Object.values(e.releves).map((r) => {
+      const d = e.decisions[r.id];
+      return {
+        id: r.id,
+        nomEnseigne: r.nomEnseigne,
+        prisLe: r.prisLe,
+        statut: d?.statut ?? 'a_valider',
+        motif: d?.motif ?? null,
+        messageAuRelais: d?.message ?? null,
+        direction: r.direction,
+        ficheLiaisonRemise: false,
+        repasser: r.repasser,
+        contactConfirmeLe: d?.contactConfirmeLe ?? null,
+        contactFonction: d?.contactFonction ?? null,
+        ecoleId: d?.ecoleId ?? null,
+      };
+    });
   },
   async envoyerReleve(r) {
     await reseau();
@@ -157,4 +192,149 @@ const relais: PortRelais = {
   },
 };
 
-export const faux: Adaptateurs = { nom: 'faux', session, relais };
+function decision(id: string): Decision {
+  const e = lireEtat();
+  if (!(id in e.releves)) throw new ErreurDecision('Relevé introuvable.');
+  return (
+    e.decisions[id] ?? {
+      statut: 'a_valider',
+      motif: null,
+      message: null,
+      ecoleId: null,
+      contactConfirmeLe: null,
+      contactFonction: null,
+    }
+  );
+}
+
+function decider(id: string, champs: Partial<Decision>): void {
+  const avant = decision(id);
+  ecrire((e) => (e.decisions[id] = { ...avant, ...champs }));
+}
+
+const admin: PortAdministration = {
+  async suisAdmin() {
+    await reseau();
+    return lireEtat().admin;
+  },
+  async relevesAValider() {
+    await reseau();
+    const e = lireEtat();
+    return Object.values(e.releves)
+      .filter((r) => (e.decisions[r.id]?.statut ?? 'a_valider') === 'a_valider')
+      .map((r) => ({
+        id: r.id,
+        recuLe: r.prisLe,
+        type: r.type,
+        nomEnseigne: r.nomEnseigne,
+        relais: '[Prénom]',
+        lot: LOT.nom,
+        essai: false,
+        horsLot: false,
+        doublonPossible: r.reponseDoublon !== null,
+        reponseDoublon: r.reponseDoublon,
+        precisionM: r.precisionM,
+        photoRecue: r.id in e.photos,
+        contactRecu: r.id in e.contacts,
+      }));
+  },
+  async detailReleve(id) {
+    const [ligne] = (await admin.relevesAValider()).filter((r) => r.id === id);
+    const r = lireEtat().releves[id];
+    if (!ligne || !r) throw new ErreurDecision('Relevé introuvable.');
+    const d = decision(id);
+    return {
+      ...ligne,
+      prisLe: r.prisLe,
+      position: r.position,
+      niveaux: r.niveaux,
+      typeEcole: r.typeEcole,
+      repere: r.repere,
+      numeroEnseigne: r.numeroEnseigne,
+      direction: r.direction,
+      repasser: r.repasser,
+      doublonDe: null,
+      corrigeReleveId: r.corrigeReleveId,
+      contactConfirmeLe: d.contactConfirmeLe,
+      contactFonction: d.contactFonction,
+    };
+  },
+  async photoReleve(id) {
+    await reseau();
+    return id in lireEtat().photos ? '/relais/icone-512.png' : null;
+  },
+  async contactReleve(id) {
+    await reseau();
+    const c = lireEtat().contacts[id];
+    return c
+      ? {
+          fonction: c.fonction,
+          nom: c.nom,
+          whatsapp: c.whatsapp,
+          accord: c.accord,
+          accordLe: c.accordLe,
+          note: c.note,
+          recuLe: c.accordLe ?? new Date().toISOString(),
+        }
+      : null;
+  },
+  async accepter(id, ecoleId = null) {
+    await reseau();
+    const ecole = ecoleId ?? `ecole-${id}`;
+    decider(id, { statut: 'accepte', ecoleId: ecole, motif: null, message: null });
+    return ecole;
+  },
+  async demanderCorrection(id, motif, message) {
+    await reseau();
+    decider(id, { statut: 'a_corriger', motif, message });
+  },
+  async refuser(id, motif, message) {
+    await reseau();
+    decider(id, { statut: 'refuse', motif, message });
+  },
+  async confirmerContact(id, fonction) {
+    await reseau();
+    decider(id, { contactConfirmeLe: new Date().toISOString(), contactFonction: fonction });
+  },
+  async relais() {
+    await reseau();
+    const e = lireEtat();
+    const fiches = Object.keys(e.releves).length;
+    return [
+      {
+        id: MOI,
+        prenom: '[Prénom]',
+        statut: e.statut,
+        lotId: LOT.id,
+        creeLe: '2026-10-31T08:00:00Z',
+        activeLe: '2026-10-31T09:00:00Z',
+        fiches,
+      },
+      {
+        id: AUTRE,
+        prenom: '[Relais en attente]',
+        statut: e.autreRelais.statut,
+        lotId: e.autreRelais.lotId,
+        creeLe: '2026-11-01T08:00:00Z',
+        activeLe: null,
+        fiches: 0,
+      },
+    ];
+  },
+  async lots() {
+    await reseau();
+    return LOTS.map((l) => ({ ...l, aRendreLe: null }));
+  },
+  async activerRelais(relaisId, lotId) {
+    await reseau();
+    if (relaisId === AUTRE) ecrire((e) => (e.autreRelais = { statut: 'actif', lotId }));
+    else ecrire((e) => (e.statut = 'actif'));
+  },
+  async suspendreRelais(relaisId) {
+    await reseau();
+    if (relaisId === AUTRE) ecrire((e) => (e.autreRelais.statut = 'suspendu'));
+    else ecrire((e) => (e.statut = 'suspendu'));
+  },
+};
+
+export const faux: Adaptateurs = { nom: 'faux', session, relais, admin };
