@@ -107,6 +107,19 @@ export interface ErreurAEnvoyer {
   appareil: string | null;
 }
 
+/** Une école connue, confiée au relais pour qu'il la situe et la complète sur place. */
+export interface EcoleACompleter {
+  id: string;
+  nom: string;
+  quartier: string | null;
+  typeEcole: Valeur<'type_ecole'>;
+  niveaux: Valeur<'niveau'>[];
+  repere: string | null;
+  numeroEnseigne: string | null;
+  /** Ce que NTanova demande de vérifier. */
+  note: string | null;
+}
+
 export interface PortRelais {
   /** `GET /moi` */
   monProfil(): Promise<Profil>;
@@ -116,6 +129,8 @@ export interface PortRelais {
   ecolesPubliees(): Promise<EcoleProche[]>;
   /** `GET /moi/releves` */
   mesReleves(): Promise<ReleveRecu[]>;
+  /** `GET /moi/ecoles-a-completer` */
+  ecolesACompleter(): Promise<EcoleACompleter[]>;
   /** `POST /releves` */
   envoyerReleve(releve: ReleveAEnvoyer): Promise<Reponse>;
   /** `PUT /photos/{releve}/enseigne.jpg` */
@@ -189,6 +204,17 @@ export interface LotVu {
   aRendreLe: string | null;
 }
 
+export interface EcoleVue {
+  id: string;
+  nom: string;
+  quartier: string | null;
+  arrondissement: string | null;
+  publication: Valeur<'publication'>;
+  /** Sans position : l'école attend qu'un relais la situe. */
+  aSituer: boolean;
+  confiee: { relaisId: string; prenom: string; note: string | null } | null;
+}
+
 export interface PortAdministration {
   /** Le rôle vient de la base, pas de Google. `GET /moi` */
   suisAdmin(): Promise<boolean>;
@@ -216,6 +242,11 @@ export interface PortAdministration {
   /** `POST /admin/relais/{id}/activation` */
   activerRelais(relaisId: string, lotId: string): Promise<void>;
   suspendreRelais(relaisId: string): Promise<void>;
+  /** `GET /admin/ecoles` */
+  ecoles(): Promise<EcoleVue[]>;
+  /** Confie une école à un relais actif, avec ce qu'il doit vérifier. `POST /admin/ecoles/{id}/confier` */
+  confierEcole(ecoleId: string, relaisId: string, note: string | null): Promise<void>;
+  reprendreEcole(ecoleId: string): Promise<void>;
 }
 
 /** Une décision refusée par la base, avec son message (écrit en français dans la base). */

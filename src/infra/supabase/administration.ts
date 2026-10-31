@@ -3,6 +3,7 @@ import type { Valeur } from '../../modele/listes';
 import type {
   ContactDirection,
   DetailReleve,
+  EcoleVue,
   LotVu,
   PortAdministration,
   RelaisVu,
@@ -244,6 +245,115 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const { error } = await supabase().rpc('activer_relais', { relais: relaisId, lot: lotId });
       decider(error);
     },
+
+    async ecoles(): Promise<EcoleVue[]> {
+
+      const lignes = lire(
+
+        await supabase()
+
+          .from('ecoles')
+
+          .select(
+
+            'id, nom, quartier, publication, position, arrondissements(nom), ecoles_confiees(relais_id, note, relais(prenom))',
+
+          )
+
+          .order('nom')
+
+          .limit(5000)
+
+          .returns<
+
+            {
+
+              id: string;
+
+              nom: string;
+
+              quartier: string | null;
+
+              publication: Valeur<'publication'>;
+
+              position: unknown;
+
+              arrondissements: { nom: string } | null;
+
+              ecoles_confiees: {
+
+                relais_id: string;
+
+                note: string | null;
+
+                relais: { prenom: string } | null;
+
+              } | null;
+
+            }[]
+
+          >(),
+
+      );
+
+      return lignes.map((e) => ({
+
+        id: e.id,
+
+        nom: e.nom,
+
+        quartier: e.quartier,
+
+        arrondissement: e.arrondissements?.nom ?? null,
+
+        publication: e.publication,
+
+        aSituer: e.position === null,
+
+        confiee: e.ecoles_confiees
+
+          ? {
+
+              relaisId: e.ecoles_confiees.relais_id,
+
+              prenom: e.ecoles_confiees.relais?.prenom ?? '',
+
+              note: e.ecoles_confiees.note,
+
+            }
+
+          : null,
+
+      }));
+
+    },
+
+
+    async confierEcole(ecoleId, relaisId, note) {
+
+      const { error } = await supabase().rpc('confier_ecole', {
+
+        ecole: ecoleId,
+
+        relais: relaisId,
+
+        note,
+
+      });
+
+      decider(error);
+
+    },
+
+
+    async reprendreEcole(ecoleId) {
+
+      const { error } = await supabase().rpc('reprendre_ecole', { ecole: ecoleId });
+
+      decider(error);
+
+    },
+
 
     async suspendreRelais(relaisId) {
       const { data, error } = await supabase()

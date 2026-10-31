@@ -41,7 +41,21 @@ interface Etat {
   decisions: Record<string, Decision>;
   /** Un second relais, fictif, en attente d'activation. */
   autreRelais: { statut: Profil['statut']; lotId: string | null };
+  /** Les écoles connues, dont une à situer (sans position). */
+  ecoles: Record<string, EcoleFausse>;
 }
+
+interface EcoleFausse {
+  id: string;
+  nom: string;
+  quartier: string | null;
+  publication: Valeur<'publication'>;
+  position: { latitude: number; longitude: number } | null;
+  confieeA: string | null;
+  note: string | null;
+}
+
+const ECOLE_A_SITUER = '40000000-0000-4000-8000-000000000001';
 
 const etatInitial = (): Etat => ({
   utilisateur: null,
@@ -53,6 +67,17 @@ const etatInitial = (): Etat => ({
   erreurs: [],
   decisions: {},
   autreRelais: { statut: 'en_attente', lotId: null },
+  ecoles: {
+    [ECOLE_A_SITUER]: {
+      id: ECOLE_A_SITUER,
+      nom: '[École à situer]',
+      quartier: '[Quartier]',
+      publication: 'brouillon',
+      position: null,
+      confieeA: null,
+      note: null,
+    },
+  },
 });
 
 function lireEtat(): Etat {
@@ -165,6 +190,21 @@ const relais: PortRelais = {
       };
     });
   },
+  async ecolesACompleter() {
+    await reseau();
+    return Object.values(lireEtat().ecoles)
+      .filter((e) => e.confieeA === MOI)
+      .map((e) => ({
+        id: e.id,
+        nom: e.nom,
+        quartier: e.quartier,
+        typeEcole: 'privee' as const,
+        niveaux: ['primaire' as const],
+        repere: null,
+        numeroEnseigne: null,
+        note: e.note,
+      }));
+  },
   async envoyerReleve(r) {
     await reseau();
     let reponse: Reponse = 'recu';
@@ -253,7 +293,10 @@ const admin: PortAdministration = {
       numeroEnseigne: r.numeroEnseigne,
       direction: r.direction,
       repasser: r.repasser,
-      doublonDe: null,
+      doublonDe:
+        r.doublonDe && lireEtat().ecoles[r.doublonDe]
+          ? { id: r.doublonDe, nom: lireEtat().ecoles[r.doublonDe]?.nom ?? '' }
+          : null,
       corrigeReleveId: r.corrigeReleveId,
       contactConfirmeLe: d.contactConfirmeLe,
       contactFonction: d.contactFonction,
@@ -281,7 +324,18 @@ const admin: PortAdministration = {
   async accepter(id, ecoleId = null) {
     await reseau();
     const ecole = ecoleId ?? `ecole-${id}`;
+    const releve = lireEtat().releves[id];
     decider(id, { statut: 'accepte', ecoleId: ecole, motif: null, message: null });
+    ecrire((e) => {
+      const visee = e.ecoles[ecole];
+      if (visee && releve) {
+        visee.nom = releve.nomEnseigne;
+        visee.position = releve.position ?? visee.position;
+        visee.publication = 'publiee';
+        visee.confieeA = null;
+        visee.note = null;
+      }
+    });
     return ecole;
   },
   async demanderCorrection(id, motif, message) {
@@ -334,6 +388,41 @@ const admin: PortAdministration = {
     await reseau();
     if (relaisId === AUTRE) ecrire((e) => (e.autreRelais.statut = 'suspendu'));
     else ecrire((e) => (e.statut = 'suspendu'));
+  },
+  async ecoles() {
+    await reseau();
+    return Object.values(lireEtat().ecoles).map((e) => ({
+      id: e.id,
+      nom: e.nom,
+      quartier: e.quartier,
+      arrondissement: e.position ? LOT.nom : null,
+      publication: e.publication,
+      aSituer: e.position === null,
+      confiee: e.confieeA
+        ? {
+            relaisId: e.confieeA,
+            prenom: e.confieeA === MOI ? '[Prénom]' : '[Relais en attente]',
+            note: e.note,
+          }
+        : null,
+    }));
+  },
+  async confierEcole(ecoleId, relaisId, note) {
+    await reseau();
+    const e = lireEtat();
+    const actif = relaisId === MOI ? e.statut === 'actif' : e.autreRelais.statut === 'actif';
+    if (!actif) throw new ErreurDecision('Ce relais n’est pas actif : l’activer d’abord.');
+    ecrire((etat) => {
+      const ecole = etat.ecoles[ecoleId];
+      if (ecole) Object.assign(ecole, { confieeA: relaisId, note });
+    });
+  },
+  async reprendreEcole(ecoleId) {
+    await reseau();
+    ecrire((etat) => {
+      const ecole = etat.ecoles[ecoleId];
+      if (ecole) Object.assign(ecole, { confieeA: null, note: null });
+    });
   },
 };
 

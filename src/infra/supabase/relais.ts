@@ -1,7 +1,14 @@
 import type { Valeur } from '../../modele/listes';
 import type { MultiPolygone } from '../../modele/geo';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { EcoleProche, Lot, PortRelais, Profil, ReleveRecu } from '../../modele/ports';
+import type {
+  EcoleACompleter,
+  EcoleProche,
+  Lot,
+  PortRelais,
+  Profil,
+  ReleveRecu,
+} from '../../modele/ports';
 import { lire, traduire } from './erreurs';
 
 const point = (p: { latitude: number; longitude: number } | null) =>
@@ -108,6 +115,85 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
       ecoleId: r.ecole_id,
     }));
   },
+
+  async ecolesACompleter(): Promise<EcoleACompleter[]> {
+
+    const id = await monId();
+
+    const lignes = lire(
+
+      await supabase()
+
+        .from('ecoles_confiees')
+
+        .select('note, ecoles(id, nom, quartier, type_ecole, niveaux, repere, numero_enseigne)')
+
+        .eq('relais_id', id)
+
+        .returns<
+
+          {
+
+            note: string | null;
+
+            ecoles: {
+
+              id: string;
+
+              nom: string;
+
+              quartier: string | null;
+
+              type_ecole: Valeur<'type_ecole'>;
+
+              niveaux: Valeur<'niveau'>[];
+
+              repere: string | null;
+
+              numero_enseigne: string | null;
+
+            } | null;
+
+          }[]
+
+        >(),
+
+    );
+
+    return lignes.flatMap((l) =>
+
+      l.ecoles
+
+        ? [
+
+            {
+
+              id: l.ecoles.id,
+
+              nom: l.ecoles.nom,
+
+              quartier: l.ecoles.quartier,
+
+              typeEcole: l.ecoles.type_ecole,
+
+              niveaux: l.ecoles.niveaux,
+
+              repere: l.ecoles.repere,
+
+              numeroEnseigne: l.ecoles.numero_enseigne,
+
+              note: l.note,
+
+            },
+
+          ]
+
+        : [],
+
+    );
+
+  },
+
 
   async envoyerReleve(r) {
     // Sans `.select()` : le relais n'a pas à relire ce qu'il envoie, et un second
