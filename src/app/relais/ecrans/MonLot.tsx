@@ -2,6 +2,7 @@ import { base, lireMemoire, useRequete } from '../base-locale';
 import { aller, useEnLigne, useRelais } from '../contexte';
 import { Bandeau, Entete, heure, Icone, Navigation } from '../composants';
 import { BoutonGoogle } from './Connexion';
+import { commencerContreVisite } from './Ajouter';
 
 /** L'état de la file d'envoi, en tête de « Mon lot » et de « Mes fiches ». */
 export function EtatEnvoi() {
@@ -97,6 +98,8 @@ export function MonLot() {
           </Bandeau>
         )}
 
+        <ACompleter />
+
         <button type="button" className="bouton bouton-large" onClick={() => aller('ajouter/1')}>
           <Icone nom="plus" />
           {brouillon ? 'Reprendre la fiche en cours' : 'Ajouter une école'}
@@ -118,5 +121,47 @@ export function MonLot() {
       </main>
       <Navigation />
     </div>
+  );
+}
+
+/**
+ * Les écoles que NTanova confie au relais : connues, mais pas encore situées.
+ * Une école dont la contre-visite est déjà sur le téléphone n'y figure plus.
+ */
+function ACompleter() {
+  const ecoles = useRequete(() => lireMemoire('aCompleter')) ?? [];
+  const enCours = useRequete(async () =>
+    (await base.fiches.where('type').equals('contre_visite').toArray()).map(
+      (f) => f.doublonPropose?.ecoleId,
+    ),
+  );
+  const restantes = ecoles.filter((e) => !enCours?.includes(e.id));
+  if (restantes.length === 0) return null;
+  return (
+    <section className="carte-blanche pile-serree" aria-label="À compléter">
+      <p className="surtitre">À compléter · {restantes.length}</p>
+      <p className="mention">
+        NTanova connaît ces écoles sans savoir où elles sont. Passez les relever : photo, position,
+        et ce qui manque.
+      </p>
+      {restantes.map((e) => (
+        <div key={e.id} className="a-completer">
+          <div>
+            <b>{e.nom}</b>
+            <span className="mention a-completer-ligne">
+              {[e.quartier, e.repere].filter(Boolean).join(' · ') || 'Quartier inconnu'}
+            </span>
+            {e.note && <span className="mention a-completer-ligne">À vérifier : {e.note}</span>}
+          </div>
+          <button
+            type="button"
+            className="bouton bouton-secondaire bouton-petit"
+            onClick={() => void commencerContreVisite(e)}
+          >
+            Compléter
+          </button>
+        </div>
+      ))}
+    </section>
   );
 }

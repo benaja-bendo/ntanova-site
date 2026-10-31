@@ -56,8 +56,8 @@ Le jour où un serveur (Spring Boot) remplacera Supabase, seul `src/infra/` sera
 | --- | --- | --- |
 | Catalogue public (à la construction) | Lister les écoles publiées et les quartiers | `GET /public/ecoles`, `GET /public/quartiers` |
 | Session | Se connecter avec le jeton Google, se déconnecter, lire l'utilisateur courant, obtenir un jeton frais | `POST /auth/google`, `GET /moi` |
-| Relais | Mon profil, mon lot, mes relevés et leurs retours ; envoyer une photo, un relevé, un contact, une erreur | `GET /moi/lot`, `GET /moi/releves`, `PUT /photos/{chemin}`, `POST /releves`, `POST /contacts`, `POST /erreurs` |
-| Administration (`PortAdministration`) | Le rôle ; les relevés à valider, leur détail, leur photo, leur contact ; accepter, demander une correction, refuser, confirmer un contact ; les relais et les lots ; activer, suspendre | `GET /admin/releves`, `GET /admin/releves/{id}`, `POST /admin/releves/{id}/decision`, `GET /admin/relais`, `POST /admin/relais/{id}/activation` |
+| Relais | Mon profil, mon lot, mes relevés et leurs retours, les écoles qu'on me confie ; envoyer une photo, un relevé, un contact, une erreur | `GET /moi/lot`, `GET /moi/releves`, `GET /moi/ecoles-a-completer`, `PUT /photos/{chemin}`, `POST /releves`, `POST /contacts`, `POST /erreurs` |
+| Administration (`PortAdministration`) | Le rôle ; les relevés à valider, leur détail, leur photo, leur contact ; accepter, demander une correction, refuser, confirmer un contact ; les relais et les lots ; activer, suspendre ; les écoles, les confier à un relais | `GET /admin/releves`, `GET /admin/releves/{id}`, `POST /admin/releves/{id}/decision`, `GET /admin/relais`, `POST /admin/relais/{id}/activation`, `GET /admin/ecoles`, `POST /admin/ecoles/{id}/confier` |
 
 - **Chaque envoi porte un identifiant créé sur le téléphone** et répond « reçu » ou « déjà reçu ».
 - **Relevés et photos** : `.insert()` sans `.select()`, photo sans écrasement. Un second envoi du même identifiant renvoie une erreur de doublon (code `23505`, ou 409 pour la photo), que l'adaptateur traduit en « déjà reçu ». Jamais d'`upsert`.
@@ -76,7 +76,8 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - **Les listes fermées sont des domaines SQL**, copiés dans `src/modele/listes.ts` : un test vérifie qu'ils restent identiques.
 - Les relais sont liés à leur compte Google (l'identifiant `sub`), pas seulement à leur identifiant Supabase.
 - Les photos sous des chemins neutres : `releves/<identifiant>/enseigne.jpg`.
-- Des données d'exemple **fictives** seulement.
+- Des données d'exemple **fictives** seulement. Les vraies écoles connues par les entretiens entrent par `outils/importer-ecoles.ts` (voir `supabase/schema.md`, « Les écoles à situer ») : le CSV et le SQL réels ne passent jamais par git.
+- **Jamais de position inventée** : une école sans position reste « à situer » jusqu'à la contre-visite d'un relais.
 - Les migrations s'appliquent depuis le Mac du fondateur (`pnpm exec supabase db push`), après relecture. Jamais depuis la CI pour l'instant.
 
 ## Secrets

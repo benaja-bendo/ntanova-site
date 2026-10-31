@@ -9,7 +9,7 @@ import { garder } from './base-locale';
 import { envoyerTout, type ResultatEnvoi } from './file-envoi';
 import { journaliser } from './journal';
 
-/** Relit le profil, et pour un relais actif son lot, les écoles publiées et ses relevés. */
+/** Relit le profil, et pour un relais actif son lot, les écoles publiées, ses relevés et les écoles qu'on lui confie. */
 export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
   const etat = await adaptateurs.session.etat();
   if (etat !== 'pret') return etat;
@@ -18,12 +18,18 @@ export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvo
     const profil = await relais.monProfil();
     await garder('profil', profil);
     if (profil.statut === 'actif') {
-      const [lot, ecoles, releves] = await Promise.all([
+      const [lot, ecoles, releves, aCompleter] = await Promise.all([
         relais.monLot(),
         relais.ecolesPubliees(),
         relais.mesReleves(),
+        relais.ecolesACompleter(),
       ]);
-      await Promise.all([garder('lot', lot), garder('ecoles', ecoles), garder('releves', releves)]);
+      await Promise.all([
+        garder('lot', lot),
+        garder('ecoles', ecoles),
+        garder('releves', releves),
+        garder('aCompleter', aCompleter),
+      ]);
     }
     return 'pret';
   } catch (erreur) {

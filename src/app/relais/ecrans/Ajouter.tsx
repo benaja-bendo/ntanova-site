@@ -4,6 +4,7 @@ import {
   erreursEtape1,
   erreursEtape2,
   erreursEtape3,
+  nouvelleContreVisite,
   nouvelleFiche,
   versContact,
   type ContactSaisi,
@@ -12,6 +13,7 @@ import {
 } from '../../../modele/fiche';
 import { dansLeLot, plusProche, PRECISION_SUFFISANTE_M, type Point } from '../../../modele/geo';
 import { listes, type Valeur } from '../../../modele/listes';
+import type { EcoleACompleter } from '../../../modele/ports';
 import {
   libelleDirection,
   libelleFonction,
@@ -138,8 +140,13 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
       precisionM: m.precisionM,
       prisLe: m.prisLe,
       horsLot: dedans === null ? null : !dedans,
-      doublonPropose: proche ? { ecoleId: proche.id, nom: proche.nom } : null,
-      reponseDoublon: null,
+      // Une contre-visite sait déjà quelle école elle visite : pas de question de doublon.
+      ...(fiche.type === 'contre_visite'
+        ? {}
+        : {
+            doublonPropose: proche ? { ecoleId: proche.id, nom: proche.nom } : null,
+            reponseDoublon: null,
+          }),
     };
     // Si le relais est déjà passé à l'étape 2, la position est gardée quand même.
     if (monte.current) modifier(champs);
@@ -293,7 +300,17 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           )}
         </section>
 
-        {fiche.doublonPropose && (
+        {fiche.type === 'contre_visite' && fiche.doublonPropose && (
+          <Bandeau ton="public" icone="carte">
+            <p>
+              <b>Contre-visite&nbsp;: {fiche.doublonPropose.nom}.</b> NTanova connaît cette école
+              sans savoir où elle est. Prenez la photo de l'enseigne et la position devant l'entrée,
+              puis vérifiez ce qui est déjà rempli.
+            </p>
+          </Bandeau>
+        )}
+
+        {fiche.type !== 'contre_visite' && fiche.doublonPropose && (
           <section className="bandeau bandeau-attente pile-serree" aria-label="Doublon possible">
             <p>
               <b>Une école est déjà relevée à 40&nbsp;m&nbsp;:</b> {fiche.doublonPropose.nom}.
@@ -598,6 +615,20 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
       </PiedEtape>
     </div>
   );
+}
+
+/** Depuis « Mon lot » : la contre-visite d'une école confiée au relais. */
+export async function commencerContreVisite(ecole: EcoleACompleter): Promise<void> {
+  const profil = await lireMemoire('profil');
+  const fiche = nouvelleContreVisite(
+    crypto.randomUUID(),
+    new Date().toISOString(),
+    profil?.lotId ?? null,
+    ecole,
+  );
+  await base.fiches.put(fiche);
+  await garder('brouillon', fiche.id);
+  aller('ajouter/1');
 }
 
 /** Depuis « Mes fiches » : une correction, qui part comme une nouvelle fiche liée à l'ancienne. */

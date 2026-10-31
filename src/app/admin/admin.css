@@ -347,3 +347,9 @@
   min-height: var(--cible-min);
   padding: var(--espace-1) var(--espace-3);
 }
+
+.admin-note {
+  width: 14rem;
+  min-height: var(--cible-min);
+  padding: var(--espace-1) var(--espace-3);
+}

@@ -59,6 +59,15 @@ La photo de l'enseigne va dans le stockage de Supabase (seau privé `releves`), 
 
 **Le relevé, puis la photo, puis le contact** : la photo et le contact ne sont acceptés que pour un relevé déjà reçu et envoyé par le même relais. Chaque envoi peut être rejoué : le second répond « déjà reçu ».
 
+## Les écoles à situer (31/10, après-midi)
+
+Des écoles connues autrement que par un relevé (les entretiens) entrent **en brouillon, sans position**, parfois sans arrondissement. Jamais de position inventée : une fausse position tromperait une famille et fausserait le contrôle des doublons à 40 m.
+
+1. **Import** : `node outils/importer-ecoles.ts <export.csv> > import.sql`, puis le SQL dans l'éditeur SQL de Supabase. Seulement ce qui se voit de la rue ; la référence (`ETB-…`) va dans `prive.ecoles_sources`, que l'API n'expose pas. Se relance sans doublon. Le CSV et le SQL restent hors du dépôt.
+2. **Confier** : `confier_ecole(ecole, relais, note)` (administration, onglet « Écoles ») ; une école est confiée à un seul relais actif à la fois (`ecoles_confiees`). Le relais lit les écoles qu'on lui confie, même en brouillon ; personne d'autre.
+3. **Contre-visite** : le relais envoie un relevé `contre_visite`, dont `doublon_de` est l'école visitée (contrainte `releves_contre_visite_liee`).
+4. **Accepter** : `accepter_releve(releve, ecole)` met l'école à jour, lui donne l'arrondissement du relevé (sa position, sinon son lot), la publie si elle était en brouillon, et termine la mission (`ecoles_confiees`). Une école publiée a toujours un arrondissement (`ecoles_publiee_dans_un_arrondissement`).
+
 ## Les choix (31/10)
 
 1. **Le contact dans un schéma privé**, écrit par une fonction (`envoyer_contact`) qui répond `recu` ou `deja_recu`. Même un droit donné par erreur ne le rendrait pas lisible par l'API. Demain, c'est `POST /contacts` chez Spring Boot.
@@ -95,7 +104,7 @@ Deux vues : `ecoles_publiees` (ce que lit le site public) et `releves_a_valider`
 
 ## Les tests
 
-`pnpm base:tests` (pgTAP, `supabase/tests/`) : 59 vérifications (39 pour les droits, 20 pour les décisions de l'administration), dont celles du « fini quand » de la base : un relais ne lit aucun contact, même le sien ; un second envoi du même relevé répond « déjà reçu ». Ils tournent aussi dans la CI. Vérifié le 31/10 : en donnant à tort un droit aux relais, les tests échouent.
+`pnpm base:tests` (pgTAP, `supabase/tests/`) : 76 vérifications (39 pour les droits, 20 pour les décisions de l'administration, 17 pour les écoles à situer), dont celles du « fini quand » de la base : un relais ne lit aucun contact, même le sien ; un second envoi du même relevé répond « déjà reçu ». Ils tournent aussi dans la CI. Vérifié le 31/10 : en donnant à tort un droit aux relais, les tests échouent.
 
 ## Voir le schéma en local
 

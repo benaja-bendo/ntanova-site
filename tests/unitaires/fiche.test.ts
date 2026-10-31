@@ -183,3 +183,28 @@ describe('dans le lot', () => {
     expect(dansLeLot(loin, null)).toBeNull();
   });
 });
+
+describe('la contre-visite d’une école confiée', () => {
+  it('part liée à l’école visitée, avec ce qu’on savait déjà', async () => {
+    const { nouvelleContreVisite } = await import('../../src/modele/fiche');
+    const fiche = nouvelleContreVisite('r1', '2026-11-02T08:00:00.000Z', 'lot', {
+      id: 'ecole-1',
+      nom: '[École connue]',
+      quartier: '[Quartier]',
+      typeEcole: 'privee',
+      niveaux: ['primaire'],
+      repere: '[Repère]',
+      numeroEnseigne: '242060000001',
+      note: 'Nom à vérifier',
+    });
+    const releve = versReleve(fiche);
+    expect(releve).toMatchObject({
+      type: 'contre_visite',
+      doublonDe: 'ecole-1',
+      reponseDoublon: 'la_meme',
+      nomEnseigne: '[École connue]',
+      repere: '[Repère]',
+      numeroEnseigne: '242060000001',
+    });
+  });
+});

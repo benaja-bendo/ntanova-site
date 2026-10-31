@@ -373,3 +373,17 @@
 .bandeau-reserve {
   min-height: 48px;
 }
+
+/* « À compléter » : une école confiée par ligne, son bouton à droite. */
+.a-completer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--trait);
+}
+
+.a-completer-ligne {
+  display: block;
+}

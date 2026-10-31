@@ -5,7 +5,14 @@
 import Dexie, { liveQuery, type EntityTable } from 'dexie';
 import { useEffect, useState } from 'react';
 import type { FicheLocale } from '../../modele/fiche';
-import type { EcoleProche, ErreurAEnvoyer, Lot, Profil, ReleveRecu } from '../../modele/ports';
+import type {
+  EcoleACompleter,
+  EcoleProche,
+  ErreurAEnvoyer,
+  Lot,
+  Profil,
+  ReleveRecu,
+} from '../../modele/ports';
 
 /** Ce que le téléphone garde du serveur, pour marcher hors ligne. */
 export interface Memoire {
@@ -13,6 +20,8 @@ export interface Memoire {
   lot: Lot | null;
   ecoles: EcoleProche[];
   releves: ReleveRecu[];
+  /** Les écoles confiées au relais, à situer et compléter sur place. */
+  aCompleter: EcoleACompleter[];
   dernierEnvoi: string;
   brouillon: string;
 }
@@ -32,6 +41,10 @@ base.version(1).stores({
   fiches: 'id, etat, creeeLe',
   memoire: 'cle',
   erreurs: 'id',
+});
+// Version 2 : les fiches se cherchent aussi par type (les contre-visites en cours).
+base.version(2).stores({
+  fiches: 'id, etat, creeeLe, type',
 });
 
 export async function lireMemoire<K extends keyof Memoire>(
