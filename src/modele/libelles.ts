@@ -71,3 +71,24 @@ export const libelleMotif: Record<Valeur<'motif_decision'>, string> = {
   enfant_sur_photo: 'Un enfant est sur la photo.',
   autre: 'Une information est à revoir.',
 };
+
+/**
+ * D'où vient une fiche publiée : vérifiée par l'école, relevée de la rue par un relais, ou
+ * ajoutée par NTanova (l'administration l'a située elle-même ; aucun relevé ne l'a encore décrite).
+ */
+export type Provenance = 'verifiee' | 'relevee' | 'ajoutee';
+
+export function provenanceDe(e: {
+  etat: Valeur<'etat_ecole'>;
+  releveeLe: string | null;
+  situeeLe: string | null;
+}): Provenance {
+  if (e.etat === 'verifiee') return 'verifiee';
+  return e.releveeLe === null && e.situeeLe !== null ? 'ajoutee' : 'relevee';
+}
+
+export const libelleProvenance: Record<Provenance, string> = {
+  verifiee: 'Vérifiée par l’école',
+  relevee: 'Relevée de la rue',
+  ajoutee: 'Ajoutée par NTanova',
+};

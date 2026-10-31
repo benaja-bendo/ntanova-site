@@ -51,6 +51,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           // Absentes tant que les migrations du programme et de la date de relevé ne sont pas poussées.
           programme?: string | null;
           relevee_le?: string | null;
+          situee_le?: string | null;
           repere: string | null;
           numero_enseigne: string | null;
           latitude: number | null;
@@ -74,6 +75,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
         longitude: e.longitude,
         etat: e.etat,
         releveeLe: e.relevee_le ?? null,
+        situeeLe: e.situee_le ?? null,
         misAJourLe: e.mis_a_jour_le,
       }));
     },

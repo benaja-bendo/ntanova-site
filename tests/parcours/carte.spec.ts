@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 // La carte détourée (ticket 15), sur le catalogue fictif : à Tié-Tié, deux écoles situées à
-// 270 m l'une de l'autre (une pastille de 2 sur la carte de l'arrondissement), une troisième sans
-// position ; à Ngoyo, aucune école. Sans JavaScript : toucher, c'est changer de page.
+// 270 m l'une de l'autre (une pastille de 2 sur la carte de l'arrondissement), une troisième loin
+// d'elles (située par l'administration), une quatrième sans position ; à Ngoyo, aucune école.
+// Sans JavaScript : toucher, c'est changer de page.
 
 test('de la ville à la fiche : arrondissement, pastille, coin vu de près, école', async ({
   page,
@@ -16,11 +17,11 @@ test('de la ville à la fiche : arrondissement, pastille, coin vu de près, éco
   await expect(
     page.getByText('Les quatre autres arrondissements : pas encore relevés.'),
   ).toBeVisible();
-  await page.getByRole('link', { name: 'Tié-Tié : 3 écoles' }).click();
+  await page.getByRole('link', { name: 'Tié-Tié : 4 écoles' }).click();
 
   // L'arrondissement : la pastille regroupe les deux écoles situées.
   await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
-  await expect(page.getByText('2 écoles sur la carte de Tié-Tié')).toBeVisible();
+  await expect(page.getByText('3 écoles sur la carte de Tié-Tié')).toBeVisible();
   await expect(
     page.getByText('Une autre école n’est pas encore située : elle n’est que dans la liste.'),
   ).toBeVisible();
@@ -86,4 +87,20 @@ test('chaque école et chaque pastille se touchent du doigt : 44 px au moins', a
       expect(boite?.height ?? 0).toBeGreaterThanOrEqual(44);
     }
   }
+});
+
+test('une école située par l’administration, sans relevé, dit qu’elle a été ajoutée par NTanova', async ({
+  page,
+}) => {
+  await page.goto('/ecoles/tie-tie/');
+  await expect(
+    page.getByRole('link', { name: /\[École ajoutée Exemple\].*Ajoutée par NTanova/ }),
+  ).toBeVisible();
+  await page.goto('/ecoles/tie-tie/ecole-ajoutee-exemple/');
+  await expect(page.getByText('Fiche ajoutée par NTanova le 3 novembre 2026')).toBeVisible();
+  await expect(page.getByText(/par un jeune du quartier : seulement/)).toHaveCount(0);
+  await page.goto('/ecoles/tie-tie/carte/');
+  await expect(
+    page.getByRole('link', { name: '[École ajoutée Exemple], ajoutée par NTanova' }),
+  ).toBeVisible();
 });

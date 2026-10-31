@@ -1,6 +1,12 @@
 ---
 // Les écoles en cartes cliquables : la liste d'un arrondissement, ou celle d'un coin vu de près.
-import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../modele/libelles';
+import {
+  libelleNiveau,
+  libelleProvenance,
+  libelleTypeEcole,
+  provenanceDe,
+  typeInformatif,
+} from '../modele/libelles';
 import type { EcolePubliee } from '../modele/ports';
 
 interface Props {
@@ -24,9 +30,7 @@ const resume = (e: EcolePubliee) =>
       <a class="ecole" href={`/ecoles/${e.arrondissement}/${e.slug}/`}>
         <span class="ecole-nom">{e.nom}</span>
         {resume(e) && <span class="ecole-detail">{resume(e)}</span>}
-        <span class="ecole-etat">
-          {e.etat === 'verifiee' ? 'Vérifiée par l’école' : 'Relevée de la rue'}
-        </span>
+        <span class="ecole-etat">{libelleProvenance[provenanceDe(e)]}</span>
       </a>
     </li>
   ))}

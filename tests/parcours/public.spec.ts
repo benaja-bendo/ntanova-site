@@ -19,6 +19,7 @@ const pages = [
   '/ecoles/tie-tie/complexe-scolaire-exemple/',
   '/ecoles/tie-tie/centre-de-formation-exemple/',
   '/ecoles/tie-tie/ecole-sans-detail-exemple/',
+  '/ecoles/tie-tie/ecole-ajoutee-exemple/',
   '/pour-les-ecoles/',
   '/a-propos/',
 ];
@@ -51,7 +52,7 @@ test.describe('site public', () => {
   test('de l’accueil à la fiche d’une école, puis vers « Pour les écoles »', async ({ page }) => {
     await page.goto('/');
     await expect(
-      page.getByRole('link', { name: /Tié-Tié.*Arrondissement 3.*3 écoles/ }),
+      page.getByRole('link', { name: /Tié-Tié.*Arrondissement 3.*4 écoles/ }),
     ).toBeVisible();
     await expect(page.getByRole('link', { name: /Ngoyo.*relevé en cours/ })).toBeVisible();
     await page

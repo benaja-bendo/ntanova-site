@@ -14,6 +14,7 @@ import type {
   Rues,
 } from '../modele/carte/plan';
 import type { Repere } from '../modele/carte/reperes';
+import { libelleProvenance } from '../modele/libelles';
 import type { Point } from '../modele/geo';
 
 interface Props {
@@ -63,6 +64,7 @@ const reperesVus = reperes
 const [haloX, haloY] = halo ? p.versEcran(halo) : [0, 0];
 
 const ecoles = (n: number) => `${n} école${n > 1 ? 's' : ''}`;
+const minuscule = (texte: string) => texte.charAt(0).toLowerCase() + texte.slice(1);
 const court = (nom: string) => (nom.length > 24 ? `${nom.slice(0, 23).trimEnd()}…` : nom);
 
 // Vues de près, les rues s'élargissent un peu, comme sur une vraie carte qu'on zoome :
@@ -182,7 +184,7 @@ const epaisseurs = `--rue: ${largeurRue}px; --avenue: ${largeurAvenue}px; --aven
         <a
           class="marque"
           href={m.ecole.lien}
-          aria-label={`${m.ecole.nom}, ${m.ecole.etat === 'verifiee' ? 'vérifiée par l’école' : 'relevée de la rue'}`}
+          aria-label={`${m.ecole.nom}, ${minuscule(libelleProvenance[m.ecole.etat])}`}
         >
           <g transform={`translate(${m.x} ${m.y})`}>
             <rect class="cible" x="-26" y="-55" width="54" height="56" rx="12" />
@@ -397,7 +399,8 @@ const epaisseurs = `--rue: ${largeurRue}px; --avenue: ${largeurAvenue}px; --aven
   .drapeau.verifiee {
     fill: var(--carte-drapeau-verifiee);
   }
-  .drapeau.relevee {
+  .drapeau.relevee,
+  .drapeau.ajoutee {
     fill: var(--carte-drapeau-relevee);
   }
   .pastille {

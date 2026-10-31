@@ -4,7 +4,12 @@
 import type { GetStaticPaths } from 'astro';
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirCatalogue } from '../../../infra/index';
-import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../../../modele/libelles';
+import {
+  libelleNiveau,
+  libelleTypeEcole,
+  provenanceDe,
+  typeInformatif,
+} from '../../../modele/libelles';
 import type { ArrondissementPublic, EcolePubliee } from '../../../modele/ports';
 import { dateLongue } from '../../../modele/pointe-noire';
 import { afficherTelephone } from '../../../modele/telephone';
@@ -118,6 +123,11 @@ const plan =
             {e.etat === 'verifiee' ? (
               <p class="carte etat">
                 <b>Fiche vérifiée par la direction</b> le {dateLongue(e.misAJourLe)}.
+              </p>
+            ) : provenanceDe(e) === 'ajoutee' && e.situeeLe ? (
+              <p class="etat etat-relevee-public">
+                <b>Fiche ajoutée par NTanova le {dateLongue(e.situeeLe)}</b>. Pas encore relevée sur
+                place par un jeune du quartier.
               </p>
             ) : (
               <p class="etat etat-relevee-public">
