@@ -3,7 +3,7 @@ import PagePublique from '../ui/PagePublique.astro';
 ---
 
 <PagePublique titre="Page introuvable · NTanova" description="Cette page n'existe pas.">
-  <section class="introuvable">
+  <section class="cadre page introuvable">
     <h1>Page introuvable</h1>
     <p>
       Cette page n'existe pas, ou la fiche n'est plus publiée. L'adresse est peut-être incomplète.
@@ -19,5 +19,14 @@ import PagePublique from '../ui/PagePublique.astro';
     display: grid;
     gap: var(--espace-4);
     justify-items: start;
+  }
+
+  @media (min-width: 48rem) {
+    .introuvable {
+      padding-block: var(--espace-7);
+    }
+    .introuvable h1 {
+      font-size: var(--taille-titre-public);
+    }
   }
 </style>

@@ -20,7 +20,7 @@ Le catalogue du système de design : http://localhost:4321/dev/catalogue/ (en d�
 - `pnpm verif` : format, lint (dont les frontières), couleurs, types, tests unitaires, construction, poids des pages. **Rien n'est fini tant qu'elle ne passe pas.** La CI (`.github/workflows/verif.yml`) lance la même commande.
 - `pnpm test:parcours` : les parcours Playwright, dans un téléphone Android de 360 px, sur le site construit servi par wrangler comme en production. La spec `mise-en-page` (les tests qui dépendent de la largeur : barre de l'administration, tableaux, défilement de côté…) tourne aussi à 768 px (tablette) et 1 280 px (ordinateur).
   Le site y est construit avec le **faux serveur** (`PUBLIC_ADAPTATEUR=faux`, `src/infra/faux/`) : l'espace relais tourne sans Supabase, hors ligne compris. Le parcours « trois fiches hors ligne, le réseau revient, tout est parti, le contact a disparu du téléphone » ne doit jamais être affaibli.
-- `pnpm captures` : une image de chaque écran (site public, relais, administration) à 360, 768 et 1 280 px, dans `captures/` (ignoré par git), pour relire une mise en page à l'œil. Elle ne vérifie rien.
+- `pnpm captures` : une image de chaque écran (site public, relais, administration) à 360, 768, 1 280 et 1 920 px, dans `captures/` (ignoré par git), pour relire une mise en page à l'œil. Elle ne vérifie rien.
 - `pnpm base:tests` : les tests pgTAP des droits et des règles de la base (`supabase/tests/`), sur la base locale (`pnpm base:demarrer`, Docker). La CI les lance aussi.
 
 ## Architecture
@@ -135,7 +135,7 @@ Les tâches sont des tickets du projet GitHub n° 29 (« NTanova site · feuille
 
 1. **État des lieux**, en commentaire sur le ticket : ce que le ticket doit produire ; ce qui existe (lu dans le code) ; les problèmes ; les options, avec une recommandation ; l'impact (migrations, écrans, tests, mise en ligne, actions du fondateur) ; ce qui reste hors du ticket ; les décisions attendues.
 2. **Le go du fondateur**, tel quel ou modifié. **Rien n'est codé avant.**
-3. **Réalisation** : une branche, une PR « Fixes #N », les tests d'abord (un test par bug, vérifié en échec sans le correctif), un essai sur essai.ntanova.com.
+3. **Réalisation** : une branche, une PR « Fixes #N », les tests d'abord (un test par bug, vérifié en échec sans le correctif), un essai sur essai.ntanova.com. Un ticket livré en plusieurs PR : les premières disent « Refs #N », seule la dernière dit « Fixes #N » (sinon la première fusionnée ferme le ticket). Essai et production lisent la vraie base : tant qu'aucune école n'y est publiée, ils ne montrent ni liste ni fiche ; pour voir ces écrans, `pnpm captures` (catalogue de test).
 4. **Compte rendu** sur le ticket : fait, vérifié, pas vérifié. La fusion : voir « Git ».
 
 **Un regard critique à chaque étape** (consigne du fondateur, 31/10). Il va vite : une consigne peut contenir une erreur de détail, et le travail peut s'éloigner du but sans qu'il le voie. D'abord à l'état des lieux, puis en réalisant, **croiser la maquette, le ticket et le code avec tout le contexte connu** (registre, décisions, autres tickets, état réel de la production) et **dire tout ce qui ne colle pas** : une incohérence dans la maquette, une promesse que le site ne tient pas, une façon de faire qui n'amène pas au résultat attendu. Proposer le correctif ; ne pas recopier une maquette telle quelle.

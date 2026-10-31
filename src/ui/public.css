@@ -18,6 +18,34 @@
   font-weight: 700;
 }
 
+/*
+ * Le cadre d'une page publique. Sous 48 rem, une colonne de 36 rem au plus, comme sur un
+ * téléphone ; à partir de 48 rem, le cadre de 75 rem de la planche « Accueil sur ordinateur ».
+ * `.page` donne de l'air au-dessus et au-dessous d'une page sans bandes de couleur.
+ */
+.cadre {
+  width: 100%;
+  max-width: var(--largeur-texte);
+  margin-inline: auto;
+  padding-inline: var(--espace-4);
+}
+
+/* Une ligne de texte ne dépasse jamais 36 rem, quelle que soit la largeur du cadre. */
+.cadre p {
+  max-width: var(--largeur-texte);
+}
+
+.page {
+  padding-block: var(--espace-6);
+}
+
+@media (min-width: 48rem) {
+  .cadre {
+    max-width: var(--largeur-page);
+    padding-inline: var(--espace-6);
+  }
+}
+
 /* « Vous dirigez une école ? » : le bandeau sombre, et son bouton jaune. */
 .ecoles-appel {
   display: grid;
@@ -30,6 +58,72 @@
 
 .ecoles-appel p {
   margin: 0;
+}
+
+/*
+ * La bande de l'accueil : sur téléphone, la phrase et le bouton ; à partir de 48 rem, un
+ * surtitre, une phrase plus grande, un détail, et le texte du bouton qui dit l'action.
+ */
+.appel-surtitre,
+.appel-detail,
+.appel-long {
+  display: none;
+}
+
+@media (min-width: 48rem) {
+  .ecoles-appel-large {
+    justify-items: start;
+    gap: var(--espace-5);
+    padding: var(--espace-6) var(--espace-7);
+  }
+
+  .ecoles-appel-large .appel-texte {
+    display: grid;
+    gap: var(--espace-2);
+  }
+
+  .ecoles-appel-large .appel-surtitre,
+  .ecoles-appel-large .appel-detail {
+    display: block;
+  }
+
+  .ecoles-appel-large .appel-surtitre {
+    color: var(--accent);
+    font-family: var(--police-titre);
+    font-size: var(--taille-mention);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .ecoles-appel-large .appel-titre {
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-section);
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .ecoles-appel-large .appel-detail {
+    color: var(--vert-pale);
+  }
+
+  .ecoles-appel-large .appel-court {
+    display: none;
+  }
+
+  .ecoles-appel-large .appel-long {
+    display: inline;
+  }
+}
+
+/* À partir de 64 rem, le texte d'un côté, le bouton de l'autre. */
+@media (min-width: 64rem) {
+  .ecoles-appel-large {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    justify-items: stretch;
+    gap: var(--espace-6);
+  }
 }
 
 .ecoles-appel a:not(.bouton) {

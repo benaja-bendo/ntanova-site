@@ -30,6 +30,8 @@ test.describe('site public', () => {
         360,
       );
       for (const cible of await page.locator('a, button').all()) {
+        // Un lien caché à cette largeur (la navigation du haut, réservée aux écrans larges) n'est pas une cible.
+        if (!(await cible.isVisible())) continue;
         const boite = await cible.boundingBox();
         expect(boite?.height, await cible.innerText()).toBeGreaterThanOrEqual(44);
       }
