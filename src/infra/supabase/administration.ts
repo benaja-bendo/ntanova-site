@@ -4,6 +4,7 @@ import type {
   ContactDirection,
   DetailReleve,
   EcoleVue,
+  ReleveDecide,
   LotVu,
   PortAdministration,
   RelaisVu,
@@ -256,7 +257,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
 
           .select(
 
-            'id, nom, quartier, publication, position, arrondissements(nom), ecoles_confiees(relais_id, note, relais(prenom))',
+            'id, nom, quartier, publication, position, arrondissement_id, retiree_le, motif_retrait, note_retrait, remplacee_par, arrondissements(nom), ecoles_confiees(relais_id, note, relais(prenom))',
 
           )
 
@@ -277,6 +278,16 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
               publication: Valeur<'publication'>;
 
               position: unknown;
+
+              arrondissement_id: number | null;
+
+              retiree_le: string | null;
+
+              motif_retrait: Valeur<'motif_retrait'> | null;
+
+              note_retrait: string | null;
+
+              remplacee_par: string | null;
 
               arrondissements: { nom: string } | null;
 
@@ -306,7 +317,18 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
 
         arrondissement: e.arrondissements?.nom ?? null,
 
+        arrondissementId: e.arrondissement_id,
         publication: e.publication,
+
+        retrait:
+          e.publication === 'retiree' && e.motif_retrait && e.retiree_le
+            ? {
+                motif: e.motif_retrait,
+                le: e.retiree_le,
+                note: e.note_retrait,
+                remplaceePar: e.remplacee_par,
+              }
+            : null,
 
         aSituer: e.position === null,
 
@@ -353,6 +375,258 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       decider(error);
 
     },
+
+
+    async arrondissements() {
+
+
+      return lire(
+
+
+        await supabase()
+
+
+          .from('arrondissements')
+
+
+          .select('id, slug, nom')
+
+
+          .order('nom')
+
+
+          .returns<{ id: number; slug: string; nom: string }[]>(),
+
+
+      );
+
+
+    },
+
+
+
+    async publierEcole(ecoleId) {
+
+
+      const { error } = await supabase().rpc('publier_ecole', { ecole: ecoleId });
+
+
+      decider(error);
+
+
+    },
+
+
+
+    async publierArrondissement(arrondissementId) {
+
+
+      const { data, error } = await supabase().rpc('publier_arrondissement', {
+
+
+        arrondissement: arrondissementId,
+
+
+      });
+
+
+      decider(error);
+
+
+      return Number(data ?? 0);
+
+
+    },
+
+
+
+    async publierLot(lotId) {
+
+
+      const { data, error } = await supabase().rpc('publier_lot', { lot: lotId });
+
+
+      decider(error);
+
+
+      return Number(data ?? 0);
+
+
+    },
+
+
+
+    async retirerEcole(ecoleId, motif, note) {
+
+
+      const { error } = await supabase().rpc('retirer_ecole', { ecole: ecoleId, motif, note });
+
+
+      decider(error);
+
+
+    },
+
+
+
+    async fusionnerEcoles(doublonId, gardeeId) {
+
+
+      const { error } = await supabase().rpc('fusionner_ecoles', {
+
+
+        doublon: doublonId,
+
+
+        gardee: gardeeId,
+
+
+      });
+
+
+      decider(error);
+
+
+    },
+
+
+
+    async effacerContact(releveId, note) {
+
+
+      const { error } = await supabase().rpc('effacer_contact', { releve: releveId, note });
+
+
+      decider(error);
+
+
+    },
+
+
+
+    async effacerPhoto(releveId, note) {
+
+
+      // Le fichier s'efface par l'API du stockage ; la base note l'effacement.
+
+
+      const { error } = await supabase().storage.from('releves').remove([`${releveId}/enseigne.jpg`]);
+
+
+      decider(error ? { message: error.message, statusCode: '500' } : null);
+
+
+      const note_ = await supabase().rpc('noter_effacement_photo', { releve: releveId, note });
+
+
+      decider(note_.error);
+
+
+    },
+
+
+
+    async relevesDecides(): Promise<ReleveDecide[]> {
+
+
+      const lignes = lire(
+
+
+        await supabase()
+
+
+          .from('releves')
+
+
+          .select('id, nom_enseigne, type, statut, decide_le, motif, message_au_relais, relais(prenom), lots(nom)')
+
+
+          .neq('statut', 'a_valider')
+
+
+          .order('decide_le', { ascending: false, nullsFirst: false })
+
+
+          .limit(200)
+
+
+          .returns<
+
+
+            {
+
+
+              id: string;
+
+
+              nom_enseigne: string;
+
+
+              type: ReleveDecide['type'];
+
+
+              statut: ReleveDecide['statut'];
+
+
+              decide_le: string | null;
+
+
+              motif: ReleveDecide['motif'];
+
+
+              message_au_relais: string | null;
+
+
+              relais: { prenom: string } | null;
+
+
+              lots: { nom: string } | null;
+
+
+            }[]
+
+
+          >(),
+
+
+      );
+
+
+      return lignes.map((r) => ({
+
+
+        id: r.id,
+
+
+        nomEnseigne: r.nom_enseigne,
+
+
+        relais: r.relais?.prenom ?? '',
+
+
+        lot: r.lots?.nom ?? null,
+
+
+        type: r.type,
+
+
+        statut: r.statut,
+
+
+        decideLe: r.decide_le,
+
+
+        motif: r.motif,
+
+
+        messageAuRelais: r.message_au_relais,
+
+
+      }));
+
+
+    },
+
 
 
     async suspendreRelais(relaisId) {
