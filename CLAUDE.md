@@ -19,6 +19,7 @@ Le catalogue du système de design : http://localhost:4321/dev/catalogue/ (en d�
 
 - `pnpm verif` : format, lint (dont les frontières), couleurs, types, tests unitaires, construction, poids des pages. **Rien n'est fini tant qu'elle ne passe pas.** La CI (`.github/workflows/verif.yml`) lance la même commande.
 - `pnpm test:parcours` : les parcours Playwright, dans un téléphone Android de 360 px, sur le site construit servi par wrangler comme en production.
+- `pnpm base:tests` : les tests pgTAP des droits et des règles de la base (`supabase/tests/`), sur la base locale (`pnpm base:demarrer`, Docker). La CI les lance aussi.
 
 ## Architecture
 
@@ -57,15 +58,20 @@ Le jour où un serveur (Spring Boot) remplacera Supabase, seul `src/infra/` sera
 | Administration | Les relevés à valider ; décider ; activer un relais | `GET /admin/releves`, `POST /admin/releves/{id}/decision`, `POST /admin/relais/{id}/activation` |
 
 - **Chaque envoi porte un identifiant créé sur le téléphone** et répond « reçu » ou « déjà reçu ».
-- **Contacts** : `.insert()` sans `.select()` (le relais crée sans pouvoir relire). Un second envoi du même identifiant renvoie une erreur de doublon (code `23505`), que l'adaptateur traduit en « déjà reçu ». Jamais d'`upsert`, qui exige le droit de lire.
+- **Relevés et photos** : `.insert()` sans `.select()`, photo sans écrasement. Un second envoi du même identifiant renvoie une erreur de doublon (code `23505`, ou 409 pour la photo), que l'adaptateur traduit en « déjà reçu ». Jamais d'`upsert`.
+- **Contacts** : par la fonction `envoyer_contact()`, qui répond `recu` ou `deja_recu`. La table vit dans le schéma `prive`, que l'API n'expose pas : le relais ne peut pas la relire.
+- **L'ordre d'envoi d'une fiche** : le relevé, puis la photo, puis le contact.
 - **Session** : le jeton expire au bout d'une heure et ne se renouvelle qu'avec du réseau. Le port fournit un jeton frais à la file d'envoi ; un relais saisit même avec une session expirée et se reconnecte sans rien perdre. Le rôle (relais actif, administrateur) vient de la base, pas de Google.
 - **L'application installable se limite à `/relais/`** : son cache ne touche ni le site public ni l'administration.
 
 ### Ce qui vit dans la base (`supabase/`)
 
+La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supabase/schema.md).
+
 - Les contraintes, les déclencheurs (doublon possible à moins de 40 m, hors du lot, heure de réception donnée par le serveur) et les vues (écoles publiées, relevés à valider, à payer par relais, dates des échanges). Ce sont les règles qui doivent survivre à un changement de serveur.
 - Les règles d'accès (RLS) sur chaque table.
-- **Des `grant` explicites** : sur ce projet, une table créée par `postgres` ne donne rien à `anon` ni à `authenticated`, et une fonction n'est exécutable par eux qu'après `grant execute`.
+- **Des `grant` explicites** : en ligne, une table créée par `postgres` ne donne rien à `anon` ni à `authenticated` ; en local, Supabase leur donne tout. Chaque migration qui crée une table, une vue ou une fonction retire donc d'abord les droits, puis donne exactement ceux qu'il faut (voir `20261031010200_droits.sql`). Le relais n'a le droit d'écrire que les colonnes remplies par le téléphone.
+- **Les listes fermées sont des domaines SQL**, copiés dans `src/modele/listes.ts` : un test vérifie qu'ils restent identiques.
 - Les relais sont liés à leur compte Google (l'identifiant `sub`), pas seulement à leur identifiant Supabase.
 - Les photos sous des chemins neutres : `releves/<identifiant>/enseigne.jpg`.
 - Des données d'exemple **fictives** seulement.
@@ -123,4 +129,5 @@ Le jour où un serveur (Spring Boot) remplacera Supabase, seul `src/infra/` sera
 - **pnpm refuse une version publiée depuis moins de 24 h** (`minimumReleaseAge` dans `pnpm-workspace.yaml`) : c'est voulu.
 - **TypeScript reste en 6.0** : `typescript-eslint` et `@astrojs/check` ne prennent pas encore la 7.
 - **`astro preview` part en arrière-plan quand un agent le lance** (Astro 7) : `pnpm preview` utilise donc `wrangler dev`, qui sert le site comme Cloudflare.
+- **En local, le conteneur des journaux de Supabase (`analytics`) échoue au démarrage** : il est coupé dans `supabase/config.toml`, avec le temps réel et les fonctions edge, inutilisés.
 - Les règles `no-restricted-imports` d'ESLint ne se cumulent pas : pour un fichier, seul le dernier bloc qui le vise compte. Chaque bloc de `frontiere()` donne donc la liste complète de son dossier.

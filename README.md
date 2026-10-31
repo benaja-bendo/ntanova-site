@@ -31,6 +31,10 @@ Puis http://localhost:4321. Le catalogue des composants : http://localhost:4321/
 | `pnpm verif` | Tout ce que vérifie la CI : format, lint, couleurs, types, tests, construction, poids |
 | `pnpm test:parcours` | Les parcours Playwright dans un téléphone de 360 px |
 | `pnpm format` | Remet le code en forme |
+| `pnpm base:demarrer` | La base Supabase locale (Docker) ; Studio sur http://127.0.0.1:54323 |
+| `pnpm base:reset` | Rejoue toutes les migrations sur la base locale |
+| `pnpm base:tests` | Les tests pgTAP des droits et des règles |
+| `pnpm base:arreter` | Arrête la base locale |
 
 La première fois, pour les parcours : `pnpm exec playwright install chromium`.
 
@@ -42,6 +46,8 @@ pnpm exec supabase link --project-ref rtwghmbupzuhptqywezr
 ```
 
 `link` demande le mot de passe de la base : il reste dans le gestionnaire de mots de passe et n'est écrit nulle part.
+
+Le schéma de la base et la marche à suivre pour la mettre en ligne : [`supabase/schema.md`](supabase/schema.md).
 
 ## Les polices
 
