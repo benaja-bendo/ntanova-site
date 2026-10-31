@@ -226,8 +226,10 @@ export interface EcoleVue {
     note: string | null;
     remplaceePar: string | null;
   } | null;
-  /** Sans position : l'école attend qu'un relais la situe. */
+  /** Sans position : l'école attend sa position (d'un relais, ou de l'administration). */
   aSituer: boolean;
+  /** Sa position, quand elle en a une. */
+  position: Point | null;
   confiee: { relaisId: string; prenom: string; note: string | null } | null;
   // Ce que la fiche dit aujourd'hui, pour la corriger sans repasser par le relais.
   typeEcole: Valeur<'type_ecole'>;
@@ -248,6 +250,18 @@ export interface CorrectionEcole {
   programme?: string | null;
   repere?: string | null;
   numeroEnseigne?: string | null;
+}
+
+/** Une école que l'administration ajoute elle-même ; sans position, elle entre « à situer ». */
+export interface NouvelleEcole {
+  nom: string;
+  position: Point | null;
+  typeEcole: Valeur<'type_ecole'>;
+  niveaux: Valeur<'niveau'>[];
+  programme: string | null;
+  repere: string | null;
+  numeroEnseigne: string | null;
+  quartier: string | null;
 }
 
 export interface PortAdministration {
@@ -286,6 +300,13 @@ export interface PortAdministration {
   arrondissements(): Promise<{ id: number; slug: string; nom: string }[]>;
   /** Corrige une fiche (brouillon, prête ou publiée) sans repasser par le relais. `PATCH /admin/ecoles/{id}` */
   modifierEcole(ecoleId: string, correction: CorrectionEcole): Promise<void>;
+  /**
+   * Donne la position d'une école connue (prise sur une carte). Rend le nom de l'arrondissement où
+   * elle tombe ; une école à situer devient prête. `PUT /admin/ecoles/{id}/position`
+   */
+  situerEcole(ecoleId: string, position: Point): Promise<string>;
+  /** Ajoute une école que la base ne connaît pas ; rend son identifiant. `POST /admin/ecoles` */
+  ajouterEcole(ecole: NouvelleEcole): Promise<string>;
   /** Une école prête (ou retirée) passe en ligne. `POST /admin/ecoles/{id}/publication` */
   publierEcole(ecoleId: string): Promise<void>;
   /** Toutes les écoles prêtes d'un arrondissement ; rend leur nombre. */
@@ -359,6 +380,8 @@ export interface EcolePubliee {
    * ou corrige. Absent des fiches d'avant : la page retombe sur `misAJourLe`.
    */
   releveeLe: string | null;
+  /** Le jour où l'administration l'a située, quand aucun relevé ne l'a encore décrite. */
+  situeeLe: string | null;
   misAJourLe: string;
 }
 

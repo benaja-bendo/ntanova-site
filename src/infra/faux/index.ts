@@ -4,6 +4,7 @@
  * et refuse tout quand le navigateur est hors ligne. Jamais en ligne.
  */
 import type { Adaptateurs } from '../index';
+import { arrondissementDeLaPosition } from '../../modele/carte/plan';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import {
   ErreurDecision,
@@ -61,6 +62,8 @@ interface EcoleFausse {
   } | null;
   /** Le lot du relevé qui a fait l'école (pour « Publier un lot »). */
   lotId?: string | null;
+  /** Son arrondissement, quand l'administration l'a située (sinon : celui du lot, Tié-Tié). */
+  arrondissementId?: number | null;
   /** Tels que la base les dit ; un parcours y met une valeur qu'un téléphone ne connaît pas encore. */
   typeEcole?: string;
   niveaux?: string[];
@@ -126,6 +129,23 @@ const LOTS = [
   { id: '00000000-0000-4000-8000-0000000000e3', nom: 'Essai', essai: true },
 ];
 const MOI = '00000000-0000-4000-8000-00000000000a';
+/** Les arrondissements ouverts au relevé, comme dans la base. */
+const OUVERTS = [
+  { id: 1, slug: 'tie-tie', nom: 'Tié-Tié' },
+  { id: 2, slug: 'ngoyo', nom: 'Ngoyo' },
+];
+
+/** Comme `arrondissement_de_position()` dans la base : l'arrondissement ouvert qui contient la position. */
+function ouvertDe(position: { latitude: number; longitude: number }) {
+  const dessine = arrondissementDeLaPosition(position);
+  const ouvert = OUVERTS.find((a) => a.slug === dessine?.slug);
+  if (!ouvert) {
+    throw new ErreurDecision(
+      'Cette position n’est dans aucun arrondissement ouvert (Tié-Tié, Ngoyo) : vérifie les coordonnées, la latitude d’abord.',
+    );
+  }
+  return ouvert;
+}
 const AUTRE = '00000000-0000-4000-8000-00000000000b';
 
 const session: PortSession = {
@@ -448,11 +468,14 @@ const admin: PortAdministration = {
       id: e.id,
       nom: e.nom,
       quartier: e.quartier,
-      arrondissement: e.position ? LOT.nom : null,
-      arrondissementId: e.position ? 1 : null,
+      arrondissement: e.position
+        ? (OUVERTS.find((a) => a.id === (e.arrondissementId ?? 1))?.nom ?? LOT.nom)
+        : null,
+      arrondissementId: e.position ? (e.arrondissementId ?? 1) : null,
       publication: e.publication,
       retrait: e.retrait ?? null,
       aSituer: e.position === null,
+      position: e.position,
       confiee: e.confieeA
         ? {
             relaisId: e.confieeA,
@@ -504,10 +527,53 @@ const admin: PortAdministration = {
   },
   async arrondissements() {
     await reseau();
-    return [
-      { id: 1, slug: 'tie-tie', nom: 'Tié-Tié' },
-      { id: 2, slug: 'ngoyo', nom: 'Ngoyo' },
-    ];
+    return OUVERTS;
+  },
+  async situerEcole(ecoleId, position) {
+    await reseau();
+    const arrondissement = ouvertDe(position);
+    const ecole = lireEtat().ecoles[ecoleId];
+    if (!ecole) throw new ErreurDecision('École introuvable.');
+    if (ecole.publication === 'retiree') {
+      throw new ErreurDecision('Une école retirée ne se modifie plus : la republier d’abord.');
+    }
+    if (ecole.publication === 'publiee' && (ecole.arrondissementId ?? 1) !== arrondissement.id) {
+      throw new ErreurDecision(
+        `Cette position est à ${arrondissement.nom}, pas dans l’arrondissement de la fiche : son adresse publique changerait.`,
+      );
+    }
+    ecrire((e) => {
+      const visee = e.ecoles[ecoleId];
+      if (!visee) return;
+      visee.position = position;
+      visee.arrondissementId = arrondissement.id;
+      if (visee.publication === 'brouillon') visee.publication = 'prete';
+    });
+    return arrondissement.nom;
+  },
+  async ajouterEcole(nouvelle) {
+    await reseau();
+    const arrondissement = nouvelle.position ? ouvertDe(nouvelle.position) : null;
+    if (!nouvelle.nom.trim()) throw new ErreurDecision('Le nom ne donne aucune adresse.');
+    const id = crypto.randomUUID();
+    ecrire((e) => {
+      e.ecoles[id] = {
+        id,
+        nom: nouvelle.nom.trim(),
+        quartier: nouvelle.quartier,
+        publication: arrondissement ? 'prete' : 'brouillon',
+        position: nouvelle.position,
+        arrondissementId: arrondissement?.id ?? null,
+        confieeA: null,
+        note: null,
+        typeEcole: nouvelle.typeEcole,
+        niveaux: nouvelle.niveaux,
+        programme: nouvelle.programme,
+        repere: nouvelle.repere,
+        numeroEnseigne: nouvelle.numeroEnseigne,
+      };
+    });
+    return id;
   },
   async publierEcole(ecoleId) {
     await reseau();

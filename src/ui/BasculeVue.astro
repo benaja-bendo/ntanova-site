@@ -1,0 +1,49 @@
+---
+// « Carte | Liste » : deux liens vers deux pages, sans JavaScript (planches « Carte du
+// quartier » et « Liste du quartier » du canevas). La vue courante n'est pas un lien.
+interface Props {
+  carte: string;
+  liste: string;
+  actuelle: 'carte' | 'liste';
+}
+const { carte, liste, actuelle } = Astro.props;
+---
+
+<nav class="bascule" aria-label="Voir les écoles">
+  {actuelle === 'carte' ? <span aria-current="page">Carte</span> : <a href={carte}>Carte</a>}
+  {actuelle === 'liste' ? <span aria-current="page">Liste</span> : <a href={liste}>Liste</a>}
+</nav>
+
+<style>
+  .bascule {
+    display: inline-flex;
+    gap: var(--espace-1);
+    padding: var(--espace-1);
+    border: 1.5px solid var(--trait);
+    border-radius: var(--rayon-pilule);
+    background: var(--fond-releve);
+  }
+  .bascule a,
+  .bascule span {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    padding-inline: var(--espace-4);
+    border-radius: var(--rayon-pilule);
+    font-family: var(--police-titre);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .bascule a {
+    color: var(--texte);
+  }
+  .bascule a:hover {
+    color: var(--marque);
+    text-decoration: underline;
+  }
+  .bascule [aria-current='page'] {
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+  }
+</style>

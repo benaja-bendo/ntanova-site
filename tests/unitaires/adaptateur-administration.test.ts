@@ -315,4 +315,103 @@ describe('l’adaptateur Supabase de l’administration', () => {
     });
     await expect(port.accepter('r1')).rejects.toThrow('un refus est définitif');
   });
+
+  describe('situer et ajouter une école (ticket 15)', () => {
+    it('situe une école par la fonction de la base, et rend son arrondissement', async () => {
+      const { port, appels } = fausseApi({ situer_ecole: { data: 'Tié-Tié', error: null } });
+      await expect(
+        port.situerEcole('ecole-1', { latitude: -4.79105, longitude: 11.925 }),
+      ).resolves.toBe('Tié-Tié');
+      expect(appels).toEqual([
+        {
+          nom: 'situer_ecole',
+          arguments: { ecole: 'ecole-1', latitude: -4.79105, longitude: 11.925 },
+        },
+      ]);
+    });
+
+    it('rend le message de la base quand la position est hors des arrondissements ouverts', async () => {
+      const { port } = fausseApi({
+        situer_ecole: {
+          data: null,
+          error: {
+            code: '22023',
+            message: 'Cette position n’est dans aucun arrondissement ouvert.',
+          },
+        },
+      });
+      await expect(
+        port.situerEcole('ecole-1', { latitude: 48.85, longitude: 2.35 }),
+      ).rejects.toThrow(
+        new ErreurDecision('Cette position n’est dans aucun arrondissement ouvert.'),
+      );
+    });
+
+    it('ajoute une école avec les noms de la base, sans position si elle est à situer', async () => {
+      const { port, appels } = fausseApi({ ajouter_ecole: { data: 'nouvelle', error: null } });
+      await expect(
+        port.ajouterEcole({
+          nom: '[École Exemple]',
+          position: null,
+          typeEcole: 'privee',
+          niveaux: ['primaire'],
+          programme: null,
+          repere: '[face au marché]',
+          numeroEnseigne: null,
+          quartier: '[Quartier]',
+        }),
+      ).resolves.toBe('nouvelle');
+      expect(appels).toEqual([
+        {
+          nom: 'ajouter_ecole',
+          arguments: {
+            nom: '[École Exemple]',
+            latitude: null,
+            longitude: null,
+            type_ecole: 'privee',
+            niveaux: ['primaire'],
+            programme: null,
+            repere: '[face au marché]',
+            numero_enseigne: null,
+            quartier: '[Quartier]',
+          },
+        },
+      ]);
+    });
+
+    it('lit la position GeoJSON d’une école, et « pas de position » pour une forme inattendue', async () => {
+      const ligne = (position: unknown) => ({
+        id: 'e1',
+        nom: '[École]',
+        quartier: null,
+        publication: 'prete',
+        position,
+        arrondissement_id: 1,
+        retiree_le: null,
+        motif_retrait: null,
+        note_retrait: null,
+        remplacee_par: null,
+        type_ecole: 'privee',
+        niveaux: [],
+        programme: null,
+        repere: null,
+        numero_enseigne: null,
+        arrondissements: { nom: 'Tié-Tié' },
+        ecoles_confiees: null,
+      });
+      const { port } = fausseApi(
+        {},
+        {
+          ecoles: [
+            ligne({ type: 'Point', coordinates: [11.925, -4.79105] }),
+            ligne('0101000020E6100000'),
+          ],
+        },
+      );
+      const [geojson, autre] = await port.ecoles();
+      expect(geojson?.position).toEqual({ latitude: -4.79105, longitude: 11.925 });
+      expect(autre?.position).toBeNull();
+      expect(autre?.aSituer).toBe(false);
+    });
+  });
 });

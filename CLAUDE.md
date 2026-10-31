@@ -58,7 +58,7 @@ Le jour où un serveur (Spring Boot) remplacera Supabase, seul `src/infra/` sera
 | Catalogue public (à la construction) | Lister les écoles publiées et les quartiers | `GET /public/ecoles`, `GET /public/quartiers` |
 | Session | Se connecter avec le jeton Google, se déconnecter, lire l'utilisateur courant, obtenir un jeton frais | `POST /auth/google`, `GET /moi` |
 | Relais | Mon profil, mon lot, mes relevés et leurs retours, les écoles qu'on me confie ; envoyer une photo, un relevé, un contact, une erreur | `GET /moi/lot`, `GET /moi/releves`, `GET /moi/ecoles-a-completer`, `PUT /photos/{chemin}`, `POST /releves`, `POST /contacts`, `POST /erreurs` |
-| Administration (`PortAdministration`) | Le rôle ; les relevés à valider, leur détail, leur photo, leur contact ; accepter, demander une correction, refuser, confirmer un contact ; les relais et les lots ; activer, suspendre ; les écoles, les corriger sans repasser par le relais, les confier à un relais | `GET /admin/releves`, `GET /admin/releves/{id}`, `POST /admin/releves/{id}/decision`, `GET /admin/relais`, `POST /admin/relais/{id}/activation`, `GET /admin/ecoles`, `PATCH /admin/ecoles/{id}`, `POST /admin/ecoles/{id}/confier` |
+| Administration (`PortAdministration`) | Le rôle ; les relevés à valider, leur détail, leur photo, leur contact ; accepter, demander une correction, refuser, confirmer un contact ; les relais et les lots ; activer, suspendre ; les écoles, les corriger sans repasser par le relais, les confier à un relais, les situer, en ajouter | `GET /admin/releves`, `GET /admin/releves/{id}`, `POST /admin/releves/{id}/decision`, `GET /admin/relais`, `POST /admin/relais/{id}/activation`, `GET /admin/ecoles`, `PATCH /admin/ecoles/{id}`, `POST /admin/ecoles/{id}/confier`, `PUT /admin/ecoles/{id}/position`, `POST /admin/ecoles` |
 
 - **Chaque envoi porte un identifiant créé sur le téléphone** et répond « reçu » ou « déjà reçu ».
 - **Relevés et photos** : `.insert()` sans `.select()`, photo sans écrasement. Un second envoi du même identifiant renvoie une erreur de doublon (code `23505`, ou 409 pour la photo), que l'adaptateur traduit en « déjà reçu ». Jamais d'`upsert`.
@@ -79,7 +79,7 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - Les relais sont liés à leur compte Google (l'identifiant `sub`), pas seulement à leur identifiant Supabase.
 - Les photos sous des chemins neutres : `releves/<identifiant>/enseigne.jpg`.
 - Des données d'exemple **fictives** seulement. Les vraies écoles connues par les entretiens entrent par `outils/importer-ecoles.ts` (voir `supabase/schema.md`, « Les écoles à situer ») : le CSV et le SQL réels ne passent jamais par git.
-- **Jamais de position inventée** : une école sans position reste « à situer » jusqu'à la contre-visite d'un relais.
+- **Jamais de position inventée** : une position vient d'un relais sur place, ou de l'administration qui connaît l'école et la prend sur une carte (`situer_ecole`, `ajouter_ecole`, décision du fondateur le 31/10 ; la base garde qui et quand : `situee_par`, `situee_le`). Sinon l'école reste « à situer ». Une fiche qu'aucun relevé n'a décrite dit « Fiche ajoutée par NTanova le … », jamais « relevée par un jeune du quartier ».
 - Les migrations s'appliquent depuis le Mac du fondateur (`pnpm exec supabase db push`), après relecture. Jamais depuis la CI pour l'instant.
 
 ## Secrets
@@ -100,6 +100,14 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - Thème clair d'abord : on lit l'écran dehors, en plein soleil.
 - Chaque nouveau composant entre dans le catalogue (`src/pages/dev/[page].astro`), dans chacun de ses états : normal, focus, désactivé, erreur, chargement.
 - Le code est la source du système de design ; l'artefact de design n'en est qu'une copie.
+
+### La carte détourée (ticket #15)
+
+- **Un SVG calculé à la construction, sans JavaScript ni serveur de cartes** : `src/modele/carte/` (projection, tracés, regroupement des écoles proches, cadrages), `src/ui/Carte.astro` (le dessin). Toucher, c'est changer de page : la ville `/ecoles/`, un arrondissement `/ecoles/<arrondissement>/carte/`, un groupe vu de près `/ecoles/<arrondissement>/carte/coin-N/`, et le petit plan de la fiche.
+- **Le style** : les jetons `--carte-…` de `src/ui/jetons.css` (terre, ombre, rues, avenues, maisons, drapeaux, pastilles). **Les repères** du quartier (marché, rond-point…) : `src/modele/carte/reperes.ts`, des lieux publics seulement.
+- **Les tracés** (`src/modele/carte/pointe-noire.json`, ignoré par Prettier) : les six arrondissements et les rues de Tié-Tié, tirés d'OpenStreetMap (attribution obligatoire, elle est sous chaque carte). Ngoyo n'a pas encore ses rues. Le contrôle « hors du lot » lit les contours de la base, plus précis.
+- **Une cible fait 54 unités du dessin** (400 de large) : 44 px sur un téléphone de 360 px. Deux marques plus proches deviennent une pastille ; ne pas réduire l'une sans l'autre.
+- Une école dont l'adresse serait `carte` serait cachée par la page de la carte : le cas ne s'est pas présenté.
 
 ## Écriture
 

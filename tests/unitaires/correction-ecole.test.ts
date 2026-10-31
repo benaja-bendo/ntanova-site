@@ -16,6 +16,7 @@ const ecole: EcoleVue = {
   publication: 'publiee',
   retrait: null,
   aSituer: false,
+  position: { latitude: -4.79105, longitude: 11.925 },
   confiee: null,
   typeEcole: 'privee',
   niveaux: ['primaire', 'college'],

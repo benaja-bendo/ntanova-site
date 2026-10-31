@@ -1,0 +1,186 @@
+---
+// La carte d'un arrondissement (planches « Carte du quartier » du canevas) : sa terre, ses
+// rues, ses écoles publiées. Les écoles qui se toucheraient deviennent une pastille, qui mène à
+// la page du coin vu de près. Construite à partir de la base ; aucun JavaScript.
+import type { GetStaticPaths } from 'astro';
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirCatalogue } from '../../../../infra/index';
+import {
+  arrondissementDessine,
+  arrondissementsDessines,
+  cadreArrondissement,
+  planer,
+  ruesDe,
+  surCarte,
+  type ArrondissementDessine,
+} from '../../../../modele/carte/plan';
+import { reperes } from '../../../../modele/carte/reperes';
+import type { ArrondissementPublic, EcolePubliee } from '../../../../modele/ports';
+import { lienWhatsApp } from '../../../../modele/whatsapp';
+import BasculeVue from '../../../../ui/BasculeVue.astro';
+import Carte from '../../../../ui/Carte.astro';
+import LegendeCarte from '../../../../ui/LegendeCarte.astro';
+import PagePublique from '../../../../ui/PagePublique.astro';
+
+export const getStaticPaths = (async () => {
+  const catalogue = await obtenirCatalogue();
+  const [arrondissements, ecoles] = await Promise.all([
+    catalogue.arrondissements(),
+    catalogue.ecoles(),
+  ]);
+  return arrondissements.flatMap((a) => {
+    const dessin = arrondissementDessine(a.slug);
+    return dessin
+      ? [
+          {
+            params: { arrondissement: a.slug },
+            props: {
+              arrondissement: a,
+              dessin,
+              ecoles: ecoles.filter((e) => e.arrondissement === a.slug),
+            },
+          },
+        ]
+      : [];
+  });
+}) satisfies GetStaticPaths;
+
+interface Props {
+  arrondissement: ArrondissementPublic;
+  dessin: ArrondissementDessine;
+  ecoles: EcolePubliee[];
+}
+const { arrondissement, dessin, ecoles } = Astro.props;
+const sur = surCarte(ecoles);
+const { boite, projection } = cadreArrondissement(dessin);
+const plan = planer(boite, sur, projection);
+const aDesGroupes = plan.marques.some((m) => m.genre === 'groupe');
+const aSituer = ecoles.length - sur.length;
+const liste = `/ecoles/${arrondissement.slug}/`;
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const manque = lienWhatsApp(
+  PUBLIC_WHATSAPP,
+  `Bonjour NTanova, une école manque à ${arrondissement.nom} : `,
+);
+const ecolesDit = (n: number) => `${n} école${n > 1 ? 's' : ''}`;
+---
+
+<PagePublique
+  titre={`La carte des écoles de ${arrondissement.nom} · NTanova`}
+  description={`Les écoles de ${arrondissement.nom}, à Pointe-Noire, sur la carte du quartier.`}
+  whatsapp={whatsapp}
+>
+  <section class="cadre page vue-carte">
+    <a class="retour" href="/ecoles/">
+      ← Pointe-Noire
+    </a>
+    <div class="titre-vue">
+      <div>
+        <h1>{arrondissement.nom}</h1>
+        <p class="texte-doux">
+          Arrondissement {dessin.numero} · <span class="insecable">Pointe-Noire</span>
+        </p>
+      </div>
+      <BasculeVue carte={`${liste}carte/`} liste={liste} actuelle="carte" />
+    </div>
+
+    <div class="disposition">
+      <Carte
+        id="arrondissement"
+        titre={`Carte de ${arrondissement.nom} : ${ecolesDit(sur.length)} sur la carte`}
+        projection={projection}
+        arrondissements={arrondissementsDessines.map((a) => ({
+          arrondissement: a,
+          role: a.slug === dessin.slug ? 'focus' : 'voisin',
+        }))}
+        rues={ruesDe(dessin.slug)}
+        marques={plan.marques}
+        lienGroupe={(g) => `${liste}carte/${g.id}/`}
+        reperes={reperes}
+      />
+
+      <div class="panneau">
+        {sur.length === 0 ? (
+          <p class="compte">
+            Aucune école sur la carte pour l’instant&nbsp;: le relevé est en cours.
+          </p>
+        ) : (
+          <p class="compte">
+            {ecolesDit(sur.length)} sur la carte de{' '}
+            <span class="insecable">{arrondissement.nom}</span>
+          </p>
+        )}
+        {aSituer > 0 && (
+          <p class="texte-doux">
+            {aSituer === 1
+              ? 'Une autre école n’est pas encore située : elle n’est que dans la liste.'
+              : `${aSituer} autres écoles ne sont pas encore situées : elles ne sont que dans la liste.`}
+          </p>
+        )}
+        {sur.length > 0 && <LegendeCarte groupes={aDesGroupes} />}
+        {aDesGroupes && <p class="texte-doux">Touchez un groupe pour le voir de près.</p>}
+        <div class="encadre-pointille">
+          <p>Une partie du quartier n’est pas encore relevée&nbsp;: relevé en cours.</p>
+          {manque && <a href={manque}>Une école manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
+        </div>
+      </div>
+    </div>
+  </section>
+</PagePublique>
+
+<style>
+  .vue-carte {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .vue-carte h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .vue-carte p {
+    margin: 0;
+  }
+  .disposition {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .panneau {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-3);
+  }
+  .compte {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .panneau a {
+    color: var(--marque);
+    font-weight: 700;
+  }
+  .encadre-pointille a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+  }
+
+  @media (min-width: 48rem) {
+    .vue-carte {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .vue-carte h1 {
+      font-size: var(--taille-titre-public);
+    }
+  }
+
+  /* À partir de 64 rem : la carte à gauche, le panneau à droite. */
+  @media (min-width: 64rem) {
+    .disposition {
+      grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr);
+      gap: var(--espace-6);
+    }
+  }
+</style>

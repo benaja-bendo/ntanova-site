@@ -10,3 +10,5 @@ supabase/
 # Les documents sont écrits à la main : Prettier ne les reformate pas.
 *.md
 /captures/
+# Les tracés de la carte, tirés d’OpenStreetMap : une ligne par fichier, régénérée, jamais à la main.
+src/modele/carte/*.json

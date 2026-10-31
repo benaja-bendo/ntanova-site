@@ -1,6 +1,9 @@
 import type { PortCatalogue } from '../../modele/ports';
 
-/** Un catalogue fictif, pour les parcours Playwright (`PUBLIC_ADAPTATEUR=faux`). */
+/**
+ * Un catalogue fictif, pour les parcours Playwright (`PUBLIC_ADAPTATEUR=faux`) : quatre écoles à
+ * Tié-Tié (deux voisines, une sans position, une située par l'administration), aucune à Ngoyo.
+ */
 export const catalogueFaux: PortCatalogue = {
   async redirections() {
     return [
@@ -33,6 +36,7 @@ export const catalogueFaux: PortCatalogue = {
         longitude: 11.925,
         etat: 'relevee',
         releveeLe: '2026-11-02T10:00:00Z',
+        situeeLe: null,
         misAJourLe: '2026-11-02T10:00:00Z',
       },
       // Un type « Autre » (c'est écrit, mais ça ne rentre dans aucune case) et un niveau « Autre formation ».
@@ -52,6 +56,7 @@ export const catalogueFaux: PortCatalogue = {
         etat: 'relevee',
         // Relevée le 2 novembre, modifiée depuis le 20 : la fiche dit « relevée le 2 novembre ».
         releveeLe: '2026-11-02T10:00:00Z',
+        situeeLe: null,
         misAJourLe: '2026-11-20T10:00:00Z',
       },
       // Rien d'écrit sur l'enseigne : ni type, ni niveau, ni programme.
@@ -71,7 +76,27 @@ export const catalogueFaux: PortCatalogue = {
         etat: 'relevee',
         // Une fiche d'avant la date de relevé : la page retombe sur la dernière mise à jour.
         releveeLe: null,
+        situeeLe: null,
         misAJourLe: '2026-11-05T10:00:00Z',
+      },
+      // Située par l'administration (une école qu'elle connaît), sans relevé : « ajoutée par NTanova ».
+      {
+        id: '20000000-0000-4000-8000-000000000004',
+        arrondissement: 'tie-tie',
+        slug: 'ecole-ajoutee-exemple',
+        nom: '[École ajoutée Exemple]',
+        quartier: null,
+        typeEcole: 'publique',
+        niveaux: ['primaire'],
+        programme: null,
+        repere: null,
+        numeroEnseigne: null,
+        latitude: -4.815,
+        longitude: 11.94,
+        etat: 'relevee',
+        releveeLe: null,
+        situeeLe: '2026-11-03T10:00:00Z',
+        misAJourLe: '2026-11-03T10:00:00Z',
       },
     ];
   },

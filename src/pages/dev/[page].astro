@@ -2,6 +2,19 @@
 // Le catalogue du système de design. Réservé au développement :
 // en production, getStaticPaths ne renvoie rien et la page n'existe pas.
 import jetons from '../../ui/jetons.css?raw';
+import {
+  arrondissementDessine,
+  arrondissementsDessines,
+  cadreArrondissement,
+  cadreCoin,
+  planer,
+  ruesDe,
+  type EcoleSurCarte,
+} from '../../modele/carte/plan';
+import type { Repere } from '../../modele/carte/reperes';
+import Carte from '../../ui/Carte.astro';
+import LegendeCarte from '../../ui/LegendeCarte.astro';
+import BasculeVue from '../../ui/BasculeVue.astro';
 import PagePublique from '../../ui/PagePublique.astro';
 
 export function getStaticPaths() {
@@ -14,6 +27,35 @@ const couleurs = noms.filter(
 );
 const tailles = noms.filter((n) => n.startsWith('taille-'));
 const etats = ['verifiee', 'relevee', 'attente', 'a-corriger', 'refusee', 'telephone', 'envoye'];
+
+// La carte détourée, avec des écoles et un repère fictifs : seules, en groupe, vérifiée.
+const tieTie = arrondissementDessine('tie-tie')!;
+const fictive = (id: string, latitude: number, longitude: number, etat: EcoleSurCarte['etat']) => ({
+  id,
+  nom: `[École ${id}]`,
+  lien: '#carte',
+  etat,
+  latitude,
+  longitude,
+});
+const fictives: EcoleSurCarte[] = [
+  fictive('A', -4.79105, 11.925, 'relevee'),
+  fictive('B', -4.7913, 11.9253, 'verifiee'),
+  fictive('C', -4.7919, 11.9246, 'relevee'),
+  fictive('D', -4.81, 11.94, 'verifiee'),
+  fictive('E', -4.8, 11.905, 'relevee'),
+];
+const repereFictif: Repere[] = [
+  { nom: '[Marché]', genre: 'marche', latitude: -4.7925, longitude: 11.9262 },
+];
+const vueArrondissement = cadreArrondissement(tieTie);
+const planArrondissement = planer(vueArrondissement.boite, fictives, vueArrondissement.projection);
+const groupe = planArrondissement.marques.find((m) => m.genre === 'groupe');
+const vueCoin = groupe && groupe.genre === 'groupe' ? cadreCoin(groupe.ecoles) : null;
+const autour = arrondissementsDessines.map((a) => ({
+  arrondissement: a,
+  role: a.slug === 'tie-tie' ? ('focus' as const) : ('voisin' as const),
+}));
 ---
 
 <PagePublique titre="Catalogue · NTanova" description="Catalogue du système de design.">
@@ -56,6 +98,41 @@ const etats = ['verifiee', 'relevee', 'attente', 'a-corriger', 'refusee', 'telep
       Avec une erreur <input class="champ" aria-invalid="true" value="[valeur]" />
     </label>
 
+    <h2 id="carte">La carte détourée</h2>
+    <p>Un arrondissement, des écoles seules et un groupe (écoles et repère fictifs).</p>
+    <div class="cartes">
+      <Carte
+        id="catalogue-arrondissement"
+        titre="Tié-Tié, écoles fictives"
+        projection={vueArrondissement.projection}
+        arrondissements={autour}
+        rues={ruesDe('tie-tie')}
+        marques={planArrondissement.marques}
+        reperes={repereFictif}
+      />
+      {vueCoin && (
+        <Carte
+          id="catalogue-coin"
+          titre="Un groupe vu de près"
+          projection={vueCoin.projection}
+          arrondissements={autour}
+          rues={ruesDe('tie-tie')}
+          marques={planer(vueCoin.boite, fictives, vueCoin.projection).marques}
+          reperes={repereFictif}
+          nomsEcoles
+        />
+      )}
+      <Carte
+        id="catalogue-vide"
+        titre="Tié-Tié sans école"
+        projection={vueArrondissement.projection}
+        arrondissements={autour}
+        rues={ruesDe('tie-tie')}
+      />
+    </div>
+    <LegendeCarte groupes />
+    <BasculeVue carte="#carte" liste="#" actuelle="carte" />
+
     <h2>États</h2>
     <div class="rangee">
       {etats.map((e) => (
@@ -66,6 +143,11 @@ const etats = ['verifiee', 'relevee', 'attente', 'a-corriger', 'refusee', 'telep
 </PagePublique>
 
 <style>
+  .cartes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+    gap: var(--espace-4);
+  }
   .catalogue {
     display: grid;
     gap: var(--espace-4);
