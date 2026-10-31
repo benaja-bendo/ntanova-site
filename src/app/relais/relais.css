@@ -358,3 +358,8 @@
   font-size: var(--taille-secondaire);
   font-weight: 700;
 }
+
+/* La place du bandeau d'envoi, le temps de compter les fiches : l'écran ne saute pas. */
+.bandeau-reserve {
+  min-height: 48px;
+}

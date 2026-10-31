@@ -12,6 +12,18 @@ async function uneFicheEnvoyee(page: Page, context: import('@playwright/test').B
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
   await ajouterUneEcole(page, 1);
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  // Le faux serveur a bien reçu le relevé, la photo et le contact.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const etat = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as Record<
+          string,
+          Record<string, unknown> | undefined
+        >;
+        return ['releves', 'photos', 'contacts'].map((t) => Object.keys(etat[t] ?? {}).length);
+      }),
+    )
+    .toEqual([1, 1, 1]);
 }
 
 async function ouvrirLaFiche(page: Page) {

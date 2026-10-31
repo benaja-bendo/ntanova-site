@@ -7,7 +7,9 @@ import { BoutonGoogle } from './Connexion';
 export function EtatEnvoi() {
   const { envoi, synchroniser } = useRelais();
   const enLigne = useEnLigne();
-  const enAttente = useRequete(() => base.fiches.where('etat').equals('a_envoyer').count()) ?? 0;
+  // Tant que le téléphone n'a pas compté les fiches en attente, on ne dit rien :
+  // « Tout est envoyé » ne s'affiche jamais avant d'être vrai.
+  const enAttente = useRequete(() => base.fiches.where('etat').equals('a_envoyer').count());
   const dernierEnvoi = useRequete(() => lireMemoire('dernierEnvoi'));
 
   if (envoi === 'reconnecter') {
@@ -21,6 +23,7 @@ export function EtatEnvoi() {
       </Bandeau>
     );
   }
+  if (enAttente === undefined) return <div className="bandeau-reserve" aria-hidden="true" />;
   if (enAttente > 0) {
     const pluriel = enAttente > 1;
     return (

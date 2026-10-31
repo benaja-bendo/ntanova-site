@@ -65,6 +65,21 @@ test.describe('espace relais', () => {
     }
 
     await expect(page.getByText('3 fiches attendent le réseau.')).toBeVisible();
+
+    // En rouvrant l'application, « Tout est envoyé » ne doit jamais s'afficher,
+    // même un instant, tant que des fiches attendent (le relais fermerait l'application).
+    await page.addInitScript(() => {
+      new MutationObserver(() => {
+        if (document.body?.innerText.includes('Tout est envoyé')) {
+          (window as unknown as { toutEnvoyeVu: boolean }).toutEnvoyeVu = true;
+        }
+      }).observe(document, { childList: true, subtree: true, characterData: true });
+    });
+    await page.reload();
+    await expect(page.getByText('3 fiches attendent le réseau.')).toBeVisible();
+    expect(
+      await page.evaluate(() => (window as unknown as { toutEnvoyeVu?: boolean }).toutEnvoyeVu),
+    ).toBeUndefined();
     expect(await telephone(page)).toEqual({ fiches: 3, photos: 3, contacts: 3 });
     expect((await serveur(page)).releves).toBe(0);
 
