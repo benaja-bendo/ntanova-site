@@ -191,9 +191,10 @@ select isnt(
   public.accepter_releve('10000000-0000-4000-8000-000000000001'), null,
   'L''administration accepte un relevé'
 );
+select public.publier_ecole((select ecole_id from public.releves where id = '10000000-0000-4000-8000-000000000001'));
 select is(
   (select slug::text from public.ecoles_publiees where nom = '[Complexe scolaire Exemple]'), 'complexe-scolaire-exemple',
-  'La fiche acceptée est publiée, à une adresse tirée de son nom'
+  'La fiche acceptée puis publiée paraît, à une adresse tirée de son nom'
 );
 
 reset role;
@@ -228,8 +229,8 @@ select ok(
 select is_empty(
   $$select table_name from information_schema.role_table_grants
     where grantee = 'anon' and table_schema = 'public'
-      and (privilege_type <> 'SELECT' or table_name not in ('arrondissements', 'ecoles', 'ecoles_publiees'))$$,
-  'Le visiteur ne fait que lire les arrondissements et les écoles'
+      and (privilege_type <> 'SELECT' or table_name not in ('arrondissements', 'ecoles', 'ecoles_publiees', 'ecoles_redirections'))$$,
+  'Le visiteur ne fait que lire les arrondissements, les écoles et les renvois des doublons'
 );
 
 select * from finish();

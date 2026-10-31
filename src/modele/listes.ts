@@ -21,7 +21,8 @@ export const listes = {
   direction_vue: ['vue', 'absente', 'refus'],
   reponse_doublon: ['la_meme', 'une_autre'],
   etat_ecole: ['relevee', 'verifiee'],
-  publication: ['brouillon', 'publiee', 'retiree'],
+  publication: ['brouillon', 'prete', 'publiee', 'retiree'],
+  motif_retrait: ['demande_ecole', 'erreur', 'fermeture', 'doublon', 'autre'],
   type_echange: ['appel', 'rendez_vous'],
 } as const;
 
