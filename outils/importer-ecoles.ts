@@ -6,13 +6,17 @@
 // Les écoles entrent en brouillon, sans position : jamais publiées ainsi, elles
 // attendent qu'un relais les situe (contre-visite). Seul ce qui se voit de la rue
 // est repris ; les personnes interrogées, les frais et les notes restent dans le Sheet.
+// L'annuaire couvre toutes les écoles, de la crèche au supérieur : rien n'est écarté pour
+// son niveau ou son statut. Un type seulement « probable » (déduit d'un indice, jamais vu)
+// n'est pas repris comme un fait : « Pas indiqué », jusqu'à la contre-visite.
 // Le CSV et le SQL contiennent des données réelles : ni l'un ni l'autre dans git.
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import type { Valeur } from '../src/modele/listes.ts';
 import { normaliserTelephone } from '../src/modele/telephone.ts';
 
-type Niveau = 'maternelle' | 'primaire' | 'college' | 'lycee' | 'technique' | 'superieur';
-type TypeEcole = 'publique' | 'privee' | 'confessionnelle' | 'non_indique';
+type Niveau = Valeur<'niveau'>;
+type TypeEcole = Valeur<'type_ecole'>;
 
 export interface EcoleImportee {
   reference: string;
@@ -20,6 +24,8 @@ export interface EcoleImportee {
   quartier: string | null;
   arrondissement: 'tie-tie' | 'ngoyo' | null;
   typeEcole: TypeEcole;
+  /** Le statut disait « probable » : le type est « Pas indiqué », et une école déjà importée y revient. */
+  typeProbable: boolean;
   niveaux: Niveau[];
   repere: string | null;
   numeroEnseigne: string | null;
@@ -69,21 +75,28 @@ export function lireCsv(texte: string): Record<string, string>[] {
 const sansParentheses = (texte: string) => texte.replace(/\s*\([^)]*\)/g, '').trim();
 const vide = (texte: string | undefined) => (!texte || texte.trim() === '' ? null : texte.trim());
 
+/** Dans l'ordre de la liste, de la crèche au supérieur. */
 export function niveauxDe(texte: string): Niveau[] {
   const t = texte.toLowerCase();
   const niveaux: Niveau[] = [];
-  if (/matern|préscolaire|prescolaire|crèche|creche|garderie/.test(t)) niveaux.push('maternelle');
+  if (/crèche|creche|garderie/.test(t)) niveaux.push('creche');
+  if (/matern|préscolaire|prescolaire/.test(t)) niveaux.push('maternelle');
   if (/primaire/.test(t)) niveaux.push('primaire');
   if (/collège|college|secondaire/.test(t)) niveaux.push('college');
   if (/lycée|lycee/.test(t)) niveaux.push('lycee');
-  if (/technique/.test(t)) niveaux.push('technique');
+  if (/technique|professionnel/.test(t)) niveaux.push('technique');
   if (/supérieur|superieur|université|universite/.test(t)) niveaux.push('superieur');
   return niveaux;
 }
 
+/** « Privé (probable) » : déduit de la présence d'un PDG, jamais vu. */
+export const estProbable = (statut: string) => /probable/i.test(statut);
+
 export function typeDe(texte: string): TypeEcole {
   const t = texte.toLowerCase();
+  if (estProbable(t)) return 'non_indique';
   if (/confession/.test(t)) return 'confessionnelle';
+  if (/communaut/.test(t)) return 'communautaire';
   if (/priv/.test(t)) return 'privee';
   if (/public/.test(t)) return 'publique';
   return 'non_indique';
@@ -99,7 +112,7 @@ export function arrondissementDe(texte: string): EcoleImportee['arrondissement']
   return null;
 }
 
-/** Garde les écoles de Pointe-Noire, nommées, du primaire au lycée. */
+/** Garde les écoles de Pointe-Noire qui ont un nom, de la crèche au supérieur. */
 export function versEcoles(lignes: Record<string, string>[]): {
   ecoles: EcoleImportee[];
   ecartees: Ecartee[];
@@ -117,11 +130,6 @@ export function versEcoles(lignes: Record<string, string>[]): {
       ecartees.push({ reference, raison: 'nom inconnu' });
     } else if (!/pointe-noire/i.test(l['Ville'] ?? '')) {
       ecartees.push({ reference, raison: 'ville inconnue ou hors de Pointe-Noire' });
-    } else if (
-      /hors cible/i.test(statut) ||
-      (niveaux.length > 0 && niveaux.every((n) => n === 'superieur'))
-    ) {
-      ecartees.push({ reference, raison: 'hors cible (enseignement supérieur)' });
     } else {
       const quartier = vide(sansParentheses(l['Quartier'] ?? ''));
       const repere = vide(l['Adresse ou repère']);
@@ -132,6 +140,7 @@ export function versEcoles(lignes: Record<string, string>[]): {
         quartier,
         arrondissement: arrondissementDe(`${quartier ?? ''} ${repere ?? ''}`),
         typeEcole: typeDe(statut),
+        typeProbable: estProbable(statut),
         niveaux,
         repere,
         numeroEnseigne: normaliserTelephone(premierNumero),
@@ -156,7 +165,17 @@ with nouvelle as (
   where not exists (select 1 from prive.ecoles_sources where reference = ${sql(e.reference)})
   returning id
 )
-insert into prive.ecoles_sources (ecole_id, reference) select id, ${sql(e.reference)} from nouvelle;`,
+insert into prive.ecoles_sources (ecole_id, reference) select id, ${sql(e.reference)} from nouvelle;${
+      e.typeProbable
+        ? `
+-- Le type n'était que probable : une école déjà importée avec « privée » repasse à « Pas indiqué »,
+-- tant que personne ne l'a relevée sur place (en brouillon).
+update public.ecoles e set type_ecole = 'non_indique'
+  from prive.ecoles_sources s
+  where s.ecole_id = e.id and s.reference = ${sql(e.reference)}
+    and e.type_ecole = 'privee' and e.publication = 'brouillon';`
+        : ''
+    }`,
   );
   const ecarteesTexte = ecartees.map((e) => `--   ${e.reference} : ${e.raison}`).join('\n');
   return `-- Écoles à situer, importées de ${source}.
