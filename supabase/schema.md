@@ -85,7 +85,7 @@ Fixé en écrivant les migrations :
 | --- | --- | --- |
 | `envoyer_contact(releve, fonction, nom, whatsapp, accord, accord_le, note)` | Relais actif | Range le contact ; répond `recu` ou `deja_recu`. Sans accord, aucun numéro |
 | `activer_relais(relais, lot)` | Admin | Active un relais après sa formation et lui donne un lot |
-| `accepter_releve(releve, ecole)` | Admin | Crée et publie la fiche relevée (ou met à jour l'école donnée, sauf si elle est vérifiée) ; jamais pour le lot d'essai |
+| `accepter_releve(releve, ecole)` | Admin | Crée et publie la fiche relevée (ou met à jour l'école donnée, sauf si elle est vérifiée) ; jamais pour le lot d'essai. Une **correction** reprend l'école de la fiche corrigée et clôt celle-ci (« acceptée », même école) |
 | `demander_correction(releve, motif, message)` | Admin | « La photo est floue, reprenez-la de face » |
 | `refuser_releve(releve, motif, message)` | Admin | Refuse, avec un motif de la liste |
 | `confirmer_contact(releve, fonction)` | Admin | La personne a confirmé sa fonction sur WhatsApp |
@@ -95,7 +95,7 @@ Deux vues : `ecoles_publiees` (ce que lit le site public) et `releves_a_valider`
 
 ## Les tests
 
-`pnpm base:tests` (pgTAP, `supabase/tests/droits.test.sql`) : 39 vérifications, dont celles du « fini quand » de la base : un relais ne lit aucun contact, même le sien ; un second envoi du même relevé répond « déjà reçu ». Ils tournent aussi dans la CI. Vérifié le 31/10 : en donnant à tort un droit aux relais, les tests échouent.
+`pnpm base:tests` (pgTAP, `supabase/tests/`) : 59 vérifications (39 pour les droits, 20 pour les décisions de l'administration), dont celles du « fini quand » de la base : un relais ne lit aucun contact, même le sien ; un second envoi du même relevé répond « déjà reçu ». Ils tournent aussi dans la CI. Vérifié le 31/10 : en donnant à tort un droit aux relais, les tests échouent.
 
 ## Voir le schéma en local
 
@@ -112,7 +112,7 @@ Deux vues : `ecoles_publiees` (ce que lit le site public) et `releves_a_valider`
    insert into prive.admins (id) select id from auth.users where email = '<ton adresse>';
    ```
 
-4. Pour chaque relais, après sa première connexion : `select activer_relais('<son id>', (select id from lots where nom = 'Tié-Tié'));`
+4. Pour chaque relais, après sa première connexion : dans l'administration (`/admin/`, onglet « Relais »), choisir son lot puis « Activer ». Sans l'administration : `select activer_relais('<son id>', (select id from lots where nom = 'Tié-Tié'));`
 
 ## Plus tard dans la semaine
 

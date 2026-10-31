@@ -29,7 +29,8 @@ src/
   modele/      schémas Zod, listes fermées, règles pures, ports.ts (les contrats)
   infra/       seul dossier qui connaît Supabase : supabase/, et index.ts qui branche l'adaptateur
   app/relais/  React : écrans, base locale (Dexie), file d'envoi ; n'appelle que les ports
-  app/admin/   React : écrans ; n'appelle que les ports
+  app/admin/   React : À valider, Relais ; n'appelle que les ports
+  app/commun/  ce que partagent relais et admin : connexion Google, navigation par le dièse
   pages/       Astro : site public (lit le catalogue à la construction), coquilles /relais et /admin
   ui/          jetons (variables CSS) et composants, sans appel réseau
   worker/      le compteur /go/ (Cloudflare Worker)
@@ -44,7 +45,7 @@ Les frontières sont **gardées par ESLint** (`eslint.config.js`), et la règle 
 - `src/app/` et `src/pages/` reçoivent les adaptateurs par `src/infra/index.ts`, jamais par un fichier de `src/infra/supabase/`.
 - `src/modele/` reste en TypeScript pur : ni React, ni `infra`, ni `ui`.
 - `src/ui/` ne fait aucun appel réseau.
-- L'espace relais et l'administration ne dépendent pas l'un de l'autre.
+- L'espace relais et l'administration ne dépendent pas l'un de l'autre ; ce qu'ils partagent vit dans `src/app/commun/` (sans appel à `infra` autre que par les ports) ou `src/ui/` (composants React sans réseau, `src/ui/composants.tsx`). La règle d'ESLint reconnaît un dossier `relais` ou `admin` à son nom : un fichier de l'administration ne s'appelle pas `Relais.tsx`.
 - Des fonctions simples plutôt que des classes ; aucun outil d'injection de dépendances.
 
 ### Les ports, nommés d'après les routes qu'ils deviendront
@@ -56,7 +57,7 @@ Le jour où un serveur (Spring Boot) remplacera Supabase, seul `src/infra/` sera
 | Catalogue public (à la construction) | Lister les écoles publiées et les quartiers | `GET /public/ecoles`, `GET /public/quartiers` |
 | Session | Se connecter avec le jeton Google, se déconnecter, lire l'utilisateur courant, obtenir un jeton frais | `POST /auth/google`, `GET /moi` |
 | Relais | Mon profil, mon lot, mes relevés et leurs retours ; envoyer une photo, un relevé, un contact, une erreur | `GET /moi/lot`, `GET /moi/releves`, `PUT /photos/{chemin}`, `POST /releves`, `POST /contacts`, `POST /erreurs` |
-| Administration | Les relevés à valider ; décider ; activer un relais | `GET /admin/releves`, `POST /admin/releves/{id}/decision`, `POST /admin/relais/{id}/activation` |
+| Administration (`PortAdministration`) | Le rôle ; les relevés à valider, leur détail, leur photo, leur contact ; accepter, demander une correction, refuser, confirmer un contact ; les relais et les lots ; activer, suspendre | `GET /admin/releves`, `GET /admin/releves/{id}`, `POST /admin/releves/{id}/decision`, `GET /admin/relais`, `POST /admin/relais/{id}/activation` |
 
 - **Chaque envoi porte un identifiant créé sur le téléphone** et répond « reçu » ou « déjà reçu ».
 - **Relevés et photos** : `.insert()` sans `.select()`, photo sans écrasement. Un second envoi du même identifiant renvoie une erreur de doublon (code `23505`, ou 409 pour la photo), que l'adaptateur traduit en « déjà reçu ». Jamais d'`upsert`.
