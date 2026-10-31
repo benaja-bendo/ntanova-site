@@ -17,7 +17,13 @@ import { afficherTelephone } from '../../modele/telephone';
 import { Bandeau, Champ, Icone, jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
 
-type Filtre = 'tout' | 'releve' | 'correction';
+type Filtre = 'tout' | 'releve' | 'correction' | 'contre_visite';
+
+const libelleType: Record<ReleveAValider['type'], string> = {
+  releve: 'Nouvelle fiche',
+  correction: 'Correction',
+  contre_visite: 'Contre-visite',
+};
 
 const messageErreur = (e: unknown) =>
   e instanceof ErreurDecision ? e.message : 'La base ne répond pas. Vérifie le réseau et réessaie.';
@@ -88,6 +94,7 @@ export function AValider({
               ['tout', 'Tout'],
               ['releve', 'Nouvelles fiches'],
               ['correction', 'Corrections'],
+              ['contre_visite', 'Contre-visites'],
             ] as const
           ).map(([valeur, libelle]) => (
             <button
@@ -137,7 +144,7 @@ export function AValider({
                   <span className="mention">{jour(r.recuLe)}</span>
                 </span>
                 <span className="mention">
-                  {r.type === 'correction' ? 'Correction' : 'Nouvelle fiche'} · {r.relais}
+                  {libelleType[r.type]} · {r.relais}
                   {r.lot ? ` · Lot ${r.lot}` : ''}
                 </span>
                 <Etiquettes r={r} />
@@ -233,9 +240,7 @@ function Detail({
             {detail.lot ? ` · Lot ${detail.lot}` : ''}
           </p>
         </div>
-        <span className="etiquette etat-attente">
-          {detail.type === 'correction' ? 'Correction' : 'Nouvelle fiche'}
-        </span>
+        <span className="etiquette etat-attente">{libelleType[detail.type]}</span>
       </div>
 
       <div className="admin-deux">
@@ -411,7 +416,8 @@ function Detail({
                     )
                   }
                 >
-                  Mettre à jour {detail.doublonDe.nom}
+                  {detail.type === 'contre_visite' ? 'Situer et publier' : 'Mettre à jour'}{' '}
+                  {detail.doublonDe.nom}
                 </button>
                 <button
                   type="button"

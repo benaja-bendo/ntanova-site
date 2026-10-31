@@ -9,6 +9,7 @@ import { obtenirAdaptateurs, type Adaptateurs } from '../../infra/index';
 import { aller, useAdresse } from '../commun/adresse';
 import { BoutonGoogle } from '../commun/BoutonGoogle';
 import { AValider } from './AValider';
+import { Ecoles } from './Ecoles';
 import { ListeRelais } from './ListeRelais';
 import './admin.css';
 
@@ -106,6 +107,7 @@ export default function App() {
 
   const onglets = [
     { chemin: 'valider', libelle: 'À valider', compte: aValider },
+    { chemin: 'ecoles', libelle: 'Écoles', compte: null },
     { chemin: 'relais', libelle: 'Relais', compte: null },
   ];
 
@@ -143,6 +145,8 @@ export default function App() {
       <main className="admin-contenu">
         {ecran === 'relais' ? (
           <ListeRelais admin={adaptateurs.admin} />
+        ) : ecran === 'ecoles' ? (
+          <Ecoles admin={adaptateurs.admin} />
         ) : (
           <AValider admin={adaptateurs.admin} surCompte={compter} />
         )}
