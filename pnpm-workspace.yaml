@@ -10,3 +10,9 @@ onlyBuiltDependencies:
   - sharp
   - supabase
   - workerd
+
+# minimatch 10 a un déni de service par amplification de motifs (GHSA-g3hv-75wg-m249), corrigé
+# seulement en 11.0.1. ESLint et typescript-eslint demandent encore ^10 : on les force à la 11.
+# À retirer quand ils l'auront adoptée (`pnpm why minimatch` ne doit plus rien devoir à ceci).
+overrides:
+  'minimatch@^10': ^11.0.3
