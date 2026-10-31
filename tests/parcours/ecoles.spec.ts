@@ -51,4 +51,6 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.getByRole('link', { name: 'Écoles' }).click();
   const publiee = page.getByRole('row', { name: /\[École à situer, nom exact\]/ });
   await expect(publiee.getByText('Publiée', { exact: true })).toBeVisible();
+  // Le quartier et l'arrondissement du même nom ne s'affichent qu'une fois.
+  await expect(publiee.getByText('Tié-Tié', { exact: true })).toBeVisible();
 });

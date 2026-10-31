@@ -1,0 +1,130 @@
+---
+// À propos et données personnelles : la page que Google demande pour publier la
+// connexion, et que la direction d'une école lit avant de nous confier sa fiche.
+// Le nom du responsable et l'adresse de contact viennent de la configuration.
+import { PUBLIC_CONTACT_EMAIL, PUBLIC_RESPONSABLE, PUBLIC_WHATSAPP } from 'astro:env/client';
+import { lienWhatsApp } from '../modele/whatsapp';
+import PagePublique from '../ui/PagePublique.astro';
+
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+---
+
+<PagePublique
+  titre="À propos et données personnelles · NTanova"
+  description="Qui est NTanova, ce que nous publions sur les écoles de Pointe-Noire, ce que nous gardons pour nous, et vos droits."
+  whatsapp={whatsapp}
+>
+  <section class="propos">
+    <div class="bloc">
+      <h1>Qui sommes-nous&nbsp;?</h1>
+      <p class="texte-doux">
+        NTanova recense les écoles de <span class="insecable">Pointe-Noire</span>, quartier par
+        quartier, pour aider les familles à les trouver et les écoles à se faire connaître. Le
+        relevé commence à <span class="insecable">Tié-Tié</span> et à Ngoyo.
+      </p>
+      {(PUBLIC_RESPONSABLE || PUBLIC_CONTACT_EMAIL) && (
+        <p>
+          {PUBLIC_RESPONSABLE && (
+            <>
+              <b>Responsable&nbsp;:</b> {PUBLIC_RESPONSABLE}
+            </>
+          )}
+          {PUBLIC_RESPONSABLE && PUBLIC_CONTACT_EMAIL && ' · '}
+          {PUBLIC_CONTACT_EMAIL && (
+            <>
+              <b>Contact&nbsp;:</b>{' '}
+              <a href={`mailto:${PUBLIC_CONTACT_EMAIL}`}>{PUBLIC_CONTACT_EMAIL}</a>
+            </>
+          )}
+        </p>
+      )}
+    </div>
+
+    <section class="carte bloc">
+      <h2>Ce que nous publions</h2>
+      <p>
+        Pour chaque école, ce qui se voit de la rue&nbsp;: nom, enseigne, position, niveaux, numéro
+        affiché. Photos, frais, contact et mot de la direction seulement avec l'accord daté de la
+        direction.
+      </p>
+    </section>
+
+    <section class="carte bloc prive">
+      <h2>Ce que nous gardons pour nous</h2>
+      <p>
+        Le nom et le numéro de la personne de la direction qui accepte d'être contactée. Seul
+        NTanova les voit&nbsp;: ils ne sont jamais publiés.
+      </p>
+    </section>
+
+    <section class="carte bloc">
+      <h2>Les familles</h2>
+      <p>Pas de compte. Vos messages partent sur WhatsApp.</p>
+    </section>
+
+    <section class="carte bloc">
+      <h2>Les relais</h2>
+      <p>
+        Les jeunes qui relèvent les écoles se connectent avec leur compte Google. Leur nom
+        n'apparaît jamais sur le site.
+      </p>
+    </section>
+
+    <section class="carte bloc">
+      <h2>Vos droits</h2>
+      <p>Corriger une fiche, la retirer, effacer un numéro&nbsp;: écrivez-nous, nous le faisons.</p>
+      {whatsapp && (
+        <a class="bouton" href={whatsapp}>
+          Écrire à NTanova sur WhatsApp
+        </a>
+      )}
+    </section>
+
+    <div class="references">
+      <p>
+        Référence&nbsp;: loi congolaise n°&nbsp;29-2019 du 10&nbsp;octobre 2019 portant protection
+        des données à caractère personnel.
+      </p>
+      <p>Limites des quartiers&nbsp;: © les contributeurs d'OpenStreetMap.</p>
+    </div>
+  </section>
+</PagePublique>
+
+<style>
+  .propos {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .propos h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .propos h2 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .propos p {
+    margin: 0;
+  }
+  .bloc {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .prive {
+    border-color: var(--marque-appuyee);
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+  }
+  .references {
+    display: grid;
+    gap: var(--espace-1);
+    padding-top: var(--espace-3);
+    border-top: 1px solid var(--trait);
+    color: var(--texte-doux);
+    font-size: var(--taille-mention);
+  }
+</style>

@@ -3,13 +3,16 @@
 import './jetons.css';
 import './base.css';
 import './composants.css';
+import './public.css';
 import Marque from './Marque.astro';
 
 interface Props {
   titre: string;
   description: string;
+  /** Le lien WhatsApp de NTanova, s'il est configuré (voir src/modele/whatsapp.ts). */
+  whatsapp?: string | null;
 }
-const { titre, description } = Astro.props;
+const { titre, description, whatsapp = null } = Astro.props;
 ---
 
 <!doctype html>
@@ -34,11 +37,17 @@ const { titre, description } = Astro.props;
         <Marque taille={28} />
         <span>NTanova</span>
       </a>
+      <span class="ville">Pointe-Noire</span>
     </header>
     <main class="contenu">
       <slot />
     </main>
     <footer class="pied">
+      <nav aria-label="NTanova" class="pied-liens">
+        <a href="/pour-les-ecoles/">Pour les écoles</a>
+        <a href="/a-propos/">À propos et données personnelles</a>
+        {whatsapp && <a href={whatsapp}>Écrire à NTanova sur WhatsApp</a>}
+      </nav>
       <p>NTanova · Pointe-Noire, République du Congo</p>
     </footer>
   </body>
@@ -54,7 +63,20 @@ const { titre, description } = Astro.props;
     padding-inline: var(--espace-4);
   }
   .entete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-3);
     padding-block: var(--espace-4);
+  }
+  .ville {
+    padding: var(--espace-1) var(--espace-3);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-pilule);
+    background: var(--fond-releve);
+    font-family: var(--police-titre);
+    font-size: var(--taille-mention);
+    font-weight: 700;
   }
   .lien-marque {
     display: inline-flex;
@@ -71,8 +93,24 @@ const { titre, description } = Astro.props;
     padding-block: var(--espace-6);
   }
   .pied {
+    display: grid;
+    gap: var(--espace-3);
     padding-block: var(--espace-6);
+    border-top: 1px solid var(--trait);
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
+  }
+  .pied p {
+    margin: 0;
+  }
+  .pied-liens {
+    display: grid;
+  }
+  .pied-liens a {
+    display: flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
   }
 </style>

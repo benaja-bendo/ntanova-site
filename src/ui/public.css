@@ -1,0 +1,82 @@
+/* Les classes communes aux pages publiques (sans JavaScript). Jetons seulement. */
+
+.surtitre-public {
+  margin: 0;
+  color: var(--erreur);
+  font-family: var(--police-titre);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.retour {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cible-min);
+  color: var(--marque);
+  font-weight: 700;
+}
+
+/* « Vous dirigez une école ? » : le bandeau sombre, et son bouton jaune. */
+.ecoles-appel {
+  display: grid;
+  gap: var(--espace-3);
+  padding: var(--espace-4);
+  border-radius: var(--rayon-l);
+  background: var(--marque-appuyee);
+  color: var(--texte-sur-marque);
+}
+
+.ecoles-appel p {
+  margin: 0;
+}
+
+.ecoles-appel a:not(.bouton) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cible-min);
+  color: var(--texte-sur-marque);
+  font-weight: 700;
+}
+
+.bouton-accent,
+.bouton-accent:hover,
+.bouton-accent:active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--texte);
+}
+
+/* Ce qui manque encore à une fiche : des pastilles en pointillés. */
+.pastilles-vides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pastilles-vides li {
+  padding: var(--espace-1) var(--espace-3);
+  border: 2px dashed var(--trait-fort);
+  border-radius: var(--rayon-pilule);
+  color: var(--texte-doux);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+}
+
+.encadre-pointille {
+  display: grid;
+  gap: var(--espace-2);
+  padding: var(--espace-4);
+  border: 2px dashed var(--trait-fort);
+  border-radius: var(--rayon-m);
+}
+
+.encadre-pointille p {
+  margin: 0;
+  color: var(--texte-doux);
+}

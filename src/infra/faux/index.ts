@@ -71,7 +71,7 @@ const etatInitial = (): Etat => ({
     [ECOLE_A_SITUER]: {
       id: ECOLE_A_SITUER,
       nom: '[École à situer]',
-      quartier: '[Quartier]',
+      quartier: 'Tié-Tié',
       publication: 'brouillon',
       position: null,
       confieeA: null,

@@ -30,6 +30,13 @@ export default defineConfig({
         access: 'public',
         optional: true,
       }),
+      // « À propos » : le responsable et l'adresse de contact, jamais écrits dans le code.
+      PUBLIC_RESPONSABLE: envField.string({ context: 'client', access: 'public', optional: true }),
+      PUBLIC_CONTACT_EMAIL: envField.string({
+        context: 'client',
+        access: 'public',
+        optional: true,
+      }),
       // « faux » : un faux serveur dans le navigateur, pour les parcours Playwright.
       PUBLIC_ADAPTATEUR: envField.enum({
         context: 'client',

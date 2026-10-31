@@ -1,0 +1,148 @@
+---
+// La liste des écoles publiées d'un arrondissement, construite à partir de la base.
+import type { GetStaticPaths } from 'astro';
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirCatalogue } from '../../../infra/index';
+import { libelleNiveau, libelleTypeEcole } from '../../../modele/libelles';
+import type { ArrondissementPublic, EcolePubliee } from '../../../modele/ports';
+import { numeroArrondissement } from '../../../modele/pointe-noire';
+import { lienWhatsApp } from '../../../modele/whatsapp';
+import PagePublique from '../../../ui/PagePublique.astro';
+
+export const getStaticPaths = (async () => {
+  const catalogue = await obtenirCatalogue();
+  const [arrondissements, ecoles] = await Promise.all([
+    catalogue.arrondissements(),
+    catalogue.ecoles(),
+  ]);
+  return arrondissements.map((a) => ({
+    params: { arrondissement: a.slug },
+    props: { arrondissement: a, ecoles: ecoles.filter((e) => e.arrondissement === a.slug) },
+  }));
+}) satisfies GetStaticPaths;
+
+interface Props {
+  arrondissement: ArrondissementPublic;
+  ecoles: EcolePubliee[];
+}
+const { arrondissement, ecoles } = Astro.props;
+const numero = numeroArrondissement[arrondissement.slug];
+const verifiees = ecoles.filter((e) => e.etat === 'verifiee').length;
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const manque = lienWhatsApp(
+  PUBLIC_WHATSAPP,
+  `Bonjour NTanova, une école manque à ${arrondissement.nom} : `,
+);
+const resume = (e: EcolePubliee) =>
+  [
+    e.niveaux.map((n) => libelleNiveau[n]).join(' · '),
+    e.typeEcole === 'non_indique' ? null : libelleTypeEcole[e.typeEcole],
+    e.repere,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+---
+
+<PagePublique
+  titre={`Les écoles de ${arrondissement.nom} · NTanova`}
+  description={`Les écoles de ${arrondissement.nom}, à Pointe-Noire : maternelles, primaires, collèges et lycées, relevés sur place.`}
+  whatsapp={whatsapp}
+>
+  <section class="liste">
+    <a class="retour" href="/">
+      ← Accueil
+    </a>
+    <div>
+      <h1>{arrondissement.nom}</h1>
+      <p class="texte-doux">
+        {numero ? `Arrondissement ${numero} · ` : ''}
+        <span class="insecable">Pointe-Noire</span>
+      </p>
+    </div>
+
+    {ecoles.length === 0 ? (
+      <p class="carte">Aucune école publiée pour l'instant&nbsp;: le relevé est en cours.</p>
+    ) : (
+      <p class="compte">
+        {ecoles.length} école{ecoles.length > 1 ? 's' : ''} relevée{ecoles.length > 1 ? 's' : ''}
+        {verifiees > 0 && ` · ${verifiees} vérifiée${verifiees > 1 ? 's' : ''}`}
+      </p>
+    )}
+
+    <ul class="ecoles">
+      {ecoles.map((e) => (
+        <li>
+          <a class="ecole" href={`/ecoles/${e.arrondissement}/${e.slug}/`}>
+            <span class="ecole-nom">{e.nom}</span>
+            {resume(e) && <span class="ecole-detail">{resume(e)}</span>}
+            <span class="ecole-etat">
+              {e.etat === 'verifiee' ? 'Vérifiée par l’école' : 'Relevée de la rue'}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <div class="encadre-pointille">
+      <p>Une partie du quartier n'est pas encore relevée&nbsp;: relevé en cours.</p>
+      {manque && <a href={manque}>Une école manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
+    </div>
+  </section>
+</PagePublique>
+
+<style>
+  .liste {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .liste h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .liste p {
+    margin: 0;
+  }
+  .compte {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .ecoles {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ecole {
+    display: grid;
+    gap: var(--espace-1);
+    padding: var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .ecole-nom {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .ecole-detail,
+  .ecole-etat {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .ecole-etat {
+    font-weight: 700;
+  }
+  .encadre-pointille a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+</style>
