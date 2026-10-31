@@ -62,6 +62,16 @@ test('une capture de chaque écran', async ({ page, context }) => {
   await prendre('admin-ecoles');
   await page
     .getByRole('row', { name: /\[École 1\]/ })
+    .getByRole('button', { name: 'Modifier la fiche' })
+    .click();
+  await page.getByRole('form', { name: 'Modifier [École 1]' }).waitFor();
+  await prendre('admin-modifier-la-fiche');
+  await page
+    .getByRole('form', { name: 'Modifier [École 1]' })
+    .getByRole('button', { name: 'Annuler' })
+    .click();
+  await page
+    .getByRole('row', { name: /\[École 1\]/ })
     .getByRole('button', { name: 'Retirer du site' })
     .click();
   await prendre('admin-retirer-du-site');

@@ -229,6 +229,25 @@ export interface EcoleVue {
   /** Sans position : l'école attend qu'un relais la situe. */
   aSituer: boolean;
   confiee: { relaisId: string; prenom: string; note: string | null } | null;
+  // Ce que la fiche dit aujourd'hui, pour la corriger sans repasser par le relais.
+  typeEcole: Valeur<'type_ecole'>;
+  niveaux: Valeur<'niveau'>[];
+  programme: string | null;
+  repere: string | null;
+  numeroEnseigne: string | null;
+}
+
+/**
+ * Ce que l'administration corrige sur une fiche : seuls les champs donnés changent, le reste
+ * (et la date de relevé) n'est pas touché. `null` vide un champ facultatif.
+ */
+export interface CorrectionEcole {
+  nom?: string;
+  typeEcole?: Valeur<'type_ecole'>;
+  niveaux?: Valeur<'niveau'>[];
+  programme?: string | null;
+  repere?: string | null;
+  numeroEnseigne?: string | null;
 }
 
 export interface PortAdministration {
@@ -265,6 +284,8 @@ export interface PortAdministration {
   reprendreEcole(ecoleId: string): Promise<void>;
   /** `GET /public/quartiers` (avec leur identifiant, pour publier tout un arrondissement) */
   arrondissements(): Promise<{ id: number; slug: string; nom: string }[]>;
+  /** Corrige une fiche (brouillon, prête ou publiée) sans repasser par le relais. `PATCH /admin/ecoles/{id}` */
+  modifierEcole(ecoleId: string, correction: CorrectionEcole): Promise<void>;
   /** Une école prête (ou retirée) passe en ligne. `POST /admin/ecoles/{id}/publication` */
   publierEcole(ecoleId: string): Promise<void>;
   /** Toutes les écoles prêtes d'un arrondissement ; rend leur nombre. */
@@ -333,6 +354,11 @@ export interface EcolePubliee {
   latitude: number | null;
   longitude: number | null;
   etat: Valeur<'etat_ecole'>;
+  /**
+   * Le jour du relevé sur le terrain (la photo) : il ne bouge pas quand l'administration publie
+   * ou corrige. Absent des fiches d'avant : la page retombe sur `misAJourLe`.
+   */
+  releveeLe: string | null;
   misAJourLe: string;
 }
 

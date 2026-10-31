@@ -345,6 +345,11 @@
   background: var(--fond);
 }
 
+/* Dans un formulaire de plusieurs champs : les niveaux, les messages et les boutons gardent toute la largeur. */
+.admin-motif .admin-pleine-largeur {
+  grid-column: 1 / -1;
+}
+
 /* Relais : des tableaux qui défilent sur un petit écran. */
 .admin-tableau {
   overflow-x: auto;

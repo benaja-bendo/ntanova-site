@@ -48,8 +48,9 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           // est possible, et ne casse ni la construction ni la page.
           type_ecole: string;
           niveaux: string[];
-          // Absente tant que la migration du programme n'est pas poussée.
+          // Absentes tant que les migrations du programme et de la date de relevé ne sont pas poussées.
           programme?: string | null;
+          relevee_le?: string | null;
           repere: string | null;
           numero_enseigne: string | null;
           latitude: number | null;
@@ -72,6 +73,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
         latitude: e.latitude,
         longitude: e.longitude,
         etat: e.etat,
+        releveeLe: e.relevee_le ?? null,
         misAJourLe: e.mis_a_jour_le,
       }));
     },

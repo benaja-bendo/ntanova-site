@@ -3,7 +3,15 @@
  * à situer → prête → publiée → retirée (→ publiée). Publier est un geste à part :
  * une école, tout un arrondissement, ou un lot.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import {
+  erreursFormulaireEcole,
+  formulaireDe,
+  versCorrection,
+  type FormulaireEcole,
+} from '../../modele/correction-ecole';
+import type { Erreurs } from '../../modele/fiche';
+import { libelleNiveau, libelleTypeEcole } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
 import {
   ErreurDecision,
@@ -12,7 +20,7 @@ import {
   type PortAdministration,
   type RelaisVu,
 } from '../../modele/ports';
-import { Bandeau, jour } from '../../ui/composants';
+import { Bandeau, Champ, Choix, jour } from '../../ui/composants';
 
 export const libelleMotifRetrait: Record<Valeur<'motif_retrait'>, string> = {
   demande_ecole: "À la demande de l'école",
@@ -61,7 +69,7 @@ function LigneEcole({
   const etat = etatDe(e);
   const [relaisId, setRelaisId] = useState(e.confiee?.relaisId ?? relais[0]?.id ?? '');
   const [note, setNote] = useState(e.confiee?.note ?? '');
-  const [mode, setMode] = useState<'retirer' | 'fusionner' | null>(null);
+  const [mode, setMode] = useState<'retirer' | 'fusionner' | 'modifier' | null>(null);
   const [motif, setMotif] = useState<Valeur<'motif_retrait'>>('demande_ecole');
   const [noteRetrait, setNoteRetrait] = useState('');
   const [gardee, setGardee] = useState('');
@@ -91,6 +99,10 @@ function LigneEcole({
         <span className="mention admin-sous-ligne">
           {[...new Set([e.quartier, e.arrondissement].filter(Boolean))].join(' · ') ||
             'Quartier inconnu'}
+        </span>
+        <span className="mention admin-sous-ligne">
+          {libelleTypeEcole[e.typeEcole]} ·{' '}
+          {e.niveaux.map((n) => libelleNiveau[n]).join(', ') || 'aucun niveau'}
         </span>
         {e.retrait && (
           <span className="mention admin-sous-ligne">
@@ -201,6 +213,16 @@ function LigneEcole({
                 )}
               </>
             ))}
+          {etat !== 'retiree' && (
+            <button
+              type="button"
+              className="bouton bouton-secondaire bouton-petit"
+              aria-expanded={mode === 'modifier'}
+              onClick={() => setMode(mode === 'modifier' ? null : 'modifier')}
+            >
+              Modifier la fiche
+            </button>
+          )}
         </div>
 
         {mode === 'retirer' && (
@@ -279,9 +301,182 @@ function LigneEcole({
           </form>
         )}
 
+        {mode === 'modifier' && (
+          <FormulaireEcole
+            e={e}
+            admin={admin}
+            surEnregistre={(texte) => {
+              setMode(null);
+              surChangement(texte);
+            }}
+            surAnnuler={() => setMode(null)}
+          />
+        )}
+
         {erreur && <p className="message-erreur">{erreur}</p>}
       </td>
     </tr>
+  );
+}
+
+/**
+ * Corriger une fiche sans repasser par le relais : le nom, le type, les niveaux, le programme,
+ * le repère et le numéro. Seul ce qui a changé part ; la date de relevé ne bouge pas.
+ */
+function FormulaireEcole({
+  e,
+  admin,
+  surEnregistre,
+  surAnnuler,
+}: {
+  e: EcoleVue;
+  admin: PortAdministration;
+  surEnregistre: (texte: string) => void;
+  surAnnuler: () => void;
+}) {
+  const [champs, setChamps] = useState<FormulaireEcole>(() => formulaireDe(e));
+  const [erreurs, setErreurs] = useState<Erreurs>({});
+  const [rienADire, setRienADire] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+
+  const changer = (nouveaux: Partial<FormulaireEcole>) => {
+    setChamps((avant) => ({ ...avant, ...nouveaux }));
+    setRienADire(false);
+  };
+  const basculerNiveau = (n: Valeur<'niveau'>) =>
+    changer({
+      niveaux: champs.niveaux.includes(n)
+        ? champs.niveaux.filter((x) => x !== n)
+        : listes.niveau.filter((x) => x === n || champs.niveaux.includes(x)),
+    });
+
+  const enregistrer = async (ev: FormEvent) => {
+    ev.preventDefault();
+    setErreur(null);
+    const trouvees = erreursFormulaireEcole(champs);
+    setErreurs(trouvees);
+    if (Object.keys(trouvees).length > 0) return;
+    const correction = versCorrection(e, champs);
+    setRienADire(Object.keys(correction).length === 0);
+    if (Object.keys(correction).length === 0) return;
+    setEnCours(true);
+    try {
+      await admin.modifierEcole(e.id, correction);
+      surEnregistre(
+        `${correction.nom ?? e.nom} est modifiée.` +
+          (e.publication === 'publiee'
+            ? ' La correction paraît sur ntanova.com après la prochaine mise à jour du site (cette nuit à 2 h).'
+            : ''),
+      );
+    } catch (err) {
+      setErreur(message(err));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <form
+      className="admin-motif"
+      aria-label={`Modifier ${e.nom}`}
+      noValidate
+      onSubmit={(ev) => void enregistrer(ev)}
+    >
+      <Champ libelle="Nom" erreur={erreurs.nom}>
+        {(a) => (
+          <input
+            {...a}
+            className="champ"
+            type="text"
+            autoComplete="off"
+            value={champs.nom}
+            onChange={(ev) => changer({ nom: ev.target.value })}
+          />
+        )}
+      </Champ>
+      <Champ libelle="Type d'école" erreur={erreurs.typeEcole}>
+        {(a) => (
+          <select
+            {...a}
+            className="champ"
+            value={champs.typeEcole}
+            onChange={(ev) => changer({ typeEcole: ev.target.value as Valeur<'type_ecole'> })}
+          >
+            {(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => (
+              <option key={t} value={t}>
+                {libelleTypeEcole[t]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Champ>
+      <div className="admin-pleine-largeur">
+        <Choix
+          legende="Niveaux"
+          options={listes.niveau.map((n) => ({ valeur: n, libelle: libelleNiveau[n] }))}
+          valeurs={champs.niveaux}
+          surChoix={basculerNiveau}
+          erreur={erreurs.niveaux}
+        />
+      </div>
+      <Champ libelle="Programme et langues" facultatif erreur={erreurs.programme}>
+        {(a) => (
+          <input
+            {...a}
+            className="champ"
+            type="text"
+            autoComplete="off"
+            value={champs.programme}
+            onChange={(ev) => changer({ programme: ev.target.value })}
+          />
+        )}
+      </Champ>
+      <Champ libelle="Repère" facultatif erreur={erreurs.repere}>
+        {(a) => (
+          <input
+            {...a}
+            className="champ"
+            type="text"
+            autoComplete="off"
+            value={champs.repere}
+            onChange={(ev) => changer({ repere: ev.target.value })}
+          />
+        )}
+      </Champ>
+      <Champ libelle="Numéro sur l'enseigne" facultatif erreur={erreurs.numeroEnseigne}>
+        {(a) => (
+          <input
+            {...a}
+            className="champ"
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            placeholder="+242 …"
+            value={champs.numeroEnseigne}
+            onChange={(ev) => changer({ numeroEnseigne: ev.target.value })}
+          />
+        )}
+      </Champ>
+      {rienADire && (
+        <p className="mention admin-pleine-largeur" aria-live="polite">
+          Rien n’a changé.
+        </p>
+      )}
+      {erreur && (
+        <p className="message-erreur admin-pleine-largeur" role="alert">
+          {erreur}
+        </p>
+      )}
+      <div className="admin-actions admin-pleine-largeur">
+        <button type="submit" className="bouton" disabled={enCours}>
+          Enregistrer
+        </button>
+        <button type="button" className="bouton bouton-secondaire" onClick={surAnnuler}>
+          Annuler
+        </button>
+      </div>
+    </form>
   );
 }
 

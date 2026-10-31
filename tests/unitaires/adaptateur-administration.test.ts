@@ -5,20 +5,32 @@ import { creerPortAdministration } from '../../src/infra/supabase/administration
 
 type Reponse = { data: unknown; error: { code?: string; message?: string } | null };
 
-/** Une fausse API : chaque appel de fonction (rpc) répond ce que le test a prévu, et garde ses arguments. */
-function fausseApi(rpc: Record<string, Reponse>, tables: Record<string, unknown[]> = {}) {
+/**
+ * Une fausse API : chaque appel de fonction (rpc) répond ce que le test a prévu, et garde ses
+ * arguments ; une table peut répondre par une erreur.
+ */
+function fausseApi(
+  rpc: Record<string, Reponse>,
+  tables: Record<string, unknown[]> = {},
+  erreurs: Record<string, { code?: string; message?: string }> = {},
+) {
   const appels: { nom: string; arguments: unknown }[] = [];
-  const requete = (lignes: unknown[]) => {
+  const requete = (lignes: unknown[], table: string) => {
+    const erreur = erreurs[table] ?? null;
     const constructeur = {
       select: () => constructeur,
       eq: () => constructeur,
       order: () => constructeur,
       limit: () => constructeur,
       returns: () => constructeur,
-      single: () => Promise.resolve({ data: lignes[0] ?? null, error: null }),
-      maybeSingle: () => Promise.resolve({ data: lignes[0] ?? null, error: null }),
+      update: (champs: unknown) => {
+        appels.push({ nom: `modifier ${table}`, arguments: champs });
+        return constructeur;
+      },
+      single: () => Promise.resolve({ data: lignes[0] ?? null, error: erreur }),
+      maybeSingle: () => Promise.resolve({ data: lignes[0] ?? null, error: erreur }),
       then: (suite: (r: unknown) => unknown) =>
-        Promise.resolve({ data: lignes, error: null }).then(suite),
+        Promise.resolve({ data: erreur ? null : lignes, error: erreur }).then(suite),
     };
     return constructeur;
   };
@@ -27,7 +39,7 @@ function fausseApi(rpc: Record<string, Reponse>, tables: Record<string, unknown[
       appels.push({ nom, arguments: args });
       return Promise.resolve(rpc[nom] ?? { data: null, error: null });
     },
-    from: (table: string) => requete(tables[table] ?? []),
+    from: (table: string) => requete(tables[table] ?? [], table),
     storage: {
       from: (seau: string) => ({
         remove: (chemins: string[]) => {
@@ -202,6 +214,95 @@ describe('l’adaptateur Supabase de l’administration', () => {
         typeEcole: 'non_indique',
         niveaux: ['creche'],
       });
+    });
+  });
+
+  describe('corriger une fiche à la main (ticket 12)', () => {
+    it('n’écrit que les champs donnés, avec les noms de la base', async () => {
+      const { port, appels } = fausseApi({}, { ecoles: [{ id: 'e1' }] });
+      await port.modifierEcole('e1', {
+        typeEcole: 'publique',
+        niveaux: ['creche'],
+        programme: 'Bilingue',
+        numeroEnseigne: null,
+      });
+      expect(appels).toEqual([
+        {
+          nom: 'modifier ecoles',
+          arguments: {
+            type_ecole: 'publique',
+            niveaux: ['creche'],
+            programme: 'Bilingue',
+            numero_enseigne: null,
+          },
+        },
+      ]);
+    });
+
+    it('ne fait aucun appel quand rien ne change', async () => {
+      const { port, appels } = fausseApi({}, { ecoles: [{ id: 'e1' }] });
+      await port.modifierEcole('e1', {});
+      expect(appels).toEqual([]);
+    });
+
+    it('dit « introuvable » quand la base ne change aucune ligne (école inconnue, ou droit refusé)', async () => {
+      const { port } = fausseApi({}, { ecoles: [] });
+      await expect(port.modifierEcole('e9', { nom: '[École]' })).rejects.toBeInstanceOf(
+        ErreurDecision,
+      );
+    });
+
+    it('dit en français qu’une valeur est refusée par la base', async () => {
+      const { port } = fausseApi(
+        {},
+        {},
+        {
+          ecoles: {
+            code: '23514',
+            message: 'new row for relation "ecoles" violates check constraint "ecoles_nom_check"',
+          },
+        },
+      );
+      const refus = port.modifierEcole('e1', { nom: '[École]' });
+      await expect(refus).rejects.toBeInstanceOf(ErreurDecision);
+      await expect(refus).rejects.not.toThrow(/violates|relation/);
+    });
+
+    it('lit le type, les niveaux, le programme, le repère et le numéro de chaque école', async () => {
+      const ligne = (champs: Record<string, unknown>) => ({
+        id: 'e1',
+        nom: '[École]',
+        quartier: null,
+        publication: 'prete',
+        position: {},
+        arrondissement_id: 1,
+        retiree_le: null,
+        motif_retrait: null,
+        note_retrait: null,
+        remplacee_par: null,
+        arrondissements: { nom: 'Tié-Tié' },
+        ecoles_confiees: null,
+        type_ecole: 'communautaire',
+        niveaux: ['creche', 'autre_formation'],
+        programme: 'Bilingue',
+        repere: '[Repère]',
+        numero_enseigne: '242060000001',
+        ...champs,
+      });
+      const { port } = fausseApi(
+        {},
+        { ecoles: [ligne({}), ligne({ id: 'e2', type_ecole: 'type_de_demain', niveaux: ['x'] })] },
+      );
+      const [une, autre] = await port.ecoles();
+      expect(une).toMatchObject({
+        typeEcole: 'communautaire',
+        niveaux: ['creche', 'autre_formation'],
+        programme: 'Bilingue',
+        repere: '[Repère]',
+        numeroEnseigne: '242060000001',
+      });
+      // Une valeur que cette version ne connaît pas encore ne casse rien.
+      expect(autre).toMatchObject({ typeEcole: 'non_indique', niveaux: [] });
     });
   });
 

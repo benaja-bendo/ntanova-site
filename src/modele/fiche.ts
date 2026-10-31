@@ -133,7 +133,7 @@ export function contactVide(): ContactSaisi {
 /** Les messages d'erreur, champ par champ. Vide : l'étape est complète. */
 export type Erreurs = Partial<Record<string, string>>;
 
-function erreursDe(resultat: z.ZodSafeParseResult<unknown>): Erreurs {
+export function erreursDe(resultat: z.ZodSafeParseResult<unknown>): Erreurs {
   if (resultat.success) return {};
   const erreurs: Erreurs = {};
   for (const probleme of resultat.error.issues) {

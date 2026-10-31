@@ -126,6 +126,22 @@ test.describe('site public', () => {
       await expect(liste).not.toContainText('Pas indiqué');
     });
 
+    test('la fiche donne la date du relevé, pas celle de la dernière modification', async ({
+      page,
+    }) => {
+      // Relevée le 2 novembre, modifiée depuis le 20 : elle dit toujours « relevée le 2 novembre ».
+      await page.goto('/ecoles/tie-tie/centre-de-formation-exemple/');
+      await expect(page.getByText(/Fiche relevée le 2 novembre 2026/)).toBeVisible();
+      await expect(page.getByText(/20 novembre/)).toHaveCount(0);
+    });
+
+    test('sans date de relevé (une fiche d’avant), la fiche retombe sur la dernière mise à jour', async ({
+      page,
+    }) => {
+      await page.goto('/ecoles/tie-tie/ecole-sans-detail-exemple/');
+      await expect(page.getByText(/Fiche relevée le 5 novembre 2026/)).toBeVisible();
+    });
+
     test('la description de la page d’un arrondissement va de la crèche au supérieur', async ({
       page,
     }) => {
