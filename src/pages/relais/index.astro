@@ -1,0 +1,31 @@
+---
+// La coquille de l'espace relais : une page, installable, qui marche hors ligne.
+// L'application React s'y charge seule (client:only) : il n'y a rien à rendre côté serveur.
+import '../../ui/jetons.css';
+import '../../ui/base.css';
+import '../../ui/composants.css';
+import App from '../../app/relais/App';
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Espace relais · NTanova</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/relais/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/relais/icone-192.png" />
+  </head>
+  <body>
+    <App client:only="react" />
+    <noscript>L'espace relais demande JavaScript.</noscript>
+    <script>
+      // L'application installable se limite à /relais/ : son cache ne touche ni le site public ni l'administration.
+      if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+        navigator.serviceWorker.register('/relais/sw.js', { scope: '/relais/' });
+      }
+    </script>
+  </body>
+</html>
