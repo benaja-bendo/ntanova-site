@@ -49,6 +49,16 @@ pnpm exec supabase link --project-ref rtwghmbupzuhptqywezr
 
 Le schéma de la base et la marche à suivre pour la mettre en ligne : [`supabase/schema.md`](supabase/schema.md).
 
+## Mettre en ligne
+
+Par GitHub Actions seulement (`.github/workflows/mise-en-ligne.yml`) : chaque nuit sur `essai.ntanova.com` et `ntanova.com`, ou à la main :
+
+```bash
+gh workflow run mise-en-ligne.yml -f cible=essai
+```
+
+`cible` vaut `essai`, `production` ou `les deux`. Il faut, dans le dépôt GitHub, les secrets `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID`, et les variables `PUBLIC_WHATSAPP`, `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY` et `PUBLIC_GOOGLE_CLIENT_ID`.
+
 ## Les polices
 
 Poppins 700 et Nunito Sans 400 et 700, sous-ensemble latin, tirées de Fontsource 5.3.0 et servies par le site (`public/polices/`, licence SIL OFL 1.1 à côté des fichiers).

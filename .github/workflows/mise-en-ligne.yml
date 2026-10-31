@@ -1,0 +1,75 @@
+name: Mise en ligne
+
+# La première semaine, pas de bouton dans l'administration : une construction chaque
+# nuit (elle relit la base, ce qui la garde éveillée), et un lancement à la main
+# depuis l'onglet Actions de GitHub quand il faut publier tout de suite.
+on:
+  workflow_dispatch:
+    inputs:
+      cible:
+        description: Où mettre en ligne
+        type: choice
+        options: [essai, production, les deux]
+        default: essai
+  schedule:
+    # 1 h UTC, 2 h à Pointe-Noire.
+    - cron: '0 1 * * *'
+
+permissions:
+  contents: read
+
+# Une mise en ligne à la fois ; celle qui attend n'annule pas celle qui tourne.
+concurrency:
+  group: mise-en-ligne
+  cancel-in-progress: false
+
+env:
+  ASTRO_TELEMETRY_DISABLED: 1
+
+jobs:
+  mise-en-ligne:
+    name: ${{ matrix.cible }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        cible: >-
+          ${{ (github.event_name == 'schedule' || inputs.cible == 'les deux')
+              && fromJSON('["essai","production"]')
+              || fromJSON(format('["{0}"]', inputs.cible)) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Rien ne part en ligne sans passer les mêmes contrôles qu'une pull request.
+      - name: Contrôles et construction
+        run: pnpm verif
+        env:
+          PUBLIC_WHATSAPP: ${{ vars.PUBLIC_WHATSAPP }}
+          PUBLIC_SUPABASE_URL: ${{ vars.PUBLIC_SUPABASE_URL }}
+          PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.PUBLIC_GOOGLE_CLIENT_ID }}
+
+      - name: Envoi chez Cloudflare
+        run: pnpm exec wrangler deploy ${{ matrix.cible == 'essai' && '--env essai' || '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Le site répond
+        run: |
+          adresse=${{ matrix.cible == 'essai' && 'https://essai.ntanova.com/' || 'https://ntanova.com/' }}
+          # La première fois, Cloudflare crée le certificat du domaine : quelques minutes.
+          for tentative in $(seq 1 18); do
+            if curl -fsS -o /dev/null "$adresse"; then echo "$adresse répond"; exit 0; fi
+            sleep 10
+          done
+          echo "$adresse ne répond pas" >&2
+          exit 1

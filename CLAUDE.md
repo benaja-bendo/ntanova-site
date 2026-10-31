@@ -115,7 +115,8 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 ## Mise en ligne
 
 - Cloudflare Workers, fichiers statiques de `dist/` (`wrangler.jsonc`) : production `ntanova.com` ; `--env essai` pour `essai.ntanova.com`, la seule adresse de prévisualisation déclarée chez Google pour la connexion.
-- La mise en ligne passe par GitHub Actions, jamais depuis un poste. La première semaine, pas de bouton : une construction chaque nuit, et un lancement à la main depuis GitHub.
+- La mise en ligne passe par GitHub Actions (`.github/workflows/mise-en-ligne.yml`), jamais depuis un poste. La première semaine, pas de bouton : une construction chaque nuit (essai et production), et un lancement à la main depuis l'onglet Actions (`gh workflow run mise-en-ligne.yml -f cible=essai`). Le workflow refait `pnpm verif` avant d'envoyer, puis vérifie que l'adresse répond.
+- Les valeurs publiques de la construction sont des **variables** GitHub (`vars.PUBLIC_…`), pas des secrets.
 
 ## Git
 
