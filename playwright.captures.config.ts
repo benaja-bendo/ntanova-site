@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 // Les captures d'écran à relire à l'œil (`pnpm captures`) : chaque écran du site construit
-// avec le faux serveur, à 360 px (téléphone), 768 px (tablette) et 1 280 px (ordinateur).
+// avec le faux serveur, à 360 px (téléphone), 768 px (tablette), 1 280 px (ordinateur) et 1 920 px
+// (grand écran).
 // Rien n'y est vérifié : les contrôles sont dans tests/parcours/. Les images vont dans
 // captures/, que git ignore.
 const port = 4329;
@@ -19,6 +20,10 @@ export default defineConfig({
     {
       name: 'ordinateur-1280',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+    },
+    {
+      name: 'grand-ecran-1920',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1920, height: 1080 } },
     },
   ],
   webServer: {

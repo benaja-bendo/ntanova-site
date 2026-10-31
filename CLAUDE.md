@@ -20,7 +20,7 @@ Le catalogue du système de design : http://localhost:4321/dev/catalogue/ (en d�
 - `pnpm verif` : format, lint (dont les frontières), couleurs, types, tests unitaires, construction, poids des pages. **Rien n'est fini tant qu'elle ne passe pas.** La CI (`.github/workflows/verif.yml`) lance la même commande.
 - `pnpm test:parcours` : les parcours Playwright, dans un téléphone Android de 360 px, sur le site construit servi par wrangler comme en production. La spec `mise-en-page` (les tests qui dépendent de la largeur : barre de l'administration, tableaux, défilement de côté…) tourne aussi à 768 px (tablette) et 1 280 px (ordinateur).
   Le site y est construit avec le **faux serveur** (`PUBLIC_ADAPTATEUR=faux`, `src/infra/faux/`) : l'espace relais tourne sans Supabase, hors ligne compris. Le parcours « trois fiches hors ligne, le réseau revient, tout est parti, le contact a disparu du téléphone » ne doit jamais être affaibli.
-- `pnpm captures` : une image de chaque écran (site public, relais, administration) à 360, 768 et 1 280 px, dans `captures/` (ignoré par git), pour relire une mise en page à l'œil. Elle ne vérifie rien.
+- `pnpm captures` : une image de chaque écran (site public, relais, administration) à 360, 768, 1 280 et 1 920 px, dans `captures/` (ignoré par git), pour relire une mise en page à l'œil. Elle ne vérifie rien.
 - `pnpm base:tests` : les tests pgTAP des droits et des règles de la base (`supabase/tests/`), sur la base locale (`pnpm base:demarrer`, Docker). La CI les lance aussi.
 
 ## Architecture
