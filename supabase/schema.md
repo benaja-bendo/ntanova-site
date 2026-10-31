@@ -116,6 +116,15 @@ Des écoles connues autrement que par un relevé (les entretiens) entrent **en b
 3. **Contre-visite** : le relais envoie un relevé `contre_visite`, dont `doublon_de` est l'école visitée (contrainte `releves_contre_visite_liee`).
 4. **Accepter** : `accepter_releve(releve, ecole)` met l'école à jour, lui donne l'arrondissement du relevé (sa position, sinon son lot), la publie si elle était en brouillon, et termine la mission (`ecoles_confiees`). Une école publiée a toujours un arrondissement (`ecoles_publiee_dans_un_arrondissement`).
 
+## Situer une école depuis l'administration (31/10, soir, ticket #15)
+
+Le fondateur connaît des écoles : il les situe lui-même, sans attendre un relais, avec la position prise sur une carte (Google Maps : un appui long sur l'entrée de l'école).
+
+- `situer_ecole(ecole, latitude, longitude)` (administration) : l'école reçoit sa position et l'arrondissement dont le contour la contient (`arrondissement_de_position` ; hors de Tié-Tié et Ngoyo, refus 22023). Une école brouillon devient **prête**. Une école publiée ne change pas d'arrondissement (son adresse publique changerait) ; une école retirée ne se modifie plus.
+- `ajouter_ecole(nom, latitude, longitude, type_ecole, niveaux, programme, repere, numero_enseigne, quartier)` : une école que la base ne connaît pas. Avec une position, elle est prête ; sans, elle entre à situer (brouillon, sans arrondissement), comme un import. L'adresse (`slug`) vient du nom, avec `-2`, `-3`… si elle est prise.
+- Ce n'est pas un relevé : `situee_par` et `situee_le` disent qui a donné la position et quand ; `relevee_le` reste vide. La vue `ecoles_publiees` donne `situee_le` : la fiche dit « Fiche ajoutée par NTanova le … ». Un relevé accepté plus tard remplace la position et pose la date de relevé.
+- Migration `20261031223138_situer_par_l_administration.sql` (appliquée en ligne le 31/10 par le connecteur Supabase, à la demande du fondateur ; le fichier porte le numéro que la base a enregistré), tests `supabase/tests/situer_par_l_administration.test.sql`.
+
 ## Les choix (31/10)
 
 1. **Le contact dans un schéma privé**, écrit par une fonction (`envoyer_contact`) qui répond `recu` ou `deja_recu`. Même un droit donné par erreur ne le rendrait pas lisible par l'API. Demain, c'est `POST /contacts` chez Spring Boot.
