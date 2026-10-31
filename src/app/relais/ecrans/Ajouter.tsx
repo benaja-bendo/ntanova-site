@@ -89,7 +89,8 @@ function BoutonSuivant({ surClic }: { surClic: () => void }) {
 const messagesPosition: Record<ErreurPosition, string> = {
   refusee:
     'La position est bloquée. Dans Chrome, touchez le cadenas à gauche de l’adresse, autorisez la position, puis réessayez.',
-  indisponible: 'Le GPS ne répond pas. Activez la localisation du téléphone, puis réessayez.',
+  indisponible:
+    'La position est introuvable. Sur un téléphone, activez la localisation. Sur un Mac, ouvrez Réglages Système, Confidentialité et sécurité, Service de localisation, et autorisez Chrome. Puis réessayez.',
   trop_longue: 'La position tarde. Sortez devant l’entrée, à découvert, puis réessayez.',
   absente: 'Ce téléphone ne donne pas sa position.',
 };
