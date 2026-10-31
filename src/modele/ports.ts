@@ -263,3 +263,35 @@ export class ErreurReseau extends Error {
 export class ErreurSession extends Error {
   override name = 'ErreurSession';
 }
+
+// Le site public ----------------------------------------------------------------
+
+export interface ArrondissementPublic {
+  slug: string;
+  nom: string;
+}
+
+/** Une école publiée, telle que le site public la montre. */
+export interface EcolePubliee {
+  id: string;
+  arrondissement: string;
+  slug: string;
+  nom: string;
+  quartier: string | null;
+  typeEcole: Valeur<'type_ecole'>;
+  niveaux: Valeur<'niveau'>[];
+  repere: string | null;
+  numeroEnseigne: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  etat: Valeur<'etat_ecole'>;
+  misAJourLe: string;
+}
+
+/** Lu à la construction du site : les pages publiques n'appellent jamais la base. */
+export interface PortCatalogue {
+  /** `GET /public/quartiers` */
+  arrondissements(): Promise<ArrondissementPublic[]>;
+  /** `GET /public/ecoles` */
+  ecoles(): Promise<EcolePubliee[]>;
+}

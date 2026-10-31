@@ -3,8 +3,12 @@
  * sur Supabase, ou sur le faux serveur des parcours Playwright
  * (`PUBLIC_ADAPTATEUR=faux` à la construction).
  */
-import { PUBLIC_ADAPTATEUR } from 'astro:env/client';
-import type { PortAdministration, PortRelais, PortSession } from '../modele/ports';
+import {
+  PUBLIC_ADAPTATEUR,
+  PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  PUBLIC_SUPABASE_URL,
+} from 'astro:env/client';
+import type { PortAdministration, PortCatalogue, PortRelais, PortSession } from '../modele/ports';
 
 export interface Adaptateurs {
   nom: 'supabase' | 'faux';
@@ -32,4 +36,17 @@ export function obtenirAdaptateurs(): Promise<Adaptateurs> {
           admin: a.creerPortAdministration(c.supabase),
         }));
   return adaptateurs;
+}
+
+/**
+ * Le catalogue du site public, lu à la construction. Sans adresse de base (une
+ * construction de vérification, sans valeurs du dépôt), il est vide.
+ */
+export async function obtenirCatalogue(): Promise<PortCatalogue> {
+  if (PUBLIC_ADAPTATEUR === 'faux') return (await import('./faux/catalogue')).catalogueFaux;
+  if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    return { arrondissements: async () => [], ecoles: async () => [] };
+  }
+  const { creerCatalogue } = await import('./supabase/catalogue');
+  return creerCatalogue(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 }
