@@ -58,7 +58,7 @@ Le jour où un serveur (Spring Boot) remplacera Supabase, seul `src/infra/` sera
 | Catalogue public (à la construction) | Lister les écoles publiées et les quartiers | `GET /public/ecoles`, `GET /public/quartiers` |
 | Session | Se connecter avec le jeton Google, se déconnecter, lire l'utilisateur courant, obtenir un jeton frais | `POST /auth/google`, `GET /moi` |
 | Relais | Mon profil, mon lot, mes relevés et leurs retours, les écoles qu'on me confie ; envoyer une photo, un relevé, un contact, une erreur | `GET /moi/lot`, `GET /moi/releves`, `GET /moi/ecoles-a-completer`, `PUT /photos/{chemin}`, `POST /releves`, `POST /contacts`, `POST /erreurs` |
-| Administration (`PortAdministration`) | Le rôle ; les relevés à valider, leur détail, leur photo, leur contact ; accepter, demander une correction, refuser, confirmer un contact ; les relais et les lots ; activer, suspendre ; les écoles, les corriger sans repasser par le relais, les confier à un relais | `GET /admin/releves`, `GET /admin/releves/{id}`, `POST /admin/releves/{id}/decision`, `GET /admin/relais`, `POST /admin/relais/{id}/activation`, `GET /admin/ecoles`, `PATCH /admin/ecoles/{id}`, `POST /admin/ecoles/{id}/confier` |
+| Administration (`PortAdministration`) | Le rôle ; les relevés à valider, leur détail, leur photo, leur contact ; accepter, demander une correction, refuser, confirmer un contact ; les relais et les lots ; activer, suspendre ; les écoles, les corriger sans repasser par le relais, les confier à un relais, les situer, en ajouter | `GET /admin/releves`, `GET /admin/releves/{id}`, `POST /admin/releves/{id}/decision`, `GET /admin/relais`, `POST /admin/relais/{id}/activation`, `GET /admin/ecoles`, `PATCH /admin/ecoles/{id}`, `POST /admin/ecoles/{id}/confier`, `PUT /admin/ecoles/{id}/position`, `POST /admin/ecoles` |
 
 - **Chaque envoi porte un identifiant créé sur le téléphone** et répond « reçu » ou « déjà reçu ».
 - **Relevés et photos** : `.insert()` sans `.select()`, photo sans écrasement. Un second envoi du même identifiant renvoie une erreur de doublon (code `23505`, ou 409 pour la photo), que l'adaptateur traduit en « déjà reçu ». Jamais d'`upsert`.
@@ -79,7 +79,7 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - Les relais sont liés à leur compte Google (l'identifiant `sub`), pas seulement à leur identifiant Supabase.
 - Les photos sous des chemins neutres : `releves/<identifiant>/enseigne.jpg`.
 - Des données d'exemple **fictives** seulement. Les vraies écoles connues par les entretiens entrent par `outils/importer-ecoles.ts` (voir `supabase/schema.md`, « Les écoles à situer ») : le CSV et le SQL réels ne passent jamais par git.
-- **Jamais de position inventée** : une école sans position reste « à situer » jusqu'à la contre-visite d'un relais.
+- **Jamais de position inventée** : une position vient d'un relais sur place, ou de l'administration qui connaît l'école et la prend sur une carte (`situer_ecole`, `ajouter_ecole`, décision du fondateur le 31/10 ; la base garde qui et quand : `situee_par`, `situee_le`). Sinon l'école reste « à situer ». Une fiche qu'aucun relevé n'a décrite dit « Fiche ajoutée par NTanova le … », jamais « relevée par un jeune du quartier ».
 - Les migrations s'appliquent depuis le Mac du fondateur (`pnpm exec supabase db push`), après relecture. Jamais depuis la CI pour l'instant.
 
 ## Secrets
