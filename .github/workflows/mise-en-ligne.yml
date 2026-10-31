@@ -1,8 +1,17 @@
 name: Mise en ligne
 
-# La première semaine, pas de bouton dans l'administration : une construction chaque
-# nuit (elle relit la base, ce qui la garde éveillée), et un lancement à la main
-# depuis l'onglet Actions de GitHub quand il faut publier tout de suite.
+# Rien ne part en ligne sans que tous les tests passent :
+#   1. les contrôles d'une pull request (verif.yml : format, lint, types, tests
+#      unitaires, parcours Playwright, tests de la base) ;
+#   2. une seule construction, envoyée telle quelle sur essai.ntanova.com ;
+#   3. les contrôles en ligne sur essai (tests/en-ligne/) ;
+#   4. seulement alors, la même construction sur ntanova.com, puis ses contrôles en ligne.
+# La production ne part que de `main` ; le site d'essai peut recevoir une branche,
+# pour essayer une pull request sur un téléphone avant de la fusionner.
+#
+# La première semaine, pas de bouton dans l'administration : une mise en ligne
+# chaque nuit (elle relit la base, ce qui la garde éveillée), et un lancement à la
+# main depuis l'onglet Actions de GitHub.
 on:
   workflow_dispatch:
     inputs:
@@ -27,17 +36,15 @@ env:
   ASTRO_TELEMETRY_DISABLED: 1
 
 jobs:
-  mise-en-ligne:
-    name: ${{ matrix.cible }}
+  controles:
+    name: Contrôles
+    uses: ./.github/workflows/verif.yml
+
+  construction:
+    name: Construction
+    needs: controles
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        cible: >-
-          ${{ (github.event_name == 'schedule' || inputs.cible == 'les deux')
-              && fromJSON('["essai","production"]')
-              || fromJSON(format('["{0}"]', inputs.cible)) }}
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -45,31 +52,95 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
-
-      # Rien ne part en ligne sans passer les mêmes contrôles qu'une pull request.
-      - name: Contrôles et construction
-        run: pnpm verif
+      - name: Construction avec les valeurs publiques du dépôt
+        run: pnpm build && pnpm poids
         env:
           PUBLIC_WHATSAPP: ${{ vars.PUBLIC_WHATSAPP }}
           PUBLIC_SUPABASE_URL: ${{ vars.PUBLIC_SUPABASE_URL }}
           PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.PUBLIC_GOOGLE_CLIENT_ID }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site
+          path: dist/
+          retention-days: 7
 
+  essai:
+    name: Essai (essai.ntanova.com)
+    needs: construction
+    if: github.event_name == 'schedule' || inputs.cible != 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: dist/
       - name: Envoi chez Cloudflare
-        run: pnpm exec wrangler deploy ${{ matrix.cible == 'essai' && '--env essai' || '' }}
+        run: pnpm exec wrangler deploy --env essai
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Le site répond
+      - name: Contrôles en ligne
         run: |
-          adresse=${{ matrix.cible == 'essai' && 'https://essai.ntanova.com/' || 'https://ntanova.com/' }}
-          # La première fois, Cloudflare crée le certificat du domaine : quelques minutes.
-          for tentative in $(seq 1 18); do
-            if curl -fsS -o /dev/null "$adresse"; then echo "$adresse répond"; exit 0; fi
-            sleep 10
-          done
-          echo "$adresse ne répond pas" >&2
-          exit 1
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:en-ligne
+        env:
+          ADRESSE: https://essai.ntanova.com
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: rapport-essai
+          path: playwright-report/
+          retention-days: 7
+
+  production:
+    name: Production (ntanova.com)
+    needs: [construction, essai]
+    # Seulement depuis main, et seulement si le site d'essai a passé ses contrôles
+    # (ou n'était pas demandé).
+    if: >-
+      always()
+      && needs.construction.result == 'success'
+      && (needs.essai.result == 'success' || needs.essai.result == 'skipped')
+      && github.ref == 'refs/heads/main'
+      && (github.event_name == 'schedule' || inputs.cible != 'essai')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: dist/
+      - name: Envoi chez Cloudflare
+        run: pnpm exec wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Contrôles en ligne
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:en-ligne
+        env:
+          ADRESSE: https://ntanova.com
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: rapport-production
+          path: playwright-report/
+          retention-days: 7

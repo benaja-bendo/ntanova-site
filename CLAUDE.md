@@ -115,8 +115,15 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 
 ## Mise en ligne
 
-- Cloudflare Workers, fichiers statiques de `dist/` (`wrangler.jsonc`) : production `ntanova.com` ; `--env essai` pour `essai.ntanova.com`, la seule adresse de prévisualisation déclarée chez Google pour la connexion.
-- La mise en ligne passe par GitHub Actions (`.github/workflows/mise-en-ligne.yml`), jamais depuis un poste. La première semaine, pas de bouton : une construction chaque nuit (essai et production), et un lancement à la main depuis l'onglet Actions (`gh workflow run mise-en-ligne.yml -f cible=essai`). Le workflow refait `pnpm verif` avant d'envoyer, puis vérifie que l'adresse répond.
+- Cloudflare Workers, fichiers statiques de `dist/` (`wrangler.jsonc`) : production `ntanova.com` ; `--env essai` pour `essai.ntanova.com`, la seule adresse de prévisualisation déclarée chez Google pour la connexion. Les deux sites lisent et écrivent **la même base** Supabase.
+- **`essai.ntanova.com`, c'est la prochaine version ; `ntanova.com`, celle que le public et les relais utilisent.** Une branche peut aller sur essai pour être essayée sur un téléphone avant d'être fusionnée ; la production ne part que de `main`.
+- La mise en ligne passe par GitHub Actions (`.github/workflows/mise-en-ligne.yml`), jamais depuis un poste. **Rien ne part sans que tous les tests passent**, dans cet ordre :
+  1. les contrôles d'une pull request (`verif.yml`, rappelé tel quel : `pnpm verif`, parcours Playwright, tests pgTAP) ;
+  2. une seule construction, envoyée telle quelle sur essai ;
+  3. les contrôles en ligne sur essai (`pnpm test:en-ligne`, `tests/en-ligne/`, en lecture seule) ;
+  4. la même construction sur `ntanova.com`, puis ses contrôles en ligne.
+- La première semaine, pas de bouton : une mise en ligne chaque nuit, et un lancement à la main (`gh workflow run mise-en-ligne.yml -f cible=essai`, ou `--ref <branche>` pour essayer une branche sur essai).
+- **Chaque bug corrigé arrive avec un test qui échoue sans le correctif** (vérifier qu'il échoue sur l'ancien code). GitHub ne protège pas `main` sur un dépôt privé gratuit : c'est la mise en ligne qui refait tous les contrôles.
 - Les valeurs publiques de la construction sont des **variables** GitHub (`vars.PUBLIC_…`), pas des secrets.
 
 ## Git

@@ -22,7 +22,8 @@
     "base:arreter": "supabase stop",
     "base:reset": "supabase db reset",
     "base:tests": "supabase test db",
-    "verif": "pnpm format:check && pnpm lint && pnpm couleurs && pnpm check && pnpm test && pnpm build && pnpm poids"
+    "verif": "pnpm format:check && pnpm lint && pnpm couleurs && pnpm check && pnpm test && pnpm build && pnpm poids",
+    "test:en-ligne": "playwright test -c playwright.en-ligne.config.ts"
   },
   "dependencies": {
     "@astrojs/react": "^7.1.2",
