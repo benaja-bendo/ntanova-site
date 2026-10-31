@@ -1,0 +1,241 @@
+/**
+ * La fiche d'une école telle que le relais la remplit, étape par étape, dans son
+ * téléphone. Elle part ensuite en trois envois : le relevé, la photo, le contact.
+ */
+import { z } from 'zod';
+import { listes, type Valeur } from './listes';
+import type { Point } from './geo';
+import type { ContactAEnvoyer, ReleveAEnvoyer } from './ports';
+import { normaliserTelephone } from './telephone';
+
+export interface ContactSaisi {
+  fonction: Valeur<'fonction_direction'> | null;
+  nom: string;
+  whatsapp: string;
+  accord: boolean;
+  accordLe: string | null;
+  /** « Ce qu'on vous a dit », en cas de refus. */
+  note: string;
+}
+
+export interface FicheLocale {
+  id: string;
+  creeeLe: string;
+  type: 'releve' | 'correction';
+  corrigeReleveId: string | null;
+  lotId: string | null;
+
+  // 1/3 : photo et position
+  /** Effacée du téléphone dès que la base l'a reçue. */
+  photo: Blob | null;
+  position: Point | null;
+  precisionM: number | null;
+  prisLe: string | null;
+  horsLot: boolean | null;
+  /** L'école publiée (ou la fiche du téléphone, sans identifiant d'école) relevée à moins de 40 m. */
+  doublonPropose: { ecoleId: string | null; nom: string } | null;
+  reponseDoublon: Valeur<'reponse_doublon'> | null;
+
+  // 2/3 : ce qui se voit de la rue (public)
+  nomEnseigne: string;
+  niveaux: Valeur<'niveau'>[];
+  typeEcole: Valeur<'type_ecole'>;
+  repere: string;
+  numeroEnseigne: string;
+
+  // 3/3 : la direction (privé)
+  direction: Valeur<'direction_vue'> | null;
+  /** Effacé du téléphone dès que la base l'a reçu. */
+  contact: ContactSaisi | null;
+  repasser: string;
+
+  // L'envoi
+  etat: 'brouillon' | 'a_envoyer' | 'envoyee';
+  envoyes: { releve: boolean; photo: boolean; contact: boolean };
+  dernierEssai: string | null;
+}
+
+export function nouvelleFiche(
+  id: string,
+  maintenant: string,
+  lotId: string | null,
+  corrige: { releveId: string; nomEnseigne: string } | null = null,
+): FicheLocale {
+  return {
+    id,
+    creeeLe: maintenant,
+    type: corrige ? 'correction' : 'releve',
+    corrigeReleveId: corrige?.releveId ?? null,
+    lotId,
+    photo: null,
+    position: null,
+    precisionM: null,
+    prisLe: null,
+    horsLot: null,
+    doublonPropose: null,
+    reponseDoublon: null,
+    nomEnseigne: corrige?.nomEnseigne ?? '',
+    niveaux: [],
+    typeEcole: 'privee',
+    repere: '',
+    numeroEnseigne: '',
+    direction: null,
+    contact: null,
+    repasser: '',
+    etat: 'brouillon',
+    envoyes: { releve: false, photo: false, contact: false },
+    dernierEssai: null,
+  };
+}
+
+export function contactVide(): ContactSaisi {
+  return { fonction: null, nom: '', whatsapp: '', accord: false, accordLe: null, note: '' };
+}
+
+// Les contrôles de chaque étape -----------------------------------------------
+
+/** Les messages d'erreur, champ par champ. Vide : l'étape est complète. */
+export type Erreurs = Partial<Record<string, string>>;
+
+function erreursDe(resultat: z.ZodSafeParseResult<unknown>): Erreurs {
+  if (resultat.success) return {};
+  const erreurs: Erreurs = {};
+  for (const probleme of resultat.error.issues) {
+    const champ = String(probleme.path[0] ?? 'fiche');
+    erreurs[champ] ??= probleme.message;
+  }
+  return erreurs;
+}
+
+const etape1 = z
+  .object({
+    photo: z.custom<Blob>((v) => v != null, { message: "Ajoutez la photo de l'enseigne." }),
+    doublonPropose: z.unknown(),
+    reponseDoublon: z.unknown(),
+  })
+  .refine((f) => f.doublonPropose == null || f.reponseDoublon != null, {
+    message: 'Dites si c’est la même école.',
+    path: ['reponseDoublon'],
+  });
+
+/** La position n'est pas exigée : si le GPS échoue, le relais peut continuer, et NTanova le voit. */
+export function erreursEtape1(fiche: FicheLocale): Erreurs {
+  return erreursDe(etape1.safeParse(fiche));
+}
+
+const telephoneFacultatif = (message: string) =>
+  z.string().refine((v) => v.trim() === '' || normaliserTelephone(v) !== null, { message });
+
+const etape2 = z.object({
+  nomEnseigne: z
+    .string()
+    .trim()
+    .min(1, "Écrivez le nom qui est sur l'enseigne.")
+    .max(200, 'Ce nom est trop long.'),
+  niveaux: z.array(z.enum(listes.niveau)),
+  typeEcole: z.enum(listes.type_ecole),
+  repere: z.string().max(300, 'Ce repère est trop long.'),
+  numeroEnseigne: telephoneFacultatif('Ce numéro ne semble pas complet.'),
+});
+
+export function erreursEtape2(fiche: FicheLocale): Erreurs {
+  return erreursDe(etape2.safeParse(fiche));
+}
+
+const etape3 = z.discriminatedUnion('direction', [
+  z.object({
+    direction: z.literal('vue'),
+    contact: z
+      .object({
+        fonction: z.enum(listes.fonction_direction, { message: 'Choisissez sa fonction.' }),
+        nom: z.string().max(120, 'Ce nom est trop long.'),
+        accord: z.boolean(),
+        whatsapp: z.string(),
+      })
+      .refine((c) => c.accord || c.whatsapp.trim() === '', {
+        message: 'Sans son accord, ne notez pas son numéro.',
+        path: ['whatsapp'],
+      })
+      .refine((c) => c.whatsapp.trim() === '' || normaliserTelephone(c.whatsapp) !== null, {
+        message: 'Ce numéro ne semble pas complet.',
+        path: ['whatsapp'],
+      }),
+  }),
+  z.object({ direction: z.literal('absente'), repasser: z.string().max(200) }),
+  z.object({
+    direction: z.literal('refus'),
+    contact: z.object({ note: z.string().max(1000, 'Ce texte est trop long.') }).nullable(),
+  }),
+]);
+
+export function erreursEtape3(fiche: FicheLocale): Erreurs {
+  if (fiche.direction === null) return { direction: 'Dites si vous avez vu la direction.' };
+  const resultat = etape3.safeParse(fiche);
+  if (resultat.success) return {};
+  // Les erreurs du contact portent le nom du champ du contact (fonction, whatsapp…).
+  const erreurs: Erreurs = {};
+  for (const probleme of resultat.error.issues) {
+    const champ = String(probleme.path.at(-1) ?? 'fiche');
+    erreurs[champ] ??= probleme.message;
+  }
+  return erreurs;
+}
+
+// Ce qui part vers la base ----------------------------------------------------
+
+const vide = (texte: string) => (texte.trim() === '' ? null : texte.trim());
+
+export function versReleve(fiche: FicheLocale): ReleveAEnvoyer {
+  return {
+    id: fiche.id,
+    lotId: fiche.lotId,
+    type: fiche.type,
+    corrigeReleveId: fiche.corrigeReleveId,
+    position: fiche.position,
+    precisionM: fiche.precisionM === null ? null : Math.round(fiche.precisionM),
+    prisLe: fiche.prisLe ?? fiche.creeeLe,
+    reponseDoublon: fiche.reponseDoublon,
+    doublonDe: fiche.reponseDoublon === 'la_meme' ? (fiche.doublonPropose?.ecoleId ?? null) : null,
+    nomEnseigne: fiche.nomEnseigne.trim(),
+    niveaux: fiche.niveaux,
+    typeEcole: fiche.typeEcole,
+    repere: vide(fiche.repere),
+    numeroEnseigne: normaliserTelephone(fiche.numeroEnseigne),
+    direction: fiche.direction,
+    repasser: fiche.direction === 'absente' ? vide(fiche.repasser) : null,
+  };
+}
+
+/** Le contact à envoyer, ou null s'il n'y a rien à envoyer. */
+export function versContact(fiche: FicheLocale): ContactAEnvoyer | null {
+  const c = fiche.contact;
+  if (c === null) return null;
+  if (fiche.direction === 'vue') {
+    return {
+      releveId: fiche.id,
+      fonction: c.fonction,
+      nom: vide(c.nom),
+      whatsapp: c.accord ? normaliserTelephone(c.whatsapp) : null,
+      accord: c.accord,
+      accordLe: c.accord ? c.accordLe : null,
+      note: null,
+    };
+  }
+  if (fiche.direction === 'refus' && vide(c.note) !== null) {
+    return {
+      releveId: fiche.id,
+      fonction: null,
+      nom: null,
+      whatsapp: null,
+      accord: false,
+      accordLe: null,
+      note: vide(c.note),
+    };
+  }
+  return null;
+}
+
+/** La fiche est-elle entièrement partie ? */
+export function toutEnvoye(fiche: FicheLocale): boolean {
+  return fiche.envoyes.releve && fiche.envoyes.photo && fiche.envoyes.contact;
+}

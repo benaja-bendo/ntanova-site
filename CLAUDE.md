@@ -19,6 +19,7 @@ Le catalogue du système de design : http://localhost:4321/dev/catalogue/ (en d�
 
 - `pnpm verif` : format, lint (dont les frontières), couleurs, types, tests unitaires, construction, poids des pages. **Rien n'est fini tant qu'elle ne passe pas.** La CI (`.github/workflows/verif.yml`) lance la même commande.
 - `pnpm test:parcours` : les parcours Playwright, dans un téléphone Android de 360 px, sur le site construit servi par wrangler comme en production.
+  Le site y est construit avec le **faux serveur** (`PUBLIC_ADAPTATEUR=faux`, `src/infra/faux/`) : l'espace relais tourne sans Supabase, hors ligne compris. Le parcours « trois fiches hors ligne, le réseau revient, tout est parti, le contact a disparu du téléphone » ne doit jamais être affaibli.
 - `pnpm base:tests` : les tests pgTAP des droits et des règles de la base (`supabase/tests/`), sur la base locale (`pnpm base:demarrer`, Docker). La CI les lance aussi.
 
 ## Architecture
@@ -131,4 +132,6 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - **TypeScript reste en 6.0** : `typescript-eslint` et `@astrojs/check` ne prennent pas encore la 7.
 - **`astro preview` part en arrière-plan quand un agent le lance** (Astro 7) : `pnpm preview` utilise donc `wrangler dev`, qui sert le site comme Cloudflare.
 - **En local, le conteneur des journaux de Supabase (`analytics`) échoue au démarrage** : il est coupé dans `supabase/config.toml`, avec le temps réel et les fonctions edge, inutilisés.
+- **Le service worker de `/relais/`** est écrit à la construction (`outils/integration-relais.mjs`, modèle `outils/sw-relais.js`) avec la liste des fichiers à garder ; il n'est pas enregistré sur `localhost` (`pnpm dev`), seulement sur `127.0.0.1` (parcours) et en ligne.
+- **`react-hooks` refuse un `setState` direct dans un effet** : lancer l'action dans l'effet, et changer l'état dans ses rappels (voir `lancer` dans `src/app/relais/App.tsx`).
 - Les règles `no-restricted-imports` d'ESLint ne se cumulent pas : pour un fichier, seul le dernier bloc qui le vise compte. Chaque bloc de `frontiere()` donne donc la liste complète de son dossier.
