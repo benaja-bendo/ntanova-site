@@ -217,3 +217,10 @@ export function jour(iso: string, maintenant = new Date()): string {
   if (memeJour(d, hier)) return 'Hier';
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
+
+/** « aujourd'hui à 14 h 05 », « hier à 9 h 02 », « le 31/10 à 14 h 05 » */
+export function quand(iso: string, maintenant = new Date()): string {
+  const j = jour(iso, maintenant);
+  const date = j === "Aujourd'hui" ? "aujourd'hui" : j === 'Hier' ? 'hier' : `le ${j}`;
+  return `${date} à ${heure(iso)}`;
+}

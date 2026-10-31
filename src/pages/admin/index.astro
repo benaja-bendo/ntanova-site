@@ -1,0 +1,23 @@
+---
+// L'administration : une page, pour le fondateur. Pas de service worker : elle
+// demande du réseau, et rien n'y est gardé dans le navigateur.
+import '../../ui/jetons.css';
+import '../../ui/base.css';
+import '../../ui/composants.css';
+import App from '../../app/admin/App';
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Administration · NTanova</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <App client:only="react" />
+    <noscript>L'administration demande JavaScript.</noscript>
+  </body>
+</html>
