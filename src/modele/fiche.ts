@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { listes, type Valeur } from './listes';
 import type { Point } from './geo';
-import type { ContactAEnvoyer, ReleveAEnvoyer } from './ports';
+import type { ContactAEnvoyer, EcoleACompleter, ReleveAEnvoyer } from './ports';
 import { normaliserTelephone } from './telephone';
 
 export interface ContactSaisi {
@@ -21,7 +21,7 @@ export interface ContactSaisi {
 export interface FicheLocale {
   id: string;
   creeeLe: string;
-  type: 'releve' | 'correction';
+  type: 'releve' | 'correction' | 'contre_visite';
   corrigeReleveId: string | null;
   lotId: string | null;
 
@@ -85,6 +85,29 @@ export function nouvelleFiche(
     etat: 'brouillon',
     envoyes: { releve: false, photo: false, contact: false },
     dernierEssai: null,
+  };
+}
+
+/**
+ * La contre-visite d'une école connue, confiée au relais : ce qu'on sait déjà est
+ * prérempli, le relais le vérifie sur place, et la fiche dit quelle école elle visite.
+ */
+export function nouvelleContreVisite(
+  id: string,
+  maintenant: string,
+  lotId: string | null,
+  ecole: EcoleACompleter,
+): FicheLocale {
+  return {
+    ...nouvelleFiche(id, maintenant, lotId),
+    type: 'contre_visite',
+    doublonPropose: { ecoleId: ecole.id, nom: ecole.nom },
+    reponseDoublon: 'la_meme',
+    nomEnseigne: ecole.nom,
+    niveaux: ecole.niveaux,
+    typeEcole: ecole.typeEcole,
+    repere: ecole.repere ?? '',
+    numeroEnseigne: ecole.numeroEnseigne ? `+${ecole.numeroEnseigne}` : '',
   };
 }
 
