@@ -19,18 +19,7 @@ export function useRelais(): Contexte {
   return contexte;
 }
 
-function abonnerReseau(rappel: () => void) {
-  addEventListener('online', rappel);
-  addEventListener('offline', rappel);
-  return () => {
-    removeEventListener('online', rappel);
-    removeEventListener('offline', rappel);
-  };
-}
-
-export function useEnLigne(): boolean {
-  return useSyncExternalStore(abonnerReseau, () => navigator.onLine);
-}
+export { useEnLigne } from '../commun/BoutonGoogle';
 
 // La navigation : #lot, #fiches, #ajouter/1… Le dièse survit à la fermeture de
 // l'onglet pendant la photo, et la page /relais/ reste la seule à mettre en cache.

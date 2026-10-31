@@ -1,87 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import { PUBLIC_GOOGLE_CLIENT_ID } from 'astro:env/client';
-import { useRelais, useEnLigne } from '../contexte';
+import { BoutonGoogle as BoutonCommun } from '../../commun/BoutonGoogle';
+import { useRelais } from '../contexte';
 import { Icone } from '../composants';
-import { afficherBoutonGoogle, lienChrome, navigateurIntegre } from '../google';
 import { journaliser } from '../journal';
 
-/** Le bouton de connexion : celui de Google, ou « Ouvrir dans Chrome » dans un navigateur intégré. */
+/** Le bouton de connexion de l'espace relais. */
 export function BoutonGoogle() {
   const { adaptateurs, surConnexion } = useRelais();
-  const enLigne = useEnLigne();
-  const zone = useRef<HTMLDivElement>(null);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [attente, setAttente] = useState(false);
-  const integre = navigateurIntegre();
-  const erreurConfiguration =
-    adaptateurs.nom === 'supabase' && !PUBLIC_GOOGLE_CLIENT_ID
-      ? 'PUBLIC_GOOGLE_CLIENT_ID manque.'
-      : null;
-
-  const connecter = async (jeton: string, nonce: string) => {
-    setAttente(true);
-    setErreur(null);
-    try {
-      await adaptateurs.session.connecterAvecGoogle(jeton, nonce);
-      surConnexion();
-    } catch (e) {
-      await journaliser('connexion', 'connexion_refusee', e);
-      setErreur('La connexion a échoué. Vérifiez le réseau, puis réessayez.');
-    } finally {
-      setAttente(false);
-    }
-  };
-
-  useEffect(() => {
-    if (integre || !enLigne || adaptateurs.nom === 'faux' || !zone.current) return;
-    if (!PUBLIC_GOOGLE_CLIENT_ID) return;
-    afficherBoutonGoogle(
-      zone.current,
-      PUBLIC_GOOGLE_CLIENT_ID,
-      (j, n) => void connecter(j, n),
-    ).catch((e: unknown) => {
-      void journaliser('connexion', 'google_indisponible', e);
-      setErreur('Google ne répond pas. Vérifiez le réseau, puis rechargez la page.');
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [integre, enLigne, adaptateurs]);
-
-  if (integre) {
-    return (
-      <div className="pile">
-        <a className="bouton" href={lienChrome()}>
-          Ouvrir dans Chrome
-        </a>
-        <p className="mention centre">
-          Google refuse la connexion dans WhatsApp. Ouvrez la page dans Chrome, puis connectez-vous.
-        </p>
-      </div>
-    );
-  }
-  if (!enLigne) {
-    return (
-      <p className="bandeau bandeau-attente">
-        <Icone nom="horsLigne" />
-        La connexion demande du réseau. Elle se fait une fois ; ensuite, le relevé marche hors
-        ligne.
-      </p>
-    );
-  }
   return (
-    <div className="pile">
-      {adaptateurs.nom === 'faux' ? (
-        <button type="button" className="bouton" onClick={() => void connecter('faux', 'faux')}>
-          Continuer avec mon compte Google
-        </button>
-      ) : (
-        <div ref={zone} className="zone-google" aria-busy={attente} />
-      )}
-      {(erreur ?? erreurConfiguration) && (
-        <p className="message-erreur centre" role="alert">
-          {erreur ?? erreurConfiguration}
-        </p>
-      )}
-    </div>
+    <BoutonCommun
+      session={adaptateurs.session}
+      faux={adaptateurs.nom === 'faux'}
+      surConnexion={surConnexion}
+      surErreur={(code, e) => void journaliser('connexion', code, e)}
+      horsLigne="La connexion demande du réseau. Elle se fait une fois ; ensuite, le relevé marche hors ligne."
+    />
   );
 }
 

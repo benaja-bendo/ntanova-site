@@ -78,6 +78,7 @@ export default defineConfig(
   frontiere('modele', [supabase, react, versInfra, versApp, versUi, versPages]),
   frontiere('ui', [supabase, versInfra, versApp, versPages]),
   frontiere('infra', [versApp, versUi, versPages]),
+  frontiere('app/commun', [supabase, infraInterne, versRelais, versAdmin, versPages]),
   frontiere('app/relais', [supabase, infraInterne, versAdmin, versPages]),
   frontiere('app/admin', [supabase, infraInterne, versRelais, versPages]),
 );
