@@ -387,17 +387,45 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           options={listes.niveau.map((n) => ({ valeur: n, libelle: libelleNiveau[n] }))}
           valeurs={fiche.niveaux}
           surChoix={basculerNiveau}
+          colonnes={2}
+          erreur={erreurs.niveaux}
         />
 
-        <Choix
-          legende="Type d'école"
-          options={(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => ({
-            valeur: t,
-            libelle: libelleTypeEcole[t],
-          }))}
-          valeurs={[fiche.typeEcole]}
-          surChoix={(t) => modifier({ typeEcole: t })}
-        />
+        <div className="pile-serree">
+          <Choix
+            legende="Type d'école"
+            options={(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => ({
+              valeur: t,
+              libelle: libelleTypeEcole[t],
+            }))}
+            valeurs={[fiche.typeEcole]}
+            surChoix={(t) => modifier({ typeEcole: t })}
+            colonnes={2}
+            erreur={erreurs.typeEcole}
+          />
+          <p className="mention">
+            <b>Pas indiqué</b>&nbsp;: rien d'écrit. <b>Autre</b>&nbsp;: c'est écrit mais ça ne
+            rentre pas, dites-le dans la ligne du dessous.
+          </p>
+        </div>
+
+        <Champ
+          libelle="Programme, langues ou autre mention écrite"
+          facultatif
+          erreur={erreurs.programme}
+        >
+          {(a) => (
+            <input
+              {...a}
+              className="champ"
+              type="text"
+              autoComplete="off"
+              placeholder="Ex. : français-congolais, bilingue"
+              value={fiche.programme ?? ''}
+              onChange={(e) => modifier({ programme: e.target.value })}
+            />
+          )}
+        </Champ>
 
         <Champ libelle="Repère" facultatif erreur={erreurs.repere}>
           {(a) => (

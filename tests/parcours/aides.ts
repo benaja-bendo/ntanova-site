@@ -10,7 +10,7 @@ export async function seConnecter(page: Page, adresse: string): Promise<void> {
 }
 
 /** Remplit Ajouter 1/3 à 3/3 depuis « Mon lot », puis revient sur « Mon lot ». */
-export async function ajouterUneEcole(page: Page, n: number) {
+export async function ajouterUneEcole(page: Page, n: number, options: { programme?: string } = {}) {
   await page.getByRole('button', { name: 'Ajouter une école' }).click();
   await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
   await page.locator('input[type=file]').first().setInputFiles(photo);
@@ -21,6 +21,9 @@ export async function ajouterUneEcole(page: Page, n: number) {
 
   await page.getByLabel("Nom sur l'enseigne").fill(`[École ${n}]`);
   await page.getByRole('button', { name: 'Primaire' }).click();
+  if (options.programme) {
+    await page.getByLabel(/Programme, langues ou autre mention écrite/).fill(options.programme);
+  }
   await page.getByRole('button', { name: 'Suivant' }).click();
 
   await page.getByRole('button', { name: 'Oui', exact: true }).click();
@@ -37,11 +40,15 @@ export async function ajouterUneEcole(page: Page, n: number) {
  * « à valider », avec sa photo et le contact de la direction.
  * Le test appelant déclare `test.use({ permissions: ['geolocation'] })`.
  */
-export async function uneFicheEnvoyee(page: Page, context: BrowserContext) {
+export async function uneFicheEnvoyee(
+  page: Page,
+  context: BrowserContext,
+  options: { programme?: string } = {},
+) {
   await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-  await ajouterUneEcole(page, 1);
+  await ajouterUneEcole(page, 1, options);
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
   // Le faux serveur a bien reçu le relevé, la photo et le contact.
   await expect

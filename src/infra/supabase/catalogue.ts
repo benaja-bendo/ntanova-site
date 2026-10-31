@@ -1,3 +1,4 @@
+import { niveauxConnus, typeConnu } from '../../modele/listes';
 import type {
   ArrondissementPublic,
   EcolePubliee,
@@ -43,8 +44,12 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           slug: string;
           nom: string;
           quartier: string | null;
-          type_ecole: EcolePubliee['typeEcole'];
-          niveaux: EcolePubliee['niveaux'];
+          // Tels que la base les dit : une valeur ajoutée depuis la dernière mise en ligne du site
+          // est possible, et ne casse ni la construction ni la page.
+          type_ecole: string;
+          niveaux: string[];
+          // Absente tant que la migration du programme n'est pas poussée.
+          programme?: string | null;
           repere: string | null;
           numero_enseigne: string | null;
           latitude: number | null;
@@ -59,8 +64,9 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
         slug: e.slug,
         nom: e.nom,
         quartier: e.quartier,
-        typeEcole: e.type_ecole,
-        niveaux: e.niveaux,
+        typeEcole: typeConnu(e.type_ecole),
+        niveaux: niveauxConnus(e.niveaux),
+        programme: e.programme ?? null,
         repere: e.repere,
         numeroEnseigne: e.numero_enseigne,
         latitude: e.latitude,

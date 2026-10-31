@@ -42,6 +42,54 @@ describe('le catalogue du site public', () => {
     ]);
   });
 
+  const ligne = (champs: Record<string, unknown>) => ({
+    id: 'e1',
+    arrondissement: 'tie-tie',
+    slug: 'ecole-exemple',
+    nom: '[École exemple]',
+    quartier: null,
+    type_ecole: 'privee',
+    niveaux: ['primaire'],
+    repere: null,
+    numero_enseigne: null,
+    latitude: null,
+    longitude: null,
+    etat: 'relevee',
+    mis_a_jour_le: '2026-11-02T10:00:00Z',
+    ...champs,
+  });
+  const lireAvec = async (lignes: Record<string, unknown>[]) => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify(lignes)));
+    return creerCatalogue('https://base.exemple', 'cle-publique').ecoles();
+  };
+
+  it('lit le programme, ou rien tant que la colonne n’existe pas dans la base', async () => {
+    const [avec, sans] = await lireAvec([
+      ligne({ programme: 'Programme français-congolais, bilingue' }),
+      ligne({ slug: 'ecole-sans-colonne' }),
+    ]);
+    expect(avec?.programme).toBe('Programme français-congolais, bilingue');
+    expect(sans?.programme).toBeNull();
+  });
+
+  it('lit les nouveaux types et niveaux tels quels', async () => {
+    const [e] = await lireAvec([
+      ligne({ type_ecole: 'communautaire', niveaux: ['creche', 'technique', 'autre_formation'] }),
+    ]);
+    expect(e).toMatchObject({
+      typeEcole: 'communautaire',
+      niveaux: ['creche', 'technique', 'autre_formation'],
+    });
+  });
+
+  it('une valeur que ce code ne connaît pas encore ne casse ni la construction ni la page', async () => {
+    const [e] = await lireAvec([
+      ligne({ type_ecole: 'type_de_demain', niveaux: ['primaire', 'niveau_de_demain'] }),
+    ]);
+    expect(e?.typeEcole).toBe('non_indique');
+    expect(e?.niveaux).toEqual(['primaire']);
+  });
+
   it('arrête la construction si la base ne répond pas : jamais un annuaire vide par erreur', async () => {
     vi.stubGlobal('fetch', async () => new Response('indisponible', { status: 503 }));
     await expect(creerCatalogue('https://base.exemple', 'cle').ecoles()).rejects.toThrow(

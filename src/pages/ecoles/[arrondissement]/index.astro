@@ -3,7 +3,7 @@
 import type { GetStaticPaths } from 'astro';
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirCatalogue } from '../../../infra/index';
-import { libelleNiveau, libelleTypeEcole } from '../../../modele/libelles';
+import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../../../modele/libelles';
 import type { ArrondissementPublic, EcolePubliee } from '../../../modele/ports';
 import { numeroArrondissement } from '../../../modele/pointe-noire';
 import { lienWhatsApp } from '../../../modele/whatsapp';
@@ -36,7 +36,7 @@ const manque = lienWhatsApp(
 const resume = (e: EcolePubliee) =>
   [
     e.niveaux.map((n) => libelleNiveau[n]).join(' · '),
-    e.typeEcole === 'non_indique' ? null : libelleTypeEcole[e.typeEcole],
+    typeInformatif(e.typeEcole) ? libelleTypeEcole[e.typeEcole] : null,
     e.repere,
   ]
     .filter(Boolean)
@@ -45,7 +45,7 @@ const resume = (e: EcolePubliee) =>
 
 <PagePublique
   titre={`Les écoles de ${arrondissement.nom} · NTanova`}
-  description={`Les écoles de ${arrondissement.nom}, à Pointe-Noire : maternelles, primaires, collèges et lycées, relevés sur place.`}
+  description={`Les écoles de ${arrondissement.nom}, à Pointe-Noire : de la crèche au supérieur, relevées sur place.`}
   whatsapp={whatsapp}
 >
   <section class="cadre page liste">

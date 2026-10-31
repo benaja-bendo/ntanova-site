@@ -61,6 +61,10 @@ interface EcoleFausse {
   } | null;
   /** Le lot du relevé qui a fait l'école (pour « Publier un lot »). */
   lotId?: string | null;
+  /** Tels que la base les dit ; un parcours y met une valeur qu'un téléphone ne connaît pas encore. */
+  typeEcole?: string;
+  niveaux?: string[];
+  programme?: string | null;
 }
 
 const ECOLE_A_SITUER = '40000000-0000-4000-8000-000000000001';
@@ -209,8 +213,9 @@ const relais: PortRelais = {
         id: e.id,
         nom: e.nom,
         quartier: e.quartier,
-        typeEcole: 'privee' as const,
-        niveaux: ['primaire' as const],
+        typeEcole: e.typeEcole ?? 'privee',
+        niveaux: e.niveaux ?? ['primaire'],
+        programme: e.programme ?? null,
         repere: null,
         numeroEnseigne: null,
         note: e.note,
@@ -306,6 +311,7 @@ const admin: PortAdministration = {
       position: r.position,
       niveaux: r.niveaux,
       typeEcole: r.typeEcole,
+      programme: r.programme,
       repere: r.repere,
       numeroEnseigne: r.numeroEnseigne,
       direction: r.direction,

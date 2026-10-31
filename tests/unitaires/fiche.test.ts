@@ -4,12 +4,14 @@ import {
   erreursEtape1,
   erreursEtape2,
   erreursEtape3,
+  nouvelleContreVisite,
   nouvelleFiche,
   versContact,
   versReleve,
   type FicheLocale,
 } from '../../src/modele/fiche';
 import { dansContour, distanceMetres, plusProche } from '../../src/modele/geo';
+import { listes } from '../../src/modele/listes';
 import { afficherTelephone, normaliserTelephone } from '../../src/modele/telephone';
 
 const fiche = (champs: Partial<FicheLocale> = {}): FicheLocale => ({
@@ -193,6 +195,7 @@ describe('la contre-visite d’une école confiée', () => {
       quartier: '[Quartier]',
       typeEcole: 'privee',
       niveaux: ['primaire'],
+      programme: null,
       repere: '[Repère]',
       numeroEnseigne: '242060000001',
       note: 'Nom à vérifier',
@@ -206,5 +209,105 @@ describe('la contre-visite d’une école confiée', () => {
       repere: '[Repère]',
       numeroEnseigne: '242060000001',
     });
+  });
+});
+
+// Ticket 12 : toutes les écoles, et des listes qui ne bloquent jamais ----------------------
+
+describe('une fiche neuve ne dit que ce que le relais a vu', () => {
+  it('commence à « Pas indiqué », sans niveau ni programme : jamais « Privée » cochée d’avance', () => {
+    const neuve = nouvelleFiche('id', '2026-11-02T08:00:00.000Z', null);
+    expect(neuve.typeEcole).toBe('non_indique');
+    expect(neuve.niveaux).toEqual([]);
+    expect(neuve.programme ?? '').toBe('');
+  });
+
+  it('une fiche où rien n’est choisi part quand même, avec « non_indique »', () => {
+    const f = fiche({ nomEnseigne: '[École]' });
+    expect(erreursEtape2(f)).toEqual({});
+    expect(versReleve(f)).toMatchObject({ typeEcole: 'non_indique', niveaux: [], programme: null });
+  });
+});
+
+describe('le programme, une ligne libre et facultative', () => {
+  it('part nettoyé, ou vide quand il n’y a rien', () => {
+    expect(
+      versReleve(fiche({ nomEnseigne: '[École]', programme: '  Programme français-congolais ' }))
+        .programme,
+    ).toBe('Programme français-congolais');
+    expect(versReleve(fiche({ nomEnseigne: '[École]', programme: '   ' })).programme).toBeNull();
+  });
+
+  it('tient en 200 signes', () => {
+    const f = (programme: string) => fiche({ nomEnseigne: '[École]', programme });
+    expect(erreursEtape2(f('a'.repeat(200)))).toEqual({});
+    expect(erreursEtape2(f('a'.repeat(201)))).toHaveProperty('programme');
+  });
+
+  it('une fiche faite avant le ticket 12, sans programme, se contrôle et part sans erreur', () => {
+    const ancienne: Partial<FicheLocale> = fiche({ nomEnseigne: '[École]' });
+    delete ancienne.programme;
+    expect(erreursEtape2(ancienne as FicheLocale)).toEqual({});
+    expect(versReleve(ancienne as FicheLocale).programme).toBeNull();
+  });
+});
+
+describe('les listes ne bloquent personne', () => {
+  it('tous les types et tous les niveaux, nouveaux compris, passent l’étape 2/3', () => {
+    for (const typeEcole of listes.type_ecole) {
+      expect(erreursEtape2(fiche({ nomEnseigne: '[École]', typeEcole })), typeEcole).toEqual({});
+    }
+    expect(erreursEtape2(fiche({ nomEnseigne: '[École]', niveaux: [...listes.niveau] }))).toEqual(
+      {},
+    );
+  });
+
+  it('une valeur que la version ne connaît pas dit un message en français, champ par champ', () => {
+    const e = erreursEtape2(
+      fiche({
+        nomEnseigne: '[École]',
+        typeEcole: 'type_de_demain' as never,
+        niveaux: ['niveau_de_demain' as never],
+      }),
+    );
+    expect(e.typeEcole).toMatch(/type/i);
+    expect(e.niveaux).toMatch(/niveau/i);
+    expect(`${e.typeEcole} ${e.niveaux}`).not.toMatch(/invalid|expected/i);
+  });
+
+  it('la contre-visite ne reprend que ce que cette version connaît, le reste devient « Pas indiqué »', () => {
+    const ecole = {
+      id: 'ecole-1',
+      nom: '[École connue]',
+      quartier: null,
+      typeEcole: 'type_de_demain',
+      niveaux: ['primaire', 'niveau_de_demain', 'creche'],
+      programme: '[Programme]',
+      repere: null,
+      numeroEnseigne: null,
+      note: null,
+    };
+    const visite = nouvelleContreVisite('r1', '2026-11-02T08:00:00.000Z', 'lot', ecole);
+    expect(visite.typeEcole).toBe('non_indique');
+    expect(visite.niveaux).toEqual(['creche', 'primaire']);
+    expect(visite.programme).toBe('[Programme]');
+    // La fiche avance : rien dans ce que la version ne connaît pas ne bloque l’étape 2/3.
+    expect(erreursEtape2(visite)).toEqual({});
+  });
+
+  it('la contre-visite garde un type connu, nouveau compris', () => {
+    const visite = nouvelleContreVisite('r1', '2026-11-02T08:00:00.000Z', 'lot', {
+      id: 'ecole-1',
+      nom: '[École]',
+      quartier: null,
+      typeEcole: 'communautaire',
+      niveaux: ['autre_formation'],
+      programme: null,
+      repere: null,
+      numeroEnseigne: null,
+      note: null,
+    });
+    expect(visite.typeEcole).toBe('communautaire');
+    expect(visite.niveaux).toEqual(['autre_formation']);
   });
 });

@@ -4,7 +4,7 @@
 import type { GetStaticPaths } from 'astro';
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirCatalogue } from '../../../infra/index';
-import { libelleNiveau, libelleTypeEcole } from '../../../modele/libelles';
+import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../../../modele/libelles';
 import type { ArrondissementPublic, EcolePubliee } from '../../../modele/ports';
 import { dateLongue } from '../../../modele/pointe-noire';
 import { afficherTelephone } from '../../../modele/telephone';
@@ -57,6 +57,11 @@ const lieu =
   e && arrondissement
     ? [e.quartier, arrondissement.nom].filter((x, i, t) => x && t.indexOf(x) === i).join(' · ')
     : '';
+// Ce que la fiche écrit, et ce qui manque : un type « Pas indiqué » ou « Autre » et l'absence de
+// niveaux ne s'écrivent pas en ligne, ils rejoignent « Pas encore sur la fiche ».
+const niveaux = e ? e.niveaux.map((n) => libelleNiveau[n]).join(', ') : '';
+const typeSeLit = e ? typeInformatif(e.typeEcole) : false;
+const aDesProprietes = Boolean(niveaux || typeSeLit || e?.programme || e?.numeroEnseigne);
 ---
 
 {renvoi ? (
@@ -106,20 +111,36 @@ const lieu =
               </p>
             </div>
 
-            <dl class="carte proprietes">
-              <dt>Niveaux</dt>
-              <dd>{e.niveaux.map((n) => libelleNiveau[n]).join(', ') || 'Non indiqués'}</dd>
-              <dt>Type</dt>
-              <dd>{libelleTypeEcole[e.typeEcole]}</dd>
-              {e.numeroEnseigne && (
-                <>
-                  <dt>Numéro sur l'enseigne</dt>
-                  <dd>
-                    <a href={`tel:+${e.numeroEnseigne}`}>{afficherTelephone(e.numeroEnseigne)}</a>
-                  </dd>
-                </>
-              )}
-            </dl>
+            {aDesProprietes && (
+              <dl class="carte proprietes">
+                {niveaux && (
+                  <>
+                    <dt>Niveaux</dt>
+                    <dd>{niveaux}</dd>
+                  </>
+                )}
+                {typeSeLit && (
+                  <>
+                    <dt>Type</dt>
+                    <dd>{libelleTypeEcole[e.typeEcole]}</dd>
+                  </>
+                )}
+                {e.programme && (
+                  <>
+                    <dt>Programme et langues</dt>
+                    <dd>{e.programme}</dd>
+                  </>
+                )}
+                {e.numeroEnseigne && (
+                  <>
+                    <dt>Numéro sur l'enseigne</dt>
+                    <dd>
+                      <a href={`tel:+${e.numeroEnseigne}`}>{afficherTelephone(e.numeroEnseigne)}</a>
+                    </dd>
+                  </>
+                )}
+              </dl>
+            )}
 
             <section class="carte ou" aria-label="Où est l'école">
               <p>
@@ -137,6 +158,8 @@ const lieu =
             <section class="manque">
               <p class="surtitre-doux-public">Pas encore sur la fiche</p>
               <ul class="pastilles-vides">
+                {!niveaux && <li>Niveaux</li>}
+                {!typeSeLit && <li>Type d'école</li>}
                 <li>Frais</li>
                 <li>Photos de l'école</li>
                 <li>Équipements</li>

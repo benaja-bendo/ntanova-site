@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Valeur } from '../../modele/listes';
+import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import type {
   ContactDirection,
   DetailReleve,
@@ -52,8 +52,10 @@ interface LigneDetail {
   nom_enseigne: string;
   position: { coordinates?: [number, number] } | null;
   precision_m: number | null;
-  niveaux: Valeur<'niveau'>[];
-  type_ecole: Valeur<'type_ecole'>;
+  // Tels que la base les dit : une valeur que cette version ne connaît pas encore ne casse rien.
+  niveaux: string[];
+  type_ecole: string;
+  programme?: string | null;
   repere: string | null;
   numero_enseigne: string | null;
   direction: Valeur<'direction_vue'> | null;
@@ -97,7 +99,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         supabase()
           .from('releves')
           .select(
-            'id, recu_le, pris_le, type, nom_enseigne, position, precision_m, niveaux, type_ecole, repere, numero_enseigne, direction, repasser, reponse_doublon, corrige_releve_id, hors_lot, doublon_possible, contact_confirme_le, contact_fonction, relais(prenom), lots(nom, essai), doublon:ecoles!releves_doublon_de_fkey(id, nom)',
+            'id, recu_le, pris_le, type, nom_enseigne, position, precision_m, niveaux, type_ecole, programme, repere, numero_enseigne, direction, repasser, reponse_doublon, corrige_releve_id, hors_lot, doublon_possible, contact_confirme_le, contact_fonction, relais(prenom), lots(nom, essai), doublon:ecoles!releves_doublon_de_fkey(id, nom)',
           )
           .eq('id', id)
           .single<LigneDetail>(),
@@ -122,8 +124,9 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         contactRecu: file.data?.contact_recu ?? false,
         position:
           latitude !== undefined && longitude !== undefined ? { latitude, longitude } : null,
-        niveaux: r.niveaux,
-        typeEcole: r.type_ecole,
+        niveaux: niveauxConnus(r.niveaux),
+        typeEcole: typeConnu(r.type_ecole),
+        programme: r.programme ?? null,
         repere: r.repere,
         numeroEnseigne: r.numero_enseigne,
         direction: r.direction,
