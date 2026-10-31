@@ -1,45 +1,119 @@
 ---
-// Page d'attente, en ligne tant que l'annuaire n'est pas ouvert.
+// L'accueil : les arrondissements relevés, et ce que chacun compte d'écoles publiées.
+// Construit à partir de la base ; aucun JavaScript.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirCatalogue } from '../infra/index';
+import { numeroArrondissement } from '../modele/pointe-noire';
 import { lienWhatsApp } from '../modele/whatsapp';
 import PagePublique from '../ui/PagePublique.astro';
 
+const catalogue = await obtenirCatalogue();
+const [arrondissements, ecoles] = await Promise.all([
+  catalogue.arrondissements(),
+  catalogue.ecoles(),
+]);
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const quartiers = arrondissements.map((a) => {
+  const siennes = ecoles.filter((e) => e.arrondissement === a.slug);
+  return {
+    ...a,
+    numero: numeroArrondissement[a.slug],
+    verifiees: siennes.filter((e) => e.etat === 'verifiee').length,
+    relevees: siennes.filter((e) => e.etat === 'relevee').length,
+  };
+});
 ---
 
 <PagePublique
   titre="NTanova · Les écoles de Pointe-Noire, quartier par quartier"
-  description="NTanova prépare l'annuaire des écoles de Pointe-Noire, quartier par quartier."
+  description="Maternelles, écoles, collèges, lycées et instituts de Pointe-Noire, quartier par quartier : trouvez une école près de chez vous."
+  whatsapp={whatsapp}
 >
-  <section class="attente">
-    <h1>
-      Les écoles de <span class="insecable">Pointe-Noire</span>, quartier par quartier
-    </h1>
-    <p>
-      NTanova prépare l'annuaire des écoles de Pointe-Noire, en commençant par Tié-Tié et Ngoyo.
+  <section class="accueil">
+    <p class="surtitre-public">
+      <span class="insecable">Pointe-Noire</span> · <span class="insecable">Congo-Brazzaville</span>
     </p>
-    <p>Le site ouvre bientôt.</p>
-    {whatsapp && (
-      <div class="carte appel">
-        <p>
-          Vous dirigez une école à <span class="insecable">Pointe-Noire&nbsp;?</span>
-        </p>
-        <a class="bouton" href={whatsapp}>
-          Nous écrire sur WhatsApp
-        </a>
-      </div>
+    <h1>Toutes les écoles, quartier par quartier.</h1>
+    <p class="chapeau">
+      Maternelles, écoles, collèges, lycées et instituts&nbsp;: trouvez une école près de chez vous,
+      ou pour un enfant de la famille.
+    </p>
+    {ecoles.length === 0 && (
+      <p class="carte note">
+        Le relevé commence à <span class="insecable">Tié-Tié</span> et à Ngoyo. Les premières fiches
+        arrivent au fil du relevé.
+      </p>
     )}
+
+    <ul class="quartiers">
+      {quartiers.map((q) => (
+        <li>
+          <a class="quartier" href={`/ecoles/${q.slug}/`}>
+            <span class="quartier-nom">{q.nom}</span>
+            <span class="quartier-detail">
+              {q.numero ? `Arrondissement ${q.numero} · ` : ''}
+              {q.relevees + q.verifiees === 0
+                ? 'relevé en cours'
+                : `${q.relevees + q.verifiees} école${q.relevees + q.verifiees > 1 ? 's' : ''}${q.verifiees > 0 ? `, dont ${q.verifiees} vérifiée${q.verifiees > 1 ? 's' : ''}` : ''}`}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <aside class="ecoles-appel">
+      <p>
+        <b>Vous dirigez une école&nbsp;?</b> Confirmez sa fiche avec nous.
+      </p>
+      <a class="bouton bouton-accent" href="/pour-les-ecoles/">
+        Pour les écoles
+      </a>
+    </aside>
   </section>
 </PagePublique>
 
 <style>
-  .attente {
+  .accueil {
     display: grid;
-    gap: var(--espace-4);
+    gap: var(--espace-5);
   }
-  .appel {
+  .accueil h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .chapeau,
+  .note {
+    margin: 0;
+    color: var(--texte-doux);
+  }
+  .quartiers {
     display: grid;
-    gap: var(--espace-4);
-    margin-top: var(--espace-4);
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .quartier {
+    display: grid;
+    gap: var(--espace-1);
+    min-height: var(--cible-principale);
+    padding: var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .quartier-nom {
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+    font-weight: 700;
+  }
+  .quartier-detail {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
   }
 </style>

@@ -1,0 +1,144 @@
+---
+// Pour les directions d'école : confirmer la fiche avec NTanova, sur WhatsApp.
+// Le code de la fiche de liaison part dans le message, sans JavaScript : le
+// formulaire ouvre wa.me avec le code comme texte.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { lienWhatsApp } from '../modele/whatsapp';
+import PagePublique from '../ui/PagePublique.astro';
+
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const sansFiche = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, je dirige l’école ');
+const formulaire = lienWhatsApp(PUBLIC_WHATSAPP);
+---
+
+<PagePublique
+  titre="Pour les écoles · NTanova"
+  description="Vous dirigez une école à Pointe-Noire ? Sa fiche est peut-être déjà sur NTanova : confirmez-la et complétez-la avec nous."
+  whatsapp={whatsapp}
+>
+  <section class="ecoles-page">
+    <div class="pile-titre">
+      <p class="surtitre-public">Pour les directions</p>
+      <h1>Vous dirigez une école&nbsp;?</h1>
+      <p class="texte-doux">
+        Sa fiche est peut-être déjà sur NTanova, avec ce qui se voit de la rue. Confirmez-la et
+        complétez-la avec nous.
+      </p>
+    </div>
+
+    {formulaire && (
+      <form class="carte liaison" action={formulaire} method="get">
+        <h2>Vous avez reçu une fiche de liaison&nbsp;?</h2>
+        <label for="code">Le code à 4 chiffres écrit dessus</label>
+        <input
+          id="code"
+          class="champ code"
+          name="text"
+          inputmode="numeric"
+          pattern="[0-9]{4}"
+          maxlength="4"
+          autocomplete="off"
+          required
+          placeholder="_ _ _ _"
+        />
+        <button class="bouton" type="submit">
+          Continuer sur WhatsApp
+        </button>
+        <p class="mention-public">
+          Le message part avec votre code. NTanova vous répond pour vérifier la fiche avec vous.
+        </p>
+      </form>
+    )}
+
+    {sansFiche && (
+      <a class="lien-fort" href={sansFiche}>
+        Pas de fiche de liaison&nbsp;? Écrivez-nous sur WhatsApp
+      </a>
+    )}
+
+    <section class="carte bloc">
+      <h2>Ce que votre école y gagne</h2>
+      <ul class="avantages">
+        <li>Une fiche juste, que vous relisez avant qu'elle soit publiée.</li>
+        <li>Les familles vous écrivent directement sur votre WhatsApp.</li>
+      </ul>
+    </section>
+
+    <section class="bloc">
+      <h2>Ce que nous vous demanderons</h2>
+      <ol class="etapes">
+        <li>La grille des frais, avec le cachet de l'école.</li>
+        <li>Le numéro WhatsApp que l'école veut publier.</li>
+        <li>Trois à cinq photos&nbsp;: la façade, une salle, la cour. Sans enfant.</li>
+        <li>Si vous le voulez, quelques mots de la direction.</li>
+      </ol>
+    </section>
+
+    <div class="fin">
+      <p class="texte-doux">
+        Rien n'est ajouté à la fiche sans votre accord. Vous voulez la corriger ou la retirer&nbsp;?
+        Écrivez-nous&nbsp;: nous le faisons.
+      </p>
+      <a class="lien-fort" href="/a-propos/">
+        Qui est NTanova&nbsp;? Ce que nous faisons de vos données
+      </a>
+    </div>
+  </section>
+</PagePublique>
+
+<style>
+  .ecoles-page {
+    display: grid;
+    gap: var(--espace-5);
+  }
+  .ecoles-page h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .ecoles-page h2 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .ecoles-page p {
+    margin: 0;
+  }
+  .pile-titre,
+  .liaison,
+  .bloc,
+  .fin {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .liaison label {
+    font-weight: 700;
+  }
+  .code {
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-fiche);
+    font-weight: 700;
+    letter-spacing: 0.5em;
+    text-align: center;
+  }
+  .mention-public {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .lien-fort {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+  .avantages,
+  .etapes {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+    padding-left: var(--espace-5);
+  }
+</style>
