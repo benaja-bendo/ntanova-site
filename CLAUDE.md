@@ -128,6 +128,15 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - **Chaque bug corrigé arrive avec un test qui échoue sans le correctif** (vérifier qu'il échoue sur l'ancien code). GitHub ne protège pas `main` sur un dépôt privé gratuit : c'est la mise en ligne qui refait tous les contrôles.
 - Les valeurs publiques de la construction sont des **variables** GitHub (`vars.PUBLIC_…`), pas des secrets.
 
+## Une tâche = un ticket (protocole du fondateur, 31/10)
+
+Les tâches sont des tickets du projet GitHub n° 29 (« NTanova site · feuille de route »), par priorité. Pour chaque ticket, dans cet ordre :
+
+1. **État des lieux**, en commentaire sur le ticket : ce que le ticket doit produire ; ce qui existe (lu dans le code) ; les problèmes ; les options, avec une recommandation ; l'impact (migrations, écrans, tests, mise en ligne, actions du fondateur) ; ce qui reste hors du ticket ; les décisions attendues.
+2. **Le go du fondateur**, tel quel ou modifié. **Rien n'est codé avant.**
+3. **Réalisation** : une branche, une PR « Fixes #N », les tests d'abord (un test par bug, vérifié en échec sans le correctif), un essai sur essai.ntanova.com.
+4. **Compte rendu** sur le ticket : fait, vérifié, pas vérifié. La fusion se fait à la demande du fondateur.
+
 ## Git
 
 - **Jamais de poussée directe sur `main`** : une branche par tâche, puis une pull request ; le fondateur fusionne. (GitHub ne protège pas `main` sur un dépôt privé gratuit : cette règle n'existe qu'ici.)

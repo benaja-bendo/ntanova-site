@@ -59,6 +59,52 @@ La photo de l'enseigne va dans le stockage de Supabase (seau privé `releves`), 
 
 **Le relevé, puis la photo, puis le contact** : la photo et le contact ne sont acceptés que pour un relevé déjà reçu et envoyé par le même relais. Chaque envoi peut être rejoué : le second répond « déjà reçu ».
 
+## Le cycle de vie (ticket #10, décidé le 31/10)
+
+### Un relevé
+
+```mermaid
+stateDiagram-v2
+  [*] --> a_valider: le relais envoie
+  a_valider --> accepte: accepter (l'école devient prête)
+  a_valider --> a_corriger: demander une correction
+  a_valider --> refuse: refuser
+  a_corriger --> refuse: refuser
+  a_corriger --> accepte: sa correction est acceptée (la fiche d'origine est close)
+```
+
+- **Un refus est définitif** : `accepter_releve` refuse un relevé refusé (22023). Pour revenir dessus, le relais envoie une nouvelle fiche.
+- Le relais n'annule rien une fois la fiche envoyée ; avant, « Abandonner » efface le brouillon du téléphone.
+
+### Une école
+
+```mermaid
+stateDiagram-v2
+  [*] --> brouillon: import (à situer)
+  [*] --> prete: accepter un relevé (nouvelle école)
+  brouillon --> prete: accepter sa contre-visite
+  prete --> publiee: publier (une école, un arrondissement, un lot)
+  publiee --> retiree: retirer du site (motif)
+  prete --> retiree: retirer (motif)
+  retiree --> publiee: republier (sauf un doublon fusionné)
+```
+
+| Geste | Fonction | Ce qu'il fait |
+| --- | --- | --- |
+| Accepter | `accepter_releve(releve, ecole)` | La donnée est juste : l'école devient **prête** (une école déjà publiée le reste, et la correction paraît à la prochaine construction) |
+| Publier une école | `publier_ecole(ecole)` | Prête ou retirée → publiée |
+| Publier un arrondissement | `publier_arrondissement(arrondissement)` | Toutes ses écoles prêtes ; rend leur nombre |
+| Publier un lot | `publier_lot(lot)` | Les écoles prêtes relevées dans ce lot (par un relevé accepté) ; rend leur nombre |
+| Retirer du site | `retirer_ecole(ecole, motif, note)` | Motif (`demande_ecole`, `erreur`, `fermeture`, `doublon`, `autre`), date, note ; la mission confiée s'arrête |
+| Fusionner deux doublons | `fusionner_ecoles(doublon, gardee)` | Le doublon est retiré (`doublon`) et renvoie vers l'école gardée ; ses relevés aussi |
+
+- **Le site public** montre les écoles publiées, lues à la construction (chaque nuit à 2 h, ou une mise en ligne lancée à la main). Une école retirée n'a plus de page : son adresse affiche « n'existe pas ou n'est plus publiée », **sans son nom**. L'ancienne adresse d'un doublon fusionné renvoie vers l'école gardée (`ecoles_redirections`, sans JavaScript).
+- **Jamais de suppression** d'une école ni d'un relevé : l'API n'en a plus le droit. Trois **effacements**, tracés dans `prive.effacements` (quoi, qui, quand) :
+  1. `effacer_contact(releve, note)` : le contact de la direction (droit d'effacement, loi n° 29-2019) ;
+  2. la **photo** de l'enseigne : l'administration la supprime par l'API du stockage, puis `noter_effacement_photo(releve, note)` ;
+  3. la **fusion** de deux doublons (ci-dessus).
+- Les motifs de retrait sont une liste fermée (domaine `motif_retrait`), à enrichir au besoin : une migration, et la copie dans `src/modele/listes.ts`.
+
 ## Les écoles à situer (31/10, après-midi)
 
 Des écoles connues autrement que par un relevé (les entretiens) entrent **en brouillon, sans position**, parfois sans arrondissement. Jamais de position inventée : une fausse position tromperait une famille et fausserait le contrôle des doublons à 40 m.
