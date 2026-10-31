@@ -51,7 +51,8 @@ function LigneEcole({
       <td>
         <b>{e.nom}</b>
         <span className="mention admin-sous-ligne">
-          {[e.quartier, e.arrondissement].filter(Boolean).join(' · ') || 'Quartier inconnu'}
+          {[...new Set([e.quartier, e.arrondissement].filter(Boolean))].join(' · ') ||
+            'Quartier inconnu'}
         </span>
       </td>
       <td>
