@@ -26,6 +26,14 @@ function fausseApi(rpc: Record<string, Reponse>, tables: Record<string, unknown[
       return Promise.resolve(rpc[nom] ?? { data: null, error: null });
     },
     from: (table: string) => requete(tables[table] ?? []),
+    storage: {
+      from: (seau: string) => ({
+        remove: (chemins: string[]) => {
+          appels.push({ nom: `stockage ${seau}`, arguments: chemins });
+          return Promise.resolve({ data: [], error: null });
+        },
+      }),
+    },
   };
   return { port: creerPortAdministration(() => client as unknown as SupabaseClient), appels };
 }
@@ -105,5 +113,48 @@ describe('l’adaptateur Supabase de l’administration', () => {
       ['[A]', 2],
       ['[B]', 0],
     ]);
+  });
+
+  it('publie un arrondissement et un lot, et rend le nombre d’écoles publiées', async () => {
+    const { port, appels } = fausseApi({
+      publier_arrondissement: { data: 3, error: null },
+      publier_lot: { data: 2, error: null },
+    });
+    await expect(port.publierArrondissement(1)).resolves.toBe(3);
+    await expect(port.publierLot('lot-1')).resolves.toBe(2);
+    expect(appels).toEqual([
+      { nom: 'publier_arrondissement', arguments: { arrondissement: 1 } },
+      { nom: 'publier_lot', arguments: { lot: 'lot-1' } },
+    ]);
+  });
+
+  it('retire une école avec son motif', async () => {
+    const { port, appels } = fausseApi({});
+    await port.retirerEcole('e1', 'demande_ecole', 'La direction l’a demandé');
+    expect(appels).toEqual([
+      {
+        nom: 'retirer_ecole',
+        arguments: { ecole: 'e1', motif: 'demande_ecole', note: 'La direction l’a demandé' },
+      },
+    ]);
+  });
+
+  it('efface la photo dans le stockage, puis note l’effacement dans la base', async () => {
+    const { port, appels } = fausseApi({});
+    await port.effacerPhoto('r1', null);
+    expect(appels).toEqual([
+      { nom: 'stockage releves', arguments: ['r1/enseigne.jpg'] },
+      { nom: 'noter_effacement_photo', arguments: { releve: 'r1', note: null } },
+    ]);
+  });
+
+  it('rend le refus de la base : un relevé refusé ne s’accepte plus', async () => {
+    const { port } = fausseApi({
+      accepter_releve: {
+        data: null,
+        error: { code: '22023', message: 'Relevé refusé : un refus est définitif.' },
+      },
+    });
+    await expect(port.accepter('r1')).rejects.toThrow('un refus est définitif');
   });
 });

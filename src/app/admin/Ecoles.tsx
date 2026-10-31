@@ -387,7 +387,9 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
                     void publierEnNombre(() => admin.publierArrondissement(a.id), a.nom)
                   }
                 >
-                  Publier les {pretesPar(a.id)} écoles prêtes de {a.nom}
+                  {pretesPar(a.id) === 1
+                    ? `Publier l’école prête de ${a.nom}`
+                    : `Publier les ${pretesPar(a.id)} écoles prêtes de ${a.nom}`}
                 </button>
               ))}
             {lots.length > 0 && (
