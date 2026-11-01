@@ -26,6 +26,7 @@ import {
   ruesDe,
   situees,
   TAILLE_MARQUE,
+  type ArrondissementDessine,
   type EcoleSurCarte,
 } from '../../src/modele/carte/plan';
 import { dansContour, distanceMetres } from '../../src/modele/geo';
@@ -199,9 +200,38 @@ describe('les cadrages de Pointe-Noire', () => {
     expect(arrondissementsDessines.map((a) => a.slug)).toContain('ngoyo');
   });
 
-  it('dessine les rues de Tié-Tié, pas encore celles des autres', () => {
+  it('dessine les rues de Tié-Tié et de Ngoyo, pas encore celles des quatre autres', () => {
     expect(ruesDe('tie-tie')?.rues.length).toBeGreaterThan(100);
-    expect(ruesDe('lumumba')).toBeNull();
+    expect(ruesDe('ngoyo')?.rues.length).toBeGreaterThan(100);
+    expect(ruesDe('ngoyo')?.avenues.length).toBeGreaterThan(20);
+    for (const slug of ['lumumba', 'mvou-mvou', 'loandjili', 'mongo-mpoukou']) {
+      expect(ruesDe(slug), slug).toBeNull();
+    }
+  });
+
+  it('ne touche pas aux rues de Tié-Tié, celles du relevé du 30/10 (ticket 46)', () => {
+    const rues = ruesDe('tie-tie')!;
+    expect(rues.rues).toHaveLength(312);
+    expect(rues.avenues).toHaveLength(61);
+    expect([...rues.rues, ...rues.avenues].flat()).toHaveLength(942);
+  });
+
+  it('place les rues de Ngoyo à Ngoyo : longitude puis latitude, dans la boîte de l’arrondissement (ticket 46)', () => {
+    const ngoyo = arrondissementsDessines.find((a) => a.slug === 'ngoyo')!;
+    const b = boiteDeContours([ngoyo.contour]);
+    // La requête déborde de 0,002° : une rue du bord peut dépasser d'autant.
+    const marge = 0.003;
+    const rues = ruesDe('ngoyo')!;
+    const points = [...rues.rues, ...rues.avenues].flat();
+    expect(points.length).toBeGreaterThan(500);
+    const dehors = points.filter(
+      ([longitude = 0, latitude = 0]) =>
+        longitude < b.ouest - marge ||
+        longitude > b.est + marge ||
+        latitude < b.sud - marge ||
+        latitude > b.nord + marge,
+    );
+    expect(dehors).toEqual([]);
   });
 
   it('fait tenir la ville et chaque arrondissement dans un téléphone', () => {
@@ -348,24 +378,28 @@ describe('la fenêtre de l’aperçu de la carte sur l’accueil (ticket 42)', (
     },
   );
 
-  it.each(formats)(
-    'sans rues dessinées (Ngoyo), montre l’arrondissement sur toute sa largeur : une fenêtre serrée ne serait qu’un aplat (%s)',
-    (_nom, format) => {
-      const ngoyo = arrondissementsDessines.find((a) => a.slug === 'ngoyo')!;
-      expect(ruesDe('ngoyo')).toBeNull();
-      // Un point de Ngoyo, le plus proche du milieu de sa boîte.
-      const b = boiteDeContours([ngoyo.contour]);
-      const milieu = { latitude: (b.sud + b.nord) / 2, longitude: (b.ouest + b.est) / 2 };
-      const grille = Array.from({ length: 19 * 19 }, (_, i) => ({
-        latitude: b.sud + ((b.nord - b.sud) * (Math.floor(i / 19) + 1)) / 20,
-        longitude: b.ouest + ((b.est - b.ouest) * ((i % 19) + 1)) / 20,
-      }));
-      const dedans = grille
-        .filter((c) => dansContour(c, ngoyo.contour))
-        .sort((x, y) => distanceMetres(x, milieu) - distanceMetres(y, milieu))[0]!;
-      const ecoles = [ecole('a', dedans.latitude, dedans.longitude)];
+  /** Une école au milieu de l'arrondissement : le point du contour le plus près du milieu de sa boîte. */
+  const uneEcoleAuMilieuDe = (a: ArrondissementDessine) => {
+    const b = boiteDeContours([a.contour]);
+    const milieu = { latitude: (b.sud + b.nord) / 2, longitude: (b.ouest + b.est) / 2 };
+    const grille = Array.from({ length: 19 * 19 }, (_, i) => ({
+      latitude: b.sud + ((b.nord - b.sud) * (Math.floor(i / 19) + 1)) / 20,
+      longitude: b.ouest + ((b.est - b.ouest) * ((i % 19) + 1)) / 20,
+    }));
+    const dedans = grille
+      .filter((c) => dansContour(c, a.contour))
+      .sort((x, y) => distanceMetres(x, milieu) - distanceMetres(y, milieu))[0]!;
+    return { b, milieu, ecoles: [ecole('a', dedans.latitude, dedans.longitude)] };
+  };
 
-      const { boite, projection: p } = cadreApercu(ngoyo, ecoles, format);
+  it.each(formats)(
+    'sans rues dessinées (Loandjili), montre l’arrondissement sur toute sa largeur : une fenêtre serrée ne serait qu’un aplat (%s)',
+    (_nom, format) => {
+      const loandjili = arrondissementsDessines.find((a) => a.slug === 'loandjili')!;
+      expect(ruesDe('loandjili')).toBeNull();
+      const { b, milieu, ecoles } = uneEcoleAuMilieuDe(loandjili);
+
+      const { boite, projection: p } = cadreApercu(loandjili, ecoles, format);
       const kx = Math.cos((milieu.latitude * Math.PI) / 180);
       expect(metres(p, p.largeur)).toBeGreaterThanOrEqual((b.est - b.ouest) * kx * 111_320);
       // La maison tient toujours entière, hors des bandes réservées.
@@ -376,6 +410,22 @@ describe('la fenêtre de l’aperçu de la carte sur l’accueil (ticket 42)', (
       expect(m.x + ENCOMBREMENT_MARQUE.droite).toBeLessThanOrEqual(p.largeur);
       expect(m.y - ENCOMBREMENT_MARQUE.haut).toBeGreaterThanOrEqual(format.reserveHaut);
       expect(m.y + ENCOMBREMENT_MARQUE.bas).toBeLessThanOrEqual(p.hauteur - format.reserveBas);
+    },
+  );
+
+  it.each(formats)(
+    'avec ses rues dessinées (Ngoyo, ticket 46), garde la fenêtre serrée autour de l’école : au plancher, pas sur toute la largeur (%s)',
+    (_nom, format) => {
+      const ngoyo = arrondissementsDessines.find((a) => a.slug === 'ngoyo')!;
+      expect(ruesDe('ngoyo')).not.toBeNull();
+      const { b, milieu, ecoles } = uneEcoleAuMilieuDe(ngoyo);
+
+      const { projection: p } = cadreApercu(ngoyo, ecoles, format);
+      const kx = Math.cos((milieu.latitude * Math.PI) / 180);
+      const largeurArrondissement = (b.est - b.ouest) * kx * 111_320;
+      expect(metres(p, p.largeur)).toBeGreaterThanOrEqual(PLANCHER_APERCU.largeur - 1);
+      expect(metres(p, p.largeur)).toBeLessThan(2 * PLANCHER_APERCU.largeur);
+      expect(metres(p, p.largeur)).toBeLessThan(largeurArrondissement / 2);
     },
   );
 
@@ -406,14 +456,17 @@ describe('l’arrondissement que l’aperçu montre (ticket 42)', () => {
     expect(arrondissementDeLApercu(ouverts, tie2)?.slug).toBe('tie-tie');
   });
 
-  it('prend Tié-Tié, seul arrondissement aux rues dessinées, quand aucune école n’est située', () => {
-    // Pas Ngoyo, premier par ordre alphabétique et sans rues : sa fenêtre serait un aplat.
+  it('prend, parmi ceux dont les rues sont dessinées, le plus petit numéro quand aucune école n’est située', () => {
+    // Tié-Tié (3) avant Ngoyo (6), pourtant premier du catalogue par ordre alphabétique.
     expect(arrondissementDeLApercu(ouverts, [])?.slug).toBe('tie-tie');
     // Des écoles publiées mais pas situées ne comptent pas : elles ne sont pas sur la carte.
     expect(arrondissementDeLApercu(ouverts, sansPosition('ngoyo', 5))?.slug).toBe('tie-tie');
-    // Le critère est « a des rues », pas « a le plus petit numéro » : Lumumba est l'arrondissement 1.
+    // Le critère est « a des rues » avant « a le plus petit numéro » : Lumumba est l'arrondissement 1,
+    // Loandjili le 4, et ni l'un ni l'autre n'a encore ses rues, sa fenêtre serait un aplat.
     const lumumbaEtTieTie = [{ slug: 'lumumba' }, { slug: 'tie-tie' }];
     expect(arrondissementDeLApercu(lumumbaEtTieTie, [])?.slug).toBe('tie-tie');
+    const loandjiliEtNgoyo = [{ slug: 'loandjili' }, { slug: 'ngoyo' }];
+    expect(arrondissementDeLApercu(loandjiliEtNgoyo, [])?.slug).toBe('ngoyo');
   });
 
   it('ignore un arrondissement que le relevé n’a pas ouvert', () => {

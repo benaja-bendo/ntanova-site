@@ -76,6 +76,22 @@ test('une fiche sans position n’a pas de plan, et un arrondissement sans écol
   );
 });
 
+test('la carte de Ngoyo, sans école, dessine déjà ses rues et ses avenues (ticket 46)', async ({
+  page,
+}) => {
+  await page.goto('/ecoles/ngoyo/carte/');
+  // Chaque trait est un « M » dans le chemin : une rue ou une avenue.
+  const traits = async (classe: string) => {
+    const chemin = page.locator(`svg path.${classe}`);
+    await expect(chemin).toHaveCount(1);
+    return ((await chemin.getAttribute('d')) ?? '').match(/M/g)?.length ?? 0;
+  };
+  expect(await traits('rue')).toBeGreaterThan(100);
+  expect(await traits('avenue')).toBeGreaterThan(20);
+  // L'attribution d'OpenStreetMap reste sous la carte.
+  await expect(page.getByText(/contributeurs d’OpenStreetMap/).first()).toBeVisible();
+});
+
 test('chaque école et chaque pastille se touchent du doigt : 44 px au moins', async ({ page }) => {
   for (const adresse of ['/ecoles/tie-tie/carte/', '/ecoles/tie-tie/carte/coin-1/']) {
     await page.goto(adresse);

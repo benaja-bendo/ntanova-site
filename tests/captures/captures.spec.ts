@@ -22,6 +22,7 @@ test('une capture de chaque écran', async ({ page, context }) => {
     ['public-carte-ville', '/ecoles/'],
     ['public-carte-arrondissement', '/ecoles/tie-tie/carte/'],
     ['public-carte-coin', '/ecoles/tie-tie/carte/coin-1/'],
+    ['public-carte-ngoyo', '/ecoles/ngoyo/carte/'],
     ['public-fiche', '/ecoles/tie-tie/complexe-scolaire-exemple/'],
     ['public-fiche-autre', '/ecoles/tie-tie/centre-de-formation-exemple/'],
     ['public-fiche-sans-detail', '/ecoles/tie-tie/ecole-sans-detail-exemple/'],
