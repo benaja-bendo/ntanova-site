@@ -38,7 +38,7 @@ export interface OptionsProjection {
 }
 
 const RAD = Math.PI / 180;
-const METRES_PAR_DEGRE = 111_320;
+export const METRES_PAR_DEGRE = 111_320;
 
 /** La plus petite boîte qui contient ces points. */
 export function boiteDePoints(points: readonly Point[]): Boite {

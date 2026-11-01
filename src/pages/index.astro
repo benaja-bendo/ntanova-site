@@ -6,8 +6,10 @@
 // l'ouverture, reste libre pour elles.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirCatalogue } from '../infra/index';
+import { arrondissementDeLApercu } from '../modele/carte/plan';
 import { numeroArrondissement } from '../modele/pointe-noire';
 import { lienWhatsApp } from '../modele/whatsapp';
+import ApercuCarte from '../ui/ApercuCarte.astro';
 import PagePublique from '../ui/PagePublique.astro';
 
 const catalogue = await obtenirCatalogue();
@@ -31,6 +33,10 @@ const quartiers = arrondissements
   })
   // Là où l'on a des fiches d'abord (les deux planches mettent Tié-Tié avant Ngoyo), puis par nom.
   .sort((a, b) => b.total - a.total || a.nom.localeCompare(b.nom, 'fr'));
+
+// L'aperçu de la carte (ticket 42) : l'arrondissement qui a le plus d'écoles sur la carte.
+const tete = arrondissementDeLApercu(arrondissements, ecoles);
+const ecolesDeLaTete = tete ? ecoles.filter((e) => e.arrondissement === tete.slug) : [];
 ---
 
 <PagePublique
@@ -39,22 +45,26 @@ const quartiers = arrondissements
   whatsapp={whatsapp}
 >
   <div class="cadre accueil">
-    <div class="ouverture">
-      <p class="surtitre-public">
-        <span class="insecable">Pointe-Noire</span> ·{' '}
-        <span class="insecable">Congo-Brazzaville</span>
-      </p>
-      <h1>Toutes les écoles, quartier par quartier.</h1>
-      <p class="chapeau">
-        Maternelles, écoles, collèges, lycées et instituts&nbsp;: trouvez une école près de chez
-        vous, ou pour un enfant de la famille.
-      </p>
-      {ecoles.length === 0 && (
-        <p class="carte note">
-          Le relevé commence à <span class="insecable">Tié-Tié</span> et à Ngoyo. Les premières
-          fiches arrivent au fil du relevé.
+    <div class:list={['haut', { 'haut-carte': tete }]}>
+      <div class="ouverture">
+        <p class="surtitre-public">
+          <span class="insecable">Pointe-Noire</span> ·{' '}
+          <span class="insecable">Congo-Brazzaville</span>
         </p>
-      )}
+        <h1>Toutes les écoles, quartier par quartier.</h1>
+        <p class="chapeau">
+          Maternelles, écoles, collèges, lycées et instituts&nbsp;: trouvez une école près de chez
+          vous, ou pour un enfant de la famille.
+        </p>
+        {ecoles.length === 0 && (
+          <p class="carte note">
+            Le relevé commence à <span class="insecable">Tié-Tié</span> et à Ngoyo. Les premières
+            fiches arrivent au fil du relevé.
+          </p>
+        )}
+      </div>
+
+      {tete && <ApercuCarte arrondissement={tete} ecoles={ecolesDeLaTete} />}
     </div>
 
     <section id="quartiers" aria-labelledby="titre-quartiers">
@@ -82,7 +92,9 @@ const quartiers = arrondissements
         ))}
       </ul>
       <a class="lien-carte" href="/ecoles/">
-        Voir la carte de <span class="insecable">Pointe-Noire</span>
+        <span>
+          Voir la carte de <span class="insecable">Pointe-Noire</span>
+        </span>
       </a>
     </section>
   </div>
@@ -165,6 +177,11 @@ const quartiers = arrondissements
   .accueil-bas {
     padding-bottom: var(--espace-6);
   }
+  /* L'ouverture et l'aperçu de la carte : l'un sous l'autre, puis côte à côte à partir de 64 rem. */
+  .haut {
+    display: grid;
+    gap: var(--espace-5);
+  }
   .ouverture {
     display: grid;
     gap: var(--espace-5);
@@ -229,6 +246,9 @@ const quartiers = arrondissements
     }
     .ouverture {
       gap: var(--espace-4);
+    }
+    .haut-carte {
+      gap: var(--espace-6);
     }
     .accueil h1 {
       font-size: var(--taille-titre-accueil);
@@ -357,6 +377,14 @@ const quartiers = arrondissements
       color: var(--texte-sur-marque);
       font-family: var(--police-titre);
       font-weight: 700;
+    }
+  }
+
+  /* À partir de 64 rem : l'ouverture à gauche, l'aperçu de la carte à droite. */
+  @media (min-width: 64rem) {
+    .haut-carte {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+      align-items: center;
     }
   }
 </style>

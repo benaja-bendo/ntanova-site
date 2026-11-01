@@ -55,10 +55,9 @@ test.describe('site public', () => {
       page.getByRole('link', { name: /Tié-Tié.*Arrondissement 3.*4 écoles/ }),
     ).toBeVisible();
     await expect(page.getByRole('link', { name: /Ngoyo.*relevé en cours/ })).toBeVisible();
-    await page
-      .getByRole('link', { name: /Tié-Tié/ })
-      .first()
-      .click();
+    // La carte de l'arrondissement, par son nom complet : l'aperçu de la carte, plus haut, a aussi un
+    // lien « Voir la carte de Tié-Tié », qui mène à la carte et non à la liste.
+    await page.getByRole('link', { name: /Tié-Tié.*Arrondissement 3.*4 écoles/ }).click();
 
     await expect(page.getByRole('heading', { name: 'Tié-Tié', level: 1 })).toBeVisible();
     await page.getByRole('link', { name: /\[Complexe scolaire Exemple\]/ }).click();

@@ -9,6 +9,7 @@ import type { Projection } from '../modele/carte/geometrie';
 import type {
   ArrondissementDessine,
   ArrondissementSurCarte,
+  MarqueEcole,
   MarqueGroupe,
   MarqueSurCarte,
   Rues,
@@ -35,6 +36,12 @@ interface Props {
   noms?: boolean;
   /** Écrire le nom de chaque école sous sa maison (un coin vu de près). */
   nomsEcoles?: boolean;
+  /**
+   * Un aperçu (l'accueil) : tout le dessin est un seul lien vers cette adresse, décoratif (caché du
+   * clavier et du lecteur d'écran : le bouton à côté est la vraie porte), et les maisons n'en sont
+   * plus. Une pastille ne peut pas mener à un coin : son numéro vient de l'échelle de l'arrondissement.
+   */
+  apercu?: string;
 }
 
 const {
@@ -49,6 +56,7 @@ const {
   halo,
   noms = false,
   nomsEcoles = false,
+  apercu,
 } = Astro.props;
 
 const contour = (a: ArrondissementDessine) => cheminContour(a.contour, p);
@@ -67,6 +75,23 @@ const ecoles = (n: number) => `${n} école${n > 1 ? 's' : ''}`;
 const minuscule = (texte: string) => texte.charAt(0).toLowerCase() + texte.slice(1);
 const court = (nom: string) => (nom.length > 24 ? `${nom.slice(0, 23).trimEnd()}…` : nom);
 
+// Un aperçu : un seul lien pour tout le dessin, et des maisons qui n'en sont pas.
+const Balise = apercu ? 'g' : 'a';
+const attributsEcole = (m: MarqueEcole) =>
+  apercu
+    ? { 'aria-hidden': 'true' as const }
+    : {
+        href: m.ecole.lien,
+        'aria-label': `${m.ecole.nom}, ${minuscule(libelleProvenance[m.ecole.etat])}`,
+      };
+const attributsGroupe = (m: MarqueGroupe) =>
+  apercu
+    ? { 'aria-hidden': 'true' as const }
+    : {
+        href: lienGroupe(m),
+        'aria-label': `Un groupe de ${ecoles(m.ecoles.length)}${m.verifiee ? ', dont au moins une vérifiée' : ''} : ${lienGroupe(m).startsWith('#') ? 'voir leur liste' : 'le voir de près'}`,
+      };
+
 // Vues de près, les rues s'élargissent un peu, comme sur une vraie carte qu'on zoome :
 // une rue fait environ 7 m, une avenue 14 m, sans descendre sous le trait de la carte entière.
 const borne = (v: number, min: number, max: number) =>
@@ -79,8 +104,7 @@ const epaisseurs = `--rue: ${largeurRue}px; --avenue: ${largeurAvenue}px; --aven
 <figure class="carte-detouree">
   <svg
     viewBox={`0 0 ${p.largeur} ${p.hauteur}`}
-    role="group"
-    aria-label={titre}
+    {...(apercu ? {} : { role: 'group', 'aria-label': titre })}
     class="plateau"
     style={epaisseurs}
   >
@@ -181,13 +205,9 @@ const epaisseurs = `--rue: ${largeurRue}px; --avenue: ${largeurAvenue}px; --aven
     {/* Les écoles : une maison à drapeau, ou une pastille avec leur nombre. */}
     {marques.map((m) =>
       m.genre === 'ecole' ? (
-        <a
-          class="marque"
-          href={m.ecole.lien}
-          aria-label={`${m.ecole.nom}, ${minuscule(libelleProvenance[m.ecole.etat])}`}
-        >
+        <Balise class="marque" {...attributsEcole(m)}>
           <g transform={`translate(${m.x} ${m.y})`}>
-            <rect class="cible" x="-26" y="-55" width="54" height="56" rx="12" />
+            {!apercu && <rect class="cible" x="-26" y="-55" width="54" height="56" rx="12" />}
             <g class="maison">
               <path class="mat" d="M8 -21V-51" />
               <path class:list={['drapeau', m.ecole.etat]} d="M8 -51L22 -47L8 -43Z" />
@@ -201,15 +221,11 @@ const epaisseurs = `--rue: ${largeurRue}px; --avenue: ${largeurAvenue}px; --aven
               </text>
             )}
           </g>
-        </a>
+        </Balise>
       ) : (
-        <a
-          class="marque"
-          href={lienGroupe(m)}
-          aria-label={`Un groupe de ${ecoles(m.ecoles.length)}${m.verifiee ? ', dont au moins une vérifiée' : ''} : ${lienGroupe(m).startsWith('#') ? 'voir leur liste' : 'le voir de près'}`}
-        >
+        <Balise class="marque" {...attributsGroupe(m)}>
           <g transform={`translate(${m.x} ${m.y})`}>
-            <rect class="cible" x="-27" y="-46" width="54" height="54" rx="12" />
+            {!apercu && <rect class="cible" x="-27" y="-46" width="54" height="54" rx="12" />}
             <g class="groupe">
               {m.verifiee && (
                 <>
@@ -225,10 +241,19 @@ const epaisseurs = `--rue: ${largeurRue}px; --avenue: ${largeurAvenue}px; --aven
               </text>
             </g>
           </g>
-        </a>
+        </Balise>
       ),
     )}
   </svg>
+  {apercu && (
+    <a
+      class="plateau-lien"
+      href={apercu}
+      tabindex="-1"
+      aria-hidden="true"
+      style={`aspect-ratio: ${p.largeur} / ${p.hauteur}`}
+    />
+  )}
   <figcaption class="attribution">
     <a href="https://www.openstreetmap.org/copyright">© les contributeurs d’OpenStreetMap</a>
   </figcaption>
@@ -248,6 +273,14 @@ const epaisseurs = `--rue: ${largeurRue}px; --avenue: ${largeurAvenue}px; --aven
     height: auto;
     font-family: var(--police-titre);
     font-weight: 700;
+  }
+  /* Le lien décoratif d'un aperçu : posé sur le dessin, de la même forme, sans toucher à l'attribution. */
+  .plateau-lien {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
   }
   .attribution {
     display: flex;
