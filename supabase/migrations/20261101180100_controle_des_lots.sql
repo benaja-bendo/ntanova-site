@@ -87,5 +87,6 @@ begin
 end;
 $$;
 
-revoke execute on function prive.problemes_de_lots(text) from public;
-revoke execute on function prive.rattacher_releves_aux_lots_fins(text) from public;
+-- Personne n'y touche par l'API (voir 20261031010200_droits.sql) : ni un visiteur, ni un relais.
+revoke all on function prive.problemes_de_lots(text) from public, anon, authenticated;
+revoke all on function prive.rattacher_releves_aux_lots_fins(text) from public, anon, authenticated;
