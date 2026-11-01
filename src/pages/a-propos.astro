@@ -7,6 +7,9 @@ import { lienWhatsApp } from '../modele/whatsapp';
 import PagePublique from '../ui/PagePublique.astro';
 
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+
+// Le délai que nous nous donnons pour corriger, retirer ou effacer (décision du fondateur, 01/11).
+const DELAI_DROITS_JOURS = 7;
 ---
 
 <PagePublique
@@ -72,7 +75,10 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 
     <section class="carte bloc droits">
       <h2>Vos droits</h2>
-      <p>Corriger une fiche, la retirer, effacer un numéro&nbsp;: écrivez-nous, nous le faisons.</p>
+      <p>
+        Corriger une fiche, la retirer, effacer un numéro&nbsp;: écrivez-nous, nous le faisons{' '}
+        <span class="insecable">sous {DELAI_DROITS_JOURS} jours</span>.
+      </p>
       {whatsapp && (
         <a class="bouton" href={whatsapp}>
           Écrire à NTanova sur WhatsApp

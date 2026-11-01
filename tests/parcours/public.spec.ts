@@ -182,6 +182,14 @@ test.describe('site public', () => {
     await expect(page.getByText(/loi congolaise n°\s29-2019 du 10\soctobre 2019/)).toBeVisible();
   });
 
+  test('« À propos » donne un délai pour corriger, retirer ou effacer', async ({ page }) => {
+    await page.goto('/a-propos/');
+    const droits = page.locator('section.droits');
+    await expect(droits.getByRole('heading', { name: 'Vos droits' })).toBeVisible();
+    // La phrase entière, pour qu'un espace perdu autour du délai (« faisonssous 7 jours ») se voie.
+    await expect(droits.getByRole('paragraph')).toContainText(/nous le faisons sous\s7\sjours\./);
+  });
+
   test('l’ancienne adresse d’une fiche fusionnée renvoie vers l’école gardée, sans JavaScript', async ({
     request,
   }) => {
