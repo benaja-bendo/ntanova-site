@@ -46,7 +46,10 @@ export interface Rues {
 
 const rues: Readonly<Record<string, Rues>> = donnees.rues;
 
-/** Les rues d'un arrondissement, quand elles sont dessinées (Tié-Tié pour l'instant). */
+/**
+ * Les rues d'un arrondissement, quand elles sont dessinées. On les tire d'OpenStreetMap, un
+ * arrondissement à la fois, avec `outils/tracer-les-rues.ts`.
+ */
 export function ruesDe(slug: string): Rues | null {
   return rues[slug] ?? null;
 }
@@ -319,9 +322,9 @@ function coeurDe(arrondissement: ArrondissementDessine): Point {
 
 /**
  * L'arrondissement que l'aperçu de l'accueil montre : celui qui a le plus d'écoles sur la carte
- * (situées) ; à égalité, celui dont les rues sont dessinées (Tié-Tié pour l'instant : sans rues,
- * la fenêtre d'un arrondissement vide serait un aplat), puis le plus petit numéro. Aucun si aucun
- * arrondissement ouvert n'est dessiné.
+ * (situées) ; à égalité, celui dont les rues sont dessinées (sans rues, la fenêtre d'un
+ * arrondissement vide serait un aplat), puis le plus petit numéro. Aucun si aucun arrondissement
+ * ouvert n'est dessiné.
  */
 export function arrondissementDeLApercu(
   ouverts: readonly { slug: string }[],
@@ -354,8 +357,9 @@ export function arrondissementDeLApercu(
  * - Les marges des maisons sont en unités du dessin, donc en mètres selon l'agrandissement : la
  *   fenêtre se calcule d'un coup, sans essais successifs (la marge est une part fixe du dessin).
  * - Sans école, c'est une vue du cœur de l'arrondissement (`FENETRE_SANS_ECOLE`).
- * - Sans rues dessinées (Ngoyo pour l'instant), elle montre l'arrondissement sur toute sa largeur, avec
- *   un peu d'air : serrée, elle ne montrerait qu'un aplat beige. Il suffira de dessiner les rues.
+ * - Sans rues dessinées, elle montre l'arrondissement sur toute sa largeur, avec un peu d'air :
+ *   serrée, elle ne montrerait qu'un aplat beige. Il suffit de tirer les rues de l'arrondissement
+ *   d'OpenStreetMap (`outils/tracer-les-rues.ts`).
  */
 export function cadreApercu(
   arrondissement: ArrondissementDessine,
@@ -393,7 +397,7 @@ export function cadreApercu(
   const voulue = enveloppe
     ? Math.max(parLargeur, parHauteur, PLANCHER_APERCU.largeur, PLANCHER_APERCU.hauteur * rapport)
     : FENETRE_SANS_ECOLE.largeur;
-  // Sans rues dessinées (Ngoyo pour l'instant), une fenêtre serrée ne montrerait qu'un aplat : on
+  // Sans rues dessinées, une fenêtre serrée ne montrerait qu'un aplat : on
   // montre l'arrondissement sur toute sa largeur, avec un peu d'air, pour qu'on voie où l'on est.
   const sansRues = ruesDe(arrondissement.slug) === null;
   const largeur = sansRues
