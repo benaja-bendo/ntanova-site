@@ -154,7 +154,7 @@ Les tâches sont des tickets du projet GitHub n° 29 (« NTanova site · feuille
 ## Git
 
 - **Jamais de poussée directe sur `main`** : une branche par tâche, puis une pull request. (GitHub ne protège pas `main` sur un dépôt privé gratuit : cette règle n'existe qu'ici.)
-- **Phase d'essai (permission du fondateur, 31/10)** : Claude peut pousser sa branche, ouvrir et fusionner la pull request, lancer une mise en ligne, en le prévenant d'un mot juste avant. Il peut retirer cette permission quand l'enjeu montera ; s'il le fait, le fondateur fusionne de nouveau.
+- **Phase d'essai (permission du fondateur, 31/10), jusqu'au 30/11/2026** : Claude peut pousser sa branche, ouvrir et fusionner la pull request, lancer une mise en ligne, en le prévenant d'un mot juste avant. Il peut retirer cette permission quand l'enjeu montera ; s'il le fait, le fondateur fusionne de nouveau. **La date de fin est celle de la mesure de D7a** (décision du fondateur du 01/11/2026, au registre) : **à partir du 01/12/2026, redemander avant chaque fusion et chaque mise en ligne** (et avant `supabase db push`), sauf nouvelle permission, décidée avec le fondateur au 30/11.
 - Messages de commit en français, préfixe court (`site:`, `relais:`, `admin:`, `base:`, `ui:`, `outils:`, `ci:`, `docs:`), un sujet par commit.
 - Un agent par dossier (`src/pages`, `src/app/relais`, `src/app/admin`, `supabase`) : jamais deux sur les mêmes fichiers.
 
