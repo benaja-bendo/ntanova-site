@@ -15,6 +15,10 @@
 // - chaque voie est coupée au contour, avec un point de plus de chaque côté (le dessin la découpe
 //   ensuite), simplifiée à 20 m près, et arrondie au mètre (cinq décimales).
 //
+// Limite connue : une voie qui traverse l'arrondissement sans qu'un seul de ses points soit dedans
+// n'est pas dessinée (aucune à Ngoyo, vérifié le 01/11/2026). Sa base est aussi en retard sur
+// OpenStreetMap : l'outil affiche la date de celle qu'il a lue.
+//
 // Données © les contributeurs d'OpenStreetMap, licence ODbL : la mention reste sous chaque carte.
 // Un User-Agent générique pour Overpass, jamais une adresse e-mail ni une autre donnée personnelle.
 import { readFileSync, writeFileSync } from 'node:fs';
