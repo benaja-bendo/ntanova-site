@@ -104,3 +104,12 @@ test('une école située par l’administration, sans relevé, dit qu’elle a �
     page.getByRole('link', { name: '[École ajoutée Exemple], ajoutée par NTanova' }),
   ).toBeVisible();
 });
+
+test('« Voir la carte de Pointe-Noire » garde son espace à l’écran', async ({ page }) => {
+  await page.goto('/');
+  const lien = page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' });
+  // Le nom accessible garde l'espace même quand l'écran le perd (un lien en `inline-flex` ne
+  // compte pas l'espace qui précède un `span`) : on lit le texte tel qu'il s'affiche.
+  const affiche = await lien.evaluate((a) => (a as HTMLElement).innerText);
+  expect(affiche).toBe('Voir la carte de Pointe-Noire');
+});
