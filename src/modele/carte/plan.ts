@@ -4,7 +4,9 @@
  * - un arrondissement : ses rues, ses écoles, regroupées quand elles se toucheraient ;
  * - un coin : un groupe vu de près, sur sa propre page (sans JavaScript, pas de zoom : on
  *   change de page) ;
- * - une école : un petit plan sur sa fiche.
+ * - une école : un petit plan sur sa fiche ;
+ * - un aperçu : une fenêtre sur un arrondissement, pour l'accueil (planches « Accueil » et
+ *   « Accueil sur ordinateur » du canevas).
  */
 import { dansContour, type MultiPolygone, type Point } from '../geo';
 import { provenanceDe, type Provenance } from '../libelles';
@@ -13,6 +15,7 @@ import {
   boiteDeContours,
   boiteDePoints,
   elargir,
+  METRES_PAR_DEGRE,
   projection,
   regrouper,
   type Boite,
@@ -235,4 +238,202 @@ export function coinsDe(
 ): MarqueGroupe[] {
   const { boite, projection: p } = cadreArrondissement(arrondissement);
   return planer(boite, ecoles, p).marques.filter((m): m is MarqueGroupe => m.genre === 'groupe');
+}
+
+// L'aperçu de la carte sur l'accueil (ticket 42) ------------------------------------
+
+/**
+ * La place qu'on donne à l'aperçu, en unités du dessin : celle des planches « Accueil »
+ * (téléphone, 350 × 150) et « Accueil sur ordinateur » (520 × 456) du canevas.
+ *
+ * `reserveHaut` et `reserveBas` sont des bandes sans maison. Sur ordinateur, la légende est posée
+ * en haut de la carte et le cartouche (le nom, le compte, le bouton) en bas ; sous 64 rem, le
+ * cartouche suit la carte et rien n'est posé dessus. Les deux nombres suivent le CSS de
+ * `ApercuCarte.astro` au plus petit agrandissement du dessin (0,9 px par unité, à 1 024 px de
+ * large) ; un parcours vérifie dans le navigateur qu'aucune école ne passe dessous.
+ */
+export interface FormatApercu {
+  largeur: number;
+  hauteur: number;
+  reserveHaut: number;
+  reserveBas: number;
+}
+
+export const APERCU_TELEPHONE: FormatApercu = {
+  largeur: 350,
+  hauteur: 150,
+  reserveHaut: 0,
+  reserveBas: 0,
+};
+
+export const APERCU_ORDINATEUR: FormatApercu = {
+  largeur: 520,
+  hauteur: 456,
+  reserveHaut: 48,
+  reserveBas: 104,
+};
+
+/**
+ * Ce qu'occupe une maison autour de son point, en unités du dessin (voir `Carte.astro`) : le
+ * drapeau monte à 56 au-dessus, la porte descend à 8, la zone à toucher fait 56 de large.
+ */
+export const ENCOMBREMENT_MARQUE = { gauche: 28, droite: 28, haut: 56, bas: 8 } as const;
+
+/** Un peu de place en plus de chaque côté : l'arrondi du dessin au dixième ne rogne jamais une maison. */
+const SECURITE = 2;
+
+/** Une fenêtre sur des écoles ne descend jamais sous ces mètres : un zoom de rue ne dirait rien. */
+export const PLANCHER_APERCU = { largeur: 900, hauteur: 600 } as const;
+
+/**
+ * Sans école sur la carte : une vue du cœur de l'arrondissement, assez large pour que ses rues se
+ * lisent comme une carte (la hauteur suit le rapport de la place).
+ */
+export const FENETRE_SANS_ECOLE = { largeur: 2500 } as const;
+
+/** Sans rues dessinées : la fenêtre déborde de 10 % la largeur de l'arrondissement, pour qu'on voie son bord. */
+const AIR_SANS_RUES = 1.1;
+
+const RAD = Math.PI / 180;
+
+/**
+ * Le cœur d'un arrondissement : le milieu de ses rues quand elles sont dessinées, c'est-à-dire là
+ * où le dessin est dense, sinon le centre de sa boîte.
+ */
+function coeurDe(arrondissement: ArrondissementDessine): Point {
+  const r = ruesDe(arrondissement.slug);
+  const points = r ? [...r.rues, ...r.avenues].flat() : [];
+  if (points.length > 0) {
+    const somme = points.reduce(
+      (total, [longitude = 0, latitude = 0]) => ({
+        longitude: total.longitude + longitude,
+        latitude: total.latitude + latitude,
+      }),
+      { longitude: 0, latitude: 0 },
+    );
+    return { latitude: somme.latitude / points.length, longitude: somme.longitude / points.length };
+  }
+  const b = boiteDeContours([arrondissement.contour]);
+  return { latitude: (b.sud + b.nord) / 2, longitude: (b.ouest + b.est) / 2 };
+}
+
+/**
+ * L'arrondissement que l'aperçu de l'accueil montre : celui qui a le plus d'écoles sur la carte
+ * (situées) ; à égalité, celui dont les rues sont dessinées (Tié-Tié pour l'instant : sans rues,
+ * la fenêtre d'un arrondissement vide serait un aplat), puis le plus petit numéro. Aucun si aucun
+ * arrondissement ouvert n'est dessiné.
+ */
+export function arrondissementDeLApercu(
+  ouverts: readonly { slug: string }[],
+  ecoles: readonly { arrondissement: string; latitude: number | null; longitude: number | null }[],
+): ArrondissementDessine | null {
+  const candidats = ouverts
+    .map((o) => arrondissementDessine(o.slug))
+    .filter((a): a is ArrondissementDessine => a !== null)
+    .map((a) => ({
+      arrondissement: a,
+      surCarte: situees(ecoles.filter((e) => e.arrondissement === a.slug)).length,
+      aDesRues: ruesDe(a.slug) !== null,
+    }));
+  candidats.sort(
+    (a, b) =>
+      b.surCarte - a.surCarte ||
+      Number(b.aDesRues) - Number(a.aDesRues) ||
+      a.arrondissement.numero - b.arrondissement.numero,
+  );
+  return candidats[0]?.arrondissement ?? null;
+}
+
+/**
+ * La fenêtre de l'aperçu : un morceau de l'arrondissement, au rapport de la place qu'on lui donne,
+ * qui contient chaque école située avec sa maison entière (drapeau compris) et laisse libres les
+ * bandes réservées du format.
+ *
+ * - La fenêtre fait au moins 900 × 600 m (`PLANCHER_APERCU`) et jamais plus que l'arrondissement ;
+ *   le dessin reste à l'échelle, les maisons gardent leur taille.
+ * - Les marges des maisons sont en unités du dessin, donc en mètres selon l'agrandissement : la
+ *   fenêtre se calcule d'un coup, sans essais successifs (la marge est une part fixe du dessin).
+ * - Sans école, c'est une vue du cœur de l'arrondissement (`FENETRE_SANS_ECOLE`).
+ * - Sans rues dessinées (Ngoyo pour l'instant), elle montre l'arrondissement sur toute sa largeur, avec
+ *   un peu d'air : serrée, elle ne montrerait qu'un aplat beige. Il suffira de dessiner les rues.
+ */
+export function cadreApercu(
+  arrondissement: ArrondissementDessine,
+  ecoles: readonly Point[],
+  format: FormatApercu,
+): { boite: Boite; projection: Projection } {
+  const rapport = format.largeur / format.hauteur;
+  const enveloppe = ecoles.length > 0 ? boiteDePoints(ecoles) : null;
+  const milieu: Point = enveloppe
+    ? {
+        latitude: (enveloppe.sud + enveloppe.nord) / 2,
+        longitude: (enveloppe.ouest + enveloppe.est) / 2,
+      }
+    : coeurDe(arrondissement);
+  const kx = Math.cos(milieu.latitude * RAD);
+
+  // Ce que la fenêtre doit contenir : les écoles (en mètres) et la place de leur maison (en unités).
+  const lateral = ENCOMBREMENT_MARQUE.gauche + ENCOMBREMENT_MARQUE.droite + 2 * SECURITE;
+  const hautUnites = ENCOMBREMENT_MARQUE.haut + SECURITE + format.reserveHaut;
+  const basUnites = ENCOMBREMENT_MARQUE.bas + SECURITE + format.reserveBas;
+  const largeurEcoles = enveloppe ? (enveloppe.est - enveloppe.ouest) * kx * METRES_PAR_DEGRE : 0;
+  const hauteurEcoles = enveloppe ? (enveloppe.nord - enveloppe.sud) * METRES_PAR_DEGRE : 0;
+  // La fenêtre fait L mètres pour `format.largeur` unités : une marge de n unités y pèse
+  // n × L / largeur mètres, d'où L = écoles / (1 - marges / largeur).
+  const parLargeur = largeurEcoles / (1 - lateral / format.largeur);
+  const parHauteur = (hauteurEcoles / (1 - (hautUnites + basUnites) / format.hauteur)) * rapport;
+
+  const limite = boiteDeContours([arrondissement.contour]);
+  const limiteLargeur =
+    (limite.est - limite.ouest) *
+    Math.cos(((limite.sud + limite.nord) / 2) * RAD) *
+    METRES_PAR_DEGRE;
+  const limiteHauteur = (limite.nord - limite.sud) * METRES_PAR_DEGRE;
+
+  const voulue = enveloppe
+    ? Math.max(parLargeur, parHauteur, PLANCHER_APERCU.largeur, PLANCHER_APERCU.hauteur * rapport)
+    : FENETRE_SANS_ECOLE.largeur;
+  // Sans rues dessinées (Ngoyo pour l'instant), une fenêtre serrée ne montrerait qu'un aplat : on
+  // montre l'arrondissement sur toute sa largeur, avec un peu d'air, pour qu'on voie où l'on est.
+  const sansRues = ruesDe(arrondissement.slug) === null;
+  const largeur = sansRues
+    ? Math.max(voulue, limiteLargeur * AIR_SANS_RUES)
+    : Math.min(voulue, limiteLargeur, limiteHauteur * rapport);
+  const hauteur = largeur / rapport;
+  const metresParUnite = largeur / format.largeur;
+
+  // Le drapeau et la légende sont en haut, le cartouche en bas : le bloc « écoles et marges »
+  // n'est pas centré sur les écoles, la fenêtre non plus.
+  const decalage = enveloppe
+    ? ((hautUnites - basUnites) * metresParUnite) / 2 / METRES_PAR_DEGRE
+    : 0;
+  const centre: Point = { latitude: milieu.latitude + decalage, longitude: milieu.longitude };
+  const demiLatitude = hauteur / 2 / METRES_PAR_DEGRE;
+  const demiLongitude = largeur / 2 / (METRES_PAR_DEGRE * kx);
+  const boite: Boite = {
+    ouest: centre.longitude - demiLongitude,
+    est: centre.longitude + demiLongitude,
+    sud: centre.latitude - demiLatitude,
+    nord: centre.latitude + demiLatitude,
+  };
+  return {
+    boite,
+    projection: projection(boite, {
+      largeur: format.largeur,
+      hauteurMax: format.hauteur,
+      hauteurMin: format.hauteur,
+      marge: 0,
+    }),
+  };
+}
+
+/**
+ * Ce que dit le cartouche de l'aperçu : combien d'écoles sont sur la carte, ou que les écoles
+ * publiées n'y sont pas encore (aucune position), ou que le relevé est en cours.
+ */
+export function compteApercu(publiees: number, surCarte: number): string {
+  const ecoles = (n: number) => `${n} école${n > 1 ? 's' : ''}`;
+  if (surCarte > 0) return `${ecoles(surCarte)} sur la carte`;
+  if (publiees > 0) return `${ecoles(publiees)}, pas encore sur la carte`;
+  return 'relevé en cours';
 }

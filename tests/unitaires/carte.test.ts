@@ -1,18 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import {
+  boiteDeContours,
   boiteDePoints,
   cheminContour,
   cheminLignes,
   elargir,
   projection,
   regrouper,
+  type Projection,
 } from '../../src/modele/carte/geometrie';
 import {
+  APERCU_ORDINATEUR,
+  APERCU_TELEPHONE,
+  arrondissementDeLApercu,
   arrondissementsDessines,
+  cadreApercu,
   cadreArrondissement,
   cadreCoin,
   cadreVille,
+  compteApercu,
+  ENCOMBREMENT_MARQUE,
+  FENETRE_SANS_ECOLE,
   planer,
+  PLANCHER_APERCU,
   ruesDe,
   situees,
   TAILLE_MARQUE,
@@ -228,5 +238,207 @@ describe('les cadrages de Pointe-Noire', () => {
     const sansPosition = { latitude: null, longitude: null };
     const avec = { latitude: -4.79, longitude: 11.92 };
     expect(situees([sansPosition, avec])).toEqual([avec]);
+  });
+});
+
+describe('la fenêtre de l’aperçu de la carte sur l’accueil (ticket 42)', () => {
+  const tieTie = arrondissementsDessines.find((a) => a.slug === 'tie-tie')!;
+  const formats = [
+    ['ordinateur', APERCU_ORDINATEUR],
+    ['téléphone', APERCU_TELEPHONE],
+  ] as const;
+  const metres = (p: Projection, unites: number) => unites * p.metresParUnite;
+
+  // Des écoles de Tié-Tié : une seule, deux serrées, trois étalées sur 2 km du nord au sud.
+  const ensembles: [string, EcoleSurCarte[]][] = [
+    ['une seule école', [ecole('a', -4.79105, 11.925)]],
+    ['deux écoles à 270 m', [ecole('a', -4.79105, 11.925), ecole('b', -4.7931, 11.9262)]],
+    [
+      'trois écoles étalées sur 2 km du nord au sud',
+      [ecole('a', -4.785, 11.925), ecole('b', -4.795, 11.926), ecole('c', -4.803, 11.924)],
+    ],
+  ];
+
+  it.each(formats)('donne au dessin la taille de la place (%s)', (_nom, format) => {
+    const { projection: p } = cadreApercu(tieTie, [ecole('a', -4.79105, 11.925)], format);
+    expect(p.largeur).toBe(format.largeur);
+    expect(p.hauteur).toBeCloseTo(format.hauteur, 0);
+  });
+
+  describe.each(ensembles)('%s', (_titre, ecoles) => {
+    it.each(formats)(
+      'chaque maison tient entière dans le dessin, hors des bandes réservées (%s)',
+      (_nom, format) => {
+        const { boite, projection: p } = cadreApercu(tieTie, ecoles, format);
+        const { marques } = planer(boite, ecoles, p);
+        expect(marques.length).toBeGreaterThan(0);
+        for (const m of marques) {
+          // Le drapeau monte jusqu'à 56 unités au-dessus du point, la porte descend à 8.
+          expect(m.x - ENCOMBREMENT_MARQUE.gauche, 'bord gauche').toBeGreaterThanOrEqual(0);
+          expect(m.x + ENCOMBREMENT_MARQUE.droite, 'bord droit').toBeLessThanOrEqual(p.largeur);
+          expect(m.y - ENCOMBREMENT_MARQUE.haut, 'sous la légende').toBeGreaterThanOrEqual(
+            format.reserveHaut,
+          );
+          expect(m.y + ENCOMBREMENT_MARQUE.bas, 'au-dessus du cartouche').toBeLessThanOrEqual(
+            p.hauteur - format.reserveBas,
+          );
+        }
+      },
+    );
+  });
+
+  it.each(formats)(
+    'ne descend pas sous 900 × 600 m : une seule école n’est pas un zoom de rue (%s)',
+    (_nom, format) => {
+      const { projection: p } = cadreApercu(tieTie, [ecole('a', -4.79105, 11.925)], format);
+      expect(metres(p, p.largeur)).toBeGreaterThanOrEqual(PLANCHER_APERCU.largeur - 1);
+      expect(metres(p, p.hauteur)).toBeGreaterThanOrEqual(PLANCHER_APERCU.hauteur - 1);
+    },
+  );
+
+  it.each(formats)(
+    'ne dépasse jamais l’arrondissement : deux écoles à ses deux bouts (%s)',
+    (_nom, format) => {
+      const b = boiteDeContours([tieTie.contour]);
+      const milieu = (b.ouest + b.est) / 2;
+      const { projection: p } = cadreApercu(
+        tieTie,
+        [ecole('nord', b.nord, milieu), ecole('sud', b.sud, milieu)],
+        format,
+      );
+      const kx = Math.cos((((b.sud + b.nord) / 2) * Math.PI) / 180);
+      expect(metres(p, p.largeur)).toBeLessThanOrEqual((b.est - b.ouest) * kx * 111_320 * 1.01);
+      expect(metres(p, p.hauteur)).toBeLessThanOrEqual((b.nord - b.sud) * 111_320 * 1.01);
+    },
+  );
+
+  it.each(formats)(
+    'sans école, regarde le cœur de l’arrondissement : 2,5 km de large, avec des rues à lire (%s)',
+    (_nom, format) => {
+      const { boite, projection: p } = cadreApercu(tieTie, [], format);
+      expect(Math.abs(metres(p, p.largeur) - FENETRE_SANS_ECOLE.largeur)).toBeLessThan(25);
+      const centre = {
+        latitude: (boite.sud + boite.nord) / 2,
+        longitude: (boite.ouest + boite.est) / 2,
+      };
+      expect(dansContour(centre, tieTie.contour)).toBe(true);
+      // Le cœur est là où les rues sont serrées : la fenêtre en voit bien plus que sa part moyenne.
+      const rues = ruesDe('tie-tie')!;
+      const toutes = [...rues.rues, ...rues.avenues].flat();
+      const pointsVus = toutes.filter(
+        ([longitude = 0, latitude = 0]) =>
+          longitude >= boite.ouest &&
+          longitude <= boite.est &&
+          latitude >= boite.sud &&
+          latitude <= boite.nord,
+      );
+      const b = boiteDeContours([tieTie.contour]);
+      const aireArrondissement =
+        ((b.est - b.ouest) *
+          Math.cos((((b.sud + b.nord) / 2) * Math.PI) / 180) *
+          111_320 *
+          ((b.nord - b.sud) * 111_320)) /
+        1e6;
+      const aireFenetre = (metres(p, p.largeur) * metres(p, p.hauteur)) / 1e6;
+      const densiteMoyenne = toutes.length / aireArrondissement;
+      const densiteFenetre = pointsVus.length / aireFenetre;
+      expect(densiteFenetre, 'densité des rues dans la fenêtre').toBeGreaterThan(
+        1.5 * densiteMoyenne,
+      );
+    },
+  );
+
+  it.each(formats)(
+    'sans rues dessinées (Ngoyo), montre l’arrondissement sur toute sa largeur : une fenêtre serrée ne serait qu’un aplat (%s)',
+    (_nom, format) => {
+      const ngoyo = arrondissementsDessines.find((a) => a.slug === 'ngoyo')!;
+      expect(ruesDe('ngoyo')).toBeNull();
+      // Un point de Ngoyo, le plus proche du milieu de sa boîte.
+      const b = boiteDeContours([ngoyo.contour]);
+      const milieu = { latitude: (b.sud + b.nord) / 2, longitude: (b.ouest + b.est) / 2 };
+      const grille = Array.from({ length: 19 * 19 }, (_, i) => ({
+        latitude: b.sud + ((b.nord - b.sud) * (Math.floor(i / 19) + 1)) / 20,
+        longitude: b.ouest + ((b.est - b.ouest) * ((i % 19) + 1)) / 20,
+      }));
+      const dedans = grille
+        .filter((c) => dansContour(c, ngoyo.contour))
+        .sort((x, y) => distanceMetres(x, milieu) - distanceMetres(y, milieu))[0]!;
+      const ecoles = [ecole('a', dedans.latitude, dedans.longitude)];
+
+      const { boite, projection: p } = cadreApercu(ngoyo, ecoles, format);
+      const kx = Math.cos((milieu.latitude * Math.PI) / 180);
+      expect(metres(p, p.largeur)).toBeGreaterThanOrEqual((b.est - b.ouest) * kx * 111_320);
+      // La maison tient toujours entière, hors des bandes réservées.
+      const { marques } = planer(boite, ecoles, p);
+      expect(marques).toHaveLength(1);
+      const m = marques[0]!;
+      expect(m.x - ENCOMBREMENT_MARQUE.gauche).toBeGreaterThanOrEqual(0);
+      expect(m.x + ENCOMBREMENT_MARQUE.droite).toBeLessThanOrEqual(p.largeur);
+      expect(m.y - ENCOMBREMENT_MARQUE.haut).toBeGreaterThanOrEqual(format.reserveHaut);
+      expect(m.y + ENCOMBREMENT_MARQUE.bas).toBeLessThanOrEqual(p.hauteur - format.reserveBas);
+    },
+  );
+
+  it('ne dépend pas de l’ordre des écoles', () => {
+    const [, trois] = ensembles[2]!;
+    const a = cadreApercu(tieTie, trois, APERCU_ORDINATEUR).boite;
+    const b = cadreApercu(tieTie, [...trois].reverse(), APERCU_ORDINATEUR).boite;
+    expect(b).toEqual(a);
+  });
+});
+
+describe('l’arrondissement que l’aperçu montre (ticket 42)', () => {
+  // L'ordre du catalogue est alphabétique : Ngoyo avant Tié-Tié.
+  const ouverts = [{ slug: 'ngoyo' }, { slug: 'tie-tie' }];
+  const ecolesSituees = (arrondissement: string, n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      arrondissement,
+      latitude: -4.79 - i / 1000,
+      longitude: 11.92,
+    }));
+  const sansPosition = (arrondissement: string, n: number) =>
+    Array.from({ length: n }, () => ({ arrondissement, latitude: null, longitude: null }));
+
+  it('prend celui qui a le plus d’écoles sur la carte', () => {
+    const ngoyo3 = [...ecolesSituees('ngoyo', 3), ...ecolesSituees('tie-tie', 1)];
+    expect(arrondissementDeLApercu(ouverts, ngoyo3)?.slug).toBe('ngoyo');
+    const tie2 = [...ecolesSituees('ngoyo', 1), ...ecolesSituees('tie-tie', 2)];
+    expect(arrondissementDeLApercu(ouverts, tie2)?.slug).toBe('tie-tie');
+  });
+
+  it('prend Tié-Tié, seul arrondissement aux rues dessinées, quand aucune école n’est située', () => {
+    // Pas Ngoyo, premier par ordre alphabétique et sans rues : sa fenêtre serait un aplat.
+    expect(arrondissementDeLApercu(ouverts, [])?.slug).toBe('tie-tie');
+    // Des écoles publiées mais pas situées ne comptent pas : elles ne sont pas sur la carte.
+    expect(arrondissementDeLApercu(ouverts, sansPosition('ngoyo', 5))?.slug).toBe('tie-tie');
+    // Le critère est « a des rues », pas « a le plus petit numéro » : Lumumba est l'arrondissement 1.
+    const lumumbaEtTieTie = [{ slug: 'lumumba' }, { slug: 'tie-tie' }];
+    expect(arrondissementDeLApercu(lumumbaEtTieTie, [])?.slug).toBe('tie-tie');
+  });
+
+  it('ignore un arrondissement que le relevé n’a pas ouvert', () => {
+    const dansTieTie = ecolesSituees('tie-tie', 4);
+    expect(arrondissementDeLApercu([{ slug: 'ngoyo' }], dansTieTie)?.slug).toBe('ngoyo');
+  });
+
+  it('n’en prend aucun quand aucun arrondissement ouvert n’est dessiné', () => {
+    expect(arrondissementDeLApercu([{ slug: 'inconnu' }], [])).toBeNull();
+    expect(arrondissementDeLApercu([], [])).toBeNull();
+  });
+});
+
+describe('le compte sous l’aperçu (ticket 42)', () => {
+  it('dit combien d’écoles sont sur la carte', () => {
+    expect(compteApercu(4, 3)).toBe('3 écoles sur la carte');
+    expect(compteApercu(1, 1)).toBe('1 école sur la carte');
+  });
+
+  it('dit que des écoles publiées ne sont pas encore situées', () => {
+    expect(compteApercu(4, 0)).toBe('4 écoles, pas encore sur la carte');
+    expect(compteApercu(1, 0)).toBe('1 école, pas encore sur la carte');
+  });
+
+  it('dit que le relevé est en cours quand il n’y a rien', () => {
+    expect(compteApercu(0, 0)).toBe('relevé en cours');
   });
 });
