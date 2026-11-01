@@ -3,6 +3,7 @@
 // commencé, comme les planches « Accueil » (téléphone) et « Accueil sur ordinateur » du canevas.
 // Aucun JavaScript. Le dessin est décoratif : tout l'aperçu mène à la carte de l'arrondissement,
 // par le dessin (un lien caché du clavier) et par le bouton du cartouche, qui est la vraie porte.
+// La légende explique le dessin : elle est cachée du lecteur d'écran comme lui.
 //
 // Deux dessins, un par place : la fenêtre n'a pas le même rapport sur téléphone et tablette
 // (350 × 150) que sur ordinateur (520 × 456). Un seul s'affiche ; l'autre pèse environ 6 Ko
@@ -78,7 +79,7 @@ const titre = `Carte de ${arrondissement.nom}`;
       />
     </div>
     {sur.length > 0 && (
-      <div class="apercu-legende">
+      <div class="apercu-legende" aria-hidden="true">
         <LegendeCarte />
       </div>
     )}

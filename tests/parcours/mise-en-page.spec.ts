@@ -236,13 +236,18 @@ test.describe('site public', () => {
     const apercu = page.getByRole('region', { name: 'La carte de Tié-Tié' });
     const dessin = await apercu.locator('svg.plateau:visible').boundingBox();
     const cartouche = await apercu.locator('.apercu-cartouche').boundingBox();
-    const legende = apercu.getByRole('list', { name: 'Légende de la carte' });
+    const legende = apercu.locator('.apercu-legende');
     if (!dessin || !cartouche) throw new Error('l’aperçu de la carte est introuvable');
     if (largeurDe(page) >= ORDINATEUR) {
       const maisons = await apercu.locator('svg.plateau:visible g.marque').all();
       expect(maisons.length, 'des écoles sur l’aperçu').toBeGreaterThan(0);
       const boiteLegende = await legende.boundingBox();
       if (!boiteLegende) throw new Error('la légende est introuvable');
+      // La légende explique un dessin que le lecteur d'écran ne voit pas : elle est cachée comme lui.
+      await expect(
+        apercu.getByRole('list', { name: 'Légende de la carte' }),
+        'la légende est lue par le lecteur d’écran',
+      ).toHaveCount(0);
       for (const maison of maisons) {
         const boite = await maison.boundingBox();
         if (!boite) throw new Error('une école de l’aperçu est introuvable');
