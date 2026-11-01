@@ -18,6 +18,12 @@ const CHARNIERE_ADMIN = 1024;
 
 const largeurDe = (page: Page) => page.viewportSize()?.width ?? 0;
 
+type Rectangle = { x: number; y: number; width: number; height: number };
+
+/** Deux rectangles de l'écran se recouvrent-ils, même d'un pixel ? */
+const seRecouvrent = (a: Rectangle, b: Rectangle) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
 /** La barre de l'administration : en haut sans s'étirer, ou une colonne sur toute la hauteur. */
 async function verifierLaBarre(page: Page, nom: string) {
   const fenetre = page.viewportSize();
@@ -208,6 +214,48 @@ test.describe('site public', () => {
     await page.goto('/');
     await expect(page.locator('a.quartier').first()).toContainText('Tié-Tié');
     await expect(page.locator('a.quartier').nth(1)).toContainText('Ngoyo');
+  });
+
+  test('accueil : l’aperçu de la carte est à droite de l’ouverture dès 1 024 px, dessous avant', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const titre = await position(page, 'Toutes les écoles, quartier par quartier.');
+    const apercu = await page.getByRole('region', { name: 'La carte de Tié-Tié' }).boundingBox();
+    if (largeurDe(page) >= ORDINATEUR) {
+      expect(apercu?.x ?? 0, 'à droite du titre').toBeGreaterThanOrEqual(titre.x + titre.width);
+    } else {
+      expect(apercu?.y ?? 0, 'sous le titre').toBeGreaterThan(titre.y + titre.height);
+    }
+  });
+
+  test('accueil : le cartouche et la légende, posés sur la carte dès 1 024 px, ne cachent aucune école', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const apercu = page.getByRole('region', { name: 'La carte de Tié-Tié' });
+    const dessin = await apercu.locator('svg.plateau:visible').boundingBox();
+    const cartouche = await apercu.locator('.apercu-cartouche').boundingBox();
+    const legende = apercu.getByRole('list', { name: 'Légende de la carte' });
+    if (!dessin || !cartouche) throw new Error('l’aperçu de la carte est introuvable');
+    if (largeurDe(page) >= ORDINATEUR) {
+      const maisons = await apercu.locator('svg.plateau:visible g.marque').all();
+      expect(maisons.length, 'des écoles sur l’aperçu').toBeGreaterThan(0);
+      const boiteLegende = await legende.boundingBox();
+      if (!boiteLegende) throw new Error('la légende est introuvable');
+      for (const maison of maisons) {
+        const boite = await maison.boundingBox();
+        if (!boite) throw new Error('une école de l’aperçu est introuvable');
+        expect(seRecouvrent(boite, cartouche), 'le cartouche cache une école').toBe(false);
+        expect(seRecouvrent(boite, boiteLegende), 'la légende cache une école').toBe(false);
+      }
+    } else {
+      // Avant 1 024 px, le cartouche suit la carte, et la légende n'y est pas.
+      expect(cartouche.y, 'le cartouche suit la carte').toBeGreaterThanOrEqual(
+        dessin.y + dessin.height - 1,
+      );
+      await expect(legende).toBeHidden();
+    }
   });
 
   test('liste : les écoles se rangent en grille, une fiche ne s’étire pas sur toute la page', async ({

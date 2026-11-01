@@ -1,0 +1,168 @@
+---
+// L'aperçu de la carte sur l'accueil (ticket 42) : une fenêtre sur l'arrondissement où le relevé a
+// commencé, comme les planches « Accueil » (téléphone) et « Accueil sur ordinateur » du canevas.
+// Aucun JavaScript. Le dessin est décoratif : tout l'aperçu mène à la carte de l'arrondissement,
+// par le dessin (un lien caché du clavier) et par le bouton du cartouche, qui est la vraie porte.
+//
+// Deux dessins, un par place : la fenêtre n'a pas le même rapport sur téléphone et tablette
+// (350 × 150) que sur ordinateur (520 × 456). Un seul s'affiche ; l'autre pèse environ 6 Ko
+// compressés. À partir de 64 rem, la légende et le cartouche sont posés sur la carte, dans les
+// bandes que la fenêtre leur laisse libres (`reserveHaut` et `reserveBas` du format, voir
+// `modele/carte/plan.ts`) ; avant, le cartouche suit la carte et la légende n'y est pas.
+import {
+  APERCU_ORDINATEUR,
+  APERCU_TELEPHONE,
+  arrondissementsDessines,
+  cadreApercu,
+  compteApercu,
+  planer,
+  ruesDe,
+  surCarte,
+  type ArrondissementDessine,
+  type ArrondissementSurCarte,
+  type FormatApercu,
+} from '../modele/carte/plan';
+import type { EcolePubliee } from '../modele/ports';
+import Carte from './Carte.astro';
+import LegendeCarte from './LegendeCarte.astro';
+
+interface Props {
+  /** L'arrondissement qu'on montre. */
+  arrondissement: ArrondissementDessine;
+  /** Ses écoles publiées (celles qui ont une position sont sur la carte). */
+  ecoles: EcolePubliee[];
+}
+const { arrondissement, ecoles } = Astro.props;
+
+const sur = surCarte(ecoles);
+const adresse = `/ecoles/${arrondissement.slug}/carte/`;
+const roles: ArrondissementSurCarte[] = arrondissementsDessines.map((a) => ({
+  arrondissement: a,
+  role: a.slug === arrondissement.slug ? 'focus' : 'voisin',
+}));
+const rues = ruesDe(arrondissement.slug);
+const fenetre = (format: FormatApercu) => {
+  const { boite, projection } = cadreApercu(arrondissement, sur, format);
+  return { projection, marques: planer(boite, sur, projection).marques };
+};
+const telephone = fenetre(APERCU_TELEPHONE);
+const ordinateur = fenetre(APERCU_ORDINATEUR);
+const titre = `Carte de ${arrondissement.nom}`;
+---
+
+<section class="apercu" aria-labelledby="titre-apercu">
+  <h2 id="titre-apercu" class="visuellement-cache">
+    La carte de {arrondissement.nom}
+  </h2>
+  <div class="apercu-cadre">
+    <div class="apercu-telephone">
+      <Carte
+        id="apercu-telephone"
+        titre={titre}
+        projection={telephone.projection}
+        arrondissements={roles}
+        rues={rues}
+        marques={telephone.marques}
+        apercu={adresse}
+      />
+    </div>
+    <div class="apercu-ordinateur">
+      <Carte
+        id="apercu-ordinateur"
+        titre={titre}
+        projection={ordinateur.projection}
+        arrondissements={roles}
+        rues={rues}
+        marques={ordinateur.marques}
+        apercu={adresse}
+      />
+    </div>
+    {sur.length > 0 && (
+      <div class="apercu-legende">
+        <LegendeCarte />
+      </div>
+    )}
+    <div class="apercu-cartouche">
+      <p class="apercu-nom">
+        <b>{arrondissement.nom}</b>
+        <span>
+          Arrondissement {arrondissement.numero} · {compteApercu(ecoles.length, sur.length)}
+        </span>
+      </p>
+      <a class="bouton" href={adresse} aria-label={`Voir la carte de ${arrondissement.nom}`}>
+        Voir la carte
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .apercu {
+    display: grid;
+    align-content: start;
+  }
+  .apercu-cadre {
+    position: relative;
+  }
+  /* Sur téléphone et tablette : un bandeau, et le cartouche dessous. */
+  .apercu-telephone {
+    max-width: var(--largeur-texte);
+  }
+  .apercu-ordinateur,
+  .apercu-legende {
+    display: none;
+  }
+  .apercu-cartouche {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-2) var(--espace-3);
+    margin-top: var(--espace-3);
+  }
+  .apercu-nom {
+    display: grid;
+    margin: 0;
+  }
+  .apercu-nom span {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+
+  /*
+   * À partir de 64 rem : la carte de la planche, la légende en haut et le cartouche en bas, posés
+   * dessus. Leur hauteur tient dans les bandes que la fenêtre leur réserve (plan.ts : 48 et 104
+   * unités du dessin, soit 43 et 94 px au plus petit agrandissement, 0,9 px par unité).
+   */
+  @media (min-width: 64rem) {
+    .apercu-telephone {
+      display: none;
+    }
+    .apercu-ordinateur {
+      display: block;
+    }
+    .apercu-legende {
+      position: absolute;
+      top: var(--espace-3);
+      left: var(--espace-3);
+      display: block;
+      padding: var(--espace-1) var(--espace-3);
+      border: 1.5px solid var(--carte-contour);
+      border-radius: var(--rayon-m);
+      background: var(--fond);
+    }
+    /* Le cartouche s'arrête sur le dessin : sous lui, la ligne de l'attribution (44 px). */
+    .apercu-cartouche {
+      position: absolute;
+      right: var(--espace-3);
+      bottom: calc(var(--cible-min) + var(--espace-3));
+      left: var(--espace-3);
+      flex-wrap: nowrap;
+      margin: 0;
+      padding: var(--espace-2) var(--espace-2) var(--espace-2) var(--espace-4);
+      border: 1.5px solid var(--carte-contour);
+      border-radius: var(--rayon-m);
+      background: var(--fond-releve);
+    }
+  }
+</style>

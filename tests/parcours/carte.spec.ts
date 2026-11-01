@@ -105,6 +105,43 @@ test('une école située par l’administration, sans relevé, dit qu’elle a �
   ).toBeVisible();
 });
 
+// L'aperçu de la carte sur l'accueil (ticket 42) : une fenêtre sur l'arrondissement où il y a des
+// écoles sur la carte (Tié-Tié : trois écoles situées dans le catalogue fictif), qui mène à sa carte.
+
+test('l’accueil montre un aperçu de la carte de Tié-Tié, qui mène à sa carte', async ({ page }) => {
+  await page.goto('/');
+  const apercu = page.getByRole('region', { name: 'La carte de Tié-Tié' });
+  await expect(apercu).toBeVisible();
+  await expect(apercu.getByText('Arrondissement 3 · 3 écoles sur la carte')).toBeVisible();
+
+  // Le dessin est décoratif : ni groupe ni lien dedans (une pastille ne mène pas à un coin dont
+  // le numéro vient de l'autre échelle), un seul des deux dessins s'affiche, et l'attribution
+  // d'OpenStreetMap reste lisible.
+  await expect(apercu.getByRole('group')).toHaveCount(0);
+  await expect(apercu.locator('svg a')).toHaveCount(0);
+  await expect(apercu.locator('svg.plateau:visible')).toHaveCount(1);
+  await expect(apercu.getByRole('link', { name: /OpenStreetMap/ })).toBeVisible();
+
+  // La porte accessible vers la carte est le bouton ; le dessin en est une autre, cachée du clavier
+  // et du lecteur d'écran.
+  await apercu.getByRole('link', { name: 'Voir la carte de Tié-Tié' }).click();
+  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
+});
+
+test('le dessin de l’aperçu est lui-même un lien vers la carte, sans entrer dans l’ordre du clavier', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const lien = page
+    .getByRole('region', { name: 'La carte de Tié-Tié' })
+    .locator('a.plateau-lien:visible');
+  await expect(lien).toHaveAttribute('href', '/ecoles/tie-tie/carte/');
+  await expect(lien).toHaveAttribute('tabindex', '-1');
+  await expect(lien).toHaveAttribute('aria-hidden', 'true');
+  await lien.click();
+  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
+});
+
 test('« Voir la carte de Pointe-Noire » garde son espace à l’écran', async ({ page }) => {
   await page.goto('/');
   const lien = page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' });
