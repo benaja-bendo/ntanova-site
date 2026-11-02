@@ -127,6 +127,7 @@
 
   .admin-nav {
     flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .admin-compte {
@@ -146,6 +147,11 @@
 @media (max-width: 40rem) {
   .admin-contenu {
     padding: var(--espace-4);
+  }
+
+  /* Cinq onglets tiennent sur 360 px : des marges plus étroites, et la ligne passe à la suivante si besoin. */
+  .admin-nav a {
+    padding: 0 var(--espace-2);
   }
 }
 
@@ -360,7 +366,8 @@
 
 .admin-tableau table {
   width: 100%;
-  min-width: 720px;
+  /* Sous cette largeur le tableau défile dans son cadre (téléphone) ; dès la tablette (cadre de 688 px) il y tient. */
+  min-width: 640px;
   border-collapse: collapse;
 }
 

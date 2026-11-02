@@ -77,7 +77,7 @@ function LigneRelais({
           >
             {lots.map((l) => (
               <option key={l.id} value={l.id}>
-                {l.nom} — {l.divisionNom}
+                {l.nom === l.divisionNom ? l.nom : `${l.nom} — ${l.divisionNom}`}
               </option>
             ))}
           </select>

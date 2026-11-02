@@ -420,6 +420,7 @@ const relais: PortRelais = {
         repere: c.repere ?? null,
         numeroEnseigne: c.numeroEnseigne ?? null,
         note: c.noteMission,
+        genre: c.genreMission,
       }));
   },
   async envoyerReleve(r) {
@@ -1052,17 +1053,7 @@ const admin: PortAdministration = {
     }
     const id = crypto.randomUUID();
     ecrire(
-      (e) =>
-        (e.divisions[id] = div(
-          id,
-          parentId,
-          niveau,
-          genre,
-          nom.trim(),
-          slug,
-          chemin,
-          parent.ouverte,
-        )),
+      (e) => (e.divisions[id] = div(id, parentId, niveau, genre, nom.trim(), slug, chemin, false)),
     );
     return id;
   },

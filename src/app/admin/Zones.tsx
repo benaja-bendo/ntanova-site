@@ -31,10 +31,13 @@ const adresseDe = (nom: string): string =>
 
 function AjouterDivision({
   divisions,
+  estOuverte,
   admin,
   surFait,
 }: {
   divisions: DivisionVue[];
+  /** La zone est-elle ouverte au relevé (elle-même, ou par une zone au-dessus d'elle) ? */
+  estOuverte: (divisionId: string) => boolean;
   admin: PortAdministration;
   surFait: (texte: string) => void;
 }) {
@@ -63,8 +66,12 @@ function AjouterDivision({
     setErreur(null);
     try {
       await admin.ajouterDivision(parent.id, genre, nom.trim(), adresse.trim() || adresseDe(nom));
+      // Une zone nouvelle n'est pas ouverte en soi ; elle l'est par la zone qui la contient, si celle-ci l'est.
       surFait(
-        `${nom.trim()} est ajouté sous ${parent.nom}. Fermé aux relais : ouvre-le quand tu veux.`,
+        `${nom.trim()} est ajouté sous ${parent.nom}. ` +
+          (estOuverte(parent.id)
+            ? 'Les relais peuvent y relever, comme dans tout ce que contient sa zone.'
+            : 'Fermé aux relais : ouvre-le quand tu veux.'),
       );
       setNom('');
       setAdresse('');
@@ -471,6 +478,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
         <>
           <AjouterDivision
             divisions={divisions}
+            estOuverte={(id) => ouvertePar.get(id) != null}
             admin={admin}
             surFait={(texte) => {
               setAnnonce(texte);

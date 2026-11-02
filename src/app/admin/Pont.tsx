@@ -59,7 +59,7 @@ export function Pont({
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
 
-  const honnete = messageHonnete(texte);
+  const honnete = messageHonnete(texte, [infos.ecole]);
   const lien =
     honnete && contact.accord ? lienWhatsApp(contact.whatsapp ?? undefined, texte) : null;
   // Le lien par défaut (message d'origine) sert à vérifier que le numéro est valide, même si le texte a été changé.
@@ -135,7 +135,10 @@ export function Pont({
                 Écrire à la direction sur WhatsApp
               </a>
             ) : (
-              <span className="mention">Le numéro de WhatsApp n’est pas valide.</span>
+              // Un message à reformuler a déjà son alerte ci-dessus : ici, seulement un numéro qui n'en est pas un.
+              !numeroValide && (
+                <span className="mention">Le numéro de WhatsApp n’est pas valide.</span>
+              )
             )}
             {envoye && (
               <span className="etiquette etat-verifiee">Premier message noté aujourd’hui</span>

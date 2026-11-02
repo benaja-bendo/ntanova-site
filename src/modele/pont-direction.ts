@@ -58,6 +58,13 @@ export const MOTS_INTERDITS: readonly RegExp[] = [
   /\brelais\s+(est|sera)\s+pay/i,
 ];
 
-export function messageHonnete(message: string): boolean {
-  return !MOTS_INTERDITS.some((mot) => mot.test(message));
+/**
+ * Le message ne promet-il rien d'interdit ? Le nom de l'école (`noms`) n'est pas contrôlé : « Collège Grand Prix »
+ * ou « Les Visiteurs » ne parlent pas de prix ni d'audience, ils sont un nom propre.
+ */
+export function messageHonnete(message: string, noms: readonly string[] = []): boolean {
+  const sansNoms = noms
+    .filter((nom) => nom.trim() !== '')
+    .reduce((texte, nom) => texte.split(nom).join('l’école'), message);
+  return !MOTS_INTERDITS.some((mot) => mot.test(sansNoms));
 }

@@ -646,7 +646,6 @@ function Detail({
                 </>
               )}
             </dl>
-            <Pont admin={admin} detail={detail} contact={contact} surAnnonce={surAnnonce} />
             {aEffacerContact ? (
               <span className="admin-actions">
                 <button
@@ -672,6 +671,16 @@ function Detail({
           </>
         )}
       </section>
+
+      {contact && (
+        <section className="pile-serree" aria-label="Écrire à la direction">
+          <h3 className="rang">
+            <Icone nom="coche" />
+            Écrire à la direction
+          </h3>
+          <Pont admin={admin} detail={detail} contact={contact} surAnnonce={surAnnonce} />
+        </section>
+      )}
 
       {efface && (
         <p className="bandeau bandeau-envoye" role="status">
