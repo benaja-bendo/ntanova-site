@@ -98,7 +98,7 @@ export function EnteteEtape({
         <button
           type="button"
           className="bouton-icone"
-          aria-label={etape === 1 ? 'Retour à mon lot' : `Retour à l'étape ${etape - 1}`}
+          aria-label={etape === 1 ? 'Retour à mon secteur' : `Retour à l'étape ${etape - 1}`}
           onClick={() => aller(retour)}
         >
           <Icone nom="retour" taille={22} />
