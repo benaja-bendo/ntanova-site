@@ -1,18 +1,23 @@
 // Prépare l'import des écoles connues par les entretiens (onglet « Établissements »
-// du Sheet, exporté en CSV) : un SQL à lancer dans l'éditeur SQL de Supabase.
+// du Sheet, exporté en CSV) : un fichier JSON à coller dans l'administration, onglet « Écoles »,
+// « Ajouter ou importer des écoles » › « Une liste (CSV ou JSON) ». L'écran le vérifie en
+// simulation (rien n'est écrit), dit ce qui ne va pas ligne par ligne, puis importe.
 //
-//   node outils/importer-ecoles.ts <export.csv> > import.sql
+//   node outils/importer-ecoles.ts <export.csv> > import.json
 //
-// Les écoles entrent en brouillon, sans position : jamais publiées ainsi, elles
-// attendent qu'un relais les situe (contre-visite). Seul ce qui se voit de la rue
-// est repris ; les personnes interrogées, les frais et les notes restent dans le Sheet.
+// Les écoles entrent à situer (sans position) : jamais publiées ainsi, elles attendent qu'un
+// relais les situe (contre-visite) ou que l'administration le fasse. Seul ce qui se voit de la
+// rue est repris ; les personnes interrogées, les frais et les notes restent dans le Sheet.
 // L'annuaire couvre toutes les écoles, de la crèche au supérieur : rien n'est écarté pour
 // son niveau ou son statut. Un type seulement « probable » (déduit d'un indice, jamais vu)
 // n'est pas repris comme un fait : « Pas indiqué », jusqu'à la contre-visite.
-// Le CSV et le SQL contiennent des données réelles : ni l'un ni l'autre dans git.
+// Le référence (ETB-012) rend l'import rejouable : une école déjà importée est « déjà connue »,
+// jamais dédoublée.
+// Le CSV et le JSON contiennent des données réelles : ni l'un ni l'autre dans git.
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import type { Valeur } from '../src/modele/listes.ts';
+import type { EntreeCatalogue } from '../src/modele/ports.ts';
 import { normaliserTelephone } from '../src/modele/telephone.ts';
 
 type Niveau = Valeur<'niveau'>;
@@ -150,60 +155,44 @@ export function versEcoles(lignes: Record<string, string>[]): {
   return { ecoles, ecartees };
 }
 
-const sql = (valeur: string | null) =>
-  valeur === null ? 'null' : `'${valeur.replaceAll("'", "''")}'`;
+/** Les divisions où l'import sait ranger une école (l'adresse ltree de `geo_divisions`). */
+const DIVISIONS: Record<NonNullable<EcoleImportee['arrondissement']>, string> = {
+  'tie-tie': 'congo.pointe_noire.pointe_noire.tie_tie',
+  ngoyo: 'congo.pointe_noire.pointe_noire.ngoyo',
+};
 
-/** Le SQL : se relance sans créer de doublon (une école par référence). */
-export function versSql(ecoles: EcoleImportee[], ecartees: Ecartee[], source: string): string {
-  const blocs = ecoles.map(
-    (e) => `-- ${e.reference}
-with nouvelle as (
-  insert into public.ecoles (arrondissement_id, slug, nom, quartier, type_ecole, niveaux, repere, numero_enseigne, publication)
-  select ${e.arrondissement ? `(select id from public.arrondissements where slug = ${sql(e.arrondissement)})` : 'null'},
-         public.slugifier(${sql(e.nom)}), ${sql(e.nom)}, ${sql(e.quartier)}, ${sql(e.typeEcole)},
-         '{${e.niveaux.join(',')}}', ${sql(e.repere)}, ${sql(e.numeroEnseigne)}, 'brouillon'
-  where not exists (select 1 from prive.ecoles_sources where reference = ${sql(e.reference)})
-  returning id
-)
-insert into prive.ecoles_sources (ecole_id, reference) select id, ${sql(e.reference)} from nouvelle;${
-      e.typeProbable
-        ? `
--- Le type n'était que probable : une école déjà importée avec « privée » repasse à « Pas indiqué »,
--- tant que personne ne l'a relevée sur place (en brouillon).
-update public.ecoles e set type_ecole = 'non_indique'
-  from prive.ecoles_sources s
-  where s.ecole_id = e.id and s.reference = ${sql(e.reference)}
-    and e.type_ecole = 'privee' and e.publication = 'brouillon';`
-        : ''
-    }`,
-  );
-  const ecarteesTexte = ecartees.map((e) => `--   ${e.reference} : ${e.raison}`).join('\n');
-  return `-- Écoles à situer, importées de ${source}.
--- Généré par outils/importer-ecoles.ts. À lancer dans l'éditeur SQL de Supabase.
--- En brouillon, sans position : rien n'est publié. Se relance sans doublon.
--- Écartées :
-${ecarteesTexte || '--   aucune'}
-
-begin;
-
-${blocs.join('\n\n')}
-
-commit;
-
--- Vérifier :
--- select e.nom, e.quartier, s.reference from public.ecoles e join prive.ecoles_sources s on s.ecole_id = e.id;
-`;
+/**
+ * Les écoles au format de l'import de l'administration (`EntreeCatalogue`) : une institution, un campus,
+ * ses cycles. Sans position, l'école est « à situer » ; sans arrondissement connu, la division est à choisir.
+ */
+export function versEntrees(ecoles: EcoleImportee[]): EntreeCatalogue[] {
+  return ecoles.map((e) => ({
+    reference: e.reference,
+    nom: e.nom,
+    genre: e.typeEcole,
+    campus: [
+      {
+        etiquette: null,
+        division: e.arrondissement ? DIVISIONS[e.arrondissement] : null,
+        quartier: e.quartier,
+        repere: e.repere,
+        numeroEnseigne: e.numeroEnseigne,
+        position: null,
+        programme: null,
+        cycles: e.niveaux.map((cycle) => ({ cycle, formations: [] })),
+      },
+    ],
+  }));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const chemin = process.argv[2];
   if (!chemin) {
-    console.error('Usage : node outils/importer-ecoles.ts <export.csv> > import.sql');
+    console.error('Usage : node outils/importer-ecoles.ts <export.csv> > import.json');
     process.exit(1);
   }
   const { ecoles, ecartees } = versEcoles(lireCsv(readFileSync(chemin, 'utf8')));
-  process.stdout.write(
-    versSql(ecoles, ecartees, "l'onglet Établissements du Sheet des entretiens"),
-  );
+  process.stdout.write(`${JSON.stringify(versEntrees(ecoles), null, 2)}\n`);
   console.error(`${ecoles.length} écoles à importer, ${ecartees.length} écartées.`);
+  for (const e of ecartees) console.error(`  écartée : ${e.reference} (${e.raison})`);
 }
