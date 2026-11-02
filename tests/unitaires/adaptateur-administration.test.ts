@@ -106,11 +106,55 @@ describe('l’adaptateur Supabase de l’administration', () => {
       ]);
     });
 
+    it('donne à la base la division que l’administration a choisie, et seulement elle', async () => {
+      const { port, appels } = fausseApi({ accept_submission: { data: 'campus-3', error: null } });
+      await port.accepter('r5', { divisionId: 'div-1' });
+      await port.accepter('r6');
+      expect(appels[0]?.arguments).toMatchObject({ p_submission: 'r5', p_division: 'div-1' });
+      expect(appels[1]?.arguments).toMatchObject({ p_submission: 'r6', p_division: null });
+    });
+
     it('active un relais sans lot : la base reçoit un lot nul', async () => {
       const { port, appels } = fausseApi({ activer_relais: { data: null, error: null } });
       await port.activerRelais('relais-1', null);
       expect(appels).toEqual([
         { nom: 'activer_relais', arguments: { relais: 'relais-1', lot: null } },
+      ]);
+    });
+  });
+
+  describe('les lots rendus (ticket n° 67, M5)', () => {
+    it('lit la date à laquelle un lot a été rendu, ou rien', async () => {
+      const ligne = {
+        nom: '[Lot]',
+        essai: false,
+        a_rendre_le: '2026-11-20',
+        geo_division_id: 'd1',
+        geo_divisions: { name: '[Zone]', path: 'congo.zone' },
+      };
+      const { port } = fausseApi(
+        {},
+        {
+          lots: [
+            { ...ligne, id: 'l1', rendu_le: '2026-11-18' },
+            { ...ligne, id: 'l2', rendu_le: null },
+          ],
+        },
+      );
+      const lots = await port.lots();
+      expect(lots.map((l) => [l.id, l.renduLe])).toEqual([
+        ['l1', '2026-11-18'],
+        ['l2', null],
+      ]);
+    });
+
+    it('marque un lot rendu, ou le remet en cours, par la fonction de la base', async () => {
+      const { port, appels } = fausseApi({ mark_batch_returned: { data: null, error: null } });
+      await port.marquerLotRendu('l1', true);
+      await port.marquerLotRendu('l1', false);
+      expect(appels).toEqual([
+        { nom: 'mark_batch_returned', arguments: { p_batch: 'l1', p_returned: true } },
+        { nom: 'mark_batch_returned', arguments: { p_batch: 'l1', p_returned: false } },
       ]);
     });
   });
@@ -129,6 +173,7 @@ describe('l’adaptateur Supabase de l’administration', () => {
             p_institution: null,
             p_label: null,
             p_programs: [],
+            p_division: null,
           },
         },
       ]);
@@ -159,6 +204,7 @@ describe('l’adaptateur Supabase de l’administration', () => {
         p_campus: null,
         p_institution: 'inst-1',
         p_label: 'Campus de Loandjili',
+        p_division: null,
         p_programs: [
           {
             cycle: 'lycee',

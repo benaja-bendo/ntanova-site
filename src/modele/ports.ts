@@ -278,6 +278,8 @@ export interface ReleveAValider {
 export interface DetailReleve extends ReleveAValider {
   prisLe: string;
   position: Point | null;
+  /** La division que dit la position (la plus fine dont le contour la contient) ; nulle si aucun contour connu. */
+  divisionId: string | null;
   niveaux: Valeur<'niveau'>[];
   typeEcole: Valeur<'type_ecole'>;
   programme: string | null;
@@ -344,6 +346,12 @@ export interface DecisionAcceptation {
   institutionId?: string | null;
   etiquette?: string | null;
   formations?: FormationSaisie[];
+  /**
+   * La division de l'école, choisie par l'administration (une ville, un arrondissement ou un quartier). Elle l'emporte
+   * sur celle que dit la position, et elle est obligatoire quand aucun contour connu ne contient la position : la fiche
+   * ne retombe plus sur la division du lot du relais (ticket n° 67).
+   */
+  divisionId?: string | null;
 }
 
 export interface ContactDirection {
@@ -383,6 +391,8 @@ export interface LotVu {
   nom: string;
   essai: boolean;
   aRendreLe: string | null;
+  /** Le jour où l'administration l'a déclaré terminé, s'il l'est. */
+  renduLe: string | null;
   /** Où il est posé : une ville, un arrondissement ou un quartier. */
   divisionId: string;
   divisionNom: string;
@@ -593,6 +603,8 @@ export interface PortAdministration {
     aRendreLe: string | null,
     essai: boolean,
   ): Promise<string>;
+  /** Marque un lot rendu à la date du jour, ou le remet en cours (`rendu` faux). `PUT /admin/lots/{id}/rendu` */
+  marquerLotRendu(lotId: string, rendu: boolean): Promise<void>;
   /** `POST /admin/relais/{id}/activation` */
   /** Sans lot (`null`), le relais relève où il se trouve : les zones ouvertes sont sa limite. */
   activerRelais(relaisId: string, lotId: string | null): Promise<void>;

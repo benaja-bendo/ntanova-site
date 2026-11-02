@@ -356,6 +356,23 @@ export function Zones({ admin }: { admin: PortAdministration }) {
     }
   };
 
+  // Un secteur est « rendu » quand l'administration le déclare terminé : c'est ce que compte la mesure, à sa date.
+  const rendre = async (l: LotVu, rendu: boolean) => {
+    setEnCours(true);
+    setErreur(null);
+    try {
+      await admin.marquerLotRendu(l.id, rendu);
+      setAnnonce(
+        rendu ? `Le lot « ${l.nom} » est marqué rendu.` : `Le lot « ${l.nom} » est remis en cours.`,
+      );
+      charger();
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
   const requete = recherche
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -505,6 +522,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
               <th scope="col">Lot</th>
               <th scope="col">Zone</th>
               <th scope="col">À rendre</th>
+              <th scope="col">Rendu</th>
               <th scope="col">Relais actifs</th>
               <th scope="col">Note</th>
             </tr>
@@ -517,6 +535,32 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                 </td>
                 <td>{divisions ? cheminLisible(l.divisionId, divisions) : l.divisionNom}</td>
                 <td>{l.aRendreLe ? jour(l.aRendreLe) : '—'}</td>
+                <td>
+                  {l.essai ? (
+                    '—'
+                  ) : l.renduLe ? (
+                    <>
+                      Rendu le {jour(l.renduLe)}{' '}
+                      <button
+                        type="button"
+                        className="bouton bouton-secondaire bouton-petit"
+                        disabled={enCours}
+                        onClick={() => void rendre(l, false)}
+                      >
+                        Remettre en cours
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="bouton bouton-secondaire bouton-petit"
+                      disabled={enCours}
+                      onClick={() => void rendre(l, true)}
+                    >
+                      Marquer rendu
+                    </button>
+                  )}
+                </td>
                 <td>{relais.filter((r) => r.lotId === l.id && r.statut === 'actif').length}</td>
                 <td className="mention">
                   {l.essai
@@ -531,7 +575,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
             ))}
             {lots.length === 0 && (
               <tr>
-                <td colSpan={5} className="texte-doux">
+                <td colSpan={6} className="texte-doux">
                   Aucun lot.
                 </td>
               </tr>
