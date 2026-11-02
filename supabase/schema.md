@@ -157,6 +157,7 @@ create extension unaccent with schema extensions;
 create extension ltree    with schema extensions;
 create role anon          nologin noinherit;
 create role authenticated nologin noinherit;
+create role service_role  nologin noinherit;   -- nommé dans les droits d'un export fait depuis Supabase
 grant usage on schema extensions to anon, authenticated;
 alter database ntanova set search_path = "$user", public, extensions;
 drop schema public cascade;   -- celui d'une base neuve est vide : l'export le recrée avec tout son contenu
@@ -167,6 +168,7 @@ drop schema public cascade;   -- celui d'une base neuve est vide : l'export le r
 psql "$URL_DU_CONTENEUR" -f ntanova.sql
 ```
 
+- **Les rôles de la plateforme** : un export fait depuis Supabase nomme `service_role` dans les droits de ses objets, et peut nommer `postgres` ou `supabase_admin` dans des lignes `ALTER DEFAULT PRIVILEGES`. Créez ces rôles (sans connexion) avant de restaurer, ou retirez ces lignes de `ntanova.sql`. **Éprouvé avec le simulacre du banc, pas encore avec une vraie sauvegarde.**
 - **L'API** : un PostgREST (`PGRST_DB_SCHEMAS=public`, `PGRST_DB_ANON_ROLE=anon`) devant la base. L'identité d'une requête est celle de son jeton : `public.current_user_id()` lit `request.jwt.claims` (ou `request.jwt.claim.sub`), comme le font PostgREST et Supabase, avec un rôle `authenticated` ou `anon`. La pile Supabase auto-hébergée (Docker) convient telle quelle ; un autre serveur demande de remplacer `src/infra/supabase/` par un adaptateur du même port (`src/modele/ports.ts` ne change pas).
 - **Les comptes** : tout serveur d'identité appelle `public.register_relay(id, google_sub, prénom)` à la première connexion ; l'administrateur s'inscrit dans `prive.admins`.
 - **Les photos** : la base ne garde qu'un chemin relatif (`field_submission_photos.storage_path`, par exemple `<relevé>/<photo>.webp`) ; une contrainte refuse tout ce qui ressemble à une adresse de serveur. Le fichier va dans le stockage de son choix (S3, MinIO, un dossier), au même chemin. Le seau `releves` et ses règles sont dans la couche Supabase, qu'on remplace.

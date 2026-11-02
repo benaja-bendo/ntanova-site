@@ -95,6 +95,12 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   create role authenticated nologin noinherit;
 exception when duplicate_object then null; end $$;
+-- Un export fait depuis Supabase nomme aussi ce rôle dans les droits de ses objets (les droits par défaut de la
+-- plateforme) : sans lui, la restauration échouerait sur un PostgreSQL neuf. Les rôles sont ceux de tout le cluster :
+-- ici le simulacre l'a déjà créé, mais le guide « Sortir de Supabase » le demande, et ce banc le dit comme lui.
+do $$ begin
+  create role service_role nologin noinherit;
+exception when duplicate_object then null; end $$;
 grant usage on schema extensions to anon, authenticated;
 SQL
   # Les tests appellent `plan()` sans préfixe : `extensions` dans le chemin de recherche (le code, lui, préfixe tout).

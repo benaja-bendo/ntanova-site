@@ -21,6 +21,14 @@ begin
 end
 $$;
 
+-- Les droits par défaut de Supabase en local et dans la CI : toute nouvelle table, vue, séquence ou fonction du schéma
+-- `public` est donnée en entier à `anon`, `authenticated` et `service_role`. Une migration qui crée une vue sans
+-- retirer ces droits donne alors des droits d'écriture à un visiteur : le banc doit le voir, comme la CI. (En ligne,
+-- Supabase n'en donne aucun ; c'est pourquoi chaque migration retire les droits, puis donne exactement ceux qu'il faut.)
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+
 create schema if not exists extensions;
 grant usage on schema extensions to anon, authenticated, service_role;
 
@@ -119,6 +127,23 @@ begin
   return parts[array_length(parts, 1)];
 end
 $$;
+
+-- Comme Supabase Storage : on ne supprime pas dans les tables du stockage par une requête (les fichiers resteraient
+-- orphelins) ; l'API du stockage le fait, après avoir posé ce réglage. Un test qui supprime doit donc le poser aussi.
+create or replace function storage.protect_delete() returns trigger
+language plpgsql as $$
+begin
+  if coalesce(current_setting('storage.allow_delete_query', true), 'false') != 'true' then
+    raise exception 'Direct deletion from storage tables is not allowed. Use the Storage API instead.'
+      using hint = 'This prevents accidental data loss from orphaned objects.', errcode = '42501';
+  end if;
+  return null;
+end
+$$;
+create trigger protect_buckets_delete before delete on storage.buckets
+  for each statement execute function storage.protect_delete();
+create trigger protect_objects_delete before delete on storage.objects
+  for each statement execute function storage.protect_delete();
 
 grant select, insert, update, delete on storage.objects to authenticated;
 grant select on storage.buckets to authenticated;
