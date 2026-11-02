@@ -11,6 +11,7 @@ import { ContexteRelais, useAdresse, type Contexte } from './contexte';
 import { Ajouter } from './ecrans/Ajouter';
 import { ContactSeul } from './ecrans/ContactSeul';
 import { CompteEnAttente, Connexion, PremiereConnexionHorsLigne } from './ecrans/Connexion';
+import { MaPaie } from './ecrans/MaPaie';
 import { MesFiches } from './ecrans/MesFiches';
 import { MonLot } from './ecrans/MonLot';
 import { journaliser } from './journal';
@@ -26,6 +27,7 @@ function Ecrans() {
     return <Ajouter key={n} etape={n} />;
   }
   if (ecran === 'fiches') return <MesFiches />;
+  if (ecran === 'paie') return <MaPaie />;
   if (ecran === 'contact' && etape) return <ContactSeul key={etape} releveId={etape} />;
   return <MonLot />;
 }

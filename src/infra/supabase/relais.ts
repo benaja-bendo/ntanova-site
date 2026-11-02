@@ -5,6 +5,7 @@ import type {
   EcoleACompleter,
   EcoleProche,
   Lot,
+  MaPaie,
   PortRelais,
   Profil,
   ReleveRecu,
@@ -189,6 +190,51 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         photos: m.photo_roles ?? [],
         contactConfirme: m.contact_confirmed ?? false,
       }));
+    },
+
+    async maPaie(): Promise<MaPaie> {
+      // `my_payout` rend l'acquis (une ligne) puis les semaines closes : les mêmes règles que l'administration.
+      const lignes = lireListe<{
+        friday: string;
+        state: 'acquis' | 'a_payer' | 'paye';
+        submissions: number;
+        contacts: number;
+        trial_bundles: number;
+        total_xaf: number;
+        not_payable: number;
+        has_payment_details: boolean;
+        paid_at: string | null;
+        reference: string | null;
+      }>(await supabase().rpc('my_payout'));
+      const ligne = (l: (typeof lignes)[number]) => ({
+        vendredi: l.friday,
+        etat: l.state,
+        fiches: l.submissions,
+        contacts: l.contacts,
+        essais: l.trial_bundles,
+        totalXaf: l.total_xaf,
+        nonPayables: l.not_payable,
+        payeLe: l.paid_at,
+        reference: l.reference,
+      });
+      const acquis = lignes.find((l) => l.state === 'acquis');
+      return {
+        acquis: acquis
+          ? ligne(acquis)
+          : {
+              vendredi: '',
+              etat: 'acquis',
+              fiches: 0,
+              contacts: 0,
+              essais: 0,
+              totalXaf: 0,
+              nonPayables: 0,
+              payeLe: null,
+              reference: null,
+            },
+        historique: lignes.filter((l) => l.state !== 'acquis').map(ligne),
+        numeroConnu: lignes.some((l) => l.has_payment_details),
+      };
     },
 
     async envoyerReleve(r) {

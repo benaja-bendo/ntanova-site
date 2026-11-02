@@ -183,6 +183,36 @@ export interface EcoleACompleter {
   contactConfirme: boolean;
 }
 
+/**
+ * Une ligne de « Ma paie » : l'acquis du prochain vendredi, ou une semaine close. Le calcul est fait par la base (les
+ * mêmes règles que l'administration) ; ici, rien que de l'affichage.
+ */
+export interface LigneDeMaPaie {
+  /** Le vendredi de paie (AAAA-MM-JJ). */
+  vendredi: string;
+  /** `acquis` : pas encore clos ; `a_payer` : clos, pas encore payé ; `paye` : payé, avec la référence. */
+  etat: 'acquis' | 'a_payer' | 'paye';
+  fiches: number;
+  contacts: number;
+  /** 1 quand l'essai (trois fiches validées) est dû. */
+  essais: number;
+  totalXaf: number;
+  /** Fiches acceptées mais non payables (une école déjà relevée par un autre relais). */
+  nonPayables: number;
+  payeLe: string | null;
+  reference: string | null;
+}
+
+/** La paie du relais connecté, en lecture seule : jamais le numéro Mobile Money, seulement si NTanova l'a. */
+export interface MaPaie {
+  /** L'acquis du prochain vendredi, toujours une ligne (même à zéro). */
+  acquis: LigneDeMaPaie;
+  /** Les semaines closes, la plus récente d'abord. */
+  historique: LigneDeMaPaie[];
+  /** NTanova a-t-elle le numéro Mobile Money du relais ? */
+  numeroConnu: boolean;
+}
+
 export interface PortRelais {
   /** `GET /moi` */
   monProfil(): Promise<Profil>;
@@ -197,6 +227,8 @@ export interface PortRelais {
   mesReleves(): Promise<ReleveRecu[]>;
   /** Les écoles confiées au relais (ses missions ouvertes). `GET /moi/missions` */
   mesMissions(): Promise<EcoleACompleter[]>;
+  /** Sa paie : ce qui lui est acquis, et les semaines closes. `GET /moi/paie` */
+  maPaie(): Promise<MaPaie>;
   /** `POST /releves` */
   envoyerReleve(releve: ReleveAEnvoyer): Promise<Reponse>;
   /** Dépose le fichier au chemin `<relevé>/<photo>.<webp|jpg>`, puis l'enregistre. `PUT /photos/{releve}/{photo}` */

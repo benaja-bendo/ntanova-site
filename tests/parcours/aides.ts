@@ -53,6 +53,9 @@ export async function uneFicheEnvoyee(
   await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+  // Le lot est gardé dans le téléphone avant que la position soit jugée : sans lui, « dans votre lot » ne vient pas
+  // (sur une machine chargée, la position arrivait parfois avant le lot).
+  await expect(page.getByRole('region', { name: 'Mon lot' }).getByText(/Tié-Tié/)).toBeVisible();
   await ajouterUneEcole(page, 1, options);
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
   // Le faux serveur a bien reçu le relevé, la photo et le contact.

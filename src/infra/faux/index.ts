@@ -11,6 +11,7 @@
 import type { Adaptateurs } from '../index';
 import { arrondissementDeLaPosition } from '../../modele/carte/plan';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
+import { prochainVendredi } from '../../modele/paie';
 import {
   ErreurDecision,
   ErreurRejet,
@@ -458,6 +459,55 @@ const relais: PortRelais = {
           contactConfirme: acceptes.some((r) => e.decisions[r.id]?.contactConfirmeLe),
         };
       });
+  },
+  async maPaie() {
+    await reseau();
+    const e = lireEtat();
+    // Comme `my_payout` : l'acquis du prochain vendredi (le calcul de l'administration, pour le seul relais), puis les
+    // semaines closes. Les montants sont ceux de l'administration : le faux serveur n'en invente pas d'autres.
+    const vendredi = prochainVendredi();
+    const [ligne] = await admin.apercuPaie(vendredi);
+    const nonPayables = Object.values(e.releves).filter((r) => {
+      const d = e.decisions[r.id];
+      return (
+        d?.statut === 'accepte' && !d.payable && r.type !== 'correction' && !lotDe(r.lotId, e).essai
+      );
+    }).length;
+    const historique = [...e.paie.semaines]
+      .sort((a, b) => b.vendredi.localeCompare(a.vendredi))
+      .flatMap((s) => {
+        const l = s.lignes.find((x) => x.relaisId === MOI);
+        if (!l) return [];
+        const paye = s.payes[MOI];
+        return [
+          {
+            vendredi: s.vendredi,
+            etat: paye ? ('paye' as const) : ('a_payer' as const),
+            fiches: l.fiches,
+            contacts: l.contacts,
+            essais: l.essais,
+            totalXaf: l.totalXaf,
+            nonPayables: 0,
+            payeLe: paye?.le ?? null,
+            reference: paye?.reference ?? null,
+          },
+        ];
+      });
+    return {
+      acquis: {
+        vendredi,
+        etat: 'acquis' as const,
+        fiches: ligne?.fiches ?? 0,
+        contacts: ligne?.contacts ?? 0,
+        essais: ligne?.essais ?? 0,
+        totalXaf: ligne?.totalXaf ?? 0,
+        nonPayables,
+        payeLe: null,
+        reference: null,
+      },
+      historique,
+      numeroConnu: MOI in e.paie.numeros,
+    };
   },
   async envoyerReleve(r) {
     await reseau();
