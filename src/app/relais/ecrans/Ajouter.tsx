@@ -252,7 +252,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
   return (
     <div className="ecran">
-      <EnteteEtape etape={1} titre="Photo et position" retour="lot" />
+      <EnteteEtape etape={1} titre="Photo et position" retour="lot" type={fiche.type} />
       <main className="contenu-relais">
         <section className="carte-blanche pile-serree">
           <h2 className="titre-section">La photo de l'enseigne</h2>
@@ -443,9 +443,9 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         {fiche.type === 'contre_visite' && fiche.doublonPropose && (
           <Bandeau ton="public" icone="carte">
             <p>
-              <b>Contre-visite&nbsp;: {fiche.doublonPropose.nom}.</b> NTanova connaît cette école
-              sans savoir où elle est. Prenez la photo de l'enseigne et la position devant l'entrée,
-              puis vérifiez ce qui est déjà rempli.
+              <b>Compléter&nbsp;: {fiche.doublonPropose.nom}.</b> NTanova connaît déjà cette école.
+              Prenez la photo de l'enseigne et la position devant l'entrée, puis vérifiez ce qui est
+              déjà rempli.
             </p>
           </Bandeau>
         )}
@@ -499,7 +499,12 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
   return (
     <div className="ecran">
-      <EnteteEtape etape={2} titre="Ce qui se voit de la rue" retour="ajouter/1" />
+      <EnteteEtape
+        etape={2}
+        titre="Ce qui se voit de la rue"
+        retour="ajouter/1"
+        type={fiche.type}
+      />
       <main className="contenu-relais">
         <Bandeau ton="public" icone="oeil">
           <p>
@@ -678,7 +683,7 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
   return (
     <div className="ecran">
-      <EnteteEtape etape={3} titre="La direction" retour="ajouter/2" />
+      <EnteteEtape etape={3} titre="La direction" retour="ajouter/2" type={fiche.type} />
       <main className="contenu-relais">
         <Bandeau ton="prive" icone="cadenas">
           <p>

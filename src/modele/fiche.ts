@@ -162,6 +162,20 @@ export function nouvelleContreVisite(
   };
 }
 
+/**
+ * Le titre de l'écran : ce que le relais fait. Il ajoute une école nouvelle, il corrige une fiche que NTanova
+ * a renvoyée, il complète une école que NTanova connaît déjà (c'est le mot du bouton qu'il vient de toucher).
+ */
+const titres: Record<FicheLocale['type'], string> = {
+  releve: 'Ajouter une école',
+  correction: 'Corriger une fiche',
+  contre_visite: 'Compléter une école',
+};
+
+export function titreDeLEcran(type: FicheLocale['type']): string {
+  return titres[type];
+}
+
 // Les photos ---------------------------------------------------------------------
 
 /** La photo de l'enseigne, la seule obligatoire. */
