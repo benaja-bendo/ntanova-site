@@ -9,7 +9,8 @@
 
 -- Les outils --------------------------------------------------------------------------------------------
 
--- L'adresse d'un campus : le nom (et l'implantation), unique dans sa division (`-2`, `-3`… si elle est prise).
+-- L'adresse d'un campus : le nom (et l'implantation), unique dans sa division, et différente de celle des zones
+-- qu'elle contient (`-2`, `-3`… si elle est prise).
 create function public.unique_campus_slug(p_division uuid, p_text text) returns text
 language plpgsql stable set search_path = '' as $$
 declare
@@ -21,8 +22,11 @@ begin
     raise exception 'Le nom ne donne aucune adresse : le corriger avant de publier.' using errcode = '22023';
   end if;
   v_candidate := v_base;
+  -- Une adresse publique est celle d'un campus OU d'une zone sous la même division, jamais des deux.
   while exists (
     select 1 from public.campuses c where c.division_id is not distinct from p_division and c.slug = v_candidate
+  ) or exists (
+    select 1 from public.geo_divisions g where g.parent_id = p_division and g.slug = v_candidate
   ) loop
     n := n + 1;
     v_candidate := v_base || '-' || n;

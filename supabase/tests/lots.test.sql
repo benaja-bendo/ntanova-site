@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(40);
+select plan(44);
 
 -- Mise en place : une division d'essai de 0,1° sur 0,1° sous Pointe-Noire --------------------------------------------------
 
@@ -161,8 +161,16 @@ reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d7","role":"authenticated"}', true);
+select throws_ok($$select public.create_lot('[Lot de Moungali]', (select id from public.geo_divisions where path::text = 'congo.brazzaville.brazzaville.moungali'))$$,
+  '22023', null, 'Un lot ne se pose pas sur une zone fermée au relevé');
+select lives_ok($$select public.create_lot('[Entraînement de Moungali]', (select id from public.geo_divisions where path::text = 'congo.brazzaville.brazzaville.moungali'), null, true)$$,
+  'Un lot d''entraînement se pose sur n''importe quelle zone');
+select lives_ok($$select public.set_division_open((select id from public.geo_divisions where path::text = 'congo.brazzaville.brazzaville.moungali'), true)$$,
+  'L''administrateur ouvre Moungali');
 select lives_ok($$select public.create_lot('[Lot de Moungali]', (select id from public.geo_divisions where path::text = 'congo.brazzaville.brazzaville.moungali'))$$,
-  'L''administrateur crée un lot sur un arrondissement de Brazzaville');
+  'Il crée alors un lot sur un arrondissement de Brazzaville');
+select lives_ok($$select public.set_division_open((select id from public.geo_divisions where path::text = 'congo.niari'), true)$$,
+  'Il ouvre un département : tout ce qu''il contient est ouvert');
 select lives_ok($$select public.create_lot('[Lot de Dolisie]', (select id from public.geo_divisions where path::text = 'congo.niari.dolisie'))$$,
   'Il crée un lot sur une ville sans arrondissement (Dolisie)');
 reset role;

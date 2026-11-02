@@ -209,6 +209,8 @@ $$;
 
 -- Un lot sur n'importe quelle ville, arrondissement ou quartier (un pays ou un département : refusé).
 -- Sans contour, le lot couvre toute sa division. Les relais y sont affectés par `activer_relais`.
+-- Il se pose sur une zone OUVERTE au relevé (voir `set_division_open`) : s'étendre à un nouveau lieu est un geste
+-- voulu, pas un effet de bord. Un lot d'entraînement se pose n'importe où.
 create function public.create_lot(p_name text, p_division uuid, p_due date default null, p_trial boolean default false)
 returns uuid
 language plpgsql set search_path = '' as $$
@@ -218,6 +220,10 @@ begin
   perform public.exiger_admin();
   if coalesce(btrim(p_name), '') = '' then
     raise exception 'Le lot a besoin d''un nom.' using errcode = '22023';
+  end if;
+  if not coalesce(p_trial, false) and not public.is_open_for_fieldwork(p_division) then
+    raise exception 'Cette zone n''est pas ouverte au relevé : ouvre-la d''abord (onglet « Zones »).'
+      using errcode = '22023';
   end if;
   insert into public.lots (nom, geo_division_id, a_rendre_le, essai)
   values (btrim(p_name), p_division, p_due, coalesce(p_trial, false))
