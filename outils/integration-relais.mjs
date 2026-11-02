@@ -1,10 +1,13 @@
 // Après la construction, écrit dist/relais/sw.js : le service worker de l'espace
-// relais, avec la liste des fichiers à garder pour le hors ligne. Sa version est
-// l'empreinte de ces fichiers : toute nouvelle construction en publie une nouvelle.
+// relais, avec la liste des fichiers à garder pour le hors ligne. Cette liste est
+// celle de ce que /relais/ charge (outils/fichiers-du-relais.mjs), pas tout `_astro/`.
+// Sa version est l'empreinte de ces fichiers : une mise en ligne qui ne change que
+// l'administration ou le site public ne change pas la version du relais.
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fichiersAstroDuRelais } from './fichiers-du-relais.mjs';
 
 function* fichiers(dossier) {
   for (const entree of readdirSync(dossier, { withFileTypes: true })) {
@@ -21,9 +24,10 @@ export default function integrationRelais() {
     hooks: {
       'astro:build:done': ({ dir, logger }) => {
         const racine = fileURLToPath(dir);
+        const adresse = (f) => '/' + relative(racine, f).split(sep).join('/');
         const garder = [
-          ...fichiers(join(racine, '_astro')),
-          ...fichiers(join(racine, 'polices')).filter((f) => f.endsWith('.woff2')),
+          ...fichiersAstroDuRelais(racine).map((a) => join(racine, a)),
+          ...[...fichiers(join(racine, 'polices'))].filter((f) => f.endsWith('.woff2')).sort(),
           join(racine, 'favicon.svg'),
           join(racine, 'relais', 'manifest.webmanifest'),
           join(racine, 'relais', 'icone-192.png'),
@@ -33,7 +37,8 @@ export default function integrationRelais() {
         empreinte.update(readFileSync(join(racine, 'relais', 'index.html')));
         for (const f of garder) {
           if (!statSync(f, { throwIfNoEntry: false })) continue;
-          liste.push('/' + relative(racine, f).split(sep).join('/'));
+          liste.push(adresse(f));
+          empreinte.update(adresse(f));
           empreinte.update(readFileSync(f));
         }
         const version = empreinte.digest('hex').slice(0, 12);
