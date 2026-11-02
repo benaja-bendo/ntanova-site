@@ -10,12 +10,20 @@ import { base, lireMemoire, toutEffacer, useRequete } from './base-locale';
 import { ContexteRelais, useAdresse, type Contexte } from './contexte';
 import { Ajouter } from './ecrans/Ajouter';
 import { ContactSeul } from './ecrans/ContactSeul';
-import { CompteEnAttente, Connexion, PremiereConnexionHorsLigne } from './ecrans/Connexion';
+import { BandeauVersion } from './composants';
+import {
+  CompteEnAttente,
+  Connexion,
+  LectureImpossible,
+  Ouverture,
+  PremiereConnexionHorsLigne,
+} from './ecrans/Connexion';
 import { MaPaie } from './ecrans/MaPaie';
 import { MesFiches } from './ecrans/MesFiches';
 import { MonLot } from './ecrans/MonLot';
 import { journaliser } from './journal';
 import { synchroniser as synchroniserTout } from './synchro';
+import { useNouvelleVersion } from './version';
 import './relais.css';
 
 const INTERVALLE_MS = 3 * 60_000;
@@ -39,6 +47,7 @@ export default function App() {
   const [premiereLecture, setPremiereLecture] = useState(false);
   const profil = useRequete(() => lireMemoire('profil'));
   const memoireLue = useRequete(async () => (await base.memoire.count()) >= 0);
+  const nouvelleVersion = useNouvelleVersion();
 
   useEffect(() => {
     obtenirAdaptateurs()
@@ -110,12 +119,19 @@ export default function App() {
         <PremiereConnexionHorsLigne />
       ) : premiereLecture && envoi === 'reconnecter' ? (
         <Connexion />
+      ) : premiereLecture && envoi === 'erreur' ? (
+        <LectureImpossible />
       ) : (
-        <div className="ecran" aria-busy="true" />
+        <Ouverture />
       );
   } else if (profil.statut !== 'actif') {
     contenu = <CompteEnAttente email={utilisateur.email} suspendu={profil.statut === 'suspendu'} />;
   } else contenu = <Ecrans />;
 
-  return <ContexteRelais.Provider value={contexte}>{contenu}</ContexteRelais.Provider>;
+  return (
+    <ContexteRelais.Provider value={contexte}>
+      {nouvelleVersion && <BandeauVersion />}
+      {contenu}
+    </ContexteRelais.Provider>
+  );
 }

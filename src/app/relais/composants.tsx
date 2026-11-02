@@ -1,7 +1,31 @@
 /** Les composants propres à l'espace relais ; les composants partagés sont dans src/ui/. */
 import { titreDeLEcran, type FicheLocale } from '../../modele/fiche';
-import { Icone } from '../../ui/composants';
+import { Bandeau, Icone } from '../../ui/composants';
 import { aller, useEnLigne, useAdresse } from './contexte';
+
+/**
+ * Une nouvelle version de l'application est prête. Le relais recharge quand il le décide : la page ne se recharge
+ * jamais seule, et ses fiches (gardées dans le téléphone) y survivent.
+ */
+export function BandeauVersion() {
+  return (
+    <div className="bandeau-version" role="status">
+      <Bandeau ton="attente" icone="nuage">
+        <p>
+          <b>Nouvelle version prête.</b> Rechargez quand vous le pouvez. Vos fiches restent sur le
+          téléphone.
+        </p>
+        <button
+          type="button"
+          className="bouton bouton-secondaire bouton-petit"
+          onClick={() => location.reload()}
+        >
+          Recharger
+        </button>
+      </Bandeau>
+    </div>
+  );
+}
 
 export function PastilleReseau() {
   const enLigne = useEnLigne();

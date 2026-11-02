@@ -93,6 +93,41 @@ export function CompteEnAttente({ email, suspendu }: { email: string | null; sus
   );
 }
 
+/** Le compte est connu, mais le téléphone n'en a encore rien lu : l'écran ne reste jamais blanc. */
+export function Ouverture() {
+  return (
+    <div className="ecran ecran-accueil" aria-busy="true">
+      <main className="accueil">
+        <p className="texte-doux centre" role="status">
+          Ouverture de votre espace…
+        </p>
+      </main>
+    </div>
+  );
+}
+
+/**
+ * La lecture du compte est refusée et le téléphone n'en garde aucun : sans cet écran, rien ne s'affiche et rien ne
+ * se passe. « Réessayer » recharge l'application : un téléphone resté sur une ancienne version relirait, sinon, la
+ * même erreur ; rechargé, il prend la version qui l'attend.
+ */
+export function LectureImpossible() {
+  return (
+    <div className="ecran ecran-accueil">
+      <main className="accueil">
+        <h1>Votre espace ne s’ouvre pas</h1>
+        <p>
+          NTanova n’a pas pu lire votre compte pour le moment. Vos fiches restent sur le téléphone.
+          Réessayez&nbsp;; si cela continue, prévenez NTanova.
+        </p>
+        <button type="button" className="bouton" onClick={() => location.reload()}>
+          Réessayer
+        </button>
+      </main>
+    </div>
+  );
+}
+
 export function PremiereConnexionHorsLigne() {
   return (
     <div className="ecran ecran-accueil">
