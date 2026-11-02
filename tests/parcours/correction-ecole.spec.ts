@@ -70,8 +70,10 @@ test('une fiche publiée se corrige aussi, et la correction dit quand elle para�
     .getByRole('button', { name: 'Enregistrer' })
     .click();
   await expect(page.getByRole('status')).toHaveText(
-    /\[École 1\] est modifiée.*paraît sur ntanova\.com.*cette nuit/,
+    /\[École 1\] est modifiée.*paraît sur ntanova\.com après la prochaine mise à jour du site\./,
   );
+  // Aucune heure promise : la nuit ne met à jour qu'essai tant que la production n'est pas lancée.
+  await expect(page.getByRole('status')).not.toHaveText(/cette nuit|2 h/);
 });
 
 test('rien n’a changé : rien ne part ; un nom vide se dit en français', async ({

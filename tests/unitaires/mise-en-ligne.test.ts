@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -104,5 +104,30 @@ describe('un lancement à la main', () => {
     expect(
       production({ evenement: 'workflow_dispatch', cible: 'les deux', essai: 'failure' }),
     ).toBe(false);
+  });
+});
+
+describe('ce que l’administration promet de la mise en ligne', () => {
+  // La nuit ne met à jour qu'essai tant que `NUIT_VERS_PRODUCTION` n'est pas « oui » : « cette nuit à 2 h »,
+  // écrit sous un geste de publication, annonçait ntanova.com à une heure que rien ne garantissait (ticket #62, M3).
+  // L'administration dit « à la prochaine mise à jour du site », vrai dans les deux cas.
+  const ecrans = readdirSync('src/app/admin')
+    .filter((nom) => nom.endsWith('.tsx'))
+    .map((nom) => ({ nom, texte: readFileSync(`src/app/admin/${nom}`, 'utf8') }));
+
+  it('lit bien les écrans de l’administration', () => {
+    expect(ecrans.length).toBeGreaterThan(5);
+    expect(ecrans.some((e) => e.texte.includes('prochaine mise à jour du site'))).toBe(true);
+  });
+
+  it('ne promet aucune heure ni aucune nuit pour l’arrivée d’un changement sur ntanova.com', () => {
+    const promesses = ecrans.flatMap(({ nom, texte }) =>
+      texte
+        .split('\n')
+        .map((ligne, i) => ({ ligne, endroit: `${nom}:${i + 1}` }))
+        .filter(({ ligne }) => /cette nuit|chaque nuit|à 2 h|à 2 heures/.test(ligne))
+        .map(({ endroit }) => endroit),
+    );
+    expect(promesses).toEqual([]);
   });
 });
