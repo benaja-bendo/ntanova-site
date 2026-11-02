@@ -12,6 +12,8 @@ export function EtatEnvoi() {
   // Tant que le téléphone n'a pas compté les fiches en attente, on ne dit rien :
   // « Tout est envoyé » ne s'affiche jamais avant d'être vrai.
   const enAttente = useRequete(() => base.fiches.where('etat').equals('a_envoyer').count());
+  // Les fiches que la base a refusées : sorties de la file, elles attendent une décision du relais.
+  const refusees = useRequete(() => base.fiches.where('etat').equals('refusee').count());
   const dernierEnvoi = useRequete(() => lireMemoire('dernierEnvoi'));
 
   if (envoi === 'reconnecter') {
@@ -25,37 +27,56 @@ export function EtatEnvoi() {
       </Bandeau>
     );
   }
-  if (enAttente === undefined) return <div className="bandeau-reserve" aria-hidden="true" />;
+  if (enAttente === undefined || refusees === undefined) {
+    return <div className="bandeau-reserve" aria-hidden="true" />;
+  }
+  const refus =
+    refusees > 0 ? (
+      <Bandeau ton="erreur" icone="alerte">
+        <p>
+          <b>
+            {refusees} fiche{refusees > 1 ? 's' : ''} n'{refusees > 1 ? 'ont' : 'a'} pas pu être
+            envoyée{refusees > 1 ? 's' : ''}.
+          </b>{' '}
+          La raison est dans «&nbsp;Mes fiches&nbsp;».
+        </p>
+      </Bandeau>
+    ) : null;
   if (enAttente > 0) {
     const pluriel = enAttente > 1;
     return (
-      <Bandeau ton={envoi === 'erreur' && enLigne ? 'erreur' : 'attente'} icone="nuage">
-        <p>
-          <b>
-            {enAttente} fiche{pluriel ? 's' : ''} attend{pluriel ? 'ent' : ''}{' '}
-            {enLigne ? "d'être envoyée" + (pluriel ? 's' : '') : 'le réseau'}.
-          </b>{' '}
-          {enLigne
-            ? envoi === 'erreur'
-              ? 'Un envoi a échoué ; il sera repris.'
-              : ''
-            : pluriel
-              ? 'Elles partiront seules dès que le téléphone capte.'
-              : 'Elle partira seule dès que le téléphone capte.'}
-        </p>
-        {enLigne && (
-          <button
-            type="button"
-            className="bouton bouton-secondaire bouton-petit"
-            onClick={synchroniser}
-            disabled={envoi === 'en_cours'}
-          >
-            {envoi === 'en_cours' ? 'Envoi…' : 'Envoyer maintenant'}
-          </button>
-        )}
-      </Bandeau>
+      <>
+        {refus}
+        <Bandeau ton={envoi === 'erreur' && enLigne ? 'erreur' : 'attente'} icone="nuage">
+          <p>
+            <b>
+              {enAttente} fiche{pluriel ? 's' : ''} attend{pluriel ? 'ent' : ''}{' '}
+              {enLigne ? "d'être envoyée" + (pluriel ? 's' : '') : 'le réseau'}.
+            </b>{' '}
+            {enLigne
+              ? envoi === 'erreur'
+                ? 'Un envoi a échoué ; il sera repris.'
+                : ''
+              : pluriel
+                ? 'Elles partiront seules dès que le téléphone capte.'
+                : 'Elle partira seule dès que le téléphone capte.'}
+          </p>
+          {enLigne && (
+            <button
+              type="button"
+              className="bouton bouton-secondaire bouton-petit"
+              onClick={synchroniser}
+              disabled={envoi === 'en_cours'}
+            >
+              {envoi === 'en_cours' ? 'Envoi…' : 'Envoyer maintenant'}
+            </button>
+          )}
+        </Bandeau>
+      </>
     );
   }
+  // Une fiche refusée n'est pas envoyée : « Tout est envoyé » ne s'affiche pas tant qu'il y en a une.
+  if (refus) return refus;
   return (
     <Bandeau ton="envoye" icone="coche">
       <p>

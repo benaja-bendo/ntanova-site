@@ -626,6 +626,20 @@ export class ErreurSession extends Error {
   override name = 'ErreurSession';
 }
 
+/**
+ * La base a répondu qu'elle refuse (un compte inactif, une règle non respectée) : rejouer l'envoi ne sert à rien.
+ * La fiche sort de la file avec ce message, que le relais lit. `code` est celui de la base (`42501`, `23514`…),
+ * ou `403` pour un refus de droits du stockage.
+ */
+export class ErreurRejet extends Error {
+  override name = 'ErreurRejet';
+  code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
 // Le site public ----------------------------------------------------------------
 
 /** Une division de la hiérarchie telle que le site la montre (pays, département, ville, arrondissement, quartier). */

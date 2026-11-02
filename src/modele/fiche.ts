@@ -92,9 +92,28 @@ export interface FicheLocale {
   repasser: string;
 
   // L'envoi
-  etat: 'brouillon' | 'a_envoyer' | 'envoyee';
+  /**
+   * `refusee` : la base a refusé la fiche ; elle est sortie de la file avec sa raison (`rejet`) et attend le relais
+   * (réessayer, modifier, retirer). Absent des fiches d'avant, qui n'en ont pas besoin.
+   */
+  etat: 'brouillon' | 'a_envoyer' | 'refusee' | 'envoyee';
   envoyes: { releve: boolean; photo: boolean; contact: boolean };
   dernierEssai: string | null;
+  /** Le refus de la base, tant que la fiche attend une décision du relais. Absent des fiches d'avant. */
+  rejet?: Rejet | null;
+  /** Les envois ratés de suite sans que la base ait répondu (panne, serveur). Absent des fiches d'avant. */
+  essais?: number;
+}
+
+/** Les trois temps de l'envoi d'une fiche : le relevé, ses photos, puis le contact. */
+export type EtapeEnvoi = 'releve' | 'photo' | 'contact';
+
+/** Ce que la base a refusé : son code, son message (sans le détail de la ligne), à quelle étape, quand. */
+export interface Rejet {
+  code: string;
+  message: string;
+  etape: EtapeEnvoi;
+  le: string;
 }
 
 export function nouvelleFiche(

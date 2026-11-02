@@ -13,6 +13,7 @@ import { arrondissementDeLaPosition } from '../../modele/carte/plan';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import {
   ErreurDecision,
+  ErreurRejet,
   ErreurReseau,
   type ContactAEnvoyer,
   type DecisionAcceptation,
@@ -425,6 +426,17 @@ const relais: PortRelais = {
   },
   async envoyerReleve(r) {
     await reseau();
+    // Deux réglages pour rejouer ce que répond la vraie base (parcours de la file d'envoi) :
+    //   `ntanova-faux-rejet` = « code|message » : la base REFUSE le relevé, comme `traduire` le lit ;
+    //   `ntanova-faux-panne` : une panne dont on ne sait rien (erreur serveur).
+    const rejet = localStorage.getItem('ntanova-faux-rejet');
+    if (rejet) {
+      const refus = Number(localStorage.getItem('ntanova-faux-refus') ?? 0);
+      localStorage.setItem('ntanova-faux-refus', String(refus + 1));
+      const [code = '', ...message] = rejet.split('|');
+      throw new ErreurRejet(code, message.join('|'));
+    }
+    if (localStorage.getItem('ntanova-faux-panne')) throw new Error('503 : service indisponible');
     let reponse: Reponse = 'recu';
     ecrire((e) => (reponse = ajouter(e.releves, r.id, r)));
     return reponse;
@@ -441,7 +453,7 @@ const relais: PortRelais = {
       throw new Error('23505 : une fiche n’a qu’une photo d’enseigne');
     }
     if (photo.role !== 'signboard' && siennes.filter((p) => p.role !== 'signboard').length >= 3) {
-      throw new Error('22023 : au plus trois photos en plus de l’enseigne');
+      throw new ErreurRejet('22023', 'Au plus trois photos en plus de l’enseigne.');
     }
     if (photo.octets >= 200_000) throw new Error('photo trop lourde');
     ecrire((s) => {

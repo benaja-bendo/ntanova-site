@@ -89,6 +89,25 @@ function PiedEtape({ children }: { children: React.ReactNode }) {
   return <div className="pied-etape">{children}</div>;
 }
 
+/**
+ * Abandonner la fiche en cours, à chaque étape : elle est effacée du téléphone. Une fiche rouverte pour être
+ * modifiée l'est aussi (elle n'a pas encore été reçue par NTanova) ; l'école confiée au relais, elle, revient
+ * dans « Mon lot ».
+ */
+function BoutonAbandonner({ fiche }: { fiche: FicheLocale }) {
+  const abandonner = async () => {
+    if (!confirm('Abandonner cette fiche ? Ce qui a été saisi sera effacé du téléphone.')) return;
+    await base.fiches.delete(fiche.id);
+    await oublier('brouillon');
+    aller('lot', true);
+  };
+  return (
+    <button type="button" className="lien lien-discret" onClick={() => void abandonner()}>
+      Abandonner cette fiche
+    </button>
+  );
+}
+
 function BoutonSuivant({ surClic, occupe = false }: { surClic: () => void; occupe?: boolean }) {
   return (
     <button type="button" className="bouton bouton-large" onClick={surClic} disabled={occupe}>
@@ -239,13 +258,6 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
     const e = erreursEtape1(fiche);
     setErreurs(e);
     if (Object.keys(e).length === 0) aller('ajouter/2');
-  };
-
-  const abandonner = async () => {
-    if (!confirm('Abandonner cette fiche ? Ce qui a été saisi sera effacé du téléphone.')) return;
-    await base.fiches.delete(fiche.id);
-    await oublier('brouillon');
-    aller('lot', true);
   };
 
   const precision = fiche.precisionM ?? mesure?.precisionM ?? null;
@@ -470,9 +482,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           </section>
         )}
 
-        <button type="button" className="lien lien-discret" onClick={() => void abandonner()}>
-          Abandonner cette fiche
-        </button>
+        <BoutonAbandonner fiche={fiche} />
       </main>
       <PiedEtape>
         <BoutonSuivant surClic={suivant} occupe={allegement > 0} />
@@ -645,6 +655,8 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             />
           )}
         </Champ>
+
+        <BoutonAbandonner fiche={fiche} />
       </main>
       <PiedEtape>
         <BoutonSuivant surClic={suivant} />
@@ -674,6 +686,9 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
       contact: fiche.direction === 'absente' ? null : fiche.contact,
       etat: 'a_envoyer',
       envoyes: { releve: false, photo: false, contact: versContact(fiche) === null },
+      // Une fiche modifiée repart comme neuve : ni refus, ni essais ratés d'avant.
+      rejet: null,
+      essais: 0,
     };
     await base.fiches.put(prete);
     await oublier('brouillon');
@@ -819,6 +834,8 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             <p className="mention">NTanova lit chaque refus avant de publier quoi que ce soit.</p>
           </>
         )}
+
+        <BoutonAbandonner fiche={fiche} />
       </main>
       <PiedEtape>
         <button type="button" className="bouton bouton-large" onClick={() => void enregistrer()}>

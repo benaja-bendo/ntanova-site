@@ -302,6 +302,14 @@
   font-size: var(--taille-courante);
 }
 
+/* Les gestes d'une fiche encore dans le téléphone : réessayer, modifier, retirer. */
+.fiche-relais-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
 .fiche-relais-etats {
   display: grid;
   grid-template-columns: auto 1fr;
