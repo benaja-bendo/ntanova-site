@@ -308,6 +308,12 @@ from public.geo_divisions d
 left join public.campuses c on c.division_id = d.id
 group by d.id, d.path, d.level, d.name, d.open_for_fieldwork;
 
+-- Les vues sont créées APRÈS le « revoke all » du début de ce fichier : en local et dans la CI, Supabase leur a donc
+-- donné par défaut tous les droits (écrire, supprimer…) à `anon` et `authenticated`. On les retire, vue par vue, avant de
+-- donner exactement ce qu'il faut.
+revoke all on public.public_campuses, public.public_campus_cycles, public.public_campus_programs,
+              public.public_campus_redirects, public.submissions_to_review, public.relay_counters,
+              public.division_stats from anon, authenticated;
 grant select on public.public_campuses, public.public_campus_cycles, public.public_campus_programs,
                 public.public_campus_redirects to anon, authenticated;
 grant select on public.submissions_to_review, public.relay_counters, public.division_stats to authenticated;

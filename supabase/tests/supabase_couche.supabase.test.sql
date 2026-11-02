@@ -86,6 +86,9 @@ select is((select count(*)::int from storage.objects), 1, 'L''administrateur voi
 select lives_ok($$select public.erase_photo('52000000-0000-4000-8000-0000000000a1', 'À la demande de la direction')$$, 'Il efface l''enregistrement d''une photo');
 select is((select storage_path from public.field_submission_photos where id = '52000000-0000-4000-8000-0000000000a1'), null::text,
   'L''enregistrement a disparu : le chemin a été rendu à l''application, qui supprime le fichier');
+-- Supabase refuse toute suppression directe dans ses tables (`storage.protect_delete`) tant que ce réglage n'est pas posé,
+-- comme le fait l'API du stockage : ce que ce test éprouve est la règle d'accès de l'administration, pas ce garde-fou.
+set local storage.allow_delete_query = 'true';
 delete from storage.objects where bucket_id = 'releves';
 select is((select count(*)::int from storage.objects), 0, 'Et il peut supprimer le fichier du seau');
 reset role;
