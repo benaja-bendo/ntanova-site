@@ -352,6 +352,22 @@
   font-size: var(--taille-secondaire);
 }
 
+/* Une nouvelle version est prête : au-dessus de l'écran, à la largeur d'un écran de téléphone. */
+
+.bandeau-version {
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
+  padding: var(--espace-3) var(--espace-4) 0;
+  background: var(--fond);
+}
+
+@media (min-width: 48rem) {
+  .bandeau-version {
+    border-inline: 1px solid var(--trait);
+  }
+}
+
 /* Accueil (connexion, compte en attente) ------------------------------------------- */
 
 .accueil {

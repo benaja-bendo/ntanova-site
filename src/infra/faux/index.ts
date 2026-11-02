@@ -344,6 +344,11 @@ const session: PortSession = {
 const relais: PortRelais = {
   async monProfil() {
     await reseau();
+    // `ntanova-faux-panne-lecture` : la base refuse de lire le compte (une panne dont on ne sait rien), comme
+    // un téléphone resté sur une ancienne version devant une base qui a changé.
+    if (localStorage.getItem('ntanova-faux-panne-lecture')) {
+      throw new Error('503 : service indisponible');
+    }
     const e = lireEtat();
     if (!e.utilisateur) throw new Error('Aucune session');
     return {
