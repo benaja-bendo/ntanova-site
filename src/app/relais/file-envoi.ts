@@ -10,6 +10,7 @@ import {
   versReleve,
   type FicheLocale,
 } from '../../modele/fiche';
+import { appartientAuCompte } from '../../modele/compte';
 import { apresEchecInattendu, apresRejet } from '../../modele/envoi';
 import { ErreurRejet, ErreurReseau, ErreurSession, type EtatSession } from '../../modele/ports';
 import type { Adaptateurs } from '../../infra/index';
@@ -71,7 +72,12 @@ async function envoyer(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
   const etat = await adaptateurs.session.etat();
   if (etat !== 'pret') return etat;
 
-  const fiches = await base.fiches.where('etat').equals('a_envoyer').sortBy('creeeLe');
+  // Seulement les fiches de ce compte : celles d'un autre relais, qui s'est servi du téléphone, attendent son retour.
+  // Une fiche d'avant la mise à jour, sans compte, devient celle de ce compte au moment de partir.
+  const compte = (await adaptateurs.session.utilisateur())?.id ?? null;
+  const fiches = (await base.fiches.where('etat').equals('a_envoyer').sortBy('creeeLe')).filter(
+    (f) => appartientAuCompte(f, compte),
+  );
   let resultat: ResultatEnvoi = 'pret';
   for (const attendue of fiches) {
     enVol.add(attendue.id);
@@ -79,7 +85,9 @@ async function envoyer(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
       // La fiche est relue au moment de partir : le relais a pu la modifier ou la retirer pendant que les
       // précédentes partaient (la liste ci-dessus date d'avant). Le contenu qui part est toujours le dernier.
       const fiche = await base.fiches.get(attendue.id);
-      if (fiche?.etat !== 'a_envoyer') continue;
+      if (fiche?.etat !== 'a_envoyer' || !appartientAuCompte(fiche, compte)) continue;
+      if (fiche.compteId == null && compte)
+        await base.fiches.update(fiche.id, { compteId: compte });
       await base.fiches.update(fiche.id, { dernierEssai: new Date().toISOString() });
       await envoyerUneFiche(adaptateurs, fiche);
     } catch (erreur) {

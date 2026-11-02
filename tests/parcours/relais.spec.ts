@@ -204,7 +204,7 @@ test.describe('espace relais', () => {
     expect((await navigation.boundingBox())?.width).toBeLessThanOrEqual(640);
   });
 
-  test('la barre du bas tient sur une ligne à 360 px : trois onglets de 44 px au moins, sans texte coupé', async ({
+  test('la barre du bas tient sur une ligne à 360 px : quatre onglets de 44 px au moins, sans texte coupé', async ({
     page,
   }) => {
     await page.goto('/relais/');
@@ -214,6 +214,7 @@ test.describe('espace relais', () => {
       ['lot', 'Mon secteur'],
       ['fiches', 'Mes fiches'],
       ['paie', 'Ma paie'],
+      ['compte', 'Compte'],
     ] as const) {
       await page.goto(`/relais/#${ecran}`);
       await expect(navigation).toBeVisible();
@@ -225,14 +226,14 @@ test.describe('espace relais', () => {
       const boites = await Promise.all(
         (await navigation.getByRole('link').all()).map((lien) => lien.boundingBox()),
       );
-      expect(boites, `${ecran} : trois onglets`).toHaveLength(3);
-      // Trois onglets côte à côte : le même haut, et chacun un tiers de la barre.
+      expect(boites, `${ecran} : quatre onglets`).toHaveLength(4);
+      // Quatre onglets côte à côte : le même haut, et chacun un quart de la barre.
       for (const boite of boites) {
         expect(boite?.y, `${ecran} : les onglets sont sur la même ligne`).toBe(boites[0]?.y);
         expect(boite?.height ?? 0, `${ecran} : un onglet est trop bas`).toBeGreaterThanOrEqual(44);
         expect(
-          Math.abs((boite?.width ?? 0) - (barre?.width ?? 0) / 3),
-          `${ecran} : un onglet n'a pas le tiers de la barre`,
+          Math.abs((boite?.width ?? 0) - (barre?.width ?? 0) / 4),
+          `${ecran} : un onglet n'a pas le quart de la barre`,
         ).toBeLessThanOrEqual(1);
       }
       // Une barre de 64 px (deux lignes, avant : 84 px et plus) ; rien n'est coupé dans un onglet.

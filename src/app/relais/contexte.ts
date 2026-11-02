@@ -9,6 +9,10 @@ export interface Contexte {
   synchroniser: () => void;
   /** Après une connexion Google réussie. */
   surConnexion: () => void;
+  /** Après « Se déconnecter » : retour à l'écran de connexion. Les fiches du téléphone restent. */
+  surDeconnexion: () => void;
+  /** Le lien WhatsApp vers NTanova (de la configuration) ; nul quand aucun numéro n'est configuré. */
+  lienNTanova: string | null;
 }
 
 export const ContexteRelais = createContext<Contexte | null>(null);

@@ -5,7 +5,8 @@
 import { peutEtreModifiee, pourModifier, pourReessayer } from '../../modele/envoi';
 import { nouvelleFiche, type ContactSaisi } from '../../modele/fiche';
 import type { ReleveRecu } from '../../modele/ports';
-import { base, garder, lireMemoire } from './base-locale';
+import { duBrouillon } from '../../modele/compte';
+import { base, compteConnecte } from './base-locale';
 import { aller } from './contexte';
 import { estEnVol } from './file-envoi';
 
@@ -28,10 +29,8 @@ export async function reessayer(id: string): Promise<IssueDeLAction> {
  * reçu son relevé, et sans autre fiche en cours (le téléphone n'en garde qu'une à la fois).
  */
 export async function modifierLaFiche(id: string): Promise<IssueDeLAction> {
-  const enCours = await lireMemoire('brouillon');
-  if (enCours && enCours !== id && (await base.fiches.get(enCours))?.etat === 'brouillon') {
-    return 'brouillon_existant';
-  }
+  const autre = await brouillonDuCompte();
+  if (autre && autre.id !== id) return 'brouillon_existant';
   const issue = await base.transaction('rw', base.fiches, async (): Promise<IssueDeLAction> => {
     const fiche = await base.fiches.get(id);
     if (!fiche || !peutEtreModifiee(fiche)) return 'partie';
@@ -40,7 +39,6 @@ export async function modifierLaFiche(id: string): Promise<IssueDeLAction> {
     return 'ok';
   });
   if (issue !== 'ok') return issue;
-  await garder('brouillon', id);
   aller('ajouter/1');
   return 'ok';
 }
@@ -62,10 +60,13 @@ export async function retirerDuTelephone(id: string): Promise<IssueDeLAction> {
   });
 }
 
-/** Le téléphone ne garde qu'une fiche en cours de saisie : y en a-t-il déjà une ? */
-export async function brouillonEnCours(): Promise<boolean> {
-  const id = await lireMemoire('brouillon');
-  return id ? (await base.fiches.get(id))?.etat === 'brouillon' : false;
+/**
+ * La fiche en cours de saisie de ce compte, s'il y en a une (le téléphone en garde une par compte). On la retrouve
+ * d'après la fiche elle-même (« brouillon », et son compte) : jamais celle d'un autre relais.
+ */
+export async function brouillonDuCompte() {
+  const compte = await compteConnecte();
+  return duBrouillon(await base.fiches.where('etat').equals('brouillon').toArray(), compte);
 }
 
 /**
@@ -74,11 +75,13 @@ export async function brouillonEnCours(): Promise<boolean> {
  * existante : rien d'autre n'est renvoyé. Si la copie du téléphone n'y est plus, une fiche vide en tient la place.
  */
 export async function ajouterLeContact(recu: ReleveRecu, contact: ContactSaisi): Promise<void> {
+  const compte = await compteConnecte();
   await base.transaction('rw', base.fiches, async () => {
     const locale =
       (await base.fiches.get(recu.id)) ??
       ({
         ...nouvelleFiche(recu.id, new Date().toISOString(), null),
+        compteId: compte,
         nomEnseigne: recu.nomEnseigne,
         envoyes: { releve: true, photo: true, contact: true },
         etat: 'envoyee',

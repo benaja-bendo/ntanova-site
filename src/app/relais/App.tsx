@@ -6,9 +6,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Utilisateur } from '../../modele/ports';
 import { obtenirAdaptateurs, type Adaptateurs } from '../../infra/index';
-import { base, lireMemoire, toutEffacer, useRequete } from './base-locale';
-import { ContexteRelais, useAdresse, type Contexte } from './contexte';
+import { base, lireMemoire, oublierLeCompteDAvant, useRequete } from './base-locale';
+import { aller, ContexteRelais, useAdresse, type Contexte } from './contexte';
 import { Ajouter } from './ecrans/Ajouter';
+import { Compte } from './ecrans/Compte';
 import { ContactSeul } from './ecrans/ContactSeul';
 import { BandeauVersion } from './composants';
 import {
@@ -36,11 +37,12 @@ function Ecrans() {
   }
   if (ecran === 'fiches') return <MesFiches />;
   if (ecran === 'paie') return <MaPaie />;
+  if (ecran === 'compte') return <Compte />;
   if (ecran === 'contact' && etape) return <ContactSeul key={etape} releveId={etape} />;
   return <MonLot />;
 }
 
-export default function App() {
+export default function App({ lienNTanova }: { lienNTanova: string | null }) {
   const [adaptateurs, setAdaptateurs] = useState<Adaptateurs | null>(null);
   const [utilisateur, setUtilisateur] = useState<Utilisateur | null | undefined>(undefined);
   const [envoi, setEnvoi] = useState<Contexte['envoi']>(null);
@@ -92,19 +94,29 @@ export default function App() {
     void (async () => {
       const nouveau = await adaptateurs.session.utilisateur();
       const ancien = await lireMemoire('profil');
-      // Un autre compte sur le même téléphone : on repart de zéro, sauf s'il reste des fiches à envoyer.
-      if (ancien && nouveau && ancien.id !== nouveau.id) {
-        const enAttente = await base.fiches.where('etat').equals('a_envoyer').count();
-        if (enAttente === 0) await toutEffacer();
-      }
+      // Un autre compte sur le même téléphone : ce que le téléphone gardait de l'ancien (son secteur, ses fiches reçues,
+      // sa paie) ne sert pas au nouveau. Les fiches NON envoyées de l'ancien restent, et ne partent que sous son nom.
+      if (ancien && nouveau && ancien.id !== nouveau.id) await oublierLeCompteDAvant();
       setUtilisateur(nouveau);
       synchroniser();
     })();
   }, [adaptateurs, synchroniser]);
 
+  // Après « Se déconnecter » (la session est déjà fermée) : l'écran de connexion, sur l'écran d'accueil, sans état
+  // du compte d'avant. Aucune fiche n'est touchée.
+  const surDeconnexion = useCallback(() => {
+    aller('lot');
+    setEnvoi(null);
+    setPremiereLecture(false);
+    setUtilisateur(null);
+  }, []);
+
   const contexte = useMemo<Contexte | null>(
-    () => (adaptateurs ? { adaptateurs, envoi, synchroniser, surConnexion } : null),
-    [adaptateurs, envoi, synchroniser, surConnexion],
+    () =>
+      adaptateurs
+        ? { adaptateurs, envoi, synchroniser, surConnexion, surDeconnexion, lienNTanova }
+        : null,
+    [adaptateurs, envoi, synchroniser, surConnexion, surDeconnexion, lienNTanova],
   );
 
   if (!contexte || utilisateur === undefined || memoireLue === undefined) {

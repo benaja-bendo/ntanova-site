@@ -4,7 +4,15 @@
 import '../../ui/jetons.css';
 import '../../ui/base.css';
 import '../../ui/composants.css';
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import App from '../../app/relais/App';
+import { lienWhatsApp } from '../../modele/whatsapp';
+
+// Le numéro vient de la configuration de la construction, jamais du code. Pas de nom ni d'identifiant dans le lien.
+const lienNTanova = lienWhatsApp(
+  PUBLIC_WHATSAPP,
+  'Bonjour NTanova, je suis relais et j’ai une question. ',
+);
 ---
 
 <!doctype html>
@@ -19,7 +27,7 @@ import App from '../../app/relais/App';
     <link rel="apple-touch-icon" href="/relais/icone-192.png" />
   </head>
   <body>
-    <App client:only="react" />
+    <App client:only="react" lienNTanova={lienNTanova} />
     <noscript>L'espace relais demande JavaScript.</noscript>
     <script>
       // L'application installable se limite à /relais/ : son cache ne touche ni le site public ni l'administration.

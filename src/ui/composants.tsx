@@ -77,6 +77,12 @@ const traits = {
       <path d="M4.2 8h.1M11.7 8h.1" />
     </>
   ),
+  personne: (
+    <>
+      <circle cx="8" cy="5.4" r="2.6" />
+      <path d="M2.8 13.6c.6-2.6 2.6-4 5.2-4s4.6 1.4 5.2 4" />
+    </>
+  ),
 };
 
 export type NomIcone = keyof typeof traits;

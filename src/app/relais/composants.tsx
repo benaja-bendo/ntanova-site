@@ -62,6 +62,7 @@ export function Navigation() {
     { chemin: 'lot', libelle: 'Mon secteur', icone: 'carte' as const },
     { chemin: 'fiches', libelle: 'Mes fiches', icone: 'fiche' as const },
     { chemin: 'paie', libelle: 'Ma paie', icone: 'piece' as const },
+    { chemin: 'compte', libelle: 'Compte', icone: 'personne' as const },
   ];
   return (
     <nav className="navigation-relais" aria-label="Espace relais">
