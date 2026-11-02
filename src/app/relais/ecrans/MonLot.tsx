@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Valeur } from '../../../modele/listes';
-import { base, lireMemoire, useRequete } from '../base-locale';
+import { appartientAuCompte, duBrouillon } from '../../../modele/compte';
+import { base, compteConnecte, lireMemoire, useRequete } from '../base-locale';
 import { aller, useEnLigne, useRelais } from '../contexte';
 import { Bandeau, Entete, heure, Icone, Navigation } from '../composants';
 import { BoutonGoogle } from './Connexion';
@@ -12,9 +13,16 @@ export function EtatEnvoi() {
   const enLigne = useEnLigne();
   // Tant que le téléphone n'a pas compté les fiches en attente, on ne dit rien :
   // « Tout est envoyé » ne s'affiche jamais avant d'être vrai.
-  const enAttente = useRequete(() => base.fiches.where('etat').equals('a_envoyer').count());
+  // Les fiches de ce compte seulement : celles d'un autre relais, qui s'est servi du téléphone, ne comptent pas ici.
+  const duCompte = async (etat: 'a_envoyer' | 'refusee') => {
+    const compte = await compteConnecte();
+    return (await base.fiches.where('etat').equals(etat).toArray()).filter((f) =>
+      appartientAuCompte(f, compte),
+    ).length;
+  };
+  const enAttente = useRequete(() => duCompte('a_envoyer'));
   // Les fiches que la base a refusées : sorties de la file, elles attendent une décision du relais.
-  const refusees = useRequete(() => base.fiches.where('etat').equals('refusee').count());
+  const refusees = useRequete(() => duCompte('refusee'));
   const dernierEnvoi = useRequete(() => lireMemoire('dernierEnvoi'));
 
   if (envoi === 'reconnecter') {
@@ -92,7 +100,10 @@ export function MonLot() {
   const lot = useRequete(() => lireMemoire('lot'));
   const zones = useRequete(() => lireMemoire('zones')) ?? [];
   const releves = useRequete(() => lireMemoire('releves')) ?? [];
-  const brouillon = useRequete(() => lireMemoire('brouillon'));
+  const brouillon = useRequete(async () => {
+    const compte = await compteConnecte();
+    return duBrouillon(await base.fiches.where('etat').equals('brouillon').toArray(), compte);
+  });
 
   return (
     <div className="ecran">
@@ -175,11 +186,12 @@ const consigne: Record<Valeur<'mission_kind'>, string> = {
 function ACompleter() {
   const [avis, setAvis] = useState<string | null>(null);
   const ecoles = useRequete(() => lireMemoire('aCompleter')) ?? [];
-  const enCours = useRequete(async () =>
-    (await base.fiches.where('type').equals('contre_visite').toArray()).map(
-      (f) => f.doublonPropose?.ecoleId,
-    ),
-  );
+  const enCours = useRequete(async () => {
+    const compte = await compteConnecte();
+    return (await base.fiches.where('type').equals('contre_visite').toArray())
+      .filter((f) => appartientAuCompte(f, compte))
+      .map((f) => f.doublonPropose?.ecoleId);
+  });
   const restantes = ecoles.filter((e) => !enCours?.includes(e.id));
   if (restantes.length === 0) return null;
   return (

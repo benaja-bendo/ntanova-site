@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { appartientAuCompte } from '../../../modele/compte';
 import { enAlerte, explicationDuRejet, peutEtreModifiee } from '../../../modele/envoi';
 import type { FicheLocale } from '../../../modele/fiche';
 import type { ReleveRecu } from '../../../modele/ports';
@@ -9,7 +10,7 @@ import {
   retirerDuTelephone,
   type IssueDeLAction,
 } from '../actions-fiches';
-import { base, lireMemoire, useRequete } from '../base-locale';
+import { base, compteConnecte, lireMemoire, useRequete } from '../base-locale';
 import { Entete, jour, Navigation } from '../composants';
 import { aller, useRelais } from '../contexte';
 import { commencerCorrection } from './Ajouter';
@@ -156,7 +157,14 @@ export function MesFiches() {
   const { synchroniser } = useRelais();
   const [filtre, setFiltre] = useState<Filtre>('toutes');
   const [avis, setAvis] = useState<string | null>(null);
-  const locales = useRequete(() => base.fiches.where('etat').notEqual('brouillon').toArray()) ?? [];
+  // Les fiches de ce compte seulement : celles d'un autre relais, qui s'est servi du téléphone, ne sont pas à lui.
+  const locales =
+    useRequete(async () => {
+      const compte = await compteConnecte();
+      return (await base.fiches.where('etat').notEqual('brouillon').toArray()).filter((f) =>
+        appartientAuCompte(f, compte),
+      );
+    }) ?? [];
   const recus = useRequete(() => lireMemoire('releves')) ?? [];
 
   const idsRecus = new Set(recus.map((r) => r.id));

@@ -1,4 +1,6 @@
+import { phraseFichesEnAttente } from '../../../modele/compte';
 import { BoutonGoogle as BoutonCommun } from '../../commun/BoutonGoogle';
+import { base, useRequete } from '../base-locale';
 import { useRelais } from '../contexte';
 import { Icone } from '../composants';
 import { journaliser } from '../journal';
@@ -18,6 +20,13 @@ export function BoutonGoogle() {
 }
 
 export function Connexion() {
+  // Des fiches peuvent être restées dans le téléphone (on s'est déconnecté, ou un autre relais s'en est servi) : on le
+  // dit, pour que personne ne les croie perdues. Celles de tous les comptes comptent ici.
+  const restantes = useRequete(
+    () => base.fiches.where('etat').anyOf('brouillon', 'a_envoyer', 'refusee').count(),
+    [],
+  );
+  const fichesEnAttente = phraseFichesEnAttente(restantes ?? 0);
   return (
     <div className="ecran ecran-accueil">
       <main className="accueil">
@@ -28,14 +37,17 @@ export function Connexion() {
         <div className="pile-serree">
           <p className="surtitre">Espace relais</p>
           <h1>Relever les écoles de son quartier.</h1>
-          <p className="texte-doux">
-            Pour les jeunes qui travaillent avec NTanova, à Tié-Tié et à Ngoyo.
-          </p>
+          <p className="texte-doux">Pour les jeunes qui travaillent avec NTanova.</p>
         </div>
         <BoutonGoogle />
         <p className="mention centre">
           La première connexion demande du réseau. Ensuite, le relevé marche hors ligne.
         </p>
+        {fichesEnAttente && (
+          <p className="mention centre" role="status">
+            {fichesEnAttente}
+          </p>
+        )}
         <div className="carte-blanche rang">
           <Icone nom="cadenas" />
           <p>

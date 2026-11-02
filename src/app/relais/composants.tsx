@@ -62,6 +62,7 @@ export function Navigation() {
     { chemin: 'lot', libelle: 'Mon secteur', icone: 'carte' as const },
     { chemin: 'fiches', libelle: 'Mes fiches', icone: 'fiche' as const },
     { chemin: 'paie', libelle: 'Ma paie', icone: 'piece' as const },
+    { chemin: 'compte', libelle: 'Compte', icone: 'personne' as const },
   ];
   return (
     <nav className="navigation-relais" aria-label="Espace relais">
@@ -97,7 +98,7 @@ export function EnteteEtape({
         <button
           type="button"
           className="bouton-icone"
-          aria-label={etape === 1 ? 'Retour à mon lot' : `Retour à l'étape ${etape - 1}`}
+          aria-label={etape === 1 ? 'Retour à mon secteur' : `Retour à l'étape ${etape - 1}`}
           onClick={() => aller(retour)}
         >
           <Icone nom="retour" taille={22} />

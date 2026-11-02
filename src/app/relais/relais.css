@@ -79,8 +79,8 @@
   position: sticky;
   bottom: 0;
   display: grid;
-  /* Trois onglets (Mon lot, Mes fiches, Ma paie) : une colonne chacun, sur une seule ligne. */
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Quatre onglets (Mon secteur, Mes fiches, Ma paie, Compte) : une colonne chacun, sur une seule ligne. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   min-height: 64px;
   border-top: 1px solid var(--trait);
   background: var(--fond-releve);

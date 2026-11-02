@@ -28,7 +28,6 @@ export interface Memoire {
   /** Sa paie, telle que NTanova l'a lue la dernière fois : elle se lit aussi sans réseau. */
   paie: MaPaie;
   dernierEnvoi: string;
-  brouillon: string;
 }
 
 interface LigneMemoire {
@@ -85,6 +84,25 @@ base
       }),
   );
 
+// Version 4 : chaque fiche est liée au compte qui l'a commencée (un téléphone peut servir à deux relais). Les fiches
+// d'avant prennent le compte gardé dans le téléphone, s'il y en a un ; sinon elles sont à celui qui se connecte. Le
+// brouillon se retrouve d'après la fiche (« brouillon » et son compte) : l'ancien repère n'a plus d'objet.
+base
+  .version(4)
+  .stores({ fiches: 'id, etat, creeeLe, type' })
+  .upgrade(async (tx) => {
+    const profil = (await tx.table('memoire').get('profil')) as
+      { valeur?: { id?: string } } | undefined;
+    const compte = profil?.valeur?.id ?? null;
+    await tx
+      .table('fiches')
+      .toCollection()
+      .modify((fiche: Record<string, unknown>) => {
+        fiche.compteId ??= compte;
+      });
+    await tx.table('memoire').delete('brouillon');
+  });
+
 export async function lireMemoire<K extends keyof Memoire>(
   cle: K,
 ): Promise<Memoire[K] | undefined> {
@@ -100,9 +118,20 @@ export async function oublier(cle: keyof Memoire): Promise<void> {
   await base.memoire.delete(cle);
 }
 
-/** Tout effacer : au changement de compte. */
-export async function toutEffacer(): Promise<void> {
-  await Promise.all([base.fiches.clear(), base.memoire.clear(), base.erreurs.clear()]);
+/**
+ * Le compte connecté, tel que le téléphone l'a gardé (il sert aussi hors ligne), ou null avant la première lecture.
+ */
+export async function compteConnecte(): Promise<string | null> {
+  return (await lireMemoire('profil'))?.id ?? null;
+}
+
+/**
+ * Au changement de compte : ce que le téléphone gardait du serveur pour l'ancien (son lot, ses fiches reçues, sa paie)
+ * ne sert pas au nouveau. Les fiches NON envoyées de l'ancien restent : elles sont à lui, et ne partent jamais sous le
+ * nom du nouveau (voir `appartientAuCompte`).
+ */
+export async function oublierLeCompteDAvant(): Promise<void> {
+  await base.memoire.clear();
 }
 
 /** Une requête sur la base du téléphone, relancée à chaque changement. */

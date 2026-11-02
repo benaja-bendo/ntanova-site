@@ -58,6 +58,11 @@ export interface FicheLocale {
   corrigeReleveId: string | null;
   lotId: string | null;
   /**
+   * Le compte du relais qui l'a commencée. Un téléphone peut servir à deux relais : ses fiches non envoyées ne sont ni
+   * vues ni envoyées sous un autre compte. Absent des fiches d'avant, qui sont à celui qui se connecte.
+   */
+  compteId?: string | null;
+  /**
    * Ce que NTanova attend du relais sur cette fiche, quand elle complète une école connue ou en corrige une :
    * photo, position, informations, direction. Gardé dans la fiche au moment où le relais la commence, pour que
    * l'écran ne dépende pas du réseau. Absent d'une école nouvelle (tout est demandé) et des fiches d'avant.

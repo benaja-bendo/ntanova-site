@@ -30,8 +30,8 @@ import {
   libelleRolePhotoCourt,
   libelleTypeEcole,
 } from '../../../modele/libelles';
-import { brouillonEnCours } from '../actions-fiches';
-import { base, garder, lireMemoire, oublier } from '../base-locale';
+import { brouillonDuCompte } from '../actions-fiches';
+import { base, lireMemoire } from '../base-locale';
 import { aller, useRelais } from '../contexte';
 import { Bandeau, Champ, Choix, EnteteEtape, Icone } from '../composants';
 import { journaliser } from '../journal';
@@ -49,17 +49,15 @@ function useFicheEnCours(): [FicheLocale | null, Modifier] {
   useEffect(() => {
     let actif = true;
     void (async () => {
-      const id = await lireMemoire('brouillon');
-      let enCours = id ? await base.fiches.get(id) : undefined;
-      if (!enCours || enCours.etat !== 'brouillon') {
+      // Le brouillon de ce compte : jamais celui d'un autre relais qui s'est servi du téléphone.
+      let enCours = await brouillonDuCompte();
+      if (!enCours) {
         const profil = await lireMemoire('profil');
-        enCours = nouvelleFiche(
-          crypto.randomUUID(),
-          new Date().toISOString(),
-          profil?.lotId ?? null,
-        );
+        enCours = {
+          ...nouvelleFiche(crypto.randomUUID(), new Date().toISOString(), profil?.lotId ?? null),
+          compteId: profil?.id ?? null,
+        };
         await base.fiches.put(enCours);
-        await garder('brouillon', enCours.id);
       }
       if (actif) setFiche(enCours);
     })();
@@ -100,7 +98,6 @@ function BoutonAbandonner({ fiche }: { fiche: FicheLocale }) {
   const abandonner = async () => {
     if (!confirm('Abandonner cette fiche ? Ce qui a été saisi sera effacé du téléphone.')) return;
     await base.fiches.delete(fiche.id);
-    await oublier('brouillon');
     aller('lot', true);
   };
   return (
@@ -704,7 +701,6 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
       essais: 0,
     };
     await base.fiches.put(prete);
-    await oublier('brouillon');
     aller('fiches', true);
     synchroniser();
   };
@@ -911,16 +907,18 @@ export function ChampsContact({
 export async function commencerContreVisite(
   ecole: EcoleACompleter,
 ): Promise<'ok' | 'brouillon_existant'> {
-  if (await brouillonEnCours()) return 'brouillon_existant';
+  if (await brouillonDuCompte()) return 'brouillon_existant';
   const profil = await lireMemoire('profil');
-  const fiche = nouvelleContreVisite(
-    crypto.randomUUID(),
-    new Date().toISOString(),
-    profil?.lotId ?? null,
-    ecole,
-  );
+  const fiche = {
+    ...nouvelleContreVisite(
+      crypto.randomUUID(),
+      new Date().toISOString(),
+      profil?.lotId ?? null,
+      ecole,
+    ),
+    compteId: profil?.id ?? null,
+  };
   await base.fiches.put(fiche);
-  await garder('brouillon', fiche.id);
   aller('ajouter/1');
   return 'ok';
 }
@@ -930,16 +928,18 @@ export async function commencerContreVisite(
  * relais avait saisi. Comme ci-dessus, jamais en écrasant une fiche en cours.
  */
 export async function commencerCorrection(recu: ReleveRecu): Promise<'ok' | 'brouillon_existant'> {
-  if (await brouillonEnCours()) return 'brouillon_existant';
+  if (await brouillonDuCompte()) return 'brouillon_existant';
   const profil = await lireMemoire('profil');
-  const fiche = nouvelleCorrection(
-    crypto.randomUUID(),
-    new Date().toISOString(),
-    profil?.lotId ?? null,
-    recu,
-  );
+  const fiche = {
+    ...nouvelleCorrection(
+      crypto.randomUUID(),
+      new Date().toISOString(),
+      profil?.lotId ?? null,
+      recu,
+    ),
+    compteId: profil?.id ?? null,
+  };
   await base.fiches.put(fiche);
-  await garder('brouillon', fiche.id);
   aller('ajouter/1');
   return 'ok';
 }
