@@ -12,6 +12,11 @@ name: Mise en ligne
 # La première semaine, pas de bouton dans l'administration : une mise en ligne
 # chaque nuit (elle relit la base, ce qui la garde éveillée), et un lancement à la
 # main depuis l'onglet Actions de GitHub.
+#
+# La nuit met toujours à jour essai ; elle n'envoie la production que si la variable
+# GitHub NUIT_VERS_PRODUCTION vaut « oui » (Settings, Secrets and variables, Actions,
+# Variables). Absente ou autre chose : essai seulement. Un lancement à la main garde
+# son sens : `cible` dit où aller, sans dépendre de la variable.
 on:
   workflow_dispatch:
     inputs:
@@ -114,7 +119,8 @@ jobs:
       && needs.construction.result == 'success'
       && (needs.essai.result == 'success' || needs.essai.result == 'skipped')
       && github.ref == 'refs/heads/main'
-      && (github.event_name == 'schedule' || inputs.cible != 'essai')
+      && ((github.event_name == 'schedule' && vars.NUIT_VERS_PRODUCTION == 'oui')
+          || (github.event_name == 'workflow_dispatch' && inputs.cible != 'essai'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

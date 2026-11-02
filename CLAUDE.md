@@ -143,6 +143,7 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
   3. les contrôles en ligne sur essai (`pnpm test:en-ligne`, `tests/en-ligne/`, en lecture seule) ;
   4. la même construction sur `ntanova.com`, puis ses contrôles en ligne.
 - La première semaine, pas de bouton : une mise en ligne chaque nuit, et un lancement à la main (`gh workflow run mise-en-ligne.yml -f cible=essai`, ou `--ref <branche>` pour essayer une branche sur essai).
+- **La nuit n'envoie la production que sur ordre** (décision du fondateur, 02/11/2026, ticket #55) : elle met toujours à jour essai, et n'envoie `ntanova.com` que si la variable GitHub `NUIT_VERS_PRODUCTION` vaut `oui`. Absente, ou autre chose : essai seulement. Un lancement à la main garde son sens (`-f cible=production` envoie la production, sans dépendre de la variable). Un test (`tests/unitaires/mise-en-ligne.test.ts`) évalue la condition dans chaque situation. **Tant que les relais sont en pause, rien ne part chez eux sans un lancement à la main.**
 - **Chaque bug corrigé arrive avec un test qui échoue sans le correctif** (vérifier qu'il échoue sur l'ancien code). GitHub ne protège pas `main` sur un dépôt privé gratuit : c'est la mise en ligne qui refait tous les contrôles.
 - Les valeurs publiques de la construction sont des **variables** GitHub (`vars.PUBLIC_…`), pas des secrets.
 
