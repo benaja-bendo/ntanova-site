@@ -1,3 +1,4 @@
+import type { Valeur } from '../../../modele/listes';
 import { base, lireMemoire, useRequete } from '../base-locale';
 import { aller, useEnLigne, useRelais } from '../contexte';
 import { Bandeau, Entete, heure, Icone, Navigation } from '../composants';
@@ -125,9 +126,16 @@ export function MonLot() {
 }
 
 /**
- * Les écoles que NTanova confie au relais : connues, mais pas encore situées.
+ * Les écoles que NTanova confie au relais : déjà enregistrées, à vérifier, à situer ou à compléter sur place.
  * Une école dont la contre-visite est déjà sur le téléphone n'y figure plus.
  */
+const consigne: Record<Valeur<'mission_kind'>, string> = {
+  verify:
+    'Passez vérifier cette école sur place : le nom écrit, le repère, la photo de l’enseigne.',
+  locate: 'Passez la situer : photo, position de l’entrée, et ce qui manque.',
+  complete: 'Passez compléter sa fiche : ce qui manque, les séries ou filières, une photo.',
+};
+
 function ACompleter() {
   const ecoles = useRequete(() => lireMemoire('aCompleter')) ?? [];
   const enCours = useRequete(async () =>
@@ -141,16 +149,18 @@ function ACompleter() {
     <section className="carte-blanche pile-serree" aria-label="À compléter">
       <p className="surtitre">À compléter · {restantes.length}</p>
       <p className="mention">
-        NTanova connaît ces écoles sans savoir où elles sont. Passez les relever : photo, position,
-        et ce qui manque.
+        NTanova connaît déjà ces écoles. Passez-les voir : on vous dit pour chacune ce qu’il faut
+        faire.
       </p>
       {restantes.map((e) => (
         <div key={e.id} className="a-completer">
           <div>
             <b>{e.nom}</b>
+            {e.etiquette && <span className="mention a-completer-ligne">{e.etiquette}</span>}
             <span className="mention a-completer-ligne">
               {[e.quartier, e.repere].filter(Boolean).join(' · ') || 'Quartier inconnu'}
             </span>
+            <span className="mention a-completer-ligne">{consigne[e.genre]}</span>
             {e.note && <span className="mention a-completer-ligne">À vérifier : {e.note}</span>}
           </div>
           <button

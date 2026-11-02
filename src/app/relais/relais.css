@@ -164,9 +164,10 @@
 
 .progression-ligne {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--espace-2);
+  gap: var(--espace-1) var(--espace-2);
 }
 
 .progression-ligne h1 {
@@ -175,10 +176,13 @@
   font-size: var(--taille-courante);
 }
 
+/* Le badge ne se coupe jamais en deux lignes : si le titre est long, il passe sous lui. */
 .garde {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: var(--espace-1);
+  white-space: nowrap;
   color: var(--marque);
   font-size: var(--taille-mention);
   font-weight: 700;

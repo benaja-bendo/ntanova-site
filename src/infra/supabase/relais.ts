@@ -128,6 +128,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         landmark: string | null;
         sign_phone: string | null;
         note: string | null;
+        kind: Valeur<'mission_kind'>;
       }>(await supabase().rpc('my_missions'));
       return lignes.map((m) => ({
         id: m.campus_id,
@@ -140,6 +141,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         repere: m.landmark,
         numeroEnseigne: m.sign_phone,
         note: m.note,
+        genre: m.kind,
       }));
     },
 

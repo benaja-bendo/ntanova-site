@@ -149,6 +149,8 @@ export interface EcoleACompleter {
   numeroEnseigne: string | null;
   /** Ce que NTanova demande de vérifier. */
   note: string | null;
+  /** Ce qu'on attend du relais : vérifier l'école, la situer, ou compléter sa fiche. */
+  genre: Valeur<'mission_kind'>;
 }
 
 export interface PortRelais {

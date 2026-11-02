@@ -89,9 +89,9 @@ function PiedEtape({ children }: { children: React.ReactNode }) {
   return <div className="pied-etape">{children}</div>;
 }
 
-function BoutonSuivant({ surClic }: { surClic: () => void }) {
+function BoutonSuivant({ surClic, occupe = false }: { surClic: () => void; occupe?: boolean }) {
   return (
-    <button type="button" className="bouton bouton-large" onClick={surClic}>
+    <button type="button" className="bouton bouton-large" onClick={surClic} disabled={occupe}>
       Suivant
       <Icone nom="suivant" />
     </button>
@@ -119,6 +119,8 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   const monte = useRef(true);
 
   const [autresOuvert, setAutresOuvert] = useState(false);
+  // Des photos en cours d'allègement : « Suivant » attend qu'elles soient gardées, sinon la fiche partirait sans elles.
+  const [allegement, setAllegement] = useState(0);
   const [rolePhoto, setRolePhoto] = useState<'programs_board' | 'brochure' | 'building'>(
     'programs_board',
   );
@@ -142,6 +144,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   const prendrePhoto = async (fichier: File | undefined, role: PhotoLocale['role']) => {
     if (!fichier) return;
     setErreurPhoto(null);
+    setAllegement((n) => n + 1);
     try {
       const a = await alleger(fichier);
       const photo: PhotoLocale = {
@@ -163,6 +166,8 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         e,
       );
       setErreurPhoto('Cette photo ne peut pas être lue. Reprenez-la, ou choisissez-en une autre.');
+    } finally {
+      setAllegement((n) => n - 1);
     }
   };
 
@@ -288,6 +293,11 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             Le plus sûr&nbsp;: photographiez avec l'appareil du téléphone, puis choisissez la photo
             dans la galerie. Cadrez l'enseigne et l'entrée, sans enfant.
           </p>
+          {allegement > 0 && (
+            <p className="mention" role="status">
+              Allègement de la photo…
+            </p>
+          )}
           {(erreurPhoto ?? erreurs.photo) && (
             <p className="message-erreur" role="alert">
               {erreurPhoto ?? erreurs.photo}
@@ -374,7 +384,8 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           <p className="mention">
             {autres.length}/{PHOTOS_FACULTATIVES_MAX} en plus de l'enseigne. Un panneau ou une
             affiche qui liste les filières, un prospectus remis par l'école, une autre vue du
-            bâtiment (toujours sans enfant).
+            bâtiment (toujours sans enfant). Un prospectus, oui : jamais une liste d'élèves ni un
+            bulletin.
           </p>
         </section>
 
@@ -464,7 +475,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         </button>
       </main>
       <PiedEtape>
-        <BoutonSuivant surClic={suivant} />
+        <BoutonSuivant surClic={suivant} occupe={allegement > 0} />
       </PiedEtape>
     </div>
   );
