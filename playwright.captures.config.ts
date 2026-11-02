@@ -1,11 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
+import { portDesParcours } from './playwright.port';
 
 // Les captures d'écran à relire à l'œil (`pnpm captures`) : chaque écran du site construit
 // avec le faux serveur, à 360 px (téléphone), 768 px (tablette), 1 280 px (ordinateur) et 1 920 px
 // (grand écran).
 // Rien n'y est vérifié : les contrôles sont dans tests/parcours/. Les images vont dans
 // captures/, que git ignore.
-const port = 4329;
+// Réglable par `PLAYWRIGHT_PORT` (voir `playwright.port.ts`) : deux suites sur un même Mac ne se disputent plus le port.
+const port = portDesParcours();
 
 export default defineConfig({
   testDir: 'tests/captures',
