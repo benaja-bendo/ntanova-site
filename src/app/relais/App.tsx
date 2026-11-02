@@ -9,6 +9,7 @@ import { obtenirAdaptateurs, type Adaptateurs } from '../../infra/index';
 import { base, lireMemoire, toutEffacer, useRequete } from './base-locale';
 import { ContexteRelais, useAdresse, type Contexte } from './contexte';
 import { Ajouter } from './ecrans/Ajouter';
+import { ContactSeul } from './ecrans/ContactSeul';
 import { CompteEnAttente, Connexion, PremiereConnexionHorsLigne } from './ecrans/Connexion';
 import { MesFiches } from './ecrans/MesFiches';
 import { MonLot } from './ecrans/MonLot';
@@ -25,6 +26,7 @@ function Ecrans() {
     return <Ajouter key={n} etape={n} />;
   }
   if (ecran === 'fiches') return <MesFiches />;
+  if (ecran === 'contact' && etape) return <ContactSeul key={etape} releveId={etape} />;
   return <MonLot />;
 }
 

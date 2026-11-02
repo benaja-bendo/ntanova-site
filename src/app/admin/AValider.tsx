@@ -53,7 +53,12 @@ function Etiquettes({ r }: { r: ReleveAValider }) {
       {r.essai && <span className="etiquette etat-telephone">Lot d'essai</span>}
       {r.horsLot && !r.essai && <span className="etiquette etat-refusee">Hors du lot</span>}
       {r.doublonPossible && <span className="etiquette etat-attente">Doublon possible</span>}
-      {!r.enseigneRecue && <span className="etiquette etat-telephone">Photo pas encore reçue</span>}
+      {!r.enseigneRecue && (
+        <span className="etiquette etat-telephone">
+          {/* Une correction ou une contre-visite peut se passer de photo : NTanova a déjà celle de l'école. */}
+          {r.type === 'releve' ? 'Photo pas encore reçue' : 'Pas de nouvelle photo'}
+        </span>
+      )}
       {r.photos > 1 && <span className="etiquette etat-envoye">{r.photos} photos</span>}
       {r.indiceFormations && <span className="etiquette etat-a-corriger">Formations à saisir</span>}
     </span>

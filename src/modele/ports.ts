@@ -57,9 +57,17 @@ export interface EcoleProche extends Point {
   genre?: 'campus' | 'releve';
 }
 
-/** Ce que le relais relit de ses relevés : jamais le contact de la direction. */
+/**
+ * Ce que le relais relit de ses relevés : tout ce qu'ils contiennent (de quoi corriger sans tout ressaisir), jamais
+ * le contact de la direction ni le chemin d'une photo.
+ *
+ * Les niveaux et le type sont dits tels que la base les a : une valeur que ce téléphone ne connaît pas encore est
+ * possible, et la correction ne reprend que ce qu'il connaît. Le téléphone garde ces lignes : celles d'avant la
+ * mise à jour n'ont pas les derniers champs, et se relisent avec des valeurs par défaut.
+ */
 export interface ReleveRecu {
   id: string;
+  type: Valeur<'type_releve'>;
   nomEnseigne: string;
   prisLe: string;
   statut: Valeur<'statut_releve'>;
@@ -71,6 +79,20 @@ export interface ReleveRecu {
   contactConfirmeLe: string | null;
   contactFonction: Valeur<'fonction_direction'> | null;
   campusId: string | null;
+  niveaux: string[];
+  typeEcole: string;
+  programme: string | null;
+  /** Les séries ou filières lues sur l'enseigne, et si elles sont en photo. */
+  programmesVus: string | null;
+  programmesEnPhoto: boolean;
+  repere: string | null;
+  numeroEnseigne: string | null;
+  position: Point | null;
+  precisionM: number | null;
+  /** Les rôles des photos arrivées chez NTanova (jamais leur chemin). */
+  photos: Valeur<'photo_role'>[];
+  /** Le contact de la direction est arrivé chez NTanova (sans le lire). */
+  aContact: boolean;
 }
 
 /** Une photo prête à partir : déjà allégée (moins de 200 Ko, WebP ou JPEG), avec son identifiant créé sur le téléphone. */
@@ -151,6 +173,14 @@ export interface EcoleACompleter {
   note: string | null;
   /** Ce qu'on attend du relais : vérifier l'école, la situer, ou compléter sa fiche. */
   genre: Valeur<'mission_kind'>;
+  /** La position que NTanova connaît de l'école, quand elle en a une. */
+  position: Point | null;
+  /** « relevee » ou « verifiee » : un relevé ne modifie plus une école vérifiée par la direction. */
+  etatVerification: string;
+  /** Les rôles des photos que NTanova a déjà de l'école (jamais leur chemin). */
+  photos: Valeur<'photo_role'>[];
+  /** Le contact de la direction est déjà confirmé. */
+  contactConfirme: boolean;
 }
 
 export interface PortRelais {

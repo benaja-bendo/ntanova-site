@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Valeur } from '../../../modele/listes';
 import { base, lireMemoire, useRequete } from '../base-locale';
 import { aller, useEnLigne, useRelais } from '../contexte';
@@ -158,6 +159,7 @@ const consigne: Record<Valeur<'mission_kind'>, string> = {
 };
 
 function ACompleter() {
+  const [avis, setAvis] = useState<string | null>(null);
   const ecoles = useRequete(() => lireMemoire('aCompleter')) ?? [];
   const enCours = useRequete(async () =>
     (await base.fiches.where('type').equals('contre_visite').toArray()).map(
@@ -173,6 +175,11 @@ function ACompleter() {
         NTanova connaît déjà ces écoles. Passez-les voir : on vous dit pour chacune ce qu’il faut
         faire.
       </p>
+      {avis && (
+        <p className="message-attention" role="status">
+          {avis}
+        </p>
+      )}
       {restantes.map((e) => (
         <div key={e.id} className="a-completer">
           <div>
@@ -187,7 +194,15 @@ function ACompleter() {
           <button
             type="button"
             className="bouton bouton-secondaire bouton-petit"
-            onClick={() => void commencerContreVisite(e)}
+            onClick={() =>
+              void commencerContreVisite(e).then((issue) =>
+                setAvis(
+                  issue === 'ok'
+                    ? null
+                    : 'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Reprendre la fiche en cours »).',
+                ),
+              )
+            }
           >
             Compléter
           </button>

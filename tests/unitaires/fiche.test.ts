@@ -7,6 +7,7 @@ import {
   erreursEtape2,
   erreursEtape3,
   nouvelleContreVisite,
+  nouvelleCorrection,
   nouvelleFiche,
   peutAjouterPhoto,
   photoEnseigne,
@@ -22,6 +23,7 @@ import {
 } from '../../src/modele/fiche';
 import { dansContour, distanceMetres, plusProche } from '../../src/modele/geo';
 import { listes } from '../../src/modele/listes';
+import type { EcoleACompleter, ReleveRecu } from '../../src/modele/ports';
 import { afficherTelephone, normaliserTelephone } from '../../src/modele/telephone';
 
 const fiche = (champs: Partial<FicheLocale> = {}): FicheLocale => ({
@@ -235,6 +237,10 @@ describe('la contre-visite d’une école confiée', () => {
       numeroEnseigne: '242060000001',
       note: 'Nom à vérifier',
       genre: 'verify',
+      position: { latitude: -4.8, longitude: 11.9 },
+      etatVerification: 'relevee',
+      photos: ['signboard'],
+      contactConfirme: false,
     });
     const releve = versReleve(fiche);
     expect(releve).toMatchObject({
@@ -323,6 +329,10 @@ describe('les listes ne bloquent personne', () => {
       numeroEnseigne: null,
       note: null,
       genre: 'verify' as const,
+      position: null,
+      etatVerification: 'relevee',
+      photos: [],
+      contactConfirme: false,
     };
     const visite = nouvelleContreVisite('r1', '2026-11-02T08:00:00.000Z', 'lot', ecole);
     expect(visite.typeEcole).toBe('non_indique');
@@ -344,6 +354,10 @@ describe('les listes ne bloquent personne', () => {
       numeroEnseigne: null,
       note: null,
       genre: 'verify',
+      position: null,
+      etatVerification: 'relevee',
+      photos: [],
+      contactConfirme: false,
     });
     expect(visite.typeEcole).toBe('communautaire');
     expect(visite.niveaux).toEqual(['autre_formation']);
@@ -420,6 +434,168 @@ describe('les séries et les filières', () => {
       programmesVus: null,
       programmesEnPhoto: false,
     });
+  });
+});
+
+// Ticket #55, PR 4 : compléter et corriger sans tout ressaisir --------------------------------------
+
+const ecoleConnue = (champs: Partial<EcoleACompleter> = {}): EcoleACompleter => ({
+  id: 'ecole-1',
+  nom: '[École connue]',
+  quartier: '[Quartier]',
+  typeEcole: 'privee',
+  niveaux: ['primaire', 'college'],
+  programme: 'Programme congolais',
+  repere: '[Repère]',
+  numeroEnseigne: '242060000001',
+  note: 'Confirmer les séries.',
+  genre: 'complete',
+  position: { latitude: -4.8, longitude: 11.9 },
+  etatVerification: 'relevee',
+  photos: ['signboard'],
+  contactConfirme: false,
+  ...champs,
+});
+
+const fichePrecedente = (champs: Partial<ReleveRecu> = {}): ReleveRecu => ({
+  id: 'releve-1',
+  type: 'releve',
+  nomEnseigne: '[École renvoyée]',
+  prisLe: '2026-11-02T08:00:00.000Z',
+  statut: 'a_corriger',
+  motif: 'hors_lot',
+  messageAuRelais: 'La position est trop loin.',
+  direction: 'vue',
+  ficheLiaisonRemise: false,
+  repasser: null,
+  contactConfirmeLe: null,
+  contactFonction: null,
+  campusId: null,
+  niveaux: ['lycee', 'technique'],
+  typeEcole: 'publique',
+  programme: 'Bilingue',
+  programmesVus: 'Séries C et D',
+  programmesEnPhoto: true,
+  repere: 'Face au marché',
+  numeroEnseigne: '242061234501',
+  position: { latitude: -4.81, longitude: 11.93 },
+  precisionM: 14,
+  photos: ['signboard', 'programs_board'],
+  aContact: true,
+  ...champs,
+});
+
+describe('compléter une école connue : la photo n’est demandée que si NTanova ne l’a pas', () => {
+  const position = { latitude: -4.8, longitude: 11.9 };
+  const dejaPhotographiee = () =>
+    nouvelleContreVisite('r1', '2026-11-02T08:00:00.000Z', 'lot', ecoleConnue());
+  const sansPhoto_ = () =>
+    nouvelleContreVisite('r1', '2026-11-02T08:00:00.000Z', 'lot', ecoleConnue({ photos: [] }));
+
+  it('une école déjà photographiée passe l’étape 1/3 sans nouvelle photo', () => {
+    expect(erreursEtape1({ ...dejaPhotographiee(), position })).toEqual({});
+  });
+
+  it('une école sans enseigne chez NTanova la demande', () => {
+    expect(erreursEtape1({ ...sansPhoto_(), position }).photo).toBe(
+      "Ajoutez la photo de l'enseigne.",
+    );
+  });
+
+  it('une fiche neuve, sans tâches, la demande toujours', () => {
+    expect(erreursEtape1(fiche()).photo).toBe("Ajoutez la photo de l'enseigne.");
+  });
+
+  it('la direction n’est demandée que si son contact n’est pas déjà confirmé', () => {
+    const aVoir = nouvelleContreVisite('r1', '2026-11-02T08:00:00.000Z', 'lot', ecoleConnue());
+    expect(erreursEtape3(aVoir).direction).toBe('Dites si vous avez vu la direction.');
+    const confirmee = nouvelleContreVisite(
+      'r1',
+      '2026-11-02T08:00:00.000Z',
+      'lot',
+      ecoleConnue({ contactConfirme: true }),
+    );
+    expect(erreursEtape3(confirmee)).toEqual({});
+  });
+
+  it('garde dans la fiche ce que NTanova attend du relais, et sa consigne', () => {
+    expect(dejaPhotographiee().taches).toMatchObject({
+      photo: false,
+      consigne: 'Confirmer les séries.',
+    });
+  });
+
+  it('ne perd rien de ce que NTanova savait : nom, niveaux, type, programme, repère, numéro', () => {
+    expect(versReleve(dejaPhotographiee())).toMatchObject({
+      type: 'contre_visite',
+      nomEnseigne: '[École connue]',
+      niveaux: ['primaire', 'college'],
+      typeEcole: 'privee',
+      programme: 'Programme congolais',
+      repere: '[Repère]',
+      numeroEnseigne: '242060000001',
+    });
+  });
+});
+
+describe('corriger une fiche : tout ce qui était saisi revient', () => {
+  const corriger = (champs: Partial<ReleveRecu> = {}) =>
+    nouvelleCorrection('c1', '2026-11-02T09:00:00.000Z', 'lot', fichePrecedente(champs));
+
+  it('reprend le contenu de la fiche renvoyée, pas seulement son nom', () => {
+    const c = corriger();
+    expect(c).toMatchObject({
+      type: 'correction',
+      corrigeReleveId: 'releve-1',
+      nomEnseigne: '[École renvoyée]',
+      niveaux: ['lycee', 'technique'],
+      typeEcole: 'publique',
+      programme: 'Bilingue',
+      programmesVus: 'Séries C et D',
+      programmesEnPhoto: true,
+      repere: 'Face au marché',
+      numeroEnseigne: '+242061234501',
+      direction: 'vue',
+    });
+  });
+
+  it('part avec tout ce contenu : une correction dit la vérité entière (ses niveaux remplacent les anciens)', () => {
+    expect(versReleve(corriger())).toMatchObject({
+      type: 'correction',
+      corrigeReleveId: 'releve-1',
+      nomEnseigne: '[École renvoyée]',
+      niveaux: ['lycee', 'technique'],
+      repere: 'Face au marché',
+    });
+  });
+
+  it('pour un motif de position, la photo n’est pas demandée', () => {
+    const c = corriger({ motif: 'hors_lot' });
+    expect(erreursEtape1({ ...c, position: { latitude: -4.8, longitude: 11.9 } })).toEqual({});
+  });
+
+  it('pour une photo floue, elle est demandée', () => {
+    const c = corriger({ motif: 'photo_floue' });
+    expect(erreursEtape1(c).photo).toBe("Ajoutez la photo de l'enseigne.");
+  });
+
+  it('ne redemande pas la direction, et n’envoie pas de contact une seconde fois', () => {
+    const c = corriger();
+    expect(erreursEtape3(c)).toEqual({});
+    expect(versContact(c)).toBeNull();
+  });
+
+  it('lit une fiche d’avant la mise à jour, qui n’avait que ces champs', () => {
+    const ancienne = fichePrecedente() as Partial<ReleveRecu>;
+    delete ancienne.niveaux;
+    delete ancienne.typeEcole;
+    delete ancienne.photos;
+    delete ancienne.position;
+    delete ancienne.aContact;
+    const c = nouvelleCorrection('c1', '2026-11-02T09:00:00.000Z', 'lot', ancienne as ReleveRecu);
+    expect(c.nomEnseigne).toBe('[École renvoyée]');
+    expect(c.niveaux).toEqual([]);
+    expect(c.typeEcole).toBe('non_indique');
   });
 });
 

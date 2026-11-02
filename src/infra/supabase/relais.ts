@@ -88,19 +88,38 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
     },
 
     async mesReleves(): Promise<ReleveRecu[]> {
-      const id = await monId();
-      const lignes = lire(
-        await supabase()
-          .from('field_submissions')
-          .select(
-            'id, sign_name, taken_at, status, reason, message_to_relay, direction_seen, liaison_sheet_given, come_back_note, contact_confirmed_at, contact_role, campus_id',
-          )
-          .eq('relay_id', id)
-          .order('taken_at', { ascending: false })
-          .limit(500),
-      );
+      // `my_submissions` filtre sur le relais connecté et rend aussi ce que les droits du relais ne lui laissent pas
+      // lire : les rôles des photos (jamais leur chemin) et « le contact est arrivé » (jamais le contact).
+      const lignes = lireListe<{
+        id: string;
+        kind: Valeur<'type_releve'>;
+        status: Valeur<'statut_releve'>;
+        reason: Valeur<'motif_decision'> | null;
+        message_to_relay: string | null;
+        taken_at: string;
+        campus_id: string | null;
+        sign_name: string;
+        levels: string[];
+        school_kind: string;
+        curriculum_note: string | null;
+        observed_programs: string | null;
+        programs_photographed: boolean;
+        landmark: string | null;
+        sign_phone: string | null;
+        latitude: number | null;
+        longitude: number | null;
+        accuracy_m: number | null;
+        direction_seen: Valeur<'direction_vue'> | null;
+        liaison_sheet_given: boolean;
+        come_back_note: string | null;
+        contact_confirmed_at: string | null;
+        contact_role: Valeur<'fonction_direction'> | null;
+        has_contact: boolean;
+        photo_roles: Valeur<'photo_role'>[];
+      }>(await supabase().rpc('my_submissions'));
       return lignes.map((r) => ({
         id: r.id,
+        type: r.kind,
         nomEnseigne: r.sign_name,
         prisLe: r.taken_at,
         statut: r.status,
@@ -112,6 +131,20 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         contactConfirmeLe: r.contact_confirmed_at,
         contactFonction: r.contact_role,
         campusId: r.campus_id,
+        niveaux: r.levels,
+        typeEcole: r.school_kind,
+        programme: r.curriculum_note,
+        programmesVus: r.observed_programs,
+        programmesEnPhoto: r.programs_photographed,
+        repere: r.landmark,
+        numeroEnseigne: r.sign_phone,
+        position:
+          r.latitude !== null && r.longitude !== null
+            ? { latitude: r.latitude, longitude: r.longitude }
+            : null,
+        precisionM: r.accuracy_m,
+        photos: r.photo_roles,
+        aContact: r.has_contact,
       }));
     },
 
@@ -129,6 +162,12 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         sign_phone: string | null;
         note: string | null;
         kind: Valeur<'mission_kind'>;
+        // Ce que NTanova sait déjà de l'école (PR 3 du ticket #55) : le relais ne le redonne pas.
+        latitude: number | null;
+        longitude: number | null;
+        verification_state: string;
+        photo_roles: Valeur<'photo_role'>[];
+        contact_confirmed: boolean;
       }>(await supabase().rpc('my_missions'));
       return lignes.map((m) => ({
         id: m.campus_id,
@@ -142,6 +181,13 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         numeroEnseigne: m.sign_phone,
         note: m.note,
         genre: m.kind,
+        position:
+          m.latitude !== null && m.longitude !== null
+            ? { latitude: m.latitude, longitude: m.longitude }
+            : null,
+        etatVerification: m.verification_state,
+        photos: m.photo_roles ?? [],
+        contactConfirme: m.contact_confirmed ?? false,
       }));
     },
 

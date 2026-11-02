@@ -11,7 +11,7 @@ import {
 } from '../actions-fiches';
 import { base, lireMemoire, useRequete } from '../base-locale';
 import { Entete, jour, Navigation } from '../composants';
-import { useRelais } from '../contexte';
+import { aller, useRelais } from '../contexte';
 import { commencerCorrection } from './Ajouter';
 import { EtatEnvoi } from './MonLot';
 
@@ -32,6 +32,10 @@ interface Ligne {
   peutReessayer: boolean;
   peutModifier: boolean;
   peutRetirer: boolean;
+  /** La fiche telle que NTanova l'a reçue : de quoi la corriger sans tout ressaisir. */
+  recu: ReleveRecu | null;
+  /** La direction était absente et son contact n'est pas arrivé : le relais peut l'ajouter. */
+  peutAjouterLeContact: boolean;
 }
 
 const classeStatut: Record<ReleveRecu['statut'], string> = {
@@ -86,6 +90,8 @@ function depuisTelephone(f: FicheLocale): Ligne {
     aCorriger: false,
     surTelephone: f.etat === 'a_envoyer' || f.etat === 'refusee',
     ...gestesDe(f),
+    recu: null,
+    peutAjouterLeContact: false,
   };
 }
 
@@ -101,10 +107,12 @@ function depuisServeur(
         classe: 'etat-verifiee',
       }
     : r.direction === 'absente'
-      ? {
-          libelle: `Absente${r.ficheLiaisonRemise ? ' · fiche remise' : ''}`,
-          classe: 'etat-attente',
-        }
+      ? r.aContact
+        ? { libelle: 'Reçu · à confirmer', classe: 'etat-attente' }
+        : {
+            libelle: `Absente${r.ficheLiaisonRemise ? ' · fiche remise' : ''}`,
+            classe: 'etat-attente',
+          }
       : r.direction === 'refus'
         ? { libelle: 'Refus', classe: 'etat-refusee' }
         : r.direction === 'vue'
@@ -130,6 +138,8 @@ function depuisServeur(
     aCorriger,
     surTelephone: false,
     ...gestes,
+    recu: r,
+    peutAjouterLeContact: r.direction === 'absente' && !r.aContact && r.statut !== 'refuse',
   };
 }
 
@@ -179,6 +189,13 @@ export function MesFiches() {
   ];
 
   const apres = (issue: IssueDeLAction) => setAvis(issue === 'ok' ? null : avisDesGestes[issue]);
+
+  const corriger = async (l: Ligne) => {
+    if (!l.recu) return;
+    if ((await commencerCorrection(l.recu)) === 'brouillon_existant') {
+      setAvis(avisDesGestes.brouillon_existant);
+    }
+  };
 
   const relancer = async (id: string) => {
     const issue = await reessayer(id);
@@ -263,15 +280,28 @@ export function MesFiches() {
               </p>
             )}
             {l.repasser && <p className="mention">À repasser&nbsp;: {l.repasser}</p>}
-            {(l.aCorriger || l.peutReessayer || l.peutModifier || l.peutRetirer) && (
+            {(l.aCorriger ||
+              l.peutAjouterLeContact ||
+              l.peutReessayer ||
+              l.peutModifier ||
+              l.peutRetirer) && (
               <div className="fiche-relais-actions">
                 {l.aCorriger && (
                   <button
                     type="button"
                     className="bouton bouton-petit"
-                    onClick={() => void commencerCorrection(l.id, l.nom)}
+                    onClick={() => void corriger(l)}
                   >
                     Corriger la fiche
+                  </button>
+                )}
+                {l.peutAjouterLeContact && (
+                  <button
+                    type="button"
+                    className="bouton bouton-secondaire bouton-petit"
+                    onClick={() => aller(`contact/${l.id}`)}
+                  >
+                    J’ai revu la direction
                   </button>
                 )}
                 {l.peutReessayer && (
