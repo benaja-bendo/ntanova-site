@@ -24,6 +24,10 @@ drop policy "Le relais signale ses erreurs" on public.erreurs;
 drop policy "L'administration lit les erreurs" on public.erreurs;
 drop policy "L'administration gère les échanges" on public.echanges;
 
+-- L'API ouvre le schéma `public` (jamais `prive`). Supabase l'accorde déjà par défaut ; l'écrire ici rend l'export
+-- autosuffisant : restauré sur un PostgreSQL ordinaire, le schéma est ouvert aux deux rôles de l'API.
+grant usage on schema public to anon, authenticated;
+
 revoke all on all tables in schema public from anon, authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
 revoke execute on all functions in schema public from public, anon, authenticated;

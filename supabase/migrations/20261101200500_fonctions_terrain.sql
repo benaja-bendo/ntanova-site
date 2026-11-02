@@ -1,9 +1,10 @@
 -- Les fonctions du terrain : ce que le relais appelle, et ce que l'administration décide.
 --
 -- Règle de prudence : une fonction `security definer` (qui s'exécute avec les droits de son propriétaire)
--- ne vérifie JAMAIS l'administration par `exiger_admin()` (le rôle `postgres` y serait reconnu à tort) mais
--- par `est_admin()`, qui lit l'identité du jeton. Les fonctions qui touchent le schéma `prive` sont
--- `security definer` : l'API n'a aucun droit direct dessus.
+-- ne vérifie JAMAIS l'administration par `exiger_admin()` (le rôle courant y est toujours le propriétaire)
+-- mais par `exiger_admin_session()`, qui regarde le jeton, la personne qui s'est connectée et le rôle pris
+-- par `set role`. Les fonctions qui touchent le schéma `prive` sont `security definer` : l'API n'a aucun
+-- droit direct dessus.
 -- Les paramètres portent le préfixe `p_`, les variables locales `v_` : aucune ambiguïté avec les colonnes.
 
 -- Les outils --------------------------------------------------------------------------------------------
@@ -454,9 +455,7 @@ returns table (
 )
 language plpgsql stable security definer set search_path = '' as $$
 begin
-  if not public.est_admin() then
-    raise exception 'Réservé à l''administration.' using errcode = '42501';
-  end if;
+  perform public.exiger_admin_session();
   return query
     select c.role, c.name, c.whatsapp, c.contact_agreement, c.agreement_at, c.said_note, c.received_at
     from prive.direction_contacts c
@@ -557,9 +556,7 @@ $$;
 create function public.merge_campuses(p_duplicate uuid, p_kept uuid) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  if not public.est_admin() then
-    raise exception 'Réservé à l''administration.' using errcode = '42501';
-  end if;
+  perform public.exiger_admin_session();
   if p_duplicate = p_kept then
     raise exception 'Un campus ne se fusionne pas avec lui-même.' using errcode = '22023';
   end if;
@@ -667,9 +664,7 @@ create function public.record_verification(
 ) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  if not public.est_admin() then
-    raise exception 'Réservé à l''administration.' using errcode = '42501';
-  end if;
+  perform public.exiger_admin_session();
   if p_agreed_on is null or p_agreed_on > current_date then
     raise exception 'Il faut la date de l''accord de la direction, pas dans le futur.' using errcode = '22023';
   end if;
@@ -694,9 +689,7 @@ $$;
 create function public.erase_contact(p_submission uuid, p_note text default null) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
-  if not public.est_admin() then
-    raise exception 'Réservé à l''administration.' using errcode = '42501';
-  end if;
+  perform public.exiger_admin_session();
   delete from prive.direction_contacts c where c.submission_id = p_submission;
   if not found then
     raise exception 'Aucun contact pour ce relevé.' using errcode = 'P0002';
@@ -714,9 +707,7 @@ declare
   v_path text;
   v_submission uuid;
 begin
-  if not public.est_admin() then
-    raise exception 'Réservé à l''administration.' using errcode = '42501';
-  end if;
+  perform public.exiger_admin_session();
   delete from public.field_submission_photos p where p.id = p_photo
   returning p.storage_path, p.submission_id into v_path, v_submission;
   if not found then

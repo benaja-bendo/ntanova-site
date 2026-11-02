@@ -59,6 +59,26 @@ begin
 end;
 $$;
 
+-- Dans une fonction `security definer` : l'administrateur de l'API (jeton), ou la personne qui s'est connectée
+-- à la base elle-même (`postgres`, l'éditeur SQL de Supabase Studio). Le rôle courant d'une fonction
+-- `security definer` est son propriétaire : on regarde donc `session_user` (qui s'est connecté) ET le rôle
+-- que la session a pris par `set role` (réglage `role`) : une session ouverte par `postgres` qui se place
+-- ensuite en `authenticated` ou `anon` est traitée comme telle, jamais comme le propriétaire.
+create function public.exiger_admin_session() returns void
+language plpgsql stable set search_path = '' as $$
+begin
+  if not (
+    public.est_admin()
+    or (
+      (session_user = 'postgres' or pg_has_role(session_user, 'pg_database_owner', 'member'))
+      and coalesce(nullif(current_setting('role', true), 'none'), session_user) = session_user
+    )
+  ) then
+    raise exception 'Réservé à l''administration.' using errcode = '42501';
+  end if;
+end;
+$$;
+
 -- Plus aucun lien vers les tables de Supabase : un compte est un identifiant, rien de plus.
 alter table public.relais drop constraint if exists relais_id_fkey;
 alter table prive.admins drop constraint if exists admins_id_fkey;

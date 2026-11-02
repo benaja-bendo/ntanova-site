@@ -6,6 +6,7 @@
 #   supabase/portabilite/banc.sh tester       tests pgTAP sur cette base
 #   supabase/portabilite/banc.sh restaurer    exporte `public` et `prive`, les restaure dans `ntanova_nu` (aucun objet Supabase)
 #   supabase/portabilite/banc.sh tester-nu    tests pgTAP « cœur » sur la base restaurée
+#   supabase/portabilite/banc.sh migration-donnees   la migration de données réelles : un jeu d'avant, les nouvelles migrations, des contrôles
 #   supabase/portabilite/banc.sh verifier     tout, dans l'ordre : le contrôle complet de portabilité
 #   supabase/portabilite/banc.sh psql [...]   un psql sur ntanova_supabase (ou NTANOVA_BASE=ntanova_nu)
 #   supabase/portabilite/banc.sh arreter
@@ -101,6 +102,8 @@ SQL
   lancer pg_dump -h "$DIR" -p "$PORT" -U postgres -d "$BASE_SUPABASE" \
     --schema=public --schema=prive --no-owner --format=plain --quote-all-identifiers \
     > "$DIR/export.sql"
+  # Le schéma `public` d'une base neuve est vide : l'export le recrée avec tout son contenu.
+  sql "$BASE_NUE" -c 'drop schema public cascade'
   sql "$BASE_NUE" < "$DIR/export.sql" >/dev/null
   echo "export de public et prive restauré sur $BASE_NUE ($(wc -l < "$DIR/export.sql") lignes)"
   sql "$BASE_NUE" -tA -c "select 'objets auth/storage dans la base restaurée : ' || count(*) from pg_namespace where nspname in ('auth','storage')"
@@ -114,6 +117,26 @@ tester_nu() {
   NTANOVA_BASE="$BASE_NUE" tester "${fichiers[@]}"
 }
 
+# La migration des données réelles : un jeu de données dans l'ancien modèle, les nouvelles migrations, puis des contrôles.
+migration_donnees() {
+  demarrer
+  local base="ntanova_migration"
+  recreer_base "$base"
+  sql "$base" < "$RACINE/supabase/portabilite/shim-supabase.sql"
+  # Les migrations d'avant l'itération (jusqu'à la PR n° 53 comprise), puis le jeu de données d'avant.
+  for f in $(migrations); do
+    case "$(basename "$f")" in 202611012[0-9]*) continue ;; esac
+    sql "$base" < "$f" >/dev/null
+  done
+  sql "$base" < "$RACINE/supabase/portabilite/fixtures/donnees-avant.sql" >/dev/null
+  echo "jeu de données d'avant chargé ($(sql "$base" -tA -c 'select count(*) from public.ecoles') écoles, $(sql "$base" -tA -c 'select count(*) from public.releves') relevés)"
+  # Les nouvelles migrations, dans l'ordre.
+  for f in $(migrations); do
+    case "$(basename "$f")" in 202611012[0-9]*) sql "$base" < "$f" >/dev/null ;; esac
+  done
+  sql "$base" < "$RACINE/supabase/portabilite/fixtures/donnees-apres.sql" 2>&1 | grep -E "^(psql:.*ERROR|ERROR|NOTICE:  (OK|ÉCHEC))" | sed 's/^NOTICE:  //'
+}
+
 case "${1:-}" in
   demarrer) demarrer ;;
   arreter) arreter ;;
@@ -121,7 +144,8 @@ case "${1:-}" in
   tester) shift; tester "$@" ;;
   restaurer) restaurer ;;
   tester-nu) tester_nu ;;
-  verifier) rejouer && tester && restaurer && tester_nu ;;
+  migration-donnees) migration_donnees ;;
+  verifier) rejouer && tester && restaurer && tester_nu && migration_donnees ;;
   psql) shift; demarrer >/dev/null; sql "${NTANOVA_BASE:-$BASE_SUPABASE}" "$@" ;;
   *) sed -n '2,15p' "${BASH_SOURCE[0]}"; exit 2 ;;
 esac
