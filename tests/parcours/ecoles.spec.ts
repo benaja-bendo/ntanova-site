@@ -35,8 +35,10 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   // L'écran dit ce que le relais fait, avec un mot qu'il connaît : « Compléter », comme le bouton qu'il vient de toucher.
   await expect(page.locator('.entete-etape-titre')).toHaveText('Compléter une école');
   await expect(page.getByText(/Compléter\s*: \[École à situer\]/)).toBeVisible();
-  // Le bandeau ne prétend pas savoir ce qui manque : il le dira quand l'application le saura (ticket #55, PR 3 et 4).
-  await expect(page.getByText(/sans savoir où elle est/)).toHaveCount(0);
+  // Pour « situer », l'encart dit ce qui manque, d'après ce que NTanova sait de l'école (ticket #55, PR 4).
+  const encart = page.getByRole('region', { name: 'À faire sur cette école' });
+  await expect(encart).toContainText('sans savoir où elle est');
+  await expect(encart).toContainText('Le nom exact');
   await page.locator('input[type=file]').first().setInputFiles(photo);
   await expect(page.getByText('Position prise')).toBeVisible();
   await expect(page.getByText('Est-ce la même école ?')).toHaveCount(0);

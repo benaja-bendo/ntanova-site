@@ -285,6 +285,14 @@ async function reseau(): Promise<void> {
   if (!navigator.onLine) throw new ErreurReseau('hors ligne');
 }
 
+/** Les rôles des photos de ces relevés, sans doublon et triés comme la base : jamais leur chemin. */
+function rolesDesPhotos(e: Etat, releveIds: string[]): Valeur<'photo_role'>[] {
+  const roles = Object.values(e.photos)
+    .filter((p) => releveIds.includes(p.releveId))
+    .map((p) => p.role);
+  return [...new Set(roles)].sort();
+}
+
 function ajouter<T>(table: Record<string, T>, id: string, valeur: T): Reponse {
   if (id in table) return 'deja_recu';
   table[id] = valeur;
@@ -392,6 +400,7 @@ const relais: PortRelais = {
       const d = e.decisions[r.id];
       return {
         id: r.id,
+        type: r.type,
         nomEnseigne: r.nomEnseigne,
         prisLe: r.prisLe,
         statut: d?.statut ?? 'a_valider',
@@ -403,26 +412,52 @@ const relais: PortRelais = {
         contactConfirmeLe: d?.contactConfirmeLe ?? null,
         contactFonction: d?.contactFonction ?? null,
         campusId: d?.ecoleId ?? null,
+        // Comme `my_submissions` : tout le contenu, les rôles des photos (jamais leur chemin), « le contact est arrivé ».
+        niveaux: r.niveaux,
+        typeEcole: r.typeEcole,
+        programme: r.programme,
+        programmesVus: r.programmesVus,
+        programmesEnPhoto: r.programmesEnPhoto,
+        repere: r.repere,
+        numeroEnseigne: r.numeroEnseigne,
+        position: r.position,
+        precisionM: r.precisionM,
+        photos: rolesDesPhotos(e, [r.id]),
+        aContact: r.id in e.contacts,
       };
     });
   },
   async mesMissions() {
     await reseau();
-    return Object.values(lireEtat().campus)
+    const e = lireEtat();
+    return Object.values(e.campus)
       .filter((c) => c.confieeA === MOI)
-      .map((c) => ({
-        id: c.id,
-        nom: c.nom,
-        etiquette: c.etiquette,
-        quartier: c.quartier,
-        typeEcole: c.typeEcole ?? 'privee',
-        niveaux: c.niveaux ?? ['primaire'],
-        programme: c.programme ?? null,
-        repere: c.repere ?? null,
-        numeroEnseigne: c.numeroEnseigne ?? null,
-        note: c.noteMission,
-        genre: c.genreMission,
-      }));
+      .map((c) => {
+        // Comme `my_missions` : ce que NTanova sait de l'école, d'après ses relevés acceptés.
+        const acceptes = Object.values(e.releves).filter(
+          (r) => e.decisions[r.id]?.statut === 'accepte' && e.decisions[r.id]?.ecoleId === c.id,
+        );
+        return {
+          id: c.id,
+          nom: c.nom,
+          etiquette: c.etiquette,
+          quartier: c.quartier,
+          typeEcole: c.typeEcole ?? 'privee',
+          niveaux: c.niveaux ?? ['primaire'],
+          programme: c.programme ?? null,
+          repere: c.repere ?? null,
+          numeroEnseigne: c.numeroEnseigne ?? null,
+          note: c.noteMission,
+          genre: c.genreMission,
+          position: c.position,
+          etatVerification: c.verifieeLe ? 'verifiee' : 'relevee',
+          photos: rolesDesPhotos(
+            e,
+            acceptes.map((r) => r.id),
+          ),
+          contactConfirme: acceptes.some((r) => e.decisions[r.id]?.contactConfirmeLe),
+        };
+      });
   },
   async envoyerReleve(r) {
     await reseau();

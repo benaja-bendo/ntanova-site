@@ -7,6 +7,7 @@ import {
   erreursEtape2,
   erreursEtape3,
   nouvelleContreVisite,
+  nouvelleCorrection,
   nouvelleFiche,
   peutAjouterPhoto,
   photoEnseigne,
@@ -21,7 +22,7 @@ import {
 } from '../../../modele/fiche';
 import { dansLeLot, plusProche, PRECISION_SUFFISANTE_M, type Point } from '../../../modele/geo';
 import { listes, type Valeur } from '../../../modele/listes';
-import type { EcoleACompleter } from '../../../modele/ports';
+import type { EcoleACompleter, ReleveRecu } from '../../../modele/ports';
 import {
   libelleDirection,
   libelleFonction,
@@ -29,6 +30,7 @@ import {
   libelleRolePhotoCourt,
   libelleTypeEcole,
 } from '../../../modele/libelles';
+import { brouillonEnCours } from '../actions-fiches';
 import { base, garder, lireMemoire, oublier } from '../base-locale';
 import { aller, useRelais } from '../contexte';
 import { Bandeau, Champ, Choix, EnteteEtape, Icone } from '../composants';
@@ -133,7 +135,10 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   const [erreurPhoto, setErreurPhoto] = useState<string | null>(null);
   const [mesure, setMesure] = useState<Mesure | null>(null);
   const [erreurPosition, setErreurPosition] = useState<ErreurPosition | null>(null);
-  const [recherche, setRecherche] = useState(!fiche.position);
+  // Ce que NTanova attend du relais (absent d'une école nouvelle : tout est demandé).
+  const photoExigee = fiche.taches?.photo ?? true;
+  const positionAttendue = fiche.taches?.position ?? true;
+  const [recherche, setRecherche] = useState(!fiche.position && positionAttendue);
   const arret = useRef<() => void>(() => {});
   const monte = useRef(true);
 
@@ -192,9 +197,11 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
   const verifier = async (m: Mesure) => {
     const lot = await lireMemoire('lot');
-    const ecoles = (await lireMemoire('ecoles')) ?? [];
+    // La fiche qu'on corrige n'est pas un doublon d'elle-même : ni son relevé du téléphone, ni sa ligne du cache.
+    const corrigee = fiche.corrigeReleveId;
+    const ecoles = ((await lireMemoire('ecoles')) ?? []).filter((e) => e.id !== corrigee);
     const autres = (await base.fiches.toArray())
-      .filter((f) => f.id !== fiche.id && f.position && f.type === 'releve')
+      .filter((f) => f.id !== fiche.id && f.id !== corrigee && f.position && f.type === 'releve')
       .map((f) => ({
         ...(f.position as Point),
         id: null,
@@ -246,7 +253,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
   useEffect(() => {
     monte.current = true;
-    if (!fiche.position) ecouterGps();
+    if (!fiche.position && positionAttendue) ecouterGps();
     return () => {
       monte.current = false;
       arret.current();
@@ -266,8 +273,17 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
     <div className="ecran">
       <EnteteEtape etape={1} titre="Photo et position" retour="lot" type={fiche.type} />
       <main className="contenu-relais">
+        <EncartTaches fiche={fiche} />
+
         <section className="carte-blanche pile-serree">
-          <h2 className="titre-section">La photo de l'enseigne</h2>
+          <h2 className="titre-section">
+            La photo de l'enseigne {!photoExigee && <span className="mention">facultatif</span>}
+          </h2>
+          {!photoExigee && !enseigne && (
+            <p className="mention">
+              NTanova a déjà la photo de l'enseigne. Reprenez-la seulement si elle est fausse.
+            </p>
+          )}
           {enseigne && apercus[enseigne.id] ? (
             <div className="apercu-photo">
               <img src={apercus[enseigne.id]} alt="La photo de l'enseigne" />
@@ -438,6 +454,12 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
               {messagesPosition[erreurPosition]}
             </p>
           )}
+          {!positionAttendue && !fiche.position && !recherche && !erreurPosition && (
+            <p className="mention">
+              NTanova connaît déjà la position de cette école. Reprenez-la seulement si elle est
+              fausse.
+            </p>
+          )}
           {!recherche && (
             <button
               type="button"
@@ -451,16 +473,6 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             <p className="mention">Sans position, vous pouvez continuer&nbsp;: NTanova le verra.</p>
           )}
         </section>
-
-        {fiche.type === 'contre_visite' && fiche.doublonPropose && (
-          <Bandeau ton="public" icone="carte">
-            <p>
-              <b>Compléter&nbsp;: {fiche.doublonPropose.nom}.</b> NTanova connaît déjà cette école.
-              Prenez la photo de l'enseigne et la position devant l'entrée, puis vérifiez ce qui est
-              déjà rempli.
-            </p>
-          </Bandeau>
-        )}
 
         {fiche.type !== 'contre_visite' && fiche.doublonPropose && (
           <section className="bandeau bandeau-attente pile-serree" aria-label="Doublon possible">
@@ -522,6 +534,14 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             écrit ou visible depuis la rue.
           </p>
         </Bandeau>
+
+        {fiche.taches && (
+          <p className="mention">
+            {fiche.taches.informations
+              ? 'Ces informations viennent de la fiche de NTanova. Vérifiez-les sur place et corrigez ce qui est faux.'
+              : 'Ces informations viennent de la fiche. Corrigez-les seulement si elles sont fausses.'}
+          </p>
+        )}
 
         <Champ libelle="Nom sur l'enseigne" erreur={erreurs.nomEnseigne}>
           {(a) => (
@@ -674,6 +694,9 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   const modifierContact = (champs: Partial<ContactSaisi>) =>
     modifier({ contact: { ...contact, ...champs } });
 
+  // Le contact de la direction est déjà confirmé, ou déjà parti avec la fiche qu'on corrige : rien à redemander.
+  const choixDeLaDirection = !fiche.taches || fiche.taches.direction;
+
   const choisirDirection = (direction: Valeur<'direction_vue'>) =>
     modifier({ direction, contact: direction === 'absente' ? null : contact });
 
@@ -707,131 +730,79 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           </p>
         </Bandeau>
 
-        <Choix
-          legende="Avez-vous vu la direction ?"
-          options={listes.direction_vue.map((d) => ({ valeur: d, libelle: libelleDirection[d] }))}
-          valeurs={fiche.direction ? [fiche.direction] : []}
-          surChoix={choisirDirection}
-          colonnes={3}
-          erreur={erreurs.direction}
-        />
-
-        {fiche.direction === 'vue' && (
-          <>
-            <Champ libelle="Sa fonction" erreur={erreurs.fonction}>
-              {(a) => (
-                <select
-                  {...a}
-                  className="champ"
-                  value={contact.fonction ?? ''}
-                  onChange={(e) =>
-                    modifierContact({
-                      fonction: (e.target.value || null) as Valeur<'fonction_direction'> | null,
-                    })
-                  }
-                >
-                  <option value="">Choisir</option>
-                  {listes.fonction_direction.map((f) => (
-                    <option key={f} value={f}>
-                      {libelleFonction[f]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Champ>
-
-            <section className="carte-blanche pile-serree">
-              <label className="case">
-                <input
-                  type="checkbox"
-                  checked={contact.accord}
-                  onChange={(e) =>
-                    modifierContact({
-                      accord: e.target.checked,
-                      accordLe: e.target.checked ? new Date().toISOString() : null,
-                      whatsapp: e.target.checked ? contact.whatsapp : '',
-                    })
-                  }
-                />
-                La personne accepte que NTanova lui écrive sur WhatsApp
-              </label>
-              <p className="mention">
-                À lui dire&nbsp;: «&nbsp;Votre numéro ne sera jamais publié. NTanova vous écrira au
-                sujet de la fiche de l'école, et l'effacera si vous le demandez.&nbsp;»
-              </p>
-              <p className="message-attention">Sans son accord, ne notez pas son numéro.</p>
-            </section>
-
-            <Champ libelle="Son nom" facultatif erreur={erreurs.nom}>
-              {(a) => (
-                <input
-                  {...a}
-                  className="champ"
-                  type="text"
-                  autoComplete="off"
-                  placeholder="M. ou Mme [Nom]"
-                  value={contact.nom}
-                  onChange={(e) => modifierContact({ nom: e.target.value })}
-                />
-              )}
-            </Champ>
-            <Champ
-              libelle="Son WhatsApp"
-              facultatif
-              aide={contact.accord ? undefined : 'Seulement avec son accord (case ci-dessus).'}
-              erreur={erreurs.whatsapp}
-            >
-              {(a) => (
-                <input
-                  {...a}
-                  className="champ"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="off"
-                  placeholder="+242 …"
-                  disabled={!contact.accord}
-                  value={contact.whatsapp}
-                  onChange={(e) => modifierContact({ whatsapp: e.target.value })}
-                />
-              )}
-            </Champ>
-          </>
+        {!choixDeLaDirection && (
+          <section className="carte-blanche pile-serree" aria-label="Rien à refaire">
+            <p>
+              <b>Rien à refaire ici.</b>{' '}
+              {fiche.type === 'correction'
+                ? 'Le contact de la direction est déjà parti avec cette fiche.'
+                : 'Le contact de la direction est déjà confirmé.'}
+            </p>
+          </section>
         )}
 
-        {fiche.direction === 'absente' && (
+        {choixDeLaDirection && (
           <>
-            <Champ libelle="Quand repasser ?" facultatif>
-              {(a) => (
-                <input
-                  {...a}
-                  className="champ"
-                  type="text"
-                  autoComplete="off"
-                  placeholder="Ex. : lundi matin, avant 10 h"
-                  value={fiche.repasser}
-                  onChange={(e) => modifier({ repasser: e.target.value })}
-                />
-              )}
-            </Champ>
-            <p className="mention">La fiche part quand même. Vous repasserez voir la direction.</p>
-          </>
-        )}
+            <Choix
+              legende="Avez-vous vu la direction ?"
+              options={listes.direction_vue.map((d) => ({
+                valeur: d,
+                libelle: libelleDirection[d],
+              }))}
+              valeurs={fiche.direction ? [fiche.direction] : []}
+              surChoix={choisirDirection}
+              colonnes={3}
+              erreur={erreurs.direction}
+            />
 
-        {fiche.direction === 'refus' && (
-          <>
-            <Champ libelle="Ce qu'on vous a dit" facultatif erreur={erreurs.note}>
-              {(a) => (
-                <textarea
-                  {...a}
-                  className="champ"
-                  rows={3}
-                  placeholder="Ex. : la direction ne veut pas apparaître"
-                  value={contact.note}
-                  onChange={(e) => modifierContact({ note: e.target.value })}
-                />
-              )}
-            </Champ>
-            <p className="mention">NTanova lit chaque refus avant de publier quoi que ce soit.</p>
+            {fiche.direction === 'vue' && (
+              <ChampsContact
+                contact={contact}
+                modifierContact={modifierContact}
+                erreurs={erreurs}
+              />
+            )}
+
+            {fiche.direction === 'absente' && (
+              <>
+                <Champ libelle="Quand repasser ?" facultatif>
+                  {(a) => (
+                    <input
+                      {...a}
+                      className="champ"
+                      type="text"
+                      autoComplete="off"
+                      placeholder="Ex. : lundi matin, avant 10 h"
+                      value={fiche.repasser}
+                      onChange={(e) => modifier({ repasser: e.target.value })}
+                    />
+                  )}
+                </Champ>
+                <p className="mention">
+                  La fiche part quand même. Vous repasserez voir la direction.
+                </p>
+              </>
+            )}
+
+            {fiche.direction === 'refus' && (
+              <>
+                <Champ libelle="Ce qu'on vous a dit" facultatif erreur={erreurs.note}>
+                  {(a) => (
+                    <textarea
+                      {...a}
+                      className="champ"
+                      rows={3}
+                      placeholder="Ex. : la direction ne veut pas apparaître"
+                      value={contact.note}
+                      onChange={(e) => modifierContact({ note: e.target.value })}
+                    />
+                  )}
+                </Champ>
+                <p className="mention">
+                  NTanova lit chaque refus avant de publier quoi que ce soit.
+                </p>
+              </>
+            )}
           </>
         )}
 
@@ -847,8 +818,110 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   );
 }
 
-/** Depuis « Mon lot » : la contre-visite d'une école confiée au relais. */
-export async function commencerContreVisite(ecole: EcoleACompleter): Promise<void> {
+/**
+ * Les champs du contact de la direction : sa fonction, son accord, son nom, son WhatsApp. Ceux de l'étape 3/3, et ceux de
+ * « J'ai revu la direction » (ajouter le contact après « À repasser »).
+ */
+export function ChampsContact({
+  contact,
+  modifierContact,
+  erreurs,
+}: {
+  contact: ContactSaisi;
+  modifierContact: (champs: Partial<ContactSaisi>) => void;
+  erreurs: Erreurs;
+}) {
+  return (
+    <>
+      <Champ libelle="Sa fonction" erreur={erreurs.fonction}>
+        {(a) => (
+          <select
+            {...a}
+            className="champ"
+            value={contact.fonction ?? ''}
+            onChange={(e) =>
+              modifierContact({
+                fonction: (e.target.value || null) as Valeur<'fonction_direction'> | null,
+              })
+            }
+          >
+            <option value="">Choisir</option>
+            {listes.fonction_direction.map((f) => (
+              <option key={f} value={f}>
+                {libelleFonction[f]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Champ>
+
+      <section className="carte-blanche pile-serree">
+        <label className="case">
+          <input
+            type="checkbox"
+            checked={contact.accord}
+            onChange={(e) =>
+              modifierContact({
+                accord: e.target.checked,
+                accordLe: e.target.checked ? new Date().toISOString() : null,
+                whatsapp: e.target.checked ? contact.whatsapp : '',
+              })
+            }
+          />
+          La personne accepte que NTanova lui écrive sur WhatsApp
+        </label>
+        <p className="mention">
+          À lui dire&nbsp;: «&nbsp;Votre numéro ne sera jamais publié. NTanova vous écrira au sujet
+          de la fiche de l'école, et l'effacera si vous le demandez.&nbsp;»
+        </p>
+        <p className="message-attention">Sans son accord, ne notez pas son numéro.</p>
+      </section>
+
+      <Champ libelle="Son nom" facultatif erreur={erreurs.nom}>
+        {(a) => (
+          <input
+            {...a}
+            className="champ"
+            type="text"
+            autoComplete="off"
+            placeholder="M. ou Mme [Nom]"
+            value={contact.nom}
+            onChange={(e) => modifierContact({ nom: e.target.value })}
+          />
+        )}
+      </Champ>
+      <Champ
+        libelle="Son WhatsApp"
+        facultatif
+        aide={contact.accord ? undefined : 'Seulement avec son accord (case ci-dessus).'}
+        erreur={erreurs.whatsapp}
+      >
+        {(a) => (
+          <input
+            {...a}
+            className="champ"
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            placeholder="+242 …"
+            disabled={!contact.accord}
+            value={contact.whatsapp}
+            onChange={(e) => modifierContact({ whatsapp: e.target.value })}
+          />
+        )}
+      </Champ>
+    </>
+  );
+}
+
+/**
+ * Depuis « Mon lot » : on complète une école que NTanova connaît. Le téléphone ne garde qu'une fiche en cours : si
+ * une autre l'est déjà, on ne l'écrase pas.
+ */
+export async function commencerContreVisite(
+  ecole: EcoleACompleter,
+): Promise<'ok' | 'brouillon_existant'> {
+  if (await brouillonEnCours()) return 'brouillon_existant';
   const profil = await lireMemoire('profil');
   const fiche = nouvelleContreVisite(
     crypto.randomUUID(),
@@ -859,21 +932,85 @@ export async function commencerContreVisite(ecole: EcoleACompleter): Promise<voi
   await base.fiches.put(fiche);
   await garder('brouillon', fiche.id);
   aller('ajouter/1');
+  return 'ok';
 }
 
-/** Depuis « Mes fiches » : une correction, qui part comme une nouvelle fiche liée à l'ancienne. */
-export async function commencerCorrection(releveId: string, nomEnseigne: string): Promise<void> {
+/**
+ * Depuis « Mes fiches » : une correction, qui part comme une nouvelle fiche liée à l'ancienne, avec tout ce que le
+ * relais avait saisi. Comme ci-dessus, jamais en écrasant une fiche en cours.
+ */
+export async function commencerCorrection(recu: ReleveRecu): Promise<'ok' | 'brouillon_existant'> {
+  if (await brouillonEnCours()) return 'brouillon_existant';
   const profil = await lireMemoire('profil');
-  const fiche = nouvelleFiche(
+  const fiche = nouvelleCorrection(
     crypto.randomUUID(),
     new Date().toISOString(),
     profil?.lotId ?? null,
-    {
-      releveId,
-      nomEnseigne,
-    },
+    recu,
   );
   await base.fiches.put(fiche);
   await garder('brouillon', fiche.id);
   aller('ajouter/1');
+  return 'ok';
+}
+
+/** Ce que NTanova attend du relais sur cette école, en tête de la première étape. */
+function EncartTaches({ fiche }: { fiche: FicheLocale }) {
+  const taches = fiche.taches;
+  if (!taches) return null;
+  const lignes = [
+    {
+      nom: 'Photo de l’enseigne',
+      faire: taches.photo,
+      fait: 'Déjà chez NTanova · facultative',
+      a: 'À prendre',
+    },
+    {
+      nom: 'Position devant l’entrée',
+      faire: taches.position,
+      fait: 'Déjà connue · facultative',
+      a: 'À prendre',
+    },
+    {
+      nom: 'Informations (étape 2/3)',
+      faire: taches.informations,
+      fait: 'Reprises de la fiche · à corriger au besoin',
+      a: 'À vérifier',
+    },
+    {
+      nom: 'La direction (étape 3/3)',
+      faire: taches.direction,
+      fait: 'Rien à refaire',
+      a: 'À voir',
+    },
+  ];
+  return (
+    <section
+      className="carte-blanche pile-serree encart-taches"
+      aria-label="À faire sur cette école"
+    >
+      <p className="surtitre">À faire sur cette école</p>
+      <p>
+        <b>
+          {fiche.type === 'correction' ? 'Corriger' : 'Compléter'}&nbsp;: {fiche.nomEnseigne}.
+        </b>{' '}
+        {taches.titre}
+      </p>
+      {taches.consigne && (
+        <p className="message-ntanova">
+          <b>NTanova&nbsp;:</b> {taches.consigne}
+        </p>
+      )}
+      <ul className="liste-taches">
+        {lignes.map((l) => (
+          <li key={l.nom}>
+            <span>{l.nom}</span>
+            <span className={`etiquette ${l.faire ? 'etat-attente' : 'etat-verifiee'}`}>
+              {l.faire ? l.a : l.fait}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }

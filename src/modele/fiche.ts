@@ -5,7 +5,14 @@
 import { z } from 'zod';
 import { listes, niveauxConnus, typeConnu, type Valeur } from './listes';
 import type { Point } from './geo';
-import type { ContactAEnvoyer, EcoleACompleter, PhotoAEnvoyer, ReleveAEnvoyer } from './ports';
+import type {
+  ContactAEnvoyer,
+  EcoleACompleter,
+  PhotoAEnvoyer,
+  ReleveAEnvoyer,
+  ReleveRecu,
+} from './ports';
+import { tachesDeLaCorrection, tachesDeLaMission, type Taches } from './taches';
 import { normaliserTelephone } from './telephone';
 
 export interface ContactSaisi {
@@ -50,6 +57,12 @@ export interface FicheLocale {
   type: 'releve' | 'correction' | 'contre_visite';
   corrigeReleveId: string | null;
   lotId: string | null;
+  /**
+   * Ce que NTanova attend du relais sur cette fiche, quand elle complète une école connue ou en corrige une :
+   * photo, position, informations, direction. Gardé dans la fiche au moment où le relais la commence, pour que
+   * l'écran ne dépende pas du réseau. Absent d'une école nouvelle (tout est demandé) et des fiches d'avant.
+   */
+  taches?: Taches | null;
 
   // 1/3 : photos et position
   /**
@@ -178,6 +191,38 @@ export function nouvelleContreVisite(
     programme: ecole.programme ?? '',
     repere: ecole.repere ?? '',
     numeroEnseigne: ecole.numeroEnseigne ? `+${ecole.numeroEnseigne}` : '',
+    taches: tachesDeLaMission(ecole),
+  };
+}
+
+/**
+ * La correction d'une fiche que NTanova a renvoyée : tout ce que le relais avait saisi revient, et la fiche dit
+ * ce qui est à refaire d'après le motif (une photo floue : la photo, pas le reste). Elle part comme une fiche
+ * neuve liée à l'ancienne, avec tout son contenu : une correction dit la vérité entière.
+ * Une ligne gardée avant la mise à jour du téléphone n'a pas les derniers champs : elle se lit avec des valeurs par
+ * défaut, et un type ou un niveau inconnu devient « Pas indiqué » ou disparaît.
+ */
+export function nouvelleCorrection(
+  id: string,
+  maintenant: string,
+  lotId: string | null,
+  recu: ReleveRecu,
+): FicheLocale {
+  return {
+    ...nouvelleFiche(id, maintenant, lotId),
+    type: 'correction',
+    corrigeReleveId: recu.id,
+    nomEnseigne: recu.nomEnseigne,
+    niveaux: niveauxConnus(recu.niveaux ?? []),
+    typeEcole: typeConnu(recu.typeEcole ?? ''),
+    programme: recu.programme ?? '',
+    programmesVus: recu.programmesVus ?? '',
+    programmesEnPhoto: recu.programmesEnPhoto ?? false,
+    repere: recu.repere ?? '',
+    numeroEnseigne: recu.numeroEnseigne ? `+${recu.numeroEnseigne}` : '',
+    direction: recu.direction ?? null,
+    repasser: recu.repasser ?? '',
+    taches: tachesDeLaCorrection(recu),
   };
 }
 
@@ -263,12 +308,16 @@ const etape1 = z
     path: ['reponseDoublon'],
   });
 
-/** La position n'est pas exigée : si le GPS échoue, le relais peut continuer, et NTanova le voit. */
+/**
+ * La position n'est pas exigée : si le GPS échoue, le relais peut continuer, et NTanova le voit.
+ * L'enseigne l'est, sauf quand NTanova l'a déjà et que le relais n'a pas à la reprendre (voir `Taches`).
+ */
 export function erreursEtape1(fiche: FicheLocale): Erreurs {
   const erreurs = erreursDe(etape1.safeParse(fiche));
+  const enseigneExigee = fiche.taches?.photo ?? true;
   // L'erreur de l'enseigne s'affiche sous la photo, qui s'appelait `photo` avant les photos multiples.
   if (erreurs.photos) {
-    erreurs.photo = erreurs.photos;
+    if (enseigneExigee) erreurs.photo = erreurs.photos;
     delete erreurs.photos;
   }
   return erreurs;
@@ -324,6 +373,8 @@ const etape3 = z.discriminatedUnion('direction', [
 ]);
 
 export function erreursEtape3(fiche: FicheLocale): Erreurs {
+  // Le contact de la direction est déjà confirmé, ou déjà parti avec la fiche qu'on corrige : rien à refaire ici.
+  if (fiche.taches && !fiche.taches.direction) return {};
   if (fiche.direction === null) return { direction: 'Dites si vous avez vu la direction.' };
   const resultat = etape3.safeParse(fiche);
   if (resultat.success) return {};

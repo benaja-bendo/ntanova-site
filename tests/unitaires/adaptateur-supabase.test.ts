@@ -219,6 +219,35 @@ describe('l’envoi d’une photo par l’adaptateur Supabase', () => {
   });
 });
 
+/** Une ligne de `my_submissions` : la fiche d'un relais, avec tout ce qu'elle contient. */
+const ligneDeMesReleves = {
+  id: 'r1',
+  kind: 'releve',
+  status: 'a_valider',
+  reason: null,
+  message_to_relay: null,
+  taken_at: '2026-11-02',
+  campus_id: null,
+  sign_name: '[École A]',
+  levels: [],
+  school_kind: 'privee',
+  curriculum_note: null,
+  observed_programs: null,
+  programs_photographed: false,
+  landmark: null,
+  sign_phone: null,
+  latitude: null,
+  longitude: null,
+  accuracy_m: null,
+  direction_seen: null,
+  liaison_sheet_given: false,
+  come_back_note: null,
+  contact_confirmed_at: null,
+  contact_role: null,
+  has_contact: false,
+  photo_roles: [],
+};
+
 describe('l’adaptateur Supabase, pour un administrateur qui est aussi relais', () => {
   const port = creerPortRelais(
     fausseBase(tables, MOI, {
@@ -247,6 +276,42 @@ describe('l’adaptateur Supabase, pour un administrateur qui est aussi relais',
           landmark: null,
           sign_phone: null,
           note: 'Le nom sur l’enseigne.',
+          kind: 'verify',
+          latitude: -4.79,
+          longitude: 11.92,
+          verification_state: 'relevee',
+          photo_roles: ['signboard'],
+          contact_confirmed: true,
+        },
+      ],
+      // Ce que `my_submissions` rend : les fiches du compte connecté, déjà filtrées par la base.
+      my_submissions: [
+        {
+          id: 'r1',
+          kind: 'correction',
+          status: 'a_corriger',
+          reason: 'hors_lot',
+          message_to_relay: 'Placez-vous devant l’entrée.',
+          taken_at: '2026-11-02',
+          campus_id: null,
+          sign_name: '[École A]',
+          levels: ['primaire', 'college'],
+          school_kind: 'privee',
+          curriculum_note: 'Bilingue',
+          observed_programs: null,
+          programs_photographed: false,
+          landmark: 'Face au marché',
+          sign_phone: '242061234501',
+          latitude: -4.8,
+          longitude: 11.9,
+          accuracy_m: 12,
+          direction_seen: 'absente',
+          liaison_sheet_given: false,
+          come_back_note: 'Lundi matin',
+          contact_confirmed_at: null,
+          contact_role: null,
+          has_contact: false,
+          photo_roles: ['signboard', 'programs_board'],
         },
       ],
     }),
@@ -256,9 +321,39 @@ describe('l’adaptateur Supabase, pour un administrateur qui est aussi relais',
     await expect(port.monLot()).resolves.toMatchObject({ nom: 'Essai', essai: true });
   });
 
-  it('lit ses relevés, pas ceux des autres relais', async () => {
-    const releves = await port.mesReleves();
+  it('lit ses relevés par my_submissions, qui filtre sur le compte connecté, et jamais la table (un administrateur y voit tout)', async () => {
+    const lues: string[] = [];
+    const base = fausseBase(tables, MOI, { my_submissions: [{ ...ligneDeMesReleves }] })();
+    const client = {
+      ...base,
+      from: (table: string) => {
+        lues.push(table);
+        return (base as unknown as { from: (t: string) => unknown }).from(table);
+      },
+    };
+    const lecteur = creerPortRelais(() => client as unknown as SupabaseClient);
+    const releves = await lecteur.mesReleves();
     expect(releves.map((r) => r.id)).toEqual(['r1']);
+    expect(lues).not.toContain('field_submissions');
+  });
+
+  it('rend, avec chaque relevé, tout ce qu’il contient et ce que NTanova en a reçu', async () => {
+    const [releve] = await port.mesReleves();
+    expect(releve).toMatchObject({
+      type: 'correction',
+      statut: 'a_corriger',
+      motif: 'hors_lot',
+      messageAuRelais: 'Placez-vous devant l’entrée.',
+      niveaux: ['primaire', 'college'],
+      typeEcole: 'privee',
+      repere: 'Face au marché',
+      numeroEnseigne: '242061234501',
+      position: { latitude: -4.8, longitude: 11.9 },
+      precisionM: 12,
+      repasser: 'Lundi matin',
+      photos: ['signboard', 'programs_board'],
+      aContact: false,
+    });
   });
 
   it('lit son profil', async () => {
@@ -281,6 +376,11 @@ describe('l’adaptateur Supabase, pour un administrateur qui est aussi relais',
         etiquette: 'Campus de Loandjili',
         niveaux: ['primaire'],
         note: 'Le nom sur l’enseigne.',
+        // Ce que NTanova sait déjà de l'école : le relais ne le redonne pas.
+        position: { latitude: -4.79, longitude: 11.92 },
+        etatVerification: 'relevee',
+        photos: ['signboard'],
+        contactConfirme: true,
       }),
     ]);
   });

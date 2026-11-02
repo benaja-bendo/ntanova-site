@@ -310,6 +310,23 @@
   gap: var(--espace-2);
 }
 
+/* « À faire sur cette école » : ce que NTanova attend du relais, une ligne par chose. */
+.liste-taches {
+  display: grid;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.liste-taches li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-1) var(--espace-2);
+}
+
 .fiche-relais-etats {
   display: grid;
   grid-template-columns: auto 1fr;
