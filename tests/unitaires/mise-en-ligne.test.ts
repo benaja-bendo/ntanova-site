@@ -1,0 +1,108 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+/**
+ * La mise en ligne de nuit n'envoie la production que sur ordre (ticket #55, décision du fondateur du 02/11/2026) :
+ * tant que la variable GitHub `NUIT_VERS_PRODUCTION` ne vaut pas « oui », la nuit met à jour essai seulement.
+ * Un lancement à la main garde son sens : `cible` dit où aller.
+ *
+ * Le test lit la condition de la tâche `production` dans le workflow et l'évalue pour chaque situation :
+ * on ne peut pas déclencher une nuit de GitHub pour l'essayer.
+ */
+
+const workflow = readFileSync('.github/workflows/mise-en-ligne.yml', 'utf8');
+
+function conditionDeLaProduction(): string {
+  const bloc = /\n {2}production:\n[\s\S]*?\n {4}if: >-\n((?: {6}.*\n)+)/.exec(workflow);
+  if (!bloc?.[1]) throw new Error('La condition de la tâche `production` est introuvable.');
+  return bloc[1]
+    .split('\n')
+    .map((ligne) => ligne.trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
+interface Situation {
+  evenement: 'schedule' | 'workflow_dispatch';
+  cible?: 'essai' | 'production' | 'les deux';
+  variable?: string;
+  reference?: string;
+  construction?: string;
+  essai?: string;
+}
+
+/** Évalue la condition comme GitHub : un contexte absent vaut une chaîne vide, `always()` est vrai. */
+function production(s: Situation): boolean {
+  const expression = conditionDeLaProduction();
+  const contexte = {
+    github: { event_name: s.evenement, ref: s.reference ?? 'refs/heads/main' },
+    inputs: { cible: s.cible ?? '' },
+    vars: { NUIT_VERS_PRODUCTION: s.variable ?? '' },
+    needs: {
+      construction: { result: s.construction ?? 'success' },
+      essai: { result: s.essai ?? 'success' },
+    },
+    always: () => true,
+  };
+  // L'expression est écrite dans notre propre workflow ; ses opérateurs (&&, ||, ==, !=) sont ceux de JavaScript.
+  const evaluer = new Function(...Object.keys(contexte), `return (${expression});`) as (
+    ...valeurs: unknown[]
+  ) => boolean;
+  return evaluer(...Object.values(contexte));
+}
+
+describe('la mise en ligne de nuit', () => {
+  it('ne va pas en production quand la variable n’est pas posée', () => {
+    expect(production({ evenement: 'schedule' })).toBe(false);
+  });
+
+  it('ne va pas en production quand la variable dit « non »', () => {
+    expect(production({ evenement: 'schedule', variable: 'non' })).toBe(false);
+  });
+
+  it('ne va pas en production pour toute autre valeur que « oui »', () => {
+    expect(production({ evenement: 'schedule', variable: 'Oui ' })).toBe(false);
+    expect(production({ evenement: 'schedule', variable: 'true' })).toBe(false);
+  });
+
+  it('va en production quand la variable dit « oui »', () => {
+    expect(production({ evenement: 'schedule', variable: 'oui' })).toBe(true);
+  });
+
+  it('reste soumise aux contrôles, même quand la variable dit « oui »', () => {
+    expect(production({ evenement: 'schedule', variable: 'oui', construction: 'failure' })).toBe(
+      false,
+    );
+    expect(production({ evenement: 'schedule', variable: 'oui', essai: 'failure' })).toBe(false);
+  });
+});
+
+describe('un lancement à la main', () => {
+  it('va en production quand on le demande, sans dépendre de la variable', () => {
+    expect(production({ evenement: 'workflow_dispatch', cible: 'production' })).toBe(true);
+    expect(production({ evenement: 'workflow_dispatch', cible: 'les deux' })).toBe(true);
+  });
+
+  it('ne va pas en production quand on ne veut que l’essai', () => {
+    expect(production({ evenement: 'workflow_dispatch', cible: 'essai' })).toBe(false);
+    expect(production({ evenement: 'workflow_dispatch', cible: 'essai', variable: 'oui' })).toBe(
+      false,
+    );
+  });
+
+  it('ne part jamais d’une branche autre que main', () => {
+    expect(
+      production({
+        evenement: 'workflow_dispatch',
+        cible: 'production',
+        reference: 'refs/heads/une-branche',
+      }),
+    ).toBe(false);
+  });
+
+  it('ne va pas en production quand l’essai a échoué', () => {
+    expect(
+      production({ evenement: 'workflow_dispatch', cible: 'les deux', essai: 'failure' }),
+    ).toBe(false);
+  });
+});
