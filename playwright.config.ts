@@ -1,11 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
+import { portDesParcours } from './playwright.port';
 
 // Les parcours tournent sur le site construit (dist/), servi par wrangler comme en
 // production (pages 404, barres obliques, en-têtes), dans un téléphone Android de
 // 360 px de large : la taille des écrans des relais et des familles. La mise en page
 // (mise-en-page.spec.ts) tourne aussi sur une tablette (768 px) et un ordinateur
 // (1 280 px).
-const port = 4329;
+// Réglable par `PLAYWRIGHT_PORT` (voir `playwright.port.ts`) : deux suites sur un même Mac ne se disputent plus le port.
+const port = portDesParcours();
 
 export default defineConfig({
   testDir: 'tests/parcours',
