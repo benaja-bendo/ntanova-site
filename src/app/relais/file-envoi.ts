@@ -10,7 +10,8 @@ import {
   versReleve,
   type FicheLocale,
 } from '../../modele/fiche';
-import { ErreurReseau, ErreurSession, type EtatSession } from '../../modele/ports';
+import { apresEchecInattendu, apresRejet } from '../../modele/envoi';
+import { ErreurRejet, ErreurReseau, ErreurSession, type EtatSession } from '../../modele/ports';
 import type { Adaptateurs } from '../../infra/index';
 import { base, garder } from './base-locale';
 import { journaliser } from './journal';
@@ -18,6 +19,10 @@ import { journaliser } from './journal';
 export type ResultatEnvoi = EtatSession | 'erreur';
 
 let enCours: Promise<ResultatEnvoi> | null = null;
+
+/** Les fiches dont l'envoi est en route : le relais ne peut pas les modifier ni les retirer à ce moment-là. */
+const enVol = new Set<string>();
+export const estEnVol = (id: string): boolean => enVol.has(id);
 
 /** Envoie tout ce qui attend. Un seul envoi à la fois : un second appel attend le premier. */
 export function envoyerTout(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
@@ -68,16 +73,39 @@ async function envoyer(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
 
   const fiches = await base.fiches.where('etat').equals('a_envoyer').sortBy('creeeLe');
   let resultat: ResultatEnvoi = 'pret';
-  for (const fiche of fiches) {
+  for (const attendue of fiches) {
+    enVol.add(attendue.id);
     try {
+      // La fiche est relue au moment de partir : le relais a pu la modifier ou la retirer pendant que les
+      // précédentes partaient (la liste ci-dessus date d'avant). Le contenu qui part est toujours le dernier.
+      const fiche = await base.fiches.get(attendue.id);
+      if (fiche?.etat !== 'a_envoyer') continue;
       await base.fiches.update(fiche.id, { dernierEssai: new Date().toISOString() });
       await envoyerUneFiche(adaptateurs, fiche);
     } catch (erreur) {
+      // Le réseau ou la session manquent : la fiche reste en file, tout repartira seul.
       if (erreur instanceof ErreurReseau) return 'hors_ligne';
       if (erreur instanceof ErreurSession) return 'reconnecter';
-      // Une fiche refusée ne bloque pas les suivantes ; elle sera rejouée au prochain envoi.
-      resultat = 'erreur';
-      await journaliser('envoi', 'envoi_refuse', erreur);
+      const courante = await base.fiches.get(attendue.id);
+      if (erreur instanceof ErreurRejet) {
+        // La base REFUSE : la rejouer ne sert à rien. Elle sort de la file avec la raison ; le relais décide
+        // (réessayer, modifier, retirer). Elle ne bloque pas les suivantes.
+        if (courante) {
+          await base.fiches.update(
+            attendue.id,
+            apresRejet(courante, erreur, new Date().toISOString()),
+          );
+        }
+        await journaliser('envoi', `rejet_${erreur.code}`, erreur);
+      } else {
+        // Une panne dont on ne sait rien : la fiche reste en file, l'essai est compté, et le relais est prévenu
+        // au bout de quelques-uns. Elle ne bloque pas les suivantes.
+        resultat = 'erreur';
+        if (courante) await base.fiches.update(attendue.id, apresEchecInattendu(courante));
+        await journaliser('envoi', 'envoi_echoue', erreur);
+      }
+    } finally {
+      enVol.delete(attendue.id);
     }
   }
 
