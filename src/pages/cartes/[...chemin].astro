@@ -1,0 +1,288 @@
+---
+// La carte d'un arrondissement dessiné (aujourd'hui les six de Pointe-Noire) : sa terre, ses rues, ses écoles
+// publiées. Les écoles qui se toucheraient deviennent une pastille, qui mène à la page du coin vu de près
+// (`…/coin_3/`). Seuls les contours connus sont dessinés : jamais un contour inventé pour une autre ville.
+// Construite à partir de la base ; aucun JavaScript.
+import type { GetStaticPaths } from 'astro';
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirSite } from '../../infra/index';
+import { distanceMetres } from '../../modele/geo';
+import {
+  arrondissementDessine,
+  arrondissementsDessines,
+  cadreArrondissement,
+  cadreCoin,
+  coinsDe,
+  planer,
+  ruesDe,
+  surCarte,
+  type ArrondissementDessine,
+  type MarqueGroupe,
+} from '../../modele/carte/plan';
+import { reperes } from '../../modele/carte/reperes';
+import { lienCarte, lienDivision } from '../../modele/geo-divisions';
+import type { EcolePubliee } from '../../modele/ports';
+import { lienWhatsApp } from '../../modele/whatsapp';
+import BasculeVue from '../../ui/BasculeVue.astro';
+import Carte from '../../ui/Carte.astro';
+import LegendeCarte from '../../ui/LegendeCarte.astro';
+import ListeEcoles from '../../ui/ListeEcoles.astro';
+import PagePublique from '../../ui/PagePublique.astro';
+
+type Cas = { genre: 'arrondissement'; cle: string } | { genre: 'coin'; cle: string; coin: string };
+
+export const getStaticPaths = (async () => {
+  const { arbre, ecoles } = await obtenirSite();
+  return arbre.tous.flatMap((page) => {
+    // Un arrondissement de Pointe-Noire, et lui seul : son contour est dessiné.
+    if (page.division.niveau !== 3 || !page.adresse.join('/').startsWith('congo/pointe-noire/'))
+      return [];
+    const dessin = arrondissementDessine(page.division.slug);
+    if (!dessin) return [];
+    const siennes = ecoles.filter((e) => e.adresse.join('/').startsWith(page.adresse.join('/')));
+    const cle = page.adresse.join('/');
+    return [
+      { params: { chemin: cle }, props: { genre: 'arrondissement', cle } satisfies Cas },
+      ...coinsDe(dessin, surCarte(siennes)).map((g) => ({
+        params: { chemin: `${cle}/${g.id.replace('-', '_')}` },
+        props: { genre: 'coin', cle, coin: g.id } satisfies Cas,
+      })),
+    ];
+  });
+}) satisfies GetStaticPaths;
+
+const cas = Astro.props as Cas;
+const { arbre, ecoles: toutes } = await obtenirSite();
+const page = arbre.parAdresse.get(cas.cle);
+if (!page) throw new Error(`Carte sans zone : ${cas.cle}`);
+const dessin = arrondissementDessine(page.division.slug) as ArrondissementDessine;
+const siennes: EcolePubliee[] = toutes.filter((e) => e.adresse.join('/').startsWith(cas.cle));
+const nom = page.division.nom;
+const liste = lienDivision(page.adresse);
+const carte = lienCarte(page.adresse);
+const ville = page.parent;
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const manque = lienWhatsApp(PUBLIC_WHATSAPP, `Bonjour NTanova, une école manque à ${nom} : `);
+const ecolesDit = (n: number) => `${n} école${n > 1 ? 's' : ''}`;
+
+// La carte de l'arrondissement
+const sur = surCarte(siennes);
+const planArrondissement = (() => {
+  const { boite, projection } = cadreArrondissement(dessin);
+  return planer(boite, sur, projection);
+})();
+const aDesGroupes = planArrondissement.marques.some((m) => m.genre === 'groupe');
+const aSituer = siennes.length - sur.length;
+
+// Un coin vu de près
+const groupe: MarqueGroupe | undefined =
+  cas.genre === 'coin' ? coinsDe(dessin, sur).find((g) => g.id === cas.coin) : undefined;
+const planCoin = groupe
+  ? (() => {
+      const { boite, projection } = cadreCoin(groupe.ecoles);
+      return planer(boite, sur, projection);
+    })()
+  : null;
+const ids = new Set(groupe?.ecoles.map((e) => e.id) ?? []);
+const duCoin = siennes.filter((e) => ids.has(e.id));
+const milieu = groupe
+  ? {
+      latitude: groupe.ecoles.reduce((s, e) => s + e.latitude, 0) / groupe.ecoles.length,
+      longitude: groupe.ecoles.reduce((s, e) => s + e.longitude, 0) / groupe.ecoles.length,
+    }
+  : null;
+const repere = milieu
+  ? reperes
+      .map((r) => ({ r, d: distanceMetres(milieu, r) }))
+      .filter(({ d }) => d <= 500)
+      .sort((a, b) => a.d - b.d)[0]?.r
+  : undefined;
+const titreCoin = repere ? `Près de ${repere.nom}` : `Un coin de ${nom}`;
+const roles = arrondissementsDessines.map((a) => ({
+  arrondissement: a,
+  role: a.slug === dessin.slug ? ('focus' as const) : ('voisin' as const),
+}));
+---
+
+{cas.genre === 'arrondissement' ? (
+  <PagePublique
+    titre={`La carte des écoles de ${nom} · NTanova`}
+    description={`Les écoles de ${nom}, à Pointe-Noire, sur la carte du quartier.`}
+    whatsapp={whatsapp}
+  >
+    <section class="cadre page vue-carte">
+      <a class="retour" href={ville ? lienDivision(ville.adresse) : '/ecoles/'}>
+        ← {ville ? ville.division.nom : 'Les écoles'}
+      </a>
+      <div class="titre-vue">
+        <div>
+          <h1>{nom}</h1>
+          <p class="texte-doux">
+            Arrondissement {dessin.numero} · <span class="insecable">Pointe-Noire</span>
+          </p>
+        </div>
+        <BasculeVue carte={carte} liste={liste} actuelle="carte" />
+      </div>
+
+      <div class="disposition">
+        <Carte
+          id="arrondissement"
+          titre={`Carte de ${nom} : ${ecolesDit(sur.length)} sur la carte`}
+          projection={planArrondissement.projection}
+          arrondissements={roles}
+          rues={ruesDe(dessin.slug)}
+          marques={planArrondissement.marques}
+          lienGroupe={(g) => lienCarte(page.adresse, g.id)}
+          reperes={reperes}
+        />
+
+        <div class="panneau">
+          {sur.length === 0 ? (
+            <p class="compte">
+              Aucune école sur la carte pour l’instant&nbsp;: le relevé est en cours.
+            </p>
+          ) : (
+            <p class="compte">
+              {ecolesDit(sur.length)} sur la carte de <span class="insecable">{nom}</span>
+            </p>
+          )}
+          {aSituer > 0 && (
+            <p class="texte-doux">
+              {aSituer === 1
+                ? 'Une autre école n’est pas encore située : elle n’est que dans la liste.'
+                : `${aSituer} autres écoles ne sont pas encore situées : elles ne sont que dans la liste.`}
+            </p>
+          )}
+          {sur.length > 0 && <LegendeCarte groupes={aDesGroupes} />}
+          {aDesGroupes && <p class="texte-doux">Touchez un groupe pour le voir de près.</p>}
+          <div class="encadre-pointille">
+            <p>Une partie du quartier n’est pas encore relevée&nbsp;: relevé en cours.</p>
+            {manque && <a href={manque}>Une école manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
+          </div>
+        </div>
+      </div>
+    </section>
+  </PagePublique>
+) : (
+  groupe &&
+  planCoin && (
+    <PagePublique
+      titre={`${titreCoin} · NTanova`}
+      description={`${duCoin.length} écoles proches à ${nom}, Pointe-Noire, vues de près sur la carte.`}
+      whatsapp={whatsapp}
+    >
+      <section class="cadre page vue-coin">
+        <a class="retour" href={carte}>
+          ← Carte de {nom}
+        </a>
+        <div>
+          <h1>{titreCoin}</h1>
+          <p class="texte-doux">
+            {duCoin.length} écoles proches · {nom} · <span class="insecable">Pointe-Noire</span>
+          </p>
+        </div>
+
+        <div class="disposition">
+          <div class="colonne-carte">
+            <Carte
+              id="coin"
+              titre={`${titreCoin} : ${duCoin.length} écoles vues de près`}
+              projection={planCoin.projection}
+              arrondissements={roles}
+              rues={ruesDe(dessin.slug)}
+              marques={planCoin.marques}
+              lienGroupe={() => '#ecoles-du-coin'}
+              reperes={reperes}
+              nomsEcoles
+            />
+            <LegendeCarte groupes={planCoin.marques.some((m) => m.genre === 'groupe')} />
+          </div>
+
+          <div class="colonne-liste">
+            <h2>Les écoles de ce coin</h2>
+            <ListeEcoles ecoles={duCoin} id="ecoles-du-coin" />
+          </div>
+        </div>
+      </section>
+    </PagePublique>
+  )
+)}
+
+<style>
+  .vue-carte,
+  .vue-coin {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .vue-carte h1,
+  .vue-coin h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .vue-coin h2 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .vue-carte p,
+  .vue-coin p {
+    margin: 0;
+  }
+  .disposition,
+  .colonne-carte,
+  .colonne-liste {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-3);
+  }
+  .disposition {
+    gap: var(--espace-4);
+  }
+  .panneau {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-3);
+  }
+  .compte {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .panneau a {
+    color: var(--marque);
+    font-weight: 700;
+  }
+  .encadre-pointille a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+  }
+
+  @media (min-width: 48rem) {
+    .vue-carte,
+    .vue-coin {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .vue-carte h1,
+    .vue-coin h1 {
+      font-size: var(--taille-titre-public);
+    }
+    .disposition {
+      gap: var(--espace-5);
+    }
+  }
+
+  /* À partir de 64 rem : la carte à gauche, le panneau (ou la liste) à droite. */
+  @media (min-width: 64rem) {
+    .disposition {
+      grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr);
+      gap: var(--espace-6);
+    }
+    .colonne-liste :global(.ecoles) {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

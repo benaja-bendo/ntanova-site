@@ -45,11 +45,38 @@ export function lire<T>(reponse: { data: T | null; error: ErreurApi | null }): T
 }
 
 /**
+ * Pour une fonction de la base qui rend une liste (`rpc`) : les lignes, ou une liste vide. Le type des lignes est
+ * celui que l'appelant écrit : la base n'a pas de types générés ici.
+ */
+export function lireListe<T>(reponse: { data: unknown; error: ErreurApi | null }): T[] {
+  if (reponse.error) traduire(reponse.error);
+  return Array.isArray(reponse.data) ? (reponse.data as T[]) : [];
+}
+
+const TAILLE_PAGE = 1000;
+
+/**
+ * Toutes les lignes d'une lecture, page après page (l'API plafonne chaque réponse). `requete` reçoit les bornes
+ * `de` et `a` (incluses) et doit trier sur une clé unique, sinon deux pages peuvent se recouvrir.
+ */
+export async function toutesLesLignes<T>(
+  requete: (de: number, a: number) => PromiseLike<{ data: unknown; error: ErreurApi | null }>,
+): Promise<T[]> {
+  const tout: T[] = [];
+  for (let de = 0; ; de += TAILLE_PAGE) {
+    const lignes = lireListe<T>(await requete(de, de + TAILLE_PAGE - 1));
+    tout.push(...lignes);
+    if (lignes.length < TAILLE_PAGE) return tout;
+  }
+}
+
+/**
  * Pour une décision de l'administration : la base refuse avec un message écrit
  * pour un humain (« Relevé du lot d'essai : il ne se publie jamais. »), qu'on garde.
  */
 export function decider(erreur: ErreurApi | null): void {
   if (erreur === null) return;
+  if (erreur.code === '23505') throw new ErreurDecision('Cet enregistrement existe déjà.');
   if (erreur.code && ['P0002', '22023', '42501', '23514'].includes(erreur.code)) {
     throw new ErreurDecision(erreur.message ?? 'Décision refusée.');
   }

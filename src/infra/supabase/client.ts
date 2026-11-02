@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_PUBLISHABLE_KEY, PUBLIC_SUPABASE_URL } from 'astro:env/client';
+import { stockageSession } from './stockage-session';
 
-/** La session est gardée sous ce nom dans le téléphone : on la relit sans réseau. */
+/** La session est gardée sous ce nom dans le téléphone (IndexedDB) : on la relit sans réseau. */
 export const CLE_SESSION = 'ntanova-session';
 
 let client: SupabaseClient | null = null;
@@ -14,6 +15,7 @@ export function supabase(): SupabaseClient {
   client = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
     auth: {
       storageKey: CLE_SESSION,
+      storage: stockageSession,
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,

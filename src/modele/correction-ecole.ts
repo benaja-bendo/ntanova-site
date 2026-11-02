@@ -8,7 +8,7 @@ import { erreursDe, type Erreurs } from './fiche';
 import { listes, niveauxConnus, type Valeur } from './listes';
 import { lirePosition } from './coordonnees';
 import type { Point } from './geo';
-import type { CorrectionEcole, EcoleVue, NouvelleEcole } from './ports';
+import type { CorrectionEcole, EcoleVue } from './ports';
 import { afficherTelephone, normaliserTelephone } from './telephone';
 
 export interface FormulaireEcole {
@@ -72,19 +72,7 @@ export function versCorrection(avant: EcoleVue, champs: FormulaireEcole): Correc
   return correction;
 }
 
-// Ajouter une école que la base ne connaît pas ----------------------------------------------
-
-/** Le formulaire d'une école à ajouter : vide, rien de coché d'avance. */
-export function formulaireVide(): FormulaireEcole {
-  return {
-    nom: '',
-    typeEcole: 'non_indique',
-    niveaux: [],
-    programme: '',
-    repere: '',
-    numeroEnseigne: '',
-  };
-}
+// Le champ « Position » ----------------------------------------------------------------
 
 /**
  * Ce que dit le champ « Position » : rien (facultatif quand on ajoute une école), la position
@@ -103,22 +91,4 @@ export function lireChampPosition(texte: string): {
         erreur:
           'Position illisible : colle la latitude puis la longitude, par exemple -4.79105, 11.92500.',
       };
-}
-
-/** Ce qui part vers la base pour une école ajoutée : les champs vides deviennent « rien ». */
-export function versNouvelleEcole(
-  champs: FormulaireEcole,
-  quartier: string,
-  position: Point | null,
-): NouvelleEcole {
-  return {
-    nom: champs.nom.trim(),
-    position,
-    typeEcole: champs.typeEcole,
-    niveaux: niveauxConnus(champs.niveaux),
-    programme: champs.programme.trim() || null,
-    repere: champs.repere.trim() || null,
-    numeroEnseigne: normaliserTelephone(champs.numeroEnseigne),
-    quartier: quartier.trim() || null,
-  };
 }

@@ -1,0 +1,130 @@
+---
+// Les écoles qui enseignent une série, un diplôme, un domaine, un rythme ou un niveau, regroupées par zone.
+// Une page par valeur qui a au moins une école publiée. Construite à partir de la base ; aucun JavaScript.
+import type { GetStaticPaths } from 'astro';
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirSite } from '../../../infra/index';
+import { compterEcoles, lienDivision } from '../../../modele/geo-divisions';
+import { NOM_FACETTE, type Facette } from '../../../modele/recherche';
+import type { EcolePubliee } from '../../../modele/ports';
+import { lienWhatsApp } from '../../../modele/whatsapp';
+import ListeEcoles from '../../../ui/ListeEcoles.astro';
+import PagePublique from '../../../ui/PagePublique.astro';
+
+export const getStaticPaths = (async () => {
+  const { facettes } = await obtenirSite();
+  return facettes.map((f) => ({
+    params: { facette: f.facette, valeur: f.valeur },
+    props: { facette: f.facette, valeur: f.valeur },
+  }));
+}) satisfies GetStaticPaths;
+
+const { facette, valeur } = Astro.props as { facette: Facette; valeur: string };
+const { facettes, arbre } = await obtenirSite();
+const f = facettes.find((x) => x.facette === facette && x.valeur === valeur);
+if (!f) throw new Error(`Facette sans page : ${facette}/${valeur}`);
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+
+// Par zone : celle de la ville (ou du département sans ville) où se trouve chaque école.
+const parZone = new Map<string, { nom: string; adresse: string[]; ecoles: EcolePubliee[] }>();
+for (const e of f.ecoles) {
+  const page = arbre.parId.get(e.divisionId);
+  // On remonte jusqu'à la ville (niveau 2) : un quartier ne fait pas un groupe à lui seul.
+  let ville = page;
+  while (ville && ville.division.niveau > 2 && ville.parent) ville = ville.parent;
+  const cible = ville ?? page;
+  const cle = cible?.adresse.join('/') ?? 'ailleurs';
+  const groupe = parZone.get(cle) ?? {
+    nom: cible?.division.nom ?? 'Ailleurs',
+    adresse: cible?.adresse ?? [],
+    ecoles: [],
+  };
+  groupe.ecoles.push(e);
+  parZone.set(cle, groupe);
+}
+const groupes = [...parZone.values()].sort(
+  (a, b) => b.ecoles.length - a.ecoles.length || a.nom.localeCompare(b.nom, 'fr'),
+);
+const titre =
+  facette === 'niveau'
+    ? `Les écoles : ${f.libelle.toLowerCase()}`
+    : `Les écoles : ${NOM_FACETTE[facette].toLowerCase()} ${f.libelle}`;
+---
+
+<PagePublique
+  titre={`${titre} · NTanova`}
+  description={`${compterEcoles(f.ecoles.length)} avec ${f.libelle} (${NOM_FACETTE[facette].toLowerCase()}) au Congo-Brazzaville, par ville.`}
+  whatsapp={whatsapp}
+>
+  <section class="cadre page facette">
+    <a class="retour" href="/formations/">
+      ← Les écoles par formation
+    </a>
+    <div>
+      <h1>{f.libelle}</h1>
+      <p class="texte-doux">
+        {NOM_FACETTE[facette]} · {compterEcoles(f.ecoles.length)}
+      </p>
+    </div>
+    {groupes.map((g) => (
+      <section aria-label={g.nom} class="groupe">
+        <h2>
+          {g.adresse.length > 0 ? <a href={lienDivision(g.adresse)}>{g.nom}</a> : g.nom}
+          <span class="texte-doux"> · {compterEcoles(g.ecoles.length)}</span>
+        </h2>
+        <ListeEcoles ecoles={g.ecoles} />
+      </section>
+    ))}
+    <p>
+      <a class="chercher" href="/recherche/">
+        Croiser avec d’autres critères
+      </a>
+    </p>
+  </section>
+</PagePublique>
+
+<style>
+  .facette {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .facette h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .facette h2 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .facette h2 a {
+    color: var(--texte);
+  }
+  .facette p {
+    margin: 0;
+  }
+  .groupe {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .chercher {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+
+  @media (min-width: 48rem) {
+    .facette {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .facette h1 {
+      font-size: var(--taille-titre-public);
+    }
+  }
+</style>

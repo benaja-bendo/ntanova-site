@@ -1,126 +1,117 @@
 ---
-// La carte de la ville (planche « Carte de la ville » du canevas) : les six arrondissements de
-// Pointe-Noire, en vert ceux où le relevé a commencé. Toucher l'un d'eux ouvre sa carte.
+// L'entrée des écoles : le pays, ses villes et départements avec ce que chacun compte d'écoles publiées, et les
+// trois autres façons de chercher (par nom ou par formation, par ce qu'on enseigne, autour de soi).
 // Construite à partir de la base ; aucun JavaScript.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
-import { obtenirCatalogue } from '../../infra/index';
-import {
-  arrondissementsDessines,
-  cadreVille,
-  type ArrondissementSurCarte,
-} from '../../modele/carte/plan';
+import { obtenirSite } from '../../infra/index';
+import { compterEcoles, ecolesSous, lienDivision } from '../../modele/geo-divisions';
 import { lienWhatsApp } from '../../modele/whatsapp';
-import Carte from '../../ui/Carte.astro';
 import PagePublique from '../../ui/PagePublique.astro';
 
-const catalogue = await obtenirCatalogue();
-const [ouverts, ecoles] = await Promise.all([catalogue.arrondissements(), catalogue.ecoles()]);
+const { arbre, ecoles } = await obtenirSite();
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
-
-const ecolesDit = (n: number) => `${n} école${n > 1 ? 's' : ''}`;
-const surLaCarte: ArrondissementSurCarte[] = arrondissementsDessines.map((a) => {
-  const ouvert = ouverts.some((o) => o.slug === a.slug);
-  const nombre = ecoles.filter((e) => e.arrondissement === a.slug).length;
-  return ouvert
-    ? {
-        arrondissement: a,
-        role: 'en-cours',
-        lien: `/ecoles/${a.slug}/carte/`,
-        etiquette: nombre > 0 ? ecolesDit(nombre) : 'relevé en cours',
-      }
-    : { arrondissement: a, role: 'pas-encore', etiquette: 'pas encore' };
-});
-const enCours = surLaCarte
-  .filter((a) => a.role === 'en-cours')
-  .map((a) => ({
-    ...a,
-    nombre: ecoles.filter((e) => e.arrondissement === a.arrondissement.slug).length,
-  }))
-  .sort((a, b) => b.nombre - a.nombre || a.arrondissement.numero - b.arrondissement.numero);
-const pasEncore = surLaCarte.length - enCours.length;
-const enLettres = ['aucun', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six'];
+const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque : ');
 ---
 
 <PagePublique
-  titre="La carte des écoles de Pointe-Noire · NTanova"
-  description="Les six arrondissements de Pointe-Noire et leurs écoles, relevées sur place, arrondissement par arrondissement."
+  titre="Les écoles du Congo-Brazzaville · NTanova"
+  description="Les écoles du Congo-Brazzaville publiées sur NTanova : par ville et par quartier, par formation, ou autour de vous."
   whatsapp={whatsapp}
 >
-  <section class="cadre page vue-ville">
+  <section class="cadre page entree">
     <a class="retour" href="/">
       ← Accueil
     </a>
     <div>
-      <h1>Pointe-Noire</h1>
-      <p class="texte-doux">En vert&nbsp;: le relevé a commencé. Touchez un arrondissement.</p>
+      <h1>Les écoles</h1>
+      <p class="texte-doux">
+        {ecoles.length === 0
+          ? 'Aucune école n’est encore publiée : le relevé commence.'
+          : `${compterEcoles(ecoles.length)} publiée${ecoles.length > 1 ? 's' : ''}, relevée${ecoles.length > 1 ? 's' : ''} sur place.`}
+      </p>
     </div>
 
-    <div class="disposition">
-      <Carte
-        id="ville"
-        titre="Carte de Pointe-Noire par arrondissement"
-        projection={cadreVille()}
-        arrondissements={surLaCarte}
-        noms
-      />
+    <nav class="chercher" aria-label="Chercher une école">
+      <a class="bouton" href="/recherche/">
+        Rechercher par nom ou par formation
+      </a>
+      <a class="bouton bouton-secondaire" href="/autour-de-moi/">
+        Autour de moi
+      </a>
+      <a class="bouton bouton-secondaire" href="/formations/">
+        Séries, diplômes, domaines
+      </a>
+    </nav>
 
-      <div class="panneau">
-        <ul class="arrondissements">
-          {enCours.map((a) => (
+    {arbre.racines.map((racine) => (
+      <section aria-label={racine.division.nom} class="pays">
+        <h2>
+          <a href={lienDivision(racine.adresse)}>{racine.division.nom}</a>
+          <span class="texte-doux"> · {compterEcoles(ecolesSous(racine).length)}</span>
+        </h2>
+        <ul class="zones">
+          {racine.enfants.map((enfant) => (
             <li>
-              <a class="arrondissement" href={a.lien}>
-                <span class="arrondissement-nom">{a.arrondissement.nom}</span>
-                <span class="arrondissement-detail">
-                  Arrondissement {a.arrondissement.numero} ·{' '}
-                  {a.nombre > 0
-                    ? `${ecolesDit(a.nombre)} relevée${a.nombre > 1 ? 's' : ''}`
-                    : 'relevé en cours'}
-                </span>
+              <a class="zone" href={lienDivision(enfant.adresse)}>
+                <span class="zone-nom">{enfant.division.nom}</span>
+                <span class="zone-detail">{compterEcoles(ecolesSous(enfant).length)}</span>
               </a>
             </li>
           ))}
         </ul>
-        {pasEncore > 0 && (
-          <p class="texte-doux">
-            {pasEncore === 1
-              ? 'L’autre arrondissement : pas encore relevé.'
-              : `Les ${enLettres[pasEncore]} autres arrondissements : pas encore relevés.`}
-          </p>
-        )}
-      </div>
+      </section>
+    ))}
+
+    <div class="encadre-pointille">
+      <p>
+        Le relevé continue ville après ville&nbsp;: une zone n'apparaît ici qu'avec sa première
+        école publiée.
+      </p>
+      {manque && <a href={manque}>Une ville manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
     </div>
   </section>
 </PagePublique>
 
 <style>
-  .vue-ville {
+  .entree {
     display: grid;
     gap: var(--espace-4);
   }
-  .vue-ville h1 {
+  .entree h1 {
     margin: 0;
     color: var(--marque-appuyee);
     font-family: var(--police-titre);
     font-size: var(--taille-titre-page);
     line-height: var(--interligne-titre);
   }
-  .vue-ville p {
+  .entree h2 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .entree h2 a {
+    color: var(--texte);
+  }
+  .entree p {
     margin: 0;
   }
-  .disposition,
-  .panneau {
-    display: grid;
-    align-content: start;
-    gap: var(--espace-4);
+  .chercher {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ecart-cibles);
   }
-  .arrondissements {
+  .pays {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .zones {
     display: grid;
     gap: var(--espace-2);
     margin: 0;
     padding: 0;
     list-style: none;
   }
-  .arrondissement {
+  .zone {
     display: grid;
     gap: var(--espace-1);
     min-height: var(--cible-principale);
@@ -130,32 +121,36 @@ const enLettres = ['aucun', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six'];
     color: var(--texte);
     text-decoration: none;
   }
-  .arrondissement:hover {
+  .zone:hover {
     outline: 2px solid var(--marque);
   }
-  .arrondissement-nom {
+  .zone-nom {
     font-family: var(--police-titre);
     font-weight: 700;
   }
-  .arrondissement-detail {
+  .zone-detail {
     color: var(--marque-appuyee);
     font-size: var(--taille-secondaire);
   }
+  .encadre-pointille a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
 
   @media (min-width: 48rem) {
-    .vue-ville {
+    .entree {
       gap: var(--espace-5);
       padding-block: var(--espace-7);
     }
-    .vue-ville h1 {
+    .entree h1 {
       font-size: var(--taille-titre-public);
     }
-  }
-
-  @media (min-width: 64rem) {
-    .disposition {
-      grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr);
-      gap: var(--espace-6);
+    .zones {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+      gap: var(--espace-3);
     }
   }
 </style>

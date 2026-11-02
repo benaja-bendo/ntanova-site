@@ -1,31 +1,36 @@
 /**
  * Les écoles et leur cycle de vie (supabase/schema.md, « Le cycle de vie ») :
  * à situer → prête → publiée → retirée (→ publiée). Publier est un geste à part :
- * une école, tout un arrondissement, ou un lot.
+ * une école, une zone (ville, arrondissement, quartier), ou un lot.
  */
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { arrondissementDeLaPosition } from '../../modele/carte/plan';
+import { useCallback, useEffect, useState } from 'react';
 import { ecrirePosition, lienGoogleMaps } from '../../modele/coordonnees';
 import {
   erreursFormulaireEcole,
   formulaireDe,
-  formulaireVide,
   lireChampPosition,
   versCorrection,
-  versNouvelleEcole,
   type FormulaireEcole,
 } from '../../modele/correction-ecole';
 import type { Erreurs } from '../../modele/fiche';
-import { libelleNiveau, libelleTypeEcole } from '../../modele/libelles';
-import { listes, type Valeur } from '../../modele/listes';
+import { cheminLisible } from '../../modele/geo-divisions';
 import {
-  ErreurDecision,
-  type EcoleVue,
-  type LotVu,
-  type PortAdministration,
-  type RelaisVu,
+  libelleNiveau,
+  libelleOrigine,
+  libelleTypeEcole,
+  libelleTypeMission,
+} from '../../modele/libelles';
+import { listes, type Valeur } from '../../modele/listes';
+import type {
+  DivisionVue,
+  EcoleVue,
+  LotVu,
+  PortAdministration,
+  RelaisVu,
 } from '../../modele/ports';
 import { Bandeau, Champ, Choix, jour } from '../../ui/composants';
+import { ChampPosition, messageErreur as message } from './ChampPosition';
+import { Creation } from './Creation';
 
 export const libelleMotifRetrait: Record<Valeur<'motif_retrait'>, string> = {
   demande_ecole: "À la demande de l'école",
@@ -55,28 +60,30 @@ const libelleEtat: Record<Etat, { texte: string; classe: string }> = {
 const EN_LIGNE =
   'Elle paraît sur ntanova.com après la prochaine mise à jour du site (cette nuit à 2 h).';
 
-const message = (err: unknown) =>
-  err instanceof ErreurDecision ? err.message : 'La base ne répond pas. Vérifie le réseau.';
-
 function LigneEcole({
   e,
   ecoles,
   relais,
-  ouverts,
+  divisions,
   admin,
   surChangement,
 }: {
   e: EcoleVue;
   ecoles: EcoleVue[];
   relais: RelaisVu[];
-  ouverts: string[];
+  divisions: DivisionVue[];
   admin: PortAdministration;
   surChangement: (texte: string) => void;
 }) {
   const etat = etatDe(e);
   const [relaisId, setRelaisId] = useState(e.confiee?.relaisId ?? relais[0]?.id ?? '');
   const [note, setNote] = useState(e.confiee?.note ?? '');
-  const [mode, setMode] = useState<'retirer' | 'fusionner' | 'modifier' | 'situer' | null>(null);
+  const [genre, setGenre] = useState<Valeur<'mission_kind'>>(
+    e.confiee?.genre ?? (e.aSituer ? 'locate' : 'verify'),
+  );
+  const [mode, setMode] = useState<
+    'retirer' | 'fusionner' | 'modifier' | 'situer' | 'mission' | null
+  >(null);
   const [motif, setMotif] = useState<Valeur<'motif_retrait'>>('demande_ecole');
   const [noteRetrait, setNoteRetrait] = useState('');
   const [gardee, setGardee] = useState('');
@@ -103,13 +110,19 @@ function LigneEcole({
     <tr>
       <td>
         <b>{e.nom}</b>
+        {e.etiquette && <span className="mention admin-sous-ligne">{e.etiquette}</span>}
         <span className="mention admin-sous-ligne">
-          {[...new Set([e.quartier, e.arrondissement].filter(Boolean))].join(' · ') ||
-            'Quartier inconnu'}
+          {[...new Set([e.quartier, e.division].filter(Boolean))].join(' · ') ||
+            (e.divisionId ? 'Quartier inconnu' : 'Division à choisir')}
         </span>
         <span className="mention admin-sous-ligne">
           {libelleTypeEcole[e.typeEcole]} ·{' '}
           {e.niveaux.map((n) => libelleNiveau[n]).join(', ') || 'aucun niveau'}
+          {e.formations > 0 && ` · ${e.formations} formation${e.formations > 1 ? 's' : ''}`}
+        </span>
+        <span className="mention admin-sous-ligne">
+          {libelleOrigine[e.origine]}
+          {e.verifieeLe && ` · vérifiée par la direction le ${jour(e.verifieeLe)}`}
         </span>
         {e.position && (
           <span className="mention admin-sous-ligne">
@@ -136,6 +149,7 @@ function LigneEcole({
         {e.confiee ? (
           <>
             <b>{e.confiee.prenom}</b>
+            <span className="mention admin-sous-ligne">{libelleTypeMission[e.confiee.genre]}</span>
             {e.confiee.note && <span className="mention admin-sous-ligne">{e.confiee.note}</span>}
           </>
         ) : (
@@ -176,58 +190,16 @@ function LigneEcole({
               </button>
             </>
           )}
-          {(etat === 'a_situer' || etat === 'brouillon') &&
-            (relais.length === 0 ? (
-              <span className="mention">Aucun relais actif</span>
-            ) : (
-              <>
-                <select
-                  className="champ admin-choix-lot"
-                  aria-label={`Relais pour ${e.nom}`}
-                  value={relaisId}
-                  onChange={(ev) => setRelaisId(ev.target.value)}
-                >
-                  {relais.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.prenom || '[sans prénom]'}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  className="champ admin-note"
-                  aria-label={`Ce que le relais doit vérifier pour ${e.nom}`}
-                  placeholder="À vérifier : nom, repère…"
-                  maxLength={500}
-                  value={note}
-                  onChange={(ev) => setNote(ev.target.value)}
-                />
-                <button
-                  type="button"
-                  className="bouton bouton-petit"
-                  disabled={enCours || !relaisId}
-                  onClick={() =>
-                    void agir(
-                      () => admin.confierEcole(e.id, relaisId, note.trim() || null),
-                      `${e.nom} est confiée à ${prenom}.`,
-                    )
-                  }
-                >
-                  {e.confiee ? 'Confier de nouveau' : 'Confier'}
-                </button>
-                {e.confiee && (
-                  <button
-                    type="button"
-                    className="bouton bouton-secondaire bouton-petit"
-                    disabled={enCours}
-                    onClick={() =>
-                      void agir(() => admin.reprendreEcole(e.id), `${e.nom} n'est plus confiée.`)
-                    }
-                  >
-                    Reprendre
-                  </button>
-                )}
-              </>
-            ))}
+          {etat !== 'retiree' && (
+            <button
+              type="button"
+              className="bouton bouton-secondaire bouton-petit"
+              aria-expanded={mode === 'mission'}
+              onClick={() => setMode(mode === 'mission' ? null : 'mission')}
+            >
+              {e.confiee ? 'Mission en cours…' : 'Confier à un relais'}
+            </button>
+          )}
           {etat !== 'retiree' && (
             <button
               type="button"
@@ -326,10 +298,99 @@ function LigneEcole({
           </form>
         )}
 
+        {mode === 'mission' && (
+          <form
+            className="admin-motif"
+            aria-label={`Mission pour ${e.nom}`}
+            onSubmit={(ev) => {
+              ev.preventDefault();
+              if (!relaisId) return;
+              void agir(
+                () => admin.confierEcole(e.id, relaisId, genre, note.trim() || null),
+                `${e.nom} est confiée à ${prenom}.`,
+              );
+            }}
+          >
+            {relais.length === 0 ? (
+              <p className="mention admin-pleine-largeur">
+                Aucun relais actif : active un relais dans l’onglet « Relais » d’abord.
+              </p>
+            ) : (
+              <>
+                <Champ libelle="Relais">
+                  {(a) => (
+                    <select
+                      {...a}
+                      className="champ"
+                      value={relaisId}
+                      onChange={(ev) => setRelaisId(ev.target.value)}
+                    >
+                      {relais.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.prenom || '[sans prénom]'}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Champ>
+                <Champ libelle="Ce que le relais doit faire">
+                  {(a) => (
+                    <select
+                      {...a}
+                      className="champ"
+                      value={genre}
+                      onChange={(ev) => setGenre(ev.target.value as Valeur<'mission_kind'>)}
+                    >
+                      {listes.mission_kind.map((m) => (
+                        <option key={m} value={m}>
+                          {libelleTypeMission[m]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Champ>
+                <Champ
+                  libelle="À vérifier"
+                  facultatif
+                  aide="Le relais le lit dans « Mon lot ». Vouvoie-le."
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      className="champ"
+                      maxLength={500}
+                      placeholder="Ex. : le nom sur l’enseigne, le repère…"
+                      value={note}
+                      onChange={(ev) => setNote(ev.target.value)}
+                    />
+                  )}
+                </Champ>
+                <div className="admin-actions admin-pleine-largeur">
+                  <button type="submit" className="bouton" disabled={enCours || !relaisId}>
+                    {e.confiee ? 'Confier de nouveau' : 'Confier'}
+                  </button>
+                  {e.confiee && (
+                    <button
+                      type="button"
+                      className="bouton bouton-secondaire"
+                      disabled={enCours}
+                      onClick={() =>
+                        void agir(() => admin.reprendreEcole(e.id), `${e.nom} n'est plus confiée.`)
+                      }
+                    >
+                      Reprendre
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </form>
+        )}
+
         {mode === 'situer' && (
           <FormulairePosition
             e={e}
-            ouverts={ouverts}
+            divisions={divisions}
             admin={admin}
             surEnregistre={(texte) => {
               setMode(null);
@@ -382,7 +443,7 @@ function FormulaireEcole({
     setChamps((avant) => ({ ...avant, ...nouveaux }));
     setRienADire(false);
   };
-  const enregistrer = async (ev: FormEvent) => {
+  const enregistrer = async (ev: { preventDefault: () => void }) => {
     ev.preventDefault();
     setErreur(null);
     const trouvees = erreursFormulaireEcole(champs);
@@ -534,86 +595,27 @@ function ChampsFiche({
   );
 }
 
-/**
- * Le champ « Position » : ce que Google Maps donne (un appui long sur l'entrée de l'école, puis
- * copier les chiffres), son adresse de partage, ou des degrés. On voit tout de suite où la
- * position tombe, et on peut la vérifier sur Google Maps avant d'enregistrer.
- */
-function ChampPosition({
-  valeur,
-  surChange,
-  ouverts,
-  erreur,
-  facultatif = false,
-}: {
-  valeur: string;
-  surChange: (texte: string) => void;
-  ouverts: string[];
-  erreur?: string | undefined;
-  facultatif?: boolean;
-}) {
-  const { position } = lireChampPosition(valeur);
-  const dessine = position ? arrondissementDeLaPosition(position) : null;
-  const ou = !position
-    ? null
-    : !dessine
-      ? 'Hors de Pointe-Noire : vérifie les coordonnées, la latitude d’abord (-4,…).'
-      : ouverts.includes(dessine.nom)
-        ? `À ${dessine.nom}.`
-        : `À ${dessine.nom} : cet arrondissement n’est pas encore ouvert au relevé, la base refusera.`;
-  return (
-    <div className="admin-pleine-largeur champ-position">
-      <Champ
-        libelle="Position"
-        facultatif={facultatif}
-        erreur={erreur}
-        aide="Sur Google Maps : un appui long (ou un clic droit) sur l’entrée de l’école, puis copie les chiffres qui s’affichent, par exemple -4.79105, 11.92500. Un lien de partage marche aussi."
-      >
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="text"
-            inputMode="text"
-            autoComplete="off"
-            placeholder="-4.79105, 11.92500"
-            value={valeur}
-            onChange={(ev) => surChange(ev.target.value)}
-          />
-        )}
-      </Champ>
-      {position && (
-        <p className="mention" aria-live="polite">
-          Lu : {ecrirePosition(position)}. {ou}{' '}
-          <a href={lienGoogleMaps(position)} target="_blank" rel="noopener noreferrer">
-            Vérifier sur Google Maps
-          </a>
-        </p>
-      )}
-    </div>
-  );
-}
-
 /** Donner la position d'une école connue : elle passe sur la carte, et devient prête si elle était à situer. */
 function FormulairePosition({
   e,
-  ouverts,
+  divisions,
   admin,
   surEnregistre,
   surAnnuler,
 }: {
   e: EcoleVue;
-  ouverts: string[];
+  divisions: DivisionVue[];
   admin: PortAdministration;
   surEnregistre: (texte: string) => void;
   surAnnuler: () => void;
 }) {
   const [texte, setTexte] = useState(e.position ? ecrirePosition(e.position) : '');
+  const [divisionId, setDivisionId] = useState('');
   const [erreurChamp, setErreurChamp] = useState<string | undefined>();
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
 
-  const enregistrer = async (ev: FormEvent) => {
+  const enregistrer = async (ev: { preventDefault: () => void }) => {
     ev.preventDefault();
     setErreur(null);
     const { position, erreur: illisible } = lireChampPosition(texte);
@@ -624,7 +626,7 @@ function FormulairePosition({
     setErreurChamp(undefined);
     setEnCours(true);
     try {
-      const ou = await admin.situerEcole(e.id, position);
+      const ou = await admin.situerEcole(e.id, position, divisionId || null);
       surEnregistre(
         `${e.nom} est située à ${ou}.` +
           (e.publication === 'brouillon'
@@ -647,7 +649,30 @@ function FormulairePosition({
       noValidate
       onSubmit={(ev) => void enregistrer(ev)}
     >
-      <ChampPosition valeur={texte} surChange={setTexte} ouverts={ouverts} erreur={erreurChamp} />
+      <ChampPosition valeur={texte} surChange={setTexte} erreur={erreurChamp} />
+      <Champ
+        libelle="Division"
+        facultatif
+        aide="Laisse « Détectée d’après la position » : la base cherche l’arrondissement ou la ville. Choisis-la seulement quand aucun contour n’est connu à cet endroit."
+      >
+        {(a) => (
+          <select
+            {...a}
+            className="champ"
+            value={divisionId}
+            onChange={(ev) => setDivisionId(ev.target.value)}
+          >
+            <option value="">Détectée d’après la position</option>
+            {divisions
+              .filter((d) => d.niveau >= 2)
+              .map((d) => (
+                <option key={d.id} value={d.id}>
+                  {cheminLisible(d.id, divisions)}
+                </option>
+              ))}
+          </select>
+        )}
+      </Champ>
       {erreur && (
         <p className="message-erreur admin-pleine-largeur" role="alert">
           {erreur}
@@ -665,124 +690,32 @@ function FormulairePosition({
   );
 }
 
-/**
- * Ajouter une école que la base ne connaît pas : une école que tu connais. Avec sa position, elle
- * est prête (à publier) ; sans, elle attend d'être située, comme une école importée.
- */
-function FormulaireAjout({
-  ouverts,
-  admin,
-  surEnregistre,
-  surAnnuler,
-}: {
-  ouverts: string[];
-  admin: PortAdministration;
-  surEnregistre: (texte: string) => void;
-  surAnnuler: () => void;
-}) {
-  const [champs, setChamps] = useState<FormulaireEcole>(formulaireVide);
-  const [quartier, setQuartier] = useState('');
-  const [texte, setTexte] = useState('');
-  const [erreurs, setErreurs] = useState<Erreurs>({});
-  const [erreurPosition, setErreurPosition] = useState<string | undefined>();
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState(false);
-  const changer = (nouveaux: Partial<FormulaireEcole>) =>
-    setChamps((avant) => ({ ...avant, ...nouveaux }));
-
-  const enregistrer = async (ev: FormEvent) => {
-    ev.preventDefault();
-    setErreur(null);
-    const trouvees = erreursFormulaireEcole(champs);
-    const { position, erreur: illisible } = lireChampPosition(texte);
-    setErreurs(trouvees);
-    setErreurPosition(illisible);
-    if (Object.keys(trouvees).length > 0 || illisible) return;
-    setEnCours(true);
-    try {
-      const nouvelle = versNouvelleEcole(champs, quartier, position);
-      await admin.ajouterEcole(nouvelle);
-      surEnregistre(
-        position
-          ? `${nouvelle.nom} est ajoutée, prête : publie-la quand tu veux.`
-          : `${nouvelle.nom} est ajoutée, à situer : donne sa position, ou confie-la à un relais.`,
-      );
-    } catch (err) {
-      setErreur(message(err));
-    } finally {
-      setEnCours(false);
-    }
-  };
-
-  return (
-    <form
-      className="admin-motif carte-blanche"
-      aria-label="Ajouter une école"
-      noValidate
-      onSubmit={(ev) => void enregistrer(ev)}
-    >
-      <h2 className="titre-section admin-pleine-largeur">Ajouter une école</h2>
-      <ChampPosition
-        valeur={texte}
-        surChange={setTexte}
-        ouverts={ouverts}
-        erreur={erreurPosition}
-        facultatif
-      />
-      <ChampsFiche champs={champs} erreurs={erreurs} changer={changer} />
-      <Champ libelle="Quartier, tel qu’on le dit sur place" facultatif>
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="text"
-            autoComplete="off"
-            maxLength={100}
-            value={quartier}
-            onChange={(ev) => setQuartier(ev.target.value)}
-          />
-        )}
-      </Champ>
-      {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
-          {erreur}
-        </p>
-      )}
-      <div className="admin-actions admin-pleine-largeur">
-        <button type="submit" className="bouton" disabled={enCours}>
-          Ajouter l’école
-        </button>
-        <button type="button" className="bouton bouton-secondaire" onClick={surAnnuler}>
-          Annuler
-        </button>
-      </div>
-    </form>
-  );
-}
-
 type Filtre = 'toutes' | Etat;
+type FiltreOrigine = 'toutes' | Valeur<'origin_kind'>;
 
 export function Ecoles({ admin }: { admin: PortAdministration }) {
   const [ecoles, setEcoles] = useState<EcoleVue[] | null>(null);
   const [relais, setRelais] = useState<RelaisVu[]>([]);
   const [lots, setLots] = useState<LotVu[]>([]);
-  const [arrondissements, setArrondissements] = useState<{ id: number; nom: string }[]>([]);
+  const [divisions, setDivisions] = useState<DivisionVue[]>([]);
   const [lot, setLot] = useState('');
+  const [zone, setZone] = useState('');
   const [filtre, setFiltre] = useState<Filtre>('toutes');
+  const [origine, setOrigine] = useState<FiltreOrigine>('toutes');
   const [erreur, setErreur] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [ajout, setAjout] = useState(false);
 
   const charger = useCallback(() => {
-    Promise.all([admin.ecoles(), admin.relais(), admin.lots(), admin.arrondissements()])
-      .then(([e, r, l, a]) => {
+    Promise.all([admin.ecoles(), admin.relais(), admin.lots(), admin.divisions()])
+      .then(([e, r, l, d]) => {
         setEcoles(e);
         setRelais(r.filter((x) => x.statut === 'actif'));
         const vrais = l.filter((x) => !x.essai);
         setLots(vrais);
         setLot((avant) => avant || vrais[0]?.id || '');
-        setArrondissements(a);
+        setDivisions(d);
         setErreur(null);
       })
       .catch(() => setErreur('La base ne répond pas. Vérifie le réseau et recharge la page.'));
@@ -810,7 +743,11 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   };
 
   const compte = (etat: Etat) => ecoles?.filter((e) => etatDe(e) === etat).length ?? 0;
-  const visibles = (ecoles ?? []).filter((e) => filtre === 'toutes' || etatDe(e) === filtre);
+  const visibles = (ecoles ?? []).filter(
+    (e) =>
+      (filtre === 'toutes' || etatDe(e) === filtre) &&
+      (origine === 'toutes' || e.origine === origine),
+  );
   const filtres: { valeur: Filtre; libelle: string }[] = [
     { valeur: 'toutes', libelle: 'Toutes' },
     { valeur: 'prete', libelle: `Prêtes · ${compte('prete')}` },
@@ -818,8 +755,19 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
     { valeur: 'a_situer', libelle: `À situer · ${compte('a_situer')}` },
     { valeur: 'retiree', libelle: `Retirées · ${compte('retiree')}` },
   ];
-  const pretesPar = (id: number) =>
-    ecoles?.filter((e) => e.arrondissementId === id && e.publication === 'prete').length ?? 0;
+  // Les zones qui ont des écoles prêtes : une zone se publie avec tout ce qu'elle contient.
+  const zonesAvecPretes = divisions
+    .map((d) => ({
+      d,
+      prêtes: (ecoles ?? []).filter(
+        (e) =>
+          e.publication === 'prete' &&
+          e.divisionId !== null &&
+          (e.divisionId === d.id ||
+            divisions.find((x) => x.id === e.divisionId)?.chemin.startsWith(`${d.chemin}.`)),
+      ).length,
+    }))
+    .filter((z) => z.prêtes > 0);
 
   return (
     <div className="pile">
@@ -828,8 +776,9 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           <h1>Écoles</h1>
           <p className="texte-doux">
             Accepter une fiche rend l'école <b>prête</b> ; tu choisis quand la <b>publier</b> : une
-            école, tout un arrondissement, ou un lot. Une école à situer attend sa position : tu la
-            donnes toi-même (prise sur Google Maps), ou tu la confies à un relais.
+            école, une zone (ville, arrondissement, quartier), ou un lot. Une école à situer attend
+            sa position : tu la donnes toi-même (prise sur Google Maps), ou tu la confies à un
+            relais.
           </p>
         </div>
         <div className="filtres" role="group" aria-label="Filtrer par état">
@@ -846,11 +795,22 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           ))}
         </div>
       </div>
+      <Choix
+        legende="D'où vient la fiche"
+        options={[
+          { valeur: 'toutes', libelle: 'Toutes' },
+          { valeur: 'field', libelle: libelleOrigine.field },
+          { valeur: 'admin', libelle: libelleOrigine.admin },
+          { valeur: 'import', libelle: libelleOrigine.import },
+        ]}
+        valeurs={[origine]}
+        surChoix={(o) => setOrigine(o)}
+      />
 
       {ajout ? (
-        <FormulaireAjout
-          ouverts={arrondissements.map((a) => a.nom)}
+        <Creation
           admin={admin}
+          divisions={divisions}
           surEnregistre={(texte) => {
             setAjout(false);
             setAnnonce(texte);
@@ -861,7 +821,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
       ) : (
         <div className="admin-actions">
           <button type="button" className="bouton" onClick={() => setAjout(true)}>
-            Ajouter une école
+            Ajouter ou importer des écoles
           </button>
         </div>
       )}
@@ -870,23 +830,36 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
         <section className="carte-blanche pile-serree" aria-label="Publier d'un coup">
           <h2 className="titre-section">Publier d'un coup</h2>
           <div className="admin-actions">
-            {arrondissements
-              .filter((a) => pretesPar(a.id) > 0)
-              .map((a) => (
+            {zonesAvecPretes.length > 0 && (
+              <>
+                <select
+                  className="champ admin-choix-lot"
+                  aria-label="Zone à publier"
+                  value={zone}
+                  onChange={(ev) => setZone(ev.target.value)}
+                >
+                  <option value="">Choisir une zone…</option>
+                  {zonesAvecPretes.map((z) => (
+                    <option key={z.d.id} value={z.d.id}>
+                      {cheminLisible(z.d.id, divisions)} ({z.prêtes} prête{z.prêtes > 1 ? 's' : ''})
+                    </option>
+                  ))}
+                </select>
                 <button
-                  key={a.id}
                   type="button"
                   className="bouton bouton-petit"
-                  disabled={enCours}
+                  disabled={enCours || !zone}
                   onClick={() =>
-                    void publierEnNombre(() => admin.publierArrondissement(a.id), a.nom)
+                    void publierEnNombre(
+                      () => admin.publierDivision(zone),
+                      divisions.find((d) => d.id === zone)?.nom ?? 'cette zone',
+                    )
                   }
                 >
-                  {pretesPar(a.id) === 1
-                    ? `Publier l’école prête de ${a.nom}`
-                    : `Publier les ${pretesPar(a.id)} écoles prêtes de ${a.nom}`}
+                  Publier cette zone
                 </button>
-              ))}
+              </>
+            )}
             {lots.length > 0 && (
               <>
                 <select
@@ -962,7 +935,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
                 e={e}
                 ecoles={ecoles ?? []}
                 relais={relais}
-                ouverts={arrondissements.map((a) => a.nom)}
+                divisions={divisions}
                 admin={admin}
                 surChangement={(texte) => {
                   setAnnonce(texte);

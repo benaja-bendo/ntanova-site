@@ -2,6 +2,11 @@
  * Un faux serveur, gardé dans le navigateur, pour les parcours Playwright
  * (`PUBLIC_ADAPTATEUR=faux`). Il répond comme la base : « reçu », « déjà reçu »,
  * et refuse tout quand le navigateur est hors ligne. Jamais en ligne.
+ *
+ * Il rejoue les règles de la base (supabase/migrations) en plus petit : l'acceptation d'un relevé en
+ * institution, campus ou cycle, l'importation avec simulation, les lots sur toute division, la paie.
+ * Son état vit dans `localStorage` : c'est le serveur qui est imité, pas le téléphone (la base du
+ * téléphone, elle, est dans IndexedDB).
  */
 import type { Adaptateurs } from '../index';
 import { arrondissementDeLaPosition } from '../../modele/carte/plan';
@@ -10,13 +15,19 @@ import {
   ErreurDecision,
   ErreurReseau,
   type ContactAEnvoyer,
+  type DecisionAcceptation,
+  type DivisionVue,
+  type EcoleVue,
+  type EntreeCatalogue,
   type ErreurAEnvoyer,
+  type FormationSaisie,
   type PortAdministration,
   type PortRelais,
   type PortSession,
   type Profil,
-  type Reponse,
+  type RapportImport,
   type ReleveAEnvoyer,
+  type Reponse,
 } from '../../modele/ports';
 
 const CLE = 'ntanova-faux-serveur';
@@ -28,32 +39,34 @@ interface Decision {
   ecoleId: string | null;
   contactConfirmeLe: string | null;
   contactFonction: Valeur<'fonction_direction'> | null;
+  /** Comme la base : une école relevée par un autre relais, ou une correction, ne se paie pas. */
+  payable: boolean;
+  essaiValideLe: string | null;
 }
 
-interface Etat {
-  utilisateur: { id: string; email: string } | null;
-  statut: Profil['statut'];
-  /** L'utilisateur du faux serveur est aussi administrateur. */
-  admin: boolean;
-  releves: Record<string, ReleveAEnvoyer>;
-  photos: Record<string, number>;
-  contacts: Record<string, ContactAEnvoyer>;
-  erreurs: ErreurAEnvoyer[];
-  decisions: Record<string, Decision>;
-  /** Un second relais, fictif, en attente d'activation. */
-  autreRelais: { statut: Profil['statut']; lotId: string | null };
-  /** Les écoles connues, dont une à situer (sans position). */
-  ecoles: Record<string, EcoleFausse>;
-}
-
-interface EcoleFausse {
+interface PhotoFausse {
   id: string;
+  releveId: string;
+  role: Valeur<'photo_role'>;
+  mime: string;
+  octets: number;
+  publiable: boolean;
+}
+
+/** Une institution et son campus, réunis (le faux serveur n'a qu'un campus par institution, sauf ajout). */
+interface CampusFaux {
+  id: string;
+  institutionId: string;
   nom: string;
+  etiquette: string | null;
   quartier: string | null;
   publication: Valeur<'publication'>;
+  origine: Valeur<'origin_kind'>;
   position: { latitude: number; longitude: number } | null;
+  divisionId: string | null;
   confieeA: string | null;
-  note: string | null;
+  noteMission: string | null;
+  genreMission: Valeur<'mission_kind'>;
   retrait?: {
     motif: Valeur<'motif_retrait'>;
     le: string;
@@ -62,17 +75,162 @@ interface EcoleFausse {
   } | null;
   /** Le lot du relevé qui a fait l'école (pour « Publier un lot »). */
   lotId?: string | null;
-  /** Son arrondissement, quand l'administration l'a située (sinon : celui du lot, Tié-Tié). */
-  arrondissementId?: number | null;
   /** Tels que la base les dit ; un parcours y met une valeur qu'un téléphone ne connaît pas encore. */
   typeEcole?: string;
   niveaux?: string[];
   programme?: string | null;
   repere?: string | null;
   numeroEnseigne?: string | null;
+  formations?: FormationSaisie[];
+  verifieeLe?: string | null;
+  reference?: string | null;
+}
+
+interface DivisionFausse {
+  id: string;
+  parentId: string | null;
+  niveau: number;
+  genre: Valeur<'geo_kind'>;
+  nom: string;
+  slug: string;
+  chemin: string;
+  ouverte: boolean;
+}
+
+interface LotFaux {
+  id: string;
+  nom: string;
+  essai: boolean;
+  aRendreLe: string | null;
+  divisionId: string;
+}
+
+interface SemaineFausse {
+  id: string;
+  vendredi: string;
+  lignes: {
+    relaisId: string;
+    prenom: string;
+    fiches: number;
+    contacts: number;
+    essais: number;
+    totalXaf: number;
+  }[];
+  payes: Record<string, { le: string; reference: string }>;
+}
+
+interface Etat {
+  utilisateur: { id: string; email: string } | null;
+  statut: Profil['statut'];
+  /** L'utilisateur du faux serveur est aussi administrateur. */
+  admin: boolean;
+  releves: Record<string, ReleveAEnvoyer>;
+  photos: Record<string, PhotoFausse>;
+  contacts: Record<string, ContactAEnvoyer>;
+  erreurs: ErreurAEnvoyer[];
+  decisions: Record<string, Decision>;
+  /** Un second relais, fictif, en attente d'activation. */
+  autreRelais: { statut: Profil['statut']; lotId: string | null };
+  /** Les campus connus, dont un à situer (sans position). */
+  campus: Record<string, CampusFaux>;
+  divisions: Record<string, DivisionFausse>;
+  lots: LotFaux[];
+  messages: Record<string, string>;
+  paie: {
+    semaines: SemaineFausse[];
+    numeros: Record<string, { operateur: string; numero: string }>;
+    deja: string[];
+  };
+  /** Les relevés qu'un autre relais a envoyés et qui attendent : ils apparaissent dans les lieux connus. */
+  autresReleves: { id: string; nom: string; latitude: number; longitude: number }[];
 }
 
 const ECOLE_A_SITUER = '40000000-0000-4000-8000-000000000001';
+
+const div = (
+  id: string,
+  parentId: string | null,
+  niveau: number,
+  genre: Valeur<'geo_kind'>,
+  nom: string,
+  slug: string,
+  chemin: string,
+  ouverte = false,
+): DivisionFausse => ({ id, parentId, niveau, genre, nom, slug, chemin, ouverte });
+
+/** Un extrait du Congo, comme `geo_divisions` : de quoi essayer les lots, les zones et la navigation. */
+const DIVISIONS_INITIALES: DivisionFausse[] = [
+  div('d-cg', null, 0, 'country', 'Congo', 'congo', 'congo'),
+  div('d-pn-dep', 'd-cg', 1, 'department', 'Pointe-Noire', 'pointe-noire', 'congo.pointe_noire'),
+  div(
+    'd-pn',
+    'd-pn-dep',
+    2,
+    'city',
+    'Pointe-Noire',
+    'pointe-noire',
+    'congo.pointe_noire.pointe_noire',
+  ),
+  ...(
+    [
+      ['lumumba', 'Lumumba', false],
+      ['mvou-mvou', 'Mvou-Mvou', false],
+      ['tie-tie', 'Tié-Tié', true],
+      ['loandjili', 'Loandjili', false],
+      ['mongo-mpoukou', 'Mongo-Mpoukou', false],
+      ['ngoyo', 'Ngoyo', true],
+    ] as const
+  ).map(([slug, nom, ouverte]) =>
+    div(
+      `d-pn-${slug}`,
+      'd-pn',
+      3,
+      'arrondissement',
+      nom,
+      slug,
+      `congo.pointe_noire.pointe_noire.${slug.replace(/-/g, '_')}`,
+      ouverte,
+    ),
+  ),
+  div('d-bz-dep', 'd-cg', 1, 'department', 'Brazzaville', 'brazzaville', 'congo.brazzaville'),
+  div('d-bz', 'd-bz-dep', 2, 'city', 'Brazzaville', 'brazzaville', 'congo.brazzaville.brazzaville'),
+  div(
+    'd-bz-moungali',
+    'd-bz',
+    3,
+    'arrondissement',
+    'Moungali',
+    'moungali',
+    'congo.brazzaville.brazzaville.moungali',
+  ),
+  div('d-ni', 'd-cg', 1, 'department', 'Niari', 'niari', 'congo.niari'),
+  div('d-dolisie', 'd-ni', 2, 'commune', 'Dolisie', 'dolisie', 'congo.niari.dolisie'),
+];
+
+const LOT = {
+  id: '00000000-0000-4000-8000-0000000000e1',
+  nom: 'Tié-Tié',
+  essai: false,
+  aRendreLe: null,
+  divisionId: 'd-pn-tie-tie',
+};
+const LOTS_INITIAUX: LotFaux[] = [
+  LOT,
+  {
+    id: '00000000-0000-4000-8000-0000000000e2',
+    nom: 'Ngoyo',
+    essai: false,
+    aRendreLe: null,
+    divisionId: 'd-pn-ngoyo',
+  },
+  {
+    id: '00000000-0000-4000-8000-0000000000e3',
+    nom: 'Essai',
+    essai: true,
+    aRendreLe: null,
+    divisionId: 'd-pn-tie-tie',
+  },
+];
 
 const etatInitial = (): Etat => ({
   utilisateur: null,
@@ -84,17 +242,27 @@ const etatInitial = (): Etat => ({
   erreurs: [],
   decisions: {},
   autreRelais: { statut: 'en_attente', lotId: null },
-  ecoles: {
+  campus: {
     [ECOLE_A_SITUER]: {
       id: ECOLE_A_SITUER,
+      institutionId: ECOLE_A_SITUER,
       nom: '[École à situer]',
+      etiquette: null,
       quartier: 'Tié-Tié',
       publication: 'brouillon',
+      origine: 'import',
       position: null,
+      divisionId: null,
       confieeA: null,
-      note: null,
+      noteMission: null,
+      genreMission: 'locate',
     },
   },
+  divisions: Object.fromEntries(DIVISIONS_INITIALES.map((d) => [d.id, d])),
+  lots: LOTS_INITIAUX,
+  messages: {},
+  paie: { semaines: [], numeros: {}, deja: [] },
+  autresReleves: [],
 });
 
 function lireEtat(): Etat {
@@ -122,31 +290,27 @@ function ajouter<T>(table: Record<string, T>, id: string, valeur: T): Reponse {
   return 'recu';
 }
 
-const LOT = { id: '00000000-0000-4000-8000-0000000000e1', nom: 'Tié-Tié', essai: false };
-const LOTS = [
-  LOT,
-  { id: '00000000-0000-4000-8000-0000000000e2', nom: 'Ngoyo', essai: false },
-  { id: '00000000-0000-4000-8000-0000000000e3', nom: 'Essai', essai: true },
-];
 const MOI = '00000000-0000-4000-8000-00000000000a';
-/** Les arrondissements ouverts au relevé, comme dans la base. */
-const OUVERTS = [
-  { id: 1, slug: 'tie-tie', nom: 'Tié-Tié' },
-  { id: 2, slug: 'ngoyo', nom: 'Ngoyo' },
-];
-
-/** Comme `arrondissement_de_position()` dans la base : l'arrondissement ouvert qui contient la position. */
-function ouvertDe(position: { latitude: number; longitude: number }) {
-  const dessine = arrondissementDeLaPosition(position);
-  const ouvert = OUVERTS.find((a) => a.slug === dessine?.slug);
-  if (!ouvert) {
-    throw new ErreurDecision(
-      'Cette position n’est dans aucun arrondissement ouvert (Tié-Tié, Ngoyo) : vérifie les coordonnées, la latitude d’abord.',
-    );
-  }
-  return ouvert;
-}
 const AUTRE = '00000000-0000-4000-8000-00000000000b';
+
+/** Comme `division_of_position()` : l'arrondissement dessiné qui contient la position, s'il y en a un. */
+function divisionDeLaPosition(
+  position: { latitude: number; longitude: number },
+  e: Etat,
+): DivisionFausse | null {
+  const dessine = arrondissementDeLaPosition(position);
+  return dessine
+    ? (Object.values(e.divisions).find((d) => d.niveau === 3 && d.slug === dessine.slug) ?? null)
+    : null;
+}
+
+const SLUG = (texte: string) =>
+  texte
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
 const session: PortSession = {
   async utilisateur() {
@@ -193,17 +357,31 @@ const relais: PortRelais = {
         ],
       ],
     ];
-    return lireEtat().statut === 'actif' ? { ...LOT, aRendreLe: null, contour } : null;
+    return lireEtat().statut === 'actif'
+      ? { id: LOT.id, nom: LOT.nom, essai: LOT.essai, aRendreLe: null, contour }
+      : null;
   },
-  async ecolesPubliees() {
+  async lieuxConnus() {
     await reseau();
+    const e = lireEtat();
     return [
       {
         id: '20000000-0000-4000-8000-000000000001',
         nom: '[École exemple publiée]',
         latitude: -4.79105,
         longitude: 11.925,
+        genre: 'campus' as const,
       },
+      ...Object.values(e.campus)
+        .filter((c) => c.position && c.publication !== 'retiree')
+        .map((c) => ({
+          id: c.id,
+          nom: c.etiquette ? `${c.nom} — ${c.etiquette}` : c.nom,
+          latitude: (c.position as { latitude: number }).latitude,
+          longitude: (c.position as { longitude: number }).longitude,
+          genre: 'campus' as const,
+        })),
+      ...e.autresReleves.map((r) => ({ ...r, genre: 'releve' as const })),
     ];
   },
   async mesReleves() {
@@ -223,24 +401,25 @@ const relais: PortRelais = {
         repasser: r.repasser,
         contactConfirmeLe: d?.contactConfirmeLe ?? null,
         contactFonction: d?.contactFonction ?? null,
-        ecoleId: d?.ecoleId ?? null,
+        campusId: d?.ecoleId ?? null,
       };
     });
   },
-  async ecolesACompleter() {
+  async mesMissions() {
     await reseau();
-    return Object.values(lireEtat().ecoles)
-      .filter((e) => e.confieeA === MOI)
-      .map((e) => ({
-        id: e.id,
-        nom: e.nom,
-        quartier: e.quartier,
-        typeEcole: e.typeEcole ?? 'privee',
-        niveaux: e.niveaux ?? ['primaire'],
-        programme: e.programme ?? null,
-        repere: e.repere ?? null,
-        numeroEnseigne: e.numeroEnseigne ?? null,
-        note: e.note,
+    return Object.values(lireEtat().campus)
+      .filter((c) => c.confieeA === MOI)
+      .map((c) => ({
+        id: c.id,
+        nom: c.nom,
+        etiquette: c.etiquette,
+        quartier: c.quartier,
+        typeEcole: c.typeEcole ?? 'privee',
+        niveaux: c.niveaux ?? ['primaire'],
+        programme: c.programme ?? null,
+        repere: c.repere ?? null,
+        numeroEnseigne: c.numeroEnseigne ?? null,
+        note: c.noteMission,
       }));
   },
   async envoyerReleve(r) {
@@ -251,10 +430,30 @@ const relais: PortRelais = {
   },
   async envoyerPhoto(releveId, photo) {
     await reseau();
-    if (!(releveId in lireEtat().releves)) throw new Error('Relevé inconnu');
-    let reponse: Reponse = 'recu';
-    ecrire((e) => (reponse = ajouter(e.photos, releveId, photo.size)));
-    return reponse;
+    const e = lireEtat();
+    if (!(releveId in e.releves)) throw new Error('Relevé inconnu');
+    // Comme la base : une photo déjà enregistrée répond « déjà reçu », une seule enseigne par fiche,
+    // trois autres photos au plus.
+    if (photo.id in e.photos) return 'deja_recu';
+    const siennes = Object.values(e.photos).filter((p) => p.releveId === releveId);
+    if (photo.role === 'signboard' && siennes.some((p) => p.role === 'signboard')) {
+      throw new Error('23505 : une fiche n’a qu’une photo d’enseigne');
+    }
+    if (photo.role !== 'signboard' && siennes.filter((p) => p.role !== 'signboard').length >= 3) {
+      throw new Error('22023 : au plus trois photos en plus de l’enseigne');
+    }
+    if (photo.octets >= 200_000) throw new Error('photo trop lourde');
+    ecrire((s) => {
+      s.photos[photo.id] = {
+        id: photo.id,
+        releveId,
+        role: photo.role,
+        mime: photo.mime,
+        octets: photo.octets,
+        publiable: false,
+      };
+    });
+    return 'recu';
   },
   async envoyerContact(c) {
     await reseau();
@@ -270,6 +469,8 @@ const relais: PortRelais = {
   },
 };
 
+// L'administration ---------------------------------------------------------------
+
 function decision(id: string): Decision {
   const e = lireEtat();
   if (!(id in e.releves)) throw new ErreurDecision('Relevé introuvable.');
@@ -281,6 +482,8 @@ function decision(id: string): Decision {
       ecoleId: null,
       contactConfirmeLe: null,
       contactFonction: null,
+      payable: true,
+      essaiValideLe: null,
     }
   );
 }
@@ -290,23 +493,152 @@ function decider(id: string, champs: Partial<Decision>): void {
   ecrire((e) => (e.decisions[id] = { ...avant, ...champs }));
 }
 
-/** Une ligne de la file « À valider », comme la vue `releves_a_valider`. */
+function lotDe(id: string | null | undefined, e: Etat): LotFaux {
+  return e.lots.find((l) => l.id === id) ?? e.lots[0] ?? LOT;
+}
+
+/** Une ligne de la file « À valider », comme la vue `submissions_to_review`. */
 function ligneDe(r: ReleveAEnvoyer, e: Etat) {
+  const photos = Object.values(e.photos).filter((p) => p.releveId === r.id);
+  const lot = lotDe(r.lotId, e);
   return {
     id: r.id,
     recuLe: r.prisLe,
     type: r.type,
     nomEnseigne: r.nomEnseigne,
     relais: '[Prénom]',
-    lot: LOT.nom,
-    essai: false,
+    lot: lot.nom,
+    essai: lot.essai,
     horsLot: false,
     doublonPossible: r.reponseDoublon !== null,
     reponseDoublon: r.reponseDoublon,
     precisionM: r.precisionM,
-    photoRecue: r.id in e.photos,
+    photos: photos.length,
+    enseigneRecue: photos.some((p) => p.role === 'signboard'),
+    indiceFormations: Boolean(r.programmesVus) || r.programmesEnPhoto,
     contactRecu: r.id in e.contacts,
   };
+}
+
+function divisionPar(e: Etat, reference: string | null): DivisionFausse | null {
+  if (!reference) return null;
+  return (
+    Object.values(e.divisions).find((d) => d.id === reference || d.chemin === reference) ?? null
+  );
+}
+
+function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
+  const division = c.divisionId ? e.divisions[c.divisionId] : undefined;
+  return {
+    id: c.id,
+    institutionId: c.institutionId,
+    nom: c.nom,
+    etiquette: c.etiquette,
+    quartier: c.quartier,
+    division: division?.nom ?? null,
+    divisionId: division?.id ?? null,
+    publication: c.publication,
+    origine: c.origine,
+    retrait: c.retrait ?? null,
+    aSituer: c.position === null,
+    position: c.position,
+    confiee: c.confieeA
+      ? {
+          relaisId: c.confieeA,
+          prenom: c.confieeA === MOI ? '[Prénom]' : '[Relais en attente]',
+          note: c.noteMission,
+          genre: c.genreMission,
+        }
+      : null,
+    typeEcole: typeConnu(c.typeEcole ?? 'non_indique'),
+    niveaux: niveauxConnus(c.niveaux ?? []),
+    programme: c.programme ?? null,
+    repere: c.repere ?? null,
+    numeroEnseigne: c.numeroEnseigne ?? null,
+    formations: (c.formations ?? []).length,
+    verifieeLe: c.verifieeLe ?? null,
+  };
+}
+
+/** Une école d'un coup, comme `create_catalog_entry` : mêmes règles, mêmes messages. */
+function creerEntree(
+  e: Etat,
+  entree: EntreeCatalogue,
+  origine: Valeur<'origin_kind'>,
+): {
+  statut: 'creee' | 'existe';
+  institutionId: string | null;
+  campusIds: string[];
+  message: string | null;
+} {
+  const nom = entree.nom.trim();
+  if (nom === '') throw new ErreurDecision('Le nom de l’école est obligatoire.');
+  if (entree.campus.length === 0) {
+    throw new ErreurDecision(`Il faut au moins un campus (une implantation) : « ${nom} ».`);
+  }
+  if (entree.reference && Object.values(e.campus).some((c) => c.reference === entree.reference)) {
+    return {
+      statut: 'existe',
+      institutionId: null,
+      campusIds: [],
+      message: `Référence déjà importée : ${entree.reference}`,
+    };
+  }
+  const institutionId = crypto.randomUUID();
+  const campusIds: string[] = [];
+  const crees: CampusFaux[] = [];
+  for (const [i, c] of entree.campus.entries()) {
+    let division = divisionPar(e, c.division);
+    if (c.division && !division) {
+      throw new ErreurDecision(`Division inconnue : « ${c.division} » (école « ${nom} »).`);
+    }
+    if (division && division.niveau < 2) {
+      throw new ErreurDecision(
+        `Un campus se place dans une ville, un arrondissement ou un quartier (école « ${nom} »).`,
+      );
+    }
+    if (c.position && !division) division = divisionDeLaPosition(c.position, e);
+    const exacte = Object.values(e.campus).some(
+      (x) =>
+        i === 0 &&
+        division !== null &&
+        x.divisionId === division.id &&
+        SLUG(x.nom) === SLUG(nom) &&
+        SLUG(x.etiquette ?? '') === SLUG(c.etiquette ?? ''),
+    );
+    if (exacte)
+      return {
+        statut: 'existe',
+        institutionId: null,
+        campusIds: [],
+        message: `Déjà enregistrée : ${nom}`,
+      };
+    const id = crypto.randomUUID();
+    campusIds.push(id);
+    crees.push({
+      id,
+      institutionId,
+      nom,
+      etiquette: c.etiquette,
+      quartier: c.quartier,
+      publication: c.position && division ? 'prete' : 'brouillon',
+      origine,
+      position: c.position,
+      divisionId: division?.id ?? null,
+      confieeA: null,
+      noteMission: null,
+      genreMission: 'verify',
+      typeEcole: entree.genre,
+      niveaux: c.cycles.map((x) => x.cycle),
+      programme: c.programme,
+      repere: c.repere,
+      numeroEnseigne: c.numeroEnseigne,
+      formations: c.cycles.flatMap((x) => x.formations.map((f) => ({ ...f, cycle: x.cycle }))),
+      reference: i === 0 ? entree.reference : null,
+    });
+  }
+  for (const c of crees) e.campus[c.id] = c;
+  return { statut: 'creee', institutionId, campusIds, message: null };
 }
 
 const admin: PortAdministration = {
@@ -323,9 +655,10 @@ const admin: PortAdministration = {
   },
   async detailReleve(id) {
     await reseau();
-    const r = lireEtat().releves[id];
+    const e = lireEtat();
+    const r = e.releves[id];
     if (!r) throw new ErreurDecision('Relevé introuvable.');
-    const ligne = ligneDe(r, lireEtat());
+    const ligne = ligneDe(r, e);
     const d = decision(id);
     return {
       ...ligne,
@@ -334,22 +667,55 @@ const admin: PortAdministration = {
       niveaux: r.niveaux,
       typeEcole: r.typeEcole,
       programme: r.programme,
+      programmesVus: r.programmesVus,
+      programmesEnPhoto: r.programmesEnPhoto,
       repere: r.repere,
       numeroEnseigne: r.numeroEnseigne,
       direction: r.direction,
       repasser: r.repasser,
       doublonDe:
-        r.doublonDe && lireEtat().ecoles[r.doublonDe]
-          ? { id: r.doublonDe, nom: lireEtat().ecoles[r.doublonDe]?.nom ?? '' }
+        r.doublonDe && e.campus[r.doublonDe]
+          ? { id: r.doublonDe, nom: e.campus[r.doublonDe]?.nom ?? '' }
           : null,
       corrigeReleveId: r.corrigeReleveId,
       contactConfirmeLe: d.contactConfirmeLe,
       contactFonction: d.contactFonction,
+      essaiValideLe: d.essaiValideLe,
+      campusId: d.ecoleId,
+      campusNom: d.ecoleId ? (e.campus[d.ecoleId]?.nom ?? null) : null,
+      divisionNom: d.ecoleId
+        ? (e.campus[d.ecoleId]?.divisionId &&
+            e.divisions[e.campus[d.ecoleId]?.divisionId ?? '']?.nom) ||
+          null
+        : null,
+      campusPublie: d.ecoleId ? e.campus[d.ecoleId]?.publication === 'publiee' : false,
     };
   },
-  async photoReleve(id) {
+  async domaines() {
     await reseau();
-    return id in lireEtat().photos ? '/relais/icone-512.png' : null;
+    return [
+      { slug: 'informatique', nom: 'Informatique', ordre: 10 },
+      { slug: 'gestion', nom: 'Gestion', ordre: 20 },
+      { slug: 'btp', nom: 'BTP', ordre: 60 },
+      { slug: 'sante', nom: 'Santé', ordre: 100 },
+      { slug: 'sciences-technologies', nom: 'Sciences et technologies', ordre: 160 },
+      { slug: 'autre', nom: 'Autre', ordre: 999 },
+    ];
+  },
+  async photosReleve(id) {
+    await reseau();
+    return Object.values(lireEtat().photos)
+      .filter((p) => p.releveId === id)
+      .map((p) => ({
+        id: p.id,
+        role: p.role,
+        adresse: '/relais/icone-512.png',
+        octets: p.octets,
+        largeur: 1280,
+        hauteur: 960,
+        prisLe: null,
+        publiable: p.publiable,
+      }));
   },
   async contactReleve(id) {
     await reseau();
@@ -366,50 +732,118 @@ const admin: PortAdministration = {
         }
       : null;
   },
-  async accepter(id, ecoleId = null) {
+  async accepter(id, choix: DecisionAcceptation = {}) {
     await reseau();
-    const releve = lireEtat().releves[id];
-    if (decision(id).statut === 'refuse') {
+    const e0 = lireEtat();
+    const releve = e0.releves[id];
+    const avant = decision(id);
+    if (avant.statut === 'refuse') {
       throw new ErreurDecision(
         'Relevé refusé : un refus est définitif. Le relais peut envoyer une nouvelle fiche.',
       );
     }
-    const ecole = ecoleId ?? `ecole-${id}`;
-    decider(id, { statut: 'accepte', ecoleId: ecole, motif: null, message: null });
+    if (avant.statut === 'accepte' && avant.ecoleId) return avant.ecoleId;
+    if (releve && lotDe(releve.lotId, e0).essai) {
+      throw new ErreurDecision(
+        'Relevé du lot d’essai : il ne se publie jamais (le valider pour la paie d’essai).',
+      );
+    }
+    let cible = choix.campusId ?? null;
+    if (!cible && releve?.corrigeReleveId)
+      cible = e0.decisions[releve.corrigeReleveId]?.ecoleId ?? null;
+    if (!cible && releve?.type === 'contre_visite') cible = releve.doublonDe;
+    const mode =
+      choix.mode ??
+      (cible ? 'update_campus' : choix.institutionId ? 'new_campus' : 'new_institution');
+    if ((mode === 'update_campus' || mode === 'add_cycle') && !cible) {
+      throw new ErreurDecision('Il faut dire quel campus mettre à jour.');
+    }
+    if (mode === 'new_campus' && !choix.institutionId) {
+      throw new ErreurDecision('Il faut dire à quelle institution rattacher le nouveau campus.');
+    }
+    const campusId = cible ?? crypto.randomUUID();
     ecrire((e) => {
-      const visee = e.ecoles[ecole];
-      if (visee && releve) {
-        // Comme la base : une école à situer devient prête, une école publiée le reste ; « Pas indiqué »
-        // et « aucun niveau » n'effacent rien de ce que l'école sait déjà.
-        visee.nom = releve.nomEnseigne;
-        visee.position = releve.position ?? visee.position;
-        if (releve.typeEcole !== 'non_indique') visee.typeEcole = releve.typeEcole;
-        if (releve.niveaux.length > 0) visee.niveaux = releve.niveaux;
-        visee.programme = releve.programme ?? visee.programme ?? null;
-        visee.repere = releve.repere ?? visee.repere ?? null;
-        visee.numeroEnseigne = releve.numeroEnseigne ?? visee.numeroEnseigne ?? null;
-        if (visee.publication === 'brouillon') visee.publication = 'prete';
-        visee.confieeA = null;
-        visee.note = null;
+      const lot = lotDe(releve?.lotId, e);
+      const division =
+        (releve?.position ? divisionDeLaPosition(releve.position, e) : null) ??
+        e.divisions[lot.divisionId] ??
+        null;
+      const visee = e.campus[campusId];
+      if (mode === 'update_campus' || mode === 'add_cycle') {
+        if (visee && releve) {
+          if (mode === 'update_campus') {
+            // Comme la base : « Pas indiqué » et « aucun niveau » n'effacent rien ; une école à situer devient prête.
+            visee.nom = visee.etiquette ? visee.nom : releve.nomEnseigne;
+            visee.position = releve.position ?? visee.position;
+            if (releve.typeEcole !== 'non_indique') visee.typeEcole = releve.typeEcole;
+            visee.programme = releve.programme ?? visee.programme ?? null;
+          }
+          visee.niveaux = [...new Set([...(visee.niveaux ?? []), ...releve.niveaux])];
+          visee.repere = visee.repere ?? releve.repere;
+          visee.numeroEnseigne = visee.numeroEnseigne ?? releve.numeroEnseigne;
+          visee.divisionId = visee.divisionId ?? division?.id ?? null;
+          if (visee.publication === 'brouillon') visee.publication = 'prete';
+          visee.confieeA = null;
+          visee.noteMission = null;
+        }
       } else if (releve) {
-        e.ecoles[ecole] = {
-          id: ecole,
-          nom: releve.nomEnseigne,
+        const institution =
+          mode === 'new_campus'
+            ? (Object.values(e.campus).find((c) => c.institutionId === choix.institutionId)?.nom ??
+              releve.nomEnseigne)
+            : releve.nomEnseigne;
+        e.campus[campusId] = {
+          id: campusId,
+          institutionId: choix.institutionId ?? crypto.randomUUID(),
+          nom: institution,
+          etiquette: choix.etiquette ?? null,
           quartier: null,
           publication: 'prete',
+          origine: 'field',
           position: releve.position,
+          divisionId: division?.id ?? null,
           confieeA: null,
-          note: null,
+          noteMission: null,
+          genreMission: 'verify',
           lotId: releve.lotId,
           typeEcole: releve.typeEcole,
           niveaux: releve.niveaux,
           programme: releve.programme,
           repere: releve.repere,
           numeroEnseigne: releve.numeroEnseigne,
+          formations: [],
         };
       }
+      const campus = e.campus[campusId];
+      if (campus && choix.formations?.length) {
+        const deja = new Set((campus.formations ?? []).map((f) => `${f.cycle}|${SLUG(f.titre)}`));
+        for (const f of choix.formations) {
+          if (f.titre.trim() === '')
+            throw new ErreurDecision('Une formation sans titre : écris ce qui est affiché.');
+          if (deja.has(`${f.cycle}|${SLUG(f.titre)}`)) continue;
+          (campus.formations ??= []).push({ ...f, titre: f.titre.trim() });
+          if (!(campus.niveaux ?? []).includes(f.cycle))
+            campus.niveaux = [...(campus.niveaux ?? []), f.cycle];
+        }
+      }
+      // Une école déjà relevée par un autre relais, ou une correction, ne se paie pas.
+      const dejaAcceptee = Object.entries(e.decisions).some(
+        ([autre, d]) => autre !== id && d.statut === 'accepte' && d.ecoleId === campusId,
+      );
+      e.decisions[id] = {
+        ...avant,
+        statut: 'accepte',
+        ecoleId: campusId,
+        motif: null,
+        message: null,
+        payable: releve?.type !== 'correction' && !dejaAcceptee,
+      };
+      if (releve?.corrigeReleveId && e.decisions[releve.corrigeReleveId]) {
+        const o = e.decisions[releve.corrigeReleveId];
+        if (o) o.statut = 'accepte';
+      }
     });
-    return ecole;
+    return campusId;
   },
   async demanderCorrection(id, motif, message) {
     await reseau();
@@ -423,235 +857,14 @@ const admin: PortAdministration = {
     await reseau();
     decider(id, { contactConfirmeLe: new Date().toISOString(), contactFonction: fonction });
   },
-  async relais() {
+  async validerEssai(id) {
     await reseau();
     const e = lireEtat();
-    const fiches = Object.keys(e.releves).length;
-    return [
-      {
-        id: MOI,
-        prenom: '[Prénom]',
-        statut: e.statut,
-        lotId: LOT.id,
-        creeLe: '2026-10-31T08:00:00Z',
-        activeLe: '2026-10-31T09:00:00Z',
-        fiches,
-      },
-      {
-        id: AUTRE,
-        prenom: '[Relais en attente]',
-        statut: e.autreRelais.statut,
-        lotId: e.autreRelais.lotId,
-        creeLe: '2026-11-01T08:00:00Z',
-        activeLe: null,
-        fiches: 0,
-      },
-    ];
-  },
-  async lots() {
-    await reseau();
-    return LOTS.map((l) => ({ ...l, aRendreLe: null }));
-  },
-  async activerRelais(relaisId, lotId) {
-    await reseau();
-    if (relaisId === AUTRE) ecrire((e) => (e.autreRelais = { statut: 'actif', lotId }));
-    else ecrire((e) => (e.statut = 'actif'));
-  },
-  async suspendreRelais(relaisId) {
-    await reseau();
-    if (relaisId === AUTRE) ecrire((e) => (e.autreRelais.statut = 'suspendu'));
-    else ecrire((e) => (e.statut = 'suspendu'));
-  },
-  async ecoles() {
-    await reseau();
-    return Object.values(lireEtat().ecoles).map((e) => ({
-      id: e.id,
-      nom: e.nom,
-      quartier: e.quartier,
-      arrondissement: e.position
-        ? (OUVERTS.find((a) => a.id === (e.arrondissementId ?? 1))?.nom ?? LOT.nom)
-        : null,
-      arrondissementId: e.position ? (e.arrondissementId ?? 1) : null,
-      publication: e.publication,
-      retrait: e.retrait ?? null,
-      aSituer: e.position === null,
-      position: e.position,
-      confiee: e.confieeA
-        ? {
-            relaisId: e.confieeA,
-            prenom: e.confieeA === MOI ? '[Prénom]' : '[Relais en attente]',
-            note: e.note,
-          }
-        : null,
-      typeEcole: typeConnu(e.typeEcole ?? 'non_indique'),
-      niveaux: niveauxConnus(e.niveaux ?? []),
-      programme: e.programme ?? null,
-      repere: e.repere ?? null,
-      numeroEnseigne: e.numeroEnseigne ?? null,
-    }));
-  },
-  async modifierEcole(ecoleId, correction) {
-    await reseau();
-    if (!lireEtat().ecoles[ecoleId]) {
-      throw new ErreurDecision('École introuvable, ou modification refusée.');
+    const r = e.releves[id];
+    if (!r || !lotDe(r.lotId, e).essai) {
+      throw new ErreurDecision('Seul un relevé du lot d’essai, encore ouvert, se valide ainsi.');
     }
-    ecrire((e) => {
-      const ecole = e.ecoles[ecoleId];
-      if (!ecole) return;
-      if (correction.nom !== undefined) ecole.nom = correction.nom;
-      if (correction.typeEcole !== undefined) ecole.typeEcole = correction.typeEcole;
-      if (correction.niveaux !== undefined) ecole.niveaux = correction.niveaux;
-      if (correction.programme !== undefined) ecole.programme = correction.programme;
-      if (correction.repere !== undefined) ecole.repere = correction.repere;
-      if (correction.numeroEnseigne !== undefined) {
-        ecole.numeroEnseigne = correction.numeroEnseigne;
-      }
-    });
-  },
-  async confierEcole(ecoleId, relaisId, note) {
-    await reseau();
-    const e = lireEtat();
-    const actif = relaisId === MOI ? e.statut === 'actif' : e.autreRelais.statut === 'actif';
-    if (!actif) throw new ErreurDecision('Ce relais n’est pas actif : l’activer d’abord.');
-    ecrire((etat) => {
-      const ecole = etat.ecoles[ecoleId];
-      if (ecole) Object.assign(ecole, { confieeA: relaisId, note });
-    });
-  },
-  async reprendreEcole(ecoleId) {
-    await reseau();
-    ecrire((etat) => {
-      const ecole = etat.ecoles[ecoleId];
-      if (ecole) Object.assign(ecole, { confieeA: null, note: null });
-    });
-  },
-  async arrondissements() {
-    await reseau();
-    return OUVERTS;
-  },
-  async situerEcole(ecoleId, position) {
-    await reseau();
-    const arrondissement = ouvertDe(position);
-    const ecole = lireEtat().ecoles[ecoleId];
-    if (!ecole) throw new ErreurDecision('École introuvable.');
-    if (ecole.publication === 'retiree') {
-      throw new ErreurDecision('Une école retirée ne se modifie plus : la republier d’abord.');
-    }
-    if (ecole.publication === 'publiee' && (ecole.arrondissementId ?? 1) !== arrondissement.id) {
-      throw new ErreurDecision(
-        `Cette position est à ${arrondissement.nom}, pas dans l’arrondissement de la fiche : son adresse publique changerait.`,
-      );
-    }
-    ecrire((e) => {
-      const visee = e.ecoles[ecoleId];
-      if (!visee) return;
-      visee.position = position;
-      visee.arrondissementId = arrondissement.id;
-      if (visee.publication === 'brouillon') visee.publication = 'prete';
-    });
-    return arrondissement.nom;
-  },
-  async ajouterEcole(nouvelle) {
-    await reseau();
-    const arrondissement = nouvelle.position ? ouvertDe(nouvelle.position) : null;
-    if (!nouvelle.nom.trim()) throw new ErreurDecision('Le nom ne donne aucune adresse.');
-    const id = crypto.randomUUID();
-    ecrire((e) => {
-      e.ecoles[id] = {
-        id,
-        nom: nouvelle.nom.trim(),
-        quartier: nouvelle.quartier,
-        publication: arrondissement ? 'prete' : 'brouillon',
-        position: nouvelle.position,
-        arrondissementId: arrondissement?.id ?? null,
-        confieeA: null,
-        note: null,
-        typeEcole: nouvelle.typeEcole,
-        niveaux: nouvelle.niveaux,
-        programme: nouvelle.programme,
-        repere: nouvelle.repere,
-        numeroEnseigne: nouvelle.numeroEnseigne,
-      };
-    });
-    return id;
-  },
-  async publierEcole(ecoleId) {
-    await reseau();
-    const ecole = lireEtat().ecoles[ecoleId];
-    if (
-      !ecole ||
-      !['prete', 'retiree'].includes(ecole.publication) ||
-      ecole.retrait?.remplaceePar
-    ) {
-      throw new ErreurDecision('Seule une école prête ou retirée se publie.');
-    }
-    ecrire((e) =>
-      Object.assign(e.ecoles[ecoleId] ?? {}, { publication: 'publiee', retrait: null }),
-    );
-  },
-  async publierArrondissement() {
-    await reseau();
-    let n = 0;
-    ecrire((e) => {
-      for (const ecole of Object.values(e.ecoles)) {
-        if (ecole.publication === 'prete' && ecole.position) {
-          ecole.publication = 'publiee';
-          n++;
-        }
-      }
-    });
-    return n;
-  },
-  async publierLot(lotId) {
-    await reseau();
-    let n = 0;
-    ecrire((e) => {
-      for (const ecole of Object.values(e.ecoles)) {
-        if (ecole.publication === 'prete' && ecole.lotId === lotId) {
-          ecole.publication = 'publiee';
-          n++;
-        }
-      }
-    });
-    return n;
-  },
-  async retirerEcole(ecoleId, motif, note) {
-    await reseau();
-    const ecole = lireEtat().ecoles[ecoleId];
-    if (!ecole || !['prete', 'publiee'].includes(ecole.publication)) {
-      throw new ErreurDecision('Seule une école prête ou publiée se retire.');
-    }
-    ecrire((e) =>
-      Object.assign(e.ecoles[ecoleId] ?? {}, {
-        publication: 'retiree',
-        retrait: { motif, le: new Date().toISOString(), note, remplaceePar: null },
-        confieeA: null,
-      }),
-    );
-  },
-  async fusionnerEcoles(doublonId, gardeeId) {
-    await reseau();
-    ecrire((e) =>
-      Object.assign(e.ecoles[doublonId] ?? {}, {
-        publication: 'retiree',
-        retrait: {
-          motif: 'doublon',
-          le: new Date().toISOString(),
-          note: null,
-          remplaceePar: gardeeId,
-        },
-      }),
-    );
-  },
-  async effacerContact(releveId) {
-    await reseau();
-    if (!(releveId in lireEtat().contacts))
-      throw new ErreurDecision('Aucun contact pour ce relevé.');
-    ecrire((e) => delete e.contacts[releveId]);
-  },
-  async effacerPhoto(releveId) {
-    await reseau();
-    ecrire((e) => delete e.photos[releveId]);
+    decider(id, { essaiValideLe: new Date().toISOString() });
   },
   async relevesDecides() {
     await reseau();
@@ -664,7 +877,7 @@ const admin: PortAdministration = {
           id: r.id,
           nomEnseigne: r.nomEnseigne,
           relais: '[Prénom]',
-          lot: LOT.nom,
+          lot: lotDe(r.lotId, e).nom,
           type: r.type,
           statut: d?.statut ?? 'a_valider',
           decideLe: new Date().toISOString(),
@@ -672,6 +885,519 @@ const admin: PortAdministration = {
           messageAuRelais: d?.message ?? null,
         };
       });
+  },
+  async effacerContact(releveId) {
+    await reseau();
+    if (!(releveId in lireEtat().contacts))
+      throw new ErreurDecision('Aucun contact pour ce relevé.');
+    ecrire((e) => delete e.contacts[releveId]);
+  },
+  async effacerPhoto(photoId) {
+    await reseau();
+    if (!(photoId in lireEtat().photos)) throw new ErreurDecision('Photo introuvable.');
+    ecrire((e) => delete e.photos[photoId]);
+  },
+  async marquerPhotoPubliable(photoId, publiable) {
+    await reseau();
+    ecrire((e) => {
+      const p = e.photos[photoId];
+      if (p) p.publiable = publiable;
+    });
+  },
+
+  async relais() {
+    await reseau();
+    const e = lireEtat();
+    const siennes = Object.values(e.releves);
+    const d = (id: string) => e.decisions[id]?.statut ?? 'a_valider';
+    return [
+      {
+        id: MOI,
+        prenom: '[Prénom]',
+        statut: e.statut,
+        lotId: LOT.id,
+        creeLe: '2026-10-31T08:00:00Z',
+        activeLe: '2026-10-31T09:00:00Z',
+        fiches: siennes.length,
+        compteurs: {
+          envoyees: siennes.length,
+          aValider: siennes.filter((r) => d(r.id) === 'a_valider').length,
+          aCorriger: siennes.filter((r) => d(r.id) === 'a_corriger').length,
+          acceptees: siennes.filter((r) => d(r.id) === 'accepte' && r.type !== 'correction').length,
+          refusees: siennes.filter((r) => d(r.id) === 'refuse').length,
+          contactsConfirmes: siennes.filter((r) => e.decisions[r.id]?.contactConfirmeLe).length,
+        },
+      },
+      {
+        id: AUTRE,
+        prenom: '[Relais en attente]',
+        statut: e.autreRelais.statut,
+        lotId: e.autreRelais.lotId,
+        creeLe: '2026-11-01T08:00:00Z',
+        activeLe: null,
+        fiches: 0,
+        compteurs: {
+          envoyees: 0,
+          aValider: 0,
+          aCorriger: 0,
+          acceptees: 0,
+          refusees: 0,
+          contactsConfirmes: 0,
+        },
+      },
+    ];
+  },
+  async lots() {
+    await reseau();
+    const e = lireEtat();
+    return e.lots.map((l) => {
+      const division = e.divisions[l.divisionId];
+      return {
+        id: l.id,
+        nom: l.nom,
+        essai: l.essai,
+        aRendreLe: l.aRendreLe,
+        divisionId: l.divisionId,
+        divisionNom: division?.nom ?? '',
+        divisionChemin: division?.chemin ?? '',
+      };
+    });
+  },
+  async creerLot(nom, divisionId, aRendreLe, essai) {
+    await reseau();
+    const e0 = lireEtat();
+    const division = e0.divisions[divisionId];
+    if (nom.trim() === '') throw new ErreurDecision('Le lot a besoin d’un nom.');
+    if (!division || division.niveau < 2) {
+      throw new ErreurDecision(
+        'Un lot se pose sur une ville, un arrondissement ou un quartier, pas sur un pays ni un département.',
+      );
+    }
+    if (e0.lots.some((l) => l.nom === nom.trim()))
+      throw new ErreurDecision('Le nom d’un lot est unique.');
+    const id = crypto.randomUUID();
+    ecrire((e) => e.lots.push({ id, nom: nom.trim(), essai, aRendreLe, divisionId }));
+    return id;
+  },
+  async activerRelais(relaisId, lotId) {
+    await reseau();
+    if (relaisId === AUTRE) ecrire((e) => (e.autreRelais = { statut: 'actif', lotId }));
+    else ecrire((e) => (e.statut = 'actif'));
+  },
+  async suspendreRelais(relaisId) {
+    await reseau();
+    if (relaisId === AUTRE) ecrire((e) => (e.autreRelais.statut = 'suspendu'));
+    else ecrire((e) => (e.statut = 'suspendu'));
+  },
+  async divisions() {
+    await reseau();
+    const e = lireEtat();
+    const campus = Object.values(e.campus);
+    return Object.values(e.divisions).map((d): DivisionVue => {
+      const dessous = (x: CampusFaux) => {
+        const cd = x.divisionId ? e.divisions[x.divisionId] : null;
+        return (
+          cd !== null &&
+          cd !== undefined &&
+          (cd.chemin === d.chemin || cd.chemin.startsWith(`${d.chemin}.`))
+        );
+      };
+      const siens = campus.filter(dessous);
+      return {
+        id: d.id,
+        parentId: d.parentId,
+        niveau: d.niveau,
+        genre: d.genre,
+        nom: d.nom,
+        slug: d.slug,
+        chemin: d.chemin,
+        ouverte: d.ouverte,
+        ecoles: siens.length,
+        publiees: siens.filter((x) => x.publication === 'publiee').length,
+        relevees: siens.filter((x) => x.origine === 'field').length,
+        ajoutees: siens.filter((x) => x.origine === 'admin').length,
+        importees: siens.filter((x) => x.origine === 'import').length,
+      };
+    });
+  },
+  async ouvrirZone(divisionId, ouverte) {
+    await reseau();
+    if (!lireEtat().divisions[divisionId]) throw new ErreurDecision('Division introuvable.');
+    ecrire((e) => {
+      const d = e.divisions[divisionId];
+      if (d) d.ouverte = ouverte;
+    });
+  },
+  async ajouterDivision(parentId, genre, nom, adresse) {
+    await reseau();
+    const parent = lireEtat().divisions[parentId];
+    if (!parent) throw new ErreurDecision('Division parente introuvable.');
+    const slug = SLUG(adresse || nom);
+    if (nom.trim() === '' || slug === '') throw new ErreurDecision('Il faut un nom.');
+    const niveau = parent.niveau + 1;
+    const permis: Record<number, Valeur<'geo_kind'>[]> = {
+      1: ['department', 'region'],
+      2: ['city', 'commune', 'district'],
+      3: ['arrondissement'],
+      4: ['quarter', 'zone'],
+    };
+    if (!permis[niveau]?.includes(genre)) {
+      throw new ErreurDecision(
+        'Le genre doit correspondre au niveau (un « quartier » n’est pas de niveau 3).',
+      );
+    }
+    const chemin = `${parent.chemin}.${slug.replace(/-/g, '_')}`;
+    if (Object.values(lireEtat().divisions).some((d) => d.chemin === chemin)) {
+      throw new ErreurDecision('Deux divisions d’un même parent n’ont pas la même adresse.');
+    }
+    const id = crypto.randomUUID();
+    ecrire(
+      (e) =>
+        (e.divisions[id] = div(
+          id,
+          parentId,
+          niveau,
+          genre,
+          nom.trim(),
+          slug,
+          chemin,
+          parent.ouverte,
+        )),
+    );
+    return id;
+  },
+
+  async ecoles() {
+    await reseau();
+    const e = lireEtat();
+    return Object.values(e.campus).map((c) => vueDeCampus(c, e));
+  },
+  async institutions() {
+    await reseau();
+    const e = lireEtat();
+    const parInstitution = new Map<string, CampusFaux[]>();
+    for (const c of Object.values(e.campus)) {
+      parInstitution.set(c.institutionId, [...(parInstitution.get(c.institutionId) ?? []), c]);
+    }
+    return [...parInstitution.entries()].map(([id, liste]) => ({
+      id,
+      nom: liste[0]?.nom ?? '',
+      genre: typeConnu(liste[0]?.typeEcole ?? 'non_indique'),
+      campus: liste.map((c) => ({
+        id: c.id,
+        etiquette: c.etiquette,
+        division: c.divisionId ? (e.divisions[c.divisionId]?.nom ?? null) : null,
+        publication: c.publication,
+      })),
+    }));
+  },
+  async creerEcole(entree) {
+    await reseau();
+    // D'abord sur une copie : les erreurs de validation remontent sans rien écrire.
+    const resultat = creerEntree(lireEtat(), entree, 'admin');
+    ecrire((e) => void creerEntree(e, entree, 'admin'));
+    return resultat;
+  },
+  async importerEcoles(entrees, simulation) {
+    await reseau();
+    const rapport: RapportImport = {
+      simulation,
+      total: entrees.length,
+      creees: 0,
+      existantes: 0,
+      erreurs: [],
+    };
+    if (entrees.length > 1000)
+      throw new ErreurDecision('Au plus mille écoles par importation : couper la liste.');
+    const e = lireEtat();
+    for (const [i, entree] of entrees.entries()) {
+      try {
+        const r = creerEntree(e, entree, 'import');
+        if (r.statut === 'creee') rapport.creees++;
+        else rapport.existantes++;
+      } catch (erreur) {
+        rapport.erreurs.push({
+          ligne: i + 1,
+          nom: entree.nom || null,
+          message: erreur instanceof Error ? erreur.message : 'erreur',
+        });
+      }
+    }
+    if (!simulation) localStorage.setItem(CLE, JSON.stringify(e));
+    return rapport;
+  },
+  async modifierEcole(ecoleId, correction) {
+    await reseau();
+    if (!lireEtat().campus[ecoleId]) {
+      throw new ErreurDecision('École introuvable, ou modification refusée.');
+    }
+    ecrire((e) => {
+      const ecole = e.campus[ecoleId];
+      if (!ecole) return;
+      if (correction.nom !== undefined) ecole.nom = correction.nom;
+      if (correction.typeEcole !== undefined) ecole.typeEcole = correction.typeEcole;
+      if (correction.niveaux !== undefined) ecole.niveaux = correction.niveaux;
+      if (correction.programme !== undefined) ecole.programme = correction.programme;
+      if (correction.repere !== undefined) ecole.repere = correction.repere;
+      if (correction.numeroEnseigne !== undefined) ecole.numeroEnseigne = correction.numeroEnseigne;
+    });
+  },
+  async confierEcole(ecoleId, relaisId, genre, note) {
+    await reseau();
+    const e = lireEtat();
+    const actif = relaisId === MOI ? e.statut === 'actif' : e.autreRelais.statut === 'actif';
+    if (!actif) throw new ErreurDecision('Ce relais n’est pas actif : l’activer d’abord.');
+    ecrire((etat) => {
+      const ecole = etat.campus[ecoleId];
+      if (ecole)
+        Object.assign(ecole, { confieeA: relaisId, noteMission: note, genreMission: genre });
+    });
+  },
+  async reprendreEcole(ecoleId) {
+    await reseau();
+    ecrire((etat) => {
+      const ecole = etat.campus[ecoleId];
+      if (ecole) Object.assign(ecole, { confieeA: null, noteMission: null });
+    });
+  },
+  async situerEcole(ecoleId, position, divisionId = null) {
+    await reseau();
+    const e0 = lireEtat();
+    const choisie = divisionId ? e0.divisions[divisionId] : undefined;
+    const trouvee = choisie ?? divisionDeLaPosition(position, e0) ?? undefined;
+    const ecole = e0.campus[ecoleId];
+    if (!ecole) throw new ErreurDecision('École introuvable.');
+    if (ecole.publication === 'retiree') {
+      throw new ErreurDecision('Une école retirée ne se modifie plus : la republier d’abord.');
+    }
+    const division = trouvee ?? (ecole.divisionId ? e0.divisions[ecole.divisionId] : undefined);
+    if (!division)
+      throw new ErreurDecision(
+        'Cette position n’est dans aucune division connue : choisis la division.',
+      );
+    if (ecole.publication === 'publiee' && ecole.divisionId !== division.id) {
+      throw new ErreurDecision(
+        `Cette position est à ${division.nom}, pas dans la division de la fiche : son adresse publique changerait.`,
+      );
+    }
+    ecrire((e) => {
+      const visee = e.campus[ecoleId];
+      if (!visee) return;
+      visee.position = position;
+      visee.divisionId = division.id;
+      if (visee.publication === 'brouillon') visee.publication = 'prete';
+    });
+    return division.nom;
+  },
+  async publierEcole(ecoleId) {
+    await reseau();
+    const ecole = lireEtat().campus[ecoleId];
+    if (
+      !ecole ||
+      !['prete', 'retiree'].includes(ecole.publication) ||
+      ecole.retrait?.remplaceePar
+    ) {
+      throw new ErreurDecision(
+        'Seul un campus prêt ou retiré se publie (un campus à situer attend sa position).',
+      );
+    }
+    ecrire((e) =>
+      Object.assign(e.campus[ecoleId] ?? {}, { publication: 'publiee', retrait: null }),
+    );
+  },
+  async publierDivision(divisionId) {
+    await reseau();
+    const e0 = lireEtat();
+    const racine = e0.divisions[divisionId];
+    let n = 0;
+    ecrire((e) => {
+      for (const ecole of Object.values(e.campus)) {
+        const d = ecole.divisionId ? e.divisions[ecole.divisionId] : null;
+        const dedans =
+          racine && d && (d.chemin === racine.chemin || d.chemin.startsWith(`${racine.chemin}.`));
+        if (ecole.publication === 'prete' && ecole.position && dedans) {
+          ecole.publication = 'publiee';
+          n++;
+        }
+      }
+    });
+    return n;
+  },
+  async publierLot(lotId) {
+    await reseau();
+    let n = 0;
+    ecrire((e) => {
+      for (const ecole of Object.values(e.campus)) {
+        if (ecole.publication === 'prete' && ecole.lotId === lotId) {
+          ecole.publication = 'publiee';
+          n++;
+        }
+      }
+    });
+    return n;
+  },
+  async retirerEcole(ecoleId, motif, note) {
+    await reseau();
+    const ecole = lireEtat().campus[ecoleId];
+    if (!ecole || !['prete', 'publiee'].includes(ecole.publication)) {
+      throw new ErreurDecision('Seul un campus prêt ou publié se retire.');
+    }
+    ecrire((e) =>
+      Object.assign(e.campus[ecoleId] ?? {}, {
+        publication: 'retiree',
+        retrait: { motif, le: new Date().toISOString(), note, remplaceePar: null },
+        confieeA: null,
+      }),
+    );
+  },
+  async fusionnerEcoles(doublonId, gardeeId) {
+    await reseau();
+    ecrire((e) =>
+      Object.assign(e.campus[doublonId] ?? {}, {
+        publication: 'retiree',
+        retrait: {
+          motif: 'doublon',
+          le: new Date().toISOString(),
+          note: null,
+          remplaceePar: gardeeId,
+        },
+      }),
+    );
+  },
+
+  async enregistrerVerification(campusId, accordLe) {
+    await reseau();
+    const e = lireEtat();
+    const accepte = Object.values(e.decisions).some(
+      (d) => d.statut === 'accepte' && d.ecoleId === campusId,
+    );
+    if (!accepte) {
+      throw new ErreurDecision(
+        'Aucun relais n’a constaté ce campus sur place : le badge « Vérifié » exige les deux.',
+      );
+    }
+    if (!accordLe || new Date(accordLe).getTime() > Date.now() + 86_400_000) {
+      throw new ErreurDecision('Il faut la date de l’accord de la direction, pas dans le futur.');
+    }
+    ecrire((s) => {
+      const c = s.campus[campusId];
+      if (c) c.verifieeLe = accordLe;
+    });
+  },
+  async noterMessageEnvoye(campusId) {
+    await reseau();
+    ecrire((e) => (e.messages[campusId] ??= new Date().toISOString()));
+  },
+
+  async apercuPaie(vendredi) {
+    await reseau();
+    const e = lireEtat();
+    const lignes = new Map<string, { fiches: number; contacts: number; essais: number }>();
+    const ligne = () => lignes.get(MOI) ?? { fiches: 0, contacts: 0, essais: 0 };
+    for (const r of Object.values(e.releves)) {
+      const d = e.decisions[r.id];
+      if (!d || e.paie.deja.includes(`${r.id}|fiche`)) continue;
+      const essai = lotDe(r.lotId, e).essai;
+      if (!essai && d.statut === 'accepte' && d.payable && r.type !== 'correction') {
+        lignes.set(MOI, { ...ligne(), fiches: ligne().fiches + 1 });
+      }
+      if (
+        !essai &&
+        d.statut === 'accepte' &&
+        d.contactConfirmeLe &&
+        d.contactFonction !== 'secretariat' &&
+        !e.paie.deja.includes(`${r.id}|contact`)
+      ) {
+        lignes.set(MOI, { ...ligne(), contacts: ligne().contacts + 1 });
+      }
+    }
+    const validesEssai = Object.values(e.releves).filter(
+      (r) => lotDe(r.lotId, e).essai && e.decisions[r.id]?.essaiValideLe,
+    ).length;
+    if (validesEssai >= 3 && !e.paie.deja.includes('essai')) {
+      lignes.set(MOI, { ...ligne(), essais: 1 });
+    }
+    void vendredi;
+    return [...lignes.entries()].map(([relaisId, l]) => ({
+      relaisId,
+      prenom: '[Prénom]',
+      fiches: l.fiches,
+      contacts: l.contacts,
+      essais: l.essais,
+      totalXaf: l.fiches * 500 + l.contacts * 300 + l.essais * 1500,
+      numeroConnu: relaisId in e.paie.numeros,
+    }));
+  },
+  async cloturerPaie(vendredi) {
+    await reseau();
+    const e0 = lireEtat();
+    if (new Date(`${vendredi}T12:00:00Z`).getUTCDay() !== 5)
+      throw new ErreurDecision('La semaine se clôt un vendredi.');
+    if (e0.paie.semaines.some((s) => s.vendredi === vendredi)) {
+      throw new ErreurDecision(`La semaine du ${vendredi} est déjà clôturée.`);
+    }
+    const lignes = (await admin.apercuPaie(vendredi)).map((l) => ({
+      relaisId: l.relaisId,
+      prenom: l.prenom,
+      fiches: l.fiches,
+      contacts: l.contacts,
+      essais: l.essais,
+      totalXaf: l.totalXaf,
+    }));
+    const id = crypto.randomUUID();
+    ecrire((e) => {
+      e.paie.semaines.push({ id, vendredi, lignes, payes: {} });
+      for (const r of Object.values(e.releves)) {
+        if (e.decisions[r.id]?.statut === 'accepte')
+          e.paie.deja.push(`${r.id}|fiche`, `${r.id}|contact`);
+      }
+      if (lignes.some((l) => l.essais > 0)) e.paie.deja.push('essai');
+    });
+    return id;
+  },
+  async semainesPaie() {
+    await reseau();
+    return lireEtat().paie.semaines.map((s) => ({
+      id: s.id,
+      vendredi: s.vendredi,
+      totalXaf: s.lignes.reduce((t, l) => t + l.totalXaf, 0),
+      relais: s.lignes.length,
+      payes: Object.keys(s.payes).length,
+    }));
+  },
+  async paiementsDeLaSemaine(semaineId) {
+    await reseau();
+    const e = lireEtat();
+    const semaine = e.paie.semaines.find((s) => s.id === semaineId);
+    if (!semaine) throw new ErreurDecision('Semaine introuvable.');
+    return semaine.lignes.map((l) => ({
+      relaisId: l.relaisId,
+      prenom: l.prenom,
+      totalXaf: l.totalXaf,
+      fiches: l.fiches,
+      contacts: l.contacts,
+      essais: l.essais,
+      operateur: e.paie.numeros[l.relaisId]?.operateur ?? null,
+      numero: e.paie.numeros[l.relaisId]?.numero ?? null,
+      payeLe: semaine.payes[l.relaisId]?.le ?? null,
+      reference: semaine.payes[l.relaisId]?.reference ?? null,
+    }));
+  },
+  async noterPaye(semaineId, relaisId, reference) {
+    await reseau();
+    if (reference.trim() === '')
+      throw new ErreurDecision('Il faut la référence de l’opération Mobile Money.');
+    const semaine = lireEtat().paie.semaines.find((s) => s.id === semaineId);
+    if (!semaine || relaisId in semaine.payes)
+      throw new ErreurDecision('Paiement introuvable ou déjà noté.');
+    ecrire((e) => {
+      const s = e.paie.semaines.find((x) => x.id === semaineId);
+      if (s) s.payes[relaisId] = { le: new Date().toISOString(), reference: reference.trim() };
+    });
+  },
+  async enregistrerMobileMoney(relaisId, operateur, numero) {
+    await reseau();
+    ecrire((e) => (e.paie.numeros[relaisId] = { operateur, numero }));
   },
 };
 

@@ -9,6 +9,7 @@
  *   « Accueil sur ordinateur » du canevas).
  */
 import { dansContour, type MultiPolygone, type Point } from '../geo';
+import { lienEcole } from '../geo-divisions';
 import { provenanceDe, type Provenance } from '../libelles';
 import donnees from './pointe-noire.json';
 import {
@@ -215,7 +216,8 @@ export function surCarte(
   ecoles: readonly {
     id: string;
     nom: string;
-    arrondissement: string;
+    etiquette?: string | null;
+    adresse: string[];
     slug: string;
     etat: 'verifiee' | 'relevee';
     releveeLe: string | null;
@@ -226,8 +228,9 @@ export function surCarte(
 ): EcoleSurCarte[] {
   return situees(ecoles).map((e) => ({
     id: e.id,
-    nom: e.nom,
-    lien: `/ecoles/${e.arrondissement}/${e.slug}/`,
+    // Deux implantations d'une même école se distinguent sur la carte par leur étiquette.
+    nom: e.etiquette ? `${e.nom} (${e.etiquette})` : e.nom,
+    lien: lienEcole(e),
     etat: provenanceDe(e),
     latitude: e.latitude,
     longitude: e.longitude,

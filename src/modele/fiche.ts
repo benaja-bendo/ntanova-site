@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { listes, niveauxConnus, typeConnu, type Valeur } from './listes';
 import type { Point } from './geo';
-import type { ContactAEnvoyer, EcoleACompleter, ReleveAEnvoyer } from './ports';
+import type { ContactAEnvoyer, EcoleACompleter, PhotoAEnvoyer, ReleveAEnvoyer } from './ports';
 import { normaliserTelephone } from './telephone';
 
 export interface ContactSaisi {
@@ -18,6 +18,32 @@ export interface ContactSaisi {
   note: string;
 }
 
+/** Une photo gardée dans le téléphone (IndexedDB), déjà allégée à moins de 200 Ko. */
+export interface PhotoLocale {
+  /** Créé sur le téléphone : l'envoi se rejoue sans doublon. */
+  id: string;
+  role: Valeur<'photo_role'>;
+  /** Effacée du téléphone dès que la base l'a reçue. */
+  blob: Blob | null;
+  mime: 'image/webp' | 'image/jpeg';
+  octets: number;
+  largeur: number;
+  hauteur: number;
+  prisLe: string;
+  envoyee: boolean;
+}
+
+/** L'enseigne est la seule photo obligatoire ; on peut en ajouter trois autres au plus. */
+export const PHOTOS_FACULTATIVES_MAX = 3;
+
+/** Les niveaux pour lesquels l'enseigne ou un panneau annonce des séries, des filières ou des formations. */
+export const NIVEAUX_AVEC_FORMATIONS: readonly Valeur<'niveau'>[] = [
+  'lycee',
+  'technique',
+  'superieur',
+  'autre_formation',
+];
+
 export interface FicheLocale {
   id: string;
   creeeLe: string;
@@ -25,9 +51,12 @@ export interface FicheLocale {
   corrigeReleveId: string | null;
   lotId: string | null;
 
-  // 1/3 : photo et position
-  /** Effacée du téléphone dès que la base l'a reçue. */
-  photo: Blob | null;
+  // 1/3 : photos et position
+  /**
+   * L'enseigne (obligatoire) et jusqu'à trois autres photos : panneau des formations, prospectus,
+   * vue du bâtiment. Absente des fiches d'avant : la base du téléphone la remplit à la mise à jour.
+   */
+  photos: PhotoLocale[];
   position: Point | null;
   precisionM: number | null;
   prisLe: string | null;
@@ -46,6 +75,13 @@ export interface FicheLocale {
    * avec `?? ''`.
    */
   programme?: string;
+  /**
+   * Les séries, filières ou formations lues sur l'enseigne (« séries C et D, BTS gestion »), pour un lycée,
+   * un établissement technique ou professionnel, du supérieur ou une autre formation. Facultatif.
+   */
+  programmesVus?: string;
+  /** Les formations sont sur un panneau, une affiche ou un prospectus pris en photo. */
+  programmesEnPhoto?: boolean;
   repere: string;
   numeroEnseigne: string;
 
@@ -73,7 +109,7 @@ export function nouvelleFiche(
     type: corrige ? 'correction' : 'releve',
     corrigeReleveId: corrige?.releveId ?? null,
     lotId,
-    photo: null,
+    photos: [],
     position: null,
     precisionM: null,
     prisLe: null,
@@ -86,6 +122,8 @@ export function nouvelleFiche(
     // Jamais « Privée » d'avance : un relais pressé déclarerait privée une école publique.
     typeEcole: 'non_indique',
     programme: '',
+    programmesVus: '',
+    programmesEnPhoto: false,
     repere: '',
     numeroEnseigne: '',
     direction: null,
@@ -124,6 +162,40 @@ export function nouvelleContreVisite(
   };
 }
 
+// Les photos ---------------------------------------------------------------------
+
+/** La photo de l'enseigne, la seule obligatoire. */
+export function photoEnseigne(fiche: FicheLocale): PhotoLocale | undefined {
+  return fiche.photos.find((p) => p.role === 'signboard');
+}
+
+/** Les photos en plus de l'enseigne. */
+export function photosFacultatives(fiche: FicheLocale): PhotoLocale[] {
+  return fiche.photos.filter((p) => p.role !== 'signboard');
+}
+
+export function peutAjouterPhoto(fiche: FicheLocale): boolean {
+  return photosFacultatives(fiche).length < PHOTOS_FACULTATIVES_MAX;
+}
+
+/** Ajoute une photo ; une seconde « enseigne » remplace la première ; au plus trois photos en plus. */
+export function avecPhoto(fiche: FicheLocale, photo: PhotoLocale): FicheLocale {
+  if (photo.role === 'signboard') {
+    return { ...fiche, photos: [photo, ...fiche.photos.filter((p) => p.role !== 'signboard')] };
+  }
+  if (!peutAjouterPhoto(fiche)) return fiche;
+  return { ...fiche, photos: [...fiche.photos, photo] };
+}
+
+export function sansPhoto(fiche: FicheLocale, id: string): FicheLocale {
+  return { ...fiche, photos: fiche.photos.filter((p) => p.id !== id) };
+}
+
+/** Faut-il demander les séries et filières ? Seulement si un niveau coché en annonce. */
+export function demandeLesFormations(niveaux: readonly Valeur<'niveau'>[]): boolean {
+  return niveaux.some((n) => NIVEAUX_AVEC_FORMATIONS.includes(n));
+}
+
 export function contactVide(): ContactSaisi {
   return { fonction: null, nom: '', whatsapp: '', accord: false, accordLe: null, note: '' };
 }
@@ -145,7 +217,11 @@ export function erreursDe(resultat: z.ZodSafeParseResult<unknown>): Erreurs {
 
 const etape1 = z
   .object({
-    photo: z.custom<Blob>((v) => v != null, { message: "Ajoutez la photo de l'enseigne." }),
+    // Seule l'enseigne est obligatoire ; les autres photos sont facultatives.
+    photos: z.custom<PhotoLocale[]>(
+      (v) => Array.isArray(v) && v.some((p: PhotoLocale) => p.role === 'signboard'),
+      { message: "Ajoutez la photo de l'enseigne." },
+    ),
     doublonPropose: z.unknown(),
     reponseDoublon: z.unknown(),
   })
@@ -156,7 +232,13 @@ const etape1 = z
 
 /** La position n'est pas exigée : si le GPS échoue, le relais peut continuer, et NTanova le voit. */
 export function erreursEtape1(fiche: FicheLocale): Erreurs {
-  return erreursDe(etape1.safeParse(fiche));
+  const erreurs = erreursDe(etape1.safeParse(fiche));
+  // L'erreur de l'enseigne s'affiche sous la photo, qui s'appelait `photo` avant les photos multiples.
+  if (erreurs.photos) {
+    erreurs.photo = erreurs.photos;
+    delete erreurs.photos;
+  }
+  return erreurs;
 }
 
 const telephoneFacultatif = (message: string) =>
@@ -173,6 +255,7 @@ const etape2 = z.object({
   niveaux: z.array(z.enum(listes.niveau, { message: 'Choisissez les niveaux dans la liste.' })),
   typeEcole: z.enum(listes.type_ecole, { message: 'Choisissez un type d’école dans la liste.' }),
   programme: z.string().max(200, 'Cette ligne est trop longue.').optional(),
+  programmesVus: z.string().max(600, 'Cette liste est trop longue.').optional(),
   repere: z.string().max(300, 'Ce repère est trop long.'),
   numeroEnseigne: telephoneFacultatif('Ce numéro ne semble pas complet.'),
 });
@@ -239,11 +322,37 @@ export function versReleve(fiche: FicheLocale): ReleveAEnvoyer {
     niveaux: fiche.niveaux,
     typeEcole: fiche.typeEcole,
     programme: vide(fiche.programme ?? ''),
+    // Les séries ou filières ne se gardent que si un niveau coché en annonce : une fiche corrigée ne traîne pas
+    // une note devenue sans objet.
+    programmesVus: demandeLesFormations(fiche.niveaux) ? vide(fiche.programmesVus ?? '') : null,
+    programmesEnPhoto: demandeLesFormations(fiche.niveaux) && (fiche.programmesEnPhoto ?? false),
     repere: vide(fiche.repere),
     numeroEnseigne: normaliserTelephone(fiche.numeroEnseigne),
     direction: fiche.direction,
     repasser: fiche.direction === 'absente' ? vide(fiche.repasser) : null,
   };
+}
+
+/** Les photos qui attendent encore d'être envoyées, l'enseigne d'abord. */
+export function versPhotos(fiche: FicheLocale): PhotoAEnvoyer[] {
+  return [...fiche.photos]
+    .sort((a, b) => Number(b.role === 'signboard') - Number(a.role === 'signboard'))
+    .flatMap((p) =>
+      p.envoyee || p.blob === null
+        ? []
+        : [
+            {
+              id: p.id,
+              role: p.role,
+              blob: p.blob,
+              mime: p.mime,
+              octets: p.octets,
+              largeur: p.largeur,
+              hauteur: p.hauteur,
+              prisLe: p.prisLe,
+            },
+          ],
+    );
 }
 
 /** Le contact à envoyer, ou null s'il n'y a rien à envoyer. */
@@ -277,5 +386,10 @@ export function versContact(fiche: FicheLocale): ContactAEnvoyer | null {
 
 /** La fiche est-elle entièrement partie ? */
 export function toutEnvoye(fiche: FicheLocale): boolean {
-  return fiche.envoyes.releve && fiche.envoyes.photo && fiche.envoyes.contact;
+  return (
+    fiche.envoyes.releve &&
+    fiche.envoyes.photo &&
+    fiche.envoyes.contact &&
+    fiche.photos.every((p) => p.envoyee)
+  );
 }

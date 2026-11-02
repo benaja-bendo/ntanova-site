@@ -1,6 +1,7 @@
 /**
  * Les listes fermées, copie de celles de la base (domaines SQL des migrations, dont
- * 20261031010000_tables.sql et 20261031190000_types_niveaux_programme.sql). Un test
+ * 20261031010000_tables.sql, 20261031190000_types_niveaux_programme.sql et
+ * 20261101200000_socle_portable.sql). Un test
  * vérifie qu'elles restent identiques : changer une liste, c'est changer les deux.
  *
  * Une liste a toujours une case de sortie (« autre », « non_indique »), on n'y retire et
@@ -38,6 +39,38 @@ export const listes = {
   publication: ['brouillon', 'prete', 'publiee', 'retiree'],
   motif_retrait: ['demande_ecole', 'erreur', 'fermeture', 'doublon', 'autre'],
   type_echange: ['appel', 'rendez_vous'],
+  // Le catalogue universel (migrations 20261101200000_socle_portable.sql et suivantes) : divisions, formations,
+  // photos, origine des fiches, missions.
+  geo_kind: [
+    'country',
+    'department',
+    'region',
+    'city',
+    'commune',
+    'district',
+    'arrondissement',
+    'quarter',
+    'zone',
+  ],
+  bac_track: ['a', 'c', 'd', 'e', 'f', 'f1', 'f2', 'f3', 'f4', 'g', 'g1', 'g2', 'g3', 'h', 'autre'],
+  diploma_kind: [
+    'cepe',
+    'bepc',
+    'bac',
+    'bt',
+    'bts',
+    'licence',
+    'master',
+    'doctorat',
+    'cap',
+    'certificat',
+    'autre',
+  ],
+  study_rhythm: ['jour', 'soir', 'weekend'],
+  photo_role: ['signboard', 'programs_board', 'brochure', 'building'],
+  origin_kind: ['field', 'admin', 'import'],
+  mission_kind: ['verify', 'locate', 'complete'],
+  mission_status: ['open', 'done', 'cancelled'],
 } as const;
 
 export type Liste = keyof typeof listes;

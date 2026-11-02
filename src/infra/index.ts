@@ -8,7 +8,23 @@ import {
   PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   PUBLIC_SUPABASE_URL,
 } from 'astro:env/client';
-import type { PortAdministration, PortCatalogue, PortRelais, PortSession } from '../modele/ports';
+import { construireArbre, type ArbrePublic } from '../modele/geo-divisions';
+import type {
+  DivisionPublique,
+  DomainePublic,
+  EcolePubliee,
+  PortAdministration,
+  PortCatalogue,
+  PortRelais,
+  PortSession,
+  Redirection,
+} from '../modele/ports';
+import {
+  facettesPubliques,
+  ligneDe,
+  type LigneRecherche,
+  type ValeurFacette,
+} from '../modele/recherche';
 
 export interface Adaptateurs {
   nom: 'supabase' | 'faux';
@@ -46,11 +62,52 @@ export async function obtenirCatalogue(): Promise<PortCatalogue> {
   if (PUBLIC_ADAPTATEUR === 'faux') return (await import('./faux/catalogue')).catalogueFaux;
   if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
     return {
-      arrondissements: async () => [],
+      divisions: async () => [],
       ecoles: async () => [],
+      domaines: async () => [],
       redirections: async () => [],
     };
   }
   const { creerCatalogue } = await import('./supabase/catalogue');
   return creerCatalogue(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+}
+
+/** Le site public tel que les pages le lisent : le catalogue, son arbre géographique, ses facettes et son fichier de recherche. */
+export interface Site {
+  /** Toutes les divisions du pays, avec ou sans école (la carte de la ville y lit celles où le relevé a commencé). */
+  divisions: DivisionPublique[];
+  arbre: ArbrePublic;
+  ecoles: EcolePubliee[];
+  domaines: DomainePublic[];
+  redirections: Redirection[];
+  facettes: ValeurFacette[];
+  recherche: LigneRecherche[];
+}
+
+let site: Promise<Site> | null = null;
+
+/**
+ * Lu une seule fois par construction : chaque page lui demande, et le catalogue n'est lu qu'une fois sur le
+ * réseau. Les pages publiques n'appellent jamais la base ailleurs que par ici, à la construction.
+ */
+export function obtenirSite(): Promise<Site> {
+  site ??= (async () => {
+    const catalogue = await obtenirCatalogue();
+    const [divisions, ecoles, domaines, redirections] = await Promise.all([
+      catalogue.divisions(),
+      catalogue.ecoles(),
+      catalogue.domaines(),
+      catalogue.redirections(),
+    ]);
+    return {
+      divisions,
+      arbre: construireArbre(divisions, ecoles),
+      ecoles,
+      domaines,
+      redirections,
+      facettes: facettesPubliques(ecoles, domaines),
+      recherche: ecoles.map(ligneDe),
+    };
+  })();
+  return site;
 }

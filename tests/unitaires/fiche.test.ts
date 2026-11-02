@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
+  avecPhoto,
   contactVide,
+  demandeLesFormations,
   erreursEtape1,
   erreursEtape2,
   erreursEtape3,
   nouvelleContreVisite,
   nouvelleFiche,
+  peutAjouterPhoto,
+  photoEnseigne,
+  photosFacultatives,
+  sansPhoto,
+  toutEnvoye,
   versContact,
+  versPhotos,
   versReleve,
   type FicheLocale,
+  type PhotoLocale,
 } from '../../src/modele/fiche';
 import { dansContour, distanceMetres, plusProche } from '../../src/modele/geo';
 import { listes } from '../../src/modele/listes';
@@ -16,6 +25,23 @@ import { afficherTelephone, normaliserTelephone } from '../../src/modele/telepho
 
 const fiche = (champs: Partial<FicheLocale> = {}): FicheLocale => ({
   ...nouvelleFiche('10000000-0000-4000-8000-000000000001', '2026-11-02T08:00:00.000Z', null),
+  ...champs,
+});
+
+const unePhoto = (
+  id: string,
+  role: PhotoLocale['role'],
+  champs: Partial<PhotoLocale> = {},
+): PhotoLocale => ({
+  id,
+  role,
+  blob: new Blob(['x'], { type: 'image/webp' }),
+  mime: 'image/webp',
+  octets: 90_000,
+  largeur: 1280,
+  hauteur: 960,
+  prisLe: '2026-11-02T08:00:00.000Z',
+  envoyee: false,
   ...champs,
 });
 
@@ -69,17 +95,25 @@ describe('les positions', () => {
 });
 
 describe('les étapes de la fiche', () => {
-  it('1/3 demande la photo, et une réponse quand une école est à 40 m', () => {
+  it('1/3 demande la photo de l’enseigne, et une réponse quand une école est à 40 m', () => {
     expect(erreursEtape1(fiche())).toHaveProperty('photo');
-    const photo = new Blob(['x'], { type: 'image/jpeg' });
-    expect(erreursEtape1(fiche({ photo }))).toEqual({});
+    const photos = [unePhoto('p1', 'signboard')];
+    expect(erreursEtape1(fiche({ photos }))).toEqual({});
     const doublon = { ecoleId: 'e', nom: '[École]' };
-    expect(erreursEtape1(fiche({ photo, doublonPropose: doublon }))).toHaveProperty(
+    expect(erreursEtape1(fiche({ photos, doublonPropose: doublon }))).toHaveProperty(
       'reponseDoublon',
     );
     expect(
-      erreursEtape1(fiche({ photo, doublonPropose: doublon, reponseDoublon: 'une_autre' })),
+      erreursEtape1(fiche({ photos, doublonPropose: doublon, reponseDoublon: 'une_autre' })),
     ).toEqual({});
+  });
+
+  it('1/3 : un panneau ou un prospectus ne remplace pas l’enseigne', () => {
+    expect(
+      erreursEtape1(
+        fiche({ photos: [unePhoto('p1', 'programs_board'), unePhoto('p2', 'brochure')] }),
+      ),
+    ).toHaveProperty('photo');
   });
 
   it('2/3 demande le nom de l’enseigne et un numéro complet s’il y en a un', () => {
@@ -309,5 +343,78 @@ describe('les listes ne bloquent personne', () => {
     });
     expect(visite.typeEcole).toBe('communautaire');
     expect(visite.niveaux).toEqual(['autre_formation']);
+  });
+});
+
+describe('les photos de la fiche', () => {
+  it('l’enseigne d’abord, puis au plus trois autres', () => {
+    let f = fiche();
+    f = avecPhoto(f, unePhoto('b', 'programs_board'));
+    f = avecPhoto(f, unePhoto('a', 'signboard'));
+    f = avecPhoto(f, unePhoto('c', 'brochure'));
+    f = avecPhoto(f, unePhoto('d', 'building'));
+    expect(f.photos.map((p) => p.id)).toEqual(['a', 'b', 'c', 'd']);
+    expect(peutAjouterPhoto(f)).toBe(false);
+    // Une quatrième photo facultative n’est pas gardée.
+    expect(avecPhoto(f, unePhoto('e', 'building')).photos).toHaveLength(4);
+    expect(photosFacultatives(f).map((p) => p.id)).toEqual(['b', 'c', 'd']);
+  });
+
+  it('une seconde enseigne remplace la première', () => {
+    const f = avecPhoto(
+      avecPhoto(fiche(), unePhoto('a', 'signboard')),
+      unePhoto('a2', 'signboard'),
+    );
+    expect(f.photos.map((p) => p.id)).toEqual(['a2']);
+    expect(photoEnseigne(f)?.id).toBe('a2');
+  });
+
+  it('retire une photo prise par erreur', () => {
+    const f = sansPhoto(avecPhoto(fiche(), unePhoto('a', 'signboard')), 'a');
+    expect(f.photos).toEqual([]);
+  });
+
+  it('envoie l’enseigne d’abord, et seulement les photos pas encore reçues', () => {
+    const f = fiche({
+      photos: [
+        unePhoto('b', 'programs_board'),
+        unePhoto('a', 'signboard'),
+        unePhoto('c', 'brochure', { envoyee: true, blob: null }),
+      ],
+    });
+    expect(versPhotos(f).map((p) => p.id)).toEqual(['a', 'b']);
+  });
+
+  it('la fiche n’est entièrement partie que quand chaque photo est partie', () => {
+    const partie = { releve: true, photo: true, contact: true };
+    const f = fiche({
+      envoyes: partie,
+      photos: [unePhoto('a', 'signboard', { envoyee: true, blob: null })],
+    });
+    expect(toutEnvoye(f)).toBe(true);
+    expect(toutEnvoye({ ...f, photos: [...f.photos, unePhoto('b', 'brochure')] })).toBe(false);
+  });
+});
+
+describe('les séries et les filières', () => {
+  it('ne sont demandées que pour un lycée, un établissement technique, du supérieur ou une autre formation', () => {
+    expect(demandeLesFormations(['maternelle', 'primaire', 'college'])).toBe(false);
+    expect(demandeLesFormations(['college', 'lycee'])).toBe(true);
+    expect(demandeLesFormations(['technique'])).toBe(true);
+    expect(demandeLesFormations(['superieur'])).toBe(true);
+    expect(demandeLesFormations(['autre_formation'])).toBe(true);
+  });
+
+  it('partent avec le relevé quand un niveau les demande, pas sinon', () => {
+    const base = { programmesVus: 'Séries C et D', programmesEnPhoto: true };
+    expect(versReleve(fiche({ ...base, niveaux: ['lycee'] }))).toMatchObject({
+      programmesVus: 'Séries C et D',
+      programmesEnPhoto: true,
+    });
+    // Un relais qui décoche le lycée après avoir noté les séries : la note ne part pas.
+    expect(versReleve(fiche({ ...base, niveaux: ['primaire'] }))).toMatchObject({
+      programmesVus: null,
+      programmesEnPhoto: false,
+    });
   });
 });

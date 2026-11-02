@@ -46,6 +46,39 @@ base.version(1).stores({
 base.version(2).stores({
   fiches: 'id, etat, creeeLe, type',
 });
+// Version 3 : jusqu'à quatre photos par fiche (l'enseigne et trois autres) et les formations lues sur l'enseigne.
+// Une fiche d'avant, encore en attente, garde sa photo : elle devient la photo d'enseigne.
+base
+  .version(3)
+  .stores({ fiches: 'id, etat, creeeLe, type' })
+  .upgrade((tx) =>
+    tx
+      .table('fiches')
+      .toCollection()
+      .modify((fiche: Record<string, unknown>) => {
+        if (!Array.isArray(fiche.photos)) {
+          const ancienne = fiche.photo as Blob | null | undefined;
+          fiche.photos = ancienne
+            ? [
+                {
+                  id: crypto.randomUUID(),
+                  role: 'signboard',
+                  blob: ancienne,
+                  mime: ancienne.type === 'image/webp' ? 'image/webp' : 'image/jpeg',
+                  octets: ancienne.size,
+                  largeur: 0,
+                  hauteur: 0,
+                  prisLe: (fiche.prisLe as string | null) ?? (fiche.creeeLe as string),
+                  envoyee: false,
+                },
+              ]
+            : [];
+        }
+        delete fiche.photo;
+        fiche.programmesVus ??= '';
+        fiche.programmesEnPhoto ??= false;
+      }),
+  );
 
 export async function lireMemoire<K extends keyof Memoire>(
   cle: K,

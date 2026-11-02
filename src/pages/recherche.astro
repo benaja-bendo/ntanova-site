@@ -1,0 +1,211 @@
+---
+// « Rechercher » : par nom, quartier ou repère, et par ce qu'une école enseigne (niveau, série du bac, diplôme,
+// domaine, rythme). C'est avec « Autour de moi » la seule page publique qui exécute du JavaScript : un petit
+// script filtre `/recherche.json`, construit avec le site. Sans JavaScript, la page renvoie vers les listes.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirSite } from '../infra/index';
+import { libelleNiveau } from '../modele/libelles';
+import { listes } from '../modele/listes';
+import { lienDivision } from '../modele/geo-divisions';
+import { lienWhatsApp } from '../modele/whatsapp';
+import PagePublique from '../ui/PagePublique.astro';
+
+const { facettes, arbre } = await obtenirSite();
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const valeursDe = (facette: string) => facettes.filter((f) => f.facette === facette);
+// Les zones où l'on peut chercher : les pays, départements et villes qui ont des écoles, puis les arrondissements.
+const zones = arbre.tous.filter((p) => p.division.niveau <= 3);
+---
+
+<PagePublique
+  titre="Rechercher une école · NTanova"
+  description="Rechercher une école du Congo-Brazzaville par nom, quartier, repère, niveau, série du bac, diplôme, domaine ou rythme."
+  whatsapp={whatsapp}
+>
+  <section class="cadre page recherche" data-recherche>
+    <a class="retour" href="/ecoles/">
+      ← Les écoles
+    </a>
+    <div>
+      <h1>Rechercher une école</h1>
+      <p class="texte-doux">
+        Par nom, quartier ou repère, et par ce que l’école enseigne. Tous les critères se combinent.
+      </p>
+    </div>
+
+    <noscript>
+      <p class="carte">
+        La recherche a besoin de JavaScript. Sans lui, parcourez les{' '}
+        <a href={lienDivision(['congo'])}>écoles par ville</a> ou{' '}
+        <a href="/formations/">par formation</a>.
+      </p>
+    </noscript>
+
+    <form
+      class="criteres carte"
+      role="search"
+      aria-label="Critères de recherche"
+      autocomplete="off"
+    >
+      <label class="champ-groupe pleine">
+        Nom, quartier, repère ou formation
+        <input
+          class="champ"
+          type="search"
+          name="q"
+          placeholder="Ex. : lycée, Mvoumvou, BTS informatique"
+        />
+      </label>
+      <label class="champ-groupe">
+        Zone
+        <select class="champ" name="zone">
+          <option value="">Partout</option>
+          {zones.map((p) => (
+            <option value={p.adresse.join('/')}>{p.noms.join(' › ')}</option>
+          ))}
+        </select>
+      </label>
+      <label class="champ-groupe">
+        Niveau
+        <select class="champ" name="niveau">
+          <option value="">Tous</option>
+          {listes.niveau.map((n) => (
+            <option value={n}>{libelleNiveau[n]}</option>
+          ))}
+        </select>
+      </label>
+      <label class="champ-groupe">
+        Série du bac
+        <select class="champ" name="serie">
+          <option value="">Toutes</option>
+          {valeursDe('serie').map((v) => (
+            <option value={v.valeur}>{v.libelle}</option>
+          ))}
+        </select>
+      </label>
+      <label class="champ-groupe">
+        Diplôme
+        <select class="champ" name="diplome">
+          <option value="">Tous</option>
+          {valeursDe('diplome').map((v) => (
+            <option value={v.valeur}>{v.libelle}</option>
+          ))}
+        </select>
+      </label>
+      <label class="champ-groupe">
+        Domaine
+        <select class="champ" name="domaine">
+          <option value="">Tous</option>
+          {valeursDe('domaine').map((v) => (
+            <option value={v.valeur}>{v.libelle}</option>
+          ))}
+        </select>
+      </label>
+      <label class="champ-groupe">
+        Rythme
+        <select class="champ" name="rythme">
+          <option value="">Tous</option>
+          {valeursDe('rythme').map((v) => (
+            <option value={v.valeur}>{v.libelle}</option>
+          ))}
+        </select>
+      </label>
+    </form>
+
+    <section data-resultats aria-live="polite" class="resultats">
+      <p class="compte" data-compte>
+        Chargement des écoles…
+      </p>
+      <ul class="ecoles"></ul>
+    </section>
+  </section>
+</PagePublique>
+
+<script>
+  import { demarrerRecherche } from '../ui/recherche-client';
+  const racine = document.querySelector<HTMLElement>('[data-recherche]');
+  if (racine) demarrerRecherche(racine);
+</script>
+
+<style is:global>
+  .recherche {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .recherche h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .recherche p {
+    margin: 0;
+  }
+  .recherche .criteres {
+    display: grid;
+    gap: var(--espace-3);
+    padding: var(--espace-4);
+  }
+  .recherche .pleine {
+    grid-column: 1 / -1;
+  }
+  .recherche .compte {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .recherche .resultats {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .recherche .ecoles {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .recherche .ecole {
+    display: grid;
+    gap: var(--espace-1);
+    padding: var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .recherche .ecole-nom {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .recherche .ecole-etiquette,
+  .recherche .ecole-detail,
+  .recherche .ecole-etat {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .recherche .ecole-etat {
+    font-weight: 700;
+  }
+
+  @media (min-width: 48rem) {
+    .recherche {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .recherche h1 {
+      font-size: var(--taille-titre-public);
+    }
+    .recherche .criteres {
+      grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    }
+    .recherche .ecoles {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+      gap: var(--espace-4);
+    }
+    .recherche .ecole:hover {
+      border-color: var(--marque);
+    }
+  }
+</style>

@@ -56,7 +56,17 @@ function LigneRelais({
         </span>
       </td>
       <td>{nomLot}</td>
-      <td>{r.fiches}</td>
+      <td>
+        {r.compteurs.envoyees}
+        <span className="mention admin-sous-ligne">
+          {r.compteurs.aValider > 0 && `${r.compteurs.aValider} à valider · `}
+          {r.compteurs.acceptees} acceptée{r.compteurs.acceptees > 1 ? 's' : ''}
+          {r.compteurs.aCorriger > 0 && ` · ${r.compteurs.aCorriger} à corriger`}
+          {r.compteurs.refusees > 0 &&
+            ` · ${r.compteurs.refusees} refusée${r.compteurs.refusees > 1 ? 's' : ''}`}
+        </span>
+      </td>
+      <td>{r.compteurs.contactsConfirmes}</td>
       <td>
         <div className="admin-actions">
           <select
@@ -67,7 +77,7 @@ function LigneRelais({
           >
             {lots.map((l) => (
               <option key={l.id} value={l.id}>
-                {l.nom}
+                {l.nom} — {l.divisionNom}
               </option>
             ))}
           </select>
@@ -140,7 +150,7 @@ export function ListeRelais({ admin }: { admin: PortAdministration }) {
           <h1>Relais</h1>
           <p className="texte-doux">
             Un relais apparaît ici après sa première connexion. Avant, ajoute son adresse Gmail
-            comme utilisateur de test dans Google Cloud.
+            comme utilisateur de test dans Google Cloud. Les lots se gèrent dans l’onglet « Zones ».
           </p>
         </div>
       </div>
@@ -163,7 +173,8 @@ export function ListeRelais({ admin }: { admin: PortAdministration }) {
               <th scope="col">Relais</th>
               <th scope="col">Compte</th>
               <th scope="col">Lot</th>
-              <th scope="col">Fiches</th>
+              <th scope="col">Fiches envoyées</th>
+              <th scope="col">Contacts confirmés</th>
               <th scope="col">Action</th>
             </tr>
           </thead>
@@ -182,48 +193,18 @@ export function ListeRelais({ admin }: { admin: PortAdministration }) {
             ))}
             {relais === null && !erreur && (
               <tr>
-                <td colSpan={5} className="texte-doux" aria-busy="true">
+                <td colSpan={6} className="texte-doux" aria-busy="true">
                   Chargement des relais…
                 </td>
               </tr>
             )}
             {relais?.length === 0 && (
               <tr>
-                <td colSpan={5} className="texte-doux">
+                <td colSpan={6} className="texte-doux">
                   Aucun relais ne s'est encore connecté.
                 </td>
               </tr>
             )}
-          </tbody>
-        </table>
-      </div>
-
-      <h2>Les lots</h2>
-      <div className="admin-tableau">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Lot</th>
-              <th scope="col">Relais</th>
-              <th scope="col">Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lots.map((l) => (
-              <tr key={l.id}>
-                <td>
-                  <b>{l.nom}</b>
-                </td>
-                <td>
-                  {relais?.filter((r) => r.lotId === l.id && r.statut === 'actif').length ?? '—'}
-                </td>
-                <td className="mention">
-                  {l.essai
-                    ? 'Entraînement : ses fiches ne sont jamais publiées.'
-                    : 'Tout l’arrondissement.'}
-                </td>
-              </tr>
-            ))}
           </tbody>
         </table>
       </div>

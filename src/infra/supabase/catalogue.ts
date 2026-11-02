@@ -1,83 +1,196 @@
-import { niveauxConnus, typeConnu } from '../../modele/listes';
+import { sansRepetition } from '../../modele/geo-divisions';
+import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import type {
-  ArrondissementPublic,
+  DivisionPublique,
+  DomainePublic,
   EcolePubliee,
+  FormationPublique,
   PortCatalogue,
   Redirection,
 } from '../../modele/ports';
 
+const TAILLE_PAGE = 1000;
+
 /**
- * Le catalogue lu à la construction, par l'API publique de la base (clé
- * `publishable`, droits d'un visiteur : seulement ce qui est publié). Une erreur
- * arrête la construction : mieux vaut garder l'ancien site qu'en publier un vide.
+ * Le catalogue lu à la construction, par l'API publique de la base (clé `publishable`, droits d'un visiteur :
+ * seulement ce qui est publié). Une erreur arrête la construction : mieux vaut garder l'ancien site qu'en
+ * publier un vide.
+ *
+ * Les noms de la base sont en anglais (`geo_divisions`, `public_campuses`…) : ce fichier est, avec ses voisins,
+ * le seul à les connaître.
  */
 export function creerCatalogue(url: string, cle: string): PortCatalogue {
-  const lire = async <T>(chemin: string): Promise<T> => {
-    const reponse = await fetch(`${url}/rest/v1/${chemin}`, {
-      headers: { apikey: cle, Authorization: `Bearer ${cle}` },
-    });
-    if (!reponse.ok) {
-      throw new Error(`Catalogue illisible (${reponse.status}) : ${chemin}`);
+  /** Toutes les lignes d'une lecture, page après page (l'API plafonne chaque réponse). Le chemin trie sur une clé unique. */
+  const lireTout = async <T>(chemin: string): Promise<T[]> => {
+    const tout: T[] = [];
+    for (let decalage = 0; ; decalage += TAILLE_PAGE) {
+      const reponse = await fetch(
+        `${url}/rest/v1/${chemin}${chemin.includes('?') ? '&' : '?'}limit=${TAILLE_PAGE}&offset=${decalage}`,
+        { headers: { apikey: cle, Authorization: `Bearer ${cle}` } },
+      );
+      if (!reponse.ok) throw new Error(`Catalogue illisible (${reponse.status}) : ${chemin}`);
+      const lignes = (await reponse.json()) as T[];
+      tout.push(...lignes);
+      if (lignes.length < TAILLE_PAGE) return tout;
     }
-    return (await reponse.json()) as T;
   };
 
+  // Les divisions sont lues une fois : les campus s'y rattachent, et les redirections y retrouvent leurs adresses.
+  let divisions: Promise<DivisionPublique[]> | null = null;
+  const lireDivisions = (): Promise<DivisionPublique[]> =>
+    (divisions ??= (async () => {
+      const lignes = await lireTout<{
+        id: string;
+        parent_id: string | null;
+        level: number;
+        kind: Valeur<'geo_kind'>;
+        name: string;
+        slug: string;
+        ordinal: number | null;
+        aliases: string[];
+        verified_on: string | null;
+        open_for_fieldwork: boolean;
+      }>('geo_divisions?select=id,parent_id,level,kind,name,slug,ordinal,aliases,verified_on,open_for_fieldwork&order=id');
+      const parId = new Map(lignes.map((l) => [l.id, l]));
+      const adresse = (l: (typeof lignes)[number]): string[] => {
+        const parent = l.parent_id ? parId.get(l.parent_id) : undefined;
+        return [...(parent ? adresse(parent) : []), l.slug];
+      };
+      return lignes
+        .map((l) => ({
+          id: l.id,
+          parentId: l.parent_id,
+          niveau: l.level,
+          genre: l.kind,
+          nom: l.name,
+          slug: l.slug,
+          adresse: adresse(l),
+          ordinal: l.ordinal,
+          alias: l.aliases,
+          verifieeLe: l.verified_on,
+          ouverte: l.open_for_fieldwork,
+        }))
+        .sort((a, b) => a.niveau - b.niveau || a.nom.localeCompare(b.nom, 'fr'));
+    })());
+
   return {
+    divisions: lireDivisions,
+
+    async domaines(): Promise<DomainePublic[]> {
+      const lignes = await lireTout<{ slug: string; name: string; sort_order: number }>(
+        'education_domains?select=slug,name,sort_order&order=sort_order,id',
+      );
+      return lignes.map((l) => ({ slug: l.slug, nom: l.name, ordre: l.sort_order }));
+    },
+
     async redirections(): Promise<Redirection[]> {
-      const lignes = await lire<
-        { de_arrondissement: string; de_slug: string; vers_arrondissement: string; vers_slug: string }[]
-      >('ecoles_redirections?select=*');
+      const lignes = await lireTout<{
+        from_division_path: string;
+        from_slug: string;
+        to_division_path: string;
+        to_slug: string;
+      }>('public_campus_redirects?select=*&order=from_division_path,from_slug');
+      // Le chemin ltree (`congo.pointe_noire.pointe_noire.tie_tie`) n'est pas l'adresse (`pointe-noire`) : on repart de l'arbre.
+      const parChemin = new Map<string, string[]>();
+      for (const d of await lireDivisions()) {
+        parChemin.set(d.adresse.map((a) => a.replaceAll('-', '_')).join('.'), sansRepetition(d.adresse));
+      }
+      const adresse = (chemin: string) => parChemin.get(chemin) ?? [];
       return lignes.map((r) => ({
-        de: { arrondissement: r.de_arrondissement, slug: r.de_slug },
-        vers: { arrondissement: r.vers_arrondissement, slug: r.vers_slug },
+        de: { chemin: adresse(r.from_division_path), slug: r.from_slug },
+        vers: { chemin: adresse(r.to_division_path), slug: r.to_slug },
       }));
     },
 
-    arrondissements: () =>
-      lire<ArrondissementPublic[]>('arrondissements?select=slug,nom&order=nom'),
-
-    async ecoles() {
-      const lignes = await lire<
-        {
+    async ecoles(): Promise<EcolePubliee[]> {
+      const [campus, cycles, formations] = await Promise.all([
+        lireTout<{
           id: string;
-          arrondissement: string;
+          institution_id: string;
+          institution_name: string;
+          label: string | null;
+          // Tel que la base le dit : une valeur ajoutée depuis la dernière mise en ligne du site est possible,
+          // et ne casse ni la construction ni la page.
+          kind: string;
           slug: string;
-          nom: string;
-          quartier: string | null;
-          // Tels que la base les dit : une valeur ajoutée depuis la dernière mise en ligne du site
-          // est possible, et ne casse ni la construction ni la page.
-          type_ecole: string;
-          niveaux: string[];
-          // Absentes tant que les migrations du programme et de la date de relevé ne sont pas poussées.
-          programme?: string | null;
-          relevee_le?: string | null;
-          situee_le?: string | null;
-          repere: string | null;
-          numero_enseigne: string | null;
+          division_id: string;
+          division_slugs: string[];
+          division_names: string[];
+          neighbourhood: string | null;
+          landmark: string | null;
+          sign_phone: string | null;
           latitude: number | null;
           longitude: number | null;
-          etat: EcolePubliee['etat'];
-          mis_a_jour_le: string;
-        }[]
-      >('ecoles_publiees?select=*&order=nom');
-      return lignes.map((e) => ({
-        id: e.id,
-        arrondissement: e.arrondissement,
-        slug: e.slug,
-        nom: e.nom,
-        quartier: e.quartier,
-        typeEcole: typeConnu(e.type_ecole),
-        niveaux: niveauxConnus(e.niveaux),
-        programme: e.programme ?? null,
-        repere: e.repere,
-        numeroEnseigne: e.numero_enseigne,
-        latitude: e.latitude,
-        longitude: e.longitude,
-        etat: e.etat,
-        releveeLe: e.relevee_le ?? null,
-        situeeLe: e.situee_le ?? null,
-        misAJourLe: e.mis_a_jour_le,
-      }));
+          verification_state: EcolePubliee['etat'];
+          verified_on: string | null;
+          curriculum_note: string | null;
+          surveyed_at: string | null;
+          located_at: string | null;
+          updated_at: string;
+        }>('public_campuses?select=*&order=id'),
+        lireTout<{ campus_id: string; cycle: string }>(
+          'public_campus_cycles?select=campus_id,cycle&order=campus_id,cycle',
+        ),
+        lireTout<{
+          campus_id: string;
+          cycle: Valeur<'niveau'>;
+          title: string;
+          domain_slug: string | null;
+          domain_name: string | null;
+          bac_track: Valeur<'bac_track'> | null;
+          diploma: Valeur<'diploma_kind'> | null;
+          rhythms: Valeur<'study_rhythm'>[];
+        }>('public_campus_programs?select=*&order=campus_id,cycle,title'),
+      ]);
+
+      const cyclesDe = new Map<string, string[]>();
+      for (const c of cycles) cyclesDe.set(c.campus_id, [...(cyclesDe.get(c.campus_id) ?? []), c.cycle]);
+      const formationsDe = new Map<string, FormationPublique[]>();
+      for (const f of formations) {
+        formationsDe.set(f.campus_id, [
+          ...(formationsDe.get(f.campus_id) ?? []),
+          {
+            cycle: f.cycle,
+            titre: f.title,
+            domaine: f.domain_slug && f.domain_name ? { slug: f.domain_slug, nom: f.domain_name } : null,
+            serie: f.bac_track,
+            diplome: f.diploma,
+            rythmes: f.rhythms,
+          },
+        ]);
+      }
+
+      return campus
+        .map((e): EcolePubliee => {
+          const adresse = sansRepetition(e.division_slugs);
+          return {
+            id: e.id,
+            institutionId: e.institution_id,
+            divisionId: e.division_id,
+            slug: e.slug,
+            nom: e.institution_name,
+            etiquette: e.label,
+            // L'arrondissement s'il y en a un (niveau 3 : quatrième adresse), sinon la division la plus fine.
+            arrondissement: e.division_slugs[3] ?? adresse[adresse.length - 1] ?? '',
+            adresse,
+            divisionNoms: sansRepetition(e.division_names),
+            quartier: e.neighbourhood,
+            typeEcole: typeConnu(e.kind),
+            niveaux: niveauxConnus(cyclesDe.get(e.id) ?? []),
+            programme: e.curriculum_note,
+            formations: formationsDe.get(e.id) ?? [],
+            repere: e.landmark,
+            numeroEnseigne: e.sign_phone,
+            latitude: e.latitude,
+            longitude: e.longitude,
+            etat: e.verification_state,
+            verifieeLe: e.verified_on,
+            releveeLe: e.surveyed_at,
+            situeeLe: e.located_at,
+            misAJourLe: e.updated_at,
+          };
+        })
+        .sort((a, b) => a.nom.localeCompare(b.nom, 'fr') || a.slug.localeCompare(b.slug));
     },
   };
 }

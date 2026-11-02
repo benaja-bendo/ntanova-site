@@ -15,7 +15,10 @@ interface Props {
   renvoi?: string;
 }
 const { titre, description, whatsapp = null, renvoi } = Astro.props;
-const surPourLesEcoles = Astro.url.pathname.startsWith('/pour-les-ecoles');
+const chemin = Astro.url.pathname;
+const surPourLesEcoles = chemin.startsWith('/pour-les-ecoles');
+const surEcoles =
+  chemin.startsWith('/ecoles') || chemin.startsWith('/cartes') || chemin.startsWith('/formations');
 ---
 
 <!doctype html>
@@ -51,12 +54,26 @@ const surPourLesEcoles = Astro.url.pathname.startsWith('/pour-les-ecoles');
         <div class="entete-droite">
           {/* La navigation du haut n'existe qu'à partir de 48 rem : sur téléphone, le pied la porte. */}
           <nav aria-label="Navigation principale" class="nav-haut">
-            <a href="/#quartiers">Quartiers</a>
+            <a href="/ecoles/" aria-current={surEcoles ? 'page' : undefined}>
+              Les écoles
+            </a>
+            <a
+              href="/recherche/"
+              aria-current={chemin.startsWith('/recherche') ? 'page' : undefined}
+            >
+              Rechercher
+            </a>
+            <a
+              href="/autour-de-moi/"
+              aria-current={chemin.startsWith('/autour-de-moi') ? 'page' : undefined}
+            >
+              Autour de moi
+            </a>
             <a href="/pour-les-ecoles/" aria-current={surPourLesEcoles ? 'page' : undefined}>
               Pour les écoles
             </a>
           </nav>
-          <span class="ville">Pointe-Noire</span>
+          <span class="ville">Congo-Brazzaville</span>
         </div>
       </div>
     </header>
@@ -66,11 +83,14 @@ const surPourLesEcoles = Astro.url.pathname.startsWith('/pour-les-ecoles');
     <footer class="pied">
       <div class="cadre pied-cadre">
         <nav aria-label="NTanova" class="pied-liens">
+          <a href="/ecoles/">Les écoles</a>
+          <a href="/recherche/">Rechercher une école</a>
+          <a href="/autour-de-moi/">Autour de moi</a>
           <a href="/pour-les-ecoles/">Pour les écoles</a>
           <a href="/a-propos/">À propos et données personnelles</a>
           {whatsapp && <a href={whatsapp}>Écrire à NTanova sur WhatsApp</a>}
         </nav>
-        <p>NTanova · Pointe-Noire, République du Congo</p>
+        <p>NTanova · République du Congo</p>
       </div>
     </footer>
   </body>

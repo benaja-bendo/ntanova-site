@@ -1,0 +1,159 @@
+---
+// « Autour de moi » : les écoles les plus proches, classées par distance. La position est demandée à l'appui du
+// bouton, sert à classer des écoles déjà dans la page, et n'est envoyée à personne. Avec « Rechercher », la
+// seule page publique qui exécute du JavaScript.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { lienWhatsApp } from '../modele/whatsapp';
+import PagePublique from '../ui/PagePublique.astro';
+
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+---
+
+<PagePublique
+  titre="Les écoles autour de moi · NTanova"
+  description="Les écoles les plus proches de vous, classées par distance. Votre position reste sur votre téléphone."
+  whatsapp={whatsapp}
+>
+  <section class="cadre page autour" data-autour>
+    <a class="retour" href="/ecoles/">
+      ← Les écoles
+    </a>
+    <div>
+      <h1>Autour de moi</h1>
+      <p class="texte-doux">
+        Appuyez sur le bouton : votre téléphone donne sa position, et les écoles les plus proches
+        s’affichent. Votre position reste sur votre téléphone, elle n’est envoyée à personne.
+      </p>
+    </div>
+
+    <noscript>
+      <p class="carte">
+        Cette page a besoin de JavaScript. Sans lui, <a href="/ecoles/">choisissez votre ville</a>.
+      </p>
+    </noscript>
+
+    <div class="actions">
+      <button type="button" class="bouton" data-position>
+        Trouver les écoles près de moi
+      </button>
+      <label class="champ-groupe">
+        Jusqu’à
+        <select class="champ" data-rayon>
+          <option value="1000">1 km</option>
+          <option value="3000" selected>
+            3 km
+          </option>
+          <option value="10000">10 km</option>
+          <option value="30000">30 km</option>
+        </select>
+      </label>
+    </div>
+    <p class="texte-doux" role="status" data-message></p>
+
+    <section data-resultats aria-live="polite" class="resultats" hidden>
+      <p class="compte" data-compte></p>
+      <ul class="ecoles"></ul>
+    </section>
+
+    <p>
+      <a class="chercher" href="/ecoles/">
+        Ou parcourez les villes
+      </a>
+      ·{' '}
+      <a class="chercher" href="/recherche/">
+        Ou cherchez par nom
+      </a>
+    </p>
+  </section>
+</PagePublique>
+
+<script>
+  import { demarrerAutourDeMoi } from '../ui/recherche-client';
+  const racine = document.querySelector<HTMLElement>('[data-autour]');
+  if (racine) demarrerAutourDeMoi(racine);
+</script>
+
+<style is:global>
+  .autour {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .autour h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .autour p {
+    margin: 0;
+  }
+  .autour .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--espace-4);
+  }
+  .autour .compte {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .autour .resultats {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .autour .resultats[hidden] {
+    display: none;
+  }
+  .autour .ecoles {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .autour .ecole {
+    display: grid;
+    gap: var(--espace-1);
+    padding: var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .autour .ecole-nom {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .autour .ecole-etiquette,
+  .autour .ecole-detail,
+  .autour .ecole-etat {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .autour .ecole-etat {
+    font-weight: 700;
+  }
+  .autour .chercher {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+
+  @media (min-width: 48rem) {
+    .autour {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .autour h1 {
+      font-size: var(--taille-titre-public);
+    }
+    .autour .ecoles {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+      gap: var(--espace-4);
+    }
+  }
+</style>

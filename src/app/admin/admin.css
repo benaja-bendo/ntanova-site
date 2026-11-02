@@ -396,3 +396,18 @@
   min-height: var(--cible-min);
   padding: var(--espace-1) var(--espace-3);
 }
+
+/* Les photos d'un envoi, côte à côte : l'enseigne, le panneau des formations, le prospectus, le bâtiment. */
+.admin-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: var(--espace-4);
+}
+
+.admin-photos .admin-figure img {
+  max-height: 360px;
+}
+
+.admin-photos .admin-actions {
+  gap: var(--espace-2);
+}

@@ -3,103 +3,255 @@ import { creerCatalogue } from '../../src/infra/supabase/catalogue';
 
 afterEach(() => vi.unstubAllGlobals());
 
+const DIVISIONS = [
+  {
+    id: 'd-cg',
+    parent_id: null,
+    level: 0,
+    kind: 'country',
+    name: 'Congo',
+    slug: 'congo',
+    ordinal: null,
+    aliases: [],
+    verified_on: '2026-11-01',
+    open_for_fieldwork: false,
+  },
+  {
+    id: 'd-pn-dep',
+    parent_id: 'd-cg',
+    level: 1,
+    kind: 'department',
+    name: 'Pointe-Noire',
+    slug: 'pointe-noire',
+    ordinal: null,
+    aliases: [],
+    verified_on: null,
+    open_for_fieldwork: false,
+  },
+  {
+    id: 'd-pn',
+    parent_id: 'd-pn-dep',
+    level: 2,
+    kind: 'city',
+    name: 'Pointe-Noire',
+    slug: 'pointe-noire',
+    ordinal: null,
+    aliases: [],
+    verified_on: null,
+    open_for_fieldwork: false,
+  },
+  {
+    id: 'd-tt',
+    parent_id: 'd-pn',
+    level: 3,
+    kind: 'arrondissement',
+    name: 'Tié-Tié',
+    slug: 'tie-tie',
+    ordinal: 3,
+    aliases: [],
+    verified_on: null,
+    open_for_fieldwork: true,
+  },
+];
+
+const CAMPUS = {
+  id: 'c1',
+  institution_id: 'i1',
+  institution_name: '[École exemple]',
+  label: null,
+  kind: 'privee',
+  slug: 'ecole-exemple',
+  division_id: 'd-tt',
+  division_path: 'congo.pointe_noire.pointe_noire.tie_tie',
+  division_slugs: ['congo', 'pointe-noire', 'pointe-noire', 'tie-tie'],
+  division_names: ['Congo', 'Pointe-Noire', 'Pointe-Noire', 'Tié-Tié'],
+  neighbourhood: null,
+  landmark: null,
+  sign_phone: null,
+  latitude: -4.79,
+  longitude: 11.92,
+  verification_state: 'relevee',
+  verified_on: null,
+  curriculum_note: null,
+  surveyed_at: '2026-11-02T08:00:00Z',
+  located_at: null,
+  origin: 'field',
+  updated_at: '2026-11-02T10:00:00Z',
+};
+
+/** Une fausse API REST : chaque table ou vue répond ses lignes ; on garde les adresses appelées. */
+function fausseBase(reponses: Record<string, unknown[]>) {
+  const appels: { url: string; cle: string | null }[] = [];
+  vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+    appels.push({ url, cle: new Headers(init.headers).get('apikey') });
+    const nom = /\/rest\/v1\/([a-z_]+)/.exec(url)?.[1] ?? '';
+    return new Response(JSON.stringify(reponses[nom] ?? []));
+  });
+  return appels;
+}
+
+const catalogue = () => creerCatalogue('https://base.exemple', 'cle-publique');
+
 describe('le catalogue du site public', () => {
-  it('lit les écoles publiées avec la clé publique, dans les termes du modèle', async () => {
-    const appels: { url: string; cle: string | null }[] = [];
-    vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
-      appels.push({ url, cle: new Headers(init.headers).get('apikey') });
-      return new Response(
-        JSON.stringify([
-          {
-            id: 'e1',
-            arrondissement: 'tie-tie',
-            slug: 'ecole-exemple',
-            nom: '[École exemple]',
-            quartier: null,
-            type_ecole: 'privee',
-            niveaux: ['primaire'],
-            repere: null,
-            numero_enseigne: null,
-            latitude: -4.79,
-            longitude: 11.92,
-            etat: 'relevee',
-            mis_a_jour_le: '2026-11-02T10:00:00Z',
-          },
-        ]),
-      );
+  it('lit les campus publiés avec la clé publique, dans les termes du modèle', async () => {
+    const appels = fausseBase({
+      public_campuses: [CAMPUS],
+      public_campus_cycles: [{ campus_id: 'c1', cycle: 'primaire' }],
+      public_campus_programs: [],
     });
-    const ecoles = await creerCatalogue('https://base.exemple', 'cle-publique').ecoles();
-    expect(ecoles[0]).toMatchObject({
+    const [e] = await catalogue().ecoles();
+    expect(e).toMatchObject({
+      id: 'c1',
+      institutionId: 'i1',
+      divisionId: 'd-tt',
       slug: 'ecole-exemple',
+      nom: '[École exemple]',
+      etiquette: null,
       typeEcole: 'privee',
+      niveaux: ['primaire'],
       misAJourLe: '2026-11-02T10:00:00Z',
+      releveeLe: '2026-11-02T08:00:00Z',
     });
-    expect(appels).toEqual([
+    expect(appels.every((a) => a.cle === 'cle-publique')).toBe(true);
+    expect(
+      appels.map((a) => a.url.replace('https://base.exemple/rest/v1/', '').split('?')[0]),
+    ).toEqual(['public_campuses', 'public_campus_cycles', 'public_campus_programs']);
+  });
+
+  it('l’adresse publique saute la répétition ville / département, et garde le pays', async () => {
+    fausseBase({ public_campuses: [CAMPUS] });
+    const [e] = await catalogue().ecoles();
+    expect(e?.adresse).toEqual(['congo', 'pointe-noire', 'tie-tie']);
+    expect(e?.divisionNoms).toEqual(['Congo', 'Pointe-Noire', 'Tié-Tié']);
+    expect(e?.arrondissement).toBe('tie-tie');
+  });
+
+  it('range les formations de chaque campus : série, diplôme, domaine, rythmes', async () => {
+    fausseBase({
+      public_campuses: [CAMPUS],
+      public_campus_cycles: [
+        { campus_id: 'c1', cycle: 'lycee' },
+        { campus_id: 'c1', cycle: 'maternelle' },
+      ],
+      public_campus_programs: [
+        {
+          campus_id: 'c1',
+          cycle: 'lycee',
+          title: 'Série C',
+          domain_slug: 'sciences-technologies',
+          domain_name: 'Sciences et technologies',
+          bac_track: 'c',
+          diploma: 'bac',
+          rhythms: ['jour'],
+        },
+        {
+          campus_id: 'c1',
+          cycle: 'lycee',
+          title: 'Couture',
+          domain_slug: null,
+          domain_name: null,
+          bac_track: null,
+          diploma: null,
+          rhythms: [],
+        },
+      ],
+    });
+    const [e] = await catalogue().ecoles();
+    // Les cycles suivent l'ordre de la liste fermée, pas celui de la réponse.
+    expect(e?.niveaux).toEqual(['maternelle', 'lycee']);
+    expect(e?.formations).toEqual([
       {
-        url: 'https://base.exemple/rest/v1/ecoles_publiees?select=*&order=nom',
-        cle: 'cle-publique',
+        cycle: 'lycee',
+        titre: 'Série C',
+        domaine: { slug: 'sciences-technologies', nom: 'Sciences et technologies' },
+        serie: 'c',
+        diplome: 'bac',
+        rythmes: ['jour'],
+      },
+      { cycle: 'lycee', titre: 'Couture', domaine: null, serie: null, diplome: null, rythmes: [] },
+    ]);
+  });
+
+  it('lit les divisions avec leur adresse du pays à la zone, et si le relevé y a commencé', async () => {
+    fausseBase({ geo_divisions: DIVISIONS });
+    const divisions = await catalogue().divisions();
+    const tieTie = divisions.find((d) => d.id === 'd-tt');
+    expect(tieTie).toMatchObject({
+      nom: 'Tié-Tié',
+      niveau: 3,
+      ordinal: 3,
+      ouverte: true,
+      adresse: ['congo', 'pointe-noire', 'pointe-noire', 'tie-tie'],
+    });
+    // Du pays à la zone : le pays d'abord.
+    expect(divisions.map((d) => d.niveau)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('traduit les anciennes adresses des fiches fusionnées en adresses publiques', async () => {
+    fausseBase({
+      geo_divisions: DIVISIONS,
+      public_campus_redirects: [
+        {
+          from_division_path: 'congo.pointe_noire.pointe_noire.tie_tie',
+          from_slug: 'ancienne-fiche',
+          to_division_path: 'congo.pointe_noire.pointe_noire.tie_tie',
+          to_slug: 'fiche-gardee',
+        },
+      ],
+    });
+    await expect(catalogue().redirections()).resolves.toEqual([
+      {
+        de: { chemin: ['congo', 'pointe-noire', 'tie-tie'], slug: 'ancienne-fiche' },
+        vers: { chemin: ['congo', 'pointe-noire', 'tie-tie'], slug: 'fiche-gardee' },
       },
     ]);
   });
 
-  const ligne = (champs: Record<string, unknown>) => ({
-    id: 'e1',
-    arrondissement: 'tie-tie',
-    slug: 'ecole-exemple',
-    nom: '[École exemple]',
-    quartier: null,
-    type_ecole: 'privee',
-    niveaux: ['primaire'],
-    repere: null,
-    numero_enseigne: null,
-    latitude: null,
-    longitude: null,
-    etat: 'relevee',
-    mis_a_jour_le: '2026-11-02T10:00:00Z',
-    ...champs,
-  });
-  const lireAvec = async (lignes: Record<string, unknown>[]) => {
-    vi.stubGlobal('fetch', async () => new Response(JSON.stringify(lignes)));
-    return creerCatalogue('https://base.exemple', 'cle-publique').ecoles();
-  };
-
-  it('lit le programme, ou rien tant que la colonne n’existe pas dans la base', async () => {
-    const [avec, sans] = await lireAvec([
-      ligne({ programme: 'Programme français-congolais, bilingue' }),
-      ligne({ slug: 'ecole-sans-colonne' }),
-    ]);
-    expect(avec?.programme).toBe('Programme français-congolais, bilingue');
-    expect(sans?.programme).toBeNull();
-  });
-
-  it('lit la date de relevé, ou rien tant que la colonne n’existe pas dans la base', async () => {
-    const [avec, sans] = await lireAvec([
-      ligne({ relevee_le: '2026-11-02T08:00:00Z', mis_a_jour_le: '2026-11-20T10:00:00Z' }),
-      ligne({ slug: 'ecole-sans-colonne' }),
-    ]);
-    expect(avec).toMatchObject({
-      releveeLe: '2026-11-02T08:00:00Z',
-      misAJourLe: '2026-11-20T10:00:00Z',
+  it('lit les domaines de formation dans l’ordre voulu', async () => {
+    fausseBase({
+      education_domains: [
+        { slug: 'informatique', name: 'Informatique', sort_order: 10 },
+        { slug: 'gestion', name: 'Gestion', sort_order: 20 },
+      ],
     });
-    expect(sans?.releveeLe).toBeNull();
-  });
-
-  it('lit les nouveaux types et niveaux tels quels', async () => {
-    const [e] = await lireAvec([
-      ligne({ type_ecole: 'communautaire', niveaux: ['creche', 'technique', 'autre_formation'] }),
+    await expect(catalogue().domaines()).resolves.toEqual([
+      { slug: 'informatique', nom: 'Informatique', ordre: 10 },
+      { slug: 'gestion', nom: 'Gestion', ordre: 20 },
     ]);
-    expect(e).toMatchObject({
-      typeEcole: 'communautaire',
-      niveaux: ['creche', 'technique', 'autre_formation'],
-    });
   });
 
   it('une valeur que ce code ne connaît pas encore ne casse ni la construction ni la page', async () => {
-    const [e] = await lireAvec([
-      ligne({ type_ecole: 'type_de_demain', niveaux: ['primaire', 'niveau_de_demain'] }),
-    ]);
+    fausseBase({
+      public_campuses: [{ ...CAMPUS, kind: 'type_de_demain' }],
+      public_campus_cycles: [
+        { campus_id: 'c1', cycle: 'primaire' },
+        { campus_id: 'c1', cycle: 'niveau_de_demain' },
+      ],
+    });
+    const [e] = await catalogue().ecoles();
     expect(e?.typeEcole).toBe('non_indique');
     expect(e?.niveaux).toEqual(['primaire']);
+  });
+
+  it('lit toute la liste page après page, sans jamais en perdre', async () => {
+    const lignes = Array.from({ length: 1500 }, (_, i) => ({
+      ...CAMPUS,
+      id: `c${String(i).padStart(4, '0')}`,
+      slug: `ecole-${i}`,
+    }));
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      urls.push(url);
+      const decalage = Number(/offset=(\d+)/.exec(url)?.[1] ?? 0);
+      const nom = /\/rest\/v1\/([a-z_]+)/.exec(url)?.[1] ?? '';
+      return new Response(
+        JSON.stringify(nom === 'public_campuses' ? lignes.slice(decalage, decalage + 1000) : []),
+      );
+    });
+    const ecoles = await catalogue().ecoles();
+    expect(ecoles).toHaveLength(1500);
+    expect(new Set(ecoles.map((e) => e.id)).size).toBe(1500);
+    expect(urls.filter((u) => u.includes('public_campuses'))).toHaveLength(2);
   });
 
   it('arrête la construction si la base ne répond pas : jamais un annuaire vide par erreur', async () => {
