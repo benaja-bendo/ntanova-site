@@ -41,7 +41,9 @@ test.describe('administration', () => {
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
     await expect(ligne.getByText('Prête', { exact: true })).toBeVisible();
     await ligne.getByRole('button', { name: 'Publier', exact: true }).click();
-    await expect(page.getByRole('status')).toHaveText(/est publiée.*cette nuit/);
+    // Elle paraît à la prochaine mise à jour du site : la nuit ne met à jour qu'essai, aucune heure n'est promise.
+    await expect(page.getByRole('status')).toHaveText(/est publiée.*prochaine mise à jour du site/);
+    await expect(page.getByRole('status')).not.toHaveText(/cette nuit|2 h/);
     await expect(
       page.getByRole('row', { name: /\[École 1\]/ }).getByText('Publiée', { exact: true }),
     ).toBeVisible();

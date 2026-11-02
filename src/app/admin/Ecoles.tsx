@@ -57,8 +57,7 @@ const libelleEtat: Record<Etat, { texte: string; classe: string }> = {
   brouillon: { texte: 'Brouillon', classe: 'etat-telephone' },
 };
 
-const EN_LIGNE =
-  'Elle paraît sur ntanova.com après la prochaine mise à jour du site (cette nuit à 2 h).';
+const EN_LIGNE = 'Elle paraît sur ntanova.com après la prochaine mise à jour du site.';
 
 function LigneEcole({
   e,
@@ -458,7 +457,7 @@ function FormulaireEcole({
       surEnregistre(
         `${correction.nom ?? e.nom} est modifiée.` +
           (e.publication === 'publiee'
-            ? ' La correction paraît sur ntanova.com après la prochaine mise à jour du site (cette nuit à 2 h).'
+            ? ' La correction paraît sur ntanova.com après la prochaine mise à jour du site.'
             : ''),
       );
     } catch (err) {
@@ -632,7 +631,7 @@ function FormulairePosition({
           (e.publication === 'brouillon'
             ? ' Elle est prête : publie-la quand tu veux.'
             : e.publication === 'publiee'
-              ? ' La nouvelle position paraît sur ntanova.com après la prochaine mise à jour du site (cette nuit à 2 h).'
+              ? ' La nouvelle position paraît sur ntanova.com après la prochaine mise à jour du site.'
               : ''),
       );
     } catch (err) {

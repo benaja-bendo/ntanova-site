@@ -806,7 +806,7 @@ function Detail({
                   void agir(
                     () => admin.accepter(id, decision()),
                     cible.mode === 'update_campus' || cible.mode === 'add_cycle'
-                      ? 'La fiche de l’école est mise à jour. Si elle était déjà en ligne, la correction paraît cette nuit ; sinon, publie-la depuis « Écoles ».'
+                      ? 'La fiche de l’école est mise à jour. Si elle était déjà en ligne, la correction paraît après la prochaine mise à jour du site ; sinon, publie-la depuis « Écoles ».'
                       : ACCEPTEE,
                   )
                 }
