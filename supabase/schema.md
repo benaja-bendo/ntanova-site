@@ -46,12 +46,12 @@ La photo de l'enseigne va dans le stockage de Supabase (seau privé `releves`), 
 | --- | --- | --- |
 | `id` | — | **Créé sur le téléphone.** Un second envoi du même identifiant est refusé (code `23505`) : c'est « déjà reçu » |
 | `relais_id`, `recu_le`, `statut` | — | Imposés par la base, jamais par le téléphone |
-| `lot_id`, `type`, `corrige_releve_id` | — | Type : relevé, correction (liée au relevé corrigé), contre-visite |
+| `lot_id`, `type`, `corrige_releve_id` | — | Type : relevé, correction (liée au relevé corrigé), contre-visite. La « contre-visite » de l'application est ce type de relevé (le relais va situer une école connue) ; ne pas la confondre avec la « contre-visite de lot », un contrôle fait à la main hors de l'application |
 | `position`, `precision_m`, `pris_le` | 1/3 | Point PostGIS ; précision en mètres ; l'heure du téléphone |
 | `reponse_doublon`, `doublon_de` | 1/3 | Ce que le relais a répondu à « une école est déjà relevée à 40 m » |
 | `nom_enseigne`, `niveaux`, `type_ecole`, `programme`, `repere`, `numero_enseigne` | 2/3 | Public : ce qui se voit de la rue. `type_ecole` vaut `non_indique` et `niveaux` `{}` tant que le relais n'a rien lu ; `programme` est une ligne libre et facultative (200 signes) |
 | `direction`, `fiche_liaison_remise`, `code_liaison`, `repasser` | 3/3 | Ce que « Mes fiches » montre au relais. Le contact lui-même part à part |
-| `hors_lot`, `doublon_possible` | — | **Calculés par la base** : hors du contour du lot ; une école ou un autre relevé à moins de 40 m |
+| `hors_lot`, `doublon_possible` | — | **Calculés par la base**, une seule fois, à l'arrivée du relevé : à plus de 50 m du contour du lot (ou de son arrondissement, quand le lot n'a pas de contour) ; une école ou un autre relevé à moins de 40 m |
 | `motif`, `message_au_relais`, `decide_le`, `ecole_id` | Admin | La décision |
 | `contact_confirme_le`, `contact_fonction` | Admin | « Confirmé · promoteur » dans « Mes fiches », sans rien du contact |
 
@@ -125,10 +125,21 @@ Le fondateur connaît des écoles : il les situe lui-même, sans attendre un rel
 - Ce n'est pas un relevé : `situee_par` et `situee_le` disent qui a donné la position et quand ; `relevee_le` reste vide. La vue `ecoles_publiees` donne `situee_le` : la fiche dit « Fiche ajoutée par NTanova le … ». Un relevé accepté plus tard remplace la position et pose la date de relevé.
 - Migration `20261031223138_situer_par_l_administration.sql` (appliquée en ligne le 31/10 par le connecteur Supabase, à la demande du fondateur ; le fichier porte le numéro que la base a enregistré), tests `supabase/tests/situer_par_l_administration.test.sql`.
 
+## Les lots fins (01/11, ticket #49)
+
+Un lot a un contour facultatif : sans contour, il couvre tout son arrondissement. Un arrondissement ouvert peut être coupé en lots plus fins, pour qu'un relais ait un territoire qu'il couvre en quelques jours et que « hors du lot » ait un sens.
+
+- **Les limites sont une décision du fondateur** (il connaît les zones et les relais) : des lignes tracées sur une carte, de préférence le long d'avenues, pour que la limite se voie sur le terrain. Les quartiers d'OpenStreetMap ne suffisent pas à couper : ils ne couvrent pas l'arrondissement (aucune limite de quartier, des points pour la plupart).
+- **On coupe dans la base.** Une migration de données coupe le contour de l'arrondissement avec `ST_Split` le long des lignes (aucun trou ni recouvrement, par construction), nomme chaque morceau, insère les lots, pose leur date « à rendre le », puis appelle `prive.rattacher_releves_aux_lots_fins('<arrondissement>')`. On vérifie avec `select * from prive.problemes_de_lots('<arrondissement>')` : aucune ligne, rien à signaler. Ces deux fonctions sont dans le schéma privé : l'API ne les atteint pas.
+- **« Hors du lot » : à plus de 50 m du contour**, dans la base (`releves_avant_insertion`) comme sur le téléphone (`dansLeLot`, `TOLERANCE_LOT_M`) : une limite coupe un quartier et un GPS se trompe de 10 à 30 m. Les deux valeurs se changent ensemble. Le calcul de la base est fait à l'arrivée du relevé et ne bouge plus : c'est pourquoi le rattachement le recalcule.
+- **Ce qui reste.** Les lots d'arrondissement entier (« Tié-Tié », « Ngoyo ») et « Essai » restent dans la base : des tests s'appuient sur eux. Vides une fois les relais déplacés (écran « Relais », « Changer de lot »), ils ne servent plus. Un relevé sans position, sur la limite de deux lots, ou du lot d'essai ne se rattache pas.
+- **Ce que l'application ne fait pas encore.** « Mon lot » montre le nom et la date, jamais le contour (le relais reçoit une image de son lot) ; aucun écran n'écrit `lots.rendu_le` (SQL à la main) ; le tirage de rues d'une contre-visite de lot est le ticket #52.
+- Migrations `20261101180000_tolerance_hors_du_lot.sql` et `20261101180100_controle_des_lots.sql` ; tests `supabase/tests/hors_du_lot.test.sql`, `supabase/tests/lots_fins.test.sql`, `tests/unitaires/geo.test.ts`.
+
 ## Les choix (31/10)
 
 1. **Le contact dans un schéma privé**, écrit par une fonction (`envoyer_contact`) qui répond `recu` ou `deja_recu`. Même un droit donné par erreur ne le rendrait pas lisible par l'API. Demain, c'est `POST /contacts` chez Spring Boot.
-2. **Pour lundi, un lot = un arrondissement entier** (contour vide). « Hors du lot » signale une école hors de Tié-Tié ou de Ngoyo. Les lots fins viendront quand leurs contours seront dessinés.
+2. **Pour lundi, un lot = un arrondissement entier** (contour vide). « Hors du lot » signale une école hors de Tié-Tié ou de Ngoyo. Les lots fins viendront quand leurs contours seront dessinés (01/11, ticket #49 : voir « Les lots fins »).
 3. **Arrondissements, et un quartier libre** : Tié-Tié et Ngoyo sont des arrondissements ; l'école garde aussi le nom du quartier tel qu'on le dit sur place. Adresse d'une fiche : `ntanova.com/ecoles/tie-tie/<école>/`.
 
 Fixé en écrivant les migrations :

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ajouterUneEcole } from './aides';
+import { ajouterUneEcole, prendrePhotoEtPosition, seConnecter } from './aides';
 
 // L'espace relais, construit avec le faux serveur (PUBLIC_ADAPTATEUR=faux) : le
 // faux serveur vit dans le navigateur et refuse tout quand le téléphone est hors ligne.
@@ -103,6 +103,34 @@ test.describe('espace relais', () => {
     await expect(page.getByText('À valider par NTanova')).toHaveCount(3);
     await expect(page.getByText('06 123')).toHaveCount(0);
   });
+
+  // Le lot du faux serveur est un carré dont le bord est à 11,95° de longitude. Comme la base
+  // (`supabase/tests/hors_du_lot.test.sql`), le téléphone ne signale « hors du lot » qu'au-delà de 50 m
+  // du bord : à cette latitude, 0,00027° font 30 m et 0,00072° font 80 m.
+  for (const [distance, longitude, horsLot] of [
+    ['30 m', 11.95027, false],
+    ['80 m', 11.95072, true],
+  ] as const) {
+    test(`une école à ${distance} du bord du lot ${horsLot ? 'est signalée hors du lot' : 'reste dans le lot'}`, async ({
+      page,
+      context,
+    }) => {
+      await context.setGeolocation({ latitude: -4.79, longitude, accuracy: 8 });
+      await seConnecter(page, '/relais/');
+      // Le lot est gardé dans le téléphone avant que la position ne soit jugée.
+      await expect(
+        page.getByRole('region', { name: 'Mon lot' }).getByText(/Tié-Tié/),
+      ).toBeVisible();
+      await prendrePhotoEtPosition(page);
+      if (horsLot) {
+        await expect(page.getByText(/Cette position est hors de votre lot/)).toBeVisible();
+        await expect(page.getByText('dans votre lot')).toHaveCount(0);
+      } else {
+        await expect(page.getByText('dans votre lot')).toBeVisible();
+        await expect(page.getByText(/hors de votre lot/)).toHaveCount(0);
+      }
+    });
+  }
 
   test('sans accord, le numéro ne peut pas être noté', async ({ page }) => {
     await page.goto('/relais/');

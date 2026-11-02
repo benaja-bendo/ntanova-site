@@ -68,8 +68,49 @@ export function dansContour(point: Point, contour: MultiPolygone): boolean {
   );
 }
 
+/** Jusqu'à cette distance du contour d'un lot, une école n'est pas « hors du lot » (comme la base). */
+export const TOLERANCE_LOT_M = 50;
+
+const METRES_PAR_DEGRE = (RAYON_TERRE_M * Math.PI) / 180;
+
+/** La distance en mètres d'un point à un segment, sur un plan tangent au point : juste à ces échelles. */
+function distanceAuSegment(point: Point, debut: number[], fin: number[]): number {
+  const echelleLongitude = METRES_PAR_DEGRE * Math.cos((point.latitude * Math.PI) / 180);
+  const [lng1 = 0, lat1 = 0] = debut;
+  const [lng2 = 0, lat2 = 0] = fin;
+  // Le point est l'origine ; le segment se compte en mètres à partir de lui.
+  const x1 = (lng1 - point.longitude) * echelleLongitude;
+  const y1 = (lat1 - point.latitude) * METRES_PAR_DEGRE;
+  const dx = (lng2 - lng1) * echelleLongitude;
+  const dy = (lat2 - lat1) * METRES_PAR_DEGRE;
+  const longueur2 = dx * dx + dy * dy;
+  const t = longueur2 === 0 ? 0 : Math.max(0, Math.min(1, -(x1 * dx + y1 * dy) / longueur2));
+  return Math.hypot(x1 + t * dx, y1 + t * dy);
+}
+
 /**
- * La position est-elle dans le lot ? `null` quand la question n'a pas de sens :
+ * La distance en mètres d'un point au contour : 0 dedans, sinon celle du bord le plus proche
+ * (le bord d'un trou compte : un point dans un trou est hors du contour). Infinie si le contour est vide.
+ */
+export function distanceAuContour(point: Point, contour: MultiPolygone): number {
+  if (dansContour(point, contour)) return 0;
+  let plusProche = Infinity;
+  for (const polygone of contour) {
+    for (const anneau of polygone) {
+      for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) {
+        plusProche = Math.min(
+          plusProche,
+          distanceAuSegment(point, anneau[j] ?? [], anneau[i] ?? []),
+        );
+      }
+    }
+  }
+  return plusProche;
+}
+
+/**
+ * La position est-elle dans le lot, ou à moins de 50 m de son contour ? La base compte pareil : un lot
+ * fin coupe un quartier, et un GPS se trompe de 10 à 30 m. `null` quand la question n'a pas de sens :
  * pas de lot, pas de contour, ou le lot d'entraînement (on s'y forme n'importe où).
  */
 export function dansLeLot(
@@ -77,5 +118,5 @@ export function dansLeLot(
   lot: { essai: boolean; contour: MultiPolygone | null } | null | undefined,
 ): boolean | null {
   if (!lot || lot.essai || !lot.contour) return null;
-  return dansContour(point, lot.contour);
+  return distanceAuContour(point, lot.contour) <= TOLERANCE_LOT_M;
 }
