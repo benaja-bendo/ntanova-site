@@ -66,6 +66,10 @@ test.describe('administration', () => {
       timeout: 15_000,
     });
     await expect(page.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
+
+    // L'écran dit ce que le relais fait : il corrige une fiche, il n'ajoute pas une école.
+    await page.getByRole('button', { name: 'Corriger la fiche' }).click();
+    await expect(page.locator('.entete-etape-titre')).toHaveText('Corriger une fiche');
   });
 
   test('une école publiée se retire avec un motif, puis se republie', async ({ page, context }) => {

@@ -1,4 +1,5 @@
 /** Les composants propres à l'espace relais ; les composants partagés sont dans src/ui/. */
+import { titreDeLEcran, type FicheLocale } from '../../modele/fiche';
 import { Icone } from '../../ui/composants';
 import { aller, useEnLigne, useAdresse } from './contexte';
 
@@ -53,15 +54,17 @@ export function Navigation() {
   );
 }
 
-/** L'en-tête des trois étapes d'« Ajouter une école ». */
+/** L'en-tête des trois étapes d'une fiche : « Ajouter une école », « Corriger une fiche » ou « Compléter une école ». */
 export function EnteteEtape({
   etape,
   titre,
   retour,
+  type,
 }: {
   etape: 1 | 2 | 3;
   titre: string;
   retour: string;
+  type: FicheLocale['type'];
 }) {
   return (
     <>
@@ -74,7 +77,7 @@ export function EnteteEtape({
         >
           <Icone nom="retour" taille={22} />
         </button>
-        <span className="entete-etape-titre">Ajouter une école</span>
+        <span className="entete-etape-titre">{titreDeLEcran(type)}</span>
         <span className="entete-etape-compte">{etape}/3</span>
       </header>
       <div className="progression">

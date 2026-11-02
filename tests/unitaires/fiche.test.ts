@@ -12,6 +12,7 @@ import {
   photoEnseigne,
   photosFacultatives,
   sansPhoto,
+  titreDeLEcran,
   toutEnvoye,
   versContact,
   versPhotos,
@@ -419,5 +420,19 @@ describe('les séries et les filières', () => {
       programmesVus: null,
       programmesEnPhoto: false,
     });
+  });
+});
+
+describe('le titre de l’écran dit ce que le relais fait', () => {
+  it('une école nouvelle s’ajoute, une fiche refusée se corrige, une école connue se complète', () => {
+    expect(titreDeLEcran('releve')).toBe('Ajouter une école');
+    expect(titreDeLEcran('correction')).toBe('Corriger une fiche');
+    expect(titreDeLEcran('contre_visite')).toBe('Compléter une école');
+  });
+
+  it('couvre chaque type de fiche, sans en laisser un sans titre', () => {
+    for (const type of listes.type_releve) {
+      expect(titreDeLEcran(type)).not.toBe('');
+    }
   });
 });

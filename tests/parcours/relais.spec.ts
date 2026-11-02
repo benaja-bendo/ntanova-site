@@ -136,6 +136,30 @@ test.describe('espace relais', () => {
     });
   }
 
+  test('la phrase d’ouverture ne nomme ni ville ni lot, et le titre dit « Ajouter une école »', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/relais/');
+    const phrase = page.getByRole('region', { name: 'À dire en entrant' });
+    // Le lot du faux serveur s'appelle « Tié-Tié » : la phrase ne le reprend plus. Un lot fin portera un nom
+    // de lot, et un relais sans lot ne doit pas se voir répondre « Pointe-Noire ».
+    await expect(phrase).toContainText(
+      'Bonjour. Nous relevons les écoles du quartier pour un annuaire en ligne destiné aux familles. ' +
+        'Nous venons de relever votre école, avec ce qui se voit de la rue. ' +
+        "Pour que sa fiche soit juste et que l'établissement puisse la corriger si besoin, " +
+        'nous voulons la faire valider par la direction : à qui pouvons-nous nous adresser ?',
+    );
+    await expect(phrase).not.toContainText('Pointe-Noire');
+    await expect(phrase).not.toContainText('Tié-Tié');
+    // La ligne « Jamais » ne change pas.
+    await expect(phrase).toContainText(
+      'Jamais : se dire parent, dire que le site est déjà connu, promettre quelque chose, photographier un enfant.',
+    );
+
+    await page.getByRole('button', { name: 'Ajouter une école' }).click();
+    await expect(page.locator('.entete-etape-titre')).toHaveText('Ajouter une école');
+  });
+
   test('sans accord, le numéro ne peut pas être noté', async ({ page }) => {
     await page.goto('/relais/');
     await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();

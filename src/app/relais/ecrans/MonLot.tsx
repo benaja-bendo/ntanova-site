@@ -70,7 +70,6 @@ export function MonLot() {
   const lot = useRequete(() => lireMemoire('lot'));
   const releves = useRequete(() => lireMemoire('releves')) ?? [];
   const brouillon = useRequete(() => lireMemoire('brouillon'));
-  const quartier = lot && !lot.essai ? lot.nom : 'Pointe-Noire';
 
   return (
     <div className="ecran">
@@ -109,10 +108,11 @@ export function MonLot() {
         <section className="carte-blanche pile-serree" aria-label="À dire en entrant">
           <p className="surtitre">À dire en entrant</p>
           <p>
-            «&nbsp;Bonjour. Nous recensons les écoles de {quartier} pour un annuaire en ligne qui
-            démarre. Nous venons de relever votre école, avec ce qui se voit de la rue. Pour que sa
-            fiche soit juste, nous voulons la faire valider par la direction&nbsp;: à qui
-            pouvons-nous nous adresser&nbsp;?&nbsp;»
+            «&nbsp;Bonjour. Nous relevons les écoles du quartier pour un annuaire en ligne destiné
+            aux familles. Nous venons de relever votre école, avec ce qui se voit de la rue. Pour
+            que sa fiche soit juste et que l'établissement puisse la corriger si besoin, nous
+            voulons la faire valider par la direction&nbsp;: à qui pouvons-nous nous
+            adresser&nbsp;?&nbsp;»
           </p>
           <p className="interdits">
             <b>Jamais&nbsp;:</b> se dire parent, dire que le site est déjà connu, promettre quelque
