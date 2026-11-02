@@ -83,6 +83,7 @@ interface LigneFile {
   batch: string | null;
   trial: boolean | null;
   outside_batch: boolean | null;
+  in_open_zone: boolean | null;
   possible_duplicate: boolean;
   duplicate_answer: Valeur<'reponse_doublon'> | null;
   accuracy_m: number | null;
@@ -101,6 +102,7 @@ const versFile = (l: LigneFile): ReleveAValider => ({
   lot: l.batch,
   essai: l.trial ?? false,
   horsLot: l.outside_batch,
+  enZoneOuverte: l.in_open_zone,
   doublonPossible: l.possible_duplicate,
   reponseDoublon: l.duplicate_answer,
   precisionM: l.accuracy_m,
@@ -131,6 +133,7 @@ interface LigneDetail {
   duplicate_answer: Valeur<'reponse_doublon'> | null;
   corrects_submission_id: string | null;
   outside_batch: boolean | null;
+  in_open_zone: boolean | null;
   possible_duplicate: boolean;
   contact_confirmed_at: string | null;
   contact_role: Valeur<'fonction_direction'> | null;
@@ -150,7 +153,7 @@ interface LigneDetail {
 const COLONNES_DETAIL =
   'id, received_at, taken_at, kind, sign_name, position, accuracy_m, levels, school_kind, curriculum_note, ' +
   'observed_programs, programs_photographed, landmark, sign_phone, direction_seen, come_back_note, ' +
-  'duplicate_answer, corrects_submission_id, outside_batch, possible_duplicate, contact_confirmed_at, ' +
+  'duplicate_answer, corrects_submission_id, outside_batch, in_open_zone, possible_duplicate, contact_confirmed_at, ' +
   'contact_role, trial_validated_at, campus_id, relais(prenom), lots(nom, essai), ' +
   'doublon:campuses!field_submissions_duplicate_of_campus_id_fkey(id, label, institutions(name)), ' +
   'campus:campuses!field_submissions_campus_id_fkey(label, publication, institutions(name), geo_divisions(name))';
@@ -287,6 +290,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         lot: r.lots?.nom ?? null,
         essai: r.lots?.essai ?? false,
         horsLot: r.outside_batch,
+        enZoneOuverte: r.in_open_zone,
         doublonPossible: r.possible_duplicate,
         reponseDoublon: r.duplicate_answer,
         precisionM: r.accuracy_m,

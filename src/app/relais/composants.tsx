@@ -59,7 +59,7 @@ export function Entete({ titre, principal = false }: { titre: string; principal?
 export function Navigation() {
   const [ecran = 'lot'] = useAdresse();
   const onglets = [
-    { chemin: 'lot', libelle: 'Mon lot', icone: 'carte' as const },
+    { chemin: 'lot', libelle: 'Mon secteur', icone: 'carte' as const },
     { chemin: 'fiches', libelle: 'Mes fiches', icone: 'fiche' as const },
     { chemin: 'paie', libelle: 'Ma paie', icone: 'piece' as const },
   ];

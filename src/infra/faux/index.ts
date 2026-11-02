@@ -341,6 +341,9 @@ const session: PortSession = {
   },
 };
 
+/** `ntanova-faux-sans-secteur` : un relais actif à qui NTanova n'a donné aucun secteur (lot). */
+const sansSecteur = () => localStorage.getItem('ntanova-faux-sans-secteur') === '1';
+
 const relais: PortRelais = {
   async monProfil() {
     await reseau();
@@ -355,7 +358,7 @@ const relais: PortRelais = {
       id: e.utilisateur.id,
       prenom: '[Prénom]',
       statut: e.statut,
-      lotId: e.statut === 'actif' ? LOT.id : null,
+      lotId: e.statut === 'actif' && !sansSecteur() ? LOT.id : null,
     };
   },
   async monLot() {
@@ -372,9 +375,16 @@ const relais: PortRelais = {
         ],
       ],
     ];
-    return lireEtat().statut === 'actif'
+    return lireEtat().statut === 'actif' && !sansSecteur()
       ? { id: LOT.id, nom: LOT.nom, essai: LOT.essai, aRendreLe: null, contour }
       : null;
+  },
+  async zonesOuvertes() {
+    await reseau();
+    return Object.values(lireEtat().divisions)
+      .filter((d) => d.ouverte)
+      .map((d) => d.nom)
+      .sort((a, b) => a.localeCompare(b, 'fr'));
   },
   async lieuxConnus() {
     await reseau();
@@ -600,6 +610,23 @@ function lotDe(id: string | null | undefined, e: Etat): LotFaux {
   return e.lots.find((l) => l.id === id) ?? e.lots[0] ?? LOT;
 }
 
+/** Le carré du faux lot et de la faux zone ouverte (Tié-Tié), comme `monLot` le donne au téléphone. */
+const CARRE_DU_LOT = { ouest: 11.85, est: 11.95, sud: -4.83, nord: -4.75 };
+const dansLeCarre = (
+  p: { latitude: number; longitude: number },
+  c: { ouest: number; est: number; sud: number; nord: number },
+) => p.longitude >= c.ouest && p.longitude <= c.est && p.latitude >= c.sud && p.latitude <= c.nord;
+
+/**
+ * Comme la base : vrai dans la zone ouverte (le carré de Tié-Tié), faux ailleurs dans Pointe-Noire, nul là où aucun
+ * contour n'est connu (Brazzaville…) et sans position.
+ */
+function enZoneOuverte(p: { latitude: number; longitude: number } | null): boolean | null {
+  if (!p) return null;
+  if (dansLeCarre(p, CARRE_DU_LOT)) return true;
+  return dansLeCarre(p, { ouest: 11.7, est: 12.1, sud: -5.0, nord: -4.6 }) ? false : null;
+}
+
 /** Une ligne de la file « À valider », comme la vue `submissions_to_review`. */
 function ligneDe(r: ReleveAEnvoyer, e: Etat) {
   const photos = Object.values(e.photos).filter((p) => p.releveId === r.id);
@@ -612,7 +639,8 @@ function ligneDe(r: ReleveAEnvoyer, e: Etat) {
     relais: '[Prénom]',
     lot: lot.nom,
     essai: lot.essai,
-    horsLot: false,
+    horsLot: r.position ? !dansLeCarre(r.position, CARRE_DU_LOT) : null,
+    enZoneOuverte: enZoneOuverte(r.position),
     doublonPossible: r.reponseDoublon !== null,
     reponseDoublon: r.reponseDoublon,
     precisionM: r.precisionM,

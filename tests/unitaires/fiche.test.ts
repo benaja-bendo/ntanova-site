@@ -201,28 +201,6 @@ describe('les dates affichées', () => {
   });
 });
 
-describe('dans le lot', () => {
-  it('ne dit rien pour le lot d’entraînement, où l’on se forme n’importe où', async () => {
-    const { dansLeLot } = await import('../../src/modele/geo');
-    const contour = [
-      [
-        [
-          [0, 0],
-          [10, 0],
-          [10, 10],
-          [0, 10],
-          [0, 0],
-        ],
-      ],
-    ];
-    const loin = { latitude: 50, longitude: 50 };
-    expect(dansLeLot(loin, { essai: false, contour })).toBe(false);
-    expect(dansLeLot(loin, { essai: true, contour })).toBeNull();
-    expect(dansLeLot(loin, { essai: false, contour: null })).toBeNull();
-    expect(dansLeLot(loin, null)).toBeNull();
-  });
-});
-
 describe('la contre-visite d’une école confiée', () => {
   it('part liée à l’école visitée, avec ce qu’on savait déjà', async () => {
     const { nouvelleContreVisite } = await import('../../src/modele/fiche');

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cycleAvecFormations } from '../../modele/formations';
-import { listes, type Valeur } from '../../modele/listes';
+import type { Valeur } from '../../modele/listes';
 import {
   libelleFonction,
   libelleMotif,
@@ -8,6 +8,7 @@ import {
   libelleRolePhoto,
   libelleStatutReleve,
   libelleTypeEcole,
+  motifsProposes,
 } from '../../modele/libelles';
 import type {
   ContactDirection,
@@ -51,7 +52,10 @@ function Etiquettes({ r }: { r: ReleveAValider }) {
   return (
     <span className="admin-etiquettes">
       {r.essai && <span className="etiquette etat-telephone">Lot d'essai</span>}
-      {r.horsLot && !r.essai && <span className="etiquette etat-refusee">Hors du lot</span>}
+      {/* Une information, jamais une alerte : le relais relève où il se trouve (ticket n° 67). */}
+      {r.enZoneOuverte === false && !r.essai && (
+        <span className="etiquette etat-attente">Hors zone ouverte</span>
+      )}
       {r.doublonPossible && <span className="etiquette etat-attente">Doublon possible</span>}
       {!r.enseigneRecue && (
         <span className="etiquette etat-telephone">
@@ -446,8 +450,9 @@ function Detail({
   }
 
   const position = detail.position;
-  // Sur le lot d'entraînement, « hors du lot » ne veut rien dire.
-  const horsLot = detail.essai ? null : detail.horsLot;
+  // Sur le lot d'entraînement, on se forme n'importe où : ni la zone ni le secteur ne disent rien.
+  const enZoneOuverte = detail.essai ? null : detail.enZoneOuverte;
+  const horsDuSecteur = detail.essai ? false : detail.horsLot === true;
   const campusConnus = institutions.flatMap((i) =>
     i.campus.map((c) => ({
       id: c.id,
@@ -532,18 +537,21 @@ function Detail({
       <div className="admin-deux">
         <div className="pile-serree">
           <p className="rang">
-            <Icone nom={horsLot ? 'alerte' : 'coche'} taille={16} />
+            <Icone nom={enZoneOuverte === false ? 'alerte' : 'coche'} taille={16} />
             <span>
               <b>
                 {position === null
                   ? 'Sans position'
-                  : horsLot
-                    ? 'Hors du lot'
-                    : horsLot === false
-                      ? 'Dans le lot'
-                      : 'Position prise'}
+                  : enZoneOuverte === false
+                    ? 'Hors zone ouverte'
+                    : enZoneOuverte === true
+                      ? 'En zone ouverte'
+                      : detail.essai
+                        ? 'Position prise'
+                        : 'Zone inconnue'}
               </b>
               {detail.precisionM !== null && ` · précision ${Math.round(detail.precisionM)} m`}
+              {horsDuSecteur && ` · hors du secteur de ${detail.relais}`}
             </span>
           </p>
           {position && (
@@ -875,7 +883,7 @@ function Detail({
                     value={motif}
                     onChange={(e) => setMotif(e.target.value as Valeur<'motif_decision'>)}
                   >
-                    {listes.motif_decision.map((m) => (
+                    {motifsProposes.map((m) => (
                       <option key={m} value={m}>
                         {libelleMotif[m]}
                       </option>

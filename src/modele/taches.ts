@@ -55,7 +55,7 @@ export function tachesDeLaCorrection(recu: ReleveRecu): Taches {
   const motif = recu.motif;
   return {
     photo: motif === 'photo_floue' || motif === 'enfant_sur_photo',
-    position: motif === 'hors_lot' || motif === 'doublon',
+    position: motif === 'hors_lot' || motif === 'position_imprecise' || motif === 'doublon',
     // Un motif qui ne dit rien de précis (« autre », ou aucun) : le relais relit les informations avec le message.
     informations: motif === 'autre' || motif === null,
     // Le contact de la direction est parti avec la fiche : une correction ne le redemande pas.

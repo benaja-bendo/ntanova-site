@@ -134,8 +134,8 @@ export function PremiereConnexionHorsLigne() {
       <main className="accueil">
         <h1>Pas de réseau</h1>
         <p>
-          La première ouverture demande du réseau, pour charger votre lot. Ensuite, le relevé marche
-          hors ligne.
+          La première ouverture demande du réseau, pour charger votre secteur et les écoles déjà
+          connues. Ensuite, le relevé marche hors ligne.
         </p>
         <button type="button" className="bouton" onClick={() => location.reload()}>
           Réessayer

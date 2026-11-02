@@ -66,11 +66,22 @@ export const libelleStatutReleve: Record<Valeur<'statut_releve'>, string> = {
 
 export const libelleMotif: Record<Valeur<'motif_decision'>, string> = {
   photo_floue: 'La photo est floue.',
-  hors_lot: "L'école est hors de votre lot.",
+  // Une ancienne demande : le lot n'est plus une limite, mais la position reste à reprendre.
+  hors_lot: "La position est à reprendre devant l'entrée.",
   doublon: "L'école est déjà relevée.",
   enfant_sur_photo: 'Un enfant est sur la photo.',
   autre: 'Une information est à revoir.',
+  position_imprecise: "La position n'est pas celle de l'entrée.",
 };
+
+/** Les motifs que l'administration propose, dans cet ordre. `hors_lot` n'y est plus : il ne sert qu'à relire. */
+export const motifsProposes: Valeur<'motif_decision'>[] = [
+  'photo_floue',
+  'position_imprecise',
+  'doublon',
+  'enfant_sur_photo',
+  'autre',
+];
 
 /**
  * D'où vient une fiche publiée : vérifiée par l'école, relevée de la rue par un relais, ou

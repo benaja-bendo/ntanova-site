@@ -9,7 +9,7 @@ export async function seConnecter(page: Page, adresse: string): Promise<void> {
   await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
 }
 
-/** Ouvre Ajouter 1/3 depuis « Mon lot », prend la photo, et attend que la position soit prise. */
+/** Ouvre Ajouter 1/3 depuis « Mon secteur », prend la photo, et attend que la position soit prise. */
 export async function prendrePhotoEtPosition(page: Page) {
   await page.getByRole('button', { name: 'Ajouter une école' }).click();
   await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
@@ -18,10 +18,9 @@ export async function prendrePhotoEtPosition(page: Page) {
   await expect(page.getByText('Position prise')).toBeVisible();
 }
 
-/** Remplit Ajouter 1/3 à 3/3 depuis « Mon lot », puis revient sur « Mon lot ». */
+/** Remplit Ajouter 1/3 à 3/3 depuis « Mon secteur », puis revient sur « Mon secteur ». */
 export async function ajouterUneEcole(page: Page, n: number, options: { programme?: string } = {}) {
   await prendrePhotoEtPosition(page);
-  await expect(page.getByText('dans votre lot')).toBeVisible();
   await page.getByRole('button', { name: 'Suivant' }).click();
 
   await page.getByLabel("Nom sur l'enseigne").fill(`[École ${n}]`);
@@ -37,7 +36,7 @@ export async function ajouterUneEcole(page: Page, n: number, options: { programm
   await page.getByLabel(/Son WhatsApp/).fill(`06 123 45 6${n}`);
   await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await page.getByRole('link', { name: 'Mon lot' }).click();
+  await page.getByRole('link', { name: 'Mon secteur' }).click();
 }
 
 /**
@@ -48,14 +47,19 @@ export async function ajouterUneEcole(page: Page, n: number, options: { programm
 export async function uneFicheEnvoyee(
   page: Page,
   context: BrowserContext,
-  options: { programme?: string } = {},
+  options: { programme?: string; position?: { latitude: number; longitude: number } } = {},
 ) {
-  await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
+  await context.setGeolocation({
+    ...(options.position ?? { latitude: -4.8, longitude: 11.9 }),
+    accuracy: 8,
+  });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-  // Le lot est gardé dans le téléphone avant que la position soit jugée : sans lui, « dans votre lot » ne vient pas
-  // (sur une machine chargée, la position arrivait parfois avant le lot).
-  await expect(page.getByRole('region', { name: 'Mon lot' }).getByText(/Tié-Tié/)).toBeVisible();
+  // Le secteur est gardé dans le téléphone avec le reste de la lecture : on attend qu'il y soit (le téléphone peut
+  // tomber en panne de réseau juste après).
+  await expect(
+    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
+  ).toBeVisible();
   await ajouterUneEcole(page, 1, options);
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
   // Le faux serveur a bien reçu le relevé, la photo et le contact.

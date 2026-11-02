@@ -167,6 +167,81 @@ test.describe('administration', () => {
     expect(await textesPeuLisibles(page, 'body'), 'Écoles, retirer du site').toEqual([]);
   });
 
+  // Le secteur d'un relais est un conseil, la zone ouverte la limite de NTanova, et ni l'un ni l'autre ne refuse une
+  // fiche (ticket n° 67). Le faux serveur compte la zone ouverte comme le carré de Tié-Tié : 11,98° est à Pointe-Noire,
+  // hors de ce carré ; Brazzaville (15,24°) est hors de tout contour connu.
+  for (const [lieu, position, etiquette] of [
+    ['hors de la zone ouverte', { latitude: -4.79, longitude: 11.98 }, 'Hors zone ouverte'],
+    ['hors de tout contour connu', { latitude: -4.26, longitude: 15.24 }, 'Zone inconnue'],
+  ] as const) {
+    test(`une fiche relevée ${lieu} s’affiche en information, jamais en alerte, et s’accepte comme les autres`, async ({
+      page,
+      context,
+    }) => {
+      await uneFicheEnvoyee(page, context, { position });
+      await page.goto('/admin/');
+      const ligne = page.getByRole('link', { name: /\[École 1\]/ });
+      await expect(ligne).toBeVisible();
+      // Plus aucune trace de « hors du lot » : le lot n'est qu'un conseil.
+      await expect(page.getByText(/Hors du lot/)).toHaveCount(0);
+      if (etiquette === 'Hors zone ouverte') {
+        await expect(ligne.getByText('Hors zone ouverte')).toBeVisible();
+        // Une information (orange), pas un refus (rouge).
+        await expect(ligne.getByText('Hors zone ouverte')).toHaveClass(/etat-attente/);
+      } else {
+        // La liste ne dit rien quand la zone est inconnue : ce n'est pas un défaut de la fiche.
+        await expect(ligne.getByText(/Hors zone ouverte|Zone inconnue/)).toHaveCount(0);
+      }
+
+      await ligne.click();
+      await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
+      const detail = page.getByRole('region', { name: 'Envoi sélectionné' });
+      await expect(detail.getByText(etiquette, { exact: true })).toBeVisible();
+      await expect(page.getByText(/Hors du lot/)).toHaveCount(0);
+      await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+      await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+    });
+  }
+
+  test('une fiche relevée dans la zone ouverte le dit, sans alerte', async ({ page, context }) => {
+    await uneFicheEnvoyee(page, context);
+    await ouvrirLaFiche(page);
+    await expect(
+      page
+        .getByRole('region', { name: 'Envoi sélectionné' })
+        .getByText('En zone ouverte', { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText(/Hors zone ouverte|Zone inconnue|Hors du lot/)).toHaveCount(0);
+  });
+
+  test('« hors du lot » n’est plus un motif de correction ; la position à reprendre l’est', async ({
+    page,
+    context,
+  }) => {
+    await uneFicheEnvoyee(page, context);
+    await ouvrirLaFiche(page);
+    await page.getByRole('button', { name: 'Demander une correction' }).click();
+    const motifs = await page.getByLabel('Motif').locator('option').allTextContents();
+    expect(motifs).toContain("La position n'est pas celle de l'entrée.");
+    expect(motifs.join(' ')).not.toMatch(/lot/i);
+  });
+
+  test('un relais en attente est activé sans lot : il relève où il se trouve', async ({ page }) => {
+    await seConnecter(page, '/admin/');
+    await page.getByRole('link', { name: 'Relais' }).click();
+    const ligne = page.getByRole('row', { name: /\[Relais en attente\]/ });
+    await expect(ligne.getByText('À activer')).toBeVisible();
+    await ligne.getByLabel(/Lot de/).selectOption({ label: 'Sans lot' });
+    await ligne.getByRole('button', { name: 'Activer' }).click();
+    await expect(page.getByRole('status')).toHaveText(/est actif/);
+    await expect(
+      page.getByRole('row', { name: /\[Relais en attente\]/ }).getByText('Actif', { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('row', { name: /\[Relais en attente\]/ })).toContainText(
+      'Aucun lot',
+    );
+  });
+
   test('un relais en attente est activé sur un lot', async ({ page }) => {
     await seConnecter(page, '/admin/');
     await page.getByRole('link', { name: 'Relais' }).click();
