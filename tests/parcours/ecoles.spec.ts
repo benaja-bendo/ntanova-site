@@ -26,7 +26,7 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
-  // Le relais la voit dans « Mon lot » et la complète.
+  // Le relais la voit dans « Mon secteur » et la complète.
   await page.goto('/relais/');
   await expect(page.getByText('À compléter · 1')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('À vérifier : Le nom exact')).toBeVisible();
@@ -48,7 +48,7 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.getByRole('button', { name: 'Suivant' }).click();
   await page.getByRole('button', { name: 'Absente' }).click();
   await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
-  await page.getByRole('link', { name: 'Mon lot' }).click();
+  await page.getByRole('link', { name: 'Mon secteur' }).click();
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/À compléter/)).toHaveCount(0);
 

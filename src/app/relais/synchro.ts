@@ -10,8 +10,8 @@ import { envoyerTout, type ResultatEnvoi } from './file-envoi';
 import { journaliser } from './journal';
 
 /**
- * Relit le profil, et pour un relais actif son lot, les écoles connues autour de lui (campus et relevés pas encore
- * acceptés : de quoi prévenir d'un doublon sans réseau), ses relevés et les écoles qu'on lui confie.
+ * Relit le profil, et pour un relais actif son secteur, les écoles connues des zones ouvertes (campus et relevés
+ * pas encore acceptés : de quoi prévenir d'un doublon sans réseau), ses relevés et les écoles qu'on lui confie.
  */
 export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
   const etat = await adaptateurs.session.etat();
@@ -21,11 +21,17 @@ export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvo
     const profil = await relais.monProfil();
     await garder('profil', profil);
     if (profil.statut === 'actif') {
-      const [lot, ecoles, releves, aCompleter, paie] = await Promise.all([
+      const [lot, ecoles, releves, aCompleter, zones, paie] = await Promise.all([
         relais.monLot(),
         relais.lieuxConnus(),
         relais.mesReleves(),
         relais.mesMissions(),
+        // Les zones ouvertes ne servent qu'à être affichées : une panne ici n'arrête rien d'autre.
+        relais.zonesOuvertes().catch((erreur: unknown) => {
+          if (erreur instanceof ErreurReseau || erreur instanceof ErreurSession) throw erreur;
+          void journaliser('synchro', 'zones_illisibles', erreur);
+          return null;
+        }),
         // La paie ne se lit que pour être affichée : une panne ici n'arrête ni l'envoi ni le reste de la lecture.
         relais.maPaie().catch((erreur: unknown) => {
           if (erreur instanceof ErreurReseau || erreur instanceof ErreurSession) throw erreur;
@@ -38,6 +44,7 @@ export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvo
         garder('ecoles', ecoles),
         garder('releves', releves),
         garder('aCompleter', aCompleter),
+        ...(zones ? [garder('zones', zones)] : []),
         ...(paie ? [garder('paie', paie)] : []),
       ]);
     }

@@ -55,9 +55,11 @@ test.describe('espace relais', () => {
     await page.goto('/relais/');
     await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    // Le lot est gardé dans le téléphone, pour servir hors ligne : on attend qu'il y soit avant
-    // de couper le réseau (sinon, sur une machine chargée, « dans votre lot » ne vient jamais).
-    await expect(page.getByRole('region', { name: 'Mon lot' }).getByText(/Tié-Tié/)).toBeVisible();
+    // Le secteur et les écoles connues sont gardés dans le téléphone, pour servir hors ligne : on attend qu'ils y
+    // soient avant de couper le réseau.
+    await expect(
+      page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
+    ).toBeVisible();
 
     // L'application est gardée dans le téléphone : elle s'ouvre sans réseau.
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
@@ -108,33 +110,58 @@ test.describe('espace relais', () => {
     await expect(page.getByText('06 123')).toHaveCount(0);
   });
 
-  // Le lot du faux serveur est un carré dont le bord est à 11,95° de longitude. Comme la base
-  // (`supabase/tests/lots.test.sql`), le téléphone ne signale « hors du lot » qu'au-delà de 50 m
-  // du bord : à cette latitude, 0,00027° font 30 m et 0,00072° font 80 m.
-  for (const [distance, longitude, horsLot] of [
-    ['30 m', 11.95027, false],
-    ['80 m', 11.95072, true],
+  // Le secteur est un conseil, jamais une barrière (ticket n° 67) : le téléphone ne dit rien de la distance au
+  // secteur, et la fiche continue. Le secteur du faux serveur est un carré dont le bord est à 11,95° de longitude :
+  // à cette latitude, 0,00027° font 30 m et 0,00072° font 80 m (l'ancien seuil de 50 m est tombé avec le message).
+  for (const [distance, longitude] of [
+    ['30 m', 11.95027],
+    ['80 m', 11.95072],
+    ['3 km', 11.98],
   ] as const) {
-    test(`une école à ${distance} du bord du lot ${horsLot ? 'est signalée hors du lot' : 'reste dans le lot'}`, async ({
+    test(`une école à ${distance} du bord du secteur se relève sans aucun message sur le secteur`, async ({
       page,
       context,
     }) => {
       await context.setGeolocation({ latitude: -4.79, longitude, accuracy: 8 });
       await seConnecter(page, '/relais/');
-      // Le lot est gardé dans le téléphone avant que la position ne soit jugée.
       await expect(
-        page.getByRole('region', { name: 'Mon lot' }).getByText(/Tié-Tié/),
+        page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
       ).toBeVisible();
       await prendrePhotoEtPosition(page);
-      if (horsLot) {
-        await expect(page.getByText(/Cette position est hors de votre lot/)).toBeVisible();
-        await expect(page.getByText('dans votre lot')).toHaveCount(0);
-      } else {
-        await expect(page.getByText('dans votre lot')).toBeVisible();
-        await expect(page.getByText(/hors de votre lot/)).toHaveCount(0);
-      }
+      await expect(page.getByText(/hors de votre/)).toHaveCount(0);
+      await expect(page.getByText(/dans votre/)).toHaveCount(0);
+      // Et la fiche continue.
+      await page.getByRole('button', { name: 'Suivant' }).click();
+      await expect(page.getByLabel("Nom sur l'enseigne")).toBeVisible();
     });
   }
+
+  test('un relais sans secteur voit les zones ouvertes, relève une école et reçoit l’alerte à 40 m sans réseau', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(90_000);
+    // L'école publiée du faux serveur est en (-4,79105 ; 11,925) : on se tient à une vingtaine de mètres.
+    await context.setGeolocation({ latitude: -4.79123, longitude: 11.925, accuracy: 8 });
+    await page.addInitScript(() => localStorage.setItem('ntanova-faux-sans-secteur', '1'));
+    await seConnecter(page, '/relais/');
+    const secteur = page.getByRole('region', { name: 'Mon secteur' });
+    await expect(secteur).toContainText('Pas de secteur conseillé');
+    // À défaut de secteur, l'écran dit où NTanova relève : les zones ouvertes.
+    await expect(secteur).toContainText('Zones ouvertes : Ngoyo, Tié-Tié');
+    await expect(secteur).not.toContainText('Aucun lot');
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+
+    await context.setOffline(true);
+    await page.reload();
+    await expect(page.getByText('Hors ligne', { exact: true })).toBeVisible();
+    await expect(secteur).toContainText('Zones ouvertes : Ngoyo, Tié-Tié');
+
+    await prendrePhotoEtPosition(page);
+    const doublon = page.getByRole('region', { name: 'Doublon possible' });
+    await expect(doublon).toContainText('[École exemple publiée]');
+    await expect(doublon).toContainText('40');
+  });
 
   test('la phrase d’ouverture ne nomme ni ville ni lot, et le titre dit « Ajouter une école »', async ({
     page,
@@ -184,7 +211,7 @@ test.describe('espace relais', () => {
     await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
     const navigation = page.getByRole('navigation', { name: 'Espace relais' });
     for (const [ecran, onglet] of [
-      ['lot', 'Mon lot'],
+      ['lot', 'Mon secteur'],
       ['fiches', 'Mes fiches'],
       ['paie', 'Ma paie'],
     ] as const) {

@@ -49,7 +49,9 @@ function fichesDuTelephone(page: Page) {
 async function ouvrirLEspace(page: Page, context: BrowserContext) {
   await context.setGeolocation({ latitude: -4.7982, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
-  await expect(page.getByRole('region', { name: 'Mon lot' }).getByText(/Tié-Tié/)).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
+  ).toBeVisible();
 }
 
 const carte = (page: Page, nom: string) => page.getByRole('article').filter({ hasText: nom });
@@ -64,7 +66,7 @@ test.describe('une fiche que la base refuse', () => {
     await regler(page, 'ntanova-faux-rejet', '42501|Compte relais inactif.');
     await ajouterUneEcole(page, 1);
 
-    // Sur « Mon lot » : plus de fiche qui « attend », mais une fiche à regarder.
+    // Sur « Mon secteur » : plus de fiche qui « attend », mais une fiche à regarder.
     await expect(page.getByText(/1 fiche n'a pas pu être envoyée/)).toBeVisible({
       timeout: 15_000,
     });

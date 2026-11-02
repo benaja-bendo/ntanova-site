@@ -73,7 +73,6 @@ export interface FicheLocale {
   position: Point | null;
   precisionM: number | null;
   prisLe: string | null;
-  horsLot: boolean | null;
   /** L'école publiée (ou la fiche du téléphone, sans identifiant d'école) relevée à moins de 40 m. */
   doublonPropose: { ecoleId: string | null; nom: string } | null;
   reponseDoublon: Valeur<'reponse_doublon'> | null;
@@ -145,7 +144,6 @@ export function nouvelleFiche(
     position: null,
     precisionM: null,
     prisLe: null,
-    horsLot: null,
     doublonPropose: null,
     reponseDoublon: null,
     nomEnseigne: corrige?.nomEnseigne ?? '',

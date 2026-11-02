@@ -50,6 +50,11 @@ function fausseBase(
 
 const MOI = 'relais-admin';
 const tables = {
+  geo_divisions: [
+    { id: 'z1', name: 'Tié-Tié', open_for_fieldwork: true },
+    { id: 'z2', name: 'Lumumba', open_for_fieldwork: false },
+    { id: 'z3', name: 'Ngoyo', open_for_fieldwork: true },
+  ],
   relais: [
     { id: MOI, prenom: '[A]', statut: 'actif', lot_id: 'lot-essai' },
     { id: 'autre', prenom: '[B]', statut: 'actif', lot_id: 'lot-tie-tie' },
@@ -148,6 +153,8 @@ describe('l’envoi d’un relevé par l’adaptateur Supabase', () => {
       'received_at',
       'campus_id',
       'outside_batch',
+      'division_id',
+      'in_open_zone',
     ]) {
       expect(ligne).not.toHaveProperty(interdit);
     }
@@ -254,7 +261,7 @@ describe('l’adaptateur Supabase, pour un administrateur qui est aussi relais',
       my_batch: [
         { id: 'lot-essai', nom: 'Essai', essai: true, a_rendre_le: null, contour_geojson: null },
       ],
-      known_places_in_my_batch: [
+      known_places_for_me: [
         { kind: 'campus', id: 'c1', name: '[École connue]', latitude: -4.79, longitude: 11.92 },
         {
           kind: 'submission',
@@ -360,12 +367,16 @@ describe('l’adaptateur Supabase, pour un administrateur qui est aussi relais',
     await expect(port.monProfil()).resolves.toMatchObject({ prenom: '[A]', lotId: 'lot-essai' });
   });
 
-  it('lit les écoles connues autour de son lot, pour l’alerte doublon sans réseau', async () => {
+  it('lit les écoles connues des zones ouvertes et de son secteur, pour l’alerte doublon sans réseau', async () => {
     const lieux = await port.lieuxConnus();
     expect(lieux).toEqual([
       { id: 'c1', nom: '[École connue]', latitude: -4.79, longitude: 11.92, genre: 'campus' },
       { id: 'r9', nom: '[Relevé d’un autre]', latitude: -4.8, longitude: 11.93, genre: 'releve' },
     ]);
+  });
+
+  it('lit les zones ouvertes aux relais, par ordre alphabétique, pour dire où relever quand on n’a pas de secteur', async () => {
+    await expect(port.zonesOuvertes()).resolves.toEqual(['Ngoyo', 'Tié-Tié']);
   });
 
   it('lit ses missions : une école connue à vérifier sur place', async () => {

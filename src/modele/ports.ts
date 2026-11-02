@@ -219,10 +219,16 @@ export interface PortRelais {
   /** `GET /moi/lot` */
   monLot(): Promise<Lot | null>;
   /**
-   * Les écoles connues autour du lot (campus et relevés pas encore acceptés, de tous les relais du lot) : nom et
-   * position, pour que l'alerte « doublon possible à moins de 40 m » marche sans réseau. `GET /moi/lieux-connus`
+   * Les écoles connues des zones ouvertes aux relais et du secteur du relais, s'il en a un (campus et relevés pas
+   * encore acceptés, de tous les relais) : nom et position, pour que l'alerte « doublon possible à moins de 40 m »
+   * marche sans réseau, où que le relais se trouve. `GET /moi/lieux-connus`
    */
   lieuxConnus(): Promise<EcoleProche[]>;
+  /**
+   * Le nom des zones ouvertes aux relais, par ordre alphabétique : de quoi dire où relever à un relais qui n'a pas
+   * de secteur. `GET /zones-ouvertes`
+   */
+  zonesOuvertes(): Promise<string[]>;
   /** `GET /moi/releves` */
   mesReleves(): Promise<ReleveRecu[]>;
   /** Les écoles confiées au relais (ses missions ouvertes). `GET /moi/missions` */
@@ -250,7 +256,13 @@ export interface ReleveAValider {
   relais: string;
   lot: string | null;
   essai: boolean;
+  /** Plus de 50 m du secteur du relais : une information, jamais un refus ni une condition de paie. */
   horsLot: boolean | null;
+  /**
+   * La position est-elle dans une zone ouverte aux relais ? Une information. Nul quand la base ne sait pas :
+   * pas de position, ou aucun contour connu ne la contient (« zone inconnue » n'est pas « hors zone »).
+   */
+  enZoneOuverte: boolean | null;
   doublonPossible: boolean;
   reponseDoublon: Valeur<'reponse_doublon'> | null;
   precisionM: number | null;
@@ -582,7 +594,8 @@ export interface PortAdministration {
     essai: boolean,
   ): Promise<string>;
   /** `POST /admin/relais/{id}/activation` */
-  activerRelais(relaisId: string, lotId: string): Promise<void>;
+  /** Sans lot (`null`), le relais relève où il se trouve : les zones ouvertes sont sa limite. */
+  activerRelais(relaisId: string, lotId: string | null): Promise<void>;
   suspendreRelais(relaisId: string): Promise<void>;
   /** La hiérarchie, avec ce que chaque division contient. `GET /admin/divisions` */
   divisions(): Promise<DivisionVue[]>;

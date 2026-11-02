@@ -68,6 +68,53 @@ function fausseApi(
 }
 
 describe('l’adaptateur Supabase de l’administration', () => {
+  describe('la file « À valider » et la zone ouverte (ticket n° 67)', () => {
+    const ligne = {
+      id: 'r1',
+      received_at: '2026-11-02T08:00:00Z',
+      kind: 'releve',
+      sign_name: '[École]',
+      relay: '[A]',
+      batch: null,
+      trial: false,
+      outside_batch: null,
+      possible_duplicate: false,
+      duplicate_answer: null,
+      accuracy_m: 12,
+      photos: 1,
+      signboard_received: true,
+      has_programs_hint: false,
+      contact_received: false,
+    };
+
+    it('dit si la position est en zone ouverte : oui, non, ou inconnue (jamais « non » par défaut)', async () => {
+      const { port } = fausseApi(
+        {},
+        {
+          submissions_to_review: [
+            { ...ligne, id: 'r1', in_open_zone: true },
+            { ...ligne, id: 'r2', in_open_zone: false },
+            { ...ligne, id: 'r3', in_open_zone: null },
+          ],
+        },
+      );
+      const file = await port.relevesAValider();
+      expect(file.map((r) => [r.id, r.enZoneOuverte])).toEqual([
+        ['r1', true],
+        ['r2', false],
+        ['r3', null],
+      ]);
+    });
+
+    it('active un relais sans lot : la base reçoit un lot nul', async () => {
+      const { port, appels } = fausseApi({ activer_relais: { data: null, error: null } });
+      await port.activerRelais('relais-1', null);
+      expect(appels).toEqual([
+        { nom: 'activer_relais', arguments: { relais: 'relais-1', lot: null } },
+      ]);
+    });
+  });
+
   describe('la décision sur un relevé', () => {
     it('accepte comme nouvelle école, par défaut', async () => {
       const { port, appels } = fausseApi({ accept_submission: { data: 'campus-1', error: null } });

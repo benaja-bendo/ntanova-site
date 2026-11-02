@@ -22,7 +22,7 @@ async function direction(page: Page) {
 
 /**
  * Un relais envoie la fiche d'un lycée : l'enseigne, un panneau et un prospectus, des séries notées, le
- * contact de la direction. L'application relais est connectée et sur « Mon lot ».
+ * contact de la direction. L'application relais est connectée et sur « Mon secteur ».
  */
 async function envoyerUnLycee(page: Page, nom: string) {
   await page.getByRole('button', { name: 'Ajouter une école' }).click();
@@ -49,7 +49,7 @@ async function envoyerUnLycee(page: Page, nom: string) {
   await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('link', { name: 'Mon lot' }).click();
+  await page.getByRole('link', { name: 'Mon secteur' }).click();
 }
 
 /** Une fiche courte : l'enseigne seule, un niveau, pas de contact. */
@@ -66,14 +66,16 @@ async function envoyerUneFicheCourte(page: Page, nom: string) {
   await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('link', { name: 'Mon lot' }).click();
+  await page.getByRole('link', { name: 'Mon secteur' }).click();
 }
 
 async function relaisConnecte(page: Page, context: BrowserContext, latitude = -4.8) {
   await context.setGeolocation({ latitude, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Mon lot' }).getByText(/Tié-Tié/)).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
+  ).toBeVisible();
 }
 
 async function ouvrirLEnvoi(page: Page, nom: string) {

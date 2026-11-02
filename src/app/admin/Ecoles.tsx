@@ -351,7 +351,7 @@ function LigneEcole({
                 <Champ
                   libelle="À vérifier"
                   facultatif
-                  aide="Le relais le lit dans « Mon lot ». Vouvoie-le."
+                  aide="Le relais le lit dans « Mon secteur ». Vouvoie-le."
                 >
                   {(a) => (
                     <input

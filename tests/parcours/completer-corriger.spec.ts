@@ -96,7 +96,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await expect(page.getByText('Avez-vous vu la direction ?')).toHaveCount(0);
     await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-    await page.getByRole('link', { name: 'Mon lot' }).click();
+    await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 
     // Chez NTanova : un second relevé, sans nouvelle photo ni nouveau contact.
@@ -124,7 +124,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await expect(page.getByText('Avez-vous vu la direction ?')).toBeVisible();
     await page.getByRole('button', { name: 'Absente' }).click();
     await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
-    await page.getByRole('link', { name: 'Mon lot' }).click();
+    await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     expect(await serveur(page)).toMatchObject({ photos: 1 });
   });
@@ -157,7 +157,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
   }) => {
     test.setTimeout(90_000);
     await uneFicheEnvoyee(page, context);
-    await renvoyer(page, 'hors_lot', 'Placez-vous devant l’entrée.');
+    await renvoyer(page, 'position_imprecise', 'Placez-vous devant l’entrée.');
 
     await page.goto('/relais/#fiches');
     await page.getByRole('button', { name: 'Corriger la fiche' }).click();
@@ -182,7 +182,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await expect(page.getByText(/contact de la direction est déjà parti/)).toBeVisible();
     await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-    await page.getByRole('link', { name: 'Mon lot' }).click();
+    await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     await expect
       .poll(async () => (await serveur(page)).releves.sort())
@@ -218,7 +218,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
-    await page.getByRole('link', { name: 'Mon lot' }).click();
+    await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     await expect.poll(async () => (await serveur(page)).photos).toBe(2);
   });

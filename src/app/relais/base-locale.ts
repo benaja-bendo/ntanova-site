@@ -19,6 +19,8 @@ import type {
 export interface Memoire {
   profil: Profil;
   lot: Lot | null;
+  /** Les zones ouvertes aux relais : ce que l'écran dit à un relais qui n'a pas de secteur. */
+  zones: string[];
   ecoles: EcoleProche[];
   releves: ReleveRecu[];
   /** Les écoles confiées au relais, à situer et compléter sur place. */

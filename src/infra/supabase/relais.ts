@@ -78,7 +78,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         name: string;
         latitude: number;
         longitude: number;
-      }>(await supabase().rpc('known_places_in_my_batch'));
+      }>(await supabase().rpc('known_places_for_me'));
       return lignes.map((l) => ({
         id: l.id,
         nom: l.name,
@@ -86,6 +86,14 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         longitude: l.longitude,
         genre: l.kind === 'campus' ? 'campus' : 'releve',
       }));
+    },
+
+    async zonesOuvertes(): Promise<string[]> {
+      // Les zones que l'administration a ouvertes elles-mêmes (une zone ouverte ouvre tout ce qu'elle contient).
+      const lignes = lireListe<{ name: string }>(
+        await supabase().from('geo_divisions').select('name').eq('open_for_fieldwork', true),
+      );
+      return lignes.map((l) => l.name).sort((a, b) => a.localeCompare(b, 'fr'));
     },
 
     async mesReleves(): Promise<ReleveRecu[]> {

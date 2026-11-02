@@ -20,7 +20,7 @@ import {
   type FicheLocale,
   type PhotoLocale,
 } from '../../../modele/fiche';
-import { dansLeLot, plusProche, PRECISION_SUFFISANTE_M, type Point } from '../../../modele/geo';
+import { plusProche, PRECISION_SUFFISANTE_M, type Point } from '../../../modele/geo';
 import { listes, type Valeur } from '../../../modele/listes';
 import type { EcoleACompleter, ReleveRecu } from '../../../modele/ports';
 import {
@@ -94,7 +94,7 @@ function PiedEtape({ children }: { children: React.ReactNode }) {
 /**
  * Abandonner la fiche en cours, à chaque étape : elle est effacée du téléphone. Une fiche rouverte pour être
  * modifiée l'est aussi (elle n'a pas encore été reçue par NTanova) ; l'école confiée au relais, elle, revient
- * dans « Mon lot ».
+ * dans « Mon secteur ».
  */
 function BoutonAbandonner({ fiche }: { fiche: FicheLocale }) {
   const abandonner = async () => {
@@ -196,7 +196,6 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   };
 
   const verifier = async (m: Mesure) => {
-    const lot = await lireMemoire('lot');
     // La fiche qu'on corrige n'est pas un doublon d'elle-même : ni son relevé du téléphone, ni sa ligne du cache.
     const corrigee = fiche.corrigeReleveId;
     const ecoles = ((await lireMemoire('ecoles')) ?? []).filter((e) => e.id !== corrigee);
@@ -211,12 +210,10 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
     // identifiant de campus (la base le refuserait). Seul un campus connu est désigné par son identifiant.
     const connues = ecoles.map((e) => ({ ...e, id: e.genre === 'releve' ? null : e.id }));
     const proche = plusProche(m, [...connues, ...autres]);
-    const dedans = dansLeLot(m, lot);
     const champs: Partial<FicheLocale> = {
       position: { latitude: m.latitude, longitude: m.longitude },
       precisionM: m.precisionM,
       prisLe: m.prisLe,
-      horsLot: dedans === null ? null : !dedans,
       // Une contre-visite sait déjà quelle école elle visite : pas de question de doublon.
       ...(fiche.type === 'contre_visite'
         ? {}
@@ -432,15 +429,8 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
                 <Icone nom="coche" taille={16} />
                 <span>
                   <b>Position prise</b> · précision {Math.round(precision)}&nbsp;m
-                  {fiche.horsLot === false && ' · dans votre lot'}
                 </span>
               </p>
-              {fiche.horsLot && (
-                <p className="message-attention">
-                  Cette position est hors de votre lot. Si l'école est bien ici, continuez&nbsp;:
-                  NTanova vérifiera.
-                </p>
-              )}
               {precision > PRECISION_SUFFISANTE_M && (
                 <p className="message-attention">
                   La précision est faible. Placez-vous devant l'entrée, à découvert, puis reprenez
@@ -915,7 +905,7 @@ export function ChampsContact({
 }
 
 /**
- * Depuis « Mon lot » : on complète une école que NTanova connaît. Le téléphone ne garde qu'une fiche en cours : si
+ * Depuis « Mon secteur » : on complète une école que NTanova connaît. Le téléphone ne garde qu'une fiche en cours : si
  * une autre l'est déjà, on ne l'écrase pas.
  */
 export async function commencerContreVisite(

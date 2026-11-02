@@ -24,12 +24,14 @@ function LigneRelais({
   admin: PortAdministration;
   surChangement: (texte: string) => void;
 }) {
-  // Un nouveau relais commence par le lot d'essai, le temps de sa formation.
-  const parDefaut = r.lotId ?? lots.find((l) => l.essai)?.id ?? lots[0]?.id ?? '';
+  // Un nouveau relais commence par le lot d'essai, le temps de sa formation. Un relais déjà actif sans lot reste sans
+  // lot (valeur vide) : il relève où il se trouve.
+  const parDefaut =
+    r.lotId ?? (r.statut === 'actif' ? '' : (lots.find((l) => l.essai)?.id ?? lots[0]?.id ?? ''));
   const [lot, setLot] = useState(parDefaut);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
-  const nomLot = lots.find((l) => l.id === r.lotId)?.nom ?? '—';
+  const nomLot = lots.find((l) => l.id === r.lotId)?.nom ?? 'Aucun lot';
 
   const agir = async (action: () => Promise<void>, texte: string) => {
     setEnCours(true);
@@ -75,6 +77,7 @@ function LigneRelais({
             value={lot}
             onChange={(e) => setLot(e.target.value)}
           >
+            <option value="">Sans lot</option>
             {lots.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.nom === l.divisionNom ? l.nom : `${l.nom} — ${l.divisionNom}`}
@@ -88,7 +91,10 @@ function LigneRelais({
                 className="bouton bouton-secondaire bouton-petit"
                 disabled={enCours || lot === r.lotId}
                 onClick={() =>
-                  void agir(() => admin.activerRelais(r.id, lot), `${r.prenom} change de lot.`)
+                  void agir(
+                    () => admin.activerRelais(r.id, lot || null),
+                    `${r.prenom} change de lot.`,
+                  )
                 }
               >
                 Changer de lot
@@ -108,9 +114,9 @@ function LigneRelais({
             <button
               type="button"
               className="bouton bouton-petit"
-              disabled={enCours || !lot}
+              disabled={enCours}
               onClick={() =>
-                void agir(() => admin.activerRelais(r.id, lot), `${r.prenom} est actif.`)
+                void agir(() => admin.activerRelais(r.id, lot || null), `${r.prenom} est actif.`)
               }
             >
               {r.statut === 'suspendu' ? 'Réactiver' : 'Activer'}

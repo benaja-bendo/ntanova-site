@@ -17,7 +17,9 @@ test('une fiche faite avant la mise à jour, avec sa photo unique, part quand le
   await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Mon lot' }).getByText(/Tié-Tié/)).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
+  ).toBeVisible();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
   // Une fiche faite sans réseau : elle attend dans le téléphone.

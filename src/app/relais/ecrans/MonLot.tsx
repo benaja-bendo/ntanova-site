@@ -6,7 +6,7 @@ import { Bandeau, Entete, heure, Icone, Navigation } from '../composants';
 import { BoutonGoogle } from './Connexion';
 import { commencerContreVisite } from './Ajouter';
 
-/** L'état de la file d'envoi, en tête de « Mon lot » et de « Mes fiches ». */
+/** L'état de la file d'envoi, en tête de « Mon secteur » et de « Mes fiches ». */
 export function EtatEnvoi() {
   const { envoi, synchroniser } = useRelais();
   const enLigne = useEnLigne();
@@ -90,6 +90,7 @@ export function EtatEnvoi() {
 export function MonLot() {
   const profil = useRequete(() => lireMemoire('profil'));
   const lot = useRequete(() => lireMemoire('lot'));
+  const zones = useRequete(() => lireMemoire('zones')) ?? [];
   const releves = useRequete(() => lireMemoire('releves')) ?? [];
   const brouillon = useRequete(() => lireMemoire('brouillon'));
 
@@ -100,16 +101,29 @@ export function MonLot() {
         <h1 className="titre-ecran">Bonjour {profil?.prenom || ''}</h1>
         <EtatEnvoi />
 
-        <section className="carte-blanche pile-serree" aria-label="Mon lot">
+        <section className="carte-blanche pile-serree" aria-label="Mon secteur">
           <p className="surtitre-doux">
-            Mon lot
+            Mon secteur
             {lot?.aRendreLe ? ` · à rendre le ${lot.aRendreLe.split('-').reverse().join('/')}` : ''}
           </p>
-          <span className="intertitre">{lot ? lot.nom : 'Aucun lot pour le moment'}</span>
+          <span className="intertitre">{lot ? lot.nom : 'Pas de secteur conseillé'}</span>
           <span className="texte-doux">
             {releves.length} fiche{releves.length > 1 ? 's' : ''} reçue
             {releves.length > 1 ? 's' : ''} par NTanova
           </span>
+          {lot ? (
+            !lot.essai && (
+              <span className="texte-doux">
+                Ce secteur est un conseil, pas une limite&nbsp;: une école que vous croisez ailleurs
+                se relève aussi.
+              </span>
+            )
+          ) : (
+            <span className="texte-doux">
+              Relevez les écoles là où vous êtes
+              {zones.length > 0 ? `. Zones ouvertes : ${zones.join(', ')}` : ''}.
+            </span>
+          )}
         </section>
 
         {lot?.essai && (

@@ -135,6 +135,15 @@ describe('une fiche que NTanova renvoie au relais', () => {
     });
   });
 
+  it('une position qui n’est pas celle de l’entrée : la position, pas la photo', () => {
+    expect(tachesDeLaCorrection(recu({ motif: 'position_imprecise' }))).toMatchObject({
+      photo: false,
+      position: true,
+      informations: false,
+      direction: false,
+    });
+  });
+
   it('un doublon : la position, pour que la question du doublon soit posée de nouveau', () => {
     expect(tachesDeLaCorrection(recu({ motif: 'doublon' }))).toMatchObject({
       photo: false,
