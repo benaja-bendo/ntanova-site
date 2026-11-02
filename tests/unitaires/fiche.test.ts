@@ -233,6 +233,7 @@ describe('la contre-visite d’une école confiée', () => {
       repere: '[Repère]',
       numeroEnseigne: '242060000001',
       note: 'Nom à vérifier',
+      genre: 'verify',
     });
     const releve = versReleve(fiche);
     expect(releve).toMatchObject({
@@ -320,6 +321,7 @@ describe('les listes ne bloquent personne', () => {
       repere: null,
       numeroEnseigne: null,
       note: null,
+      genre: 'verify' as const,
     };
     const visite = nouvelleContreVisite('r1', '2026-11-02T08:00:00.000Z', 'lot', ecole);
     expect(visite.typeEcole).toBe('non_indique');
@@ -340,6 +342,7 @@ describe('les listes ne bloquent personne', () => {
       repere: null,
       numeroEnseigne: null,
       note: null,
+      genre: 'verify',
     });
     expect(visite.typeEcole).toBe('communautaire');
     expect(visite.niveaux).toEqual(['autre_formation']);

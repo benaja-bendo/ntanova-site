@@ -213,6 +213,8 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     await page.getByRole('button', { name: 'Ajouter une école' }).click();
     await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
     await page.locator('input[type=file]').first().setInputFiles(photo);
+    // La photo est allégée puis gardée dans le téléphone avant que le brouillon ne soit relu après un rechargement.
+    await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
     await expect(page.getByText('Position prise')).toBeVisible();
 
     await oublierLeProgramme(page);
@@ -237,16 +239,17 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     await seConnecter(page, '/admin/');
     await page.getByRole('link', { name: 'Écoles' }).click();
     const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
-    await ligne.getByRole('button', { name: 'Confier' }).click();
+    await ligne.getByRole('button', { name: 'Confier à un relais' }).click();
+    await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
     // … et la base lui a donné, depuis, un type et un niveau que ce téléphone ne connaît pas encore.
     await page.evaluate(() => {
       const cle = 'ntanova-faux-serveur';
       const etat = JSON.parse(localStorage.getItem(cle) ?? '{}') as {
-        ecoles: Record<string, Record<string, unknown>>;
+        campus: Record<string, Record<string, unknown>>;
       };
-      for (const ecole of Object.values(etat.ecoles)) {
+      for (const ecole of Object.values(etat.campus)) {
         ecole['typeEcole'] = 'type_de_demain';
         ecole['niveaux'] = ['primaire', 'niveau_de_demain'];
       }

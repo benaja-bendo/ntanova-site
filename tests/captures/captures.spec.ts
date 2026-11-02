@@ -18,14 +18,24 @@ test('une capture de chaque écran', async ({ page, context }) => {
 
   for (const [ecran, adresse] of [
     ['public-accueil', '/'],
-    ['public-liste', '/ecoles/tie-tie/'],
-    ['public-carte-ville', '/ecoles/'],
-    ['public-carte-arrondissement', '/ecoles/tie-tie/carte/'],
-    ['public-carte-coin', '/ecoles/tie-tie/carte/coin-1/'],
-    ['public-carte-ngoyo', '/ecoles/ngoyo/carte/'],
-    ['public-fiche', '/ecoles/tie-tie/complexe-scolaire-exemple/'],
-    ['public-fiche-autre', '/ecoles/tie-tie/centre-de-formation-exemple/'],
-    ['public-fiche-sans-detail', '/ecoles/tie-tie/ecole-sans-detail-exemple/'],
+    ['public-ecoles', '/ecoles/'],
+    ['public-pays', '/ecoles/congo/'],
+    ['public-ville', '/ecoles/congo/pointe-noire/'],
+    ['public-liste', '/ecoles/congo/pointe-noire/tie-tie/'],
+    ['public-carte-arrondissement', '/cartes/congo/pointe-noire/tie-tie/'],
+    ['public-carte-coin', '/cartes/congo/pointe-noire/tie-tie/coin_1/'],
+    ['public-carte-ngoyo', '/cartes/congo/pointe-noire/ngoyo/'],
+    ['public-fiche', '/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/'],
+    ['public-fiche-autre', '/ecoles/congo/pointe-noire/tie-tie/centre-de-formation-exemple/'],
+    ['public-fiche-sans-detail', '/ecoles/congo/pointe-noire/tie-tie/ecole-sans-detail-exemple/'],
+    [
+      'public-fiche-multi-campus',
+      '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/groupe-scolaire-exemple/',
+    ],
+    ['public-formations', '/formations/'],
+    ['public-formation-serie-c', '/formations/serie/c/'],
+    ['public-recherche', '/recherche/?serie=c'],
+    ['public-autour-de-moi', '/autour-de-moi/'],
     ['public-pour-les-ecoles', '/pour-les-ecoles/'],
     ['public-a-propos', '/a-propos/'],
     ['public-introuvable', '/cette-page-n-existe-pas/'],
@@ -61,7 +71,8 @@ test('une capture de chaque écran', async ({ page, context }) => {
   await prendre('admin-effacer-le-contact');
 
   await page.getByRole('link', { name: 'Écoles' }).click();
-  await page.getByRole('button', { name: /Publier l’école prête de Tié-Tié/ }).click();
+  await page.getByLabel('Zone à publier').selectOption('d-pn-tie-tie');
+  await page.getByRole('button', { name: 'Publier cette zone' }).click();
   await page.getByRole('status').waitFor();
   await prendre('admin-ecoles');
   await page

@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { ouvrirLaFiche, seConnecter, textesPeuLisibles, uneFicheEnvoyee } from './aides';
+import {
+  ouvrirLaFiche,
+  publierLaZoneTieTie,
+  seConnecter,
+  textesPeuLisibles,
+  uneFicheEnvoyee,
+} from './aides';
 
 // L'administration, construite avec le faux serveur : l'utilisateur du faux
 // serveur est à la fois relais (lot Tié-Tié) et administrateur.
@@ -16,12 +22,15 @@ test.describe('administration', () => {
 
     // Le contact de la direction n'est lisible que par l'administration.
     await expect(page.getByText('+242 06 123 45 61')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Écrire sur WhatsApp' })).toHaveAttribute(
-      'href',
-      'https://wa.me/242061234561',
-    );
+    // Le pont : un message déjà écrit, honnête (ni prix, ni gratuité, ni audience), pour la personne qui a donné son accord.
+    const ecrire = page.getByRole('link', { name: /Écrire à la direction sur WhatsApp/ });
+    await expect(ecrire).toHaveAttribute('href', /^https:\/\/wa\.me\/242061234561\?text=/);
+    const message =
+      decodeURIComponent((await ecrire.getAttribute('href')) ?? '').split('?text=')[1] ?? '';
+    expect(message).toContain('[École 1]');
+    expect(message).not.toMatch(/gratuit|FCFA|prix|tarif|visiteurs|audience/i);
     await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
-    await expect(page.getByText('Fonction confirmée')).toBeVisible();
+    await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Accepter la fiche' }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
@@ -65,7 +74,7 @@ test.describe('administration', () => {
     await page.getByRole('button', { name: 'Accepter la fiche' }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
     await page.getByRole('link', { name: 'Écoles' }).click();
-    await page.getByRole('button', { name: /Publier l’école prête de Tié-Tié/ }).click();
+    await publierLaZoneTieTie(page);
     await expect(page.getByRole('status')).toHaveText(/1 école de Tié-Tié publiée/);
 
     const ligne = () => page.getByRole('row', { name: /\[École 1\]/ });
@@ -128,7 +137,8 @@ test.describe('administration', () => {
   }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
-    // La partie privée est un panneau sombre : ses liens et ses boutons doivent s'y lire.
+    // La partie privée est un panneau sombre : ses liens et ses boutons doivent s'y lire. Le pont avec la direction
+    // (le message, la fonction, l'accord) est dans une carte claire à côté.
     expect(await textesPeuLisibles(page, 'body'), 'À valider, une fiche').toEqual([]);
     await page.getByRole('button', { name: 'Accepter la fiche' }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
@@ -142,7 +152,7 @@ test.describe('administration', () => {
     expect(await textesPeuLisibles(page, 'body'), 'Décidées, effacer le contact').toEqual([]);
 
     await page.getByRole('link', { name: 'Écoles' }).click();
-    await page.getByRole('button', { name: /Publier l’école prête de Tié-Tié/ }).click();
+    await publierLaZoneTieTie(page);
     await expect(page.getByRole('status')).toHaveText(/1 école de Tié-Tié publiée/);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
     await expect(ligne.getByText('Publiée', { exact: true })).toBeVisible();
