@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  compteDesFiches,
+  detailDeLaPaie,
   estUnVendredi,
   francs,
   jourABrazzaville,
@@ -55,5 +57,63 @@ describe('les montants', () => {
     expect(francs(1_234_500)).toBe('1\u00a0234\u00a0500\u00a0FCFA');
     // Aucune espace ordinaire (U+0020) : toutes sont insécables.
     expect(francs(1_234_500)).not.toMatch(/\u0020/);
+  });
+});
+
+// « Ma paie » (ticket #55, PR 5) : ce que le relais lit de sa propre paie ---------------------------------------------
+
+describe('le détail de ce qui est dû', () => {
+  it('dit ce qui compte, au singulier et au pluriel', () => {
+    expect(detailDeLaPaie({ fiches: 1, contacts: 1, essais: 0 })).toEqual([
+      '1 fiche acceptée',
+      '1 contact de direction confirmé',
+    ]);
+    expect(detailDeLaPaie({ fiches: 3, contacts: 2, essais: 0 })).toEqual([
+      '3 fiches acceptées',
+      '2 contacts de direction confirmés',
+    ]);
+  });
+
+  it('dit l’essai quand il est dû', () => {
+    expect(detailDeLaPaie({ fiches: 0, contacts: 0, essais: 1 })).toEqual(['L’essai validé']);
+  });
+
+  it('ne dit rien quand rien n’est dû', () => {
+    expect(detailDeLaPaie({ fiches: 0, contacts: 0, essais: 0 })).toEqual([]);
+  });
+});
+
+describe('le compte des fiches du relais', () => {
+  const unReleve = (statut: 'a_valider' | 'a_corriger' | 'accepte' | 'refuse') => ({ statut });
+
+  it('compte les fiches envoyées à NTanova, par décision', () => {
+    expect(
+      compteDesFiches([
+        unReleve('accepte'),
+        unReleve('accepte'),
+        unReleve('a_valider'),
+        unReleve('a_corriger'),
+        unReleve('refuse'),
+      ]),
+    ).toEqual({ envoyees: 5, acceptees: 2, enAttente: 1, aCorriger: 1, refusees: 1 });
+  });
+
+  it('ne compte pas les corrections comme des fiches de plus : seules les fiches comptent une fois', () => {
+    expect(
+      compteDesFiches([
+        { statut: 'accepte', type: 'releve' },
+        { statut: 'a_valider', type: 'correction' },
+      ]),
+    ).toEqual({ envoyees: 1, acceptees: 1, enAttente: 0, aCorriger: 0, refusees: 0 });
+  });
+
+  it('lit zéro quand il n’y a rien', () => {
+    expect(compteDesFiches([])).toEqual({
+      envoyees: 0,
+      acceptees: 0,
+      enAttente: 0,
+      aCorriger: 0,
+      refusees: 0,
+    });
   });
 });

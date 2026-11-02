@@ -10,6 +10,7 @@ import type {
   EcoleProche,
   ErreurAEnvoyer,
   Lot,
+  MaPaie,
   Profil,
   ReleveRecu,
 } from '../../modele/ports';
@@ -22,6 +23,8 @@ export interface Memoire {
   releves: ReleveRecu[];
   /** Les écoles confiées au relais, à situer et compléter sur place. */
   aCompleter: EcoleACompleter[];
+  /** Sa paie, telle que NTanova l'a lue la dernière fois : elle se lit aussi sans réseau. */
+  paie: MaPaie;
   dernierEnvoi: string;
   brouillon: string;
 }

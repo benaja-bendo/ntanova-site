@@ -37,6 +37,7 @@ export function Navigation() {
   const onglets = [
     { chemin: 'lot', libelle: 'Mon lot', icone: 'carte' as const },
     { chemin: 'fiches', libelle: 'Mes fiches', icone: 'fiche' as const },
+    { chemin: 'paie', libelle: 'Ma paie', icone: 'piece' as const },
   ];
   return (
     <nav className="navigation-relais" aria-label="Espace relais">

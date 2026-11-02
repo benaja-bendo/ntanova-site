@@ -21,17 +21,24 @@ export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvo
     const profil = await relais.monProfil();
     await garder('profil', profil);
     if (profil.statut === 'actif') {
-      const [lot, ecoles, releves, aCompleter] = await Promise.all([
+      const [lot, ecoles, releves, aCompleter, paie] = await Promise.all([
         relais.monLot(),
         relais.lieuxConnus(),
         relais.mesReleves(),
         relais.mesMissions(),
+        // La paie ne se lit que pour être affichée : une panne ici n'arrête ni l'envoi ni le reste de la lecture.
+        relais.maPaie().catch((erreur: unknown) => {
+          if (erreur instanceof ErreurReseau || erreur instanceof ErreurSession) throw erreur;
+          void journaliser('synchro', 'paie_illisible', erreur);
+          return null;
+        }),
       ]);
       await Promise.all([
         garder('lot', lot),
         garder('ecoles', ecoles),
         garder('releves', releves),
         garder('aCompleter', aCompleter),
+        ...(paie ? [garder('paie', paie)] : []),
       ]);
     }
     return 'pret';

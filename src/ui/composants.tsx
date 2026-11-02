@@ -70,6 +70,13 @@ const traits = {
       <path d="M2 2l12 12" />
     </>
   ),
+  piece: (
+    <>
+      <rect x="1.8" y="4.2" width="12.4" height="7.6" rx="1.4" />
+      <circle cx="8" cy="8" r="1.8" />
+      <path d="M4.2 8h.1M11.7 8h.1" />
+    </>
+  ),
 };
 
 export type NomIcone = keyof typeof traits;
