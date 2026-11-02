@@ -107,9 +107,11 @@ test.describe('l’onglet « Compte »', () => {
     await navigation(page).getByRole('link', { name: 'Compte' }).click();
     await expect(page.getByRole('heading', { name: 'Compte' })).toBeVisible();
     await expect(page.getByText('relais@exemple.test')).toBeVisible();
-    // Le numéro vient de la configuration de la construction, jamais du code.
+    // Le numéro vient de la configuration de la construction, jamais du code : celui de `PUBLIC_WHATSAPP` quand
+    // l'environnement le donne (la CI construit avec le vrai), sinon celui de `pnpm test:parcours`.
+    const numero = (process.env['PUBLIC_WHATSAPP'] || '242000000000').replace(/[\s.+()-]/g, '');
     const ecrire = page.getByRole('link', { name: /Écrire à NTanova sur WhatsApp/ });
-    await expect(ecrire).toHaveAttribute('href', /^https:\/\/wa\.me\/242000000000\?text=/);
+    await expect(ecrire).toHaveAttribute('href', new RegExp(`^https://wa\\.me/${numero}\\?text=`));
     await expect(page.getByRole('button', { name: 'Se déconnecter' })).toBeVisible();
   });
 
