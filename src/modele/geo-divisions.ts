@@ -50,7 +50,10 @@ export interface PageDivision {
   releve: boolean;
 }
 
-/** L'arbre des zones qui ont au moins un campus publié, dessus ou dessous ; les autres n'ont pas de page. */
+/**
+ * L'arbre des zones qui ont au moins un campus publié, dessus ou dessous, ou où le relevé est ouvert ; les autres n'ont
+ * pas de page.
+ */
 export interface ArbrePublic {
   racines: PageDivision[];
   /** La page d'une adresse (`congo/pointe-noire/tie-tie`). */
@@ -135,11 +138,15 @@ export function construireArbre(
     page?.ecoles.push(e);
   }
 
-  // Les zones sans campus publié, ni dessus ni dessous, sortent de l'arbre.
-  const aDesEcoles = (p: PageDivision): boolean =>
-    p.ecoles.length > 0 || p.enfants.some(aDesEcoles);
-  for (const p of pages.values()) p.enfants = p.enfants.filter(aDesEcoles);
-  const gardees = [...pages.values()].filter(aDesEcoles);
+  // Les zones sans campus publié, ni dessus ni dessous, sortent de l'arbre, sauf celles où le relevé a été ouvert : leur
+  // page dit « relevé en cours ». Ouvrir un pays ne crée pas la page de chacune de ses villes : seule la zone ouverte
+  // elle-même (le réglage direct) en a une.
+  const ouverteDirectement = (p: PageDivision): boolean =>
+    p.division.ouverte || p.fusionnees.some((f) => f.ouverte);
+  const aUnePage = (p: PageDivision): boolean =>
+    p.ecoles.length > 0 || ouverteDirectement(p) || p.enfants.some(aUnePage);
+  for (const p of pages.values()) p.enfants = p.enfants.filter(aUnePage);
+  const gardees = [...pages.values()].filter(aUnePage);
   const tri = (a: PageDivision, b: PageDivision) =>
     (a.division.ordinal ?? 999) - (b.division.ordinal ?? 999) ||
     collateur.compare(a.division.nom, b.division.nom);

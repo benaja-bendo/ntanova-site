@@ -91,10 +91,14 @@ const lienListe = lienDivision(page.adresse);
     {dessin && <BasculeVue carte={lienCarte(page.adresse)} liste={lienListe} actuelle="liste" />}
   </div>
 
-  <p class="compte">
-    {compterEcoles(sous.length)} relevée{sous.length > 1 ? 's' : ''}
-    {verifiees > 0 && ` · ${verifiees} vérifiée${verifiees > 1 ? 's' : ''}`}
-  </p>
+  {sous.length === 0 ? (
+    <p class="carte">Aucune école publiée pour l'instant&nbsp;: le relevé est en cours.</p>
+  ) : (
+    <p class="compte">
+      {compterEcoles(sous.length)} relevée{sous.length > 1 ? 's' : ''}
+      {verifiees > 0 && ` · ${verifiees} vérifiée${verifiees > 1 ? 's' : ''}`}
+    </p>
+  )}
 
   {estPointeNoire && surLaCarte.length > 0 && (
     <div class="disposition">
@@ -126,7 +130,7 @@ const lienListe = lienDivision(page.adresse);
                 <span class="zone-nom">{enfant.division.nom}</span>
                 <span class="zone-detail">
                   {enfant.division.ordinal ? `Arrondissement ${enfant.division.ordinal} · ` : ''}
-                  {compterEcoles(n)}
+                  {n === 0 ? 'relevé en cours' : compterEcoles(n)}
                 </span>
               </a>
             </li>

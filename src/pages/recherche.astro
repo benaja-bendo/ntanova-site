@@ -6,7 +6,7 @@ import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../infra/index';
 import { libelleNiveau } from '../modele/libelles';
 import { listes } from '../modele/listes';
-import { lienDivision } from '../modele/geo-divisions';
+import { lienDivision, type PageDivision } from '../modele/geo-divisions';
 import { lienWhatsApp } from '../modele/whatsapp';
 import PagePublique from '../ui/PagePublique.astro';
 
@@ -14,7 +14,12 @@ const { facettes, arbre } = await obtenirSite();
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 const valeursDe = (facette: string) => facettes.filter((f) => f.facette === facette);
 // Les zones où l'on peut chercher : les pays, départements et villes qui ont des écoles, puis les arrondissements.
-const zones = arbre.tous.filter((p) => p.division.niveau <= 3);
+const zones: PageDivision[] = [];
+const parcourir = (p: PageDivision) => {
+  if (p.division.niveau <= 3) zones.push(p);
+  p.enfants.forEach(parcourir);
+};
+arbre.racines.forEach(parcourir);
 ---
 
 <PagePublique

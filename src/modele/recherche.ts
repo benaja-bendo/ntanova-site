@@ -227,12 +227,13 @@ export function chercher(lignes: readonly LigneRecherche[], criteres: Criteres):
       if (!bonne) continue;
     }
     if (mots.length > 0) {
-      const botte = normaliser(
+      const motsDeLEcole = normaliser(
         [ligne.n, ligne.e, ligne.d, ligne.q, ligne.r, ...ligne.f.map((f) => f.t)]
           .filter(Boolean)
           .join(' '),
-      );
-      if (!mots.every((m) => botte.includes(m))) continue;
+      ).split(' ');
+      // Chaque mot cherché doit être le début d'un mot de l'école : « tie » trouve « Tié-Tié », pas « quartier ».
+      if (!mots.every((m) => motsDeLEcole.some((mot) => mot.startsWith(m)))) continue;
     }
     let distance: number | null = null;
     if (criteres.pres) {
@@ -259,8 +260,10 @@ export function chercher(lignes: readonly LigneRecherche[], criteres: Criteres):
   );
 }
 
-/** « 350 m », « 1,2 km » */
+/** « 350 m », « 1,2 km », « 3 km » */
 export function ecrireDistance(metres: number): string {
   if (metres < 950) return `${Math.max(10, Math.round(metres / 10) * 10)}\u00a0m`;
-  return `${(metres / 1000).toFixed(1).replace('.', ',')}\u00a0km`;
+  // Arrondi au dixième de kilomètre sans passer par toFixed (0,95 s'y écrit 0,9 : 950 m ne doit pas se lire « 0,9 km »).
+  const km = Math.round(metres / 100) / 10;
+  return `${Number.isInteger(km) ? km : km.toFixed(1).replace('.', ',')}\u00a0km`;
 }

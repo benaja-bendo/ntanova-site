@@ -54,7 +54,11 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
             <li>
               <a class="zone" href={lienDivision(enfant.adresse)}>
                 <span class="zone-nom">{enfant.division.nom}</span>
-                <span class="zone-detail">{compterEcoles(ecolesSous(enfant).length)}</span>
+                <span class="zone-detail">
+                  {ecolesSous(enfant).length === 0
+                    ? 'relevé en cours'
+                    : compterEcoles(ecolesSous(enfant).length)}
+                </span>
               </a>
             </li>
           ))}
@@ -90,6 +94,9 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
     font-size: var(--taille-intertitre);
   }
   .entree h2 a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
     color: var(--texte);
   }
   .entree p {

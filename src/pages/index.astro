@@ -12,6 +12,7 @@ import PagePublique from '../ui/PagePublique.astro';
 
 const { arbre, ecoles, divisions } = await obtenirSite();
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const pointeNoire = arbre.parAdresse.get('congo/pointe-noire');
 // Les villes et départements : les zones juste sous le pays. Là où l'on a des fiches d'abord, puis par nom.
 const villes = arbre.racines
   .flatMap((racine) => racine.enfants)
@@ -107,6 +108,13 @@ const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === t
         </ul>
       ) : (
         <p class="texte-doux">Les premières villes arrivent avec les premières fiches.</p>
+      )}
+      {pointeNoire && (
+        <a class="lien-carte" href={lienDivision(pointeNoire.adresse)}>
+          <span>
+            Voir la carte de <span class="insecable">Pointe-Noire</span>
+          </span>
+        </a>
       )}
       <a class="lien-carte" href="/ecoles/">
         <span>Voir toutes les écoles</span>
