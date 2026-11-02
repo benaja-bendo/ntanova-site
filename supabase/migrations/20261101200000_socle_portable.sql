@@ -81,12 +81,14 @@ drop function public.creer_relais() cascade;
 
 -- Les outils de texte ---------------------------------------------------------------------------
 
--- « Écoles Étoile » et « ecoles etoile » doivent se retrouver : minuscules, sans accents. `unaccent`
--- n'est pas « immuable » par défaut ; avec son dictionnaire donné, il l'est en pratique, ce qui permet
--- de l'indexer (recherche floue par trigrammes).
+-- « Écoles Étoile » et « ecoles  etoile » doivent se retrouver : minuscules, sans accents, espaces
+-- superflus ramenés à un seul et retirés des bords. `unaccent` n'est pas « immuable » par défaut ; avec
+-- son dictionnaire donné, il l'est en pratique, ce qui permet de l'indexer (recherche floue par trigrammes).
 create function public.norm_text(texte text) returns text
 language sql immutable parallel safe set search_path = '' as $$
-  select lower(extensions.unaccent('extensions.unaccent'::regdictionary, coalesce(texte, '')))
+  select btrim(regexp_replace(
+    lower(extensions.unaccent('extensions.unaccent'::regdictionary, coalesce(texte, ''))),
+    '\s+', ' ', 'g'))
 $$;
 
 -- Les vocabulaires nouveaux ---------------------------------------------------------------------
