@@ -35,9 +35,11 @@ async function verifierLaBarre(page: Page, nom: string) {
     );
     // Dès la tablette, une ligne (68 px), ou deux (120 px) quand la pastille de « À valider »
     // élargit les onglets ; plus étroit, la marque, les onglets et le compte passent chacun à la
-    // ligne (155 px). Avant, la barre s'étirait à 224–280 px au téléphone et à plus de 500 px
+    // ligne (155 px), et les cinq onglets passent eux-mêmes sur deux lignes dès qu'ils ne tiennent
+    // plus sur une (203 px : à 360 px ils la remplissent au pixel près, une police un peu plus
+    // large suffit). Avant, la barre s'étirait à 224–280 px au téléphone et à plus de 500 px
     // sur une tablette.
-    const plafond = fenetre.width >= 768 ? 130 : 200;
+    const plafond = fenetre.width >= 768 ? 130 : 215;
     expect(barre.height, `${nom} : barre du haut sans s’étirer`).toBeLessThanOrEqual(plafond);
   } else {
     expect(barre.width, `${nom} : colonne sur le côté`).toBeLessThanOrEqual(300);
@@ -70,6 +72,16 @@ test.describe('administration', () => {
     await seConnecter(page, '/admin/');
     await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
     await verifierLaBarre(page, 'À valider (vide)');
+  });
+
+  test('quand les cinq onglets ne tiennent plus sur une ligne (340 px), ils passent sur une deuxième sans étirer la barre', async ({
+    page,
+  }, info) => {
+    test.skip(info.project.name !== 'android-360', 'une seule fois, au téléphone');
+    await seConnecter(page, '/admin/');
+    await page.setViewportSize({ width: 340, height: 640 });
+    await expect(page.locator('main h1')).toBeVisible();
+    await verifierLaBarre(page, 'à 340 px');
   });
 
   for (const ecran of ['valider', 'ecoles', 'zones', 'relais', 'paie']) {
