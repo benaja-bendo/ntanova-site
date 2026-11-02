@@ -1,0 +1,438 @@
+---
+// La fiche d'un campus publié : ce qui se voit de la rue, ce qu'il enseigne (cycles, séries, diplômes,
+// domaines, rythmes), ses autres implantations, et comment y aller. Aucun JavaScript.
+// Une institution à plusieurs campus a une fiche par campus, qui renvoient l'une vers l'autre.
+import {
+  arrondissementDessine,
+  arrondissementsDessines,
+  cadreEcole,
+  planer,
+  ruesDe,
+  surCarte,
+} from '../modele/carte/plan';
+import { reperes } from '../modele/carte/reperes';
+import { lienCarte, lienDivision, lienEcole, type PageDivision } from '../modele/geo-divisions';
+import {
+  libelleDiplome,
+  libelleNiveau,
+  libelleRythme,
+  libelleSerie,
+  libelleTypeEcole,
+  provenanceDe,
+  typeInformatif,
+} from '../modele/libelles';
+import { listes } from '../modele/listes';
+import type { EcolePubliee, FormationPublique } from '../modele/ports';
+import { dateLongue } from '../modele/pointe-noire';
+import { lienFacette } from '../modele/recherche';
+import { afficherTelephone } from '../modele/telephone';
+import Carte from './Carte.astro';
+
+interface Props {
+  e: EcolePubliee;
+  /** La zone du campus, pour le fil d'Ariane. */
+  zone: PageDivision;
+  /** Les autres campus de la même institution. */
+  autres: EcolePubliee[];
+  /** « Une erreur sur la fiche… » : le lien WhatsApp, s'il est configuré. */
+  erreur: string | null;
+}
+const { e, zone, autres, erreur } = Astro.props;
+
+const niveaux = e.niveaux.map((n) => libelleNiveau[n]).join(', ');
+const typeSeLit = typeInformatif(e.typeEcole);
+const lieu = [e.quartier, ...zone.noms.slice(1)]
+  .filter((x, i, t) => x && t.indexOf(x) === i)
+  .join(' · ');
+const itineraire =
+  e.latitude !== null && e.longitude !== null
+    ? `https://www.google.com/maps/dir/?api=1&destination=${e.latitude},${e.longitude}`
+    : null;
+
+// Les formations, cycle par cycle (dans l'ordre de la liste des cycles).
+const parCycle = listes.niveau
+  .map((cycle) => ({ cycle, formations: e.formations.filter((f) => f.cycle === cycle) }))
+  .filter((c) => c.formations.length > 0);
+// Un cycle qui a normalement des filières, sans aucune de notée : on le dit.
+const cyclesSansFormation = e.niveaux.filter(
+  (n) =>
+    ['lycee', 'technique', 'superieur', 'autre_formation'].includes(n) &&
+    !e.formations.some((f) => f.cycle === n),
+);
+const rythmes = (f: FormationPublique) => f.rythmes.map((r) => libelleRythme[r]).join(', ');
+
+// Le petit plan de la fiche : seulement quand le contour de l'arrondissement est dessiné.
+const dessin = zone.adresse.join('/').startsWith('congo/pointe-noire/')
+  ? arrondissementDessine(zone.adresse[zone.adresse.length - 1] ?? '')
+  : null;
+const [situee] = surCarte([e]);
+const carteDuQuartier = dessin ? lienCarte(zone.adresse) : '';
+const plan =
+  situee && dessin
+    ? (() => {
+        const { boite, projection } = cadreEcole(situee);
+        return planer(boite, [{ ...situee, lien: carteDuQuartier }], projection);
+      })()
+    : null;
+const nomZone = zone.division.nom;
+---
+
+<article class="cadre page fiche">
+  <a class="retour" href={lienDivision(zone.adresse)}>
+    ← Les écoles de {nomZone}
+  </a>
+
+  <div class="fiche-corps">
+    <div class="fiche-principale">
+      {e.etat === 'verifiee' ? (
+        <p class="carte etat">
+          <b>Fiche vérifiée par la direction</b>
+          {e.verifieeLe ? ` le ${dateLongue(e.verifieeLe)}` : ''}.
+        </p>
+      ) : provenanceDe(e) === 'ajoutee' && e.situeeLe ? (
+        <p class="etat etat-relevee-public">
+          <b>Fiche ajoutée par NTanova le {dateLongue(e.situeeLe)}</b>. Pas encore relevée sur place
+          par un jeune du quartier.
+        </p>
+      ) : (
+        <p class="etat etat-relevee-public">
+          <b>Fiche relevée le {dateLongue(e.releveeLe ?? e.misAJourLe)}</b> par un jeune du
+          quartier&nbsp;: seulement ce qui se voit de la rue.
+        </p>
+      )}
+
+      <div>
+        <h1>{e.nom}</h1>
+        {e.etiquette && <p class="etiquette-campus">{e.etiquette}</p>}
+        <p class="texte-doux">
+          {lieu}
+          {lieu ? ' · ' : ''}
+          <span class="insecable">{zone.noms[1] ?? zone.noms[0]}</span>
+        </p>
+      </div>
+
+      <dl class="carte proprietes">
+        {niveaux && (
+          <>
+            <dt>Niveaux</dt>
+            <dd>{niveaux}</dd>
+          </>
+        )}
+        {typeSeLit && (
+          <>
+            <dt>Type</dt>
+            <dd>{libelleTypeEcole[e.typeEcole]}</dd>
+          </>
+        )}
+        {e.programme && (
+          <>
+            <dt>Programme et langues</dt>
+            <dd>{e.programme}</dd>
+          </>
+        )}
+        {e.numeroEnseigne && (
+          <>
+            <dt>Numéro sur l'enseigne</dt>
+            <dd>
+              <a href={`tel:+${e.numeroEnseigne}`}>{afficherTelephone(e.numeroEnseigne)}</a>
+            </dd>
+          </>
+        )}
+      </dl>
+
+      {parCycle.length > 0 && (
+        <section class="carte formations" aria-label="Formations">
+          <h2>Ce qui est enseigné</h2>
+          {parCycle.map((c) => (
+            <div class="cycle">
+              <h3>{libelleNiveau[c.cycle]}</h3>
+              <ul>
+                {c.formations.map((f) => (
+                  <li>
+                    <b>{f.titre}</b>
+                    <span class="liens-formation">
+                      {f.serie && (
+                        <a href={lienFacette({ facette: 'serie', valeur: f.serie })}>
+                          {libelleSerie[f.serie]}
+                        </a>
+                      )}
+                      {f.diplome && (
+                        <a href={lienFacette({ facette: 'diplome', valeur: f.diplome })}>
+                          {libelleDiplome[f.diplome]}
+                        </a>
+                      )}
+                      {f.domaine && (
+                        <a href={lienFacette({ facette: 'domaine', valeur: f.domaine.slug })}>
+                          {f.domaine.nom}
+                        </a>
+                      )}
+                      {f.rythmes.length > 0 && <span>{rythmes(f)}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {autres.length > 0 && (
+        <section class="carte autres" aria-label="Autres implantations">
+          <h2>Les autres implantations de {e.nom}</h2>
+          <ul>
+            {autres.map((a) => (
+              <li>
+                <a href={lienEcole(a)}>
+                  <b>{a.etiquette ?? a.nom}</b>
+                  <span class="texte-doux">
+                    {a.divisionNoms.slice(1).join(' · ')}
+                    {a.niveaux.length > 0
+                      ? ` · ${a.niveaux.map((n) => libelleNiveau[n]).join(', ')}`
+                      : ''}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section class="carte ou" aria-label="Où est l'école">
+        {plan && dessin && situee && (
+          <Carte
+            id="fiche"
+            titre={`${e.nom} sur la carte de ${nomZone}`}
+            projection={plan.projection}
+            arrondissements={arrondissementsDessines.map((a) => ({
+              arrondissement: a,
+              role: a.slug === dessin.slug ? 'focus' : 'voisin',
+            }))}
+            rues={ruesDe(dessin.slug)}
+            marques={plan.marques}
+            reperes={reperes}
+            halo={situee}
+          />
+        )}
+        <p>
+          <b>Repère&nbsp;:</b> {e.repere ?? 'pas encore relevé'}
+        </p>
+        {itineraire && (
+          <a class="bouton bouton-secondaire" href={itineraire}>
+            Y aller
+          </a>
+        )}
+        {plan && <a href={carteDuQuartier}>Voir sur la carte de {nomZone}</a>}
+      </section>
+    </div>
+
+    <div class="fiche-cote">
+      <section class="manque">
+        <p class="surtitre-doux-public">Pas encore sur la fiche</p>
+        <ul class="pastilles-vides">
+          {!niveaux && <li>Niveaux</li>}
+          {!typeSeLit && <li>Type d'école</li>}
+          {cyclesSansFormation.length > 0 && <li>Séries ou filières</li>}
+          <li>Frais</li>
+          <li>Photos de l'école</li>
+          <li>Équipements</li>
+          <li>Contact WhatsApp</li>
+        </ul>
+      </section>
+
+      <aside class="ecoles-appel">
+        <p>
+          <b>Vous dirigez cette école&nbsp;?</b>
+        </p>
+        <p>Confirmez sa fiche et ajoutez photos, frais et contact.</p>
+        <a class="bouton bouton-accent" href="/pour-les-ecoles/">
+          Confirmer la fiche
+        </a>
+        {erreur && <a href={erreur}>Signaler une erreur</a>}
+      </aside>
+    </div>
+  </div>
+</article>
+
+<style>
+  .fiche {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .fiche h1 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-fiche);
+    line-height: var(--interligne-titre);
+  }
+  .fiche h2 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .fiche h3 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-courante);
+  }
+  .fiche p {
+    margin: 0;
+  }
+  .etiquette-campus {
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .etat {
+    font-size: var(--taille-secondaire);
+  }
+  .etat-relevee-public {
+    padding: var(--espace-3) var(--espace-4);
+    border: 2px dashed var(--trait-fort);
+    border-radius: var(--rayon-m);
+    color: var(--texte-doux);
+  }
+  .etat-relevee-public b {
+    color: var(--texte);
+  }
+  .proprietes {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--espace-3) var(--espace-4);
+    margin: 0;
+    padding: var(--espace-4);
+  }
+  .proprietes dt {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .proprietes dd {
+    margin: 0;
+    font-weight: 700;
+    text-align: right;
+  }
+  .proprietes a {
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+  }
+  .formations,
+  .autres {
+    display: grid;
+    gap: var(--espace-3);
+    padding: var(--espace-4);
+  }
+  .cycle {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .formations ul,
+  .autres ul {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .formations li {
+    display: grid;
+    gap: var(--espace-1);
+  }
+  .liens-formation {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-1) var(--espace-3);
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .liens-formation a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+  }
+  .autres a {
+    display: grid;
+    gap: var(--espace-1);
+    min-height: var(--cible-min);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .autres a:hover b {
+    color: var(--marque);
+    text-decoration: underline;
+  }
+  .ou {
+    display: grid;
+    gap: var(--espace-3);
+    padding: var(--espace-4);
+  }
+  .ou > a:not(.bouton) {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+  .manque {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .surtitre-doux-public {
+    color: var(--texte-doux);
+    font-family: var(--police-titre);
+    font-size: var(--taille-mention);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  /* Sur téléphone, les blocs se suivent : la fiche, puis ce qui manque, puis l'appel aux directions. */
+  .fiche-corps,
+  .fiche-principale,
+  .fiche-cote {
+    display: grid;
+    gap: var(--espace-4);
+  }
+
+  /* À partir de 48 rem : une colonne plus aérée ; à partir de 64 rem, l'appel aux directions passe à droite. */
+  @media (min-width: 48rem) {
+    .fiche {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .fiche h1 {
+      font-size: var(--taille-titre-public);
+    }
+    /* La colonne de la fiche garde la largeur d'une ligne de texte : cadre pointillé, cartes et texte alignés. */
+    .fiche-corps {
+      gap: var(--espace-5);
+      max-width: var(--largeur-texte);
+    }
+    .fiche-principale,
+    .fiche-cote {
+      align-content: start;
+      gap: var(--espace-5);
+    }
+    .proprietes {
+      grid-template-columns: minmax(9rem, auto) 1fr;
+    }
+    .proprietes dt {
+      align-self: center;
+    }
+    .proprietes dd {
+      text-align: left;
+    }
+    .ou .bouton {
+      justify-self: start;
+    }
+  }
+  @media (min-width: 64rem) {
+    .fiche-corps {
+      grid-template-columns: minmax(0, var(--largeur-texte)) 22rem;
+      gap: var(--espace-7);
+      align-items: start;
+      max-width: none;
+    }
+  }
+</style>

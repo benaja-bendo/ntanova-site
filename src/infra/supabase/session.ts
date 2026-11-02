@@ -1,13 +1,14 @@
 import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 import type { EtatSession, PortSession, Utilisateur } from '../../modele/ports';
 import { CLE_SESSION, supabase } from './client';
+import { stockageSession } from './stockage-session';
 
 export const session: PortSession = {
   async utilisateur(): Promise<Utilisateur | null> {
-    // Lu directement dans le téléphone : `getSession()` tenterait de renouveler le
+    // Lu directement dans le téléphone (IndexedDB) : `getSession()` tenterait de renouveler le
     // jeton, et hors ligne il répondrait « personne ».
     try {
-      const garde = JSON.parse(localStorage.getItem(CLE_SESSION) ?? 'null') as {
+      const garde = JSON.parse((await stockageSession.getItem(CLE_SESSION)) ?? 'null') as {
         user?: { id?: string; email?: string };
       } | null;
       const id = garde?.user?.id;

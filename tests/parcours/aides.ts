@@ -69,6 +69,12 @@ export async function uneFicheEnvoyee(
     .toEqual([1, 1, 1]);
 }
 
+/** Dans l'onglet « Écoles » : publie d'un coup les écoles prêtes de la zone Tié-Tié (une ville, un arrondissement…). */
+export async function publierLaZoneTieTie(page: Page) {
+  await page.getByLabel('Zone à publier').selectOption('d-pn-tie-tie');
+  await page.getByRole('button', { name: 'Publier cette zone' }).click();
+}
+
 /** L'administration ouvre la fiche « [École 1] » dans « À valider ». */
 export async function ouvrirLaFiche(page: Page) {
   await page.goto('/admin/');

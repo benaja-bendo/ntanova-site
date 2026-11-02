@@ -35,9 +35,11 @@ async function verifierLaBarre(page: Page, nom: string) {
     );
     // Dès la tablette, une ligne (68 px), ou deux (120 px) quand la pastille de « À valider »
     // élargit les onglets ; plus étroit, la marque, les onglets et le compte passent chacun à la
-    // ligne (155 px). Avant, la barre s'étirait à 224–280 px au téléphone et à plus de 500 px
+    // ligne (155 px), et les cinq onglets passent eux-mêmes sur deux lignes dès qu'ils ne tiennent
+    // plus sur une (203 px : à 360 px ils la remplissent au pixel près, une police un peu plus
+    // large suffit). Avant, la barre s'étirait à 224–280 px au téléphone et à plus de 500 px
     // sur une tablette.
-    const plafond = fenetre.width >= 768 ? 130 : 200;
+    const plafond = fenetre.width >= 768 ? 130 : 215;
     expect(barre.height, `${nom} : barre du haut sans s’étirer`).toBeLessThanOrEqual(plafond);
   } else {
     expect(barre.width, `${nom} : colonne sur le côté`).toBeLessThanOrEqual(300);
@@ -72,7 +74,17 @@ test.describe('administration', () => {
     await verifierLaBarre(page, 'À valider (vide)');
   });
 
-  for (const ecran of ['valider', 'ecoles', 'relais']) {
+  test('quand les cinq onglets ne tiennent plus sur une ligne (340 px), ils passent sur une deuxième sans étirer la barre', async ({
+    page,
+  }, info) => {
+    test.skip(info.project.name !== 'android-360', 'une seule fois, au téléphone');
+    await seConnecter(page, '/admin/');
+    await page.setViewportSize({ width: 340, height: 640 });
+    await expect(page.locator('main h1')).toBeVisible();
+    await verifierLaBarre(page, 'à 340 px');
+  });
+
+  for (const ecran of ['valider', 'ecoles', 'zones', 'relais', 'paie']) {
     test(`« ${ecran} » : la page ne défile pas de côté, la barre garde sa forme`, async ({
       page,
     }) => {
@@ -87,7 +99,7 @@ test.describe('administration', () => {
   test('dès la tablette, les tableaux tiennent dans leur cadre', async ({ page }) => {
     test.skip(largeurDe(page) < 768, 'au téléphone, les tableaux défilent dans leur cadre');
     await seConnecter(page, '/admin/');
-    for (const ecran of ['ecoles', 'relais']) {
+    for (const ecran of ['ecoles', 'zones', 'relais', 'paie']) {
       await page.goto(`/admin/#${ecran}`);
       await expect(page.locator('main h1')).toBeVisible();
       await verifierLesTableaux(page, ecran);
@@ -99,7 +111,7 @@ test.describe('administration', () => {
     await seConnecter(page, '/admin/');
     for (const largeur of [820, 1000, CHARNIERE_ADMIN, CHARNIERE_ADMIN + 1, 1440]) {
       await page.setViewportSize({ width: largeur, height: 800 });
-      for (const ecran of ['ecoles', 'relais']) {
+      for (const ecran of ['ecoles', 'zones', 'relais', 'paie']) {
         await page.goto(`/admin/#${ecran}`);
         await expect(page.locator('main h1')).toBeVisible();
         const nom = `${ecran} à ${largeur} px`;
@@ -115,8 +127,11 @@ test.describe('administration', () => {
 
 const pagesPubliques = [
   ['accueil', '/'],
-  ['liste d’un arrondissement', '/ecoles/tie-tie/'],
-  ['fiche d’une école', '/ecoles/tie-tie/complexe-scolaire-exemple/'],
+  ['liste d’un arrondissement', '/ecoles/congo/pointe-noire/tie-tie/'],
+  ['fiche d’une école', '/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/'],
+  ['une ville et ses arrondissements', '/ecoles/congo/pointe-noire/'],
+  ['recherche', '/recherche/'],
+  ['autour de moi', '/autour-de-moi/'],
   ['« Pour les écoles »', '/pour-les-ecoles/'],
   ['« À propos »', '/a-propos/'],
   ['page introuvable', '/cette-page-n-existe-pas/'],
@@ -179,7 +194,7 @@ test.describe('site public', () => {
     });
   }
 
-  test('accueil : navigation du haut, quartiers côte à côte, étapes : seulement à partir de la tablette', async ({
+  test('accueil : navigation du haut, villes côte à côte, étapes : seulement à partir de la tablette', async ({
     page,
   }) => {
     await page.goto('/');
@@ -189,14 +204,16 @@ test.describe('site public', () => {
     const [premier, second] = await page.locator('a.quartier').all();
     const [a, b] = await Promise.all([premier?.boundingBox(), second?.boundingBox()]);
     if (largeur >= TABLETTE) {
-      await expect(navigation.getByRole('link', { name: 'Quartiers' })).toBeVisible();
+      await expect(navigation.getByRole('link', { name: 'Les écoles', exact: true })).toBeVisible();
+      await expect(navigation.getByRole('link', { name: 'Rechercher' })).toBeVisible();
+      await expect(navigation.getByRole('link', { name: 'Autour de moi' })).toBeVisible();
       await expect(navigation.getByRole('link', { name: 'Pour les écoles' })).toBeVisible();
       await expect(etapes).toBeVisible();
-      expect(a?.y, 'les deux quartiers sont sur la même ligne').toBe(b?.y);
+      expect(a?.y, 'les deux villes sont sur la même ligne').toBe(b?.y);
     } else {
       await expect(navigation).toBeHidden();
       await expect(etapes).toBeHidden();
-      expect(b?.y ?? 0, 'au téléphone, les quartiers se suivent').toBeGreaterThan(
+      expect(b?.y ?? 0, 'au téléphone, les villes se suivent').toBeGreaterThan(
         (a?.y ?? 0) + (a?.height ?? 0) - 1,
       );
     }
@@ -206,21 +223,19 @@ test.describe('site public', () => {
     await expect(page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' })).toBeVisible();
   });
 
-  test('accueil : l’arrondissement qui a des fiches passe avant celui où le relevé est en cours', async ({
-    page,
-  }) => {
-    // Les deux planches mettent Tié-Tié (une école) avant Ngoyo (relevé en cours) ; l'ordre
-    // alphabétique mettait « relevé en cours » en tête.
+  test('accueil : la ville qui a le plus de fiches passe avant les autres', async ({ page }) => {
+    // Pointe-Noire (sept écoles) avant Brazzaville et le Niari (une chacune, par ordre alphabétique).
     await page.goto('/');
-    await expect(page.locator('a.quartier').first()).toContainText('Tié-Tié');
-    await expect(page.locator('a.quartier').nth(1)).toContainText('Ngoyo');
+    await expect(page.locator('a.quartier').first()).toContainText('Pointe-Noire');
+    await expect(page.locator('a.quartier').nth(1)).toContainText('Brazzaville');
+    await expect(page.locator('a.quartier').nth(2)).toContainText('Niari');
   });
 
   test('accueil : l’aperçu de la carte est à droite de l’ouverture dès 1 024 px, dessous avant', async ({
     page,
   }) => {
     await page.goto('/');
-    const titre = await position(page, 'Toutes les écoles, quartier par quartier.');
+    const titre = await position(page, 'Les écoles près de chez vous, ville par ville.');
     const apercu = await page.getByRole('region', { name: 'La carte de Tié-Tié' }).boundingBox();
     if (largeurDe(page) >= ORDINATEUR) {
       expect(apercu?.x ?? 0, 'à droite du titre').toBeGreaterThanOrEqual(titre.x + titre.width);
@@ -266,7 +281,7 @@ test.describe('site public', () => {
   test('liste : les écoles se rangent en grille, une fiche ne s’étire pas sur toute la page', async ({
     page,
   }) => {
-    await page.goto('/ecoles/tie-tie/');
+    await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
     const largeur = largeurDe(page);
     const ecole = await page.locator('a.ecole').first().boundingBox();
     if (largeur >= TABLETTE) {
@@ -277,7 +292,7 @@ test.describe('site public', () => {
   });
 
   test('fiche : à partir de 1 024 px, l’appel aux directions passe à droite', async ({ page }) => {
-    await page.goto('/ecoles/tie-tie/complexe-scolaire-exemple/');
+    await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
     const proprietes = await page.locator('dl.proprietes').boundingBox();
     const appel = await page.getByRole('complementary').boundingBox();
     if (largeurDe(page) >= ORDINATEUR) {

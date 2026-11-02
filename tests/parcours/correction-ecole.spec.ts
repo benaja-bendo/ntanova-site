@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
+import { ouvrirLaFiche, publierLaZoneTieTie, uneFicheEnvoyee } from './aides';
 
 // L'administration corrige une fiche dans l'onglet « Écoles », sans repasser par le relais
 // (ticket 12). Construit avec le faux serveur : l'utilisateur est relais et administrateur.
@@ -57,7 +57,7 @@ test('une fiche publiée se corrige aussi, et la correction dit quand elle para�
   context,
 }) => {
   await uneEcolePrete(page, context);
-  await page.getByRole('button', { name: /Publier l’école prête de Tié-Tié/ }).click();
+  await publierLaZoneTieTie(page);
   await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
 
   await ligne(page).getByRole('button', { name: 'Modifier la fiche' }).click();
@@ -93,7 +93,7 @@ test('rien n’a changé : rien ne part ; un nom vide se dit en français', asyn
 
 test('une école retirée du site ne se modifie plus', async ({ page, context }) => {
   await uneEcolePrete(page, context);
-  await page.getByRole('button', { name: /Publier l’école prête de Tié-Tié/ }).click();
+  await publierLaZoneTieTie(page);
   await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
   await expect(ligne(page).getByRole('button', { name: 'Modifier la fiche' })).toBeVisible();
 

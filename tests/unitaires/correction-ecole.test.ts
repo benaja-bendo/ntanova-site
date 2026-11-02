@@ -9,11 +9,14 @@ import type { EcoleVue } from '../../src/modele/ports';
 
 const ecole: EcoleVue = {
   id: 'e1',
+  institutionId: 'i1',
   nom: '[École]',
+  etiquette: null,
   quartier: null,
-  arrondissement: 'Tié-Tié',
-  arrondissementId: 1,
+  division: 'Tié-Tié',
+  divisionId: 'd1',
   publication: 'publiee',
+  origine: 'field',
   retrait: null,
   aSituer: false,
   position: { latitude: -4.79105, longitude: 11.925 },
@@ -23,6 +26,8 @@ const ecole: EcoleVue = {
   programme: 'Bilingue',
   repere: '[Repère]',
   numeroEnseigne: '242060000001',
+  formations: 0,
+  verifieeLe: null,
 };
 
 const formulaire = (champs: Partial<FormulaireEcole> = {}): FormulaireEcole => ({

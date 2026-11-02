@@ -92,3 +92,84 @@ export const libelleProvenance: Record<Provenance, string> = {
   relevee: 'Relevée de la rue',
   ajoutee: 'Ajoutée par NTanova',
 };
+
+// Le catalogue universel : formations, photos, origine, divisions ------------------------------
+
+/** Les séries du baccalauréat. « f » et « g » : l'enseigne ne dit pas la variante. */
+export const libelleSerie: Record<Valeur<'bac_track'>, string> = {
+  a: 'Série A',
+  c: 'Série C',
+  d: 'Série D',
+  e: 'Série E',
+  f: 'Série F',
+  f1: 'Série F1',
+  f2: 'Série F2',
+  f3: 'Série F3',
+  f4: 'Série F4',
+  g: 'Série G',
+  g1: 'Série G1',
+  g2: 'Série G2',
+  g3: 'Série G3',
+  h: 'Série H',
+  autre: 'Autre série',
+};
+
+export const libelleDiplome: Record<Valeur<'diploma_kind'>, string> = {
+  cepe: 'CEPE',
+  bepc: 'BEPC',
+  bac: 'Baccalauréat',
+  bt: 'BT',
+  bts: 'BTS',
+  licence: 'Licence',
+  master: 'Master',
+  doctorat: 'Doctorat',
+  cap: 'CAP',
+  certificat: 'Certificat',
+  autre: 'Autre diplôme',
+};
+
+export const libelleRythme: Record<Valeur<'study_rhythm'>, string> = {
+  jour: 'Cours du jour',
+  soir: 'Cours du soir',
+  weekend: 'Cours du week-end',
+};
+
+/** Ce que montre une photo, dans les mots du relais. */
+export const libelleRolePhoto: Record<Valeur<'photo_role'>, string> = {
+  signboard: "L'enseigne ou l'entrée",
+  programs_board: 'Le panneau ou l’affiche des formations',
+  brochure: 'Le prospectus remis par l’école',
+  building: 'Une vue du bâtiment (sans enfant)',
+};
+
+/** Les trois usages des photos facultatives, dans les mots de l'écran Ajouter 1/3. */
+export const libelleRolePhotoCourt: Record<Valeur<'photo_role'>, string> = {
+  signboard: 'Enseigne ou entrée',
+  programs_board: 'Panneau ou affiche des formations',
+  brochure: "Prospectus remis par l'école",
+  building: 'Autre vue du bâtiment (sans enfant)',
+};
+
+export const libelleOrigine: Record<Valeur<'origin_kind'>, string> = {
+  field: 'Relevée par un relais',
+  admin: 'Ajoutée par NTanova',
+  import: 'Importée',
+};
+
+export const libelleGenreDivision: Record<Valeur<'geo_kind'>, string> = {
+  country: 'Pays',
+  department: 'Département',
+  region: 'Région',
+  city: 'Ville',
+  commune: 'Commune',
+  district: 'District',
+  arrondissement: 'Arrondissement',
+  quarter: 'Quartier',
+  zone: 'Zone',
+};
+
+export const libelleTypeMission: Record<Valeur<'mission_kind'>, string> = {
+  verify: 'Vérifier l’école sur place',
+  locate: 'Situer l’école (prendre sa position)',
+  complete: 'Compléter la fiche',
+};

@@ -1,0 +1,252 @@
+---
+// La page d'une zone (pays, département, ville, arrondissement, quartier) : les zones qu'elle contient, avec leur
+// nombre d'écoles, puis les écoles qui sont directement chez elle. Quand le contour de la zone est dessiné
+// (aujourd'hui les six arrondissements de Pointe-Noire), la carte est à un lien. Aucun JavaScript.
+import {
+  arrondissementDessine,
+  arrondissementsDessines,
+  cadreVille,
+  type ArrondissementSurCarte,
+} from '../modele/carte/plan';
+import {
+  compterEcoles,
+  ecolesSous,
+  lienCarte,
+  lienDivision,
+  NOM_NIVEAU,
+  type PageDivision,
+} from '../modele/geo-divisions';
+import type { DivisionPublique } from '../modele/ports';
+import Carte from './Carte.astro';
+import BasculeVue from './BasculeVue.astro';
+import ListeEcoles from './ListeEcoles.astro';
+
+interface Props {
+  page: PageDivision;
+  /** Toutes les divisions du pays (même sans école) : la carte de la ville y lit celles où le relevé a commencé. */
+  divisions: DivisionPublique[];
+  /** « Une école manque ? » : le lien WhatsApp, s'il est configuré. */
+  manque: string | null;
+}
+const { page, divisions, manque } = Astro.props;
+
+const sous = ecolesSous(page);
+const verifiees = sous.filter((e) => e.etat === 'verifiee').length;
+const nom = page.division.nom;
+const genre = NOM_NIVEAU[page.division.niveau] ?? 'zone';
+const ordinal = page.division.ordinal;
+const parent = page.parent;
+
+// Un arrondissement dessiné (Pointe-Noire) a sa carte, et la carte de la ville montre ses six arrondissements.
+const adresseTexte = page.adresse.join('/');
+const dessin =
+  page.division.niveau === 3 && adresseTexte.startsWith('congo/pointe-noire/')
+    ? arrondissementDessine(page.division.slug)
+    : null;
+const estPointeNoire = adresseTexte === 'congo/pointe-noire';
+const ouvert = (slug: string) =>
+  divisions.some(
+    (d) =>
+      d.niveau === 3 &&
+      d.slug === slug &&
+      d.ouverte &&
+      d.adresse.join('/').startsWith('congo/pointe-noire/'),
+  ) || page.enfants.some((p) => p.division.slug === slug);
+const surLaCarte: ArrondissementSurCarte[] = estPointeNoire
+  ? arrondissementsDessines.map((a) => {
+      const fille = page.enfants.find((p) => p.division.slug === a.slug);
+      return ouvert(a.slug)
+        ? {
+            arrondissement: a,
+            role: 'en-cours',
+            lien: fille ? lienCarte(fille.adresse) : lienDivision([...page.adresse, a.slug]),
+            etiquette: fille ? compterEcoles(ecolesSous(fille).length) : 'relevé en cours',
+          }
+        : { arrondissement: a, role: 'pas-encore', etiquette: 'pas encore' };
+    })
+  : [];
+const pasEncore = surLaCarte.filter((a) => a.role === 'pas-encore').length;
+const enLettres = ['aucun', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six'];
+const lienListe = lienDivision(page.adresse);
+---
+
+<section class="cadre page hub">
+  <a class="retour" href={parent ? lienDivision(parent.adresse) : '/ecoles/'}>
+    ← {parent ? parent.division.nom : 'Les écoles'}
+  </a>
+
+  <div class="titre-vue">
+    <div>
+      <h1>{nom}</h1>
+      <p class="texte-doux">
+        {ordinal ? `Arrondissement ${ordinal}` : genre.charAt(0).toUpperCase() + genre.slice(1)}
+        {page.noms.length > 1 && (
+          <>
+            {' '}
+            · <span class="insecable">{page.noms.slice(0, -1).join(' › ')}</span>
+          </>
+        )}
+      </p>
+    </div>
+    {dessin && <BasculeVue carte={lienCarte(page.adresse)} liste={lienListe} actuelle="liste" />}
+  </div>
+
+  {sous.length === 0 ? (
+    <p class="carte">Aucune école publiée pour l'instant&nbsp;: le relevé est en cours.</p>
+  ) : (
+    <p class="compte">
+      {compterEcoles(sous.length)} relevée{sous.length > 1 ? 's' : ''}
+      {verifiees > 0 && ` · ${verifiees} vérifiée${verifiees > 1 ? 's' : ''}`}
+    </p>
+  )}
+
+  {estPointeNoire && surLaCarte.length > 0 && (
+    <div class="disposition">
+      <Carte
+        id="ville"
+        titre="Carte de Pointe-Noire par arrondissement"
+        projection={cadreVille()}
+        arrondissements={surLaCarte}
+        noms
+      />
+      <p class="texte-doux">
+        En vert&nbsp;: le relevé a commencé. Touchez un arrondissement.
+        {pasEncore > 0 &&
+          (pasEncore === 1
+            ? ' L’autre arrondissement : pas encore relevé.'
+            : ` Les ${enLettres[pasEncore]} autres arrondissements : pas encore relevés.`)}
+      </p>
+    </div>
+  )}
+
+  {page.enfants.length > 0 && (
+    <section aria-label={`Les zones de ${nom}`}>
+      <ul class="zones">
+        {page.enfants.map((enfant) => {
+          const n = ecolesSous(enfant).length;
+          return (
+            <li>
+              <a class="zone" href={lienDivision(enfant.adresse)}>
+                <span class="zone-nom">{enfant.division.nom}</span>
+                <span class="zone-detail">
+                  {enfant.division.ordinal ? `Arrondissement ${enfant.division.ordinal} · ` : ''}
+                  {n === 0 ? 'relevé en cours' : compterEcoles(n)}
+                </span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  )}
+
+  {page.ecoles.length > 0 && (
+    <section aria-label={`Les écoles de ${nom}`} class="ecoles-ici">
+      {page.enfants.length > 0 && <h2>Les écoles de {nom}</h2>}
+      <ListeEcoles ecoles={page.ecoles} />
+    </section>
+  )}
+
+  <p>
+    <a class="chercher" href={`/recherche/?zone=${adresseTexte}`}>
+      Chercher une école à {nom}
+    </a>
+  </p>
+
+  <div class="encadre-pointille">
+    <p>Une partie du territoire n'est pas encore relevée&nbsp;: relevé en cours.</p>
+    {manque && <a href={manque}>Une école manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
+  </div>
+</section>
+
+<style>
+  .hub {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .hub h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .hub h2 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .hub p {
+    margin: 0;
+  }
+  .compte {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .disposition {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .zones {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .zone {
+    display: grid;
+    gap: var(--espace-1);
+    min-height: var(--cible-principale);
+    padding: var(--espace-3) var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--carte-releve-en-cours);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .zone:hover {
+    outline: 2px solid var(--marque);
+  }
+  .zone-nom {
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .zone-detail {
+    color: var(--marque-appuyee);
+    font-size: var(--taille-secondaire);
+  }
+  .ecoles-ici {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .encadre-pointille a,
+  .chercher {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+
+  /* À partir de 48 rem : les zones en grille, les titres plus grands. */
+  @media (min-width: 48rem) {
+    .hub {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .hub h1 {
+      font-size: var(--taille-titre-public);
+    }
+    .zones {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+      gap: var(--espace-3);
+    }
+  }
+  @media (min-width: 64rem) {
+    .disposition {
+      grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr);
+      gap: var(--espace-6);
+      align-items: start;
+    }
+  }
+</style>

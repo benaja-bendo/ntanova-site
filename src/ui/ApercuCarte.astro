@@ -32,11 +32,13 @@ interface Props {
   arrondissement: ArrondissementDessine;
   /** Ses écoles publiées (celles qui ont une position sont sur la carte). */
   ecoles: EcolePubliee[];
+  /** L'adresse de sa carte (`/cartes/congo/pointe-noire/tie-tie/`). */
+  lienCarte: string;
 }
-const { arrondissement, ecoles } = Astro.props;
+const { arrondissement, ecoles, lienCarte } = Astro.props;
 
 const sur = surCarte(ecoles);
-const adresse = `/ecoles/${arrondissement.slug}/carte/`;
+const adresse = lienCarte;
 const roles: ArrondissementSurCarte[] = arrondissementsDessines.map((a) => ({
   arrondissement: a,
   role: a.slug === arrondissement.slug ? 'focus' : 'voisin',

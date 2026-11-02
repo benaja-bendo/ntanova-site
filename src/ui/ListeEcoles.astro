@@ -7,6 +7,7 @@ import {
   provenanceDe,
   typeInformatif,
 } from '../modele/libelles';
+import { lienEcole } from '../modele/geo-divisions';
 import type { EcolePubliee } from '../modele/ports';
 
 interface Props {
@@ -18,6 +19,9 @@ const resume = (e: EcolePubliee) =>
   [
     e.niveaux.map((n) => libelleNiveau[n]).join(' · '),
     typeInformatif(e.typeEcole) ? libelleTypeEcole[e.typeEcole] : null,
+    e.formations.length > 0
+      ? `${e.formations.length} formation${e.formations.length > 1 ? 's' : ''}`
+      : null,
     e.repere,
   ]
     .filter(Boolean)
@@ -27,8 +31,9 @@ const resume = (e: EcolePubliee) =>
 <ul class="ecoles" id={id}>
   {ecoles.map((e) => (
     <li>
-      <a class="ecole" href={`/ecoles/${e.arrondissement}/${e.slug}/`}>
+      <a class="ecole" href={lienEcole(e)}>
         <span class="ecole-nom">{e.nom}</span>
+        {e.etiquette && <span class="ecole-etiquette">{e.etiquette}</span>}
         {resume(e) && <span class="ecole-detail">{resume(e)}</span>}
         <span class="ecole-etat">{libelleProvenance[provenanceDe(e)]}</span>
       </a>
@@ -58,6 +63,7 @@ const resume = (e: EcolePubliee) =>
     font-family: var(--police-titre);
     font-weight: 700;
   }
+  .ecole-etiquette,
   .ecole-detail,
   .ecole-etat {
     color: var(--texte-doux);

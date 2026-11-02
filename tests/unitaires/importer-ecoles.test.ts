@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { lireCsv, niveauxDe, typeDe, versEcoles, versSql } from '../../outils/importer-ecoles';
+import { lireCsv, niveauxDe, typeDe, versEcoles, versEntrees } from '../../outils/importer-ecoles';
+import { lireImportation } from '../../src/modele/import-ecoles';
 
 // Des écoles fictives : aucune donnée réelle dans le dépôt.
 const csv = `ID établissement,Nom,Ville,Quartier,Statut,Niveaux,Notes,Adresse ou repère,Téléphone de l'enseigne
@@ -70,27 +71,53 @@ describe('l’import des écoles connues par les entretiens', () => {
     expect(ecoles.find((e) => e.reference === 'ETB-906')?.typeEcole).toBe('communautaire');
   });
 
-  it('écrit un SQL en brouillon, sans position, qui se relance sans doublon', () => {
-    const texte = versSql(ecoles, ecartees, '[source]');
-    expect(texte).toContain("'brouillon'");
-    expect(texte).not.toMatch(/insert into public\.ecoles \([^)]*position/);
-    expect(texte).toContain(
-      "where not exists (select 1 from prive.ecoles_sources where reference = 'ETB-905')",
-    );
-    expect(texte).toContain("'[École D d''Ngoyo]'");
-    expect(texte).toContain('--   ETB-902 : nom inconnu');
-    expect(texte).not.toContain('hors cible');
+  it('écrit le format de l’import de l’administration : une institution, un campus, ses cycles, sans position', () => {
+    const entrees = versEntrees(ecoles);
+    expect(entrees.map((e) => e.reference)).toEqual(['ETB-901', 'ETB-903', 'ETB-905', 'ETB-906']);
+    const d = entrees.find((e) => e.reference === 'ETB-905');
+    expect(d).toEqual({
+      reference: 'ETB-905',
+      nom: "[École D d'Ngoyo]",
+      genre: 'privee',
+      campus: [
+        {
+          etiquette: null,
+          division: 'congo.pointe_noire.pointe_noire.ngoyo',
+          quartier: 'Ngoyo',
+          repere: 'Ngoyo, arrêt [Arrêt]',
+          numeroEnseigne: '242060000001',
+          position: null,
+          programme: null,
+          cycles: [
+            { cycle: 'creche', formations: [] },
+            { cycle: 'maternelle', formations: [] },
+            { cycle: 'primaire', formations: [] },
+            { cycle: 'college', formations: [] },
+          ],
+        },
+      ],
+    });
+    // Aucune position inventée : l'école reste « à situer ».
+    for (const e of entrees) expect(e.campus[0]?.position).toBeNull();
+    // Un arrondissement inconnu : la division est à choisir dans l'administration.
+    expect(entrees.find((e) => e.reference === 'ETB-901')?.campus[0]?.division).toBeNull();
   });
 
-  it('remet à « Pas indiqué » le type seulement probable d’une école déjà importée, tant qu’elle est en brouillon', () => {
-    const texte = versSql(ecoles, ecartees, '[source]');
-    expect(texte).toContain(
-      `update public.ecoles e set type_ecole = 'non_indique'
-  from prive.ecoles_sources s
-  where s.ecole_id = e.id and s.reference = 'ETB-901'
-    and e.type_ecole = 'privee' and e.publication = 'brouillon';`,
-    );
-    // Seulement les « probables » : une école au type sûr n'est pas touchée.
-    expect(texte).not.toContain("s.reference = 'ETB-905'\n    and e.type_ecole");
+  it('le fichier produit est accepté tel quel par l’import de l’administration', () => {
+    const json = JSON.stringify(versEntrees(ecoles));
+    const lecture = lireImportation(json);
+    expect(lecture.erreurs).toEqual([]);
+    expect(lecture.entrees).toHaveLength(4);
+    // Rejoué, il reste identique : la référence rend l'import idempotent côté base.
+    expect(lecture.entrees.map((e) => e.reference)).toEqual([
+      'ETB-901',
+      'ETB-903',
+      'ETB-905',
+      'ETB-906',
+    ]);
+  });
+
+  it('ne reprend que ce qui se voit de la rue : ni note d’entretien, ni personne interrogée', () => {
+    expect(JSON.stringify(versEntrees(ecoles))).not.toContain('Note d');
   });
 });

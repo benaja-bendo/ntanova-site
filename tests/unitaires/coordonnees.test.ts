@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { ecrirePosition, lienGoogleMaps, lirePosition } from '../../src/modele/coordonnees';
+import { lireChampPosition } from '../../src/modele/correction-ecole';
 import {
-  formulaireVide,
-  lireChampPosition,
-  versNouvelleEcole,
-} from '../../src/modele/correction-ecole';
+  erreursCreation,
+  formulaireCreationVide,
+  versEntree,
+} from '../../src/modele/creation-ecole';
 import { arrondissementDeLaPosition } from '../../src/modele/carte/plan';
 
 // Ce que l'administration colle pour situer une école : ce que Google Maps donne.
@@ -67,21 +68,39 @@ describe('ajouter une école', () => {
 
   it('rien n’est coché d’avance, et les champs vides partent vides', () => {
     const champs = {
-      ...formulaireVide(),
+      ...formulaireCreationVide(),
       nom: '  [École Exemple] ',
       numeroEnseigne: '06 000 00 01',
     };
-    expect(formulaireVide().niveaux).toEqual([]);
-    expect(formulaireVide().typeEcole).toBe('non_indique');
-    expect(versNouvelleEcole(champs, ' ', null)).toEqual({
+    expect(formulaireCreationVide().cycles).toEqual([]);
+    expect(formulaireCreationVide().genre).toBe('non_indique');
+    expect(erreursCreation(champs)).toEqual({});
+    expect(versEntree(champs)).toEqual({
+      reference: null,
       nom: '[École Exemple]',
-      position: null,
-      typeEcole: 'non_indique',
-      niveaux: [],
-      programme: null,
-      repere: null,
-      numeroEnseigne: '242060000001',
-      quartier: null,
+      genre: 'non_indique',
+      campus: [
+        {
+          etiquette: null,
+          division: null,
+          quartier: null,
+          repere: null,
+          numeroEnseigne: '242060000001',
+          position: null,
+          programme: null,
+          cycles: [],
+        },
+      ],
     });
+  });
+
+  it('une position qui ne se lit pas est une erreur, jamais une position inventée', () => {
+    expect(
+      erreursCreation({ ...formulaireCreationVide(), nom: '[École]', position: 'près du marché' }),
+    ).toHaveProperty('position');
+    expect(
+      versEntree({ ...formulaireCreationVide(), nom: '[École]', position: '-4.79105, 11.925' })
+        .campus[0]?.position,
+    ).toEqual({ latitude: -4.79105, longitude: 11.925 });
   });
 });

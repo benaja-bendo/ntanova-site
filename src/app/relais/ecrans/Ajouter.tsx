@@ -1,15 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  avecPhoto,
   contactVide,
+  demandeLesFormations,
   erreursEtape1,
   erreursEtape2,
   erreursEtape3,
   nouvelleContreVisite,
   nouvelleFiche,
+  peutAjouterPhoto,
+  photoEnseigne,
+  PHOTOS_FACULTATIVES_MAX,
+  photosFacultatives,
+  sansPhoto,
   versContact,
   type ContactSaisi,
   type Erreurs,
   type FicheLocale,
+  type PhotoLocale,
 } from '../../../modele/fiche';
 import { dansLeLot, plusProche, PRECISION_SUFFISANTE_M, type Point } from '../../../modele/geo';
 import { listes, type Valeur } from '../../../modele/listes';
@@ -18,16 +26,20 @@ import {
   libelleDirection,
   libelleFonction,
   libelleNiveau,
+  libelleRolePhotoCourt,
   libelleTypeEcole,
 } from '../../../modele/libelles';
 import { base, garder, lireMemoire, oublier } from '../base-locale';
 import { aller, useRelais } from '../contexte';
 import { Bandeau, Champ, Choix, EnteteEtape, Icone } from '../composants';
 import { journaliser } from '../journal';
-import { alleger } from '../photo';
+import { alleger, PhotoTropLourde } from '../photo';
 import { mesurerPosition, type ErreurPosition, type Mesure } from '../position';
 
-type Modifier = (champs: Partial<FicheLocale>) => void;
+/** Change des champs de la fiche en cours ; une fonction reçoit la fiche à jour (deux photos qui se suivent ne s'écrasent pas). */
+type Modifier = (
+  champs: Partial<FicheLocale> | ((fiche: FicheLocale) => Partial<FicheLocale>),
+) => void;
 
 /** Crée la fiche en cours si besoin, puis la garde dans le téléphone à chaque changement. */
 function useFicheEnCours(): [FicheLocale | null, Modifier] {
@@ -57,7 +69,7 @@ function useFicheEnCours(): [FicheLocale | null, Modifier] {
   const modifier: Modifier = (champs) => {
     setFiche((avant) => {
       if (!avant) return avant;
-      const apres = { ...avant, ...champs };
+      const apres = { ...avant, ...(typeof champs === 'function' ? champs(avant) : champs) };
       void base.fiches.put(apres);
       return apres;
     });
@@ -77,9 +89,9 @@ function PiedEtape({ children }: { children: React.ReactNode }) {
   return <div className="pied-etape">{children}</div>;
 }
 
-function BoutonSuivant({ surClic }: { surClic: () => void }) {
+function BoutonSuivant({ surClic, occupe = false }: { surClic: () => void; occupe?: boolean }) {
   return (
-    <button type="button" className="bouton bouton-large" onClick={surClic}>
+    <button type="button" className="bouton bouton-large" onClick={surClic} disabled={occupe}>
       Suivant
       <Icone nom="suivant" />
     </button>
@@ -106,20 +118,56 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   const arret = useRef<() => void>(() => {});
   const monte = useRef(true);
 
-  const apercu = useMemo(
-    () => (fiche.photo ? URL.createObjectURL(fiche.photo) : null),
-    [fiche.photo],
+  const [autresOuvert, setAutresOuvert] = useState(false);
+  // Des photos en cours d'allègement : « Suivant » attend qu'elles soient gardées, sinon la fiche partirait sans elles.
+  const [allegement, setAllegement] = useState(0);
+  const [rolePhoto, setRolePhoto] = useState<'programs_board' | 'brochure' | 'building'>(
+    'programs_board',
   );
-  useEffect(() => () => void (apercu && URL.revokeObjectURL(apercu)), [apercu]);
 
-  const prendrePhoto = async (fichier: File | undefined) => {
+  // Un aperçu par photo : les fichiers sont dans le téléphone (IndexedDB), jamais envoyés pour s'afficher.
+  const apercus = useMemo(
+    () =>
+      Object.fromEntries(
+        fiche.photos.flatMap((p) => (p.blob ? [[p.id, URL.createObjectURL(p.blob)] as const] : [])),
+      ),
+    [fiche.photos],
+  );
+  useEffect(
+    () => () => Object.values(apercus).forEach((url) => URL.revokeObjectURL(url)),
+    [apercus],
+  );
+  const enseigne = photoEnseigne(fiche);
+  const autres = photosFacultatives(fiche);
+
+  /** Allège la photo (moins de 200 Ko), puis la garde dans le téléphone avec son rôle. */
+  const prendrePhoto = async (fichier: File | undefined, role: PhotoLocale['role']) => {
     if (!fichier) return;
     setErreurPhoto(null);
+    setAllegement((n) => n + 1);
     try {
-      modifier({ photo: await alleger(fichier) });
+      const a = await alleger(fichier);
+      const photo: PhotoLocale = {
+        id: crypto.randomUUID(),
+        role,
+        blob: a.blob,
+        mime: a.mime,
+        octets: a.octets,
+        largeur: a.largeur,
+        hauteur: a.hauteur,
+        prisLe: new Date().toISOString(),
+        envoyee: false,
+      };
+      modifier((f) => ({ photos: avecPhoto(f, photo).photos }));
     } catch (e) {
-      await journaliser('ajouter-1', 'photo_illisible', e);
+      await journaliser(
+        'ajouter-1',
+        e instanceof PhotoTropLourde ? 'photo_trop_lourde' : 'photo_illisible',
+        e,
+      );
       setErreurPhoto('Cette photo ne peut pas être lue. Reprenez-la, ou choisissez-en une autre.');
+    } finally {
+      setAllegement((n) => n - 1);
     }
   };
 
@@ -133,7 +181,10 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         id: null,
         nom: f.nomEnseigne || 'une de vos fiches',
       }));
-    const proche = plusProche(m, [...ecoles, ...autres]);
+    // Un relevé pas encore accepté n'est pas un campus : si c'est « la même », son identifiant ne part jamais comme
+    // identifiant de campus (la base le refuserait). Seul un campus connu est désigné par son identifiant.
+    const connues = ecoles.map((e) => ({ ...e, id: e.genre === 'releve' ? null : e.id }));
+    const proche = plusProche(m, [...connues, ...autres]);
     const dedans = dansLeLot(m, lot);
     const champs: Partial<FicheLocale> = {
       position: { latitude: m.latitude, longitude: m.longitude },
@@ -205,9 +256,9 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
       <main className="contenu-relais">
         <section className="carte-blanche pile-serree">
           <h2 className="titre-section">La photo de l'enseigne</h2>
-          {apercu ? (
+          {enseigne && apercus[enseigne.id] ? (
             <div className="apercu-photo">
-              <img src={apercu} alt="La photo de l'enseigne" />
+              <img src={apercus[enseigne.id]} alt="La photo de l'enseigne" />
               <span className="etiquette-photo">Allégée pour l'envoi</span>
             </div>
           ) : (
@@ -223,7 +274,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
                 type="file"
                 accept="image/*"
                 className="cache"
-                onChange={(e) => void prendrePhoto(e.target.files?.[0])}
+                onChange={(e) => void prendrePhoto(e.target.files?.[0], 'signboard')}
               />
             </label>
             <label className="bouton bouton-secondaire bouton-petit">
@@ -234,7 +285,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
                 accept="image/*"
                 capture="environment"
                 className="cache"
-                onChange={(e) => void prendrePhoto(e.target.files?.[0])}
+                onChange={(e) => void prendrePhoto(e.target.files?.[0], 'signboard')}
               />
             </label>
           </div>
@@ -242,11 +293,100 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             Le plus sûr&nbsp;: photographiez avec l'appareil du téléphone, puis choisissez la photo
             dans la galerie. Cadrez l'enseigne et l'entrée, sans enfant.
           </p>
+          {allegement > 0 && (
+            <p className="mention" role="status">
+              Allègement de la photo…
+            </p>
+          )}
           {(erreurPhoto ?? erreurs.photo) && (
             <p className="message-erreur" role="alert">
               {erreurPhoto ?? erreurs.photo}
             </p>
           )}
+        </section>
+
+        <section className="carte-blanche pile-serree" aria-labelledby="autres-photos">
+          <h2 id="autres-photos" className="titre-section">
+            Autres photos <span className="mention">facultatif</span>
+          </h2>
+          {autres.length > 0 && (
+            <ul className="liste-photos">
+              {autres.map((p) => (
+                <li key={p.id} className="photo-ajoutee">
+                  {apercus[p.id] && <img src={apercus[p.id]} alt={libelleRolePhotoCourt[p.role]} />}
+                  <span>{libelleRolePhotoCourt[p.role]}</span>
+                  <button
+                    type="button"
+                    className="lien lien-discret"
+                    aria-label={`Retirer la photo : ${libelleRolePhotoCourt[p.role]}`}
+                    onClick={() => modifier((f) => ({ photos: sansPhoto(f, p.id).photos }))}
+                  >
+                    Retirer
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {peutAjouterPhoto(fiche) && !autresOuvert && (
+            <button
+              type="button"
+              className="bouton bouton-secondaire bouton-petit"
+              onClick={() => setAutresOuvert(true)}
+            >
+              + Ajouter d'autres photos (max {PHOTOS_FACULTATIVES_MAX})
+            </button>
+          )}
+          {peutAjouterPhoto(fiche) && autresOuvert && (
+            <>
+              <Choix
+                legende="Que montre cette photo ?"
+                options={(['programs_board', 'brochure', 'building'] as const).map((r) => ({
+                  valeur: r,
+                  libelle: libelleRolePhotoCourt[r],
+                }))}
+                valeurs={[rolePhoto]}
+                surChoix={setRolePhoto}
+                colonnes={1}
+              />
+              <div className="deux-colonnes">
+                <label className="bouton bouton-petit">
+                  <Icone nom="galerie" />
+                  Galerie
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="cache"
+                    aria-label="Galerie : autre photo"
+                    onChange={(e) => {
+                      void prendrePhoto(e.target.files?.[0], rolePhoto);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+                <label className="bouton bouton-secondaire bouton-petit">
+                  <Icone nom="photo" />
+                  Appareil photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="cache"
+                    aria-label="Appareil photo : autre photo"
+                    onChange={(e) => {
+                      void prendrePhoto(e.target.files?.[0], rolePhoto);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
+            </>
+          )}
+          <p className="mention">
+            {autres.length}/{PHOTOS_FACULTATIVES_MAX} en plus de l'enseigne. Un panneau ou une
+            affiche qui liste les filières, un prospectus remis par l'école, une autre vue du
+            bâtiment (toujours sans enfant). Un prospectus, oui : jamais une liste d'élèves ni un
+            bulletin.
+          </p>
         </section>
 
         <section className="carte-blanche pile-serree">
@@ -335,7 +475,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         </button>
       </main>
       <PiedEtape>
-        <BoutonSuivant surClic={suivant} />
+        <BoutonSuivant surClic={suivant} occupe={allegement > 0} />
       </PiedEtape>
     </div>
   );
@@ -390,6 +530,46 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           colonnes={2}
           erreur={erreurs.niveaux}
         />
+
+        {demandeLesFormations(fiche.niveaux) && (
+          <section className="carte-blanche pile-serree" aria-label="Séries et formations">
+            <Champ
+              libelle="Séries, filières ou formations visibles"
+              facultatif
+              aide="Ex. : séries C et D, BTS gestion, licence en droit. Notez ce qui est écrit sur l'enseigne ou sur un panneau."
+              erreur={erreurs.programmesVus}
+            >
+              {(a) => (
+                <input
+                  {...a}
+                  className="champ"
+                  type="text"
+                  autoComplete="off"
+                  placeholder="Ex. : séries C et D, BTS gestion"
+                  value={fiche.programmesVus ?? ''}
+                  onChange={(e) => modifier({ programmesVus: e.target.value })}
+                />
+              )}
+            </Champ>
+            <label className="case">
+              <input
+                type="checkbox"
+                checked={fiche.programmesEnPhoto ?? false}
+                onChange={(e) => modifier({ programmesEnPhoto: e.target.checked })}
+              />
+              Je les ai prises en photo (panneau, affiche ou prospectus)
+            </label>
+            {fiche.programmesEnPhoto &&
+              !fiche.photos.some((p) => p.role === 'programs_board' || p.role === 'brochure') && (
+                <p className="message-attention">
+                  Ajoutez cette photo à l'étape 1/3 («&nbsp;+ Ajouter d'autres photos&nbsp;»).{' '}
+                  <button type="button" className="lien" onClick={() => aller('ajouter/1')}>
+                    Retour à la photo
+                  </button>
+                </p>
+              )}
+          </section>
+        )}
 
         <div className="pile-serree">
           <Choix

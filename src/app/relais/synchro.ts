@@ -9,7 +9,10 @@ import { garder } from './base-locale';
 import { envoyerTout, type ResultatEnvoi } from './file-envoi';
 import { journaliser } from './journal';
 
-/** Relit le profil, et pour un relais actif son lot, les écoles publiées, ses relevés et les écoles qu'on lui confie. */
+/**
+ * Relit le profil, et pour un relais actif son lot, les écoles connues autour de lui (campus et relevés pas encore
+ * acceptés : de quoi prévenir d'un doublon sans réseau), ses relevés et les écoles qu'on lui confie.
+ */
 export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
   const etat = await adaptateurs.session.etat();
   if (etat !== 'pret') return etat;
@@ -20,9 +23,9 @@ export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvo
     if (profil.statut === 'actif') {
       const [lot, ecoles, releves, aCompleter] = await Promise.all([
         relais.monLot(),
-        relais.ecolesPubliees(),
+        relais.lieuxConnus(),
         relais.mesReleves(),
-        relais.ecolesACompleter(),
+        relais.mesMissions(),
       ]);
       await Promise.all([
         garder('lot', lot),

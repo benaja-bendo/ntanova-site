@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 // La carte détourée (ticket 15), sur le catalogue fictif : à Tié-Tié, deux écoles situées à
 // 270 m l'une de l'autre (une pastille de 2 sur la carte de l'arrondissement), une troisième loin
 // d'elles (située par l'administration), une quatrième sans position ; à Ngoyo, aucune école.
-// Sans JavaScript : toucher, c'est changer de page.
+// Les adresses suivent la géographie : /ecoles/congo/pointe-noire/tie-tie/ (la liste) et
+// /cartes/congo/pointe-noire/tie-tie/ (la carte). Sans JavaScript : toucher, c'est changer de page.
 
 test('de la ville à la fiche : arrondissement, pastille, coin vu de près, école', async ({
   page,
@@ -11,16 +12,16 @@ test('de la ville à la fiche : arrondissement, pastille, coin vu de près, éco
   await page.goto('/');
   await page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' }).click();
 
-  // La ville : Tié-Tié et Ngoyo en cours, les quatre autres pas encore.
-  await expect(page).toHaveURL(/\/ecoles\/$/);
+  // La ville : Tié-Tié et Ngoyo ouverts, Loandjili et Mongo-Mpoukou ont déjà des fiches, les deux autres pas encore.
+  await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pointe-Noire');
   await expect(
-    page.getByText('Les quatre autres arrondissements : pas encore relevés.'),
+    page.getByText('Les deux autres arrondissements : pas encore relevés.'),
   ).toBeVisible();
   await page.getByRole('link', { name: 'Tié-Tié : 4 écoles' }).click();
 
   // L'arrondissement : la pastille regroupe les deux écoles situées.
-  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
+  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
   await expect(page.getByText('3 écoles sur la carte de Tié-Tié')).toBeVisible();
   await expect(
     page.getByText('Une autre école n’est pas encore située : elle n’est que dans la liste.'),
@@ -30,7 +31,7 @@ test('de la ville à la fiche : arrondissement, pastille, coin vu de près, éco
   await pastille.click();
 
   // Vu de près : chaque école a sa maison, et la liste du coin suit.
-  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/coin-1\/$/);
+  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/coin_1\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Un coin de Tié-Tié');
   const carte = page.getByRole('group', { name: /vues de près/ });
   await expect(
@@ -41,32 +42,34 @@ test('de la ville à la fiche : arrondissement, pastille, coin vu de près, éco
   await carte.getByRole('link', { name: /Complexe scolaire Exemple/ }).click();
 
   // La fiche, et son petit plan qui ramène à la carte du quartier.
-  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/complexe-scolaire-exemple\/$/);
+  await expect(page).toHaveURL(
+    /\/ecoles\/congo\/pointe-noire\/tie-tie\/complexe-scolaire-exemple\/$/,
+  );
   await expect(page.getByRole('group', { name: /sur la carte de Tié-Tié/ })).toBeVisible();
   await page.getByRole('link', { name: 'Voir sur la carte de Tié-Tié' }).click();
-  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
+  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
 });
 
 test('« Carte | Liste » : on passe de l’une à l’autre, la vue courante n’est pas un lien', async ({
   page,
 }) => {
-  await page.goto('/ecoles/tie-tie/');
+  await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
   const bascule = page.getByRole('navigation', { name: 'Voir les écoles' });
   await expect(bascule.getByText('Liste')).toHaveAttribute('aria-current', 'page');
   await bascule.getByRole('link', { name: 'Carte' }).click();
-  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
+  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
   await expect(bascule.getByText('Carte')).toHaveAttribute('aria-current', 'page');
   await bascule.getByRole('link', { name: 'Liste' }).click();
-  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/$/);
+  await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/tie-tie\/$/);
 });
 
 test('une fiche sans position n’a pas de plan, et un arrondissement sans école dit que le relevé est en cours', async ({
   page,
 }) => {
-  await page.goto('/ecoles/tie-tie/ecole-sans-detail-exemple/');
+  await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-sans-detail-exemple/');
   await expect(page.getByRole('link', { name: /Voir sur la carte/ })).toHaveCount(0);
 
-  await page.goto('/ecoles/ngoyo/carte/');
+  await page.goto('/cartes/congo/pointe-noire/ngoyo/');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ngoyo');
   await expect(
     page.getByText('Aucune école sur la carte pour l’instant : le relevé est en cours.'),
@@ -79,7 +82,7 @@ test('une fiche sans position n’a pas de plan, et un arrondissement sans écol
 test('la carte de Ngoyo, sans école, dessine déjà ses rues et ses avenues (ticket 46)', async ({
   page,
 }) => {
-  await page.goto('/ecoles/ngoyo/carte/');
+  await page.goto('/cartes/congo/pointe-noire/ngoyo/');
   // Chaque trait est un « M » dans le chemin : une rue ou une avenue.
   const traits = async (classe: string) => {
     const chemin = page.locator(`svg path.${classe}`);
@@ -93,7 +96,10 @@ test('la carte de Ngoyo, sans école, dessine déjà ses rues et ses avenues (ti
 });
 
 test('chaque école et chaque pastille se touchent du doigt : 44 px au moins', async ({ page }) => {
-  for (const adresse of ['/ecoles/tie-tie/carte/', '/ecoles/tie-tie/carte/coin-1/']) {
+  for (const adresse of [
+    '/cartes/congo/pointe-noire/tie-tie/',
+    '/cartes/congo/pointe-noire/tie-tie/coin_1/',
+  ]) {
     await page.goto(adresse);
     const marques = page.locator('svg a.marque');
     expect(await marques.count()).toBeGreaterThan(0);
@@ -108,14 +114,14 @@ test('chaque école et chaque pastille se touchent du doigt : 44 px au moins', a
 test('une école située par l’administration, sans relevé, dit qu’elle a été ajoutée par NTanova', async ({
   page,
 }) => {
-  await page.goto('/ecoles/tie-tie/');
+  await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
   await expect(
     page.getByRole('link', { name: /\[École ajoutée Exemple\].*Ajoutée par NTanova/ }),
   ).toBeVisible();
-  await page.goto('/ecoles/tie-tie/ecole-ajoutee-exemple/');
+  await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-ajoutee-exemple/');
   await expect(page.getByText('Fiche ajoutée par NTanova le 3 novembre 2026')).toBeVisible();
   await expect(page.getByText(/par un jeune du quartier : seulement/)).toHaveCount(0);
-  await page.goto('/ecoles/tie-tie/carte/');
+  await page.goto('/cartes/congo/pointe-noire/tie-tie/');
   await expect(
     page.getByRole('link', { name: '[École ajoutée Exemple], ajoutée par NTanova' }),
   ).toBeVisible();
@@ -141,7 +147,7 @@ test('l’accueil montre un aperçu de la carte de Tié-Tié, qui mène à sa ca
   // La porte accessible vers la carte est le bouton ; le dessin en est une autre, cachée du clavier
   // et du lecteur d'écran.
   await apercu.getByRole('link', { name: 'Voir la carte de Tié-Tié' }).click();
-  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
+  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
 });
 
 test('le dessin de l’aperçu est lui-même un lien vers la carte, sans entrer dans l’ordre du clavier', async ({
@@ -151,11 +157,11 @@ test('le dessin de l’aperçu est lui-même un lien vers la carte, sans entrer 
   const lien = page
     .getByRole('region', { name: 'La carte de Tié-Tié' })
     .locator('a.plateau-lien:visible');
-  await expect(lien).toHaveAttribute('href', '/ecoles/tie-tie/carte/');
+  await expect(lien).toHaveAttribute('href', '/cartes/congo/pointe-noire/tie-tie/');
   await expect(lien).toHaveAttribute('tabindex', '-1');
   await expect(lien).toHaveAttribute('aria-hidden', 'true');
   await lien.click();
-  await expect(page).toHaveURL(/\/ecoles\/tie-tie\/carte\/$/);
+  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
 });
 
 test('« Voir la carte de Pointe-Noire » garde son espace à l’écran', async ({ page }) => {

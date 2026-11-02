@@ -14,10 +14,14 @@ function telephone(page: Page) {
         ouverture.onsuccess = () => {
           const lecture = ouverture.result.transaction('fiches').objectStore('fiches').getAll();
           lecture.onsuccess = () => {
-            const fiches = lecture.result as { photo: unknown; contact: unknown }[];
+            const fiches = lecture.result as {
+              photos: { blob: unknown }[];
+              contact: unknown;
+            }[];
             resoudre({
               fiches: fiches.length,
-              photos: fiches.filter((f) => f.photo).length,
+              // Les photos qui attendent encore d'être envoyées : le fichier part du téléphone dès qu'il est reçu.
+              photos: fiches.flatMap((f) => f.photos.filter((p) => p.blob)).length,
               contacts: fiches.filter((f) => f.contact).length,
             });
           };
@@ -105,7 +109,7 @@ test.describe('espace relais', () => {
   });
 
   // Le lot du faux serveur est un carré dont le bord est à 11,95° de longitude. Comme la base
-  // (`supabase/tests/hors_du_lot.test.sql`), le téléphone ne signale « hors du lot » qu'au-delà de 50 m
+  // (`supabase/tests/lots.test.sql`), le téléphone ne signale « hors du lot » qu'au-delà de 50 m
   // du bord : à cette latitude, 0,00027° font 30 m et 0,00072° font 80 m.
   for (const [distance, longitude, horsLot] of [
     ['30 m', 11.95027, false],

@@ -6,32 +6,38 @@ import { creerPortAdministration } from '../../src/infra/supabase/administration
 type Reponse = { data: unknown; error: { code?: string; message?: string } | null };
 
 /**
- * Une fausse API : chaque appel de fonction (rpc) répond ce que le test a prévu, et garde ses
- * arguments ; une table peut répondre par une erreur.
+ * Une fausse API : chaque appel de fonction (rpc) répond ce que le test a prévu, et garde ses arguments ; chaque
+ * table répond ses lignes, et garde la suite des appels qu'on lui a faits (select, update…).
  */
 function fausseApi(
-  rpc: Record<string, Reponse>,
+  rpc: Record<string, Reponse> = {},
   tables: Record<string, unknown[]> = {},
   erreurs: Record<string, { code?: string; message?: string }> = {},
 ) {
   const appels: { nom: string; arguments: unknown }[] = [];
   const requete = (lignes: unknown[], table: string) => {
     const erreur = erreurs[table] ?? null;
-    const constructeur = {
-      select: () => constructeur,
-      eq: () => constructeur,
-      order: () => constructeur,
-      limit: () => constructeur,
-      returns: () => constructeur,
-      update: (champs: unknown) => {
-        appels.push({ nom: `modifier ${table}`, arguments: champs });
+    const constructeur: Record<string, unknown> = {};
+    for (const methode of ['select', 'eq', 'neq', 'is', 'order', 'range', 'limit', 'not', 'in']) {
+      constructeur[methode] = (...args: unknown[]) => {
+        if (methode === 'eq' || methode === 'not' || methode === 'is') {
+          appels.push({ nom: `${methode} ${table}`, arguments: args });
+        }
         return constructeur;
-      },
-      single: () => Promise.resolve({ data: lignes[0] ?? null, error: erreur }),
-      maybeSingle: () => Promise.resolve({ data: lignes[0] ?? null, error: erreur }),
-      then: (suite: (r: unknown) => unknown) =>
-        Promise.resolve({ data: erreur ? null : lignes, error: erreur }).then(suite),
-    };
+      };
+    }
+    for (const methode of ['update', 'insert', 'upsert', 'delete']) {
+      constructeur[methode] = (champs?: unknown) => {
+        appels.push({ nom: `${methode} ${table}`, arguments: champs });
+        return constructeur;
+      };
+    }
+    constructeur['single'] = () => Promise.resolve({ data: lignes[0] ?? null, error: erreur });
+    constructeur['maybeSingle'] = () => Promise.resolve({ data: lignes[0] ?? null, error: erreur });
+    constructeur['then'] = (suite: (r: unknown) => unknown) =>
+      Promise.resolve({ data: erreur ? null : lignes, error: erreur, count: lignes.length }).then(
+        suite,
+      );
     return constructeur;
   };
   const client = {
@@ -46,6 +52,15 @@ function fausseApi(
           appels.push({ nom: `stockage ${seau}`, arguments: chemins });
           return Promise.resolve({ data: [], error: null });
         },
+        createSignedUrls: (chemins: string[]) =>
+          Promise.resolve({
+            data: chemins.map((path) => ({
+              path,
+              signedUrl: `https://signe.exemple/${path}`,
+              error: null,
+            })),
+            error: null,
+          }),
       }),
     },
   };
@@ -53,365 +68,568 @@ function fausseApi(
 }
 
 describe('l’adaptateur Supabase de l’administration', () => {
-  it('accepte un relevé comme nouvelle école, ou met à jour l’école donnée', async () => {
-    const { port, appels } = fausseApi({ accepter_releve: { data: 'ecole-1', error: null } });
-    await expect(port.accepter('r1')).resolves.toBe('ecole-1');
-    await port.accepter('r2', 'ecole-9');
-    expect(appels).toEqual([
-      { nom: 'accepter_releve', arguments: { releve: 'r1', ecole: null } },
-      { nom: 'accepter_releve', arguments: { releve: 'r2', ecole: 'ecole-9' } },
-    ]);
-  });
-
-  it('rend le message de la base quand elle refuse une décision', async () => {
-    const { port } = fausseApi({
-      accepter_releve: {
-        data: null,
-        error: { code: '22023', message: 'Relevé du lot d’essai : il ne se publie jamais.' },
-      },
-    });
-    const refus = port.accepter('r1');
-    await expect(refus).rejects.toBeInstanceOf(ErreurDecision);
-    await expect(refus).rejects.toThrow('Relevé du lot d’essai : il ne se publie jamais.');
-  });
-
-  it('lit le contact de la direction dans les termes du modèle', async () => {
-    const { port } = fausseApi({
-      contact_du_releve: {
-        data: [
-          {
-            fonction: 'promoteur',
-            nom: '[Nom]',
-            whatsapp: '242061234567',
-            accord_contact: true,
-            accord_le: '2026-11-02T08:00:00Z',
-            ce_qui_a_ete_dit: null,
-            recu_le: '2026-11-02T09:00:00Z',
-          },
-        ],
-        error: null,
-      },
-    });
-    await expect(port.contactReleve('r1')).resolves.toMatchObject({
-      fonction: 'promoteur',
-      whatsapp: '242061234567',
-      accord: true,
-    });
-  });
-
-  it('dit « aucun contact » quand la base n’en a pas', async () => {
-    const { port } = fausseApi({ contact_du_releve: { data: [], error: null } });
-    await expect(port.contactReleve('r1')).resolves.toBeNull();
-  });
-
-  it('compte les fiches de chaque relais', async () => {
-    const { port } = fausseApi(
-      {},
-      {
-        relais: [
-          { id: 'a', prenom: '[A]', statut: 'actif', lot_id: 'l', cree_le: '', active_le: null },
-          {
-            id: 'b',
-            prenom: '[B]',
-            statut: 'en_attente',
-            lot_id: null,
-            cree_le: '',
-            active_le: null,
-          },
-        ],
-        releves: [{ relais_id: 'a' }, { relais_id: 'a' }],
-      },
-    );
-    const relais = await port.relais();
-    expect(relais.map((r) => [r.prenom, r.fiches])).toEqual([
-      ['[A]', 2],
-      ['[B]', 0],
-    ]);
-  });
-
-  it('publie un arrondissement et un lot, et rend le nombre d’écoles publiées', async () => {
-    const { port, appels } = fausseApi({
-      publier_arrondissement: { data: 3, error: null },
-      publier_lot: { data: 2, error: null },
-    });
-    await expect(port.publierArrondissement(1)).resolves.toBe(3);
-    await expect(port.publierLot('lot-1')).resolves.toBe(2);
-    expect(appels).toEqual([
-      { nom: 'publier_arrondissement', arguments: { arrondissement: 1 } },
-      { nom: 'publier_lot', arguments: { lot: 'lot-1' } },
-    ]);
-  });
-
-  it('retire une école avec son motif', async () => {
-    const { port, appels } = fausseApi({});
-    await port.retirerEcole('e1', 'demande_ecole', 'La direction l’a demandé');
-    expect(appels).toEqual([
-      {
-        nom: 'retirer_ecole',
-        arguments: { ecole: 'e1', motif: 'demande_ecole', note: 'La direction l’a demandé' },
-      },
-    ]);
-  });
-
-  it('efface la photo dans le stockage, puis note l’effacement dans la base', async () => {
-    const { port, appels } = fausseApi({});
-    await port.effacerPhoto('r1', null);
-    expect(appels).toEqual([
-      { nom: 'stockage releves', arguments: ['r1/enseigne.jpg'] },
-      { nom: 'noter_effacement_photo', arguments: { releve: 'r1', note: null } },
-    ]);
-  });
-
-  describe('le détail d’un relevé (ticket 12)', () => {
-    const relevé = (champs: Record<string, unknown>) => ({
-      id: 'r1',
-      recu_le: '2026-11-02T09:00:00Z',
-      pris_le: '2026-11-02T08:00:00Z',
-      type: 'releve',
-      nom_enseigne: '[École]',
-      position: null,
-      precision_m: null,
-      niveaux: ['primaire'],
-      type_ecole: 'privee',
-      repere: null,
-      numero_enseigne: null,
-      direction: null,
-      repasser: null,
-      reponse_doublon: null,
-      corrige_releve_id: null,
-      hors_lot: null,
-      doublon_possible: false,
-      contact_confirme_le: null,
-      contact_fonction: null,
-      relais: { prenom: '[A]' },
-      lots: { nom: 'Tié-Tié', essai: false },
-      doublon: null,
-      ...champs,
-    });
-
-    it('lit le programme, ou rien tant que la colonne n’existe pas dans la base', async () => {
-      const avec = fausseApi(
-        {},
-        { releves: [relevé({ programme: 'Programme français-congolais' })] },
-      );
-      await expect(avec.port.detailReleve('r1')).resolves.toMatchObject({
-        programme: 'Programme français-congolais',
-      });
-      const sans = fausseApi({}, { releves: [relevé({})] });
-      await expect(sans.port.detailReleve('r1')).resolves.toMatchObject({ programme: null });
-    });
-
-    it('ne casse pas devant un type ou un niveau que cette version ne connaît pas encore', async () => {
-      const { port } = fausseApi(
-        {},
-        {
-          releves: [
-            relevé({ type_ecole: 'type_de_demain', niveaux: ['creche', 'niveau_de_demain'] }),
-          ],
-        },
-      );
-      await expect(port.detailReleve('r1')).resolves.toMatchObject({
-        typeEcole: 'non_indique',
-        niveaux: ['creche'],
-      });
-    });
-  });
-
-  describe('corriger une fiche à la main (ticket 12)', () => {
-    it('n’écrit que les champs donnés, avec les noms de la base', async () => {
-      const { port, appels } = fausseApi({}, { ecoles: [{ id: 'e1' }] });
-      await port.modifierEcole('e1', {
-        typeEcole: 'publique',
-        niveaux: ['creche'],
-        programme: 'Bilingue',
-        numeroEnseigne: null,
-      });
+  describe('la décision sur un relevé', () => {
+    it('accepte comme nouvelle école, par défaut', async () => {
+      const { port, appels } = fausseApi({ accept_submission: { data: 'campus-1', error: null } });
+      await expect(port.accepter('r1')).resolves.toBe('campus-1');
       expect(appels).toEqual([
         {
-          nom: 'modifier ecoles',
+          nom: 'accept_submission',
           arguments: {
-            type_ecole: 'publique',
-            niveaux: ['creche'],
-            programme: 'Bilingue',
-            numero_enseigne: null,
+            p_submission: 'r1',
+            p_mode: null,
+            p_campus: null,
+            p_institution: null,
+            p_label: null,
+            p_programs: [],
           },
         },
       ]);
     });
 
-    it('ne fait aucun appel quand rien ne change', async () => {
-      const { port, appels } = fausseApi({}, { ecoles: [{ id: 'e1' }] });
-      await port.modifierEcole('e1', {});
+    it('dit en anglais à la base ce que les ports disent en français, formations comprises', async () => {
+      const { port, appels } = fausseApi({ accept_submission: { data: 'campus-2', error: null } });
+      await port.accepter('r2', {
+        mode: 'new_campus',
+        institutionId: 'inst-1',
+        etiquette: 'Campus de Loandjili',
+        formations: [
+          {
+            cycle: 'lycee',
+            titre: 'Série C',
+            domaine: 'sciences-technologies',
+            serie: 'c',
+            diplome: 'bac',
+            rythmes: ['jour', 'soir'],
+          },
+        ],
+      });
+      await port.accepter('r3', { mode: 'update_campus', campusId: 'campus-9' });
+      await port.accepter('r4', { mode: 'add_cycle', campusId: 'campus-9' });
+      expect(appels[0]?.arguments).toEqual({
+        p_submission: 'r2',
+        p_mode: 'new_campus',
+        p_campus: null,
+        p_institution: 'inst-1',
+        p_label: 'Campus de Loandjili',
+        p_programs: [
+          {
+            cycle: 'lycee',
+            title: 'Série C',
+            domain: 'sciences-technologies',
+            bac_track: 'c',
+            diploma: 'bac',
+            rhythms: ['jour', 'soir'],
+          },
+        ],
+      });
+      expect(appels[1]?.arguments).toMatchObject({ p_mode: 'update_campus', p_campus: 'campus-9' });
+      expect(appels[2]?.arguments).toMatchObject({ p_mode: 'add_cycle', p_campus: 'campus-9' });
+    });
+
+    it('rend le message de la base quand elle refuse une décision', async () => {
+      const { port } = fausseApi({
+        accept_submission: {
+          data: null,
+          error: { code: '22023', message: 'Relevé du lot d’essai : il ne se publie jamais.' },
+        },
+      });
+      const refus = port.accepter('r1');
+      await expect(refus).rejects.toBeInstanceOf(ErreurDecision);
+      await expect(refus).rejects.toThrow('Relevé du lot d’essai : il ne se publie jamais.');
+    });
+
+    it('lit « existe déjà » comme une décision refusée, pas comme une panne', async () => {
+      const { port } = fausseApi({
+        create_lot: { data: null, error: { code: '23505', message: 'duplicate key value' } },
+      });
+      await expect(port.creerLot('[Lot]', 'd1', null, false)).rejects.toThrow(
+        'Cet enregistrement existe déjà.',
+      );
+    });
+
+    it('demande une correction, refuse, confirme la fonction, valide l’essai', async () => {
+      const { port, appels } = fausseApi();
+      await port.demanderCorrection('r1', 'photo_floue', 'Reprenez la photo.');
+      await port.refuser('r2', 'autre', null);
+      await port.confirmerContact('r3', 'directeur');
+      await port.validerEssai('r4');
+      expect(appels.map((a) => a.nom)).toEqual([
+        'request_correction',
+        'refuse_submission',
+        'confirm_contact',
+        'validate_trial_submission',
+      ]);
+      expect(appels[0]?.arguments).toEqual({
+        p_submission: 'r1',
+        p_reason: 'photo_floue',
+        p_message: 'Reprenez la photo.',
+      });
+      expect(appels[2]?.arguments).toEqual({ p_submission: 'r3', p_role: 'directeur' });
+    });
+  });
+
+  describe('le contact et les photos', () => {
+    it('lit le contact de la direction dans les termes du modèle', async () => {
+      const { port } = fausseApi({
+        contact_of_submission: {
+          data: [
+            {
+              role: 'promoteur',
+              name: '[Nom]',
+              whatsapp: '242061234567',
+              contact_agreement: true,
+              agreement_at: '2026-11-02T08:00:00Z',
+              said_note: null,
+              received_at: '2026-11-02T09:00:00Z',
+            },
+          ],
+          error: null,
+        },
+      });
+      await expect(port.contactReleve('r1')).resolves.toMatchObject({
+        fonction: 'promoteur',
+        whatsapp: '242061234567',
+        accord: true,
+      });
+    });
+
+    it('dit « aucun contact » quand la base n’en a pas', async () => {
+      const { port } = fausseApi({ contact_of_submission: { data: [], error: null } });
+      await expect(port.contactReleve('r1')).resolves.toBeNull();
+    });
+
+    it('rend les photos d’un relevé avec une adresse temporaire, sans jamais exposer le chemin', async () => {
+      const { port } = fausseApi(
+        {},
+        {
+          field_submission_photos: [
+            {
+              id: 'p1',
+              role: 'signboard',
+              storage_path: 'r1/p1.webp',
+              bytes: 90_000,
+              width: 1280,
+              height: 960,
+              taken_at: null,
+              child_free_checked_at: null,
+            },
+            {
+              id: 'p2',
+              role: 'programs_board',
+              storage_path: 'r1/p2.webp',
+              bytes: 80_000,
+              width: null,
+              height: null,
+              taken_at: null,
+              child_free_checked_at: '2026-11-02T10:00:00Z',
+            },
+          ],
+        },
+      );
+      const photos = await port.photosReleve('r1');
+      expect(photos.map((p) => [p.id, p.role, p.publiable])).toEqual([
+        ['p1', 'signboard', false],
+        ['p2', 'programs_board', true],
+      ]);
+      expect(photos[0]?.adresse).toBe('https://signe.exemple/r1/p1.webp');
+      expect(JSON.stringify(photos)).not.toContain('storage_path');
+    });
+
+    it('efface le fichier avant la ligne : un effacement qui échoue se rejoue, il ne laisse pas de fichier sans trace', async () => {
+      const { port, appels } = fausseApi(
+        { erase_photo: { data: 'r1/p1.webp', error: null } },
+        { field_submission_photos: [{ storage_path: 'r1/p1.webp' }] },
+      );
+      await port.effacerPhoto('p1', 'demande de l’école');
+      const ordre = appels
+        .map((a) => a.nom)
+        .filter((n) => n === 'stockage releves' || n === 'erase_photo');
+      expect(ordre).toEqual(['stockage releves', 'erase_photo']);
+      expect(appels.find((a) => a.nom === 'stockage releves')?.arguments).toEqual(['r1/p1.webp']);
+    });
+
+    it('marque une photo publiable sans jamais la mettre en ligne', async () => {
+      const { port, appels } = fausseApi({}, { field_submission_photos: [{ id: 'p1' }] });
+      await port.marquerPhotoPubliable('p1', true);
+      const maj = appels.find((a) => a.nom === 'update field_submission_photos')
+        ?.arguments as Record<string, unknown>;
+      expect(maj['is_public']).toBe(false);
+      expect(typeof maj['child_free_checked_at']).toBe('string');
+      await port.marquerPhotoPubliable('p1', false);
+      const retrait = appels.filter((a) => a.nom === 'update field_submission_photos')[1]
+        ?.arguments as Record<string, unknown>;
+      expect(retrait['child_free_checked_at']).toBeNull();
+    });
+  });
+
+  describe('les relais, les lots et les zones', () => {
+    it('lit les compteurs de chaque relais dans la vue de la base', async () => {
+      const { port } = fausseApi(
+        {},
+        {
+          relais: [
+            { id: 'a', prenom: '[A]', statut: 'actif', lot_id: 'l', cree_le: '', active_le: null },
+            {
+              id: 'b',
+              prenom: '[B]',
+              statut: 'en_attente',
+              lot_id: null,
+              cree_le: '',
+              active_le: null,
+            },
+          ],
+          relay_counters: [
+            {
+              relay_id: 'a',
+              sent: 5,
+              to_review: 1,
+              to_correct: 1,
+              accepted: 2,
+              refused: 1,
+              contacts_confirmed: 2,
+            },
+          ],
+        },
+      );
+      const relais = await port.relais();
+      expect(relais.map((r) => [r.prenom, r.fiches])).toEqual([
+        ['[A]', 5],
+        ['[B]', 0],
+      ]);
+      expect(relais[0]?.compteurs).toEqual({
+        envoyees: 5,
+        aValider: 1,
+        aCorriger: 1,
+        acceptees: 2,
+        refusees: 1,
+        contactsConfirmes: 2,
+      });
+    });
+
+    it('crée un lot sur une zone, ouvre une zone, publie une zone et un lot', async () => {
+      const { port, appels } = fausseApi({
+        create_lot: { data: 'lot-1', error: null },
+        publish_division: { data: 3, error: null },
+        publish_batch: { data: 2, error: null },
+      });
+      await expect(port.creerLot('[Lot]', 'd-1', '2026-12-01', false)).resolves.toBe('lot-1');
+      await port.ouvrirZone('d-1', true);
+      await expect(port.publierDivision('d-1')).resolves.toBe(3);
+      await expect(port.publierLot('lot-1')).resolves.toBe(2);
+      expect(appels).toEqual([
+        {
+          nom: 'create_lot',
+          arguments: { p_name: '[Lot]', p_division: 'd-1', p_due: '2026-12-01', p_trial: false },
+        },
+        { nom: 'set_division_open', arguments: { p_division: 'd-1', p_open: true } },
+        { nom: 'publish_division', arguments: { p_division: 'd-1' } },
+        { nom: 'publish_batch', arguments: { p_batch: 'lot-1' } },
+      ]);
+    });
+
+    it('compte une zone avec tout ce qu’elle contient', async () => {
+      const { port } = fausseApi(
+        {},
+        {
+          geo_divisions: [
+            {
+              id: 'pays',
+              parent_id: null,
+              level: 0,
+              kind: 'country',
+              name: 'Congo',
+              slug: 'congo',
+              path: 'congo',
+              open_for_fieldwork: false,
+            },
+            {
+              id: 'ville',
+              parent_id: 'pays',
+              level: 2,
+              kind: 'city',
+              name: 'Ville',
+              slug: 'ville',
+              path: 'congo.ville',
+              open_for_fieldwork: true,
+            },
+            {
+              id: 'quartier',
+              parent_id: 'ville',
+              level: 4,
+              kind: 'quarter',
+              name: 'Quartier',
+              slug: 'quartier',
+              path: 'congo.ville.quartier',
+              open_for_fieldwork: false,
+            },
+            {
+              id: 'autre',
+              parent_id: 'pays',
+              level: 2,
+              kind: 'city',
+              name: 'Autre',
+              slug: 'autre',
+              path: 'congo.autre',
+              open_for_fieldwork: false,
+            },
+          ],
+          division_stats: [
+            {
+              division_id: 'ville',
+              path: 'congo.ville',
+              campuses: 2,
+              published: 1,
+              from_field: 1,
+              from_admin: 1,
+              from_import: 0,
+            },
+            {
+              division_id: 'quartier',
+              path: 'congo.ville.quartier',
+              campuses: 3,
+              published: 3,
+              from_field: 0,
+              from_admin: 0,
+              from_import: 3,
+            },
+            {
+              division_id: 'autre',
+              path: 'congo.autre',
+              campuses: 4,
+              published: 0,
+              from_field: 4,
+              from_admin: 0,
+              from_import: 0,
+            },
+          ],
+        },
+      );
+      const zones = await port.divisions();
+      const parNom = Object.fromEntries(zones.map((z) => [z.nom, z]));
+      expect(parNom['Congo']).toMatchObject({
+        ecoles: 9,
+        publiees: 4,
+        relevees: 5,
+        ajoutees: 1,
+        importees: 3,
+      });
+      expect(parNom['Ville']).toMatchObject({ ecoles: 5, publiees: 4, ouverte: true });
+      expect(parNom['Quartier']).toMatchObject({ ecoles: 3, importees: 3, ouverte: false });
+    });
+  });
+
+  describe('les écoles', () => {
+    it('crée une école d’un coup en traduisant les clés en anglais, et n’invente aucune position', async () => {
+      const { port, appels } = fausseApi({
+        create_catalog_entry: {
+          data: { status: 'created', institution_id: 'i1', campus_ids: ['c1'] },
+          error: null,
+        },
+      });
+      const resultat = await port.creerEcole({
+        reference: null,
+        nom: '[École]',
+        genre: 'privee',
+        campus: [
+          {
+            etiquette: null,
+            division: null,
+            quartier: null,
+            repere: '[face au marché]',
+            numeroEnseigne: null,
+            position: null,
+            programme: null,
+            cycles: [
+              { cycle: 'maternelle', formations: [] },
+              {
+                cycle: 'lycee',
+                formations: [
+                  { titre: 'Série D', domaine: null, serie: 'd', diplome: 'bac', rythmes: [] },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+      expect(resultat).toEqual({
+        statut: 'creee',
+        institutionId: 'i1',
+        campusIds: ['c1'],
+        message: null,
+      });
+      const entree = (appels[0]?.arguments as { p_entry: { campuses: Record<string, unknown>[] } })
+        .p_entry;
+      expect(entree.campuses[0]).toMatchObject({
+        landmark: '[face au marché]',
+        latitude: null,
+        longitude: null,
+      });
+      expect(entree.campuses[0]?.['cycles']).toEqual([
+        'maternelle',
+        {
+          cycle: 'lycee',
+          programs: [
+            { title: 'Série D', domain: null, bac_track: 'd', diploma: 'bac', rhythms: [] },
+          ],
+        },
+      ]);
+    });
+
+    it('rapporte une importation en simulation, avec les lignes en erreur', async () => {
+      const { port, appels } = fausseApi({
+        import_catalog: {
+          data: {
+            dry_run: true,
+            total: 3,
+            created: 1,
+            exists: 1,
+            errors: [{ line: 3, name: '[C]', message: 'Division inconnue' }],
+          },
+          error: null,
+        },
+      });
+      const rapport = await port.importerEcoles(
+        [{ reference: 'ETB-001', nom: '[A]', genre: 'publique', campus: [] }],
+        true,
+      );
+      expect(rapport).toEqual({
+        simulation: true,
+        total: 3,
+        creees: 1,
+        existantes: 1,
+        erreurs: [{ ligne: 3, nom: '[C]', message: 'Division inconnue' }],
+      });
+      expect(appels[0]?.arguments).toMatchObject({ p_dry_run: true, p_origin: 'import' });
+    });
+
+    it('confie un campus avec le genre de mission, et reprend', async () => {
+      const { port, appels } = fausseApi();
+      await port.confierEcole('c1', 'rel-1', 'verify', 'Le nom sur l’enseigne.');
+      await port.reprendreEcole('c1');
+      expect(appels).toEqual([
+        {
+          nom: 'assign_mission',
+          arguments: {
+            p_campus: 'c1',
+            p_relay: 'rel-1',
+            p_kind: 'verify',
+            p_note: 'Le nom sur l’enseigne.',
+          },
+        },
+        { nom: 'cancel_mission', arguments: { p_campus: 'c1' } },
+      ]);
+    });
+
+    it('situe un campus : la position, et la division quand l’administration la choisit', async () => {
+      const { port, appels } = fausseApi({ locate_campus: { data: 'Tié-Tié', error: null } });
+      await expect(
+        port.situerEcole('c1', { latitude: -4.79, longitude: 11.92 }, 'd-9'),
+      ).resolves.toBe('Tié-Tié');
+      expect(appels[0]?.arguments).toEqual({
+        p_campus: 'c1',
+        p_latitude: -4.79,
+        p_longitude: 11.92,
+        p_division: 'd-9',
+      });
+    });
+
+    it('corrige une fiche : le nom et le type vont à l’institution, le reste au campus', async () => {
+      const { port, appels } = fausseApi({}, { campuses: [{ institution_id: 'inst-1' }] });
+      await port.modifierEcole('c1', {
+        nom: '[Nouveau nom]',
+        repere: null,
+        numeroEnseigne: '242060000009',
+      });
+      expect(appels.find((a) => a.nom === 'update campuses')?.arguments).toEqual({
+        landmark: null,
+        sign_phone: '242060000009',
+      });
+      expect(appels.find((a) => a.nom === 'update institutions')?.arguments).toEqual({
+        name: '[Nouveau nom]',
+      });
+    });
+
+    it('ne touche à rien quand rien n’a changé', async () => {
+      const { port, appels } = fausseApi();
+      await port.modifierEcole('c1', {});
       expect(appels).toEqual([]);
     });
 
-    it('dit « introuvable » quand la base ne change aucune ligne (école inconnue, ou droit refusé)', async () => {
-      const { port } = fausseApi({}, { ecoles: [] });
-      await expect(port.modifierEcole('e9', { nom: '[École]' })).rejects.toBeInstanceOf(
-        ErreurDecision,
+    it('note l’accord de la direction avec une date, jamais le message', async () => {
+      const { port, appels } = fausseApi();
+      await port.enregistrerVerification(
+        'c1',
+        '2026-11-04T12:00:00Z',
+        'promoteur',
+        'whatsapp',
+        null,
       );
-    });
-
-    it('dit en français qu’une valeur est refusée par la base', async () => {
-      const { port } = fausseApi(
-        {},
-        {},
-        {
-          ecoles: {
-            code: '23514',
-            message: 'new row for relation "ecoles" violates check constraint "ecoles_nom_check"',
-          },
+      expect(appels[0]).toEqual({
+        nom: 'record_verification',
+        arguments: {
+          p_campus: 'c1',
+          p_agreed_on: '2026-11-04',
+          p_role: 'promoteur',
+          p_channel: 'whatsapp',
+          p_note: null,
         },
-      );
-      const refus = port.modifierEcole('e1', { nom: '[École]' });
-      await expect(refus).rejects.toBeInstanceOf(ErreurDecision);
-      await expect(refus).rejects.not.toThrow(/violates|relation/);
-    });
-
-    it('lit le type, les niveaux, le programme, le repère et le numéro de chaque école', async () => {
-      const ligne = (champs: Record<string, unknown>) => ({
-        id: 'e1',
-        nom: '[École]',
-        quartier: null,
-        publication: 'prete',
-        position: {},
-        arrondissement_id: 1,
-        retiree_le: null,
-        motif_retrait: null,
-        note_retrait: null,
-        remplacee_par: null,
-        arrondissements: { nom: 'Tié-Tié' },
-        ecoles_confiees: null,
-        type_ecole: 'communautaire',
-        niveaux: ['creche', 'autre_formation'],
-        programme: 'Bilingue',
-        repere: '[Repère]',
-        numero_enseigne: '242060000001',
-        ...champs,
       });
-      const { port } = fausseApi(
-        {},
-        { ecoles: [ligne({}), ligne({ id: 'e2', type_ecole: 'type_de_demain', niveaux: ['x'] })] },
-      );
-      const [une, autre] = await port.ecoles();
-      expect(une).toMatchObject({
-        typeEcole: 'communautaire',
-        niveaux: ['creche', 'autre_formation'],
-        programme: 'Bilingue',
-        repere: '[Repère]',
-        numeroEnseigne: '242060000001',
-      });
-      // Une valeur que cette version ne connaît pas encore ne casse rien.
-      expect(autre).toMatchObject({ typeEcole: 'non_indique', niveaux: [] });
     });
   });
 
-  it('rend le refus de la base : un relevé refusé ne s’accepte plus', async () => {
-    const { port } = fausseApi({
-      accepter_releve: {
-        data: null,
-        error: { code: '22023', message: 'Relevé refusé : un refus est définitif.' },
-      },
-    });
-    await expect(port.accepter('r1')).rejects.toThrow('un refus est définitif');
-  });
-
-  describe('situer et ajouter une école (ticket 15)', () => {
-    it('situe une école par la fonction de la base, et rend son arrondissement', async () => {
-      const { port, appels } = fausseApi({ situer_ecole: { data: 'Tié-Tié', error: null } });
-      await expect(
-        port.situerEcole('ecole-1', { latitude: -4.79105, longitude: 11.925 }),
-      ).resolves.toBe('Tié-Tié');
-      expect(appels).toEqual([
-        {
-          nom: 'situer_ecole',
-          arguments: { ecole: 'ecole-1', latitude: -4.79105, longitude: 11.925 },
-        },
-      ]);
-    });
-
-    it('rend le message de la base quand la position est hors des arrondissements ouverts', async () => {
-      const { port } = fausseApi({
-        situer_ecole: {
-          data: null,
-          error: {
-            code: '22023',
-            message: 'Cette position n’est dans aucun arrondissement ouvert.',
-          },
-        },
-      });
-      await expect(
-        port.situerEcole('ecole-1', { latitude: 48.85, longitude: 2.35 }),
-      ).rejects.toThrow(
-        new ErreurDecision('Cette position n’est dans aucun arrondissement ouvert.'),
-      );
-    });
-
-    it('ajoute une école avec les noms de la base, sans position si elle est à situer', async () => {
-      const { port, appels } = fausseApi({ ajouter_ecole: { data: 'nouvelle', error: null } });
-      await expect(
-        port.ajouterEcole({
-          nom: '[École Exemple]',
-          position: null,
-          typeEcole: 'privee',
-          niveaux: ['primaire'],
-          programme: null,
-          repere: '[face au marché]',
-          numeroEnseigne: null,
-          quartier: '[Quartier]',
-        }),
-      ).resolves.toBe('nouvelle');
-      expect(appels).toEqual([
-        {
-          nom: 'ajouter_ecole',
-          arguments: {
-            nom: '[École Exemple]',
-            latitude: null,
-            longitude: null,
-            type_ecole: 'privee',
-            niveaux: ['primaire'],
-            programme: null,
-            repere: '[face au marché]',
-            numero_enseigne: null,
-            quartier: '[Quartier]',
-          },
-        },
-      ]);
-    });
-
-    it('lit la position GeoJSON d’une école, et « pas de position » pour une forme inattendue', async () => {
-      const ligne = (position: unknown) => ({
-        id: 'e1',
-        nom: '[École]',
-        quartier: null,
-        publication: 'prete',
-        position,
-        arrondissement_id: 1,
-        retiree_le: null,
-        motif_retrait: null,
-        note_retrait: null,
-        remplacee_par: null,
-        type_ecole: 'privee',
-        niveaux: [],
-        programme: null,
-        repere: null,
-        numero_enseigne: null,
-        arrondissements: { nom: 'Tié-Tié' },
-        ecoles_confiees: null,
-      });
-      const { port } = fausseApi(
-        {},
-        {
-          ecoles: [
-            ligne({ type: 'Point', coordinates: [11.925, -4.79105] }),
-            ligne('0101000020E6100000'),
+  describe('la paie', () => {
+    it('lit ce qui est dû dans les termes du modèle', async () => {
+      const { port, appels } = fausseApi({
+        payout_preview: {
+          data: [
+            {
+              relay_id: 'a',
+              first_name: '[A]',
+              submissions: 4,
+              contacts: 1,
+              trial_bundles: 0,
+              total_xaf: 2300,
+              has_payment_details: true,
+            },
           ],
+          error: null,
         },
-      );
-      const [geojson, autre] = await port.ecoles();
-      expect(geojson?.position).toEqual({ latitude: -4.79105, longitude: 11.925 });
-      expect(autre?.position).toBeNull();
-      expect(autre?.aSituer).toBe(false);
+      });
+      await expect(port.apercuPaie('2026-11-06')).resolves.toEqual([
+        {
+          relaisId: 'a',
+          prenom: '[A]',
+          fiches: 4,
+          contacts: 1,
+          essais: 0,
+          totalXaf: 2300,
+          numeroConnu: true,
+        },
+      ]);
+      expect(appels[0]).toEqual({ nom: 'payout_preview', arguments: { p_friday: '2026-11-06' } });
+    });
+
+    it('clôture la semaine, note un paiement, enregistre un numéro Mobile Money', async () => {
+      const { port, appels } = fausseApi({ close_payout_week: { data: 'semaine-1', error: null } });
+      await expect(port.cloturerPaie('2026-11-06')).resolves.toBe('semaine-1');
+      await port.noterPaye('semaine-1', 'a', 'MP-123');
+      await port.enregistrerMobileMoney('a', 'mtn', '242061234567');
+      expect(appels.map((a) => a.nom)).toEqual([
+        'close_payout_week',
+        'mark_statement_paid',
+        'set_relay_payment_details',
+      ]);
+      expect(appels[1]?.arguments).toEqual({
+        p_batch: 'semaine-1',
+        p_relay: 'a',
+        p_reference: 'MP-123',
+      });
+      expect(appels[2]?.arguments).toEqual({
+        p_relay: 'a',
+        p_operator: 'mtn',
+        p_msisdn: '242061234567',
+      });
     });
   });
 });

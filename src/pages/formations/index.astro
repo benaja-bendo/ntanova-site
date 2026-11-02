@@ -1,0 +1,131 @@
+---
+// Les formations : par série du bac, diplôme, domaine, rythme, ou niveau. Une page par valeur qui a au moins
+// une école publiée, jamais une page vide. Construite à partir de la base ; aucun JavaScript.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirSite } from '../../infra/index';
+import { compterEcoles } from '../../modele/geo-divisions';
+import { lienFacette, NOM_FACETTE, type Facette } from '../../modele/recherche';
+import { lienWhatsApp } from '../../modele/whatsapp';
+import PagePublique from '../../ui/PagePublique.astro';
+
+const { facettes } = await obtenirSite();
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const ordre: Facette[] = ['niveau', 'serie', 'diplome', 'domaine', 'rythme'];
+const groupes = ordre
+  .map((facette) => ({ facette, valeurs: facettes.filter((f) => f.facette === facette) }))
+  .filter((g) => g.valeurs.length > 0);
+---
+
+<PagePublique
+  titre="Les écoles par formation · NTanova"
+  description="Trouvez une école par série du bac, diplôme, domaine de formation, rythme (jour, soir, week-end) ou niveau."
+  whatsapp={whatsapp}
+>
+  <section class="cadre page formations">
+    <a class="retour" href="/ecoles/">
+      ← Les écoles
+    </a>
+    <div>
+      <h1>Les écoles par formation</h1>
+      <p class="texte-doux">
+        Ce que les écoles affichent sur leurs panneaux et leurs prospectus : séries du bac,
+        diplômes, domaines.
+      </p>
+    </div>
+    <p>
+      <a class="chercher" href="/recherche/">
+        Pour croiser plusieurs critères, utilisez la recherche
+      </a>
+    </p>
+
+    {groupes.length === 0 && (
+      <p class="carte">
+        Aucune formation n’est encore publiée : elles se lisent sur les panneaux et les prospectus
+        relevés par les jeunes du quartier.
+      </p>
+    )}
+
+    {groupes.map((g) => (
+      <section aria-label={NOM_FACETTE[g.facette]}>
+        <h2>{NOM_FACETTE[g.facette]}</h2>
+        <ul class="valeurs">
+          {g.valeurs.map((v) => (
+            <li>
+              <a href={lienFacette(v)}>
+                <span>{v.libelle}</span>
+                <span class="texte-doux">{compterEcoles(v.ecoles.length)}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </section>
+</PagePublique>
+
+<style>
+  .formations {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .formations h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .formations h2 {
+    margin: 0 0 var(--espace-2);
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .formations p {
+    margin: 0;
+  }
+  .chercher {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+  .valeurs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .valeurs a {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: var(--cible-principale);
+    padding: var(--espace-2) var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .valeurs a:hover {
+    border-color: var(--marque);
+  }
+  .valeurs .texte-doux {
+    font-size: var(--taille-secondaire);
+    font-weight: 400;
+  }
+
+  @media (min-width: 48rem) {
+    .formations {
+      gap: var(--espace-5);
+      padding-block: var(--espace-7);
+    }
+    .formations h1 {
+      font-size: var(--taille-titre-public);
+    }
+  }
+</style>

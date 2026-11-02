@@ -1,7 +1,8 @@
 // Le budget de poids des pages construites (dist/).
 // Une page publique pèse moins de 100 Ko en tout (HTML, CSS, polices, images)
-// et n'a aucun JavaScript. Les tailles du HTML, du CSS et du JS sont comptées
-// compressées (gzip), comme elles voyagent sur le réseau.
+// et n'a aucun JavaScript, sauf « Rechercher » et « Autour de moi » (un petit script de filtrage, 20 Ko au plus,
+// compressé) et leur fichier de recherche (300 Ko au plus, compressé). Les tailles du HTML, du CSS et du JS
+// sont comptées compressées (gzip), comme elles voyagent sur le réseau.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { gzipSync } from 'node:zlib';
@@ -10,6 +11,10 @@ const dist = 'dist';
 const budgetPage = 100 * 1024;
 // Les applications (/relais/, /admin/) auront leur propre budget, avec du JavaScript.
 const avecJavaScript = /^(relais|admin)\//;
+// Les deux pages publiques qui filtrent dans le navigateur : un petit script chacune, et rien d'autre.
+const petitJavaScript = /^(recherche|autour-de-moi)\//;
+const budgetPetitJavaScript = 20 * 1024;
+const budgetFichierRecherche = 300 * 1024;
 
 if (!existsSync(dist)) {
   console.error('dist/ manque : lancer `pnpm build` d’abord.');
@@ -35,6 +40,7 @@ for (const page of pages(dist)) {
   const vus = new Set();
   let total = compresse(html);
   let javascript = /<script(?![^>]*application\/ld\+json)/i.test(html);
+  let octetsJavaScript = 0;
 
   const compter = (url) => {
     if (!url.startsWith('/') || url.startsWith('//') || vus.has(url)) return;
@@ -46,7 +52,10 @@ for (const page of pages(dist)) {
       total += compresse(texte);
       if (fichier.endsWith('.css'))
         for (const m of texte.matchAll(/url\(\s*['"]?([^'")]+)/g)) compter(m[1]);
-      else javascript = true;
+      else {
+        javascript = true;
+        octetsJavaScript += compresse(texte);
+      }
     } else {
       total += statSync(fichier).size;
     }
@@ -59,10 +68,26 @@ for (const page of pages(dist)) {
 
   const fautes = [];
   if (total > budgetPage) fautes.push(`dépasse ${ko(budgetPage)}`);
-  if (javascript && !avecJavaScript.test(nom)) fautes.push('contient du JavaScript');
+  if (javascript && !avecJavaScript.test(nom) && !petitJavaScript.test(nom)) {
+    fautes.push('contient du JavaScript');
+  }
+  if (petitJavaScript.test(nom) && octetsJavaScript > budgetPetitJavaScript) {
+    fautes.push(`son JavaScript dépasse ${ko(budgetPetitJavaScript)}`);
+  }
   if (fautes.length) echec = true;
   lignes.push(
     `${fautes.length ? '✗' : '✓'} ${nom.padEnd(32)} ${ko(total).padStart(9)}  ${fautes.join(', ')}`,
+  );
+}
+
+// Le fichier que filtre la recherche : il grossit avec le catalogue.
+const fichierRecherche = join(dist, 'recherche.json');
+if (existsSync(fichierRecherche)) {
+  const octets = compresse(readFileSync(fichierRecherche));
+  const trop = octets > budgetFichierRecherche;
+  if (trop) echec = true;
+  lignes.push(
+    `${trop ? '✗' : '✓'} ${'recherche.json'.padEnd(32)} ${ko(octets).padStart(9)}  ${trop ? `dépasse ${ko(budgetFichierRecherche)} : couper le fichier par pays` : ''}`,
   );
 }
 

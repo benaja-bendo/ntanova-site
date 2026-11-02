@@ -1,5 +1,5 @@
 /**
- * L'administration : valider les fiches des relais, activer les relais.
+ * L'administration : valider les fiches des relais, gérer les écoles, les zones et les lots, activer les relais, payer.
  * Le rôle vient de la base (`est_admin`), pas de Google : un compte connecté qui
  * n'est pas inscrit dans `prive.admins` ne voit rien.
  */
@@ -11,6 +11,8 @@ import { BoutonGoogle } from '../commun/BoutonGoogle';
 import { AValider } from './AValider';
 import { Ecoles } from './Ecoles';
 import { ListeRelais } from './ListeRelais';
+import { Paie } from './Paie';
+import { Zones } from './Zones';
 import './admin.css';
 
 type Acces = 'verification' | 'admin' | 'refuse' | 'erreur';
@@ -108,7 +110,9 @@ export default function App() {
   const onglets = [
     { chemin: 'valider', libelle: 'À valider', compte: aValider },
     { chemin: 'ecoles', libelle: 'Écoles', compte: null },
+    { chemin: 'zones', libelle: 'Zones', compte: null },
     { chemin: 'relais', libelle: 'Relais', compte: null },
+    { chemin: 'paie', libelle: 'Paie', compte: null },
   ];
 
   return (
@@ -147,6 +151,10 @@ export default function App() {
           <ListeRelais admin={adaptateurs.admin} />
         ) : ecran === 'ecoles' ? (
           <Ecoles admin={adaptateurs.admin} />
+        ) : ecran === 'zones' ? (
+          <Zones admin={adaptateurs.admin} />
+        ) : ecran === 'paie' ? (
+          <Paie admin={adaptateurs.admin} />
         ) : (
           <AValider admin={adaptateurs.admin} surCompte={compter} />
         )}

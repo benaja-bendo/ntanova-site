@@ -1,9 +1,15 @@
 /**
- * La file d'envoi. Une fiche part en trois temps : le relevé, puis la photo,
- * puis le contact. Chaque envoi peut être rejoué : la base répond « déjà reçu ».
- * La photo et le contact sont effacés du téléphone dès que la base a répondu.
+ * La file d'envoi. Une fiche part en trois temps : le relevé, puis ses photos (l'enseigne d'abord,
+ * puis les autres, une à une), puis le contact. Chaque envoi peut être rejoué : la base répond
+ * « déjà reçu ». Chaque photo et le contact sont effacés du téléphone dès que la base a répondu.
  */
-import { toutEnvoye, versContact, versReleve, type FicheLocale } from '../../modele/fiche';
+import {
+  toutEnvoye,
+  versContact,
+  versPhotos,
+  versReleve,
+  type FicheLocale,
+} from '../../modele/fiche';
 import { ErreurReseau, ErreurSession, type EtatSession } from '../../modele/ports';
 import type { Adaptateurs } from '../../infra/index';
 import { base, garder } from './base-locale';
@@ -30,9 +36,17 @@ async function envoyerUneFiche(adaptateurs: Adaptateurs, fiche: FicheLocale): Pr
   }
 
   if (!envoyes.photo) {
-    if (fiche.photo) await relais.envoyerPhoto(fiche.id, fiche.photo);
+    for (const photo of versPhotos(fiche)) {
+      await relais.envoyerPhoto(fiche.id, photo);
+      // Reçue : le fichier s'efface du téléphone, la ligne reste (une photo ne repart jamais deux fois).
+      await base.fiches.update(fiche.id, (f) => {
+        f.photos = f.photos.map((p) =>
+          p.id === photo.id ? { ...p, envoyee: true, blob: null } : p,
+        );
+      });
+    }
     envoyes.photo = true;
-    await base.fiches.update(fiche.id, { envoyes: { ...envoyes }, photo: null });
+    await base.fiches.update(fiche.id, { envoyes: { ...envoyes } });
   }
 
   if (!envoyes.contact) {
@@ -42,7 +56,8 @@ async function envoyerUneFiche(adaptateurs: Adaptateurs, fiche: FicheLocale): Pr
     await base.fiches.update(fiche.id, { envoyes: { ...envoyes }, contact: null });
   }
 
-  if (toutEnvoye({ ...fiche, envoyes })) {
+  const apres = await base.fiches.get(fiche.id);
+  if (apres && toutEnvoye({ ...apres, envoyes })) {
     await base.fiches.update(fiche.id, { etat: 'envoyee' });
   }
 }

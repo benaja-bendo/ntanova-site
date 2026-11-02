@@ -1,23 +1,33 @@
 import { useCallback, useEffect, useState } from 'react';
+import { cycleAvecFormations } from '../../modele/formations';
 import { listes, type Valeur } from '../../modele/listes';
 import {
   libelleFonction,
   libelleMotif,
   libelleNiveau,
+  libelleRolePhoto,
   libelleStatutReleve,
   libelleTypeEcole,
 } from '../../modele/libelles';
-import {
-  ErreurDecision,
-  type ContactDirection,
-  type DetailReleve,
-  type PortAdministration,
-  type ReleveAValider,
-  type ReleveDecide,
+import type {
+  ContactDirection,
+  DecisionAcceptation,
+  DetailReleve,
+  DomainePublic,
+  FormationSaisie,
+  InstitutionVue,
+  ModeAcceptation,
+  PhotoVue,
+  PortAdministration,
+  ReleveAValider,
+  ReleveDecide,
 } from '../../modele/ports';
 import { afficherTelephone } from '../../modele/telephone';
-import { Bandeau, Champ, Icone, jour, quand } from '../../ui/composants';
+import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
+import { messageErreur } from './ChampPosition';
+import { Formations } from './Formations';
+import { Pont } from './Pont';
 
 type Filtre = 'tout' | 'releve' | 'correction' | 'contre_visite' | 'decidees';
 
@@ -28,7 +38,7 @@ const libelleType: Record<ReleveAValider['type'], string> = {
 };
 
 const ACCEPTEE =
-  'Acceptée : l’école est prête. Publie-la depuis l’onglet « Écoles » (une école, un arrondissement ou un lot).';
+  'Acceptée : l’école est prête. Publie-la depuis l’onglet « Écoles » (une école, une zone ou un lot).';
 
 const classeDecision: Record<ReleveDecide['statut'], string> = {
   a_valider: 'etat-attente',
@@ -37,16 +47,15 @@ const classeDecision: Record<ReleveDecide['statut'], string> = {
   refuse: 'etat-refusee',
 };
 
-const messageErreur = (e: unknown) =>
-  e instanceof ErreurDecision ? e.message : 'La base ne répond pas. Vérifie le réseau et réessaie.';
-
 function Etiquettes({ r }: { r: ReleveAValider }) {
   return (
     <span className="admin-etiquettes">
       {r.essai && <span className="etiquette etat-telephone">Lot d'essai</span>}
       {r.horsLot && !r.essai && <span className="etiquette etat-refusee">Hors du lot</span>}
       {r.doublonPossible && <span className="etiquette etat-attente">Doublon possible</span>}
-      {!r.photoRecue && <span className="etiquette etat-telephone">Photo pas encore reçue</span>}
+      {!r.enseigneRecue && <span className="etiquette etat-telephone">Photo pas encore reçue</span>}
+      {r.photos > 1 && <span className="etiquette etat-envoye">{r.photos} photos</span>}
+      {r.indiceFormations && <span className="etiquette etat-a-corriger">Formations à saisir</span>}
     </span>
   );
 }
@@ -216,6 +225,7 @@ export function AValider({
             id={selection.id}
             lectureSeule={filtre === 'decidees'}
             surDecision={apresDecision}
+            surAnnonce={setAnnonce}
           />
         )}
       </div>
@@ -223,43 +233,27 @@ export function AValider({
   );
 }
 
-function Detail({
+// Les photos, côte à côte ----------------------------------------------------------------
+
+function Photos({
   admin,
-  id,
-  lectureSeule,
-  surDecision,
+  photos,
+  nom,
+  surChangement,
 }: {
   admin: PortAdministration;
-  id: string;
-  /** Une décision déjà prise : on la relit, on peut encore effacer, on ne décide plus. */
-  lectureSeule: boolean;
-  surDecision: (texte: string) => void;
+  photos: PhotoVue[];
+  nom: string;
+  surChangement: () => void;
 }) {
-  const [detail, setDetail] = useState<DetailReleve | null>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [contact, setContact] = useState<ContactDirection | null>(null);
+  const [aEffacer, setAEffacer] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [mode, setMode] = useState<'correction' | 'refus' | null>(null);
-  const [motif, setMotif] = useState<Valeur<'motif_decision'>>('photo_floue');
-  const [message, setMessage] = useState('');
-  const [enCours, setEnCours] = useState(false);
-  const [contactConfirme, setContactConfirme] = useState(false);
-  const [aEffacer, setAEffacer] = useState<'contact' | 'photo' | null>(null);
-  const [efface, setEfface] = useState<string | null>(null);
 
-  // Droit d'effacement : tracé dans la base (qui, quand), confirmé en deux temps.
-  const effacer = async (quoi: 'contact' | 'photo') => {
+  const agir = async (action: () => Promise<void>) => {
     setErreur(null);
     try {
-      if (quoi === 'contact') {
-        await admin.effacerContact(id, null);
-        setContact(null);
-        setEfface('Le contact de la direction est effacé.');
-      } else {
-        await admin.effacerPhoto(id, null);
-        setPhoto(null);
-        setEfface('La photo est effacée.');
-      }
+      await action();
+      surChangement();
     } catch (e) {
       setErreur(messageErreur(e));
     } finally {
@@ -267,36 +261,147 @@ function Detail({
     }
   };
 
-  const boutonEffacer = (quoi: 'contact' | 'photo', libelle: string) =>
-    aEffacer === quoi ? (
-      <span className="admin-actions">
-        <button
-          type="button"
-          className="bouton bouton-petit admin-bouton-refus"
-          onClick={() => void effacer(quoi)}
-        >
-          Confirmer : {libelle.toLowerCase()}
-        </button>
-        <button
-          type="button"
-          className="bouton bouton-secondaire bouton-petit"
-          onClick={() => setAEffacer(null)}
-        >
-          Annuler
-        </button>
-      </span>
-    ) : (
-      <button type="button" className="lien" onClick={() => setAEffacer(quoi)}>
-        {libelle}
-      </button>
+  if (photos.length === 0) {
+    return (
+      <figure className="admin-figure">
+        <div className="apercu-vide">Photo pas encore reçue</div>
+      </figure>
     );
+  }
+  return (
+    <div className="pile-serree">
+      <div className="admin-photos" role="list" aria-label="Photos de l'envoi">
+        {photos.map((p) => (
+          <figure className="admin-figure" key={p.id} role="listitem">
+            {p.adresse ? (
+              <a
+                href={p.adresse}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Ouvrir en grand : ${libelleRolePhoto[p.role]}`}
+              >
+                <img src={p.adresse} alt={`${libelleRolePhoto[p.role]} — ${nom}`} />
+              </a>
+            ) : (
+              <div className="apercu-vide">Photo illisible</div>
+            )}
+            <figcaption className="mention">
+              <b>{libelleRolePhoto[p.role]}</b>
+              <br />
+              {p.role === 'signboard'
+                ? 'Nette, cadrée, sans enfant ?'
+                : 'À lire pour saisir les formations, sans enfant ?'}
+              {' · '}
+              {Math.round(p.octets / 1000)} Ko
+            </figcaption>
+            <div className="admin-actions">
+              {p.publiable ? (
+                <span className="etiquette etat-verifiee">Vérifiée : publiable</span>
+              ) : (
+                <button
+                  type="button"
+                  className="bouton bouton-secondaire bouton-petit"
+                  onClick={() => void agir(() => admin.marquerPhotoPubliable(p.id, true))}
+                >
+                  Marquer publiable
+                </button>
+              )}
+              {aEffacer === p.id ? (
+                <>
+                  <button
+                    type="button"
+                    className="bouton bouton-petit admin-bouton-refus"
+                    onClick={() => void agir(() => admin.effacerPhoto(p.id, null))}
+                  >
+                    Confirmer : effacer la photo
+                  </button>
+                  <button
+                    type="button"
+                    className="bouton bouton-secondaire bouton-petit"
+                    onClick={() => setAEffacer(null)}
+                  >
+                    Annuler
+                  </button>
+                </>
+              ) : (
+                // Le droit d'effacement s'exerce aussi sur une fiche déjà décidée.
+                <button type="button" className="lien" onClick={() => setAEffacer(p.id)}>
+                  Effacer la photo
+                </button>
+              )}
+            </div>
+          </figure>
+        ))}
+      </div>
+      {erreur && <p className="message-erreur">{erreur}</p>}
+    </div>
+  );
+}
+
+// Le détail d'un envoi -----------------------------------------------------------------------
+
+/** Comment l'envoi entre dans le catalogue : la décision en un geste. */
+type Cible =
+  | { mode: 'nouvelle' }
+  | { mode: 'new_campus'; institutionId: string }
+  | { mode: 'update_campus'; campusId: string }
+  | { mode: 'add_cycle'; campusId: string };
+
+function Detail({
+  admin,
+  id,
+  lectureSeule,
+  surDecision,
+  surAnnonce,
+}: {
+  admin: PortAdministration;
+  id: string;
+  /** Une décision déjà prise : on la relit, on peut encore effacer, on ne décide plus. */
+  lectureSeule: boolean;
+  surDecision: (texte: string) => void;
+  surAnnonce: (texte: string) => void;
+}) {
+  const [detail, setDetail] = useState<DetailReleve | null>(null);
+  const [photos, setPhotos] = useState<PhotoVue[]>([]);
+  const [contact, setContact] = useState<ContactDirection | null>(null);
+  const [institutions, setInstitutions] = useState<InstitutionVue[]>([]);
+  const [domaines, setDomaines] = useState<DomainePublic[]>([]);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [mode, setMode] = useState<'correction' | 'refus' | null>(null);
+  const [motif, setMotif] = useState<Valeur<'motif_decision'>>('photo_floue');
+  const [message, setMessage] = useState('');
+  const [enCours, setEnCours] = useState(false);
+  const [aEffacerContact, setAEffacerContact] = useState(false);
+  const [efface, setEfface] = useState<string | null>(null);
+  const [cible, setCible] = useState<Cible>({ mode: 'nouvelle' });
+  const [etiquette, setEtiquette] = useState('');
+  const [formations, setFormations] = useState<FormationSaisie[]>([]);
+
+  const chargerPhotos = useCallback(() => {
+    admin
+      .photosReleve(id)
+      .then(setPhotos)
+      .catch((e: unknown) => setErreur(messageErreur(e)));
+  }, [admin, id]);
 
   useEffect(() => {
-    Promise.all([admin.detailReleve(id), admin.photoReleve(id), admin.contactReleve(id)])
-      .then(([d, p, c]) => {
+    Promise.all([
+      admin.detailReleve(id),
+      admin.photosReleve(id),
+      admin.contactReleve(id),
+      admin.institutions(),
+      admin.domaines(),
+    ])
+      .then(([d, p, c, i, dom]) => {
         setDetail(d);
-        setPhoto(p);
+        setPhotos(p);
         setContact(c);
+        setInstitutions(i);
+        setDomaines(dom);
+        // Par défaut : une école déjà connue au même endroit (« la même ») se met à jour ; sinon, une nouvelle école.
+        if (d.doublonDe && (d.reponseDoublon === 'la_meme' || d.type === 'contre_visite')) {
+          setCible({ mode: 'update_campus', campusId: d.doublonDe.id });
+        }
       })
       .catch((e: unknown) => setErreur(messageErreur(e)));
   }, [admin, id]);
@@ -314,13 +419,16 @@ function Detail({
     }
   };
 
-  const confirmer = async (fonction: Valeur<'fonction_direction'>) => {
+  const effacerContact = async () => {
     setErreur(null);
     try {
-      await admin.confirmerContact(id, fonction);
-      setContactConfirme(true);
+      await admin.effacerContact(id, null);
+      setContact(null);
+      setEfface('Le contact de la direction est effacé.');
     } catch (e) {
       setErreur(messageErreur(e));
+    } finally {
+      setAEffacerContact(false);
     }
   };
 
@@ -335,7 +443,66 @@ function Detail({
   const position = detail.position;
   // Sur le lot d'entraînement, « hors du lot » ne veut rien dire.
   const horsLot = detail.essai ? null : detail.horsLot;
-  const memeEcole = detail.reponseDoublon === 'la_meme' && detail.doublonDe;
+  const campusConnus = institutions.flatMap((i) =>
+    i.campus.map((c) => ({
+      id: c.id,
+      institutionId: i.id,
+      libelle: [i.nom, c.etiquette, c.division].filter(Boolean).join(' — '),
+    })),
+  );
+  const avecFormations =
+    detail.niveaux.some(cycleAvecFormations) || detail.indiceFormations || formations.length > 0;
+
+  const decision = (): DecisionAcceptation => {
+    const base: DecisionAcceptation = { formations };
+    if (detail.type === 'correction') return {};
+    switch (cible.mode) {
+      case 'nouvelle':
+        return { ...base, mode: 'new_institution', etiquette: etiquette.trim() || null };
+      case 'new_campus':
+        return {
+          ...base,
+          mode: 'new_campus',
+          institutionId: cible.institutionId,
+          etiquette: etiquette.trim() || null,
+        };
+      case 'update_campus':
+        return { ...base, mode: 'update_campus', campusId: cible.campusId };
+      case 'add_cycle':
+        return { ...base, mode: 'add_cycle', campusId: cible.campusId };
+    }
+  };
+
+  const options: { valeur: ModeAcceptation | 'nouvelle'; libelle: string }[] = [
+    { valeur: 'nouvelle', libelle: 'Nouvelle école' },
+    { valeur: 'new_campus', libelle: 'Nouvelle implantation d’une école connue' },
+    { valeur: 'update_campus', libelle: 'Mettre à jour une implantation connue' },
+    { valeur: 'add_cycle', libelle: 'Ajouter ses niveaux à une implantation connue' },
+  ];
+  const modeActuel = cible.mode === 'nouvelle' ? 'nouvelle' : cible.mode;
+  const choisirMode = (valeur: ModeAcceptation | 'nouvelle') => {
+    if (valeur === 'nouvelle') setCible({ mode: 'nouvelle' });
+    else if (valeur === 'new_campus')
+      setCible({ mode: 'new_campus', institutionId: institutions[0]?.id ?? '' });
+    else if (valeur === 'update_campus' || valeur === 'add_cycle')
+      setCible({ mode: valeur, campusId: detail.doublonDe?.id ?? campusConnus[0]?.id ?? '' });
+    else setCible({ mode: 'nouvelle' });
+  };
+  const cibleIncomplete =
+    (cible.mode === 'new_campus' && cible.institutionId === '') ||
+    ((cible.mode === 'update_campus' || cible.mode === 'add_cycle') && cible.campusId === '');
+  const texteAccepter =
+    detail.type === 'correction'
+      ? 'Accepter la correction'
+      : cible.mode === 'nouvelle'
+        ? 'Accepter la fiche'
+        : cible.mode === 'new_campus'
+          ? 'Accepter comme nouvelle implantation'
+          : cible.mode === 'update_campus'
+            ? detail.type === 'contre_visite'
+              ? 'Situer l’école'
+              : 'Mettre à jour la fiche'
+            : 'Ajouter les niveaux à la fiche';
 
   return (
     <section className="admin-detail" aria-label="Envoi sélectionné">
@@ -350,18 +517,14 @@ function Detail({
         <span className="etiquette etat-attente">{libelleType[detail.type]}</span>
       </div>
 
+      <Photos
+        admin={admin}
+        photos={photos}
+        nom={detail.nomEnseigne}
+        surChangement={chargerPhotos}
+      />
+
       <div className="admin-deux">
-        <figure className="admin-figure">
-          {photo ? (
-            <img src={photo} alt={`L'enseigne de ${detail.nomEnseigne}`} />
-          ) : (
-            <div className="apercu-vide">Photo pas encore reçue</div>
-          )}
-          {photo && boutonEffacer('photo', 'Effacer la photo')}
-          <figcaption className="mention">
-            Photo de l'enseigne. Nette, cadrée, sans enfant&nbsp;?
-          </figcaption>
-        </figure>
         <div className="pile-serree">
           <p className="rang">
             <Icone nom={horsLot ? 'alerte' : 'coche'} taille={16} />
@@ -388,6 +551,8 @@ function Detail({
               Voir sur OpenStreetMap
             </a>
           )}
+        </div>
+        <div className="pile-serree">
           {detail.doublonPossible && (
             <Bandeau ton="attente" icone="alerte">
               <p>
@@ -420,6 +585,19 @@ function Detail({
           <dd>{detail.niveaux.map((n) => libelleNiveau[n]).join(', ') || '—'}</dd>
           <dt>Programme</dt>
           <dd>{detail.programme ?? '—'}</dd>
+          {(detail.programmesVus !== null || detail.programmesEnPhoto) && (
+            <>
+              <dt>Séries ou filières vues</dt>
+              <dd>
+                {detail.programmesVus ?? '—'}
+                {detail.programmesEnPhoto && (
+                  <span className="mention admin-sous-ligne">
+                    Le relais les a aussi prises en photo (panneau, affiche ou prospectus).
+                  </span>
+                )}
+              </dd>
+            </>
+          )}
           <dt>Repère</dt>
           <dd>{detail.repere ?? '—'}</dd>
           <dt>Numéro sur l'enseigne</dt>
@@ -468,34 +646,41 @@ function Detail({
                 </>
               )}
             </dl>
-            <div className="admin-actions">
-              {contact.whatsapp && contact.accord && (
-                <a
-                  className="bouton bouton-petit admin-bouton-accent"
-                  href={`https://wa.me/${contact.whatsapp}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+            {aEffacerContact ? (
+              <span className="admin-actions">
+                <button
+                  type="button"
+                  className="bouton bouton-petit admin-bouton-refus"
+                  onClick={() => void effacerContact()}
                 >
-                  Écrire sur WhatsApp
-                </a>
-              )}
-              {contact.fonction &&
-                (detail.contactConfirmeLe || contactConfirme ? (
-                  <span className="etiquette etat-verifiee">Fonction confirmée</span>
-                ) : (
-                  <button
-                    type="button"
-                    className="bouton bouton-secondaire bouton-petit"
-                    onClick={() => contact.fonction && void confirmer(contact.fonction)}
-                  >
-                    Confirmer sa fonction
-                  </button>
-                ))}
-            </div>
-            {boutonEffacer('contact', "Effacer le contact (droit d'effacement)")}
+                  Confirmer : effacer le contact (droit d'effacement)
+                </button>
+                <button
+                  type="button"
+                  className="bouton bouton-secondaire bouton-petit"
+                  onClick={() => setAEffacerContact(false)}
+                >
+                  Annuler
+                </button>
+              </span>
+            ) : (
+              <button type="button" className="lien" onClick={() => setAEffacerContact(true)}>
+                Effacer le contact (droit d'effacement)
+              </button>
+            )}
           </>
         )}
       </section>
+
+      {contact && (
+        <section className="pile-serree" aria-label="Écrire à la direction">
+          <h3 className="rang">
+            <Icone nom="coche" />
+            Écrire à la direction
+          </h3>
+          <Pont admin={admin} detail={detail} contact={contact} surAnnonce={surAnnonce} />
+        </section>
+      )}
 
       {efface && (
         <p className="bandeau bandeau-envoye" role="status">
@@ -518,48 +703,127 @@ function Detail({
           {detail.essai && (
             <Bandeau ton="attente" icone="alerte">
               <p>
-                <b>Lot d'entraînement</b> : cette fiche ne sera jamais publiée. Demande une
-                correction pour entraîner le relais, ou refuse-la.
+                <b>Lot d'entraînement</b> : cette fiche ne sera jamais publiée. Valide-la avec le
+                relais (elle compte pour son essai), demande une correction, ou refuse-la.
               </p>
             </Bandeau>
           )}
-          <div className="admin-actions">
-            {!detail.essai &&
-              (memeEcole && detail.doublonDe ? (
-                <>
-                  <button
-                    type="button"
-                    className="bouton"
-                    disabled={enCours}
-                    onClick={() =>
-                      void agir(
-                        () => admin.accepter(id, detail.doublonDe?.id),
-                        `${detail.doublonDe?.nom} est mise à jour. Si elle était déjà en ligne, la correction paraît cette nuit ; sinon, publie-la depuis « Écoles ».`,
-                      )
-                    }
-                  >
-                    {detail.type === 'contre_visite' ? 'Situer' : 'Mettre à jour'}{' '}
-                    {detail.doublonDe.nom}
-                  </button>
-                  <button
-                    type="button"
-                    className="bouton bouton-secondaire"
-                    disabled={enCours}
-                    onClick={() => void agir(() => admin.accepter(id), ACCEPTEE)}
-                  >
-                    Accepter comme une autre école
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="bouton"
-                  disabled={enCours}
-                  onClick={() => void agir(() => admin.accepter(id), ACCEPTEE)}
+
+          {!detail.essai && detail.type !== 'correction' && (
+            <div className="pile-serree" aria-label="Que faire de cette fiche">
+              <Choix
+                legende="Que faire de cette fiche ?"
+                options={options}
+                valeurs={[modeActuel]}
+                surChoix={choisirMode}
+              />
+              {cible.mode === 'new_campus' && (
+                <Champ libelle="Institution connue">
+                  {(a) => (
+                    <select
+                      {...a}
+                      className="champ"
+                      value={cible.institutionId}
+                      onChange={(ev) =>
+                        setCible({ mode: 'new_campus', institutionId: ev.target.value })
+                      }
+                    >
+                      {institutions.map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.nom} ({i.campus.length} implantation{i.campus.length > 1 ? 's' : ''})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Champ>
+              )}
+              {(cible.mode === 'update_campus' || cible.mode === 'add_cycle') && (
+                <Champ libelle="Implantation connue">
+                  {(a) => (
+                    <select
+                      {...a}
+                      className="champ"
+                      value={cible.campusId}
+                      onChange={(ev) => setCible({ mode: cible.mode, campusId: ev.target.value })}
+                    >
+                      {campusConnus.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.libelle}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Champ>
+              )}
+              {(cible.mode === 'nouvelle' || cible.mode === 'new_campus') && (
+                <Champ
+                  libelle="Nom de l’implantation"
+                  facultatif
+                  aide="« Campus de Loandjili » : seulement quand l’école a plusieurs implantations."
                 >
-                  Accepter la fiche
-                </button>
-              ))}
+                  {(a) => (
+                    <input
+                      {...a}
+                      className="champ"
+                      type="text"
+                      maxLength={120}
+                      autoComplete="off"
+                      value={etiquette}
+                      onChange={(ev) => setEtiquette(ev.target.value)}
+                    />
+                  )}
+                </Champ>
+              )}
+              {avecFormations && (
+                <>
+                  <p className="mention">
+                    Lis les photos du panneau ou du prospectus : les séries et les formations notées
+                    ici rendent l’école cherchable (série C, BTS, licence…).
+                  </p>
+                  <Formations
+                    cycles={detail.niveaux}
+                    formations={formations}
+                    domaines={domaines}
+                    surChangement={setFormations}
+                  />
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="admin-actions">
+            {!detail.essai && (
+              <button
+                type="button"
+                className="bouton"
+                disabled={enCours || cibleIncomplete}
+                onClick={() =>
+                  void agir(
+                    () => admin.accepter(id, decision()),
+                    cible.mode === 'update_campus' || cible.mode === 'add_cycle'
+                      ? 'La fiche de l’école est mise à jour. Si elle était déjà en ligne, la correction paraît cette nuit ; sinon, publie-la depuis « Écoles ».'
+                      : ACCEPTEE,
+                  )
+                }
+              >
+                {texteAccepter}
+              </button>
+            )}
+            {detail.essai && !detail.essaiValideLe && (
+              <button
+                type="button"
+                className="bouton"
+                disabled={enCours}
+                onClick={() =>
+                  void agir(
+                    () => admin.validerEssai(id),
+                    'Validée avec le relais : elle compte pour son essai et ne sera jamais publiée.',
+                  )
+                }
+              >
+                Valider pour l’essai
+              </button>
+            )}
             <button
               type="button"
               className="bouton bouton-secondaire"

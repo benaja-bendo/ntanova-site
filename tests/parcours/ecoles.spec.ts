@@ -19,14 +19,18 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.getByRole('link', { name: 'Écoles' }).click();
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
   await expect(ligne.getByText('À situer', { exact: true })).toBeVisible();
-  await ligne.getByLabel(/Ce que le relais doit vérifier/).fill('Le nom exact');
-  await ligne.getByRole('button', { name: 'Confier' }).click();
+  await ligne.getByRole('button', { name: 'Confier à un relais' }).click();
+  // Une école sans position : la mission par défaut est de la situer.
+  await expect(ligne.getByLabel('Ce que le relais doit faire')).toHaveValue('locate');
+  await ligne.getByLabel('À vérifier').fill('Le nom exact');
+  await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
   // Le relais la voit dans « Mon lot » et la complète.
   await page.goto('/relais/');
   await expect(page.getByText('À compléter · 1')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('À vérifier : Le nom exact')).toBeVisible();
+  await expect(page.getByText(/Passez la situer/)).toBeVisible();
   await page.getByRole('button', { name: 'Compléter' }).click();
   await expect(page.getByText(/Contre-visite\s*: \[École à situer\]/)).toBeVisible();
   await page.locator('input[type=file]').first().setInputFiles(photo);

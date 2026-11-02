@@ -1,0 +1,116 @@
+---
+// Toutes les pages sous /ecoles/ : les zones (pays, département, ville, arrondissement, quartier), la fiche
+// de chaque campus publié, et les renvois (une fiche fusionnée, les adresses d'avant les villes). Une seule
+// route, construite à partir de la base ; aucun JavaScript.
+//
+//   /ecoles/congo/                                  le pays
+//   /ecoles/congo/pointe-noire/                     la ville (le département de même nom n'a pas sa propre page)
+//   /ecoles/congo/pointe-noire/tie-tie/             l'arrondissement
+//   /ecoles/congo/pointe-noire/tie-tie/<adresse>/   la fiche d'un campus
+import type { GetStaticPaths } from 'astro';
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirSite } from '../../infra/index';
+import { coinsDe, arrondissementDessine, surCarte } from '../../modele/carte/plan';
+import { lienCarte, lienDivision, lienEcole } from '../../modele/geo-divisions';
+import { lienWhatsApp } from '../../modele/whatsapp';
+import FicheEcole from '../../ui/FicheEcole.astro';
+import HubDivision from '../../ui/HubDivision.astro';
+import PagePublique from '../../ui/PagePublique.astro';
+
+type Cas =
+  | { genre: 'zone'; cle: string }
+  | { genre: 'ecole'; cle: string }
+  | { genre: 'renvoi'; vers: string };
+
+export const getStaticPaths = (async () => {
+  const { arbre, ecoles, redirections } = await obtenirSite();
+  const chemins = new Map<string, Cas>();
+  // Le premier qui prend une adresse la garde : une vraie page n'est jamais remplacée par un renvoi.
+  const poser = (chemin: string, cas: Cas) => {
+    if (chemin !== '' && !chemins.has(chemin)) chemins.set(chemin, cas);
+  };
+
+  for (const p of arbre.tous)
+    poser(p.adresse.join('/'), { genre: 'zone', cle: p.adresse.join('/') });
+  for (const e of ecoles) poser([...e.adresse, e.slug].join('/'), { genre: 'ecole', cle: e.id });
+  // L'ancienne adresse d'une fiche fusionnée renvoie vers l'école gardée.
+  for (const r of redirections) {
+    poser([...r.de.chemin, r.de.slug].join('/'), {
+      genre: 'renvoi',
+      vers: lienEcole({ adresse: r.vers.chemin, slug: r.vers.slug }),
+    });
+  }
+  // Les adresses d'avant les villes (`/ecoles/tie-tie/…`) : le relevé n'avait commencé qu'à Tié-Tié et à Ngoyo.
+  for (const arrondissement of ['tie-tie', 'ngoyo']) {
+    const page = arbre.parAdresse.get(`congo/pointe-noire/${arrondissement}`);
+    if (!page) continue;
+    poser(arrondissement, { genre: 'renvoi', vers: lienDivision(page.adresse) });
+    for (const e of ecoles.filter(
+      (x) => x.adresse.slice(0, 3).join('/') === `congo/pointe-noire/${arrondissement}`,
+    )) {
+      poser(`${arrondissement}/${e.slug}`, { genre: 'renvoi', vers: lienEcole(e) });
+    }
+    const dessin = arrondissementDessine(arrondissement);
+    if (dessin) {
+      poser(`${arrondissement}/carte`, { genre: 'renvoi', vers: lienCarte(page.adresse) });
+      const siennes = ecoles.filter((x) => x.arrondissement === arrondissement);
+      for (const g of coinsDe(dessin, surCarte(siennes))) {
+        poser(`${arrondissement}/carte/${g.id}`, {
+          genre: 'renvoi',
+          vers: lienCarte(page.adresse, g.id),
+        });
+      }
+    }
+  }
+  return [...chemins].map(([chemin, cas]) => ({ params: { chemin }, props: cas }));
+}) satisfies GetStaticPaths;
+
+const cas = Astro.props as Cas;
+const site = await obtenirSite();
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+
+const page = cas.genre === 'zone' ? site.arbre.parAdresse.get(cas.cle) : undefined;
+const e = cas.genre === 'ecole' ? site.ecoles.find((x) => x.id === cas.cle) : undefined;
+const zone = e ? site.arbre.parId.get(e.divisionId) : undefined;
+const autres = e
+  ? site.ecoles.filter((x) => x.institutionId === e.institutionId && x.id !== e.id)
+  : [];
+const manque = page
+  ? lienWhatsApp(PUBLIC_WHATSAPP, `Bonjour NTanova, une école manque à ${page.division.nom} : `)
+  : null;
+const erreur = e
+  ? lienWhatsApp(PUBLIC_WHATSAPP, `Bonjour NTanova, une erreur sur la fiche de ${e.nom} : `)
+  : null;
+---
+
+{cas.genre === 'renvoi' ? (
+  <PagePublique
+    titre="Fiche déplacée · NTanova"
+    description="Cette page a une nouvelle adresse sur NTanova."
+    whatsapp={whatsapp}
+    renvoi={cas.vers}
+  >
+    <section class="cadre page">
+      <h1>Cette page a une nouvelle adresse</h1>
+      <a class="bouton" href={cas.vers}>
+        Voir la page
+      </a>
+    </section>
+  </PagePublique>
+) : page ? (
+  <PagePublique
+    titre={`Les écoles de ${page.division.nom} · NTanova`}
+    description={`Les écoles de ${page.noms.join(', ')} : de la crèche au supérieur, relevées sur place.`}
+    whatsapp={whatsapp}
+  >
+    <HubDivision page={page} divisions={site.divisions} manque={manque} />
+  </PagePublique>
+) : e && zone ? (
+  <PagePublique
+    titre={`${e.nom}${e.etiquette ? ` (${e.etiquette})` : ''} · ${zone.division.nom} · NTanova`}
+    description={`${e.nom}, à ${zone.noms.join(', ')} : niveaux, formations, type, repère et itinéraire.`}
+    whatsapp={whatsapp}
+  >
+    <FicheEcole e={e} zone={zone} autres={autres} erreur={erreur} />
+  </PagePublique>
+) : null}

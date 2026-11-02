@@ -1,100 +1,126 @@
 ---
-// L'accueil : les arrondissements relevés, et ce que chacun compte d'écoles publiées.
+// L'accueil : les villes où des écoles sont publiées, et ce que chacune compte d'écoles.
 // Construit à partir de la base ; aucun JavaScript.
-// Sous 48 rem, la page d'un téléphone. À partir de 48 rem, la planche « Accueil sur ordinateur »
-// du canevas, sans la recherche ni la carte, qui n'existent pas encore : leur place, à droite de
-// l'ouverture, reste libre pour elles.
+// Sous 48 rem, la page d'un téléphone. À partir de 48 rem, la planche « Accueil sur ordinateur » du canevas.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
-import { obtenirCatalogue } from '../infra/index';
+import { obtenirSite } from '../infra/index';
 import { arrondissementDeLApercu } from '../modele/carte/plan';
-import { numeroArrondissement } from '../modele/pointe-noire';
+import { compterEcoles, ecolesSous, lienCarte, lienDivision } from '../modele/geo-divisions';
 import { lienWhatsApp } from '../modele/whatsapp';
 import ApercuCarte from '../ui/ApercuCarte.astro';
 import PagePublique from '../ui/PagePublique.astro';
 
-const catalogue = await obtenirCatalogue();
-const [arrondissements, ecoles] = await Promise.all([
-  catalogue.arrondissements(),
-  catalogue.ecoles(),
-]);
+const { arbre, ecoles, divisions } = await obtenirSite();
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
-const quartiers = arrondissements
-  .map((a) => {
-    const siennes = ecoles.filter((e) => e.arrondissement === a.slug);
-    const verifiees = siennes.filter((e) => e.etat === 'verifiee').length;
-    const relevees = siennes.filter((e) => e.etat === 'relevee').length;
+const pointeNoire = arbre.parAdresse.get('congo/pointe-noire');
+// Les villes et départements : les zones juste sous le pays. Là où l'on a des fiches d'abord, puis par nom.
+const villes = arbre.racines
+  .flatMap((racine) => racine.enfants)
+  .map((zone) => {
+    const siennes = ecolesSous(zone);
     return {
-      ...a,
-      numero: numeroArrondissement[a.slug],
-      verifiees,
-      relevees,
-      total: verifiees + relevees,
+      zone,
+      total: siennes.length,
+      verifiees: siennes.filter((e) => e.etat === 'verifiee').length,
     };
   })
-  // Là où l'on a des fiches d'abord (les deux planches mettent Tié-Tié avant Ngoyo), puis par nom.
-  .sort((a, b) => b.total - a.total || a.nom.localeCompare(b.nom, 'fr'));
+  .sort(
+    (a, b) => b.total - a.total || a.zone.division.nom.localeCompare(b.zone.division.nom, 'fr'),
+  );
 
-// L'aperçu de la carte (ticket 42) : l'arrondissement qui a le plus d'écoles sur la carte.
-const tete = arrondissementDeLApercu(arrondissements, ecoles);
-const ecolesDeLaTete = tete ? ecoles.filter((e) => e.arrondissement === tete.slug) : [];
+// L'aperçu de la carte : l'arrondissement dessiné qui a le plus d'écoles sur la carte (aujourd'hui, Pointe-Noire).
+const ouverts = divisions
+  .filter(
+    (d) => d.niveau === 3 && d.ouverte && d.adresse.join('/').startsWith('congo/pointe-noire/'),
+  )
+  .map((d) => ({ slug: d.slug }));
+const dePointeNoire = ecoles.filter((e) => e.adresse.join('/').startsWith('congo/pointe-noire/'));
+const tete = arrondissementDeLApercu(ouverts, dePointeNoire);
+const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === tete.slug) : [];
 ---
 
 <PagePublique
-  titre="NTanova · Les écoles de Pointe-Noire, quartier par quartier"
-  description="Maternelles, écoles, collèges, lycées et instituts de Pointe-Noire, quartier par quartier : trouvez une école près de chez vous."
+  titre="NTanova · Les écoles du Congo-Brazzaville, ville par ville"
+  description="Maternelles, écoles, collèges, lycées, instituts et universités du Congo-Brazzaville, ville par ville et par formation : trouvez une école près de chez vous."
   whatsapp={whatsapp}
 >
   <div class="cadre accueil">
     <div class:list={['haut', { 'haut-carte': tete }]}>
       <div class="ouverture">
         <p class="surtitre-public">
-          <span class="insecable">Pointe-Noire</span> ·{' '}
           <span class="insecable">Congo-Brazzaville</span>
         </p>
-        <h1>Toutes les écoles, quartier par quartier.</h1>
+        <h1>Les écoles près de chez vous, ville par ville.</h1>
         <p class="chapeau">
-          Maternelles, écoles, collèges, lycées et instituts&nbsp;: trouvez une école près de chez
-          vous, ou pour un enfant de la famille.
+          Maternelles, écoles, collèges, lycées, instituts et universités&nbsp;: trouvez une école
+          près de chez vous, ou pour un enfant de la famille, et cherchez par série du bac, diplôme
+          ou domaine.
         </p>
+        <nav class="actions-accueil" aria-label="Chercher une école">
+          <a class="bouton" href="/recherche/">
+            Rechercher une école
+          </a>
+          <a class="bouton bouton-secondaire" href="/autour-de-moi/">
+            Autour de moi
+          </a>
+        </nav>
         {ecoles.length === 0 && (
           <p class="carte note">
-            Le relevé commence à <span class="insecable">Tié-Tié</span> et à Ngoyo. Les premières
-            fiches arrivent au fil du relevé.
+            Le relevé commence à <span class="insecable">Pointe-Noire</span>. Les premières fiches
+            arrivent au fil du relevé.
           </p>
         )}
       </div>
 
-      {tete && <ApercuCarte arrondissement={tete} ecoles={ecolesDeLaTete} />}
+      {tete && (
+        <ApercuCarte
+          arrondissement={tete}
+          ecoles={ecolesDeLaTete}
+          lienCarte={lienCarte(['congo', 'pointe-noire', tete.slug])}
+        />
+      )}
     </div>
 
     <section id="quartiers" aria-labelledby="titre-quartiers">
       <h2 id="titre-quartiers" class="titre-quartiers visuellement-cache">
-        Les quartiers de Pointe-Noire
+        Les villes
       </h2>
-      <ul class="quartiers">
-        {quartiers.map((q) => (
-          <li>
-            <a
-              class:list={['quartier', { 'quartier-plein': q.total > 0 }]}
-              href={`/ecoles/${q.slug}/`}
-            >
-              <span class="quartier-nom">{q.nom}</span>
-              <span class="quartier-detail">
-                {q.numero && <span class="quartier-numero">Arrondissement {q.numero}</span>}
-                <span class="quartier-compte">
-                  {q.total === 0
-                    ? 'relevé en cours'
-                    : `${q.total} école${q.total > 1 ? 's' : ''}${q.verifiees > 0 ? `, dont ${q.verifiees} vérifiée${q.verifiees > 1 ? 's' : ''}` : ''}`}
+      {villes.length > 0 ? (
+        <ul class="quartiers">
+          {villes.map((v) => (
+            <li>
+              <a
+                class:list={['quartier', { 'quartier-plein': v.total > 0 }]}
+                href={lienDivision(v.zone.adresse)}
+              >
+                <span class="quartier-nom">{v.zone.division.nom}</span>
+                <span class="quartier-detail">
+                  <span class="quartier-compte">
+                    {compterEcoles(v.total)}
+                    {v.verifiees > 0
+                      ? `, dont ${v.verifiees} vérifiée${v.verifiees > 1 ? 's' : ''}`
+                      : ''}
+                  </span>
                 </span>
-              </span>
-            </a>
-          </li>
-        ))}
-      </ul>
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="texte-doux">Les premières villes arrivent avec les premières fiches.</p>
+      )}
+      {pointeNoire && (
+        <a class="lien-carte" href={lienDivision(pointeNoire.adresse)}>
+          <span>
+            Voir la carte de <span class="insecable">Pointe-Noire</span>
+          </span>
+        </a>
+      )}
       <a class="lien-carte" href="/ecoles/">
-        <span>
-          Voir la carte de <span class="insecable">Pointe-Noire</span>
-        </span>
+        <span>Voir toutes les écoles</span>
+      </a>
+      <a class="lien-carte" href="/formations/">
+        <span>Les écoles par formation</span>
       </a>
     </section>
   </div>
@@ -159,6 +185,11 @@ const ecolesDeLaTete = tete ? ecoles.filter((e) => e.arrondissement === tete.slu
 </PagePublique>
 
 <style>
+  .actions-accueil {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ecart-cibles);
+  }
   .lien-carte {
     display: inline-flex;
     align-items: center;

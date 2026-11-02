@@ -17,11 +17,17 @@ test.describe('le site en ligne', () => {
     await expect(page.getByRole('heading', { name: 'Page introuvable' })).toBeVisible();
   });
 
-  test('la position n’est permise que sur l’espace relais', async ({ request }) => {
+  test('la position n’est permise que sur l’espace relais et sur « Autour de moi »', async ({
+    request,
+  }) => {
     const accueil = await request.get('/');
     expect(accueil.headers()['permissions-policy']).toContain('geolocation=()');
     const relais = await request.get('/relais/');
     expect(relais.headers()['permissions-policy']).toContain('geolocation=(self)');
+    const autour = await request.get('/autour-de-moi/');
+    expect(autour.headers()['permissions-policy']).toContain('geolocation=(self)');
+    // Autour de moi n'a pas besoin de l'appareil photo.
+    expect(autour.headers()['permissions-policy']).toContain('camera=()');
   });
 
   test('chaque fichier gardé pour le hors ligne existe', async ({ request }) => {
