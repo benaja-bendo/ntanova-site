@@ -168,40 +168,63 @@ test.describe('administration', () => {
   });
 
   // Le secteur d'un relais est un conseil, la zone ouverte la limite de NTanova, et ni l'un ni l'autre ne refuse une
-  // fiche (ticket n° 67). Le faux serveur compte la zone ouverte comme le carré de Tié-Tié : 11,98° est à Pointe-Noire,
-  // hors de ce carré ; Brazzaville (15,24°) est hors de tout contour connu.
-  for (const [lieu, position, etiquette] of [
-    ['hors de la zone ouverte', { latitude: -4.79, longitude: 11.98 }, 'Hors zone ouverte'],
-    ['hors de tout contour connu', { latitude: -4.26, longitude: 15.24 }, 'Zone inconnue'],
-  ] as const) {
-    test(`une fiche relevée ${lieu} s’affiche en information, jamais en alerte, et s’accepte comme les autres`, async ({
-      page,
-      context,
-    }) => {
-      await uneFicheEnvoyee(page, context, { position });
-      await page.goto('/admin/');
-      const ligne = page.getByRole('link', { name: /\[École 1\]/ });
-      await expect(ligne).toBeVisible();
-      // Plus aucune trace de « hors du lot » : le lot n'est qu'un conseil.
-      await expect(page.getByText(/Hors du lot/)).toHaveCount(0);
-      if (etiquette === 'Hors zone ouverte') {
-        await expect(ligne.getByText('Hors zone ouverte')).toBeVisible();
-        // Une information (orange), pas un refus (rouge).
-        await expect(ligne.getByText('Hors zone ouverte')).toHaveClass(/etat-attente/);
-      } else {
-        // La liste ne dit rien quand la zone est inconnue : ce n'est pas un défaut de la fiche.
-        await expect(ligne.getByText(/Hors zone ouverte|Zone inconnue/)).toHaveCount(0);
-      }
+  // fiche (ticket n° 67). Le faux serveur suit les vrais contours de Pointe-Noire : Lumumba est une division connue mais
+  // fermée ; Brazzaville n'a aucun contour.
+  test('une fiche relevée dans une division fermée s’affiche en information, jamais en alerte, et s’accepte comme les autres', async ({
+    page,
+    context,
+  }) => {
+    await uneFicheEnvoyee(page, context, { position: { latitude: -4.812, longitude: 11.873 } });
+    await page.goto('/admin/');
+    const ligne = page.getByRole('link', { name: /\[École 1\]/ });
+    await expect(ligne).toBeVisible();
+    // Plus aucune trace de « hors du lot » : le lot n'est qu'un conseil.
+    await expect(page.getByText(/Hors du lot/)).toHaveCount(0);
+    await expect(ligne.getByText('Hors zone ouverte')).toBeVisible();
+    // Une information (orange), pas un refus (rouge).
+    await expect(ligne.getByText('Hors zone ouverte')).toHaveClass(/etat-attente/);
 
-      await ligne.click();
-      await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
-      const detail = page.getByRole('region', { name: 'Envoi sélectionné' });
-      await expect(detail.getByText(etiquette, { exact: true })).toBeVisible();
-      await expect(page.getByText(/Hors du lot/)).toHaveCount(0);
-      await page.getByRole('button', { name: 'Accepter la fiche' }).click();
-      await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
-    });
-  }
+    await ligne.click();
+    await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
+    const detail = page.getByRole('region', { name: 'Envoi sélectionné' });
+    await expect(detail.getByText('Hors zone ouverte', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Hors du lot/)).toHaveCount(0);
+    // La division est connue (celle de la position) : rien à choisir.
+    await expect(page.getByLabel('Division de l’école')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+  });
+
+  test('une fiche sans contour connu : l’administration choisit la division, sans quoi elle ne s’accepte pas', async ({
+    page,
+    context,
+  }) => {
+    await uneFicheEnvoyee(page, context, { position: { latitude: -4.26, longitude: 15.24 } });
+    await page.goto('/admin/');
+    const ligne = page.getByRole('link', { name: /\[École 1\]/ });
+    // La liste ne dit rien quand la zone est inconnue : ce n'est pas un défaut de la fiche.
+    await expect(ligne.getByText(/Hors zone ouverte|Zone inconnue/)).toHaveCount(0);
+
+    await ligne.click();
+    const detail = page.getByRole('region', { name: 'Envoi sélectionné' });
+    await expect(detail.getByText('Zone inconnue', { exact: true })).toBeVisible();
+    // Avant : la fiche retombait sur la division du lot du relais, même à des milliers de kilomètres.
+    const choix = page.getByLabel('Division de l’école');
+    await expect(choix).toBeVisible();
+    await expect(detail.getByText(/Choisissez la division/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Accepter la fiche' })).toBeDisabled();
+
+    await choix.selectOption({ label: 'Congo › Brazzaville › Moungali' });
+    await expect(page.getByRole('button', { name: 'Accepter la fiche' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+
+    // L'école est rattachée à la division choisie, pas à celle du lot du relais (Tié-Tié).
+    await page.getByRole('link', { name: 'Écoles' }).click();
+    const ecole = page.getByRole('row', { name: /\[École 1\]/ });
+    await expect(ecole).toContainText('Moungali');
+    await expect(ecole).not.toContainText('Tié-Tié');
+  });
 
   test('une fiche relevée dans la zone ouverte le dit, sans alerte', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);
@@ -253,6 +276,28 @@ test.describe('administration', () => {
     await expect(
       page.getByRole('row', { name: /\[Relais en attente\]/ }).getByText('Actif', { exact: true }),
     ).toBeVisible();
+  });
+
+  test('un lot se marque rendu, et se remet en cours', async ({ page }) => {
+    await seConnecter(page, '/admin/');
+    await page.getByRole('link', { name: 'Zones' }).click();
+    // Le tableau des lots, pas celui des zones (qui a aussi une ligne « Tié-Tié »).
+    const lots = page
+      .locator('.admin-tableau')
+      .filter({ has: page.getByRole('columnheader', { name: 'Rendu' }) });
+    const lot = lots.getByRole('row', { name: /^Tié-Tié/ });
+    await expect(lot).toBeVisible();
+    await expect(lot.getByRole('button', { name: 'Marquer rendu' })).toBeVisible();
+    await lot.getByRole('button', { name: 'Marquer rendu' }).click();
+    await expect(page.getByRole('status')).toHaveText(/« Tié-Tié » est marqué rendu/);
+    await expect(lot.getByText(/Rendu le /)).toBeVisible();
+    await lot.getByRole('button', { name: 'Remettre en cours' }).click();
+    await expect(page.getByRole('status')).toHaveText(/« Tié-Tié » est remis en cours/);
+    await expect(lot.getByRole('button', { name: 'Marquer rendu' })).toBeVisible();
+    // Le lot d'entraînement ne se rend pas : il n'est pas mesuré.
+    await expect(
+      lots.getByRole('row', { name: /Essai/ }).getByRole('button', { name: 'Marquer rendu' }),
+    ).toHaveCount(0);
   });
 
   test('un compte qui n’est pas administrateur ne voit rien', async ({ page }) => {

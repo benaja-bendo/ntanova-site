@@ -104,6 +104,8 @@ interface LotFaux {
   nom: string;
   essai: boolean;
   aRendreLe: string | null;
+  /** Le jour où l'administration l'a déclaré terminé (absent des états gardés avant le ticket n° 67). */
+  renduLe?: string | null;
   divisionId: string;
 }
 
@@ -618,13 +620,18 @@ const dansLeCarre = (
 ) => p.longitude >= c.ouest && p.longitude <= c.est && p.latitude >= c.sud && p.latitude <= c.nord;
 
 /**
- * Comme la base : vrai dans la zone ouverte (le carré de Tié-Tié), faux ailleurs dans Pointe-Noire, nul là où aucun
- * contour n'est connu (Brazzaville…) et sans position.
+ * Comme la base : vrai quand la division que dit la position est ouverte (elle, ou l'un de ses ancêtres), faux quand elle
+ * est fermée (Lumumba…), nul là où aucun contour n'est connu (Brazzaville, l'est de Pointe-Noire…) et sans position.
  */
-function enZoneOuverte(p: { latitude: number; longitude: number } | null): boolean | null {
+function enZoneOuverte(p: { latitude: number; longitude: number } | null, e: Etat): boolean | null {
   if (!p) return null;
-  if (dansLeCarre(p, CARRE_DU_LOT)) return true;
-  return dansLeCarre(p, { ouest: 11.7, est: 12.1, sud: -5.0, nord: -4.6 }) ? false : null;
+  let d: DivisionFausse | null | undefined = divisionDeLaPosition(p, e);
+  if (!d) return null;
+  while (d) {
+    if (d.ouverte) return true;
+    d = d.parentId ? e.divisions[d.parentId] : null;
+  }
+  return false;
 }
 
 /** Une ligne de la file « À valider », comme la vue `submissions_to_review`. */
@@ -640,7 +647,7 @@ function ligneDe(r: ReleveAEnvoyer, e: Etat) {
     lot: lot.nom,
     essai: lot.essai,
     horsLot: r.position ? !dansLeCarre(r.position, CARRE_DU_LOT) : null,
-    enZoneOuverte: enZoneOuverte(r.position),
+    enZoneOuverte: enZoneOuverte(r.position, e),
     doublonPossible: r.reponseDoublon !== null,
     reponseDoublon: r.reponseDoublon,
     precisionM: r.precisionM,
@@ -795,6 +802,7 @@ const admin: PortAdministration = {
       ...ligne,
       prisLe: r.prisLe,
       position: r.position,
+      divisionId: (r.position ? divisionDeLaPosition(r.position, e)?.id : null) ?? null,
       niveaux: r.niveaux,
       typeEcole: r.typeEcole,
       programme: r.programme,
@@ -892,13 +900,29 @@ const admin: PortAdministration = {
     if (mode === 'new_campus' && !choix.institutionId) {
       throw new ErreurDecision('Il faut dire à quelle institution rattacher le nouveau campus.');
     }
+    // Comme la base : la division choisie par l'administration, sinon celle de la position, sinon (sans position seulement)
+    // celle du lot du relais. Une position qu'aucun contour ne contient n'est plus rattachée d'office au lot.
+    const choisie = choix.divisionId ? (e0.divisions[choix.divisionId] ?? null) : null;
+    if (choix.divisionId && (!choisie || choisie.niveau < 2)) {
+      throw new ErreurDecision(
+        'Division introuvable : choisissez une ville, un arrondissement ou un quartier.',
+      );
+    }
+    const lotDuReleve = releve?.lotId ? e0.lots.find((l) => l.id === releve.lotId) : undefined;
+    const division =
+      choisie ??
+      (releve?.position
+        ? divisionDeLaPosition(releve.position, e0)
+        : lotDuReleve
+          ? (e0.divisions[lotDuReleve.divisionId] ?? null)
+          : null);
+    if ((mode === 'new_institution' || mode === 'new_campus') && !division) {
+      throw new ErreurDecision(
+        'Division inconnue : la position n’est dans aucune division connue (ou le relevé n’a ni position ni lot). Choisissez la division de l’école.',
+      );
+    }
     const campusId = cible ?? crypto.randomUUID();
     ecrire((e) => {
-      const lot = lotDe(releve?.lotId, e);
-      const division =
-        (releve?.position ? divisionDeLaPosition(releve.position, e) : null) ??
-        e.divisions[lot.divisionId] ??
-        null;
       const visee = e.campus[campusId];
       if (mode === 'update_campus' || mode === 'add_cycle') {
         if (visee && releve) {
@@ -1088,6 +1112,7 @@ const admin: PortAdministration = {
         nom: l.nom,
         essai: l.essai,
         aRendreLe: l.aRendreLe,
+        renduLe: l.renduLe ?? null,
         divisionId: l.divisionId,
         divisionNom: division?.nom ?? '',
         divisionChemin: division?.chemin ?? '',
@@ -1109,6 +1134,14 @@ const admin: PortAdministration = {
     const id = crypto.randomUUID();
     ecrire((e) => e.lots.push({ id, nom: nom.trim(), essai, aRendreLe, divisionId }));
     return id;
+  },
+  async marquerLotRendu(lotId, rendu) {
+    await reseau();
+    if (!lireEtat().lots.some((l) => l.id === lotId)) throw new ErreurDecision('Lot introuvable.');
+    ecrire((e) => {
+      const lot = e.lots.find((l) => l.id === lotId);
+      if (lot) lot.renduLe = rendu ? new Date().toISOString().slice(0, 10) : null;
+    });
   },
   async activerRelais(relaisId, lotId) {
     await reseau();

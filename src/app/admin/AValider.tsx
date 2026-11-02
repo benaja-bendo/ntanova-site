@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cycleAvecFormations } from '../../modele/formations';
+import { cheminLisible } from '../../modele/geo-divisions';
 import type { Valeur } from '../../modele/listes';
 import {
   libelleFonction,
@@ -14,6 +15,7 @@ import type {
   ContactDirection,
   DecisionAcceptation,
   DetailReleve,
+  DivisionVue,
   DomainePublic,
   FormationSaisie,
   InstitutionVue,
@@ -375,6 +377,8 @@ function Detail({
   const [contact, setContact] = useState<ContactDirection | null>(null);
   const [institutions, setInstitutions] = useState<InstitutionVue[]>([]);
   const [domaines, setDomaines] = useState<DomainePublic[]>([]);
+  const [divisions, setDivisions] = useState<DivisionVue[]>([]);
+  const [divisionId, setDivisionId] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [mode, setMode] = useState<'correction' | 'refus' | null>(null);
   const [motif, setMotif] = useState<Valeur<'motif_decision'>>('photo_floue');
@@ -400,13 +404,15 @@ function Detail({
       admin.contactReleve(id),
       admin.institutions(),
       admin.domaines(),
+      admin.divisions(),
     ])
-      .then(([d, p, c, i, dom]) => {
+      .then(([d, p, c, i, dom, div]) => {
         setDetail(d);
         setPhotos(p);
         setContact(c);
         setInstitutions(i);
         setDomaines(dom);
+        setDivisions(div);
         // Par défaut : une école déjà connue au même endroit (« la même ») se met à jour ; sinon, une nouvelle école.
         if (d.doublonDe && (d.reponseDoublon === 'la_meme' || d.type === 'contre_visite')) {
           setCible({ mode: 'update_campus', campusId: d.doublonDe.id });
@@ -463,8 +469,22 @@ function Detail({
   const avecFormations =
     detail.niveaux.some(cycleAvecFormations) || detail.indiceFormations || formations.length > 0;
 
+  // La division de l'école : celle de la position quand un contour la contient. Sinon (aucun contour connu, ou ni position
+  // ni lot), l'administration la choisit : la fiche ne retombe plus sur la division du lot du relais (ticket n° 67).
+  const divisionRequise =
+    !detail.essai &&
+    (cible.mode === 'nouvelle' || cible.mode === 'new_campus') &&
+    detail.divisionId === null &&
+    (detail.position !== null || detail.lot === null);
+  const divisionsChoisissables = divisions
+    .filter((d) => d.niveau >= 2)
+    .map((d) => ({ id: d.id, chemin: cheminLisible(d.id, divisions) }))
+    .sort((a, b) => a.chemin.localeCompare(b.chemin, 'fr'));
   const decision = (): DecisionAcceptation => {
-    const base: DecisionAcceptation = { formations };
+    const base: DecisionAcceptation = {
+      formations,
+      ...(divisionRequise && divisionId !== '' ? { divisionId } : {}),
+    };
     if (detail.type === 'correction') return {};
     switch (cible.mode) {
       case 'nouvelle':
@@ -499,6 +519,7 @@ function Detail({
     else setCible({ mode: 'nouvelle' });
   };
   const cibleIncomplete =
+    (divisionRequise && divisionId === '') ||
     (cible.mode === 'new_campus' && cible.institutionId === '') ||
     ((cible.mode === 'update_campus' || cible.mode === 'add_cycle') && cible.campusId === '');
   const texteAccepter =
@@ -762,6 +783,32 @@ function Detail({
                       {campusConnus.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.libelle}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Champ>
+              )}
+              {divisionRequise && (
+                <Champ
+                  libelle="Division de l’école"
+                  aide={
+                    detail.position !== null
+                      ? 'Aucun contour connu ne contient cette position. Choisissez la division de l’école : elle n’est pas déduite du lot du relais.'
+                      : 'Cette fiche n’a pas de position et le relais n’a pas de lot. Choisissez la division de l’école.'
+                  }
+                >
+                  {(a) => (
+                    <select
+                      {...a}
+                      className="champ"
+                      value={divisionId}
+                      onChange={(ev) => setDivisionId(ev.target.value)}
+                    >
+                      <option value="">Choisir une division…</option>
+                      {divisionsChoisissables.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.chemin}
                         </option>
                       ))}
                     </select>

@@ -134,6 +134,7 @@ interface LigneDetail {
   corrects_submission_id: string | null;
   outside_batch: boolean | null;
   in_open_zone: boolean | null;
+  division_id: string | null;
   possible_duplicate: boolean;
   contact_confirmed_at: string | null;
   contact_role: Valeur<'fonction_direction'> | null;
@@ -153,7 +154,7 @@ interface LigneDetail {
 const COLONNES_DETAIL =
   'id, received_at, taken_at, kind, sign_name, position, accuracy_m, levels, school_kind, curriculum_note, ' +
   'observed_programs, programs_photographed, landmark, sign_phone, direction_seen, come_back_note, ' +
-  'duplicate_answer, corrects_submission_id, outside_batch, in_open_zone, possible_duplicate, contact_confirmed_at, ' +
+  'duplicate_answer, corrects_submission_id, outside_batch, in_open_zone, division_id, possible_duplicate, contact_confirmed_at, ' +
   'contact_role, trial_validated_at, campus_id, relais(prenom), lots(nom, essai), ' +
   'doublon:campuses!field_submissions_duplicate_of_campus_id_fkey(id, label, institutions(name)), ' +
   'campus:campuses!field_submissions_campus_id_fkey(label, publication, institutions(name), geo_divisions(name))';
@@ -291,6 +292,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         essai: r.lots?.essai ?? false,
         horsLot: r.outside_batch,
         enZoneOuverte: r.in_open_zone,
+        divisionId: r.division_id,
         doublonPossible: r.possible_duplicate,
         reponseDoublon: r.duplicate_answer,
         precisionM: r.accuracy_m,
@@ -398,6 +400,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         p_institution: decision.institutionId ?? null,
         p_label: decision.etiquette ?? null,
         p_programs: (decision.formations ?? []).map((f) => versProgramme(f)),
+        p_division: decision.divisionId ?? null,
       });
       decider(error);
       return data as string;
@@ -577,12 +580,13 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         nom: string;
         essai: boolean;
         a_rendre_le: string | null;
+        rendu_le: string | null;
         geo_division_id: string;
         geo_divisions: { name: string; path: string } | null;
       }>(
         await supabase()
           .from('lots')
-          .select('id, nom, essai, a_rendre_le, geo_division_id, geo_divisions(name, path)')
+          .select('id, nom, essai, a_rendre_le, rendu_le, geo_division_id, geo_divisions(name, path)')
           .order('essai')
           .order('nom'),
       );
@@ -591,6 +595,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         nom: l.nom,
         essai: l.essai,
         aRendreLe: l.a_rendre_le,
+        renduLe: l.rendu_le,
         divisionId: l.geo_division_id,
         divisionNom: l.geo_divisions?.name ?? '',
         divisionChemin: l.geo_divisions?.path ?? '',
@@ -607,6 +612,14 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       // Un nom de lot déjà pris (23505) ou une division interdite (22023) : la base le dit en français.
       decider(error);
       return data as string;
+    },
+
+    async marquerLotRendu(lotId, rendu) {
+      const { error } = await supabase().rpc('mark_batch_returned', {
+        p_batch: lotId,
+        p_returned: rendu,
+      });
+      decider(error);
     },
 
     async activerRelais(relaisId, lotId) {
