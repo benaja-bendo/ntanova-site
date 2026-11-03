@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(24);
 
 -- L'inscription d'un relais ------------------------------------------------------------------------------------------------
 
@@ -68,7 +68,12 @@ select throws_ok($$insert into storage.objects (bucket_id, name, owner)
 select throws_ok($$insert into storage.objects (bucket_id, name, owner)
     values ('autre', '51000000-0000-4000-8000-0000000000a1/52000000-0000-4000-8000-0000000000a3.webp', '00000000-0000-4000-8000-0000000000a1')$$,
   '42501', null, 'Un autre seau est refusé par la règle (seul le seau « releves » est ouvert aux relais)');
-select is((select count(*)::int from storage.objects), 0, 'Le relais ne relit aucun fichier du seau');
+select is((select count(*)::int from storage.objects), 1, 'Le relais relit le fichier de son propre relevé (ticket #72), et seulement lui');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000b1","role":"authenticated"}', true);
+select is((select count(*)::int from storage.objects), 0, 'Un autre relais ne relit rien : le fichier est dans le dossier du relevé d''Alice');
 reset role;
 
 set local role authenticated;
@@ -76,6 +81,7 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000
 select throws_ok($$insert into storage.objects (bucket_id, name, owner)
     values ('releves', '51000000-0000-4000-8000-0000000000c1/52000000-0000-4000-8000-0000000000c1.webp', '00000000-0000-4000-8000-0000000000c1')$$,
   '42501', null, 'Un relais en attente ne dépose rien');
+select is((select count(*)::int from storage.objects), 0, 'Un relais en attente ne relit rien');
 reset role;
 
 -- L'administration voit et efface les photos ----------------------------------------------------------------------------------------------

@@ -12,3 +12,12 @@ export function lienWhatsApp(numero: string | undefined, message?: string): stri
   const lien = `https://wa.me/${chiffres}`;
   return message ? `${lien}?text=${encodeURIComponent(message)}` : lien;
 }
+
+/**
+ * Le même lien avec un autre message prérempli : le numéro reste celui de la configuration. Rien si ce n'est pas un
+ * lien `wa.me` (jamais un lien fabriqué à partir de rien).
+ */
+export function avecMessage(lien: string | null, message: string): string | null {
+  const nu = lien ? /^(https:\/\/wa\.me\/\d{8,15})(?:\?.*)?$/.exec(lien) : null;
+  return nu ? `${nu[1]}?text=${encodeURIComponent(message)}` : null;
+}

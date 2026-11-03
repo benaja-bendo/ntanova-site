@@ -416,3 +416,61 @@ textarea.champ {
     animation-duration: 3s;
   }
 }
+
+/* La carte d'une position (src/app/commun/CartePosition.tsx) --------------------------- */
+
+.carte-position {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  margin: 0;
+}
+
+.carte-position svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--rayon-m);
+  background: var(--carte-position-fond);
+}
+
+.carte-position-fond {
+  fill: var(--carte-position-fond);
+}
+
+.carte-position-precision {
+  fill: var(--carte-position-precision);
+  fill-opacity: 0.18;
+  stroke: var(--carte-position-precision);
+  stroke-width: 1.5;
+}
+
+.carte-position-repere {
+  fill: var(--carte-position-repere);
+  stroke: var(--carte-position-contour);
+  stroke-width: 2;
+}
+
+.carte-position-repere-coeur {
+  fill: var(--carte-position-contour);
+}
+
+.carte-position-legende {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}
+
+.carte-position-legende a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--marque);
+  font-weight: 700;
+}
+
+.carte-position-attribution {
+  font-size: var(--taille-mention);
+}

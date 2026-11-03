@@ -8,14 +8,14 @@
  * mesure) : on continue d'écouter, et on tente aussi une mesure moins précise
  * (Wi-Fi, antennes). On ne conclut qu'à la fin du délai.
  */
-import type { Point } from '../../modele/geo';
+import type { ErreurPosition, Point } from '../../modele/geo';
 
 export interface Mesure extends Point {
   precisionM: number;
   prisLe: string;
 }
 
-export type ErreurPosition = 'refusee' | 'indisponible' | 'trop_longue' | 'absente';
+export type { ErreurPosition };
 
 /** Les codes de GeolocationPositionError. */
 const REFUSEE = 1;

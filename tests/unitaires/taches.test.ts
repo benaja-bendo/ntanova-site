@@ -161,6 +161,33 @@ describe('une fiche que NTanova renvoie au relais', () => {
     }
   });
 
+  // Le test réel du 02/11 (ticket #72) : une fiche arrivée sans aucune photo, renvoyée pour « autre » (« il manque les
+  // images »). L'ancienne règle disait « NTanova a déjà la photo » et ne la demandait pas : le relais ne pouvait pas
+  // la remettre.
+  it('NTanova n’a reçu aucune enseigne : la photo est demandée, quel que soit le motif', () => {
+    for (const motif of [...listes.motif_decision, null] as const) {
+      expect(tachesDeLaCorrection(recu({ motif, photos: [] })).photo, String(motif)).toBe(true);
+    }
+  });
+
+  it('des photos reçues, mais pas l’enseigne : c’est l’enseigne qui manque', () => {
+    expect(
+      tachesDeLaCorrection(recu({ motif: 'autre', photos: ['programs_board', 'building'] })).photo,
+    ).toBe(true);
+  });
+
+  it('une enseigne reçue reste facultative quand le motif ne la concerne pas', () => {
+    expect(
+      tachesDeLaCorrection(recu({ motif: 'autre', photos: ['signboard', 'building'] })).photo,
+    ).toBe(false);
+  });
+
+  it('une ligne d’avant la mise à jour, sans la liste des photos : dans le doute, on demande', () => {
+    const ancienne = recu({ motif: 'autre' }) as Partial<ReleveRecu>;
+    delete ancienne.photos;
+    expect(tachesDeLaCorrection(ancienne as ReleveRecu).photo).toBe(true);
+  });
+
   it('une correction ne demande jamais de revoir la direction : son contact est déjà parti', () => {
     for (const motif of [...listes.motif_decision, null] as const) {
       expect(tachesDeLaCorrection(recu({ motif })).direction, String(motif)).toBe(false);

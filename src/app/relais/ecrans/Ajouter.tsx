@@ -37,6 +37,11 @@ import { Bandeau, Champ, Choix, EnteteEtape, Icone } from '../composants';
 import { journaliser } from '../journal';
 import { alleger, PhotoTropLourde } from '../photo';
 import { mesurerPosition, type ErreurPosition, type Mesure } from '../position';
+import { AidePosition } from './AidePosition';
+import { aideDePrecision, lireErreurPosition } from '../../../modele/aide-position';
+import { environnementActuel, etatDeLAutorisation } from '../environnement';
+import { useReprisePosition } from '../reprise-position';
+import { PhotosRecues, PositionRecue, VoirSurLaCarte } from './DejaRecu';
 
 /** Change des champs de la fiche en cours ; une fonction reçoit la fiche à jour (deux photos qui se suivent ne s'écrasent pas). */
 type Modifier = (
@@ -118,20 +123,13 @@ function BoutonSuivant({ surClic, occupe = false }: { surClic: () => void; occup
 
 // 1/3 : photo et position ------------------------------------------------------
 
-const messagesPosition: Record<ErreurPosition, string> = {
-  refusee:
-    'La position est bloquée. Dans Chrome, touchez le cadenas à gauche de l’adresse, autorisez la position, puis réessayez.',
-  indisponible:
-    'La position est introuvable. Sur un téléphone, activez la localisation. Sur un Mac, ouvrez Réglages Système, Confidentialité et sécurité, Service de localisation, et autorisez Chrome. Puis réessayez.',
-  trop_longue: 'La position tarde. Sortez devant l’entrée, à découvert, puis réessayez.',
-  absente: 'Ce téléphone ne donne pas sa position.',
-};
-
 function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier }) {
   const [erreurs, setErreurs] = useState<Erreurs>({});
   const [erreurPhoto, setErreurPhoto] = useState<string | null>(null);
   const [mesure, setMesure] = useState<Mesure | null>(null);
   const [erreurPosition, setErreurPosition] = useState<ErreurPosition | null>(null);
+  // Le téléphone et le navigateur du relais : l'aide de la position est écrite pour eux.
+  const environnement = useMemo(() => environnementActuel(), []);
   // Ce que NTanova attend du relais (absent d'une école nouvelle : tout est demandé).
   const photoExigee = fiche.taches?.photo ?? true;
   const positionAttendue = fiche.taches?.position ?? true;
@@ -232,9 +230,16 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
     fin
       .then(verifier)
       .catch((e: unknown) => {
-        const code = (e instanceof Error ? e.message : 'indisponible') as ErreurPosition;
+        const code = lireErreurPosition(e instanceof Error ? e.message : undefined);
         setErreurPosition(code);
-        void journaliser('ajouter-1', `position_${code}`);
+        // L'état de l'autorisation et l'écran d'accueil, sans rien de personnel : de quoi comprendre le blocage ensuite.
+        void etatDeLAutorisation().then((etat) =>
+          journaliser(
+            'ajouter-1',
+            `position_${code}`,
+            `autorisation : ${etat}${environnement.installee ? ' ; écran d’accueil' : ''}`,
+          ),
+        );
       })
       .finally(() => setRecherche(false));
   };
@@ -244,6 +249,9 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
     setRecherche(true);
     ecouterGps();
   };
+
+  // Le relais va dans les réglages du téléphone, puis revient : la mesure se relance toute seule.
+  useReprisePosition(erreurPosition !== null && erreurPosition !== 'absente', prendrePosition);
 
   useEffect(() => {
     monte.current = true;
@@ -273,10 +281,15 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           <h2 className="titre-section">
             La photo de l'enseigne {!photoExigee && <span className="mention">facultatif</span>}
           </h2>
-          {!photoExigee && !enseigne && (
-            <p className="mention">
-              NTanova a déjà la photo de l'enseigne. Reprenez-la seulement si elle est fausse.
-            </p>
+          {fiche.dejaRecu ? (
+            <PhotosRecues fiche={fiche} />
+          ) : (
+            !photoExigee &&
+            !enseigne && (
+              <p className="mention">
+                NTanova a déjà la photo de l'enseigne. Reprenez-la seulement si elle est fausse.
+              </p>
+            )
           )}
           {enseigne && apercus[enseigne.id] ? (
             <div className="apercu-photo">
@@ -413,6 +426,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
         <section className="carte-blanche pile-serree">
           <h2 className="titre-section">La position, devant l'entrée</h2>
+          {fiche.dejaRecu && <PositionRecue fiche={fiche} />}
           {recherche && (
             <p className="rang" aria-live="polite">
               <span className="roue" aria-hidden="true" />
@@ -434,12 +448,18 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
                   la position.
                 </p>
               )}
+              {aideDePrecision(precision, environnement) && (
+                <p className="message-attention">{aideDePrecision(precision, environnement)}</p>
+              )}
+              <VoirSurLaCarte
+                position={fiche.position}
+                precisionM={precision}
+                legende="Position prise maintenant"
+              />
             </>
           )}
           {erreurPosition && (
-            <p className="message-erreur" role="alert">
-              {messagesPosition[erreurPosition]}
-            </p>
+            <AidePosition erreur={erreurPosition} surReessayer={prendrePosition} />
           )}
           {!positionAttendue && !fiche.position && !recherche && !erreurPosition && (
             <p className="mention">
@@ -447,13 +467,15 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
               fausse.
             </p>
           )}
-          {!recherche && (
+          {!recherche && !erreurPosition && (
             <button
               type="button"
               className="bouton bouton-secondaire bouton-petit"
               onClick={prendrePosition}
             >
-              {fiche.position ? 'Reprendre la position' : 'Prendre la position'}
+              {fiche.position || fiche.dejaRecu?.position
+                ? 'Reprendre la position'
+                : 'Prendre la position'}
             </button>
           )}
           {erreurPosition && !fiche.position && (
