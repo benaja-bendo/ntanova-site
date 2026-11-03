@@ -28,6 +28,10 @@ export interface Memoire {
   /** Sa paie, telle que NTanova l'a lue la dernière fois : elle se lit aussi sans réseau. */
   paie: MaPaie;
   dernierEnvoi: string;
+  /** Le jour où le relais a fini (ou passé) ses premiers pas (ticket #79) : la carte « Premiers pas » ne revient plus. */
+  premiersPas: string;
+  /** Une photo de test, le temps de vérifier qu'elle se relit : effacée aussitôt, jamais envoyée. */
+  testPhoto: Blob;
 }
 
 interface LigneMemoire {

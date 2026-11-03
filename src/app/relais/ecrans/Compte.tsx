@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { avertissementDeDeconnexion, ceQuiResteSurLeTelephone } from '../../../modele/compte';
 import { base, compteConnecte, lireMemoire, useRequete } from '../base-locale';
 import { Entete, Navigation } from '../composants';
-import { useEnLigne, useRelais } from '../contexte';
+import { aller, useEnLigne, useRelais } from '../contexte';
 import { journaliser } from '../journal';
 
 /**
@@ -63,6 +63,18 @@ export function Compte() {
               Écrivez à NTanova sur WhatsApp, au numéro donné pendant la formation.
             </p>
           )}
+        </section>
+
+        <section className="carte-blanche pile-serree" aria-label="Mon téléphone">
+          <p className="surtitre-doux">Mon téléphone</p>
+          <p>La position, la photo et la connexion marchent-elles ? Deux minutes pour le savoir.</p>
+          <button
+            type="button"
+            className="bouton bouton-secondaire"
+            onClick={() => aller('premiers-pas')}
+          >
+            Tester mon téléphone
+          </button>
         </section>
 
         {demande && reste ? (
