@@ -40,7 +40,7 @@ import { messageErreur } from './ChampPosition';
 import { Formations } from './Formations';
 import { Pont } from './Pont';
 
-type Filtre = 'tout' | 'releve' | 'correction' | 'contre_visite' | 'decidees';
+type Filtre = 'tout' | 'releve' | 'correction' | 'contre_visite' | 'renvoyees' | 'decidees';
 
 const libelleType: Record<ReleveAValider['type'], string> = {
   releve: 'Nouvelle fiche',
@@ -122,10 +122,15 @@ export function AValider({
     (releves ?? []).filter((r) => filtre === 'tout' || r.type === filtre),
   );
   const maintenant = new Date();
-  const selection =
-    filtre === 'decidees'
-      ? (decides?.find((r) => r.id === choisi) ?? null)
-      : (visibles.find((r) => r.id === choisi) ?? null);
+  // « Renvoyées » : les fiches qui attendent leur relais, sorties de la file (ticket #92). Comme « Décidées », en lecture seule.
+  const surLesDecidees = filtre === 'decidees' || filtre === 'renvoyees';
+  const decidesVisibles =
+    filtre === 'renvoyees'
+      ? (decides ?? []).filter((r) => r.statut === 'a_corriger')
+      : (decides ?? []);
+  const selection = surLesDecidees
+    ? (decidesVisibles.find((r) => r.id === choisi) ?? null)
+    : (visibles.find((r) => r.id === choisi) ?? null);
 
   const apresDecision = (texte: string) => {
     setAnnonce(texte);
@@ -155,6 +160,7 @@ export function AValider({
               ['releve', 'Nouvelles fiches'],
               ['correction', 'Corrections'],
               ['contre_visite', 'Contre-visites'],
+              ['renvoyees', 'Renvoyées'],
               ['decidees', 'Décidées'],
             ] as const
           ).map(([valeur, libelle]) => (
@@ -184,12 +190,16 @@ export function AValider({
       )}
 
       <div className={`admin-file${selection ? ' avec-selection' : ''}`}>
-        {filtre === 'decidees' ? (
+        {surLesDecidees ? (
           <ul className="admin-liste" aria-label="Décisions récentes">
-            {decides !== null && decides.length === 0 && (
-              <li className="texte-doux">Aucune décision pour le moment.</li>
+            {decides !== null && decidesVisibles.length === 0 && (
+              <li className="texte-doux">
+                {filtre === 'renvoyees'
+                  ? 'Aucune fiche n’attend son relais.'
+                  : 'Aucune décision pour le moment.'}
+              </li>
             )}
-            {decides?.map((r) => (
+            {decidesVisibles.map((r) => (
               <li key={r.id}>
                 <a
                   href={`#valider/${r.id}`}
@@ -203,7 +213,13 @@ export function AValider({
                 >
                   <span className="admin-ligne-tete">
                     <b>{r.nomEnseigne}</b>
-                    <span className="mention">{r.decideLe ? jour(r.decideLe) : ''}</span>
+                    <span className="mention">
+                      {r.decideLe
+                        ? filtre === 'renvoyees'
+                          ? `Renvoyée ${ageDe(r.decideLe, maintenant).texte}`
+                          : jour(r.decideLe)
+                        : ''}
+                    </span>
                   </span>
                   <span className="mention">
                     {libelleType[r.type]} · {r.relais}
@@ -255,7 +271,7 @@ export function AValider({
             key={selection.id}
             admin={admin}
             id={selection.id}
-            lectureSeule={filtre === 'decidees'}
+            lectureSeule={surLesDecidees}
             surDecision={apresDecision}
             surAnnonce={setAnnonce}
           />

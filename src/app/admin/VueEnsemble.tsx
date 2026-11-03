@@ -13,6 +13,7 @@ import {
   type PortAdministration,
   type VueEnsemble as Vue,
 } from '../../modele/ports';
+import { resumerLesRenvoyees } from '../../modele/renvoyees';
 import { zonesOuvertesRacines } from '../../modele/vue-ensemble';
 import { Bandeau } from '../../ui/composants';
 import { aller } from '../commun/adresse';
@@ -58,14 +59,16 @@ export function VueEnsemble({
 }) {
   const [vue, setVue] = useState<Vue | null>(null);
   const [zones, setZones] = useState<DivisionVue[]>([]);
+  const [renvoyees, setRenvoyees] = useState<ReturnType<typeof resumerLesRenvoyees> | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
   useEffect(() => {
     let abandonne = false;
-    Promise.all([admin.vueEnsemble(14), admin.divisions()])
-      .then(([v, d]) => {
+    Promise.all([admin.vueEnsemble(14), admin.divisions(), admin.relevesDecides()])
+      .then(([v, d, decides]) => {
         if (abandonne) return;
         setVue(v);
+        setRenvoyees(resumerLesRenvoyees(decides, new Date()));
         setZones(zonesOuvertesRacines(d));
         setErreur(null);
         // Le menu dit combien de fiches attendent, d'où qu'on arrive.
@@ -145,6 +148,28 @@ export function VueEnsemble({
               >
                 Voir la file
               </a>
+            </Chiffre>
+
+            <Chiffre titre="Renvoyées aux relais" valeur={String(renvoyees?.nombre ?? 0)}>
+              {renvoyees && renvoyees.nombre > 0 && renvoyees.plusAncienne ? (
+                <p className="mention">
+                  La plus ancienne attend son relais {renvoyees.plusAncienne.texte}.
+                </p>
+              ) : (
+                <p className="mention">Aucune fiche n’attend son relais.</p>
+              )}
+              {renvoyees && renvoyees.nombre > 0 && (
+                <a
+                  className="lien"
+                  href="#valider"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    aller('valider');
+                  }}
+                >
+                  Voir dans « À valider », filtre « Renvoyées »
+                </a>
+              )}
             </Chiffre>
 
             <Chiffre titre="Relevés cette semaine" valeur={String(recusSemaine)}>

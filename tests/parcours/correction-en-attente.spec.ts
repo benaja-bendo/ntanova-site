@@ -60,6 +60,9 @@ async function renvoyerPourLaPhoto(page: Page) {
 /** La correction (la fiche « Correction · … » de la liste) est ouverte. */
 async function ouvrirLaCorrection(page: Page) {
   await page.goto('/admin/#valider');
+  // Une navigation par le dièse ne recharge rien : la liste lue avant l'ajout de la correction serait périmée (un parcours
+  // qui passait ou non selon la charge de la machine).
+  await page.reload();
   await expect(page.getByRole('heading', { name: 'À valider', level: 1 })).toBeVisible();
   await page.getByRole('link', { name: /Correction/ }).click();
   await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();

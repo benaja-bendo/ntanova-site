@@ -158,6 +158,11 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - **Elle hérite de la fiche d'origine** : « corriger pour la photo » ne redemande pas la position, la correction n'en a donc pas. `accept_submission` (migration `20261103120000`) reprend **la position de la fiche d'origine**, puis son secteur quand aucune position ne donne la division ; la position de la correction l'emporte quand le relais l'a refaite. L'écran affiche les mêmes valeurs (`heriterDeLOrigine`, calculées par l'adaptateur) ; le faux serveur fait de même. Une correction d'une école déjà créée ne change pas : le campus garde sa position.
 - **Le faux serveur est fidèle sur un point** : un relais sans secteur n'a pas de lot (`lot: null`), il ne retombe plus sur le premier lot.
 
+### Les fiches renvoyées au relais (ticket #92)
+
+- **Une fiche renvoyée « à corriger » sort de la file de l'administration : elle attend le relais.** Sans rien pour la montrer, elle « disparaissait » (le fondateur ne retrouvait plus une fiche reçue la veille). « À valider » a un filtre **« Renvoyées »** (en lecture seule, avec « Renvoyée depuis 20 h »), et l'accueil une carte **« Renvoyées aux relais »** (le nombre, depuis quand la plus ancienne) : `src/modele/renvoyees.ts`, sans migration.
+- **Côté relais, un refus gardé dans le téléphone est périmé dès que NTanova a décidé** (`refusEstPerime`) : « la photo n'est plus lisible, prévenez NTanova » ne s'affiche plus pour une fiche que NTanova a déjà renvoyée, acceptée ou refusée, et « Réessayer » non plus (il ne peut pas redonner une photo perdue). Tant que la fiche attend NTanova (`a_valider`), le refus reste : la fiche est bien arrivée sans sa photo.
+
 ### La carte de position (ticket #72)
 
 - **Une grille de six tuiles d'OpenStreetMap au plus, un repère et le cercle de la précision, en SVG, sans bibliothèque de cartes** : `src/modele/tuiles.ts` (le calcul, pur) et `src/app/commun/CartePosition.tsx` (le dessin). Elle montre une position déjà prise : celle d'une fiche qu'on corrige (le relais la voit au milieu de « Corriger une fiche », avec ses photos, `src/app/relais/ecrans/DejaRecu.tsx`) ou celle que le téléphone vient de mesurer (« Voir sur la carte »). Les coordonnées et un lien vers l'application de cartes sont toujours écrits dessous : **sans réseau, la carte le dit et le reste tient**.

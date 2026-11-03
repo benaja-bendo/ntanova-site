@@ -6,6 +6,7 @@ import {
   peutEtreModifiee,
   phraseDEchecDeLaFiche,
 } from '../../../modele/envoi';
+import { refusEstPerime } from '../../../modele/renvoyees';
 import type { FicheLocale } from '../../../modele/fiche';
 import type { ReleveRecu } from '../../../modele/ports';
 import { libelleFonctionCourt, libelleMotif, libelleStatutReleve } from '../../../modele/libelles';
@@ -130,7 +131,12 @@ function depuisServeur(
           : null;
   const aCorriger = r.statut === 'a_corriger' && !corrigees.has(r.id);
   // La photo ou le contact refusés : NTanova a la fiche, mais le relais doit voir ce qui n'est pas arrivé.
-  const gestes = gestesDe(local?.etat === 'envoyee' ? undefined : local);
+  const gestesDuTelephone = gestesDe(local?.etat === 'envoyee' ? undefined : local);
+  // NTanova a décidé de cette fiche : le refus gardé dans le téléphone (« la photo n'est plus lisible, prévenez NTanova »)
+  // n'a plus lieu d'être, et « Réessayer » ne peut pas redonner une photo perdue (ticket #92).
+  const gestes = refusEstPerime(r.statut)
+    ? { ...gestesDuTelephone, refus: null, peutReessayer: false }
+    : gestesDuTelephone;
   return {
     id: r.id,
     nom: r.nomEnseigne,
