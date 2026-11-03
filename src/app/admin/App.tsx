@@ -113,7 +113,7 @@ export default function App() {
     { chemin: 'ecoles', libelle: 'Écoles', compte: null },
     { chemin: 'zones', libelle: 'Zones', compte: null },
     { chemin: 'relais', libelle: 'Relais', compte: null },
-    { chemin: 'sante', libelle: 'Santé des envois', compte: null },
+    { chemin: 'sante', libelle: 'Santé', compte: null },
     { chemin: 'paie', libelle: 'Paie', compte: null },
   ];
 

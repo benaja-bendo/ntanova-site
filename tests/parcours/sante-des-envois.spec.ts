@@ -69,7 +69,7 @@ test.describe('Santé des envois', () => {
     await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
     await poserLeJournal(page);
 
-    await page.getByRole('link', { name: 'Santé des envois' }).click();
+    await page.getByRole('link', { name: 'Santé', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Santé des envois', level: 1 })).toBeVisible();
 
     // Trois lignes identiques : une seule ligne, avec son nombre et l'appareil en clair.
@@ -99,7 +99,7 @@ test.describe('Santé des envois', () => {
     await seConnecter(page, '/admin/');
     await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
     await poserLeJournal(page);
-    await page.getByRole('link', { name: 'Santé des envois' }).click();
+    await page.getByRole('link', { name: 'Santé', exact: true }).click();
     await expect(page.getByText(/La position est refusée/)).toBeVisible();
 
     await page.getByLabel('Période').selectOption('tout');
@@ -113,7 +113,7 @@ test.describe('Santé des envois', () => {
   test('un journal vide le dit', async ({ page }) => {
     await seConnecter(page, '/admin/');
     await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
-    await page.getByRole('link', { name: 'Santé des envois' }).click();
+    await page.getByRole('link', { name: 'Santé', exact: true }).click();
     await expect(page.getByText('Aucun signal sur cette période.')).toBeVisible();
   });
 });
