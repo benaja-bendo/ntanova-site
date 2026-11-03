@@ -215,7 +215,7 @@ export function MesFiches() {
 
   const corriger = async (l: Ligne) => {
     if (!l.recu) return;
-    if ((await commencerCorrection(l.recu)) === 'brouillon_existant') {
+    if ((await commencerCorrection(l.recu, recus)) === 'brouillon_existant') {
       setAvis(avisDesGestes.brouillon_existant);
     }
   };

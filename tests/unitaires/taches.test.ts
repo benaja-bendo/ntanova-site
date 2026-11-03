@@ -188,10 +188,67 @@ describe('une fiche que NTanova renvoie au relais', () => {
     expect(tachesDeLaCorrection(ancienne as ReleveRecu).photo).toBe(true);
   });
 
-  it('une correction ne demande jamais de revoir la direction : son contact est déjà parti', () => {
+  it('une correction ne redemande pas la direction quand son contact est arrivé chez NTanova', () => {
     for (const motif of [...listes.motif_decision, null] as const) {
-      expect(tachesDeLaCorrection(recu({ motif })).direction, String(motif)).toBe(false);
+      expect(
+        tachesDeLaCorrection(recu({ motif, direction: 'vue', aContact: true })).direction,
+        String(motif),
+      ).toBe(false);
     }
+  });
+
+  // Fiche ESTAM du 03/11 (ticket #94) : le premier envoi s'était arrêté sur la photo, avant le contact. La correction
+  // disait « rien à refaire » : le contact était perdu pour de bon, et le relais ne pouvait plus le redonner.
+  it('la direction a été vue mais son contact n’est pas arrivé : la correction le redemande, quel que soit le motif', () => {
+    for (const motif of [...listes.motif_decision, null] as const) {
+      expect(
+        tachesDeLaCorrection(recu({ motif, direction: 'vue', aContact: false })).direction,
+        String(motif),
+      ).toBe(true);
+    }
+  });
+
+  it('une direction absente, qui a refusé ou dont on ne sait rien : rien à redemander', () => {
+    for (const direction of ['absente', 'refus', null] as const) {
+      expect(
+        tachesDeLaCorrection(recu({ direction, aContact: false })).direction,
+        String(direction),
+      ).toBe(false);
+    }
+  });
+
+  it('une ligne d’avant la mise à jour, sans « contact arrivé » : dans le doute, on demande', () => {
+    const ancienne = recu({ direction: 'vue' }) as Partial<ReleveRecu>;
+    delete ancienne.aContact;
+    expect(tachesDeLaCorrection(ancienne as ReleveRecu).direction).toBe(true);
+  });
+
+  // Le contact reste attaché à la fiche qui l'a reçu : une correction de correction ne le redemande pas non plus.
+  it('le contact arrivé avec une fiche qu’on corrige déjà n’est pas redemandé, à quelque rang que ce soit', () => {
+    const origine = recu({ id: 'origine', aContact: true });
+    const premiere = recu({
+      id: 'premiere',
+      type: 'correction',
+      corrigeReleveId: 'origine',
+      aContact: false,
+    });
+    const seconde = recu({
+      id: 'seconde',
+      type: 'correction',
+      corrigeReleveId: 'premiere',
+      aContact: false,
+    });
+    expect(tachesDeLaCorrection(premiere, [origine, premiere, seconde]).direction).toBe(false);
+    expect(tachesDeLaCorrection(seconde, [origine, premiere, seconde]).direction).toBe(false);
+    // Aucun contact nulle part dans la chaîne : on le redemande.
+    const sansContact = { ...origine, aContact: false };
+    expect(tachesDeLaCorrection(seconde, [sansContact, premiere, seconde]).direction).toBe(true);
+  });
+
+  it('une chaîne qui boucle ne fait pas boucler le relais', () => {
+    const a = recu({ id: 'a', corrigeReleveId: 'b', aContact: false });
+    const b = recu({ id: 'b', corrigeReleveId: 'a', aContact: false });
+    expect(tachesDeLaCorrection(a, [a, b]).direction).toBe(true);
   });
 
   it('reprend le message de NTanova, sinon le motif en clair', () => {

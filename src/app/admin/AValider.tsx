@@ -467,7 +467,8 @@ function Detail({
   const effacerContact = async () => {
     setErreur(null);
     try {
-      await admin.effacerContact(id, null);
+      // Le contact s'efface de la fiche qui le porte : la fiche d'origine, quand il est arrivé avec elle (ticket #94).
+      await admin.effacerContact(contact?.releveId ?? id, null);
       setContact(null);
       setEfface('Le contact de la direction est effacé.');
     } catch (e) {
@@ -685,6 +686,9 @@ function Detail({
         {contact && (
           <>
             {detail.direction === 'refus' && <p>La direction a refusé.</p>}
+            {contact.releveId && contact.releveId !== id && (
+              <p className="mention">Ce contact est arrivé avec la fiche d’origine.</p>
+            )}
             <dl className="admin-champs">
               {contact.fonction && (
                 <>

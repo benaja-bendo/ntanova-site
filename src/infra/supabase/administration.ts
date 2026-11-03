@@ -411,18 +411,25 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
     },
 
     async contactReleve(id): Promise<ContactDirection | null> {
-      const lignes = lireListe<{
-        role: Valeur<'fonction_direction'> | null;
-        name: string | null;
-        whatsapp: string | null;
-        contact_agreement: boolean;
-        agreement_at: string | null;
-        said_note: string | null;
-        received_at: string;
-      }>(await supabase().rpc('contact_of_submission', { p_submission: id }));
-      const c = lignes[0];
-      return c
-        ? {
+      // Le contact reste attaché à la fiche qui l'a reçu : celui d'une fiche qu'on corrige se lit sur sa correction, que le
+      // relais l'ait redonné ou non (ticket #94). On remonte la chaîne des fiches corrigées, sans jamais boucler ; une
+      // lecture de la fiche d'avant qui échoue arrête la chaîne : le détail de la fiche s'affiche quand même.
+      const vus = new Set<string>();
+      let courant: string | null = id;
+      while (courant !== null && !vus.has(courant)) {
+        vus.add(courant);
+        const lignes = lireListe<{
+          role: Valeur<'fonction_direction'> | null;
+          name: string | null;
+          whatsapp: string | null;
+          contact_agreement: boolean;
+          agreement_at: string | null;
+          said_note: string | null;
+          received_at: string;
+        }>(await supabase().rpc('contact_of_submission', { p_submission: courant }));
+        const c = lignes[0];
+        if (c) {
+          return {
             fonction: c.role,
             nom: c.name,
             whatsapp: c.whatsapp,
@@ -430,8 +437,18 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
             accordLe: c.agreement_at,
             note: c.said_note,
             recuLe: c.received_at,
-          }
-        : null;
+            releveId: courant,
+          };
+        }
+        const parent: { data: unknown; error: unknown } = await supabase()
+          .from('field_submissions')
+          .select('corrects_submission_id')
+          .eq('id', courant)
+          .maybeSingle();
+        const ligne = parent.data as { corrects_submission_id: string | null } | null;
+        courant = parent.error ? null : (ligne?.corrects_submission_id ?? null);
+      }
+      return null;
     },
 
     async accepter(id, decision: DecisionAcceptation = {}) {

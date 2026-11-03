@@ -10,7 +10,7 @@ type Reponse = { data: unknown; error: { code?: string; message?: string } | nul
  * table répond ses lignes, et garde la suite des appels qu'on lui a faits (select, update…).
  */
 function fausseApi(
-  rpc: Record<string, Reponse> = {},
+  rpc: Record<string, Reponse | ((args: unknown) => Reponse)> = {},
   tables: Record<string, unknown[]> = {},
   erreurs: Record<string, { code?: string; message?: string }> = {},
 ) {
@@ -43,7 +43,10 @@ function fausseApi(
   const client = {
     rpc: (nom: string, args: unknown) => {
       appels.push({ nom, arguments: args });
-      return Promise.resolve(rpc[nom] ?? { data: null, error: null });
+      const reponse = rpc[nom];
+      return Promise.resolve(
+        typeof reponse === 'function' ? reponse(args) : (reponse ?? { data: null, error: null }),
+      );
     },
     from: (table: string) => requete(tables[table] ?? [], table),
     storage: {
@@ -290,6 +293,52 @@ describe('l’adaptateur Supabase de l’administration', () => {
     it('dit « aucun contact » quand la base n’en a pas', async () => {
       const { port } = fausseApi({ contact_of_submission: { data: [], error: null } });
       await expect(port.contactReleve('r1')).resolves.toBeNull();
+    });
+
+    // Le contact reste attaché à la fiche qui l'a reçu : celui d'une fiche qu'on corrige se lit sur sa correction (#94).
+    const contactDeLOrigine = {
+      role: 'directeur',
+      name: '[Nom]',
+      whatsapp: '242061234567',
+      contact_agreement: true,
+      agreement_at: '2026-11-02T08:00:00Z',
+      said_note: null,
+      received_at: '2026-11-02T09:00:00Z',
+    };
+
+    it('une correction sans contact lit celui de la fiche qu’elle corrige, et dit laquelle le porte', async () => {
+      const { port } = fausseApi(
+        {
+          contact_of_submission: (args) =>
+            (args as { p_submission: string }).p_submission === 'origine'
+              ? { data: [contactDeLOrigine], error: null }
+              : { data: [], error: null },
+        },
+        { field_submissions: [{ corrects_submission_id: 'origine' }] },
+      );
+      await expect(port.contactReleve('correction')).resolves.toMatchObject({
+        fonction: 'directeur',
+        whatsapp: '242061234567',
+        releveId: 'origine',
+      });
+    });
+
+    it('le contact de la fiche elle-même l’emporte, sans chercher plus loin', async () => {
+      const { port, appels } = fausseApi(
+        { contact_of_submission: { data: [contactDeLOrigine], error: null } },
+        { field_submissions: [{ corrects_submission_id: 'origine' }] },
+      );
+      await expect(port.contactReleve('r1')).resolves.toMatchObject({ releveId: 'r1' });
+      expect(appels.filter((a) => a.nom === 'contact_of_submission')).toHaveLength(1);
+    });
+
+    it('aucun contact dans la chaîne, même si elle boucle : rien, et la lecture s’arrête', async () => {
+      const { port, appels } = fausseApi(
+        { contact_of_submission: { data: [], error: null } },
+        { field_submissions: [{ corrects_submission_id: 'r1' }] },
+      );
+      await expect(port.contactReleve('r1')).resolves.toBeNull();
+      expect(appels.filter((a) => a.nom === 'contact_of_submission')).toHaveLength(1);
     });
 
     it('rend les photos d’un relevé avec une adresse temporaire, sans jamais exposer le chemin', async () => {

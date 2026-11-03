@@ -751,6 +751,14 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
         {choixDeLaDirection && (
           <>
+            {fiche.type === 'correction' && fiche.taches?.direction && (
+              <Bandeau ton="attente" icone="alerte">
+                <p>
+                  <b>À redonner.</b> Le contact de la direction n’est pas arrivé chez NTanova avec
+                  la première fiche. Donnez-le de nouveau : il reste privé.
+                </p>
+              </Bandeau>
+            )}
             <Choix
               legende="Avez-vous vu la direction ?"
               options={listes.direction_vue.map((d) => ({
@@ -949,7 +957,10 @@ export async function commencerContreVisite(
  * Depuis « Mes fiches » : une correction, qui part comme une nouvelle fiche liée à l'ancienne, avec tout ce que le
  * relais avait saisi. Comme ci-dessus, jamais en écrasant une fiche en cours.
  */
-export async function commencerCorrection(recu: ReleveRecu): Promise<'ok' | 'brouillon_existant'> {
+export async function commencerCorrection(
+  recu: ReleveRecu,
+  autres: readonly ReleveRecu[] = [],
+): Promise<'ok' | 'brouillon_existant'> {
   if (await brouillonDuCompte()) return 'brouillon_existant';
   const profil = await lireMemoire('profil');
   const fiche = {
@@ -958,6 +969,7 @@ export async function commencerCorrection(recu: ReleveRecu): Promise<'ok' | 'bro
       new Date().toISOString(),
       profil?.lotId ?? null,
       recu,
+      autres,
     ),
     compteId: profil?.id ?? null,
   };
@@ -993,7 +1005,7 @@ function EncartTaches({ fiche }: { fiche: FicheLocale }) {
       nom: 'La direction (étape 3/3)',
       faire: taches.direction,
       fait: 'Rien à refaire',
-      a: 'À voir',
+      a: fiche.type === 'correction' ? 'Contact à redonner' : 'À voir',
     },
   ];
   return (
