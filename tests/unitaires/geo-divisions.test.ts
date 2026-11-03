@@ -34,6 +34,7 @@ function division(
     alias: [],
     deploiement: null,
     position: null,
+    contour: null,
     verifieeLe: null,
     ouverte: false,
     ...reste,

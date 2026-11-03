@@ -1,3 +1,4 @@
+import type { MultiPolygone } from '../../modele/geo';
 import { sansRepetition } from '../../modele/geo-divisions';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import type {
@@ -52,7 +53,8 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
         open_for_fieldwork: boolean;
         public_status: 'actif' | 'programme' | null;
         position: { type: 'Point'; coordinates: [number, number] } | null;
-      }>('geo_divisions?select=id,parent_id,level,kind,name,slug,ordinal,aliases,verified_on,open_for_fieldwork,public_status,position&order=id');
+        boundary: { type: 'MultiPolygon'; coordinates: MultiPolygone } | null;
+      }>('geo_divisions?select=id,parent_id,level,kind,name,slug,ordinal,aliases,verified_on,open_for_fieldwork,public_status,position,boundary&order=id');
       const parId = new Map(lignes.map((l) => [l.id, l]));
       const adresse = (l: (typeof lignes)[number]): string[] => {
         const parent = l.parent_id ? parId.get(l.parent_id) : undefined;
@@ -75,6 +77,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           position: l.position
             ? { longitude: l.position.coordinates[0], latitude: l.position.coordinates[1] }
             : null,
+          contour: l.boundary?.type === 'MultiPolygon' ? l.boundary.coordinates : null,
         }))
         .sort((a, b) => a.niveau - b.niveau || a.nom.localeCompare(b.nom, 'fr'));
     })());
