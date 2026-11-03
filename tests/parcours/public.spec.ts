@@ -549,6 +549,11 @@ test.describe('les données de la carte', () => {
       niveaux: ['Maternelle', 'Primaire'],
       cycle: 'primaire',
       lettre: 'P',
+      // Ticket 113 : de quoi trier, filtrer par cycle et composer l'aperçu sans table de correspondance dans l'îlot.
+      rang: 2,
+      lettres: 'MP',
+      type: 'Privée',
+      repere: '[face au marché]',
       preuve: 'terrain',
     });
     expect(brut).not.toMatch(/0600000|whatsapp|contact/i);
