@@ -479,3 +479,46 @@ test.describe('site public', () => {
     await expect(page.getByText(/n'est plus publiée/)).toBeVisible();
   });
 });
+
+// Ticket #101 : un lien partagé sur WhatsApp montre l'école (OpenGraph, image construite avec le site, JSON-LD).
+test.describe('le partage d’un lien', () => {
+  const meta = (page: import('@playwright/test').Page, propriete: string) =>
+    page.locator(`meta[property="${propriete}"]`).getAttribute('content');
+
+  for (const adresse of pagesSansJavaScript) {
+    test(`${adresse} : titre, description, adresse canonique et image de partage`, async ({
+      page,
+      request,
+    }) => {
+      await page.goto(adresse);
+      expect(await meta(page, 'og:title')).toBeTruthy();
+      expect(await meta(page, 'og:description')).toBeTruthy();
+      expect(await meta(page, 'og:url')).toMatch(/^https:\/\/ntanova\.com\//);
+      const image = await meta(page, 'og:image');
+      expect(image).toMatch(/^https:\/\/ntanova\.com\/partage\/.+\.png$/);
+      // L'image existe dans le site construit, et c'est un PNG léger.
+      const reponse = await request.get(new URL(image ?? '').pathname);
+      expect(reponse.status()).toBe(200);
+      expect(reponse.headers()['content-type']).toContain('image/png');
+      expect((await reponse.body()).length).toBeLessThan(300_000);
+    });
+  }
+
+  test('une fiche a son image, sa preuve dans la description, et ses données schema.org, sans rien de privé', async ({
+    page,
+  }) => {
+    await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+    expect(await meta(page, 'og:image')).toBe(
+      'https://ntanova.com/partage/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple.png',
+    );
+    expect(await meta(page, 'og:description')).toContain('Vue sur place le 2 novembre 2026');
+    expect(await page.locator('link[rel="canonical"]').getAttribute('href')).toBe(
+      'https://ntanova.com/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/',
+    );
+    const brut = await page.locator('script[type="application/ld+json"]').textContent();
+    const donnees = JSON.parse(brut ?? '{}') as Record<string, unknown>;
+    expect(donnees['@type']).toBe('School');
+    expect(donnees.name).toBe('[Complexe scolaire Exemple]');
+    expect(brut).not.toMatch(/whatsapp|direction|contact/i);
+  });
+});

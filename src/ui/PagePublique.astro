@@ -5,6 +5,7 @@ import './base.css';
 import './composants.css';
 import './public.css';
 import Marque from './Marque.astro';
+import { HAUTEUR_PARTAGE, IMAGE_PARTAGE_SITE, LARGEUR_PARTAGE } from '../modele/partage';
 
 interface Props {
   titre: string;
@@ -13,8 +14,22 @@ interface Props {
   whatsapp?: string | null;
   /** Une page de renvoi (fiche fusionnée) : l'adresse où aller, sans JavaScript. */
   renvoi?: string;
+  /** L'image que WhatsApp montre sous un lien partagé (ticket 101) : celle de la fiche, sinon celle du site. */
+  image?: { chemin: string; alt: string };
+  /** Les données structurées de la page (`schema.org`), écrites en JSON-LD : jamais exécutées. */
+  donnees?: Record<string, unknown>;
 }
-const { titre, description, whatsapp = null, renvoi } = Astro.props;
+const {
+  titre,
+  description,
+  whatsapp = null,
+  renvoi,
+  image = { chemin: IMAGE_PARTAGE_SITE, alt: 'NTanova : les écoles près de chez vous' },
+  donnees,
+} = Astro.props;
+// Les adresses absolues que demandent les aperçus de lien : celles de ntanova.com (`site` d'astro.config.mjs).
+const absolue = (chemin: string) => new URL(chemin, Astro.site ?? Astro.url).href;
+const canonique = absolue(Astro.url.pathname);
 const chemin = Astro.url.pathname;
 const surPourLesEcoles = chemin.startsWith('/pour-les-ecoles');
 const surEcoles =
@@ -35,6 +50,20 @@ const surEcoles =
         <meta name="robots" content="noindex" />
       </>
     )}
+    {!renvoi && <link rel="canonical" href={canonique} />}
+    <meta property="og:site_name" content="NTanova" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:type" content={donnees ? 'article' : 'website'} />
+    <meta property="og:title" content={titre} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonique} />
+    <meta property="og:image" content={absolue(image.chemin)} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content={String(LARGEUR_PARTAGE)} />
+    <meta property="og:image:height" content={String(HAUTEUR_PARTAGE)} />
+    <meta property="og:image:alt" content={image.alt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    {donnees && <script type="application/ld+json" set:html={JSON.stringify(donnees)} />}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link
       rel="preload"

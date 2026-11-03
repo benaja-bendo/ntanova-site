@@ -12,6 +12,7 @@ import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../../infra/index';
 import { coinsDe, arrondissementDessine, surCarte } from '../../modele/carte/plan';
 import { lienCarte, lienDivision, lienEcole } from '../../modele/geo-divisions';
+import { cheminImagePartage, donneesEcole, preuveDePartage } from '../../modele/partage';
 import { lienWhatsApp } from '../../modele/whatsapp';
 import FicheEcole from '../../ui/FicheEcole.astro';
 import HubDivision from '../../ui/HubDivision.astro';
@@ -108,8 +109,10 @@ const erreur = e
 ) : e && zone ? (
   <PagePublique
     titre={`${e.nom}${e.etiquette ? ` (${e.etiquette})` : ''} · ${zone.division.nom} · NTanova`}
-    description={`${e.nom}, à ${zone.noms.join(', ')} : niveaux, formations, type, repère et itinéraire.`}
+    description={`${e.nom}, à ${zone.noms.join(', ')} : niveaux, formations, type, repère et itinéraire. ${preuveDePartage(e).texte}.`}
     whatsapp={whatsapp}
+    image={{ chemin: cheminImagePartage(e), alt: `${e.nom} : ${preuveDePartage(e).texte}` }}
+    donnees={donneesEcole(e, new URL(lienEcole(e), Astro.site ?? Astro.url).href)}
   >
     <FicheEcole e={e} zone={zone} autres={autres} erreur={erreur} />
   </PagePublique>
