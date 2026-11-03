@@ -13,6 +13,7 @@ import { Ecoles } from './Ecoles';
 import { ListeRelais } from './ListeRelais';
 import { Paie } from './Paie';
 import { Sante } from './Sante';
+import { VueEnsemble } from './VueEnsemble';
 import { Zones } from './Zones';
 import './admin.css';
 
@@ -38,7 +39,7 @@ export default function App() {
   const [utilisateur, setUtilisateur] = useState<Utilisateur | null | undefined>(undefined);
   const [acces, setAcces] = useState<Acces>('verification');
   const [aValider, setAValider] = useState<number | null>(null);
-  const [ecran = 'valider'] = useAdresse();
+  const [ecran = 'accueil'] = useAdresse();
 
   useEffect(() => {
     void obtenirAdaptateurs().then(async (a) => {
@@ -109,6 +110,7 @@ export default function App() {
   }
 
   const onglets = [
+    { chemin: 'accueil', libelle: 'Accueil', compte: null },
     { chemin: 'valider', libelle: 'À valider', compte: aValider },
     { chemin: 'ecoles', libelle: 'Écoles', compte: null },
     { chemin: 'zones', libelle: 'Zones', compte: null },
@@ -159,8 +161,10 @@ export default function App() {
           <Sante admin={adaptateurs.admin} />
         ) : ecran === 'paie' ? (
           <Paie admin={adaptateurs.admin} />
-        ) : (
+        ) : ecran === 'valider' ? (
           <AValider admin={adaptateurs.admin} surCompte={compter} />
+        ) : (
+          <VueEnsemble admin={adaptateurs.admin} surCompte={compter} />
         )}
       </main>
     </div>

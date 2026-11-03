@@ -175,7 +175,7 @@ test.describe('administration', () => {
     context,
   }) => {
     await uneFicheEnvoyee(page, context, { position: { latitude: -4.812, longitude: 11.873 } });
-    await page.goto('/admin/');
+    await page.goto('/admin/#valider');
     const ligne = page.getByRole('link', { name: /\[École 1\]/ });
     await expect(ligne).toBeVisible();
     // Plus aucune trace de « hors du lot » : le lot n'est qu'un conseil.
@@ -200,7 +200,7 @@ test.describe('administration', () => {
     context,
   }) => {
     await uneFicheEnvoyee(page, context, { position: { latitude: -4.26, longitude: 15.24 } });
-    await page.goto('/admin/');
+    await page.goto('/admin/#valider');
     const ligne = page.getByRole('link', { name: /\[École 1\]/ });
     // La liste ne dit rien quand la zone est inconnue : ce n'est pas un défaut de la fiche.
     await expect(ligne.getByText(/Hors zone ouverte|Zone inconnue/)).toHaveCount(0);
@@ -250,7 +250,7 @@ test.describe('administration', () => {
   });
 
   test('un relais en attente est activé sans lot : il relève où il se trouve', async ({ page }) => {
-    await seConnecter(page, '/admin/');
+    await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Relais' }).click();
     const ligne = page.getByRole('row', { name: /\[Relais en attente\]/ });
     await expect(ligne.getByText('À activer')).toBeVisible();
@@ -266,7 +266,7 @@ test.describe('administration', () => {
   });
 
   test('un relais en attente est activé sur un lot', async ({ page }) => {
-    await seConnecter(page, '/admin/');
+    await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Relais' }).click();
     const ligne = page.getByRole('row', { name: /\[Relais en attente\]/ });
     await expect(ligne.getByText('À activer')).toBeVisible();
@@ -279,7 +279,7 @@ test.describe('administration', () => {
   });
 
   test('un lot se marque rendu, et se remet en cours', async ({ page }) => {
-    await seConnecter(page, '/admin/');
+    await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Zones' }).click();
     // Le tableau des lots, pas celui des zones (qui a aussi une ligne « Tié-Tié »).
     const lots = page
@@ -301,7 +301,7 @@ test.describe('administration', () => {
   });
 
   test('un compte qui n’est pas administrateur ne voit rien', async ({ page }) => {
-    await page.goto('/admin/');
+    await page.goto('/admin/#valider');
     await page.evaluate(() =>
       localStorage.setItem('ntanova-faux-serveur', JSON.stringify({ admin: false })),
     );

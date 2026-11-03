@@ -300,6 +300,25 @@ export interface ReleveAValider {
 }
 
 /** Tout ce qu'un relevé contient, sauf le contact (lu à part). */
+/**
+ * La vue d'ensemble de l'administration (ticket #76) : où en est le relevé, en nombres. Aucun seuil ni objectif : le
+ * fondateur compare.
+ */
+export interface VueEnsemble {
+  /** Quand la base a calculé la vue. */
+  generee: string;
+  aValider: { nombre: number; plusAncienneLe: string | null; depuisPlusDe24h: number };
+  /** Les jours les plus anciens d'abord, les jours sans relevé compris ; le lot d'essai à part (à l'heure de Pointe-Noire). */
+  recusParJour: { jour: string; total: number; essai: number }[];
+  /** Sur les 30 derniers jours : les décisions rendues et le délai moyen entre la réception et la décision. */
+  decisions: { nombre: number; delaiMoyenHeures: number | null };
+  /** Sur les 30 derniers jours : les nouvelles fiches, et combien sont arrivées avec la photo de l'enseigne. */
+  enseigne: { avecPhoto: number; total: number };
+  contacts: { confirmesTotal: number; confirmes7j: number };
+  /** « A envoyé une fiche » : la dernière ouverture de l'application n'est enregistrée nulle part. */
+  relais: { actifs: number; enAttente: number; suspendus: number; ontEnvoye7j: number };
+}
+
 export interface DetailReleve extends ReleveAValider {
   /** Le relais qui l'a envoyé : de quoi lire ce que son téléphone a signalé (ticket #77). */
   relaisId: string;
@@ -626,6 +645,8 @@ export interface PortAdministration {
    * relais. `depuis` est une date ISO ; `null` lit tout le journal. `relaisId` ne garde que celui d'un relais.
    */
   erreursRecentes(depuis: string | null, relaisId?: string): Promise<LigneJournal[]>;
+  /** `GET /admin/vue-ensemble?jours=` : où en est le relevé, en nombres (ticket #76). 14 jours par défaut, 90 au plus. */
+  vueEnsemble(jours?: number): Promise<VueEnsemble>;
   /** `GET /admin/lots` */
   lots(): Promise<LotVu[]>;
   /** Un lot sur n'importe quelle ville, arrondissement ou quartier. `POST /admin/lots` */

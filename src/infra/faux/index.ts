@@ -1100,6 +1100,57 @@ const admin: PortAdministration = {
       }));
   },
 
+  async vueEnsemble(jours = 14) {
+    await reseau();
+    const e = lireEtat();
+    const nb = Math.max(1, Math.min(jours, 90));
+    const maintenant = Date.now();
+    const releves = Object.values(e.releves);
+    const statut = (id: string) => e.decisions[id]?.statut ?? 'a_valider';
+    const attente = releves.filter((r) => statut(r.id) === 'a_valider');
+    const dates = attente.map((r) => Date.parse(r.prisLe)).sort((a, b) => a - b);
+    // Les jours à l'heure de Pointe-Noire (UTC+1), comme la base.
+    const jourDe = (t: number) => new Date(t + 3_600_000).toISOString().slice(0, 10);
+    const jour = (k: number) => jourDe(maintenant - (nb - 1 - k) * 86_400_000);
+    const sont = (r: ReleveAEnvoyer) => lotDe(r.lotId, e).essai;
+    const decides = releves.filter((r) => statut(r.id) !== 'a_valider');
+    const nouvelles = releves.filter((r) => r.type === 'releve');
+    const semaine = maintenant - 7 * 86_400_000;
+    return {
+      generee: new Date(maintenant).toISOString(),
+      aValider: {
+        nombre: attente.length,
+        plusAncienneLe: dates[0] === undefined ? null : new Date(dates[0]).toISOString(),
+        depuisPlusDe24h: dates.filter((t) => maintenant - t >= 86_400_000).length,
+      },
+      recusParJour: Array.from({ length: nb }, (_, k) => {
+        const duJour = releves.filter((r) => jourDe(Date.parse(r.prisLe)) === jour(k));
+        return { jour: jour(k), total: duJour.length, essai: duJour.filter(sont).length };
+      }),
+      // Le faux serveur ne garde pas la date des décisions : pas de délai.
+      decisions: { nombre: decides.length, delaiMoyenHeures: null },
+      enseigne: {
+        avecPhoto: nouvelles.filter((r) =>
+          Object.values(e.photos).some((p) => p.releveId === r.id && p.role === 'signboard'),
+        ).length,
+        total: nouvelles.length,
+      },
+      contacts: {
+        confirmesTotal: releves.filter((r) => e.decisions[r.id]?.contactConfirmeLe).length,
+        confirmes7j: releves.filter((r) => {
+          const le = e.decisions[r.id]?.contactConfirmeLe;
+          return le ? Date.parse(le) >= semaine : false;
+        }).length,
+      },
+      relais: {
+        actifs: 1,
+        enAttente: 1,
+        suspendus: 0,
+        ontEnvoye7j: releves.some((r) => Date.parse(r.prisLe) >= semaine) ? 1 : 0,
+      },
+    };
+  },
+
   async relais() {
     await reseau();
     const e = lireEtat();

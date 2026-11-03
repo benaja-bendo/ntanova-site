@@ -84,7 +84,7 @@ test.describe('administration', () => {
     await verifierLaBarre(page, 'à 340 px');
   });
 
-  for (const ecran of ['valider', 'ecoles', 'zones', 'relais', 'paie']) {
+  for (const ecran of ['accueil', 'valider', 'ecoles', 'zones', 'relais', 'sante', 'paie']) {
     test(`« ${ecran} » : la page ne défile pas de côté, la barre garde sa forme`, async ({
       page,
     }) => {
@@ -99,7 +99,7 @@ test.describe('administration', () => {
   test('dès la tablette, les tableaux tiennent dans leur cadre', async ({ page }) => {
     test.skip(largeurDe(page) < 768, 'au téléphone, les tableaux défilent dans leur cadre');
     await seConnecter(page, '/admin/');
-    for (const ecran of ['ecoles', 'zones', 'relais', 'paie']) {
+    for (const ecran of ['accueil', 'ecoles', 'zones', 'relais', 'sante', 'paie']) {
       await page.goto(`/admin/#${ecran}`);
       await expect(page.locator('main h1')).toBeVisible();
       await verifierLesTableaux(page, ecran);
@@ -111,7 +111,7 @@ test.describe('administration', () => {
     await seConnecter(page, '/admin/');
     for (const largeur of [820, 1000, CHARNIERE_ADMIN, CHARNIERE_ADMIN + 1, 1440]) {
       await page.setViewportSize({ width: largeur, height: 800 });
-      for (const ecran of ['ecoles', 'zones', 'relais', 'paie']) {
+      for (const ecran of ['accueil', 'ecoles', 'zones', 'relais', 'sante', 'paie']) {
         await page.goto(`/admin/#${ecran}`);
         await expect(page.locator('main h1')).toBeVisible();
         const nom = `${ecran} à ${largeur} px`;
