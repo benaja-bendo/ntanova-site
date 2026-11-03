@@ -32,9 +32,22 @@ export default function integrationRelais() {
           join(racine, 'relais', 'manifest.webmanifest'),
           join(racine, 'relais', 'icone-192.png'),
         ];
+        // Le guide du relais (/relais/guide/) se lit sans réseau : sa page, ses feuilles de style et ses captures.
+        const pageGuide = join(racine, 'relais', 'guide', 'index.html');
+        const htmlGuide = readFileSync(pageGuide, 'utf8');
+        for (const m of htmlGuide.matchAll(
+          /(?:href|src)="(\/(?:_astro|guide-relais\/captures)\/[^"]+)"/g,
+        )) {
+          const fichier = join(racine, decodeURI(m[1] ?? ''));
+          if (!statSync(fichier, { throwIfNoEntry: false })) {
+            throw new Error(`La page /relais/guide/ nomme ${m[1]}, qui n'existe pas.`);
+          }
+          if (!garder.includes(fichier)) garder.push(fichier);
+        }
         const empreinte = createHash('sha256');
-        const liste = ['/relais/'];
+        const liste = ['/relais/', '/relais/guide/'];
         empreinte.update(readFileSync(join(racine, 'relais', 'index.html')));
+        empreinte.update(htmlGuide);
         for (const f of garder) {
           if (!statSync(f, { throwIfNoEntry: false })) continue;
           liste.push(adresse(f));

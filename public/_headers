@@ -24,3 +24,12 @@
 # Polices : gardées un mois (changer le nom du fichier si la police change).
 /polices/*
   Cache-Control: public, max-age=2592000
+
+# Le guide du relais (ticket #110) : public mais non listé. Ni la page, ni le PDF, ni les images dans un moteur de
+# recherche. Les fichiers exportés portent la version et la date dans leur nom : ils ne changent jamais sous un même nom.
+/guide-relais/*
+  X-Robots-Tag: noindex, nofollow
+/guide-relais/*.pdf
+  Cache-Control: public, max-age=86400
+/guide-relais/*.png
+  Cache-Control: public, max-age=86400

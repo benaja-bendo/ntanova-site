@@ -17,5 +17,8 @@ test-results/
 # système
 .DS_Store
 
+# le guide du relais complet (avec les montants) : jamais versionné ni publié
+/outils/guide-relais/sortie/
+
 # captures d'écran à relire (pnpm captures)
 /captures/

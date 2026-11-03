@@ -1,0 +1,596 @@
+---
+// Le guide du relais : la page à jour, datée, que l'on partage par un lien (ticket 110). Servie deux fois :
+//   - /guide-relais/ : publique mais non listée (noindex, aucun lien depuis le site public) ;
+//   - /relais/guide/ : la même, dans l'espace relais (le bouton « Le guide du relais » de l'écran Compte), gardée
+//     par le service worker pour se lire sans réseau.
+// Le texte vient de src/modele/guide-relais.ts ; le PDF et les images viennent de la même source (outils/guide-relais/).
+import '../ui/jetons.css';
+import '../ui/base.css';
+import '../ui/composants.css';
+import '../ui/public.css';
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { GUIDE, dateLisible, nomsDesFichiers, numeroLisible } from '../modele/guide-relais';
+import { carteEnHtml, numeroEnHtml, pageEnHtml } from '../modele/guide-relais-html';
+import { lienWhatsApp } from '../modele/whatsapp';
+import Marque from './Marque.astro';
+
+interface Props {
+  /** Dans l'espace relais : un lien pour revenir à l'écran Compte. */
+  dansAppli?: boolean;
+}
+const { dansAppli = false } = Astro.props;
+
+// Jamais de montant sur la page : elle est lisible par quiconque a le lien. Les montants sont dans le document complet.
+const ctx = {
+  urlCapture: (nom: string) => `/guide-relais/captures/${nom}.webp`,
+  avecMontants: false,
+};
+const noms = nomsDesFichiers();
+const adresse = (fichier: string) => `/guide-relais/${fichier}`;
+const total = GUIDE.pages.length;
+// Le titre d'une page pour le sommaire : sans les balises, avec ses apostrophes.
+const sansBalises = (html: string) => html.replace(/<[^>]+>/g, '');
+const miseAJour = dateLisible(GUIDE.miseAJour);
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP);
+const carte = carteEnHtml(GUIDE.carte, numeroEnHtml(numeroLisible(PUBLIC_WHATSAPP)));
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guide du relais · NTanova</title>
+    <meta
+      name="description"
+      content="Le guide des relais NTanova : comment relever une école, ce qu'on dit, ce qui est payé."
+    />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body class="guide">
+    <main class="cadre guide-cadre">
+      <header class="guide-entete">
+        {dansAppli && (
+          <a class="retour" href="/relais/#compte">
+            ← Retour à l’application
+          </a>
+        )}
+        <div class="guide-marque">
+          <Marque taille={32} />
+          <p class="surtitre-public">Équipe terrain</p>
+        </div>
+        <h1>Le guide du relais</h1>
+        <p class="guide-version" data-testid="version-du-guide">
+          Version {GUIDE.version} · mise à jour le {miseAJour}
+        </p>
+        <p class="guide-avertissement">
+          Cette page est toujours la version à jour. Un PDF reçu sur WhatsApp peut être plus ancien.
+        </p>
+        <div class="guide-actions">
+          <a class="bouton" href={adresse(noms.pdf)} download>
+            Télécharger le PDF
+          </a>
+          <a class="bouton bouton-secondaire" href="#images">
+            Images pour WhatsApp
+          </a>
+          {whatsapp && (
+            <a class="bouton bouton-secondaire" href={whatsapp}>
+              Écrire à NTanova sur WhatsApp
+            </a>
+          )}
+        </div>
+        <nav class="guide-sommaire" aria-label="Sommaire du guide">
+          <ol>
+            {GUIDE.pages.map((p, i) => (
+              <li>
+                <a href={`#page-${i + 1}`}>{sansBalises(p.titre)}</a>
+              </li>
+            ))}
+            <li>
+              <a href="#carte-de-passage">La carte de passage</a>
+            </li>
+            <li>
+              <a href="#ce-qui-a-change">Ce qui a changé</a>
+            </li>
+          </ol>
+        </nav>
+      </header>
+
+      {GUIDE.pages.map((p, i) => (
+        <section class="guide-page" id={`page-${i + 1}`} aria-labelledby={`titre-${i + 1}`}>
+          <div class="guide-page-tete">
+            <p class="guide-num">
+              Page {i + 1}/{total}
+            </p>
+            <h2 id={`titre-${i + 1}`} set:html={p.titre} />
+            <p class="guide-lead">{p.lead}</p>
+          </div>
+          <Fragment set:html={pageEnHtml(p, ctx)} />
+        </section>
+      ))}
+
+      <section class="guide-page guide-passage" id="carte-de-passage" aria-labelledby="titre-carte">
+        <div class="guide-page-tete">
+          <p class="guide-num">Page {total + 1}</p>
+          <h2 id="titre-carte">La carte de passage</h2>
+          <p class="guide-lead">À montrer au gardien ou à l'accueil, sur votre téléphone.</p>
+        </div>
+        <div class="carte-passage">
+          <Fragment set:html={carte} />
+        </div>
+      </section>
+
+      <section class="guide-bas" id="images" aria-labelledby="titre-images">
+        <h2 id="titre-images">Images pour WhatsApp</h2>
+        <p>Une image par page, à enregistrer puis à envoyer. Le PDF contient les mêmes pages.</p>
+        <ul>
+          {noms.images.map((image, i) => (
+            <li>
+              <a href={adresse(image.fichier)} download>
+                Page {i + 1}/{total}
+              </a>
+            </li>
+          ))}
+          <li>
+            <a href={adresse(noms.carte)} download>
+              La carte de passage
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <section class="guide-bas" id="ce-qui-a-change" aria-labelledby="titre-changements">
+        <h2 id="titre-changements">Ce qui a changé</h2>
+        <ul>
+          {GUIDE.changements.map((c) => (
+            <li>
+              <strong>{dateLisible(c.date)}</strong> · {c.texte}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
+
+<style is:global>
+  /* La page est fluide : une colonne sur téléphone, plus large ensuite. Jetons seulement. */
+  .guide-cadre {
+    padding-block: var(--espace-5) var(--espace-7);
+  }
+  .guide-entete {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .guide-marque {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-3);
+  }
+  .guide-version {
+    font-weight: 700;
+  }
+  .guide-avertissement {
+    color: var(--texte-doux);
+  }
+  .guide-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-3);
+  }
+  .guide-sommaire ol {
+    margin: 0;
+    padding-left: var(--espace-5);
+    display: grid;
+    gap: var(--espace-1);
+  }
+  .guide-sommaire a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+  }
+
+  .guide-page {
+    margin-top: var(--espace-6);
+    border-radius: var(--rayon-l);
+    overflow: hidden;
+    background: var(--marque-appuyee);
+    scroll-margin-top: var(--espace-4);
+  }
+  .guide-page-tete {
+    padding: var(--espace-5) var(--espace-4) var(--espace-4);
+    color: var(--texte-sur-marque);
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .guide-page-tete h2 {
+    font-size: var(--taille-titre-section);
+  }
+  .guide-page-tete h2 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .guide-num {
+    color: var(--accent);
+    font-family: var(--police-titre);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .guide-lead {
+    color: var(--texte-sur-marque);
+  }
+
+  .guide-page .panel {
+    margin: 0 var(--espace-2) var(--espace-2);
+    padding: var(--espace-4);
+    border-radius: var(--rayon-l);
+    background: var(--creme);
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .guide-page .panel h4 {
+    margin: var(--espace-2) 0 0;
+    color: var(--erreur);
+    font-family: var(--police-titre);
+    font-size: var(--taille-secondaire);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .guide-page .panel h4:first-child {
+    margin-top: 0;
+  }
+  .guide-page .panel p.petit {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+
+  .guide-page .flux {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--espace-2);
+    margin: 0 var(--espace-2) var(--espace-2);
+  }
+  .guide-page .flux .case {
+    display: grid;
+    gap: var(--espace-1);
+    justify-items: center;
+    text-align: center;
+    padding: var(--espace-3);
+    border-radius: var(--rayon-m);
+    background: var(--creme);
+  }
+  .guide-page .flux .case.on {
+    background: var(--accent);
+  }
+  .guide-page .flux .case i {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--marque);
+    color: var(--texte-sur-marque);
+    font-style: normal;
+    font-weight: 700;
+  }
+  .guide-page .flux .case b {
+    color: var(--marque);
+    font-family: var(--police-titre);
+  }
+  .guide-page .flux .case span {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .guide-page .flux .case.on span {
+    color: var(--texte);
+  }
+  .guide-page .flux .fl {
+    display: none;
+  }
+
+  .guide-page .chips,
+  .guide-page .jamais {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+  }
+  .guide-page .chips span {
+    padding: var(--espace-1) var(--espace-3);
+    border: 2px solid var(--marque);
+    border-radius: var(--rayon-pilule);
+    background: var(--blanc);
+    color: var(--marque);
+    font-weight: 700;
+  }
+  .guide-page .chips span.sortie {
+    border-style: dashed;
+    border-color: var(--texte-doux);
+    color: var(--texte-doux);
+  }
+  .guide-page .jamais span {
+    padding: var(--espace-1) var(--espace-3);
+    border-radius: var(--rayon-m);
+    background: var(--rouge-pale);
+    color: var(--rouge-texte);
+    font-weight: 700;
+  }
+  .guide-page .jamais span::before {
+    content: '✕ ';
+  }
+
+  .guide-page .ligne {
+    display: flex;
+    gap: var(--espace-3);
+    padding-top: var(--espace-3);
+    border-top: 2px solid var(--trait);
+  }
+  .guide-page .ligne:first-of-type {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .guide-page .ligne .n {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: var(--marque);
+    color: var(--texte-sur-marque);
+    font-weight: 700;
+  }
+  .guide-page .ligne h3 {
+    color: var(--marque);
+  }
+
+  .guide-page .attention {
+    padding: var(--espace-3) var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--accent);
+    color: var(--texte);
+    font-weight: 700;
+  }
+  .guide-page .dire {
+    padding: var(--espace-3) var(--espace-4);
+    border-left: 8px solid var(--accent);
+    border-radius: var(--rayon-m);
+    background: var(--blanc);
+    font-weight: 700;
+  }
+  .guide-page .exemple {
+    padding: var(--espace-3) var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+  }
+  .guide-page .exemple b {
+    color: var(--accent);
+  }
+
+  .guide-page .argent {
+    display: grid;
+    gap: var(--espace-2);
+    padding-top: var(--espace-3);
+    border-top: 2px solid var(--trait);
+  }
+  .guide-page .argent:first-of-type {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .guide-page .argent .val {
+    justify-self: start;
+    padding: var(--espace-1) var(--espace-4);
+    border-radius: var(--rayon-pilule);
+    background: var(--accent);
+    color: var(--texte);
+    font-family: var(--police-titre);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .guide-page .argent .val.plus {
+    background: var(--marque);
+    color: var(--texte-sur-marque);
+  }
+  .guide-page .argent h3 {
+    color: var(--marque);
+  }
+  .guide-page .argent p {
+    color: var(--texte-doux);
+  }
+
+  .guide-page .ou .r {
+    display: grid;
+    gap: var(--espace-1);
+    padding-block: var(--espace-2);
+    border-top: 2px solid var(--trait);
+  }
+  .guide-page .ou .r:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .guide-page .ou .k {
+    color: var(--marque);
+    font-weight: 700;
+  }
+
+  .guide-page .trois {
+    display: grid;
+    gap: var(--espace-5);
+  }
+  .guide-page .ec {
+    display: grid;
+    gap: var(--espace-2);
+    max-width: 20rem;
+    margin-inline: auto;
+  }
+  .guide-page .ec .vue,
+  .guide-page .ecran {
+    overflow: hidden;
+    border: 4px solid var(--encre);
+    border-radius: var(--rayon-l);
+    background: var(--blanc);
+  }
+  .guide-page .ec .vue {
+    border-bottom: 0;
+    border-radius: var(--rayon-l) var(--rayon-l) 0 0;
+  }
+  .guide-page .ec .vue img,
+  .guide-page .ecran img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .guide-page .ec h3 {
+    display: grid;
+    justify-items: start;
+    gap: var(--espace-1);
+    color: var(--marque);
+  }
+  .guide-page .ec .n3 {
+    padding: 0 var(--espace-3);
+    border-radius: var(--rayon-pilule);
+    background: var(--marque);
+    color: var(--texte-sur-marque);
+    font-size: var(--taille-secondaire);
+  }
+
+  .guide-page .deuxcol {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .guide-page .cote-ecran {
+    display: grid;
+    gap: var(--espace-2);
+    justify-items: center;
+  }
+  .guide-page .ecran {
+    width: min(100%, 14rem);
+  }
+  .guide-page .legende {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+    text-align: center;
+  }
+
+  .guide-page .check {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .guide-page .check li {
+    position: relative;
+    list-style: none;
+    padding-left: var(--espace-6);
+    font-weight: 700;
+  }
+  .guide-page .check li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.15em;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 3px solid var(--marque);
+    border-radius: var(--rayon-s);
+    background: var(--blanc);
+  }
+
+  .guide-passage {
+    background: var(--creme);
+    border: 2px solid var(--marque);
+  }
+  .guide-passage .guide-page-tete {
+    background: var(--marque);
+  }
+  .guide-passage .carte-passage {
+    display: grid;
+    gap: var(--espace-4);
+    padding: var(--espace-5) var(--espace-4);
+  }
+  .carte-passage h1 {
+    color: var(--marque);
+    font-size: var(--taille-titre-section);
+  }
+  .carte-passage .interdit {
+    padding: var(--espace-4);
+    border-radius: var(--rayon-l);
+    background: var(--rouge-texte);
+    color: var(--blanc);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-fiche);
+    font-weight: 700;
+    text-align: center;
+  }
+  .carte-passage .texte {
+    font-size: var(--taille-intertitre);
+  }
+  .carte-passage .contact {
+    display: grid;
+    gap: var(--espace-2);
+    padding: var(--espace-4);
+    border-radius: var(--rayon-l);
+    background: var(--marque);
+    color: var(--texte-sur-marque);
+  }
+  .carte-passage .contact small {
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .carte-passage .tel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-1) var(--espace-3);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-fiche);
+  }
+
+  .guide-bas {
+    margin-top: var(--espace-6);
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .guide-bas ul {
+    margin: 0;
+    padding-left: var(--espace-5);
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .guide-bas a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+  }
+
+  @media (min-width: 48rem) {
+    .guide-cadre {
+      max-width: 52rem;
+    }
+    .guide-page .flux {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .guide-page .trois {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .guide-page .ec {
+      max-width: none;
+    }
+    .guide-page .deuxcol {
+      grid-template-columns: 1fr 14rem;
+      align-items: start;
+    }
+    .guide-page .ou .r {
+      grid-template-columns: minmax(7rem, 10rem) 1fr;
+      gap: var(--espace-3);
+    }
+    .guide-page .argent {
+      grid-template-columns: 14rem 1fr;
+      align-items: center;
+    }
+  }
+</style>

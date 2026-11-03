@@ -34,15 +34,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # La construction exporte le guide du relais (PDF et images) : elle a besoin du navigateur de Playwright.
+      - run: pnpm exec playwright install --with-deps chromium
+
       - name: Format, lint, couleurs, types, tests, construction, poids
         run: pnpm verif
         env:
           PUBLIC_WHATSAPP: ${{ vars.PUBLIC_WHATSAPP }}
 
       - name: Parcours dans un téléphone (Playwright)
-        run: |
-          pnpm exec playwright install --with-deps chromium
-          pnpm test:parcours
+        run: pnpm test:parcours
         env:
           PUBLIC_WHATSAPP: ${{ vars.PUBLIC_WHATSAPP }}
 
