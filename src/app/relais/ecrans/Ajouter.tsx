@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   avecPhoto,
+  ajouterUnePersonne,
   contactVide,
   demandeLesFormations,
   erreursEtape1,
@@ -14,12 +15,15 @@ import {
   PHOTOS_FACULTATIVES_MAX,
   photosFacultatives,
   sansPhoto,
+  retirerUnePersonne,
+  versAutresPersonnes,
   versContact,
   type ContactSaisi,
   type Erreurs,
   type FicheLocale,
   type PhotoLocale,
 } from '../../../modele/fiche';
+import { PERSONNES_MAX } from '../../../modele/contacts';
 import { plusProche, PRECISION_SUFFISANTE_M, type Point } from '../../../modele/geo';
 import { listes, type Valeur } from '../../../modele/listes';
 import type { EcoleACompleter, ReleveRecu } from '../../../modele/ports';
@@ -711,6 +715,10 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   const contact = fiche.contact ?? contactVide();
   const modifierContact = (champs: Partial<ContactSaisi>) =>
     modifier({ contact: { ...contact, ...champs } });
+  // Les personnes en plus de la direction (ticket #96), chacune avec ses propres champs.
+  const autres = fiche.autresPersonnes ?? [];
+  const modifierAutre = (id: string, champs: Partial<ContactSaisi>) =>
+    modifier({ autresPersonnes: autres.map((p) => (p.id === id ? { ...p, ...champs } : p)) });
 
   // Le contact de la direction est déjà confirmé, ou déjà parti avec la fiche qu'on corrige : rien à redemander.
   const choixDeLaDirection = !fiche.taches || fiche.taches.direction;
@@ -725,8 +733,13 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
     const prete: FicheLocale = {
       ...fiche,
       contact: fiche.direction === 'absente' ? null : fiche.contact,
+      autresPersonnes: fiche.direction === 'vue' ? autres : [],
       etat: 'a_envoyer',
-      envoyes: { releve: false, photo: false, contact: versContact(fiche) === null },
+      envoyes: {
+        releve: false,
+        photo: false,
+        contact: versContact(fiche) === null && versAutresPersonnes(fiche).length === 0,
+      },
       // Une fiche modifiée repart comme neuve : ni refus, ni essais ratés d'avant.
       rejet: null,
       essais: 0,
@@ -781,11 +794,61 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             />
 
             {fiche.direction === 'vue' && (
-              <ChampsContact
-                contact={contact}
-                modifierContact={modifierContact}
-                erreurs={erreurs}
-              />
+              <>
+                <ChampsContact
+                  contact={contact}
+                  modifierContact={modifierContact}
+                  erreurs={erreurs}
+                />
+                {autres.map((p, i) => (
+                  <div
+                    key={p.id}
+                    className="pile-serree"
+                    role="group"
+                    aria-label={`Autre personne ${i + 1}`}
+                  >
+                    <h3 className="rang">Une autre personne</h3>
+                    <ChampsContact
+                      contact={p}
+                      modifierContact={(champs) => modifierAutre(p.id, champs)}
+                      erreurs={erreursDeLaPersonne(erreurs, i)}
+                    />
+                    <button
+                      type="button"
+                      className="lien"
+                      onClick={() =>
+                        modifier({
+                          autresPersonnes: retirerUnePersonne(fiche, p.id).autresPersonnes ?? [],
+                        })
+                      }
+                    >
+                      Retirer cette personne
+                    </button>
+                  </div>
+                ))}
+                {autres.length + 1 < PERSONNES_MAX ? (
+                  <div className="pile-serree">
+                    <button
+                      type="button"
+                      className="bouton bouton-secondaire"
+                      onClick={() =>
+                        modifier({
+                          autresPersonnes:
+                            ajouterUnePersonne(fiche, crypto.randomUUID()).autresPersonnes ?? [],
+                        })
+                      }
+                    >
+                      Ajouter une autre personne
+                    </button>
+                    <p className="mention">
+                      Un secrétariat, un propriétaire, un enseignant… Chacune donne son accord.
+                      Notez son numéro devant elle : ne l’envoyez jamais par WhatsApp.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mention">Trois personnes au plus par fiche.</p>
+                )}
+              </>
             )}
 
             {fiche.direction === 'absente' && (
@@ -843,6 +906,16 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   );
 }
 
+/** Les erreurs d'une personne en plus : celles de `personne<rang>.…`, sous le nom du champ. */
+function erreursDeLaPersonne(erreurs: Erreurs, rang: number): Erreurs {
+  const prefixe = `personne${rang}.`;
+  return Object.fromEntries(
+    Object.entries(erreurs)
+      .filter(([cle]) => cle.startsWith(prefixe))
+      .map(([cle, message]) => [cle.slice(prefixe.length), message]),
+  );
+}
+
 /**
  * Les champs du contact de la direction : sa fonction, son accord, son nom, son WhatsApp. Ceux de l'étape 3/3, et ceux de
  * « J'ai revu la direction » (ajouter le contact après « À repasser »).
@@ -879,6 +952,22 @@ export function ChampsContact({
           </select>
         )}
       </Champ>
+
+      {contact.fonction === 'autre' && (
+        <Champ libelle="Quelle fonction ?" facultatif erreur={erreurs.precision}>
+          {(a) => (
+            <input
+              {...a}
+              className="champ"
+              type="text"
+              autoComplete="off"
+              placeholder="Ex. : propriétaire, enseignant"
+              value={contact.precision ?? ''}
+              onChange={(e) => modifierContact({ precision: e.target.value })}
+            />
+          )}
+        </Champ>
+      )}
 
       <section className="carte-blanche pile-serree">
         <label className="case">
