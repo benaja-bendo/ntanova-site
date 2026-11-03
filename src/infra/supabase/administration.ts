@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Point } from '../../modele/geo';
+import type { LigneJournal } from '../../modele/sante';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import {
   ErreurDecision,
@@ -572,6 +573,37 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           compteurs,
         };
       });
+    },
+
+    async erreursRecentes(depuis: string | null): Promise<LigneJournal[]> {
+      const lignes = await toutesLesLignes<{
+        id: string;
+        survenue_le: string;
+        ecran: string | null;
+        code: string;
+        detail: string | null;
+        version_app: string | null;
+        appareil: string | null;
+        relais: { prenom: string } | null;
+      }>((de, a) => {
+        let requete = supabase()
+          .from('erreurs')
+          .select('id, survenue_le, ecran, code, detail, version_app, appareil, relais(prenom)')
+          .order('survenue_le', { ascending: false })
+          .order('id');
+        if (depuis !== null) requete = requete.gte('survenue_le', depuis);
+        return requete.range(de, a);
+      });
+      return lignes.map((l) => ({
+        id: l.id,
+        relaisPrenom: l.relais?.prenom || '[sans prénom]',
+        survenueLe: l.survenue_le,
+        ecran: l.ecran,
+        code: l.code,
+        detail: l.detail,
+        versionApp: l.version_app,
+        appareil: l.appareil,
+      }));
     },
 
     async lots(): Promise<LotVu[]> {

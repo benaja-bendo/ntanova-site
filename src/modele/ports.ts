@@ -5,6 +5,7 @@
  */
 import type { Valeur } from './listes';
 import type { MultiPolygone, Point } from './geo';
+import type { LigneJournal } from './sante';
 
 /** La réponse à un envoi : un second envoi du même identifiant répond « déjà reçu ». */
 export type Reponse = 'recu' | 'deja_recu';
@@ -618,6 +619,11 @@ export interface PortAdministration {
   // Relais, lots, zones
   /** `GET /admin/relais` */
   relais(): Promise<RelaisVu[]>;
+  /**
+   * `GET /admin/erreurs?depuis=` : le journal des téléphones (ticket #77), le plus récent d'abord, avec le prénom du
+   * relais. `depuis` est une date ISO ; `null` lit tout le journal.
+   */
+  erreursRecentes(depuis: string | null): Promise<LigneJournal[]>;
   /** `GET /admin/lots` */
   lots(): Promise<LotVu[]>;
   /** Un lot sur n'importe quelle ville, arrondissement ou quartier. `POST /admin/lots` */

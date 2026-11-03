@@ -1073,6 +1073,24 @@ const admin: PortAdministration = {
     });
   },
 
+  async erreursRecentes(depuis) {
+    await reseau();
+    const debut = depuis === null ? Number.NEGATIVE_INFINITY : Date.parse(depuis);
+    return lireEtat()
+      .erreurs.filter((l) => Date.parse(l.survenueLe) >= debut)
+      .sort((a, b) => Date.parse(b.survenueLe) - Date.parse(a.survenueLe))
+      .map((l) => ({
+        id: l.id,
+        relaisPrenom: '[Prénom]',
+        survenueLe: l.survenueLe,
+        ecran: l.ecran,
+        code: l.code,
+        detail: l.detail,
+        versionApp: l.versionApp,
+        appareil: l.appareil,
+      }));
+  },
+
   async relais() {
     await reseau();
     const e = lireEtat();

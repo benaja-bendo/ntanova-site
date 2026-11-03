@@ -12,6 +12,7 @@ import { AValider } from './AValider';
 import { Ecoles } from './Ecoles';
 import { ListeRelais } from './ListeRelais';
 import { Paie } from './Paie';
+import { Sante } from './Sante';
 import { Zones } from './Zones';
 import './admin.css';
 
@@ -112,6 +113,7 @@ export default function App() {
     { chemin: 'ecoles', libelle: 'Écoles', compte: null },
     { chemin: 'zones', libelle: 'Zones', compte: null },
     { chemin: 'relais', libelle: 'Relais', compte: null },
+    { chemin: 'sante', libelle: 'Santé des envois', compte: null },
     { chemin: 'paie', libelle: 'Paie', compte: null },
   ];
 
@@ -153,6 +155,8 @@ export default function App() {
           <Ecoles admin={adaptateurs.admin} />
         ) : ecran === 'zones' ? (
           <Zones admin={adaptateurs.admin} />
+        ) : ecran === 'sante' ? (
+          <Sante admin={adaptateurs.admin} />
         ) : ecran === 'paie' ? (
           <Paie admin={adaptateurs.admin} />
         ) : (
