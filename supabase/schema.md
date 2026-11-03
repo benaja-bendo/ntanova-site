@@ -147,12 +147,17 @@ Un lot a un contour facultatif : sans contour, il couvre toute sa division. Une 
 pg_dump "$URL_DE_LA_BASE" --schema=public --schema=prive --no-owner --format=plain \
   --quote-all-identifiers > ntanova.sql
 
-# 2. Un PostgreSQL avec PostGIS
-docker run -d --name ntanova-pg -e POSTGRES_PASSWORD=… -p 5432:5432 postgis/postgis:16-3.4
+# 2. Un PostgreSQL avec PostGIS (sur un Mac à puce Apple, `postgis/postgis` n'existe pas en arm64 : une image
+#    multi-architecture comme `imresamu/postgis:17-3.5-bookworm` fait la même chose)
+docker run -d --name ntanova-pg -e POSTGRES_PASSWORD=… -p 5432:5432 postgis/postgis:17-3.5
+
+# 2 bis. Une base NEUVE, sans rien dedans : l'image installe déjà PostGIS dans la base `postgres`, et l'étape 3
+#        (qui le range dans `extensions`) y échouerait.
+psql -h 127.0.0.1 -U postgres -c "create database ntanova template template0"
 ```
 
 ```sql
--- 3. Préparer la base : les extensions natives, les deux rôles de l'API, un schéma public vide
+-- 3. Préparer la base `ntanova` : les extensions natives, les rôles de l'API et de la plateforme, un schéma public vide
 create schema extensions;
 create extension postgis  with schema extensions;
 create extension pg_trgm  with schema extensions;
@@ -161,6 +166,7 @@ create extension ltree    with schema extensions;
 create role anon          nologin noinherit;
 create role authenticated nologin noinherit;
 create role service_role  nologin noinherit;   -- nommé dans les droits d'un export fait depuis Supabase
+create role supabase_admin nologin;                -- nommé dans les `ALTER DEFAULT PRIVILEGES` d'un export fait depuis Supabase
 grant usage on schema extensions to anon, authenticated;
 alter database ntanova set search_path = "$user", public, extensions;
 drop schema public cascade;   -- celui d'une base neuve est vide : l'export le recrée avec tout son contenu
@@ -168,14 +174,56 @@ drop schema public cascade;   -- celui d'une base neuve est vide : l'export le r
 
 ```bash
 # 4. Restaurer
-psql "$URL_DU_CONTENEUR" -f ntanova.sql
+psql "$URL_DU_CONTENEUR/ntanova" -f ntanova.sql
 ```
 
-- **Les rôles de la plateforme** : un export fait depuis Supabase nomme `service_role` dans les droits de ses objets, et peut nommer `postgres` ou `supabase_admin` dans des lignes `ALTER DEFAULT PRIVILEGES`. Créez ces rôles (sans connexion) avant de restaurer, ou retirez ces lignes de `ntanova.sql`. **Éprouvé avec le simulacre du banc, pas encore avec une vraie sauvegarde.**
+- **Les rôles de la plateforme** : un export fait depuis Supabase nomme `service_role` dans les droits de ses objets, et peut nommer `postgres` ou `supabase_admin` dans des lignes `ALTER DEFAULT PRIVILEGES`. Créez ces rôles (sans connexion) avant de restaurer, ou retirez ces lignes de `ntanova.sql`. **Éprouvé le 03/11/2026 avec un vrai dump** (celui de la base locale de Supabase, pas un simulacre) restauré dans un PostgreSQL 17 + PostGIS ordinaire : **0 erreur** avec les quatre rôles ci-dessus, comptes identiques sur les 23 tables des deux schémas. Sans le rôle `supabase_admin`, 7 lignes `ALTER DEFAULT PRIVILEGES` échouent (sans conséquence pour les données).
 - **L'API** : un PostgREST (`PGRST_DB_SCHEMAS=public`, `PGRST_DB_ANON_ROLE=anon`) devant la base. L'identité d'une requête est celle de son jeton : `public.current_user_id()` lit `request.jwt.claims` (ou `request.jwt.claim.sub`), comme le font PostgREST et Supabase, avec un rôle `authenticated` ou `anon`. La pile Supabase auto-hébergée (Docker) convient telle quelle ; un autre serveur demande de remplacer `src/infra/supabase/` par un adaptateur du même port (`src/modele/ports.ts` ne change pas).
 - **Les comptes** : tout serveur d'identité appelle `public.register_relay(id, google_sub, prénom)` à la première connexion ; l'administrateur s'inscrit dans `prive.admins`.
 - **Les photos** : la base ne garde qu'un chemin relatif (`field_submission_photos.storage_path`, par exemple `<relevé>/<photo>.webp`) ; une contrainte refuse tout ce qui ressemble à une adresse de serveur. Le fichier va dans le stockage de son choix (S3, MinIO, un dossier), au même chemin. Le seau `releves` et ses règles sont dans la couche Supabase, qu'on remplace. Le relais relit les fichiers de **ses** relevés (le dossier du fichier est un de ses relevés), jamais ceux d'un autre ; il lit leur chemin par `my_submission_photos`, jamais la table des photos.
 - **Ce qui est propre à Supabase** (le déclencheur sur `auth.users`, le seau et ses règles) tient dans une migration, `20261101200900_supabase_couche.sql`, dont chaque instruction est gardée : sur un PostgreSQL sans `auth` ni `storage`, elle ne fait rien.
+
+## Sauvegarder et restaurer (ticket #81)
+
+Le plan gratuit de Supabase **ne sauvegarde rien**. `.github/workflows/sauvegarde.yml` fait chaque nuit (2 h 30 UTC, et à la main) **une copie chiffrée** de la base et des photos, hors de Supabase : `outils/sauvegarder-la-base.sh` écrit `sauvegarde-AAAA-MM-JJ.tar.gz.age`, conservé **30 jours** comme artefact privé du dépôt. Le fichier contient le dump des schémas `public` et `prive` (PostgreSQL 17, donc des contacts de directions et des numéros Mobile Money), la liste des photos et les photos : **il est chiffré** pour une clé publique `age` ; la clé privée reste chez le fondateur, **hors du dépôt, hors du Mac si possible** (un gestionnaire de mots de passe et une copie hors ligne). **Sans elle, aucune sauvegarde ne se relit.** Le script refuse un dump trop petit, sans les tables attendues, ou dont des photos manquent : la nuit passe alors en rouge et GitHub écrit au fondateur.
+
+### La mise en place, une fois (par le fondateur : les valeurs ne passent jamais par une conversation)
+
+```bash
+# 1. La paire de clés : la privée reste chez toi, hors du dépôt (brew install age)
+age-keygen -o cle-privee-ntanova.txt        # affiche « Public key: age1… »
+gh secret set SAUVEGARDE_CLE_PUBLIQUE --repo benaja-bendo/ntanova-site --body "age1…"
+
+# 2. La connexion à la base : Supabase › Connect › « Session pooler » (IPv4, port 5432, utilisateur postgres.<projet>),
+#    avec le mot de passe de la base. La connexion directe est en IPv6 : les exécuteurs de GitHub ne l'atteignent pas.
+gh secret set SAUVEGARDE_DB_URL --repo benaja-bendo/ntanova-site          # colle la chaîne à l'invite
+
+# 3. Les photos : l'adresse du projet et UNE CLÉ SECRÈTE dédiée (Supabase › Project Settings › API Keys › Secret keys,
+#    nommée « sauvegarde » : elle se révoque seule). Jamais l'ancienne `service_role` (ticket #28 : on la coupe).
+gh secret set SUPABASE_URL --repo benaja-bendo/ntanova-site               # https://<projet>.supabase.co
+gh secret set SUPABASE_SECRET_KEY --repo benaja-bendo/ntanova-site        # colle sb_secret_… à l'invite
+```
+
+Puis **un lancement à la main** (GitHub › Actions › Sauvegarde › Run workflow) : c'est la seule preuve que la connexion et la clé marchent en ligne. Tant qu'un des quatre secrets manque, la nuit échoue, avec le nom du secret manquant.
+
+### Restaurer
+
+```bash
+# 1. Télécharger l'artefact (GitHub › Actions › la dernière sauvegarde), puis le déchiffrer et l'ouvrir
+age -d -i cle-privee-ntanova.txt sauvegarde-AAAA-MM-JJ.tar.gz.age | tar xz     # base.sql, photos.txt, photos/
+
+# 2. La base : voir « Le conteneur à soi, pas à pas » plus haut (étapes 2 à 4, avec base.sql à la place de ntanova.sql)
+
+# 3. Les photos : une par ligne de photos.txt, au même chemin, dans le seau `releves` du nouveau stockage
+while IFS= read -r chemin; do
+  curl -fsS -X POST "$SUPABASE_URL/storage/v1/object/releves/$chemin" -H "apikey: $SUPABASE_SECRET_KEY" \
+    -H "Content-Type: image/webp" --data-binary @"photos/$chemin"     # image/jpeg pour une photo .jpg
+done < photos.txt
+```
+
+**Essayé le 03/11/2026** (script contre la pile locale de Supabase) : la clé secrète `sb_secret_…` est acceptée **dans `apikey` seul** pour lire les photos ; l'archive ne se lit qu'avec la clé privée ; la base se restaure sans erreur dans un PostgreSQL 17 + PostGIS ordinaire, avec des comptes identiques sur les 23 tables ; une photo effacée du stockage revient **identique à l'octet près**. **Pas encore essayé** : une exécution sur GitHub (la connexion par le pooleur, la clé acceptée par la passerelle en ligne) ; le premier lancement à la main, après les secrets, le prouve.
+
+**Limites** : une copie par nuit (on peut perdre jusqu'à 24 heures de relevés) ; pas de restauration à un instant précis ; trente jours d'historique. Le plan Pro de Supabase (sauvegardes quotidiennes gérées) reste la solution propre quand l'argent entre ; cette copie, elle, se restaure sur n'importe quel PostgreSQL.
 
 ## Les tests
 
