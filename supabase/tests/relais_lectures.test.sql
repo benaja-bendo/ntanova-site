@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(36);
 
 select public.register_relay('00000000-0000-4000-8000-0000000000a1', 'google-a1', 'Alice');
 select public.register_relay('00000000-0000-4000-8000-0000000000b1', 'google-b1', 'Bastien');
@@ -131,6 +131,43 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000
 select is((select count(*)::int from public.my_missions()), 0, 'Un autre relais ne voit pas les missions de Bastien');
 reset role;
 select is((select count(*)::int from public.my_missions()), 0, 'Hors de tout compte, my_missions ne rend rien');
+
+-- Les photos de ses fiches (ticket #72) : identifiant, rôle, chemin relatif ; jamais celles d'un autre ------------------------------------------------
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000b1","role":"authenticated"}', true);
+select public.register_photo('52000000-0000-4000-8000-000000000003', '51000000-0000-4000-8000-000000000003', 'signboard', 'image/webp', 100000);
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000a1","role":"authenticated"}', true);
+select is((select count(*)::int from public.my_submission_photos('51000000-0000-4000-8000-000000000001')), 2,
+  'Alice relit les deux photos de sa fiche');
+select is((select string_agg(role, ',' order by role) from public.my_submission_photos('51000000-0000-4000-8000-000000000001')),
+  'programs_board,signboard', 'avec leur rôle');
+select is((select storage_path from public.my_submission_photos('51000000-0000-4000-8000-000000000001') where role = 'signboard'),
+  '51000000-0000-4000-8000-000000000001/52000000-0000-4000-8000-000000000001.webp',
+  'et leur chemin relatif, celui que le stockage connaît');
+select is((select count(*)::int from public.my_submission_photos('51000000-0000-4000-8000-000000000002')), 0,
+  'Une fiche sans photo n''en rend aucune : le relais voit qu''il n''en est rien arrivé');
+select is((select count(*)::int from public.my_submission_photos('51000000-0000-4000-8000-000000000003')), 0,
+  'Alice ne relit pas la photo de la fiche de Bastien');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000b1","role":"authenticated"}', true);
+select is((select count(*)::int from public.my_submission_photos('51000000-0000-4000-8000-000000000003')), 1,
+  'Bastien relit la photo de sa fiche');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000c1","role":"authenticated"}', true);
+select is((select count(*)::int from public.my_submission_photos('51000000-0000-4000-8000-000000000001')), 0,
+  'Un relais en attente ne relit rien');
+reset role;
+select is((select count(*)::int from public.my_submission_photos('51000000-0000-4000-8000-000000000001')), 0,
+  'Hors de tout compte, rien non plus');
+select is(has_function_privilege('anon', 'public.my_submission_photos(uuid)', 'execute'), false,
+  'Un visiteur ne peut pas appeler la fonction');
 
 select * from finish();
 rollback;
