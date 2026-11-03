@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cycleAvecFormations } from '../../modele/formations';
 import {
+  avantDAccepter,
   ceQuiManquePourAccepter,
   divisionRequise as divisionRequisePour,
   type Cible,
+  type EtatDeLaLigne,
 } from '../../modele/acceptation';
 import { ageDe, trierParAnciennete } from '../../modele/age';
 import { messageManquant } from '../../modele/decision';
@@ -50,6 +52,14 @@ const libelleType: Record<ReleveAValider['type'], string> = {
 
 const ACCEPTEE =
   'Acceptée : l’école est prête. Publie-la depuis l’onglet « Écoles » (une école, une zone ou un lot).';
+
+/** L'icône de chaque ligne d'« Avant d'accepter » : coché quand c'est prêt, alerte quand quelque chose manque. */
+const iconeDeLaLigne: Record<EtatDeLaLigne, 'coche' | 'alerte' | 'fiche'> = {
+  ok: 'coche',
+  info: 'fiche',
+  a_faire: 'alerte',
+  bloque: 'alerte',
+};
 
 const classeDecision: Record<ReleveDecide['statut'], string> = {
   a_valider: 'etat-attente',
@@ -550,6 +560,20 @@ function Detail({
   // Ce qui manque pour accepter : l'écran le dit, le bouton ne se grise jamais sans un mot (ticket #89).
   const manque = ceQuiManquePourAccepter(detail, cible, divisionId);
   const cibleIncomplete = manque !== null;
+  // Avant d'accepter : ce qui est prêt, ce qui manque sans bloquer, ce que fait « Accepter » (ticket #95).
+  const bilanAvant = detail.essai
+    ? null
+    : avantDAccepter({
+        fiche: detail,
+        photos,
+        contact: contact !== null,
+        contactDeLaFicheDOrigine: contact?.releveId !== undefined && contact.releveId !== id,
+        nombreDeFormations: formations.length,
+        formationsAttendues: avecFormations,
+        cible,
+        divisionChoisie: divisionId,
+        divisionNom: divisions.find((d) => d.id === (divisionId || detail.divisionId))?.nom ?? null,
+      });
   const texteAccepter =
     detail.type === 'correction' && !detail.corrigeUneFicheEnAttente
       ? 'Accepter la correction'
@@ -572,7 +596,7 @@ function Detail({
           <h2>{detail.nomEnseigne}</h2>
           <p className="mention">
             Relevée par {detail.relais} {quand(detail.prisLe)}
-            {detail.lot ? ` · Lot ${detail.lot}` : ''}
+            {detail.lot && !detail.lotDeLaFicheDOrigine ? ` · Lot ${detail.lot}` : ''}
           </p>
         </div>
         <span className="etiquette etat-attente">{libelleType[detail.type]}</span>
@@ -896,6 +920,31 @@ function Detail({
                 </>
               )}
             </div>
+          )}
+
+          {bilanAvant && (
+            <section className="admin-avant pile-serree" aria-label="Avant d’accepter">
+              <h3 className="rang">
+                <Icone nom="coche" />
+                Avant d’accepter
+              </h3>
+              <p>
+                {bilanAvant.bloque
+                  ? 'Il reste un choix à faire avant de pouvoir accepter.'
+                  : 'Rien ne bloque : tu peux accepter.'}
+              </p>
+              <ul className="admin-avant-liste">
+                {bilanAvant.lignes.map((l) => (
+                  <li key={l.cle} className="rang">
+                    <Icone nom={iconeDeLaLigne[l.etat]} taille={16} />
+                    <span>
+                      <b>{l.titre}</b> · {l.texte}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mention">{bilanAvant.phrase}</p>
+            </section>
           )}
 
           {manque && !detail.essai && (

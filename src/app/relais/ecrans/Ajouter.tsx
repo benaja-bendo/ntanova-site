@@ -23,6 +23,7 @@ import {
 import { plusProche, PRECISION_SUFFISANTE_M, type Point } from '../../../modele/geo';
 import { listes, type Valeur } from '../../../modele/listes';
 import type { EcoleACompleter, ReleveRecu } from '../../../modele/ports';
+import { normaliserTelephone, numeroCongolaisSuspect } from '../../../modele/telephone';
 import {
   libelleDirection,
   libelleFonction,
@@ -516,6 +517,8 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
 function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier }) {
   const [erreurs, setErreurs] = useState<Erreurs>({});
+  // Un numéro congolais a 9 chiffres après +242 : le relais est prévenu, sans être bloqué (ticket #95).
+  const numeroSuspect = numeroCongolaisSuspect(normaliserTelephone(fiche.numeroEnseigne));
   const suivant = () => {
     const e = erreursEtape2(fiche);
     setErreurs(e);
@@ -684,6 +687,12 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             />
           )}
         </Champ>
+        {numeroSuspect && (
+          <p className="message-attention" role="status">
+            Ce numéro a {numeroSuspect.chiffres} chiffres après +242 : un numéro congolais en a 9.
+            Relisez-le sur l’enseigne.
+          </p>
+        )}
 
         <BoutonAbandonner fiche={fiche} />
       </main>

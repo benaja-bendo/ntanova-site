@@ -335,6 +335,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         divisionId: herite.divisionId,
         corrigeUneFicheEnAttente: herite.corrigeUneFicheEnAttente,
         positionDeLaFicheDOrigine: herite.positionDeLaFicheDOrigine,
+        lotDeLaFicheDOrigine: herite.lotDeLaFicheDOrigine,
         doublonPossible: r.possible_duplicate,
         reponseDoublon: r.duplicate_answer,
         precisionM: r.accuracy_m,

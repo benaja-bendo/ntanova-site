@@ -338,6 +338,11 @@ export interface DetailReleve extends ReleveAValider {
   corrigeUneFicheEnAttente: boolean;
   /** Vrai : `position` est celle de la fiche d'origine (la correction n'en a pas). */
   positionDeLaFicheDOrigine: boolean;
+  /**
+   * Vrai : `lot` est celui de la fiche d'origine, pas de la correction, qui n'en a pas (ticket #95). L'écran ne le montre
+   * pas comme celui de la correction.
+   */
+  lotDeLaFicheDOrigine: boolean;
   prisLe: string;
   position: Point | null;
   /** La division que dit la position (la plus fine dont le contour la contient) ; nulle si aucun contour connu. */
