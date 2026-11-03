@@ -89,7 +89,10 @@ test.describe('Chrome sur iPhone', () => {
     const lien = aide(page).getByRole('link', { name: 'Écrire à NTanova sur WhatsApp' });
     await expect(lien).toBeVisible();
     const adresse = new URL((await lien.getAttribute('href')) ?? '');
-    expect(adresse.origin + adresse.pathname).toBe('https://wa.me/242000000000');
+    // Le numéro vient de la configuration de la construction, jamais du code : celui de `PUBLIC_WHATSAPP` quand il est
+    // donné (la CI), sinon celui de `pnpm test:parcours`.
+    const numero = (process.env['PUBLIC_WHATSAPP'] || '242000000000').replace(/[\s.+()-]/g, '');
+    expect(adresse.origin + adresse.pathname).toBe(`https://wa.me/${numero}`);
     const message = adresse.searchParams.get('text') ?? '';
     expect(message).toMatch(/iPhone/);
     expect(message).toMatch(/Chrome/);
