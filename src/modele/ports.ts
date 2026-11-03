@@ -161,6 +161,13 @@ export interface ReleveAEnvoyer {
 
 export interface ContactAEnvoyer {
   releveId: string;
+  /**
+   * L'identifiant de la personne, créé sur le téléphone, pour une personne en plus de la direction (ticket #96) :
+   * l'envoi se rejoue sans doublon. Absent pour la direction, dont l'identifiant est le numéro de la fiche.
+   */
+  contactId?: string;
+  /** « Autre : … » : de quoi il s'agit, quand la fonction est « autre ». */
+  precisionFonction?: string | null;
   fonction: Valeur<'fonction_direction'> | null;
   nom: string | null;
   whatsapp: string | null;

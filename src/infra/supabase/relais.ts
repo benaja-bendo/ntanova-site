@@ -349,6 +349,10 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
           p_agreement: c.accord,
           p_agreement_at: c.accordLe,
           p_note: c.note,
+          // Les paramètres du ticket #96 ne partent que pour une personne en plus (ou une précision) : le contact de la
+          // direction garde l'ancienne forme de l'appel, qui marche aussi sur une base pas encore à jour.
+          ...(c.contactId ? { p_contact: c.contactId } : {}),
+          ...(c.precisionFonction ? { p_role_detail: c.precisionFonction } : {}),
         }),
         DELAI_APPEL_MS,
       );

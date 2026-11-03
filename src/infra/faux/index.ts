@@ -606,7 +606,8 @@ const relais: PortRelais = {
     await reseau();
     if (!(c.releveId in lireEtat().releves)) throw new Error('Relevé inconnu');
     let reponse: Reponse = 'recu';
-    ecrire((e) => (reponse = ajouter(e.contacts, c.releveId, c)));
+    // La direction a pour clé le numéro de la fiche ; une personne en plus, son propre identifiant (ticket #96).
+    ecrire((e) => (reponse = ajouter(e.contacts, c.contactId ?? c.releveId, c)));
     return reponse;
   },
   async signalerErreur(erreur) {

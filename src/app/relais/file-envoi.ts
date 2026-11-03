@@ -16,6 +16,7 @@
  */
 import {
   toutEnvoye,
+  versAutresPersonnes,
   versContact,
   versPhotos,
   versReleve,
@@ -126,6 +127,14 @@ async function envoyerUneFiche(adaptateurs: Adaptateurs, fiche: FicheLocale): Pr
     } else if (geste === 'contact') {
       const contact = versContact(fiche);
       if (contact) await relais.envoyerContact(contact);
+      // Les personnes en plus, une à une : chacune s'efface du téléphone dès que la base l'a reçue, et celle qui n'est pas
+      // arrivée repart seule au prochain essai (sans doublon : son identifiant est le sien).
+      for (const autre of versAutresPersonnes(fiche)) {
+        await relais.envoyerContact(autre);
+        await base.fiches.update(fiche.id, (f) => {
+          f.autresPersonnes = (f.autresPersonnes ?? []).filter((p) => p.id !== autre.contactId);
+        });
+      }
       envoyes.contact = true;
       await base.fiches.update(fiche.id, { envoyes: { ...envoyes }, contact: null });
     } else {

@@ -13,6 +13,7 @@ import type {
   ReleveAEnvoyer,
   ReleveRecu,
 } from './ports';
+import { PERSONNES_MAX, erreursPersonne } from './contacts';
 import { tachesDeLaCorrection, tachesDeLaMission, type Taches } from './taches';
 import { normaliserTelephone } from './telephone';
 
@@ -24,6 +25,16 @@ export interface ContactSaisi {
   accordLe: string | null;
   /** « Ce qu'on vous a dit », en cas de refus. */
   note: string;
+  /** « Autre : … » : de quoi il s'agit (propriétaire, enseignant…). Absent des fiches d'avant. */
+  precision?: string;
+}
+
+/**
+ * Une personne de plus à contacter, en plus de la direction (ticket #96) : un secrétariat, un propriétaire, un
+ * enseignant. Son identifiant est créé sur le téléphone : l'envoi se rejoue sans doublon.
+ */
+export interface AutrePersonne extends ContactSaisi {
+  id: string;
 }
 
 /** Une photo gardée dans le téléphone (IndexedDB), déjà allégée à moins de 200 Ko. */
@@ -119,6 +130,11 @@ export interface FicheLocale {
   direction: Valeur<'direction_vue'> | null;
   /** Effacé du téléphone dès que la base l'a reçu. */
   contact: ContactSaisi | null;
+  /**
+   * Les personnes en plus de la direction (deux au plus), chacune effacée du téléphone dès que la base l'a reçue.
+   * Absent des fiches d'avant.
+   */
+  autresPersonnes?: AutrePersonne[];
   repasser: string;
 
   // L'envoi
@@ -416,14 +432,43 @@ export function erreursEtape3(fiche: FicheLocale): Erreurs {
   if (fiche.taches && !fiche.taches.direction) return {};
   if (fiche.direction === null) return { direction: 'Dites si vous avez vu la direction.' };
   const resultat = etape3.safeParse(fiche);
-  if (resultat.success) return {};
   // Les erreurs du contact portent le nom du champ du contact (fonction, whatsapp…).
   const erreurs: Erreurs = {};
-  for (const probleme of resultat.error.issues) {
-    const champ = String(probleme.path.at(-1) ?? 'fiche');
-    erreurs[champ] ??= probleme.message;
+  if (!resultat.success) {
+    for (const probleme of resultat.error.issues) {
+      const champ = String(probleme.path.at(-1) ?? 'fiche');
+      erreurs[champ] ??= probleme.message;
+    }
+  }
+  // Les autres personnes : leurs erreurs portent le rang de la personne (`personne0.fonction`).
+  if (fiche.direction === 'vue') {
+    (fiche.autresPersonnes ?? []).forEach((p, i) => {
+      for (const [champ, message] of Object.entries(
+        erreursPersonne({
+          fonction: p.fonction,
+          precision: p.precision ?? '',
+          nom: p.nom,
+          whatsapp: p.whatsapp,
+          accord: p.accord,
+          note: '',
+        }),
+      )) {
+        if (message) erreurs[`personne${i}.${champ}`] = message;
+      }
+    });
   }
   return erreurs;
+}
+
+/** Ajoute une personne à contacter, vide, si la fiche n'en a pas déjà trois (la direction comprise). */
+export function ajouterUnePersonne(fiche: FicheLocale, id: string): FicheLocale {
+  const autres = fiche.autresPersonnes ?? [];
+  if (autres.length + 1 >= PERSONNES_MAX) return fiche;
+  return { ...fiche, autresPersonnes: [...autres, { ...contactVide(), id }] };
+}
+
+export function retirerUnePersonne(fiche: FicheLocale, id: string): FicheLocale {
+  return { ...fiche, autresPersonnes: (fiche.autresPersonnes ?? []).filter((p) => p.id !== id) };
 }
 
 // Ce qui part vers la base ----------------------------------------------------
@@ -486,6 +531,7 @@ export function versContact(fiche: FicheLocale): ContactAEnvoyer | null {
     return {
       releveId: fiche.id,
       fonction: c.fonction,
+      precisionFonction: c.fonction === 'autre' ? vide(c.precision ?? '') : null,
       nom: vide(c.nom),
       whatsapp: c.accord ? normaliserTelephone(c.whatsapp) : null,
       accord: c.accord,
@@ -507,12 +553,29 @@ export function versContact(fiche: FicheLocale): ContactAEnvoyer | null {
   return null;
 }
 
+/** Les personnes en plus de la direction, chacune avec son identifiant. Rien quand la direction n'a pas été vue. */
+export function versAutresPersonnes(fiche: FicheLocale): ContactAEnvoyer[] {
+  if (fiche.direction !== 'vue') return [];
+  return (fiche.autresPersonnes ?? []).map((p) => ({
+    releveId: fiche.id,
+    contactId: p.id,
+    fonction: p.fonction,
+    precisionFonction: p.fonction === 'autre' ? vide(p.precision ?? '') : null,
+    nom: vide(p.nom),
+    whatsapp: p.accord ? normaliserTelephone(p.whatsapp) : null,
+    accord: p.accord,
+    accordLe: p.accord ? p.accordLe : null,
+    note: null,
+  }));
+}
+
 /** La fiche est-elle entièrement partie ? */
 export function toutEnvoye(fiche: FicheLocale): boolean {
   return (
     fiche.envoyes.releve &&
     fiche.envoyes.photo &&
     fiche.envoyes.contact &&
+    (fiche.autresPersonnes ?? []).length === 0 &&
     fiche.photos.every((p) => p.envoyee)
   );
 }
