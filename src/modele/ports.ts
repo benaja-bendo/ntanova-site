@@ -866,6 +866,13 @@ export interface DivisionPublique {
   verifieeLe: string | null;
   /** Le relevé a commencé ici (la zone est ouverte aux relais). Vaut aussi pour ce qu'elle contient. */
   ouverte: boolean;
+  /**
+   * L'état public de la zone sur la carte (ticket 102) : « actif » (relevé en cours), « programme » (déploiement
+   * programmé), rien (non couverte). **Distinct de `ouverte`** : l'un règle les relais, l'autre ce que la carte dit.
+   */
+  deploiement: 'actif' | 'programme' | null;
+  /** Le point d'une ville ou d'une zone, quand il est connu et sourcé (jamais inventé). */
+  position: Point | null;
 }
 
 /** Un domaine de formation (Informatique, Gestion, BTP, Santé…). */

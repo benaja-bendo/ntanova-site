@@ -50,7 +50,9 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
         aliases: string[];
         verified_on: string | null;
         open_for_fieldwork: boolean;
-      }>('geo_divisions?select=id,parent_id,level,kind,name,slug,ordinal,aliases,verified_on,open_for_fieldwork&order=id');
+        public_status: 'actif' | 'programme' | null;
+        position: { type: 'Point'; coordinates: [number, number] } | null;
+      }>('geo_divisions?select=id,parent_id,level,kind,name,slug,ordinal,aliases,verified_on,open_for_fieldwork,public_status,position&order=id');
       const parId = new Map(lignes.map((l) => [l.id, l]));
       const adresse = (l: (typeof lignes)[number]): string[] => {
         const parent = l.parent_id ? parId.get(l.parent_id) : undefined;
@@ -69,6 +71,10 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           alias: l.aliases,
           verifieeLe: l.verified_on,
           ouverte: l.open_for_fieldwork,
+          deploiement: l.public_status ?? null,
+          position: l.position
+            ? { longitude: l.position.coordinates[0], latitude: l.position.coordinates[1] }
+            : null,
         }))
         .sort((a, b) => a.niveau - b.niveau || a.nom.localeCompare(b.nom, 'fr'));
     })());

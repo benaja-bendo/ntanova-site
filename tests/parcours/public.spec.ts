@@ -522,3 +522,58 @@ test.describe('le partage d’un lien', () => {
     expect(brut).not.toMatch(/whatsapp|direction|contact/i);
   });
 });
+
+// Ticket 102 : les données de la carte, construites avec le site (le même instantané que les pages).
+test.describe('les données de la carte', () => {
+  test('les écoles : celles que des relais ont vues sur place, avec tous leurs cycles, et rien de privé', async ({
+    request,
+  }) => {
+    const reponse = await request.get('/carte/ecoles.geojson');
+    expect(reponse.status()).toBe(200);
+    expect(reponse.headers()['content-type']).toContain('geo+json');
+    const brut = await reponse.text();
+    const ecoles = JSON.parse(brut) as {
+      type: string;
+      features: { geometry: { coordinates: number[] }; properties: Record<string, unknown> }[];
+    };
+    expect(ecoles.type).toBe('FeatureCollection');
+    const noms = ecoles.features.map((f) => f.properties.nom);
+    expect(noms).toContain('[Complexe scolaire Exemple]');
+    // Ajoutée par NTanova, ou sans position : pas sur la carte.
+    expect(noms).not.toContain('[École ajoutée Exemple]');
+    expect(noms).not.toContain('[École sans détail Exemple]');
+    const complexe = ecoles.features.find(
+      (f) => f.properties.nom === '[Complexe scolaire Exemple]',
+    );
+    expect(complexe?.properties).toMatchObject({
+      niveaux: ['Maternelle', 'Primaire'],
+      cycle: 'primaire',
+      lettre: 'P',
+      preuve: 'terrain',
+    });
+    expect(brut).not.toMatch(/0600000|whatsapp|contact/i);
+  });
+
+  test('les zones : leur état public, leurs compteurs, jamais « complet »', async ({ request }) => {
+    const reponse = await request.get('/carte/zones.geojson');
+    expect(reponse.status()).toBe(200);
+    const zones = (await reponse.json()) as {
+      features: {
+        geometry: { type: string };
+        properties: { nom: string; genre: string; etat: string; libelle: string; vues: number };
+      }[];
+    };
+    const tieTie = zones.features.find((f) => f.properties.nom === 'Tié-Tié');
+    expect(tieTie?.geometry.type).toBe('MultiPolygon');
+    expect(tieTie?.properties).toMatchObject({ etat: 'actif', libelle: 'Relevé en cours' });
+    const brazzaville = zones.features.find(
+      (f) => f.properties.nom === 'Brazzaville' && f.properties.genre === 'ville',
+    );
+    expect(brazzaville?.geometry.type).toBe('Point');
+    expect(brazzaville?.properties).toMatchObject({
+      etat: 'programme',
+      libelle: 'Déploiement programmé',
+    });
+    expect(JSON.stringify(zones)).not.toMatch(/complet/i);
+  });
+});
