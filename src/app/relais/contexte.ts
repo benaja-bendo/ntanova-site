@@ -1,11 +1,14 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { Adaptateurs } from '../../infra/index';
+import type { BilanEnvoi } from '../../modele/envoi';
 import type { ResultatEnvoi } from './file-envoi';
 
 export interface Contexte {
   adaptateurs: Adaptateurs;
   /** Le résultat du dernier envoi : « reconnecter » affiche le bandeau de connexion. */
   envoi: ResultatEnvoi | 'en_cours' | null;
+  /** Ce que le dernier essai d'envoi a fait (fiches parties, fiches en échec) : « Envoyer maintenant » le dit (ticket #74). */
+  bilan: BilanEnvoi | null;
   synchroniser: () => void;
   /** Après une connexion Google réussie. */
   surConnexion: () => void;

@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { nouvelleFiche, type FicheLocale, type PhotoLocale } from '../../src/modele/fiche';
 import {
   apresEchecInattendu,
+  apresEchecReseau,
   apresRejet,
+  type BilanEnvoi,
+  doitJournaliserLEchec,
   enAlerte,
   enseigneExigeeManquante,
   ESSAIS_AVANT_ALERTE,
@@ -10,8 +13,11 @@ import {
   explicationDuRejet,
   peutEtreModifiee,
   pourModifier,
+  phraseDEchecDeLaFiche,
+  phraseDuBilan,
   pourReessayer,
   rejetEnseigneAbsente,
+  rejetPhotoIllisible,
 } from '../../src/modele/envoi';
 
 // Les décisions de la file d'envoi, sans navigateur (ticket #55, PR 2). La file elle-même est essayée par les
@@ -113,13 +119,23 @@ describe('modifier une fiche', () => {
   });
 
   it('ramène la fiche en brouillon, sans refus ni essais ratés d’avant', () => {
-    expect(pourModifier()).toEqual({ etat: 'brouillon', rejet: null, essais: 0 });
+    expect(pourModifier()).toEqual({
+      etat: 'brouillon',
+      rejet: null,
+      essais: 0,
+      dernierEchec: null,
+    });
   });
 });
 
 describe('réessayer une fiche refusée', () => {
   it('la remet en file, sans refus ni essais ratés d’avant', () => {
-    expect(pourReessayer()).toEqual({ etat: 'a_envoyer', rejet: null, essais: 0 });
+    expect(pourReessayer()).toEqual({
+      etat: 'a_envoyer',
+      rejet: null,
+      essais: 0,
+      dernierEchec: null,
+    });
   });
 });
 
@@ -233,5 +249,143 @@ describe('la photo d’enseigne exigée n’est plus nulle part', () => {
     );
     expect(apres.etat).toBe('refusee');
     expect(explicationDuRejet(apres.rejet!).titre).toBe("La photo n'a pas pu être reçue.");
+  });
+});
+
+// Ticket #74 : une erreur de connexion sur une fiche arrêtait toute la file en silence (« Envoyer maintenant » ne
+// disait rien, les fiches suivantes n'étaient jamais essayées). Ces décisions sont celles de la file qui continue,
+// qui compte l'échec et qui le dit.
+describe('une fiche dont l’envoi échoue faute de connexion', () => {
+  it('compte l’essai et garde l’étape, la raison et l’heure du dernier échec', () => {
+    const apres = apresEchecReseau(fiche({ essais: 1 }), 'photo', 'Load failed', MAINTENANT);
+    expect(apres.essais).toBe(2);
+    expect(apres.dernierEchec).toEqual({ etape: 'photo', message: 'Load failed', le: MAINTENANT });
+  });
+
+  it('reste dans la file : ni refusée, ni retirée', () => {
+    const apres = apresEchecReseau(fiche(), 'releve', 'Failed to fetch', MAINTENANT);
+    expect(apres).not.toHaveProperty('etat');
+  });
+
+  it('ne garde pas un message démesuré', () => {
+    const apres = apresEchecReseau(fiche(), 'photo', 'x'.repeat(5000), MAINTENANT);
+    expect(apres.dernierEchec?.message.length).toBeLessThanOrEqual(200);
+  });
+
+  it('« Modifier » et « Réessayer » effacent le dernier échec', () => {
+    expect(pourModifier()).toMatchObject({ dernierEchec: null });
+    expect(pourReessayer()).toMatchObject({ dernierEchec: null });
+  });
+
+  it('dit ce qui n’est pas parti, combien d’essais, et que l’envoi reprend seul', () => {
+    const f = (champs: Partial<FicheLocale>) => phraseDEchecDeLaFiche(fiche(champs));
+    expect(
+      f({ essais: 1, dernierEchec: { etape: 'photo', message: 'Load failed', le: MAINTENANT } }),
+    ).toBe(
+      'La photo n’est pas partie : la connexion a échoué. L’envoi reprend tout seul, ou touchez « Envoyer maintenant ».',
+    );
+    expect(
+      f({ essais: 2, dernierEchec: { etape: 'releve', message: 'x', le: MAINTENANT } }),
+    ).toMatch(/^La fiche n’est pas partie : la connexion a échoué \(2 essais\)\./);
+    expect(
+      f({ essais: 1, dernierEchec: { etape: 'contact', message: 'x', le: MAINTENANT } }),
+    ).toMatch(/^Le contact n’est pas parti/);
+  });
+
+  it('au troisième essai raté, dit d’écrire à NTanova si cela continue', () => {
+    const phrase = phraseDEchecDeLaFiche(
+      fiche({
+        essais: 3,
+        dernierEchec: { etape: 'photo', message: 'Load failed', le: MAINTENANT },
+      }),
+    );
+    expect(phrase).toMatch(/Si cela continue, écrivez à NTanova\./);
+    expect(
+      phraseDEchecDeLaFiche(
+        fiche({ essais: 2, dernierEchec: { etape: 'photo', message: 'x', le: MAINTENANT } }),
+      ),
+    ).not.toMatch(/écrivez à NTanova/);
+  });
+
+  it('une fiche sans échec ne dit rien', () => {
+    expect(phraseDEchecDeLaFiche(fiche())).toBeNull();
+    expect(phraseDEchecDeLaFiche(fiche({ dernierEchec: null, essais: 4 }))).toBeNull();
+  });
+
+  it('journalise le premier échec, le deuxième, le cinquième, puis un sur dix : jamais tous', () => {
+    const journalises = [1, 2, 3, 4, 5, 6, 9, 10, 11, 20, 21].filter(doitJournaliserLEchec);
+    expect(journalises).toEqual([1, 2, 5, 10, 20]);
+  });
+});
+
+describe('ce que « Envoyer maintenant » dit après un essai', () => {
+  const bilan = (champs: Partial<BilanEnvoi> = {}): BilanEnvoi => ({
+    le: MAINTENANT,
+    envoyees: 0,
+    echecs: [],
+    refusees: 0,
+    horsLigne: false,
+    ...champs,
+  });
+
+  it('des fiches parties : combien, et à quelle heure', () => {
+    expect(phraseDuBilan(bilan({ envoyees: 1 }), '03 h 39')).toEqual({
+      ton: 'ok',
+      texte: '1 fiche envoyée à 03 h 39.',
+    });
+    expect(phraseDuBilan(bilan({ envoyees: 3 }), '03 h 39')?.texte).toBe(
+      '3 fiches envoyées à 03 h 39.',
+    );
+  });
+
+  it('une fiche qui n’a pas pu partir : laquelle, à quelle étape, et que l’envoi reprendra', () => {
+    const b = bilan({ echecs: [{ nom: '[École A]', etape: 'photo' }] });
+    expect(phraseDuBilan(b, '03 h 39')).toEqual({
+      ton: 'echec',
+      texte:
+        'Un envoi a échoué (03 h 39) : la photo de « [École A] » n’est pas partie. Il reprendra tout seul dans quelques minutes.',
+    });
+    expect(
+      phraseDuBilan(bilan({ echecs: [{ nom: '[École B]', etape: 'releve' }] }), '03 h 39')?.texte,
+    ).toMatch(/la fiche « \[École B\] » n’est pas partie/);
+    expect(
+      phraseDuBilan(bilan({ echecs: [{ nom: '[École C]', etape: 'contact' }] }), '03 h 39')?.texte,
+    ).toMatch(/le contact de « \[École C\] » n’est pas parti/);
+  });
+
+  it('plusieurs échecs : le nombre, pas la liste', () => {
+    const b = bilan({
+      envoyees: 1,
+      echecs: [
+        { nom: '[A]', etape: 'photo' },
+        { nom: '[B]', etape: 'releve' },
+      ],
+    });
+    expect(phraseDuBilan(b, '03 h 39')?.texte).toBe(
+      'Un envoi a échoué (03 h 39) : 2 fiches n’ont pas pu avancer. Il reprendra tout seul dans quelques minutes.',
+    );
+  });
+
+  it('un échec l’emporte sur les fiches parties', () => {
+    const b = bilan({ envoyees: 2, echecs: [{ nom: '[A]', etape: 'photo' }] });
+    expect(phraseDuBilan(b, '03 h 39')?.ton).toBe('echec');
+  });
+
+  it('sans réseau, ou sans rien à envoyer : rien (la bannière le dit déjà)', () => {
+    expect(phraseDuBilan(bilan({ horsLigne: true }), '03 h 39')).toBeNull();
+    expect(phraseDuBilan(bilan(), '03 h 39')).toBeNull();
+  });
+});
+
+describe('une photo qui ne se relit plus dans le téléphone', () => {
+  it('l’enseigne exigée : la fiche est refusée avec sa raison, selon que NTanova a déjà le relevé', () => {
+    const partie = rejetPhotoIllisible(true);
+    const pasPartie = rejetPhotoIllisible(false);
+    expect(partie.code).toBe('photo_illisible');
+    expect(pasPartie.code).toBe('photo_illisible');
+    expect(partie.message).toMatch(/n’est plus lisible/);
+    expect(partie.message).toMatch(/arrivée chez NTanova sans elle/);
+    expect(pasPartie.message).toMatch(/la fiche n’est pas partie/);
+    expect(pasPartie.message).toMatch(/Modifiez la fiche/);
   });
 });

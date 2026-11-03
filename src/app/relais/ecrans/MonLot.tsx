@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Valeur } from '../../../modele/listes';
 import { appartientAuCompte, duBrouillon } from '../../../modele/compte';
+import { phraseDuBilan } from '../../../modele/envoi';
 import { base, compteConnecte, lireMemoire, useRequete } from '../base-locale';
 import { aller, useEnLigne, useRelais } from '../contexte';
 import { Bandeau, Entete, heure, Icone, Navigation } from '../composants';
@@ -9,7 +10,7 @@ import { commencerContreVisite } from './Ajouter';
 
 /** L'état de la file d'envoi, en tête de « Mon secteur » et de « Mes fiches ». */
 export function EtatEnvoi() {
-  const { envoi, synchroniser } = useRelais();
+  const { envoi, bilan, synchroniser } = useRelais();
   const enLigne = useEnLigne();
   // Tant que le téléphone n'a pas compté les fiches en attente, on ne dit rien :
   // « Tout est envoyé » ne s'affiche jamais avant d'être vrai.
@@ -53,23 +54,36 @@ export function EtatEnvoi() {
     ) : null;
   if (enAttente > 0) {
     const pluriel = enAttente > 1;
+    // Ce que le dernier essai a fait, dit au relais : fiches parties, ou ce qui n'a pas pu partir (ticket #74).
+    const phrase = bilan ? phraseDuBilan(bilan, heure(bilan.le)) : null;
+    const enCoursDEnvoi = envoi === 'en_cours';
     return (
       <>
         {refus}
-        <Bandeau ton={envoi === 'erreur' && enLigne ? 'erreur' : 'attente'} icone="nuage">
+        <Bandeau
+          ton={(envoi === 'erreur' && enLigne) || phrase?.ton === 'echec' ? 'erreur' : 'attente'}
+          icone="nuage"
+        >
           <p>
             <b>
               {enAttente} fiche{pluriel ? 's' : ''} attend{pluriel ? 'ent' : ''}{' '}
               {enLigne ? "d'être envoyée" + (pluriel ? 's' : '') : 'le réseau'}.
             </b>{' '}
             {enLigne
-              ? envoi === 'erreur'
+              ? envoi === 'erreur' && !phrase
                 ? 'Un envoi a échoué ; il sera repris.'
                 : ''
               : pluriel
                 ? 'Elles partiront seules dès que le téléphone capte.'
                 : 'Elle partira seule dès que le téléphone capte.'}
           </p>
+          {enLigne && enCoursDEnvoi && (
+            <p className="rang" role="status">
+              <span className="roue" aria-hidden="true" />
+              Envoi en cours…
+            </p>
+          )}
+          {enLigne && !enCoursDEnvoi && phrase && <p role="status">{phrase.texte}</p>}
           {enLigne && (
             <button
               type="button"

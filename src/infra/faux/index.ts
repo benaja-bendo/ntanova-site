@@ -555,6 +555,9 @@ const relais: PortRelais = {
   },
   async envoyerPhoto(releveId, photo) {
     await reseau();
+    // `ntanova-faux-reseau-photo` : le navigateur échoue à envoyer la photo (« Load failed », sans réponse de la base),
+    // alors que le téléphone se dit en ligne : ce qui arrive sur iPhone (ticket #74).
+    if (localStorage.getItem('ntanova-faux-reseau-photo')) throw new ErreurReseau('Load failed');
     const e = lireEtat();
     if (!(releveId in e.releves)) throw new Error('Relevé inconnu');
     // Comme la base : une photo déjà enregistrée répond « déjà reçu », une seule enseigne par fiche,

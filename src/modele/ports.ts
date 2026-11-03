@@ -117,6 +117,14 @@ export interface PhotoAEnvoyer {
   prisLe: string;
 }
 
+/**
+ * Une photo dont les octets sont déjà lus en mémoire : ce sont eux qui partent, jamais le fichier de la base du téléphone
+ * (ticket #74 : un fichier relu dans IndexedDB et envoyé en multipart échoue sur iPhone, sans qu'une requête parte).
+ */
+export interface PhotoPrete extends PhotoAEnvoyer {
+  contenu: ArrayBuffer;
+}
+
 export interface ReleveAEnvoyer {
   id: string;
   lotId: string | null;
@@ -254,7 +262,7 @@ export interface PortRelais {
   /** `POST /releves` */
   envoyerReleve(releve: ReleveAEnvoyer): Promise<Reponse>;
   /** Dépose le fichier au chemin `<relevé>/<photo>.<webp|jpg>`, puis l'enregistre. `PUT /photos/{releve}/{photo}` */
-  envoyerPhoto(releveId: string, photo: PhotoAEnvoyer): Promise<Reponse>;
+  envoyerPhoto(releveId: string, photo: PhotoPrete): Promise<Reponse>;
   /** `POST /contacts` */
   envoyerContact(contact: ContactAEnvoyer): Promise<Reponse>;
   /** `POST /erreurs` */

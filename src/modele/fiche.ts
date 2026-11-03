@@ -132,6 +132,11 @@ export interface FicheLocale {
   rejet?: Rejet | null;
   /** Les envois ratés de suite sans que la base ait répondu (panne, serveur). Absent des fiches d'avant. */
   essais?: number;
+  /**
+   * Le dernier essai d'envoi qui n'a pas abouti faute de connexion : l'étape, ce que le navigateur a dit, quand.
+   * « Mes fiches » le dit au relais ; effacé quand le relais modifie ou relance la fiche (ticket #74).
+   */
+  dernierEchec?: { etape: EtapeEnvoi; message: string; le: string } | null;
 }
 
 /** Les trois temps de l'envoi d'une fiche : le relevé, ses photos, puis le contact. */
