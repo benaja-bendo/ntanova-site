@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { seConnecter } from './aides';
+import { ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
 
 // « Santé des envois » (ticket #77), construit avec le faux serveur : le journal des téléphones, lisible, regroupé,
 // avec une période qui écarte le bruit d'une vieille nuit. L'utilisateur du faux serveur est relais et administrateur.
@@ -115,5 +115,41 @@ test.describe('Santé des envois', () => {
     await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
     await page.getByRole('link', { name: 'Santé des envois' }).click();
     await expect(page.getByText('Aucun signal sur cette période.')).toBeVisible();
+  });
+});
+
+test.describe('dans le détail d’une fiche à valider', () => {
+  test.use({ permissions: ['geolocation'] });
+
+  test('l’administration voit ce que le téléphone du relais a signalé', async ({
+    page,
+    context,
+  }) => {
+    await uneFicheEnvoyee(page, context);
+    await poserLeJournal(page);
+    await ouvrirLaFiche(page);
+
+    const bloc = page.getByRole('region', { name: /Ce que le téléphone de .* a signalé/ });
+    await expect(bloc).toContainText('La position est refusée');
+    await expect(bloc).toContainText('3 fois');
+    // Le bruit d'une vieille nuit n'y est pas : 7 jours seulement.
+    await expect(bloc).not.toContainText('Ancienne version');
+
+    await bloc.getByRole('link', { name: 'Voir tout le journal' }).click();
+    await expect(page.getByRole('heading', { name: 'Santé des envois', level: 1 })).toBeVisible();
+  });
+
+  test('un relais qui n’a rien signalé : rien n’est affiché', async ({ page, context }) => {
+    await uneFicheEnvoyee(page, context);
+    await page.evaluate(() => {
+      const etat = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
+        erreurs?: unknown[];
+      };
+      etat.erreurs = [];
+      localStorage.setItem('ntanova-faux-serveur', JSON.stringify(etat));
+    });
+    await ouvrirLaFiche(page);
+    await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
+    await expect(page.getByText(/a signalé ces 7 derniers jours/)).toHaveCount(0);
   });
 });

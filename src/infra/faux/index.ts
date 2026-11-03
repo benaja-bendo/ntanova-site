@@ -813,6 +813,7 @@ const admin: PortAdministration = {
     const d = decision(id);
     return {
       ...ligne,
+      relaisId: MOI,
       prisLe: r.prisLe,
       position: r.position,
       divisionId: (r.position ? divisionDeLaPosition(r.position, e)?.id : null) ?? null,
@@ -1073,8 +1074,10 @@ const admin: PortAdministration = {
     });
   },
 
-  async erreursRecentes(depuis) {
+  async erreursRecentes(depuis, relaisId) {
     await reseau();
+    // Un seul téléphone dans le faux serveur : le sien (MOI). Une autre identité n'a rien signalé.
+    if (relaisId !== undefined && relaisId !== MOI) return [];
     const debut = depuis === null ? Number.NEGATIVE_INFINITY : Date.parse(depuis);
     return lireEtat()
       .erreurs.filter((l) => Date.parse(l.survenueLe) >= debut)

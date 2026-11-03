@@ -16,6 +16,58 @@ import {
 } from '../../modele/sante';
 import { Bandeau, Champ, quand } from '../../ui/composants';
 
+/**
+ * Dans le détail d'une fiche : ce que le téléphone de CE relais a signalé ces 7 derniers jours, pour comprendre une
+ * photo qui n'est pas arrivée sans ouvrir un autre écran. Rien à afficher, rien d'affiché : la lecture est un plus,
+ * jamais un blocage de la décision.
+ */
+export function SignauxDuRelais({
+  admin,
+  relaisId,
+  prenom,
+}: {
+  admin: PortAdministration;
+  relaisId: string;
+  prenom: string;
+}) {
+  const [lecture, setLecture] = useState<{ pour: string; groupes: GroupeJournal[] } | null>(null);
+
+  useEffect(() => {
+    let abandonne = false;
+    admin
+      .erreursRecentes(debutDePeriode(periodeParDefaut, new Date()), relaisId)
+      .then((journal) => {
+        if (!abandonne) setLecture({ pour: relaisId, groupes: regrouper(journal) });
+      })
+      .catch(() => undefined);
+    return () => {
+      abandonne = true;
+    };
+  }, [admin, relaisId]);
+
+  const groupes = lecture?.pour === relaisId ? lecture.groupes.slice(0, 3) : [];
+  if (groupes.length === 0) return null;
+  return (
+    <section className="pile-serree" aria-label={`Ce que le téléphone de ${prenom} a signalé`}>
+      <p className="mention">
+        <b>
+          Ce que le téléphone de {prenom} a signalé ces {periodeParDefaut} derniers jours
+        </b>
+      </p>
+      <ul className="mention">
+        {groupes.map((g) => (
+          <li key={g.cle}>
+            {g.explication} ({g.nombre} fois, dernière {quand(g.derniere)}).
+          </li>
+        ))}
+      </ul>
+      <a className="lien" href="#sante">
+        Voir tout le journal
+      </a>
+    </section>
+  );
+}
+
 export function Sante({ admin }: { admin: PortAdministration }) {
   const [jours, setJours] = useState<number | null>(periodeParDefaut);
   // Ce qui a été lu, et pour quelle période : tant que la période choisie n'est pas celle de la lecture, on charge.

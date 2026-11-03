@@ -115,6 +115,7 @@ const versFile = (l: LigneFile): ReleveAValider => ({
 
 interface LigneDetail {
   id: string;
+  relay_id: string;
   received_at: string;
   taken_at: string;
   kind: Valeur<'type_releve'>;
@@ -153,7 +154,7 @@ interface LigneDetail {
 }
 
 const COLONNES_DETAIL =
-  'id, received_at, taken_at, kind, sign_name, position, accuracy_m, levels, school_kind, curriculum_note, ' +
+  'id, relay_id, received_at, taken_at, kind, sign_name, position, accuracy_m, levels, school_kind, curriculum_note, ' +
   'observed_programs, programs_photographed, landmark, sign_phone, direction_seen, come_back_note, ' +
   'duplicate_answer, corrects_submission_id, outside_batch, in_open_zone, division_id, possible_duplicate, contact_confirmed_at, ' +
   'contact_role, trial_validated_at, campus_id, relais(prenom), lots(nom, essai), ' +
@@ -284,6 +285,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         0;
       return {
         id: r.id,
+        relaisId: r.relay_id,
         recuLe: r.received_at,
         prisLe: r.taken_at,
         type: r.kind,
@@ -575,7 +577,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       });
     },
 
-    async erreursRecentes(depuis: string | null): Promise<LigneJournal[]> {
+    async erreursRecentes(depuis: string | null, relaisId?: string): Promise<LigneJournal[]> {
       const lignes = await toutesLesLignes<{
         id: string;
         survenue_le: string;
@@ -592,6 +594,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           .order('survenue_le', { ascending: false })
           .order('id');
         if (depuis !== null) requete = requete.gte('survenue_le', depuis);
+        if (relaisId !== undefined) requete = requete.eq('relais_id', relaisId);
         return requete.range(de, a);
       });
       return lignes.map((l) => ({

@@ -301,6 +301,8 @@ export interface ReleveAValider {
 
 /** Tout ce qu'un relevé contient, sauf le contact (lu à part). */
 export interface DetailReleve extends ReleveAValider {
+  /** Le relais qui l'a envoyé : de quoi lire ce que son téléphone a signalé (ticket #77). */
+  relaisId: string;
   prisLe: string;
   position: Point | null;
   /** La division que dit la position (la plus fine dont le contour la contient) ; nulle si aucun contour connu. */
@@ -621,9 +623,9 @@ export interface PortAdministration {
   relais(): Promise<RelaisVu[]>;
   /**
    * `GET /admin/erreurs?depuis=` : le journal des téléphones (ticket #77), le plus récent d'abord, avec le prénom du
-   * relais. `depuis` est une date ISO ; `null` lit tout le journal.
+   * relais. `depuis` est une date ISO ; `null` lit tout le journal. `relaisId` ne garde que celui d'un relais.
    */
-  erreursRecentes(depuis: string | null): Promise<LigneJournal[]>;
+  erreursRecentes(depuis: string | null, relaisId?: string): Promise<LigneJournal[]>;
   /** `GET /admin/lots` */
   lots(): Promise<LotVu[]>;
   /** Un lot sur n'importe quelle ville, arrondissement ou quartier. `POST /admin/lots` */

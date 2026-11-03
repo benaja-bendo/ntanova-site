@@ -116,6 +116,7 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - **Un code, une phrase** (`expliquerCode`) : jamais un mot de la base ni du navigateur. **Un code que le fichier ne connaît pas s'affiche tel quel** (« Signal inconnu : … ») : un nouveau signal du téléphone ne casse jamais l'écran. **Quand le téléphone écrit un nouveau code, on ajoute sa phrase dans `PHRASES`.**
 - **La période par défaut est de 7 jours** : le bruit d'une nuit de bascule (des téléphones d'avant la mise à jour qui lisent des tables renommées : 164 lignes sur 193 le 02/11) sort de la vue sans aucun filtre écrit en dur ; « Tout » le rend, expliqué comme « ancienne version de l'application ».
 - La lecture passe par `toutesLesLignes` : le plafond de 1 000 lignes de l'API ne tronque jamais le journal en silence.
+- **Dans le détail d'une fiche à valider** (`SignauxDuRelais`) : ce que le téléphone de CE relais a signalé ces 7 derniers jours (trois signaux au plus, un lien vers tout le journal) ; rien d'affiché quand il n'a rien signalé, et une lecture qui échoue ne bloque jamais la décision.
 
 ### La carte de position (ticket #72)
 
