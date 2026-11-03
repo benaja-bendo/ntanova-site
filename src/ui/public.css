@@ -155,9 +155,9 @@
 
 .pastilles-vides li {
   padding: var(--espace-1) var(--espace-3);
-  border: 2px dashed var(--trait-fort);
+  border: 2px dashed var(--preuve-vide-trait);
   border-radius: var(--rayon-pilule);
-  color: var(--texte-doux);
+  color: var(--preuve-vide);
   font-size: var(--taille-mention);
   font-weight: 700;
 }

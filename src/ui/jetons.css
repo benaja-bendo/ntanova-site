@@ -28,6 +28,23 @@
 
   /* Une crème plus foncée : la bande de fond d'une section, sur grand écran (texte courant 6,2:1) */
   --creme-fonce: #f1e9db;
+  /*
+   * La direction artistique du 03/11 (ticket #100) : des neutres froids pour l'autorité, une seule couleur
+   * forte par écran. La crème reste la couleur du texte sur le vert de la marque.
+   */
+  --gris-fond: #f7f8f6; /* le fond des pages : encre 15,3:1, encre-75 7,0:1, vert 7,4:1 */
+  --gris-bande: #eef1ee; /* la bande d'une section : encre-75 6,6:1, vert 6,9:1 */
+  --gris-filet: #e3e6e3; /* filets décoratifs */
+  /* Les preuves d'une fiche */
+  --bleu-ardoise: #2f5d8a; /* « déclaré par l'école » : 6,5:1 sur le fond, 6,9:1 sur blanc */
+  --gris-vide: #6b716c; /* « pas encore relevé », en texte : 4,7:1 sur le fond, 5,0:1 sur blanc */
+  /* Les cycles, sur les marqueurs (lettre blanche dessus) ; jamais le vert, qui dit la preuve */
+  --ambre: #b45309; /* M, crèche et maternelle : 5,0:1 */
+  --bleu-primaire: #1d6fa5; /* P : 5,4:1 */
+  --violet: #7c3aed; /* C, collège : 5,7:1 */
+  --framboise: #be185d; /* L, lycée : 6,0:1 */
+  --ardoise: #475569; /* T, technique et professionnel : 7,6:1 */
+  --indigo: #1e3a8a; /* S, supérieur et autre formation : 10,4:1 */
 
   /* La carte détourée : les couleurs du canevas « Site NTanova », un plateau de jeu vu d'en haut */
   --sable: #efe2bf; /* la terre de l'arrondissement qu'on regarde */
@@ -40,12 +57,12 @@
   --jaune-avenue: #f6d27d;
 
   /* 2. Rôles : les composants n'utilisent que ceux-ci */
-  --fond: var(--creme);
+  --fond: var(--gris-fond);
   --fond-releve: var(--blanc);
-  --fond-bande: var(--creme-fonce);
+  --fond-bande: var(--gris-bande);
   --texte: var(--encre);
   --texte-doux: var(--encre-75);
-  --trait: var(--encre-10);
+  --trait: var(--gris-filet);
   --trait-fort: var(--encre-50);
   --marque: var(--vert);
   --marque-appuyee: var(--vert-profond);
@@ -54,6 +71,24 @@
   --focus: var(--vert-profond);
   --erreur: var(--rouge-texte);
 
+  /*
+   * Les preuves d'une fiche publique (ticket #99) : confirmée par la direction, vue sur place par un
+   * relais, déclarée par l'école, pas encore relevée. Deux preuves ne se fusionnent jamais.
+   */
+  --preuve-direction: var(--vert);
+  --preuve-direction-texte: var(--creme);
+  --preuve-terrain: var(--vert);
+  --preuve-ecole: var(--bleu-ardoise);
+  --preuve-vide: var(--gris-vide);
+  --preuve-vide-trait: var(--encre-50);
+  /* Les cycles : la couleur et la lettre du cycle le plus élevé d'une école, sur son marqueur */
+  --cycle-lettre: var(--blanc);
+  --cycle-maternelle: var(--ambre);
+  --cycle-primaire: var(--bleu-primaire);
+  --cycle-college: var(--violet);
+  --cycle-lycee: var(--framboise);
+  --cycle-technique: var(--ardoise);
+  --cycle-superieur: var(--indigo);
   /* Les états d'une fiche ou d'un envoi */
   --etat-verifiee-fond: var(--vert);
   --etat-verifiee-texte: var(--creme);
@@ -75,7 +110,7 @@
    * La carte détourée (src/ui/Carte.astro). Changer ici le style de toute la carte : terre, rues,
    * maisons, drapeaux, pastilles. Chaque cadrage (ville, arrondissement, coin, fiche) les reprend.
    */
-  --carte-fond: var(--creme);
+  --carte-fond: var(--fond);
   --carte-terre: var(--sable);
   --carte-terre-ombre: var(--sable-ombre);
   --carte-voisin: var(--sable-pale);
