@@ -4,7 +4,7 @@
 // Sous 48 rem, la page d'un téléphone. À partir de 48 rem, la planche « Accueil sur ordinateur » du canevas.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../infra/index';
-import { arrondissementDeLApercu } from '../modele/carte/plan';
+import { arrondissementDeLApercu, vuesSurPlace } from '../modele/carte/plan';
 import { compterEcoles, ecolesSous, lienCarte, lienDivision } from '../modele/geo-divisions';
 import { lienWhatsApp } from '../modele/whatsapp';
 import ApercuCarte from '../ui/ApercuCarte.astro';
@@ -29,13 +29,14 @@ const villes = arbre.racines
   );
 
 // L'aperçu de la carte : l'arrondissement dessiné qui a le plus d'écoles sur la carte (aujourd'hui, Pointe-Noire).
+// La carte ne montre que les écoles vues sur place (décision du fondateur du 03/11).
 const ouverts = divisions
   .filter(
     (d) => d.niveau === 3 && d.ouverte && d.adresse.join('/').startsWith('congo/pointe-noire/'),
   )
   .map((d) => ({ slug: d.slug }));
 const dePointeNoire = ecoles.filter((e) => e.adresse.join('/').startsWith('congo/pointe-noire/'));
-const tete = arrondissementDeLApercu(ouverts, dePointeNoire);
+const tete = arrondissementDeLApercu(ouverts, vuesSurPlace(dePointeNoire));
 const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === tete.slug) : [];
 ---
 
@@ -98,7 +99,7 @@ const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === t
                   <span class="quartier-compte">
                     {compterEcoles(v.total)}
                     {v.verifiees > 0
-                      ? `, dont ${v.verifiees} vérifiée${v.verifiees > 1 ? 's' : ''}`
+                      ? `, dont ${v.verifiees} confirmée${v.verifiees > 1 ? 's' : ''} par la direction`
                       : ''}
                   </span>
                 </span>
@@ -134,20 +135,20 @@ const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === t
           <span class="etape-numero" aria-hidden="true">
             1
           </span>
-          <h3>Relevée par des jeunes du quartier</h3>
+          <h3>Vue sur place par des jeunes du quartier</h3>
           <p>
-            Chaque école est relevée sur place&nbsp;: enseigne, position, niveaux. Seulement ce qui
-            se voit de la rue.
+            Un jeune du quartier passe devant l'école&nbsp;: enseigne, position, niveaux. Seulement
+            ce qui se voit de la rue, avec la date de son passage.
           </p>
         </li>
         <li class="etape">
           <span class="etape-numero" aria-hidden="true">
             2
           </span>
-          <h3>Vérifiée par l'école</h3>
+          <h3>Confirmée par la direction</h3>
           <p>
-            La direction confirme la fiche et nous donne photos, frais, équipements et contact. Rien
-            n'est ajouté sans son accord.
+            La direction relit la fiche avec nous et donne son accord. La date de cet accord est sur
+            la fiche. Rien de ce qu'elle nous confie n'est publié sans lui.
           </p>
         </li>
         <li class="etape">
@@ -172,8 +173,8 @@ const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === t
           <b>Vous dirigez une école&nbsp;?</b> Confirmez sa fiche avec nous.
         </p>
         <p class="appel-detail">
-          Complétez-la ensuite avec nous&nbsp;: photos, frais, équipements et le numéro WhatsApp que
-          vous voulez publier.
+          La date de votre accord paraît sur la fiche. Rien de ce que vous nous confiez n'est publié
+          sans lui.
         </p>
       </div>
       <a class="bouton bouton-accent" href="/pour-les-ecoles/">

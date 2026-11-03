@@ -22,9 +22,12 @@ test('de la ville à la fiche : arrondissement, pastille, coin vu de près, éco
 
   // L'arrondissement : la pastille regroupe les deux écoles situées.
   await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
-  await expect(page.getByText('3 écoles sur la carte de Tié-Tié')).toBeVisible();
+  // L'école ajoutée par NTanova n'y est pas : la carte ne montre que les écoles vues sur place.
+  await expect(page.getByText('2 écoles sur la carte de Tié-Tié')).toBeVisible();
   await expect(
-    page.getByText('Une autre école n’est pas encore située : elle n’est que dans la liste.'),
+    page.getByText(
+      '2 autres écoles ne sont que dans la liste : pas encore vues sur place, ou pas encore situées.',
+    ),
   ).toBeVisible();
   const pastille = page.getByRole('link', { name: /Un groupe de 2 écoles.*le voir de près/ });
   await expect(pastille).toBeVisible();
@@ -35,7 +38,7 @@ test('de la ville à la fiche : arrondissement, pastille, coin vu de près, éco
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Un coin de Tié-Tié');
   const carte = page.getByRole('group', { name: /vues de près/ });
   await expect(
-    carte.getByRole('link', { name: /Complexe scolaire Exemple.*relevée de la rue/ }),
+    carte.getByRole('link', { name: /Complexe scolaire Exemple.*vue sur place/ }),
   ).toBeVisible();
   await expect(carte.getByRole('link', { name: /Centre de formation Exemple/ })).toBeVisible();
   await expect(page.locator('#ecoles-du-coin').getByRole('link')).toHaveCount(2);
@@ -111,20 +114,24 @@ test('chaque école et chaque pastille se touchent du doigt : 44 px au moins', a
   }
 });
 
-test('une école située par l’administration, sans relevé, dit qu’elle a été ajoutée par NTanova', async ({
+// Ticket #99 (décision du fondateur du 03/11) : la carte est la vitrine de la preuve de terrain.
+test('une école située par l’administration, sans relevé, est dans la liste avec sa mention, mais pas sur la carte', async ({
   page,
 }) => {
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
   await expect(
-    page.getByRole('link', { name: /\[École ajoutée Exemple\].*Ajoutée par NTanova/ }),
+    page.getByRole('link', {
+      name: /\[École ajoutée Exemple\].*Ajoutée par NTanova, pas encore vue sur place/,
+    }),
   ).toBeVisible();
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-ajoutee-exemple/');
-  await expect(page.getByText('Fiche ajoutée par NTanova le 3 novembre 2026')).toBeVisible();
-  await expect(page.getByText(/par un jeune du quartier : seulement/)).toHaveCount(0);
+  await expect(page.getByText('Ajoutée par NTanova le 3 novembre 2026')).toBeVisible();
+  await expect(page.getByText(/Pas encore vue sur place par un jeune du quartier/)).toBeVisible();
+  await expect(page.getByText(/Vue sur place le/)).toHaveCount(0);
+  // Sa fiche garde son petit plan : il dit où est l'école.
+  await expect(page.getByRole('group', { name: /sur la carte de Tié-Tié/ })).toBeVisible();
   await page.goto('/cartes/congo/pointe-noire/tie-tie/');
-  await expect(
-    page.getByRole('link', { name: '[École ajoutée Exemple], ajoutée par NTanova' }),
-  ).toBeVisible();
+  await expect(page.getByRole('link', { name: /École ajoutée Exemple/ })).toHaveCount(0);
 });
 
 // L'aperçu de la carte sur l'accueil (ticket 42) : une fenêtre sur l'arrondissement où il y a des
@@ -134,7 +141,8 @@ test('l’accueil montre un aperçu de la carte de Tié-Tié, qui mène à sa ca
   await page.goto('/');
   const apercu = page.getByRole('region', { name: 'La carte de Tié-Tié' });
   await expect(apercu).toBeVisible();
-  await expect(apercu.getByText('Arrondissement 3 · 3 écoles sur la carte')).toBeVisible();
+  // L'école ajoutée par NTanova n'est pas sur la carte (ticket #99) : 2 des 3 écoles situées.
+  await expect(apercu.getByText('Arrondissement 3 · 2 écoles sur la carte')).toBeVisible();
 
   // Le dessin est décoratif : ni groupe ni lien dedans (une pastille ne mène pas à un coin dont
   // le numéro vient de l'autre échelle), un seul des deux dessins s'affiche, et l'attribution

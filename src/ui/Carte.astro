@@ -1,7 +1,7 @@
 ---
 // La carte détourée du canevas « Site NTanova » : un plateau vu d'en haut, la terre de
-// l'arrondissement en relief, ses rues, des maisons à drapeau pour les écoles (vert : vérifiée
-// par l'école ; blanc : relevée de la rue) et des pastilles quand elles se toucheraient.
+// l'arrondissement en relief, ses rues, des maisons à drapeau pour les écoles vues sur place (vert :
+// confirmée par la direction ; blanc : vue sur place) et des pastilles quand elles se toucheraient.
 // Un SVG calculé à la construction, sans JavaScript : chaque école et chaque pastille est un lien.
 // Les couleurs : les jetons `--carte-…` de jetons.css.
 import { cheminContour, cheminLignes, pointDuNom } from '../modele/carte/geometrie';
@@ -89,7 +89,7 @@ const attributsGroupe = (m: MarqueGroupe) =>
     ? { 'aria-hidden': 'true' as const }
     : {
         href: lienGroupe(m),
-        'aria-label': `Un groupe de ${ecoles(m.ecoles.length)}${m.verifiee ? ', dont au moins une vérifiée' : ''} : ${lienGroupe(m).startsWith('#') ? 'voir leur liste' : 'le voir de près'}`,
+        'aria-label': `Un groupe de ${ecoles(m.ecoles.length)}${m.verifiee ? ', dont au moins une confirmée par la direction' : ''} : ${lienGroupe(m).startsWith('#') ? 'voir leur liste' : 'le voir de près'}`,
       };
 
 // Vues de près, les rues s'élargissent un peu, comme sur une vraie carte qu'on zoome :

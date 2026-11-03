@@ -100,7 +100,7 @@ const erreur = e
 ) : page ? (
   <PagePublique
     titre={`Les écoles de ${page.division.nom} · NTanova`}
-    description={`Les écoles de ${page.noms.join(', ')} : de la crèche au supérieur, relevées sur place.`}
+    description={`Les écoles de ${page.noms.join(', ')} : de la crèche au supérieur.`}
     whatsapp={whatsapp}
   >
     <HubDivision page={page} divisions={site.divisions} manque={manque} />

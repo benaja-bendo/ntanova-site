@@ -72,7 +72,8 @@ const planArrondissement = (() => {
   return planer(boite, sur, projection);
 })();
 const aDesGroupes = planArrondissement.marques.some((m) => m.genre === 'groupe');
-const aSituer = siennes.length - sur.length;
+// Les autres sont dans la liste : pas encore vues sur place, ou pas encore situées.
+const horsCarte = siennes.length - sur.length;
 
 // Un coin vu de près
 const groupe: MarqueGroupe | undefined =
@@ -146,11 +147,11 @@ const roles = arrondissementsDessines.map((a) => ({
               {ecolesDit(sur.length)} sur la carte de <span class="insecable">{nom}</span>
             </p>
           )}
-          {aSituer > 0 && (
+          {horsCarte > 0 && (
             <p class="texte-doux">
-              {aSituer === 1
-                ? 'Une autre école n’est pas encore située : elle n’est que dans la liste.'
-                : `${aSituer} autres écoles ne sont pas encore situées : elles ne sont que dans la liste.`}
+              {horsCarte === 1
+                ? 'Une autre école n’est que dans la liste : pas encore vue sur place, ou pas encore située.'
+                : `${horsCarte} autres écoles ne sont que dans la liste : pas encore vues sur place, ou pas encore situées.`}
             </p>
           )}
           {sur.length > 0 && <LegendeCarte groupes={aDesGroupes} />}

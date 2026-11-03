@@ -85,7 +85,7 @@ export interface EcoleSurCarte extends Point {
   nom: string;
   /** L'adresse de sa fiche. */
   lien: string;
-  /** Le drapeau : vert si vérifiée, blanc sinon (relevée de la rue, ou ajoutée par NTanova). */
+  /** Le drapeau : vert si confirmée par la direction, blanc si vue sur place. */
   etat: Provenance;
 }
 
@@ -103,7 +103,7 @@ export interface MarqueGroupe {
   x: number;
   y: number;
   ecoles: EcoleSurCarte[];
-  /** Une école vérifiée dedans : un petit drapeau vert sur la pastille. */
+  /** Une école confirmée par la direction dedans : un petit drapeau vert sur la pastille. */
   verifiee: boolean;
 }
 
@@ -212,21 +212,31 @@ export function cadreEcole(ecole: Point): { boite: Boite; projection: Projection
 }
 
 /** Une école publiée, telle que la carte la montre (celles sans position n'y sont pas). */
-export function surCarte(
-  ecoles: readonly {
-    id: string;
-    nom: string;
-    etiquette?: string | null;
-    adresse: string[];
-    slug: string;
-    etat: 'verifiee' | 'relevee';
-    releveeLe: string | null;
-    situeeLe: string | null;
-    latitude: number | null;
-    longitude: number | null;
-  }[],
-): EcoleSurCarte[] {
-  return situees(ecoles).map((e) => ({
+/**
+ * Les écoles qu'un relais a vues sur place (décision du fondateur du 03/11) : la carte est la vitrine
+ * de la preuve de terrain. Une école ajoutée par NTanova, ou importée, reste dans les listes et la
+ * recherche, avec sa mention, mais pas sur la carte.
+ */
+export function vuesSurPlace<T extends { releveeLe: string | null }>(ecoles: readonly T[]): T[] {
+  return ecoles.filter((e) => e.releveeLe !== null);
+}
+
+interface EcoleASituer {
+  id: string;
+  nom: string;
+  etiquette?: string | null;
+  adresse: string[];
+  slug: string;
+  etat: 'verifiee' | 'relevee';
+  releveeLe: string | null;
+  situeeLe: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/** Une école sur un plan, qu'un relais l'ait vue ou non (le petit plan de sa propre fiche). */
+export function marqueDe(e: EcoleASituer & Point): EcoleSurCarte {
+  return {
     id: e.id,
     // Deux implantations d'une même école se distinguent sur la carte par leur étiquette.
     nom: e.etiquette ? `${e.nom} (${e.etiquette})` : e.nom,
@@ -234,7 +244,12 @@ export function surCarte(
     etat: provenanceDe(e),
     latitude: e.latitude,
     longitude: e.longitude,
-  }));
+  };
+}
+
+/** Les écoles de la carte : vues sur place, et situées. */
+export function surCarte(ecoles: readonly EcoleASituer[]): EcoleSurCarte[] {
+  return situees(vuesSurPlace(ecoles)).map(marqueDe);
 }
 
 /** Les groupes de la carte d'un arrondissement : chacun a sa page « vu de près ». */

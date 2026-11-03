@@ -188,6 +188,16 @@ export function compterEcoles(n: number): string {
   return n === 1 ? '1 école' : `${n} écoles`;
 }
 
+/**
+ * La ligne de lieu d'une fiche, du plus fin au plus large, sans le pays et sans jamais répéter un nom :
+ * « [Quartier] · Tié-Tié · Pointe-Noire ». Le département et la ville de Pointe-Noire portent le même
+ * nom ; le quartier noté par le relais peut être celui de l'arrondissement.
+ */
+export function ligneDeLieu(quartier: string | null, noms: readonly string[]): string {
+  const morceaux = [quartier, ...noms.slice(1).reverse()].filter((x): x is string => !!x);
+  return morceaux.filter((x, i) => morceaux.indexOf(x) === i).join(' · ');
+}
+
 /** Le fil d'Ariane d'une division, sans la répétition ville/département de même nom : « Congo › Pointe-Noire › Tié-Tié ». */
 export function cheminLisible(
   id: string,

@@ -105,7 +105,8 @@ test.describe('site public', () => {
     await page.getByRole('link', { name: /\[Complexe scolaire Exemple\]/ }).click();
 
     await expect(page.getByRole('heading', { name: '[Complexe scolaire Exemple]' })).toBeVisible();
-    await expect(page.getByText(/Fiche relevée le 2 novembre 2026/)).toBeVisible();
+    await expect(page.getByText(/Vue sur place le 2 novembre 2026/)).toBeVisible();
+    await expect(page.getByText(/Confirmée par la direction/)).toHaveCount(0);
     await expect(page.getByText('Maternelle, Primaire')).toBeVisible();
     await expect(page.getByRole('link', { name: '+242 06 000 00 01' })).toHaveAttribute(
       'href',
@@ -115,7 +116,7 @@ test.describe('site public', () => {
       'href',
       'https://www.google.com/maps/dir/?api=1&destination=-4.79105,11.925',
     );
-    await page.getByRole('link', { name: 'Confirmer la fiche' }).click();
+    await page.getByRole('link', { name: 'Compléter cette fiche' }).click();
     await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
   });
 
@@ -159,9 +160,13 @@ test.describe('site public', () => {
         page.getByRole('heading', { name: '[Groupe scolaire Exemple]', level: 1 }),
       ).toBeVisible();
       await expect(page.getByText('Campus du quartier', { exact: true })).toBeVisible();
+      await expect(page.getByText(/Confirmée par la direction le 4 novembre 2026/)).toBeVisible();
+      // Le lieu, du plus fin au plus large, sans répéter Pointe-Noire (ville et département).
       await expect(
-        page.getByText(/Fiche vérifiée par la direction le 4 novembre 2026/),
+        page.getByText('[Quartier Exemple] · Loandjili · Pointe-Noire', { exact: true }),
       ).toBeVisible();
+      // Les deux preuves, l'une après l'autre, jamais fusionnées.
+      await expect(page.getByText(/Vue sur place le 2 novembre 2026/)).toBeVisible();
       // Les formations du lycée, rangées par cycle, avec leurs liens vers les pages par série.
       const formations = page.getByRole('region', { name: 'Formations' });
       await expect(formations.getByRole('heading', { name: 'Lycée' })).toBeVisible();
@@ -325,7 +330,7 @@ test.describe('site public', () => {
       await expect(proprietes.getByText('Programme et langues', { exact: true })).toBeVisible();
       await expect(proprietes.getByText('Programme français-congolais, bilingue')).toBeVisible();
       // Tout est renseigné : rien à ranger parmi ce qui manque.
-      const manque = page.locator('ul.pastilles-vides');
+      const manque = page.locator('.fiche-cote');
       await expect(manque).not.toContainText("Type d'école");
       await expect(manque).not.toContainText('Niveaux');
     });
@@ -340,7 +345,7 @@ test.describe('site public', () => {
       await expect(proprietes.getByText('Type', { exact: true })).toHaveCount(0);
       await expect(proprietes.getByText('Niveaux', { exact: true })).toHaveCount(0);
       await expect(proprietes.getByText('Programme et langues')).toHaveCount(0);
-      const manque = page.locator('ul.pastilles-vides');
+      const manque = page.locator('.fiche-cote');
       await expect(manque).toContainText("Type d'école");
       await expect(manque).toContainText('Niveaux');
     });
@@ -352,13 +357,13 @@ test.describe('site public', () => {
       const proprietes = page.locator('dl.proprietes');
       await expect(proprietes.getByText('Autre formation', { exact: true })).toBeVisible();
       await expect(proprietes.getByText('Type', { exact: true })).toHaveCount(0);
-      await expect(page.locator('ul.pastilles-vides')).toContainText("Type d'école");
+      await expect(page.locator('.fiche-cote')).toContainText("Type d'école");
     });
 
     test('un cycle à filières dit ce qui manque, ou ce qui est noté', async ({ page }) => {
       // Le centre de formation a une formation notée : rien à signaler pour lui.
       await page.goto(`${TIE_TIE}centre-de-formation-exemple/`);
-      await expect(page.locator('ul.pastilles-vides')).not.toContainText('Séries ou filières');
+      await expect(page.locator('.fiche-cote')).not.toContainText('Séries ou filières');
       await expect(page.getByRole('region', { name: 'Formations' })).toContainText(
         'Couture et stylisme',
       );
@@ -374,10 +379,10 @@ test.describe('site public', () => {
       );
       // Le nom, puis le niveau et les formations (le type « Autre » ne s'écrit pas), puis l'état : rien d'autre.
       await expect(liste.getByRole('link', { name: /Centre de formation Exemple/ })).toHaveText(
-        /^\[Centre de formation Exemple\]\s*Autre formation · 1 formation\s*Relevée de la rue$/,
+        /^\[Centre de formation Exemple\]\s*Autre formation · 1 formation\s*Vue sur place$/,
       );
       await expect(liste.getByRole('link', { name: /École sans détail/ })).toHaveText(
-        /^\[École sans détail Exemple\]\s*Relevée de la rue$/,
+        /^\[École sans détail Exemple\]\s*Ajoutée par NTanova, pas encore vue sur place$/,
       );
       await expect(liste).not.toContainText('Pas indiqué');
     });
@@ -385,17 +390,19 @@ test.describe('site public', () => {
     test('la fiche donne la date du relevé, pas celle de la dernière modification', async ({
       page,
     }) => {
-      // Relevée le 2 novembre, modifiée depuis le 20 : elle dit toujours « relevée le 2 novembre ».
+      // Vue le 2 novembre, modifiée depuis le 20 : elle dit toujours « vue sur place le 2 novembre ».
       await page.goto(`${TIE_TIE}centre-de-formation-exemple/`);
-      await expect(page.getByText(/Fiche relevée le 2 novembre 2026/)).toBeVisible();
+      await expect(page.getByText(/Vue sur place le 2 novembre 2026/)).toBeVisible();
       await expect(page.getByText(/20 novembre/)).toHaveCount(0);
     });
 
-    test('sans date de relevé (une fiche d’avant), la fiche retombe sur la dernière mise à jour', async ({
+    test('sans date de relevé, la fiche ne se dit jamais vue sur place (ticket #99)', async ({
       page,
     }) => {
       await page.goto(`${TIE_TIE}ecole-sans-detail-exemple/`);
-      await expect(page.getByText(/Fiche relevée le 5 novembre 2026/)).toBeVisible();
+      await expect(page.getByText(/Ajoutée par NTanova/)).toBeVisible();
+      await expect(page.getByText(/Vue sur place le/)).toHaveCount(0);
+      await expect(page.getByText(/5 novembre/)).toHaveCount(0);
     });
 
     test('la description de la page d’une zone va de la crèche au supérieur', async ({ page }) => {
