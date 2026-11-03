@@ -249,7 +249,16 @@ async function main(): Promise<void> {
         );
       }
 
-      const fautes = fautesDeMiseEnPage(await page.evaluate(mesurer));
+      const mesures = await page.evaluate(mesurer);
+      // La marge de chaque page, pour voir venir un débordement : Linux (la CI) et macOS ne coupent pas toujours les
+      // lignes au même endroit.
+      console.log(
+        `  marges (px avant le pied de page) : ${mesures.pages
+          .filter((m) => m.limite > 0)
+          .map((m) => `${m.page.slice(0, 2)}=${m.limite - m.fin}`)
+          .join(' ')}`,
+      );
+      const fautes = fautesDeMiseEnPage(mesures);
       if (fautes.length)
         throw new Error(
           `Le guide exporté (${libelle}) est mal mis en page :\n  - ${fautes.join('\n  - ')}`,
