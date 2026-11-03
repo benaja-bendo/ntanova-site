@@ -7,7 +7,12 @@
  */
 import { useEffect, useState } from 'react';
 import { ageDe } from '../../modele/age';
-import type { DivisionVue, PortAdministration, VueEnsemble as Vue } from '../../modele/ports';
+import {
+  ErreurDecision,
+  type DivisionVue,
+  type PortAdministration,
+  type VueEnsemble as Vue,
+} from '../../modele/ports';
 import { zonesOuvertesRacines } from '../../modele/vue-ensemble';
 import { Bandeau } from '../../ui/composants';
 import { aller } from '../commun/adresse';
@@ -64,8 +69,13 @@ export function VueEnsemble({
         // Le menu dit combien de fiches attendent, d'où qu'on arrive.
         surCompte(v.aValider.nombre);
       })
-      .catch(() => {
-        if (!abandonne) setErreur('La base ne répond pas. Vérifie le réseau et recharge la page.');
+      .catch((e: unknown) => {
+        if (abandonne) return;
+        setErreur(
+          e instanceof ErreurDecision
+            ? e.message
+            : 'La base ne répond pas. Vérifie le réseau et recharge la page.',
+        );
       });
     return () => {
       abandonne = true;
