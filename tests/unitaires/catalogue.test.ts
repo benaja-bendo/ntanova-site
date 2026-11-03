@@ -187,6 +187,34 @@ describe('le catalogue du site public', () => {
     expect(divisions.map((d) => d.niveau)).toEqual([0, 1, 2, 3]);
   });
 
+  it('lit l’état public d’une zone et le point d’une ville, distincts de l’ouverture aux relais (ticket 102)', async () => {
+    fausseBase({
+      geo_divisions: DIVISIONS.map((d) =>
+        d.id === 'd-tt'
+          ? { ...d, public_status: 'actif' }
+          : d.id === 'd-pn'
+            ? { ...d, position: { type: 'Point', coordinates: [11.8503, -4.7975] } }
+            : d,
+      ),
+    });
+    const divisions = await catalogue().divisions();
+    expect(divisions.find((d) => d.id === 'd-tt')).toMatchObject({
+      ouverte: true,
+      deploiement: 'actif',
+      position: null,
+    });
+    expect(divisions.find((d) => d.id === 'd-pn')).toMatchObject({
+      ouverte: false,
+      deploiement: null,
+      position: { longitude: 11.8503, latitude: -4.7975 },
+    });
+    // Une zone sans état ni point se lit « rien », jamais « indéfini » : elle est non couverte.
+    expect(divisions.find((d) => d.id === 'd-cg')).toMatchObject({
+      deploiement: null,
+      position: null,
+    });
+  });
+
   it('traduit les anciennes adresses des fiches fusionnées en adresses publiques', async () => {
     fausseBase({
       geo_divisions: DIVISIONS,

@@ -383,6 +383,8 @@ describe('le schéma lu dans les migrations', () => {
   it('connaît les objets principaux, avec leurs colonnes', () => {
     expect(schema.tables.get('campuses')?.colonnes).toContain('institution_id');
     expect(schema.tables.get('geo_divisions')?.colonnes).toContain('open_for_fieldwork');
+    expect(schema.tables.get('geo_divisions')?.colonnes).toContain('public_status');
+    expect(schema.fonctions.has('set_division_public_status')).toBe(true);
     expect(schema.tables.get('field_submissions')?.colonnes).toContain('observed_programs');
     expect(schema.vues.has('public_campuses')).toBe(true);
     expect(schema.fonctions.has('accept_submission')).toBe(true);

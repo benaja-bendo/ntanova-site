@@ -32,6 +32,8 @@ function division(
     adresse: [],
     ordinal: null,
     alias: [],
+    deploiement: null,
+    position: null,
     verifieeLe: null,
     ouverte: false,
     ...reste,

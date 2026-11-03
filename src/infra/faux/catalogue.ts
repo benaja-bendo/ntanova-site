@@ -35,6 +35,8 @@ const division = (
   alias: [],
   verifieeLe: '2026-11-01',
   ouverte,
+  deploiement: null,
+  position: null,
 });
 
 const D = {
@@ -53,7 +55,7 @@ const D = {
   dolisie: 'd0000000-0000-4000-8000-00000000000c',
 } as const;
 
-const DIVISIONS: DivisionPublique[] = [
+const DIVISIONS_BRUTES: DivisionPublique[] = [
   division(D.congo, null, 0, 'country', 'Congo', 'congo', ['congo']),
   division(D.pnDep, D.congo, 1, 'department', 'Pointe-Noire', 'pointe-noire', [
     'congo',
@@ -146,6 +148,25 @@ const DIVISIONS: DivisionPublique[] = [
     true,
   ),
 ];
+
+// L'état public des zones et le point des villes : ceux de la base (ticket 102). Un faux serveur qui diffère de la base fait
+// réussir des parcours qui échoueraient en vrai.
+const ETATS_PUBLICS: Partial<Record<string, 'actif' | 'programme'>> = {
+  [D.tieTie]: 'actif',
+  [D.ngoyo]: 'actif',
+  [D.loandjili]: 'programme',
+  [D.mongo]: 'programme',
+  [D.bzvVille]: 'programme',
+};
+const POINTS: Partial<Record<string, { latitude: number; longitude: number }>> = {
+  [D.pnVille]: { latitude: -4.7975373, longitude: 11.8503297 },
+  [D.bzvVille]: { latitude: -4.2694407, longitude: 15.2712256 },
+};
+const DIVISIONS: DivisionPublique[] = DIVISIONS_BRUTES.map((d) => ({
+  ...d,
+  deploiement: ETATS_PUBLICS[d.id] ?? null,
+  position: POINTS[d.id] ?? null,
+}));
 
 const DOMAINES: DomainePublic[] = [
   { slug: 'informatique', nom: 'Informatique', ordre: 10 },
