@@ -10,6 +10,7 @@
  */
 import type { Adaptateurs } from '../index';
 import { arrondissementDeLaPosition } from '../../modele/carte/plan';
+import { messageManquant } from '../../modele/decision';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { prochainVendredi } from '../../modele/paie';
 import {
@@ -1016,10 +1017,15 @@ const admin: PortAdministration = {
   },
   async demanderCorrection(id, motif, message) {
     await reseau();
+    // Comme la base : « autre » sans message est refusé (ticket #80).
+    const manque = messageManquant(motif, message);
+    if (manque) throw new ErreurDecision(manque);
     decider(id, { statut: 'a_corriger', motif, message });
   },
   async refuser(id, motif, message) {
     await reseau();
+    const manque = messageManquant(motif, message);
+    if (manque) throw new ErreurDecision(manque);
     decider(id, { statut: 'refuse', motif, message });
   },
   async confirmerContact(id, fonction) {

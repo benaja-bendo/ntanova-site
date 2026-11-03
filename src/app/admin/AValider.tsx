@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cycleAvecFormations } from '../../modele/formations';
+import { messageManquant } from '../../modele/decision';
 import { cheminLisible } from '../../modele/geo-divisions';
 import type { Valeur } from '../../modele/listes';
 import {
@@ -914,6 +915,12 @@ function Detail({
               onSubmit={(e) => {
                 e.preventDefault();
                 const texte = message.trim() || null;
+                // « autre » ne dit rien tout seul : sans message, rien ne part (la base refuse aussi).
+                const manque = messageManquant(motif, texte);
+                if (manque) {
+                  setErreur(manque);
+                  return;
+                }
                 void agir(
                   () =>
                     mode === 'correction'
@@ -943,8 +950,12 @@ function Detail({
               </Champ>
               <Champ
                 libelle="Message au relais"
-                facultatif
-                aide="Le relais le lit dans « Mes fiches ». Vouvoie-le."
+                facultatif={motif !== 'autre'}
+                aide={
+                  motif === 'autre'
+                    ? 'Obligatoire avec « Autre » : dis au relais ce qu’il doit faire. Il le lit dans « Mes fiches ». Vouvoie-le.'
+                    : 'Le relais le lit dans « Mes fiches ». Vouvoie-le.'
+                }
               >
                 {(a) => (
                   <textarea
