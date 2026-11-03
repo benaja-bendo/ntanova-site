@@ -283,16 +283,133 @@ describe('l’adaptateur Supabase de l’administration', () => {
           error: null,
         },
       });
-      await expect(port.contactReleve('r1')).resolves.toMatchObject({
-        fonction: 'promoteur',
-        whatsapp: '242061234567',
-        accord: true,
-      });
+      await expect(port.contactsReleve('r1')).resolves.toMatchObject([
+        { fonction: 'promoteur', whatsapp: '242061234567', accord: true },
+      ]);
     });
 
     it('dit « aucun contact » quand la base n’en a pas', async () => {
       const { port } = fausseApi({ contact_of_submission: { data: [], error: null } });
-      await expect(port.contactReleve('r1')).resolves.toBeNull();
+      await expect(port.contactsReleve('r1')).resolves.toEqual([]);
+    });
+
+    // Plusieurs personnes par fiche (#96) : toutes, dans l'ordre de la base, chacune avec son identifiant, sa précision et d'où elle vient.
+    it('lit toutes les personnes de la fiche, avec leur identifiant, leur précision et leur source', async () => {
+      const { port } = fausseApi({
+        contact_of_submission: {
+          data: [
+            { ...contactDeLOrigine, id: 'r1' },
+            {
+              ...contactDeLOrigine,
+              id: 'p2',
+              role: 'autre',
+              role_detail: 'propriétaire',
+              source: 'administration',
+            },
+          ],
+          error: null,
+        },
+      });
+      await expect(port.contactsReleve('r1')).resolves.toMatchObject([
+        { id: 'r1', fonction: 'directeur', precisionFonction: null, source: 'relais' },
+        {
+          id: 'p2',
+          fonction: 'autre',
+          precisionFonction: 'propriétaire',
+          source: 'administration',
+          releveId: 'r1',
+        },
+      ]);
+    });
+
+    // Une base pas encore à jour ne rend ni identifiant ni source : la personne d'avant a pour identifiant sa fiche.
+    it('lit une base d’avant : l’identifiant est celui de la fiche, la source « relais »', async () => {
+      const { port } = fausseApi({
+        contact_of_submission: { data: [contactDeLOrigine], error: null },
+      });
+      await expect(port.contactsReleve('r1')).resolves.toMatchObject([
+        { id: 'r1', source: 'relais', precisionFonction: null },
+      ]);
+    });
+
+    it('ajoute une personne à une fiche, avec son numéro en forme internationale, et rend son identifiant', async () => {
+      const { port, appels } = fausseApi({ add_contact: { data: 'p9', error: null } });
+      await expect(
+        port.ajouterContact('r1', {
+          fonction: 'autre',
+          precisionFonction: 'propriétaire',
+          nom: '[Nom]',
+          whatsapp: '242061234567',
+          accord: true,
+          note: null,
+        }),
+      ).resolves.toBe('p9');
+      expect(appels[0]).toEqual({
+        nom: 'add_contact',
+        arguments: {
+          p_submission: 'r1',
+          p_role: 'autre',
+          p_role_detail: 'propriétaire',
+          p_name: '[Nom]',
+          p_whatsapp: '242061234567',
+          p_agreement: true,
+          p_agreement_at: null,
+          p_note: null,
+        },
+      });
+    });
+
+    it('corrige une personne en redonnant tous ses champs', async () => {
+      const { port, appels } = fausseApi();
+      await port.corrigerContact('p2', {
+        fonction: 'directeur',
+        precisionFonction: null,
+        nom: null,
+        whatsapp: null,
+        accord: false,
+        note: 'Rappeler mardi',
+      });
+      expect(appels[0]).toEqual({
+        nom: 'update_contact',
+        arguments: {
+          p_contact: 'p2',
+          p_role: 'directeur',
+          p_role_detail: null,
+          p_name: null,
+          p_whatsapp: null,
+          p_agreement: false,
+          p_agreement_at: null,
+          p_note: 'Rappeler mardi',
+        },
+      });
+    });
+
+    it('efface une personne, pas toute la fiche', async () => {
+      const { port, appels } = fausseApi();
+      await port.effacerContact('p2', 'demande de la personne');
+      expect(appels[0]).toEqual({
+        nom: 'erase_contact_person',
+        arguments: { p_contact: 'p2', p_note: 'demande de la personne' },
+      });
+    });
+
+    it('dit en français pourquoi la base refuse une quatrième personne', async () => {
+      const { port } = fausseApi({
+        add_contact: {
+          data: null,
+          error: { code: '22023', message: 'Une fiche a trois personnes à contacter au plus.' },
+        },
+      });
+      await expect(
+        port.ajouterContact('r1', {
+          fonction: 'directeur',
+          precisionFonction: null,
+          nom: null,
+          whatsapp: null,
+          accord: false,
+          note: null,
+        }),
+      ).rejects.toThrow('trois personnes');
     });
 
     // Le contact reste attaché à la fiche qui l'a reçu : celui d'une fiche qu'on corrige se lit sur sa correction (#94).
@@ -316,11 +433,9 @@ describe('l’adaptateur Supabase de l’administration', () => {
         },
         { field_submissions: [{ corrects_submission_id: 'origine' }] },
       );
-      await expect(port.contactReleve('correction')).resolves.toMatchObject({
-        fonction: 'directeur',
-        whatsapp: '242061234567',
-        releveId: 'origine',
-      });
+      await expect(port.contactsReleve('correction')).resolves.toMatchObject([
+        { fonction: 'directeur', whatsapp: '242061234567', releveId: 'origine' },
+      ]);
     });
 
     it('le contact de la fiche elle-même l’emporte, sans chercher plus loin', async () => {
@@ -328,7 +443,7 @@ describe('l’adaptateur Supabase de l’administration', () => {
         { contact_of_submission: { data: [contactDeLOrigine], error: null } },
         { field_submissions: [{ corrects_submission_id: 'origine' }] },
       );
-      await expect(port.contactReleve('r1')).resolves.toMatchObject({ releveId: 'r1' });
+      await expect(port.contactsReleve('r1')).resolves.toMatchObject([{ releveId: 'r1' }]);
       expect(appels.filter((a) => a.nom === 'contact_of_submission')).toHaveLength(1);
     });
 
@@ -337,7 +452,7 @@ describe('l’adaptateur Supabase de l’administration', () => {
         { contact_of_submission: { data: [], error: null } },
         { field_submissions: [{ corrects_submission_id: 'r1' }] },
       );
-      await expect(port.contactReleve('r1')).resolves.toBeNull();
+      await expect(port.contactsReleve('r1')).resolves.toEqual([]);
       expect(appels.filter((a) => a.nom === 'contact_of_submission')).toHaveLength(1);
     });
 

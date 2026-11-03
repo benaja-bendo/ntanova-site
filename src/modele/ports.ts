@@ -421,8 +421,18 @@ export interface DecisionAcceptation {
   divisionId?: string | null;
 }
 
+/**
+ * Une personne à contacter pour une fiche (ticket #96) : la direction, un secrétariat, un propriétaire, un enseignant…
+ * Une fiche en a trois au plus. Privée : jamais publiée, jamais relue par le relais.
+ */
 export interface ContactDirection {
+  /** L'identifiant de la personne. Pour celle d'un téléphone d'avant, c'est le numéro de sa fiche. */
+  id: string;
   fonction: Valeur<'fonction_direction'> | null;
+  /** « Autre : … » : de quoi il s'agit (propriétaire, enseignant…). Nul pour une autre fonction. */
+  precisionFonction: string | null;
+  /** Qui l'a notée : le relais sur place, ou l'administration (un numéro reçu par WhatsApp, par exemple). */
+  source: 'relais' | 'administration';
   nom: string | null;
   whatsapp: string | null;
   accord: boolean;
@@ -434,6 +444,16 @@ export interface ContactDirection {
    * elle (ticket #94). C'est de cette fiche-là que le contact s'efface.
    */
   releveId?: string;
+}
+
+/** Ce que l'administration saisit pour une personne qu'elle ajoute ou corrige. Le numéro est déjà au format de la base. */
+export interface ContactASaisir {
+  fonction: Valeur<'fonction_direction'> | null;
+  precisionFonction: string | null;
+  nom: string | null;
+  whatsapp: string | null;
+  accord: boolean;
+  note: string | null;
 }
 
 /** Les compteurs d'un relais : de quoi calculer la paie (500 FCFA la fiche, +300 FCFA le contact confirmé). */
@@ -646,8 +666,16 @@ export interface PortAdministration {
   detailReleve(id: string): Promise<DetailReleve>;
   /** Les photos d'un relevé (l'enseigne, le panneau des formations, le prospectus, le bâtiment). `GET /admin/releves/{id}/photos` */
   photosReleve(id: string): Promise<PhotoVue[]>;
-  /** `GET /admin/releves/{id}/contact` */
-  contactReleve(id: string): Promise<ContactDirection | null>;
+  /**
+   * Les personnes à contacter pour un relevé, la première reçue d'abord (vide : aucune). Elles restent attachées à la
+   * fiche qui les a reçues : celles d'une fiche qu'on corrige se lisent sur sa correction (ticket #94).
+   * `GET /admin/releves/{id}/contacts`
+   */
+  contactsReleve(id: string): Promise<ContactDirection[]>;
+  /** Note une personne de plus sur la fiche (trois au plus). Rend son identifiant. `POST /admin/releves/{id}/contacts` */
+  ajouterContact(releveId: string, contact: ContactASaisir): Promise<string>;
+  /** Corrige une personne : tous ses champs sont redonnés. `PUT /admin/contacts/{id}` */
+  corrigerContact(contactId: string, contact: ContactASaisir): Promise<void>;
   /** Transforme le relevé en institution, campus ou cycle. Rend le campus. `POST /admin/releves/{id}/decision` */
   accepter(id: string, decision?: DecisionAcceptation): Promise<string>;
   demanderCorrection(
@@ -661,8 +689,8 @@ export interface PortAdministration {
   validerEssai(id: string): Promise<void>;
   /** Les décisions récentes (acceptées, à corriger, refusées). `GET /admin/releves?decides` */
   relevesDecides(): Promise<ReleveDecide[]>;
-  /** Droit d'effacement : le contact de la direction d'un relevé. */
-  effacerContact(releveId: string, note: string | null): Promise<void>;
+  /** Droit d'effacement : UNE personne à contacter. `DELETE /admin/contacts/{id}` */
+  effacerContact(contactId: string, note: string | null): Promise<void>;
   /** Efface une photo ; l'application supprime ensuite le fichier du stockage. */
   effacerPhoto(photoId: string, note: string | null): Promise<void>;
   /** La photo est-elle publiable (sans enfant, sans donnée personnelle) ? */
