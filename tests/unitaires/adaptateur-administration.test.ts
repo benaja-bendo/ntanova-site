@@ -726,3 +726,36 @@ describe('l’adaptateur Supabase de l’administration', () => {
     });
   });
 });
+
+describe('la vue d’ensemble, côté Supabase (ticket n° 76)', () => {
+  it('lit les agrégats de la base', async () => {
+    const { port } = fausseApi({
+      admin_overview: {
+        data: { to_review: { count: 2, oldest_received_at: null, over_24h: 0 } },
+        error: null,
+      },
+    });
+    expect((await port.vueEnsemble()).aValider.nombre).toBe(2);
+  });
+
+  it('demande 14 jours par défaut, et le nombre de jours qu’on lui donne', async () => {
+    const { port, appels } = fausseApi({ admin_overview: { data: {}, error: null } });
+    await port.vueEnsemble();
+    await port.vueEnsemble(30);
+    expect(appels.filter((a) => a.nom === 'admin_overview').map((a) => a.arguments)).toEqual([
+      { p_days: 14 },
+      { p_days: 30 },
+    ]);
+  });
+
+  it('une base sans la fonction le dit : « supabase db push », pas une erreur muette', async () => {
+    const { port } = fausseApi({
+      admin_overview: {
+        data: null,
+        error: { code: 'PGRST202', message: 'Could not find the function public.admin_overview' },
+      },
+    });
+    await expect(port.vueEnsemble()).rejects.toThrow(/supabase db push/);
+    await expect(port.vueEnsemble()).rejects.toBeInstanceOf(ErreurDecision);
+  });
+});

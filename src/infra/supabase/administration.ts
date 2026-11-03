@@ -613,6 +613,12 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
 
     async vueEnsemble(jours = 14): Promise<VueEnsemble> {
       const reponse = await supabase().rpc('admin_overview', { p_days: jours });
+      // Le code arrive avant `supabase db push` : la page d'arrivée de l'administration le dit, au lieu d'une erreur muette.
+      if (reponse.error && (reponse.error.code === 'PGRST202' || reponse.error.code === '42883')) {
+        throw new ErreurDecision(
+          'La vue d’ensemble demande une mise à jour de la base : lance « supabase db push », puis recharge la page.',
+        );
+      }
       if (reponse.error) traduire(reponse.error);
       return lireVueEnsemble(reponse.data);
     },
