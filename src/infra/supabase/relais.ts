@@ -130,6 +130,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         contact_role: Valeur<'fonction_direction'> | null;
         has_contact: boolean;
         photo_roles: Valeur<'photo_role'>[];
+        corrects_submission_id?: string | null;
       }>(await supabase().rpc('my_submissions'));
       return lignes.map((r) => ({
         id: r.id,
@@ -159,6 +160,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         precisionM: r.accuracy_m,
         photos: r.photo_roles,
         aContact: r.has_contact,
+        corrigeReleveId: r.corrects_submission_id ?? null,
       }));
     },
 

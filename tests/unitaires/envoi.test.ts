@@ -11,6 +11,7 @@ import {
   ESSAIS_AVANT_ALERTE,
   etapeEnCours,
   explicationDuRejet,
+  gestesDEnvoi,
   peutEtreModifiee,
   pourModifier,
   phraseDEchecDeLaFiche,
@@ -32,14 +33,50 @@ const fiche = (champs: Partial<FicheLocale> = {}): FicheLocale => ({
 });
 
 describe('où en est l’envoi d’une fiche', () => {
-  it('le relevé d’abord, puis les photos, puis le contact', () => {
+  // Le contact ne dépend pas des photos : il part avant elles (ticket #94).
+  it('le relevé d’abord, puis le contact, puis les photos', () => {
     expect(etapeEnCours({ envoyes: { releve: false, photo: false, contact: false } })).toBe(
       'releve',
     );
-    expect(etapeEnCours({ envoyes: { releve: true, photo: false, contact: false } })).toBe('photo');
-    expect(etapeEnCours({ envoyes: { releve: true, photo: true, contact: false } })).toBe(
+    expect(etapeEnCours({ envoyes: { releve: true, photo: false, contact: false } })).toBe(
       'contact',
     );
+    expect(etapeEnCours({ envoyes: { releve: true, photo: false, contact: true } })).toBe('photo');
+  });
+});
+
+describe('l’ordre des gestes d’un envoi (ticket #94)', () => {
+  const partis = (releve: boolean, contact: boolean, photo = false) => ({
+    releve,
+    contact,
+    photo,
+  });
+
+  it('une fiche neuve : le relevé, le contact, puis les photos', () => {
+    expect(gestesDEnvoi(partis(false, false), false)).toEqual(['releve', 'contact', 'photos']);
+  });
+
+  it('une fiche neuve dont la photo ne peut pas partir ne part pas du tout', () => {
+    expect(gestesDEnvoi(partis(false, false), true)).toEqual(['refus']);
+  });
+
+  // La fiche ESTAM du 03/11 : le relevé était arrivé sans photo, le contact n'était jamais parti, et la photo ne se
+  // relisait plus. Le refus venait avant le contact : il était perdu.
+  it('le relevé est parti et la photo ne peut pas : le contact part quand même, puis le refus', () => {
+    expect(gestesDEnvoi(partis(true, false), true)).toEqual(['contact', 'refus']);
+  });
+
+  it('le contact est déjà parti : seul le refus reste', () => {
+    expect(gestesDEnvoi(partis(true, true), true)).toEqual(['refus']);
+  });
+
+  it('rien ne bloque : le contact part avant les photos', () => {
+    expect(gestesDEnvoi(partis(true, false), false)).toEqual(['contact', 'photos']);
+    expect(gestesDEnvoi(partis(true, true), false)).toEqual(['photos']);
+  });
+
+  it('tout est parti : rien à faire', () => {
+    expect(gestesDEnvoi(partis(true, true, true), false)).toEqual([]);
   });
 });
 
@@ -59,8 +96,9 @@ describe('une fiche que la base refuse', () => {
     });
   });
 
-  it('dit à quelle étape la base a refusé quand le relevé est déjà parti', () => {
-    const f = fiche({ envoyes: { releve: true, photo: false, contact: false } });
+  it('dit à quelle étape la base a refusé quand le relevé et le contact sont déjà partis', () => {
+    // Le contact part avant les photos (ticket #94) : un refus de photo vient quand il est parti.
+    const f = fiche({ envoyes: { releve: true, photo: false, contact: true } });
     const apres = apresRejet(f, { code: '22023', message: 'Au plus trois photos.' }, MAINTENANT);
     expect(apres.rejet?.etape).toBe('photo');
   });
@@ -243,7 +281,8 @@ describe('la photo d’enseigne exigée n’est plus nulle part', () => {
 
   it('un refus de ce genre s’affiche comme un refus de photo', () => {
     const apres = apresRejet(
-      fiche({ envoyes: { releve: true, photo: false, contact: false } }),
+      // Le relevé et le contact sont partis (le contact part avant les photos, ticket #94) ; la photo manque.
+      fiche({ envoyes: { releve: true, photo: false, contact: true } }),
       rejetEnseigneAbsente(true),
       MAINTENANT,
     );

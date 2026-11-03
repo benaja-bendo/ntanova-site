@@ -41,11 +41,36 @@ export function rejetEnseigneAbsente(releveEnvoye: boolean): { code: string; mes
   };
 }
 
-/** Où en est l'envoi : la première étape qui n'est pas partie. */
+/** Où en est l'envoi : la première étape qui n'est pas partie. Le relevé, puis le contact, puis les photos. */
 export function etapeEnCours(fiche: Pick<FicheLocale, 'envoyes'>): EtapeEnvoi {
   if (!fiche.envoyes.releve) return 'releve';
-  if (!fiche.envoyes.photo) return 'photo';
-  return 'contact';
+  if (!fiche.envoyes.contact) return 'contact';
+  return 'photo';
+}
+
+/** Ce que la file fait d'une fiche. `refus` : la fiche sort de la file avec la raison qui bloque sa photo. */
+export type GesteDEnvoi = 'releve' | 'contact' | 'photos' | 'refus';
+
+/**
+ * L'ordre des gestes d'un envoi (ticket #94). Le relevé d'abord ; puis le contact, qui ne dépend pas des photos ; puis
+ * les photos. Avant, le contact partait en dernier : une photo qui ne partait pas l'arrêtait, et il était perdu (la fiche
+ * d'ESTAM, le 03/11).
+ *
+ * `photoBloquee` : l'enseigne exigée n'est plus nulle part, ou ne se relit plus. Quand rien n'a encore quitté le
+ * téléphone, la fiche ne part pas du tout : elle ne part jamais incomplète. Quand le relevé est déjà chez NTanova, le
+ * contact part quand même, puis la fiche est refusée avec sa raison.
+ */
+export function gestesDEnvoi(
+  envoyes: FicheLocale['envoyes'],
+  photoBloquee: boolean,
+): GesteDEnvoi[] {
+  if (!envoyes.releve && photoBloquee) return ['refus'];
+  const gestes: GesteDEnvoi[] = [];
+  if (!envoyes.releve) gestes.push('releve');
+  if (!envoyes.contact) gestes.push('contact');
+  if (photoBloquee) gestes.push('refus');
+  else if (!envoyes.photo) gestes.push('photos');
+  return gestes;
 }
 
 /** Ce qui change sur la fiche quand la base la refuse. Ce qui est déjà parti reste marqué parti. */

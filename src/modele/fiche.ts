@@ -1,6 +1,7 @@
 /**
  * La fiche d'une école telle que le relais la remplit, étape par étape, dans son
- * téléphone. Elle part ensuite en trois envois : le relevé, la photo, le contact.
+ * téléphone. Elle part ensuite en trois envois : le relevé, le contact, les photos (le contact ne dépend pas des
+ * photos : une photo qui ne part pas ne l'arrête plus, ticket #94).
  */
 import { z } from 'zod';
 import { listes, niveauxConnus, typeConnu, type Valeur } from './listes';
@@ -139,7 +140,7 @@ export interface FicheLocale {
   dernierEchec?: { etape: EtapeEnvoi; message: string; le: string } | null;
 }
 
-/** Les trois temps de l'envoi d'une fiche : le relevé, ses photos, puis le contact. */
+/** Les trois temps de l'envoi d'une fiche : le relevé, le contact, puis ses photos. */
 export type EtapeEnvoi = 'releve' | 'photo' | 'contact';
 
 /** Ce que la base a refusé : son code, son message (sans le détail de la ligne), à quelle étape, quand. */
@@ -227,6 +228,7 @@ export function nouvelleCorrection(
   maintenant: string,
   lotId: string | null,
   recu: ReleveRecu,
+  autres: readonly ReleveRecu[] = [],
 ): FicheLocale {
   return {
     ...nouvelleFiche(id, maintenant, lotId),
@@ -242,7 +244,7 @@ export function nouvelleCorrection(
     numeroEnseigne: recu.numeroEnseigne ? `+${recu.numeroEnseigne}` : '',
     direction: recu.direction ?? null,
     repasser: recu.repasser ?? '',
-    taches: tachesDeLaCorrection(recu),
+    taches: tachesDeLaCorrection(recu, autres),
     dejaRecu: {
       position: recu.position ?? null,
       precisionM: recu.precisionM ?? null,

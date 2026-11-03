@@ -445,6 +445,7 @@ const relais: PortRelais = {
         precisionM: r.precisionM,
         photos: rolesDesPhotos(e, [r.id]),
         aContact: r.id in e.contacts,
+        corrigeReleveId: r.corrigeReleveId ?? null,
       };
     });
   },
@@ -893,9 +894,19 @@ const admin: PortAdministration = {
   },
   async contactReleve(id) {
     await reseau();
-    const c = lireEtat().contacts[id];
-    return c
-      ? {
+    const e = lireEtat();
+    // Le contact reste attaché à la fiche qui l'a reçu : celui d'une fiche qu'on corrige se lit sur sa correction, que le
+    // relais l'ait redonné ou non (ticket #94). On remonte la chaîne, sans jamais boucler.
+    const vus = new Set<string>();
+    for (
+      let courant: string | null | undefined = id;
+      courant && !vus.has(courant);
+      courant = e.releves[courant]?.corrigeReleveId
+    ) {
+      vus.add(courant);
+      const c = e.contacts[courant];
+      if (c) {
+        return {
           fonction: c.fonction,
           nom: c.nom,
           whatsapp: c.whatsapp,
@@ -903,8 +914,11 @@ const admin: PortAdministration = {
           accordLe: c.accordLe,
           note: c.note,
           recuLe: c.accordLe ?? new Date().toISOString(),
-        }
-      : null;
+          releveId: courant,
+        };
+      }
+    }
+    return null;
   },
   async accepter(id, choix: DecisionAcceptation = {}) {
     await reseau();

@@ -1,7 +1,9 @@
 /**
- * La file d'envoi. Une fiche part en trois temps : le relevé, puis ses photos (l'enseigne d'abord,
- * puis les autres, une à une), puis le contact. Chaque envoi peut être rejoué : la base répond
- * « déjà reçu ». Chaque photo et le contact sont effacés du téléphone dès que la base a répondu.
+ * La file d'envoi. Une fiche part en trois temps : le relevé, puis le contact, puis ses photos (l'enseigne
+ * d'abord, puis les autres, une à une). Le contact ne dépend pas des photos : il part avant elles, pour qu'une
+ * photo qui ne part pas ne l'arrête plus (ticket #94 : le contact d'ESTAM s'était perdu ainsi). Chaque envoi
+ * peut être rejoué : la base répond « déjà reçu ». Chaque photo et le contact sont effacés du téléphone dès que
+ * la base a répondu.
  *
  * Trois règles (ticket #74) :
  *   - **une fiche qui échoue ne bloque pas les suivantes.** Une erreur de connexion alors que le téléphone se dit en ligne
@@ -28,6 +30,7 @@ import {
   doitJournaliserLEchec,
   enseigneExigeeManquante,
   etapeEnCours,
+  gestesDEnvoi,
   rejetEnseigneAbsente,
   rejetPhotoIllisible,
   type BilanEnvoi,
@@ -84,65 +87,69 @@ async function envoyerUneFiche(adaptateurs: Adaptateurs, fiche: FicheLocale): Pr
   const { relais } = adaptateurs;
   const envoyes = { ...fiche.envoyes };
 
-  // Une enseigne exigée qui n'est plus nulle part (ni partie, ni dans le téléphone) ne se termine pas « Envoyée » en
-  // silence : la fiche sort de la file avec une raison que le relais lit, et le journal la garde (ticket #72). Avant le
-  // relevé, pour ne pas envoyer une fiche qui ne peut pas être complète.
-  if (!envoyes.photo && enseigneExigeeManquante(fiche)) {
-    const { code, message } = rejetEnseigneAbsente(envoyes.releve);
-    throw new ErreurRejet(code, message);
-  }
-
-  // Les octets des photos qui attendent, lus AVANT tout envoi : ce sont eux qui partent, jamais le fichier de la base du
-  // téléphone (sur iPhone, l'envoyer en multipart échoue sans qu'une requête parte). Une enseigne exigée qui ne se relit
-  // plus arrête la fiche avant son relevé ; une autre photo qui ne se relit plus est laissée de côté.
+  // Ce qui empêche les photos de partir : une enseigne exigée qui n'est plus nulle part (ni partie, ni dans le
+  // téléphone), ou qui ne se relit plus. La fiche ne se termine pas « Envoyée » en silence : elle sort de la file avec
+  // une raison que le relais lit, et le journal la garde (ticket #72).
+  // Les octets des photos qui attendent sont lus AVANT tout envoi : ce sont eux qui partent, jamais le fichier de la base
+  // du téléphone (sur iPhone, l'envoyer en multipart échoue sans qu'une requête parte). Une autre photo qui ne se relit
+  // plus est laissée de côté.
+  let blocage: ErreurRejet | null = null;
   const pretes: PhotoPrete[] = [];
   const illisibles: ReturnType<typeof versPhotos> = [];
   if (!envoyes.photo) {
-    for (const photo of versPhotos(fiche)) {
-      const contenu = await lireLesOctets(photo.blob);
-      if (contenu) pretes.push({ ...photo, contenu, octets: contenu.byteLength });
-      else illisibles.push(photo);
-    }
-    if (illisibles.some((p) => p.role === 'signboard') && (fiche.taches?.photo ?? true)) {
-      const { code, message } = rejetPhotoIllisible(envoyes.releve);
-      throw new ErreurRejet(code, message);
-    }
-  }
-
-  if (!envoyes.releve) {
-    await relais.envoyerReleve(versReleve(fiche));
-    envoyes.releve = true;
-    await base.fiches.update(fiche.id, { envoyes: { ...envoyes } });
-  }
-
-  if (!envoyes.photo) {
-    for (const photo of pretes) {
-      await relais.envoyerPhoto(fiche.id, photo);
-      // Reçue : le fichier s'efface du téléphone, la ligne reste (une photo ne repart jamais deux fois).
-      await base.fiches.update(fiche.id, (f) => {
-        f.photos = f.photos.map((p) =>
-          p.id === photo.id ? { ...p, envoyee: true, blob: null } : p,
-        );
-      });
-    }
-    if (illisibles.length > 0) {
-      // Pas l'enseigne exigée : la fiche part sans ces photos, et le journal le dit.
-      for (const photo of illisibles) {
-        await journaliser('envoi', 'photo_illisible', `${photo.role} · ${photo.octets} octets`);
+    if (enseigneExigeeManquante(fiche)) {
+      const { code, message } = rejetEnseigneAbsente(envoyes.releve);
+      blocage = new ErreurRejet(code, message);
+    } else {
+      for (const photo of versPhotos(fiche)) {
+        const contenu = await lireLesOctets(photo.blob);
+        if (contenu) pretes.push({ ...photo, contenu, octets: contenu.byteLength });
+        else illisibles.push(photo);
       }
-      await base.fiches.update(fiche.id, (f) => {
-        f.photos = f.photos.filter((p) => !illisibles.some((i) => i.id === p.id));
-      });
+      if (illisibles.some((p) => p.role === 'signboard') && (fiche.taches?.photo ?? true)) {
+        const { code, message } = rejetPhotoIllisible(envoyes.releve);
+        blocage = new ErreurRejet(code, message);
+      }
     }
-    envoyes.photo = true;
-    await base.fiches.update(fiche.id, { envoyes: { ...envoyes } });
   }
 
-  if (!envoyes.contact) {
-    const contact = versContact(fiche);
-    if (contact) await relais.envoyerContact(contact);
-    envoyes.contact = true;
-    await base.fiches.update(fiche.id, { envoyes: { ...envoyes }, contact: null });
+  // Le relevé, le contact, les photos, dans cet ordre (`gestesDEnvoi`). Rien n'est encore parti et la photo est bloquée :
+  // la fiche est refusée avant de partir, pour ne pas envoyer une fiche qui ne peut pas être complète. Le relevé est déjà
+  // chez NTanova : le contact part quand même, puis la fiche est refusée (ticket #94).
+  for (const geste of gestesDEnvoi(envoyes, blocage !== null)) {
+    if (geste === 'refus') {
+      if (blocage) throw blocage;
+    } else if (geste === 'releve') {
+      await relais.envoyerReleve(versReleve(fiche));
+      envoyes.releve = true;
+      await base.fiches.update(fiche.id, { envoyes: { ...envoyes } });
+    } else if (geste === 'contact') {
+      const contact = versContact(fiche);
+      if (contact) await relais.envoyerContact(contact);
+      envoyes.contact = true;
+      await base.fiches.update(fiche.id, { envoyes: { ...envoyes }, contact: null });
+    } else {
+      for (const photo of pretes) {
+        await relais.envoyerPhoto(fiche.id, photo);
+        // Reçue : le fichier s'efface du téléphone, la ligne reste (une photo ne repart jamais deux fois).
+        await base.fiches.update(fiche.id, (f) => {
+          f.photos = f.photos.map((p) =>
+            p.id === photo.id ? { ...p, envoyee: true, blob: null } : p,
+          );
+        });
+      }
+      if (illisibles.length > 0) {
+        // Pas l'enseigne exigée : la fiche part sans ces photos, et le journal le dit.
+        for (const photo of illisibles) {
+          await journaliser('envoi', 'photo_illisible', `${photo.role} · ${photo.octets} octets`);
+        }
+        await base.fiches.update(fiche.id, (f) => {
+          f.photos = f.photos.filter((p) => !illisibles.some((i) => i.id === p.id));
+        });
+      }
+      envoyes.photo = true;
+      await base.fiches.update(fiche.id, { envoyes: { ...envoyes } });
+    }
   }
 
   const apres = await base.fiches.get(fiche.id);

@@ -92,8 +92,16 @@ export interface ReleveRecu {
   precisionM: number | null;
   /** Les rôles des photos arrivées chez NTanova (jamais leur chemin). */
   photos: Valeur<'photo_role'>[];
-  /** Le contact de la direction est arrivé chez NTanova (sans le lire). */
+  /**
+   * Le contact de la direction est arrivé chez NTanova (sans le lire). Il reste attaché à la fiche qui l'a reçu : une
+   * correction n'a le sien que si le relais l'a redonné.
+   */
   aContact: boolean;
+  /**
+   * La fiche que celle-ci corrige, quand c'en est une correction : de quoi suivre la chaîne jusqu'à la fiche qui porte
+   * le contact (ticket #94). Absent des lignes gardées avant la mise à jour du téléphone.
+   */
+  corrigeReleveId?: string | null;
 }
 
 /**
@@ -416,6 +424,11 @@ export interface ContactDirection {
   accordLe: string | null;
   note: string | null;
   recuLe: string;
+  /**
+   * La fiche qui porte ce contact : celle qu'on regarde, ou la fiche qu'elle corrige quand le contact est arrivé avec
+   * elle (ticket #94). C'est de cette fiche-là que le contact s'efface.
+   */
+  releveId?: string;
 }
 
 /** Les compteurs d'un relais : de quoi calculer la paie (500 FCFA la fiche, +300 FCFA le contact confirmé). */
