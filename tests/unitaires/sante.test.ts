@@ -64,6 +64,17 @@ describe('expliquerCode', () => {
     expect(expliquerCode('rejet_photo_absente', null)).toMatch(/refus/i);
   });
 
+  it('dit les tests des premiers pas : le relais sait avant le terrain (ticket #79)', () => {
+    expect(expliquerCode('test_position_ok', null)).toMatch(/Test du téléphone.*position marche/);
+    expect(expliquerCode('test_position_refusee', null)).toMatch(/Test du téléphone.*refusée/);
+    expect(expliquerCode('test_photo_illisible', null)).toMatch(
+      /Test du téléphone.*ne se relit pas/,
+    );
+    expect(expliquerCode('test_photo_ok', null)).toMatch(/Test du téléphone.*photo/);
+    expect(expliquerCode('test_connexion_ok', null)).toMatch(/Test du téléphone.*NTanova répond/);
+    expect(expliquerCode('test_connexion_echec', null)).toMatch(/Test du téléphone/);
+  });
+
   it('un code inconnu s’affiche tel quel : jamais d’erreur', () => {
     const phrase = expliquerCode('une_nouveaute', null);
     expect(phrase).toContain('une_nouveaute');

@@ -63,6 +63,26 @@ const PHRASES: Record<string, string> = {
   echec: 'La déconnexion a échoué.',
 };
 
+/** Les tests des premiers pas (ticket #79) : le relais a testé son téléphone ; l'administration le lit avant le terrain. */
+const TESTS_DES_PREMIERS_PAS: Record<string, string> = {
+  test_position_ok: 'Test du téléphone : la position marche.',
+  test_position_refusee:
+    'Test du téléphone : la position est refusée, à autoriser dans les Réglages du téléphone.',
+  test_position_indisponible:
+    'Test du téléphone : la position est indisponible (signal faible, ou service de localisation coupé).',
+  test_position_trop_longue: 'Test du téléphone : la mesure de la position a pris trop de temps.',
+  test_position_absente:
+    'Test du téléphone : ce téléphone, ou ce navigateur, ne sait pas donner sa position.',
+  test_position_introuvable: 'Test du téléphone : la position n’a pas pu être lue.',
+  test_position_approximative:
+    'Test du téléphone : la position est prise, mais très approximative.',
+  test_photo_ok: 'Test du téléphone : la photo se relit comme il faut.',
+  test_photo_illisible:
+    'Test du téléphone : la photo ne se relit pas une fois rangée dans le téléphone (le défaut connu de certains iPhone).',
+  test_connexion_ok: 'Test du téléphone : NTanova répond.',
+  test_connexion_echec: 'Test du téléphone : NTanova ne répond pas depuis ce téléphone.',
+};
+
 /** Ce que le signal veut dire, en une phrase. */
 export function expliquerCode(code: string, detail: string | null): string {
   if (code === 'lecture_refusee' || code === 'envoi_refuse') {
@@ -77,7 +97,7 @@ export function expliquerCode(code: string, detail: string | null): string {
   if (code.startsWith('rejet_')) {
     return `Une fiche a été refusée par la base (${code.slice('rejet_'.length)}).`;
   }
-  return PHRASES[code] ?? `Signal inconnu : ${code}`;
+  return PHRASES[code] ?? TESTS_DES_PREMIERS_PAS[code] ?? `Signal inconnu : ${code}`;
 }
 
 /** « Chrome sur iPhone », « Safari sur iPhone », « Chrome sur téléphone Android »… */

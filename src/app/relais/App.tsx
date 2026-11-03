@@ -22,6 +22,7 @@ import {
 import { MaPaie } from './ecrans/MaPaie';
 import { MesFiches } from './ecrans/MesFiches';
 import { MonLot } from './ecrans/MonLot';
+import { PremiersPas } from './ecrans/PremiersPas';
 import type { BilanEnvoi } from '../../modele/envoi';
 import { bilanDuDernierEnvoi } from './file-envoi';
 import { journaliser } from './journal';
@@ -40,6 +41,7 @@ function Ecrans() {
   if (ecran === 'fiches') return <MesFiches />;
   if (ecran === 'paie') return <MaPaie />;
   if (ecran === 'compte') return <Compte />;
+  if (ecran === 'premiers-pas') return <PremiersPas />;
   if (ecran === 'contact' && etape) return <ContactSeul key={etape} releveId={etape} />;
   return <MonLot />;
 }

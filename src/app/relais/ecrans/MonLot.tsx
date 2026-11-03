@@ -114,6 +114,8 @@ export function MonLot() {
   const lot = useRequete(() => lireMemoire('lot'));
   const zones = useRequete(() => lireMemoire('zones')) ?? [];
   const releves = useRequete(() => lireMemoire('releves')) ?? [];
+  // `null` : les premiers pas ne sont pas faits ; `undefined` : la lecture n'est pas finie (la carte ne clignote pas).
+  const premiersPas = useRequete(async () => (await lireMemoire('premiersPas')) ?? null);
   const brouillon = useRequete(async () => {
     const compte = await compteConnecte();
     return duBrouillon(await base.fiches.where('etat').equals('brouillon').toArray(), compte);
@@ -125,6 +127,23 @@ export function MonLot() {
       <main className="contenu-relais">
         <h1 className="titre-ecran">Bonjour {profil?.prenom || ''}</h1>
         <EtatEnvoi />
+
+        {premiersPas === null && (
+          <section className="carte-blanche pile-serree" aria-label="Premiers pas">
+            <p className="surtitre-doux">Premiers pas</p>
+            <p>
+              Avant votre première fiche, deux minutes pour vérifier la position, la photo et la
+              connexion de votre téléphone. Rien n’est envoyé, et c’est facultatif.
+            </p>
+            <button
+              type="button"
+              className="bouton bouton-secondaire"
+              onClick={() => aller('premiers-pas')}
+            >
+              Tester mon téléphone
+            </button>
+          </section>
+        )}
 
         <section className="carte-blanche pile-serree" aria-label="Mon secteur">
           <p className="surtitre-doux">
