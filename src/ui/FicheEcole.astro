@@ -6,19 +6,25 @@ import {
   arrondissementDessine,
   arrondissementsDessines,
   cadreEcole,
+  marqueDe,
   planer,
   ruesDe,
-  surCarte,
+  situees,
 } from '../modele/carte/plan';
 import { reperes } from '../modele/carte/reperes';
-import { lienCarte, lienDivision, lienEcole, type PageDivision } from '../modele/geo-divisions';
+import {
+  ligneDeLieu,
+  lienCarte,
+  lienDivision,
+  lienEcole,
+  type PageDivision,
+} from '../modele/geo-divisions';
 import {
   libelleDiplome,
   libelleNiveau,
   libelleRythme,
   libelleSerie,
   libelleTypeEcole,
-  provenanceDe,
   typeInformatif,
 } from '../modele/libelles';
 import { listes } from '../modele/listes';
@@ -41,9 +47,7 @@ const { e, zone, autres, erreur } = Astro.props;
 
 const niveaux = e.niveaux.map((n) => libelleNiveau[n]).join(', ');
 const typeSeLit = typeInformatif(e.typeEcole);
-const lieu = [e.quartier, ...zone.noms.slice(1)]
-  .filter((x, i, t) => x && t.indexOf(x) === i)
-  .join(' · ');
+const lieu = ligneDeLieu(e.quartier, zone.noms);
 const itineraire =
   e.latitude !== null && e.longitude !== null
     ? `https://www.google.com/maps/dir/?api=1&destination=${e.latitude},${e.longitude}`
@@ -59,13 +63,20 @@ const cyclesSansFormation = e.niveaux.filter(
     ['lycee', 'technique', 'superieur', 'autre_formation'].includes(n) &&
     !e.formations.some((f) => f.cycle === n),
 );
+// Ce que le relais n'a pas encore noté ; ce que seule la direction peut donner est à part.
+const pasReleve = [
+  !niveaux && 'Niveaux',
+  !typeSeLit && "Type d'école",
+  cyclesSansFormation.length > 0 && 'Séries ou filières',
+].filter((x): x is string => !!x);
 const rythmes = (f: FormationPublique) => f.rythmes.map((r) => libelleRythme[r]).join(', ');
 
-// Le petit plan de la fiche : seulement quand le contour de l'arrondissement est dessiné.
+// Le petit plan de la fiche : seulement quand le contour de l'arrondissement est dessiné. Il dit où est
+// l'école, qu'un relais l'ait vue ou non : seule la carte des écoles est réservée à celles vues sur place.
 const dessin = zone.adresse.join('/').startsWith('congo/pointe-noire/')
   ? arrondissementDessine(zone.adresse[zone.adresse.length - 1] ?? '')
   : null;
-const [situee] = surCarte([e]);
+const situee = situees([e]).map(marqueDe)[0];
 const carteDuQuartier = dessin ? lienCarte(zone.adresse) : '';
 const plan =
   situee && dessin
@@ -84,31 +95,31 @@ const nomZone = zone.division.nom;
 
   <div class="fiche-corps">
     <div class="fiche-principale">
-      {e.etat === 'verifiee' ? (
-        <p class="carte etat">
-          <b>Fiche vérifiée par la direction</b>
-          {e.verifieeLe ? ` le ${dateLongue(e.verifieeLe)}` : ''}.
-        </p>
-      ) : provenanceDe(e) === 'ajoutee' && e.situeeLe ? (
-        <p class="etat etat-relevee-public">
-          <b>Fiche ajoutée par NTanova le {dateLongue(e.situeeLe)}</b>. Pas encore relevée sur place
-          par un jeune du quartier.
-        </p>
-      ) : (
-        <p class="etat etat-relevee-public">
-          <b>Fiche relevée le {dateLongue(e.releveeLe ?? e.misAJourLe)}</b> par un jeune du
-          quartier&nbsp;: seulement ce qui se voit de la rue.
-        </p>
-      )}
-
+      {/* Deux preuves, jamais fusionnées (décision du fondateur du 03/11) : l'accord daté de la direction,
+          et le passage d'un relais. Sans passage, la fiche le dit. */}
+      <div class="preuves">
+        {e.etat === 'verifiee' && (
+          <p class="carte etat">
+            <b>Confirmée par la direction</b>
+            {e.verifieeLe ? ` le ${dateLongue(e.verifieeLe)}` : ''}.
+          </p>
+        )}
+        {e.releveeLe ? (
+          <p class="etat etat-relevee-public">
+            <b>Vue sur place le {dateLongue(e.releveeLe)}</b> par un jeune du quartier&nbsp;:
+            seulement ce qui se voit de la rue.
+          </p>
+        ) : (
+          <p class="etat etat-relevee-public">
+            <b>Ajoutée par NTanova{e.situeeLe ? ` le ${dateLongue(e.situeeLe)}` : ''}</b>. Pas
+            encore vue sur place par un jeune du quartier.
+          </p>
+        )}
+      </div>
       <div>
         <h1>{e.nom}</h1>
         {e.etiquette && <p class="etiquette-campus">{e.etiquette}</p>}
-        <p class="texte-doux">
-          {lieu}
-          {lieu ? ' · ' : ''}
-          <span class="insecable">{zone.noms[1] ?? zone.noms[0]}</span>
-        </p>
+        <p class="texte-doux">{lieu || zone.noms[0]}</p>
       </div>
 
       <dl class="carte proprietes">
@@ -226,26 +237,32 @@ const nomZone = zone.division.nom;
     </div>
 
     <div class="fiche-cote">
+      {pasReleve.length > 0 && (
+        <section class="manque">
+          <p class="surtitre-doux-public">Pas encore relevé</p>
+          <ul class="pastilles-vides">
+            {pasReleve.map((x) => (
+              <li>{x}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section class="manque">
-        <p class="surtitre-doux-public">Pas encore sur la fiche</p>
+        <p class="surtitre-doux-public">Non communiqué par la direction</p>
         <ul class="pastilles-vides">
-          {!niveaux && <li>Niveaux</li>}
-          {!typeSeLit && <li>Type d'école</li>}
-          {cyclesSansFormation.length > 0 && <li>Séries ou filières</li>}
           <li>Frais</li>
           <li>Photos de l'école</li>
           <li>Équipements</li>
-          <li>Contact WhatsApp</li>
+          <li>Contact de l'école</li>
         </ul>
       </section>
-
       <aside class="ecoles-appel">
         <p>
-          <b>Vous dirigez cette école&nbsp;?</b>
+          <b>Vous gérez cet établissement&nbsp;?</b>
         </p>
-        <p>Confirmez sa fiche et ajoutez photos, frais et contact.</p>
+        <p>Complétez cette fiche avec nous. Rien n'est publié sans votre accord daté.</p>
         <a class="bouton bouton-accent" href="/pour-les-ecoles/">
-          Confirmer la fiche
+          Compléter cette fiche
         </a>
         {erreur && <a href={erreur}>Signaler une erreur</a>}
       </aside>
@@ -281,6 +298,10 @@ const nomZone = zone.division.nom;
     color: var(--marque-appuyee);
     font-family: var(--police-titre);
     font-weight: 700;
+  }
+  .preuves {
+    display: grid;
+    gap: var(--espace-2);
   }
   .etat {
     font-size: var(--taille-secondaire);

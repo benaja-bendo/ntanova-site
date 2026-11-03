@@ -6,6 +6,7 @@ import {
   arrondissementDessine,
   arrondissementsDessines,
   cadreVille,
+  vuesSurPlace,
   type ArrondissementSurCarte,
 } from '../modele/carte/plan';
 import {
@@ -32,6 +33,7 @@ const { page, divisions, manque } = Astro.props;
 
 const sous = ecolesSous(page);
 const verifiees = sous.filter((e) => e.etat === 'verifiee').length;
+const vues = vuesSurPlace(sous).length;
 const nom = page.division.nom;
 const genre = NOM_NIVEAU[page.division.niveau] ?? 'zone';
 const ordinal = page.division.ordinal;
@@ -95,8 +97,9 @@ const lienListe = lienDivision(page.adresse);
     <p class="carte">Aucune école publiée pour l'instant&nbsp;: le relevé est en cours.</p>
   ) : (
     <p class="compte">
-      {compterEcoles(sous.length)} relevée{sous.length > 1 ? 's' : ''}
-      {verifiees > 0 && ` · ${verifiees} vérifiée${verifiees > 1 ? 's' : ''}`}
+      {compterEcoles(sous.length)}
+      {vues > 0 && ` · ${vues} vue${vues > 1 ? 's' : ''} sur place`}
+      {verifiees > 0 && ` · ${verifiees} confirmée${verifiees > 1 ? 's' : ''} par la direction`}
     </p>
   )}
 

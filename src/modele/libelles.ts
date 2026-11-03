@@ -84,8 +84,11 @@ export const motifsProposes: Valeur<'motif_decision'>[] = [
 ];
 
 /**
- * D'où vient une fiche publiée : vérifiée par l'école, relevée de la rue par un relais, ou
- * ajoutée par NTanova (l'administration l'a située elle-même ; aucun relevé ne l'a encore décrite).
+ * D'où vient une fiche publiée (ticket #99, décisions du fondateur du 03/11) : confirmée par la
+ * direction (l'accord daté), vue sur place par un relais, ou ajoutée par NTanova (aucun relais n'est
+ * passé). « Vue sur place » se lit sur la date du relevé (`surveyed_at`), que seule l'acceptation d'un
+ * relevé pose : une fiche sans cette date n'est jamais dite vue sur place. Les deux preuves ne se
+ * fusionnent pas : la fiche les écrit l'une après l'autre ; une liste n'en montre qu'une, la plus forte.
  */
 export type Provenance = 'verifiee' | 'relevee' | 'ajoutee';
 
@@ -95,13 +98,13 @@ export function provenanceDe(e: {
   situeeLe: string | null;
 }): Provenance {
   if (e.etat === 'verifiee') return 'verifiee';
-  return e.releveeLe === null && e.situeeLe !== null ? 'ajoutee' : 'relevee';
+  return e.releveeLe === null ? 'ajoutee' : 'relevee';
 }
 
 export const libelleProvenance: Record<Provenance, string> = {
-  verifiee: 'Vérifiée par l’école',
-  relevee: 'Relevée de la rue',
-  ajoutee: 'Ajoutée par NTanova',
+  verifiee: 'Confirmée par la direction',
+  relevee: 'Vue sur place',
+  ajoutee: 'Ajoutée par NTanova, pas encore vue sur place',
 };
 
 // Le catalogue universel : formations, photos, origine, divisions ------------------------------
