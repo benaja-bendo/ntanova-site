@@ -346,6 +346,15 @@
   border-top: 1px solid var(--trait);
 }
 
+/* « Avant d'accepter » : une ligne par point, avec son icône (ticket #95). */
+.admin-avant-liste {
+  display: grid;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .admin-motif {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));

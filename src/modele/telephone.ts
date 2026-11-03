@@ -30,3 +30,16 @@ export function afficherTelephone(numero: string): string {
   }
   return `+${numero}`;
 }
+
+/**
+ * Un numéro congolais a 9 chiffres après l'indicatif 242 (06 123 45 67). Un numéro rangé avec l'indicatif mais d'une
+ * autre longueur se lit mal : le numéro de l'enseigne d'ESTAM était rangé « +242 0064970301 » pour « 06 497 03 01 », un
+ * zéro de trop que rien ne signalait, et qui aurait été public (ticket #95). Rend le nombre de chiffres après
+ * l'indicatif quand le numéro est suspect, sinon `null`. Un numéro d'un autre pays, ou qui n'est pas un numéro, n'est
+ * jamais suspect. `numero` : au format de la base (`normaliserTelephone`).
+ */
+export function numeroCongolaisSuspect(numero: string | null): { chiffres: number } | null {
+  if (numero === null || !/^242\d+$/.test(numero)) return null;
+  const chiffres = numero.length - INDICATIF_CONGO.length;
+  return chiffres === 9 ? null : { chiffres };
+}

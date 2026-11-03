@@ -839,6 +839,7 @@ const admin: PortAdministration = {
       divisionId: herite.divisionId,
       corrigeUneFicheEnAttente: herite.corrigeUneFicheEnAttente,
       positionDeLaFicheDOrigine: herite.positionDeLaFicheDOrigine,
+      lotDeLaFicheDOrigine: herite.lotDeLaFicheDOrigine,
       niveaux: r.niveaux,
       typeEcole: r.typeEcole,
       programme: r.programme,
