@@ -1,0 +1,51 @@
+name: Sauvegarde
+
+# Une copie chiffrée de la base et des photos, chaque nuit, hors de Supabase (ticket #81) : le plan gratuit de Supabase
+# ne sauvegarde rien. Le fichier est chiffré avec une clé publique `age` ; la clé privée reste chez le fondateur, hors du
+# dépôt : sans elle, personne ne relit la sauvegarde, pas même GitHub. Conservée 30 jours, comme artefact privé.
+#
+# Les secrets sont à poser une fois (voir supabase/schema.md, « Sauvegarder et restaurer ») ; tant qu'il en manque un,
+# la nuit passe en rouge et GitHub écrit au fondateur : une sauvegarde qui ne tourne pas ne doit jamais se taire.
+on:
+  workflow_dispatch:
+  schedule:
+    # 2 h 30 UTC, 3 h 30 à Pointe-Noire : après la mise en ligne de 1 h, quand personne n'est sur le terrain.
+    - cron: '30 2 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sauvegarde
+  cancel-in-progress: false
+
+jobs:
+  sauvegarde:
+    name: Sauvegarde chiffrée
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # La base est en PostgreSQL 17 : un pg_dump plus ancien refuse de la lire.
+      - name: Client PostgreSQL 17 et age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsS -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17 age
+      - name: Sauvegarder
+        env:
+          PG_DUMP: /usr/lib/postgresql/17/bin/pg_dump
+          SAUVEGARDE_DB_URL: ${{ secrets.SAUVEGARDE_DB_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SAUVEGARDE_CLE_PUBLIQUE: ${{ secrets.SAUVEGARDE_CLE_PUBLIQUE }}
+        run: outils/sauvegarder-la-base.sh sauvegardes
+      # Seul le fichier chiffré part : jamais le dump en clair.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sauvegarde-${{ github.run_id }}
+          path: sauvegardes/*.age
+          retention-days: 30
+          if-no-files-found: error
