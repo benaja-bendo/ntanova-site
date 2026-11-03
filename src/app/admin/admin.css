@@ -397,6 +397,11 @@
   display: block;
 }
 
+/* Une adresse e-mail n'a aucun point de coupure : sans cela, elle élargit sa colonne et le tableau défile dans son cadre. */
+.admin-email {
+  overflow-wrap: anywhere;
+}
+
 .admin-choix-lot {
   width: auto;
   min-height: var(--cible-min);

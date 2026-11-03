@@ -50,6 +50,7 @@ function LigneRelais({
     <tr>
       <td>
         <b>{r.prenom || '[sans prénom]'}</b>
+        {r.email && <span className="mention admin-sous-ligne admin-email">{r.email}</span>}
         <span className="mention admin-sous-ligne">Première connexion : {jour(r.creeLe)}</span>
       </td>
       <td>
@@ -111,16 +112,31 @@ function LigneRelais({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              className="bouton bouton-petit"
-              disabled={enCours}
-              onClick={() =>
-                void agir(() => admin.activerRelais(r.id, lot || null), `${r.prenom} est actif.`)
-              }
-            >
-              {r.statut === 'suspendu' ? 'Réactiver' : 'Activer'}
-            </button>
+            <>
+              <button
+                type="button"
+                className="bouton bouton-petit"
+                disabled={enCours}
+                onClick={() =>
+                  void agir(() => admin.activerRelais(r.id, lot || null), `${r.prenom} est actif.`)
+                }
+              >
+                {r.statut === 'suspendu' ? 'Réactiver' : 'Activer'}
+              </button>
+              {/* Un compte inconnu s'écarte : il passe « suspendu », et peut être réactivé plus tard. */}
+              {r.statut === 'en_attente' && (
+                <button
+                  type="button"
+                  className="bouton bouton-secondaire bouton-petit admin-bouton-refus"
+                  disabled={enCours}
+                  onClick={() =>
+                    void agir(() => admin.suspendreRelais(r.id), `${r.prenom} est écarté.`)
+                  }
+                >
+                  Écarter
+                </button>
+              )}
+            </>
           )}
         </div>
         {erreur && <p className="message-erreur">{erreur}</p>}
@@ -129,7 +145,14 @@ function LigneRelais({
   );
 }
 
-export function ListeRelais({ admin }: { admin: PortAdministration }) {
+export function ListeRelais({
+  admin,
+  surCompte,
+}: {
+  admin: PortAdministration;
+  /** Combien de comptes attendent d'être activés : le menu le dit, d'où qu'on arrive. */
+  surCompte: (n: number) => void;
+}) {
   const [relais, setRelais] = useState<RelaisVu[] | null>(null);
   const [lots, setLots] = useState<LotVu[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -138,12 +161,15 @@ export function ListeRelais({ admin }: { admin: PortAdministration }) {
   const charger = useCallback(() => {
     Promise.all([admin.relais(), admin.lots()])
       .then(([r, l]) => {
-        setRelais(r);
+        // Les comptes à activer d'abord : c'est ce qu'on vient faire ici.
+        const ordre = { en_attente: 0, actif: 1, suspendu: 2 } as const;
+        setRelais([...r].sort((a, b) => ordre[a.statut] - ordre[b.statut]));
         setLots(l);
         setErreur(null);
+        surCompte(r.filter((x) => x.statut === 'en_attente').length);
       })
       .catch(() => setErreur('La base ne répond pas. Vérifie le réseau et recharge la page.'));
-  }, [admin]);
+  }, [admin, surCompte]);
 
   useEffect(() => {
     charger();
@@ -155,9 +181,18 @@ export function ListeRelais({ admin }: { admin: PortAdministration }) {
         <div>
           <h1>Relais</h1>
           <p className="texte-doux">
-            Un relais apparaît ici après sa première connexion. Avant, ajoute son adresse Gmail
-            comme utilisateur de test dans Google Cloud. Les lots se gèrent dans l’onglet « Zones ».
+            Un relais apparaît ici dès sa première connexion, « à activer », avec l’adresse de son
+            compte : relie-la à la personne (son message WhatsApp), puis active-la. « Écarter » met
+            de côté un compte que tu ne connais pas. Les lots se gèrent dans l’onglet « Zones ».
           </p>
+          <details className="admin-sous-ligne">
+            <summary>Quelqu’un ne peut pas se connecter ?</summary>
+            <p className="mention">
+              Tant que l’application Google est en mode « test », seules les adresses ajoutées dans
+              Google Cloud (Écran de consentement, Utilisateurs de test) peuvent se connecter.
+              Publier l’application lève cette limite.
+            </p>
+          </details>
         </div>
       </div>
 

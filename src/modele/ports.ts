@@ -423,6 +423,11 @@ export interface CompteursRelais {
 export interface RelaisVu {
   id: string;
   prenom: string;
+  /**
+   * L'adresse de connexion du relais (ticket #78), pour relier un compte « à activer » à la personne. Gardée dans la
+   * partie privée ; nulle quand la base ne la connaît pas (un compte d'avant, ou une base pas encore à jour).
+   */
+  email: string | null;
   statut: Valeur<'statut_relais'>;
   lotId: string | null;
   creeLe: string;

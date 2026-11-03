@@ -1,4 +1,5 @@
-import { phraseFichesEnAttente } from '../../../modele/compte';
+import { messageDActivation, phraseFichesEnAttente } from '../../../modele/compte';
+import { avecMessage } from '../../../modele/whatsapp';
 import { BoutonGoogle as BoutonCommun } from '../../commun/BoutonGoogle';
 import { base, useRequete } from '../base-locale';
 import { useRelais } from '../contexte';
@@ -64,7 +65,9 @@ export function Connexion() {
 }
 
 export function CompteEnAttente({ email, suspendu }: { email: string | null; suspendu: boolean }) {
-  const { adaptateurs, synchroniser } = useRelais();
+  const { adaptateurs, synchroniser, lienNTanova } = useRelais();
+  // Un compte suspendu écrit pour savoir pourquoi ; un compte en attente demande son activation, avec son adresse.
+  const lienActivation = suspendu ? null : avecMessage(lienNTanova, messageDActivation(email));
   const changer = async () => {
     await adaptateurs.session.deconnecter();
     location.reload();
@@ -87,10 +90,15 @@ export function CompteEnAttente({ email, suspendu }: { email: string | null; sus
             <p>
               {suspendu
                 ? 'Écrivez à NTanova sur WhatsApp pour en savoir plus.'
-                : "NTanova l'active après votre formation. Nous vous prévenons sur WhatsApp."}
+                : 'NTanova active votre compte après votre formation. Écrivez-nous sur WhatsApp en donnant l’adresse avec laquelle vous êtes connecté : nous retrouvons votre compte et l’activons.'}
             </p>
           </div>
         </div>
+        {lienActivation && (
+          <a className="bouton" href={lienActivation} target="_blank" rel="noopener noreferrer">
+            Écrire à NTanova sur WhatsApp
+          </a>
+        )}
         <button type="button" className="bouton bouton-secondaire" onClick={synchroniser}>
           Vérifier à nouveau
         </button>

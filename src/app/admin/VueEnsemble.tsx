@@ -50,9 +50,11 @@ function Chiffre({
 export function VueEnsemble({
   admin,
   surCompte,
+  surRelais,
 }: {
   admin: PortAdministration;
   surCompte: (n: number) => void;
+  surRelais: (n: number) => void;
 }) {
   const [vue, setVue] = useState<Vue | null>(null);
   const [zones, setZones] = useState<DivisionVue[]>([]);
@@ -68,6 +70,7 @@ export function VueEnsemble({
         setErreur(null);
         // Le menu dit combien de fiches attendent, d'où qu'on arrive.
         surCompte(v.aValider.nombre);
+        surRelais(v.relais.enAttente);
       })
       .catch((e: unknown) => {
         if (abandonne) return;
@@ -80,7 +83,7 @@ export function VueEnsemble({
     return () => {
       abandonne = true;
     };
-  }, [admin, surCompte]);
+  }, [admin, surCompte, surRelais]);
 
   const semaine = vue?.recusParJour.slice(-7) ?? [];
   const recusSemaine = semaine.reduce((somme, j) => somme + j.total, 0);

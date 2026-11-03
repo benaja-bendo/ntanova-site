@@ -39,6 +39,7 @@ export default function App() {
   const [utilisateur, setUtilisateur] = useState<Utilisateur | null | undefined>(undefined);
   const [acces, setAcces] = useState<Acces>('verification');
   const [aValider, setAValider] = useState<number | null>(null);
+  const [relaisAActiver, setRelaisAActiver] = useState<number | null>(null);
   const [ecran = 'accueil'] = useAdresse();
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export default function App() {
   }, [adaptateurs, utilisateur]);
 
   const compter = useCallback((n: number) => setAValider(n), []);
+  const compterLesRelais = useCallback((n: number) => setRelaisAActiver(n), []);
 
   const changerDeCompte = async () => {
     await adaptateurs?.session.deconnecter();
@@ -114,7 +116,7 @@ export default function App() {
     { chemin: 'valider', libelle: 'À valider', compte: aValider },
     { chemin: 'ecoles', libelle: 'Écoles', compte: null },
     { chemin: 'zones', libelle: 'Zones', compte: null },
-    { chemin: 'relais', libelle: 'Relais', compte: null },
+    { chemin: 'relais', libelle: 'Relais', compte: relaisAActiver },
     { chemin: 'sante', libelle: 'Santé', compte: null },
     { chemin: 'paie', libelle: 'Paie', compte: null },
   ];
@@ -152,7 +154,7 @@ export default function App() {
       </aside>
       <main className="admin-contenu">
         {ecran === 'relais' ? (
-          <ListeRelais admin={adaptateurs.admin} />
+          <ListeRelais admin={adaptateurs.admin} surCompte={compterLesRelais} />
         ) : ecran === 'ecoles' ? (
           <Ecoles admin={adaptateurs.admin} />
         ) : ecran === 'zones' ? (
@@ -164,7 +166,7 @@ export default function App() {
         ) : ecran === 'valider' ? (
           <AValider admin={adaptateurs.admin} surCompte={compter} />
         ) : (
-          <VueEnsemble admin={adaptateurs.admin} surCompte={compter} />
+          <VueEnsemble admin={adaptateurs.admin} surCompte={compter} surRelais={compterLesRelais} />
         )}
       </main>
     </div>
