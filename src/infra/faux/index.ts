@@ -1143,9 +1143,9 @@ const admin: PortAdministration = {
         }).length,
       },
       relais: {
-        actifs: 1,
-        enAttente: 1,
-        suspendus: 0,
+        actifs: 1 + (e.autreRelais.statut === 'actif' ? 1 : 0),
+        enAttente: e.autreRelais.statut === 'en_attente' ? 1 : 0,
+        suspendus: e.autreRelais.statut === 'suspendu' ? 1 : 0,
         ontEnvoye7j: releves.some((r) => Date.parse(r.prisLe) >= semaine) ? 1 : 0,
       },
     };
@@ -1160,6 +1160,7 @@ const admin: PortAdministration = {
       {
         id: MOI,
         prenom: '[Prénom]',
+        email: 'relais@exemple.test',
         statut: e.statut,
         lotId: LOT.id,
         creeLe: '2026-10-31T08:00:00Z',
@@ -1177,6 +1178,7 @@ const admin: PortAdministration = {
       {
         id: AUTRE,
         prenom: '[Relais en attente]',
+        email: 'marie@exemple.test',
         statut: e.autreRelais.statut,
         lotId: e.autreRelais.lotId,
         creeLe: '2026-11-01T08:00:00Z',

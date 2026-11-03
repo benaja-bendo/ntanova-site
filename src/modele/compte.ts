@@ -83,3 +83,14 @@ export function phraseFichesEnAttente(nombre: number): string | null {
     ? '1 fiche de ce téléphone attend d’être envoyée. Elle part quand le relais qui l’a commencée se connecte.'
     : `${nombre} fiches de ce téléphone attendent d’être envoyées. Elles partent quand le relais qui les a commencées se connecte.`;
 }
+
+/**
+ * Le message qu'un relais en attente envoie à NTanova (ticket #78). NTanova n'a pas son numéro : il ne peut pas le
+ * « prévenir sur WhatsApp ». C'est le relais qui écrit, avec l'adresse de son compte, que l'administration retrouve dans
+ * « Relais » pour l'activer. Rien d'autre : ni prix, ni promesse.
+ */
+export function messageDActivation(email: string | null): string {
+  return email
+    ? `Bonjour, je viens de me connecter à l’espace relais avec l’adresse ${email}. Pouvez-vous activer mon compte ?`
+    : 'Bonjour, je viens de me connecter à l’espace relais. Pouvez-vous activer mon compte ?';
+}

@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(29);
 
 -- L'inscription d'un relais ------------------------------------------------------------------------------------------------
 
@@ -18,6 +18,18 @@ insert into auth.users (id, email, aud, role, raw_app_meta_data, raw_user_meta_d
 select is((select prenom || '|' || statut || '|' || google_sub from public.relais where id = '00000000-0000-4000-8000-0000000000a1'), 'Alice|en_attente|google-a1',
   'Chaque première connexion crée un relais en attente, avec son prénom et son identifiant Google');
 select is((select prenom from public.relais where id = '00000000-0000-4000-8000-0000000000b1'), 'Bastien', 'Le prénom se tire aussi du nom complet');
+select is((select email from prive.relay_identity where relay_id = '00000000-0000-4000-8000-0000000000a1'), 'a@exemple.test',
+  'La première connexion garde l''adresse du compte, dans la partie privée (ticket #78)');
+select is((select count(*)::integer from prive.relay_identity), 4, 'Chaque compte a son adresse');
+-- Les relais déjà inscrits avant ce ticket la reçoivent, une fois, et sans toucher à une adresse déjà gardée.
+delete from prive.relay_identity where relay_id = '00000000-0000-4000-8000-0000000000b1';
+update prive.relay_identity set email = 'garde@exemple.test' where relay_id = '00000000-0000-4000-8000-0000000000a1';
+select is(supabase_layer.backfill_relay_identities(), 1, 'La reprise ne rend que l''adresse manquante');
+select is((select email from prive.relay_identity where relay_id = '00000000-0000-4000-8000-0000000000b1'), 'b@exemple.test',
+  'Un relais déjà inscrit reçoit son adresse');
+select is((select email from prive.relay_identity where relay_id = '00000000-0000-4000-8000-0000000000a1'), 'garde@exemple.test',
+  'Une adresse déjà gardée n''est jamais réécrite');
+
 select is((select google_sub from public.relais where id = '00000000-0000-4000-8000-0000000000b1'), 'google-b1', 'L''identifiant Google se tire de `sub` à défaut de `provider_id`');
 select is((select google_sub from public.relais where id = '00000000-0000-4000-8000-0000000000c1'), null::text, 'Une connexion sans Google n''a pas d''identifiant Google');
 select is(has_function_privilege('authenticated', 'supabase_layer.register_relay_from_auth()', 'execute'), false,

@@ -727,6 +727,60 @@ describe('l’adaptateur Supabase de l’administration', () => {
   });
 });
 
+describe('la liste des relais, côté Supabase (ticket n° 78)', () => {
+  // L'adresse de chaque relais vient d'une fonction de la base (`relay_identities`). Le code peut arriver avant
+  // `supabase db push` : sans la fonction, la liste se lit quand même, sans adresses (comme avant).
+  const relais = [
+    {
+      id: 'r1',
+      prenom: 'Marie',
+      statut: 'en_attente',
+      lot_id: null,
+      cree_le: '2026-11-03T08:00:00Z',
+      active_le: null,
+    },
+    {
+      id: 'r2',
+      prenom: 'Paul',
+      statut: 'actif',
+      lot_id: null,
+      cree_le: '2026-11-02T08:00:00Z',
+      active_le: '2026-11-02T09:00:00Z',
+    },
+  ];
+
+  it('rend l’adresse de chaque relais, quand la base la connaît', async () => {
+    const { port } = fausseApi(
+      {
+        relay_identities: { data: [{ relay_id: 'r1', email: 'marie@exemple.test' }], error: null },
+      },
+      { relais, relay_counters: [] },
+    );
+    const liste = await port.relais();
+    expect(liste.find((r) => r.id === 'r1')?.email).toBe('marie@exemple.test');
+    // Un relais dont la base n'a pas l'adresse (un compte d'avant) : nulle, jamais une chaîne vide.
+    expect(liste.find((r) => r.id === 'r2')?.email).toBeNull();
+  });
+
+  it('se lit quand même si la base n’a pas encore la fonction : sans adresses, jamais en erreur', async () => {
+    const { port } = fausseApi(
+      {
+        relay_identities: {
+          data: null,
+          error: {
+            code: 'PGRST202',
+            message: 'Could not find the function public.relay_identities',
+          },
+        },
+      },
+      { relais, relay_counters: [] },
+    );
+    const liste = await port.relais();
+    expect(liste.map((r) => r.prenom).sort()).toEqual(['Marie', 'Paul']);
+    expect(liste.every((r) => r.email === null)).toBe(true);
+  });
+});
+
 describe('la vue d’ensemble, côté Supabase (ticket n° 76)', () => {
   it('lit les agrégats de la base', async () => {
     const { port } = fausseApi({

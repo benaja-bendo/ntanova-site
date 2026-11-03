@@ -531,6 +531,16 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           .from('relay_counters')
           .select('relay_id, sent, to_review, to_correct, accepted, refused, contacts_confirmed'),
       ]);
+      // Les adresses (partie privée). Une base pas encore à jour n'a pas la fonction : la liste se lit quand même.
+      const adresses = new Map<string, string>();
+      try {
+        const lues = await supabase().rpc('relay_identities');
+        for (const a of lireListe<{ relay_id: string; email: string }>(lues)) {
+          adresses.set(a.relay_id, a.email);
+        }
+      } catch {
+        // Sans adresse : l'écran dit seulement le prénom, comme avant.
+      }
       const parRelais = new Map<string, CompteursRelais>();
       for (const c of lireListe<{
         relay_id: string;
@@ -569,6 +579,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         return {
           id: r.id,
           prenom: r.prenom,
+          email: adresses.get(r.id) ?? null,
           statut: r.statut,
           lotId: r.lot_id,
           creeLe: r.cree_le,
