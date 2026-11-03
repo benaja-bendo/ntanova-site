@@ -322,6 +322,14 @@ export interface VueEnsemble {
 export interface DetailReleve extends ReleveAValider {
   /** Le relais qui l'a envoyé : de quoi lire ce que son téléphone a signalé (ticket #77). */
   relaisId: string;
+  /**
+   * Vrai : cette correction corrige une fiche qui n'a pas encore d'école (renvoyée « à corriger », jamais acceptée). Elle se
+   * traite comme une nouvelle fiche ; `position`, `divisionId` et `lot` sont alors ceux de la fiche d'origine quand la
+   * correction n'a pas les siens (ticket #89).
+   */
+  corrigeUneFicheEnAttente: boolean;
+  /** Vrai : `position` est celle de la fiche d'origine (la correction n'en a pas). */
+  positionDeLaFicheDOrigine: boolean;
   prisLe: string;
   position: Point | null;
   /** La division que dit la position (la plus fine dont le contour la contient) ; nulle si aucun contour connu. */
