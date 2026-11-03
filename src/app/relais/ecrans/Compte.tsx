@@ -65,6 +65,14 @@ export function Compte() {
           )}
         </section>
 
+        <section className="carte-blanche pile-serree" aria-label="Le guide du relais">
+          <p className="surtitre-doux">Le guide du relais</p>
+          <p>Ce qu’on dit en entrant, ce qui rend une fiche payée, comment on est payé.</p>
+          <a className="bouton bouton-secondaire" href="/relais/guide/">
+            Lire le guide du relais
+          </a>
+        </section>
+
         <section className="carte-blanche pile-serree" aria-label="Mon téléphone">
           <p className="surtitre-doux">Mon téléphone</p>
           <p>La position, la photo et la connexion marchent-elles ? Deux minutes pour le savoir.</p>

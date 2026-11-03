@@ -12,3 +12,6 @@ supabase/
 /captures/
 # Les tracés de la carte, tirés d’OpenStreetMap : une ligne par fichier, régénérée, jamais à la main.
 src/modele/carte/*.json
+# Le guide du relais : la feuille de style du PDF est écrite à la main, une règle par ligne ; recapture/ se copie dans tests/livret/ pour servir.
+outils/guide-relais/export.css
+outils/guide-relais/recapture/

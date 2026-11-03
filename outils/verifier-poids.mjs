@@ -15,6 +15,10 @@ const avecJavaScript = /^(relais|admin)\//;
 const petitJavaScript = /^(recherche|autour-de-moi)\//;
 const budgetPetitJavaScript = 20 * 1024;
 const budgetFichierRecherche = 300 * 1024;
+// Le guide du relais (ticket #110) montre quatre captures de l'application, chargées au défilement : 400 Ko au plus,
+// sans JavaScript (la page se lit sans réseau et se partage par un lien).
+const pageGuide = /^(guide-relais|relais\/guide)\//;
+const budgetGuide = 400 * 1024;
 
 if (!existsSync(dist)) {
   console.error('dist/ manque : lancer `pnpm build` d’abord.');
@@ -61,13 +65,16 @@ for (const page of pages(dist)) {
     }
   };
 
-  for (const m of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
+  // Un lien « à télécharger » (le PDF et les images du guide du relais) n'est pas chargé avec la page.
+  const charge = html.replace(/<a\b[^>]*\sdownload\b[^>]*>/g, '');
+  for (const m of charge.matchAll(/(?:href|src)="([^"]+)"/g)) {
     if (/\.(css|js|mjs|woff2?|png|jpe?g|webp|avif|svg)(\?|#|$)/.test(m[1])) compter(m[1]);
   }
   for (const m of html.matchAll(/url\(\s*['"]?([^'")]+)/g)) compter(m[1]);
 
   const fautes = [];
-  if (total > budgetPage) fautes.push(`dépasse ${ko(budgetPage)}`);
+  const budget = pageGuide.test(nom) ? budgetGuide : budgetPage;
+  if (total > budget) fautes.push(`dépasse ${ko(budget)}`);
   if (javascript && !avecJavaScript.test(nom) && !petitJavaScript.test(nom)) {
     fautes.push('contient du JavaScript');
   }

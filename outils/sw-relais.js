@@ -7,6 +7,8 @@ const VERSION = '__VERSION__';
 const FICHIERS = /* __FICHIERS__ */ [];
 const CACHE = `relais-${VERSION}`;
 const COQUILLE = '/relais/';
+// Le guide du relais (ticket #110) est une page à part, gardée pour se lire sans réseau : jamais la coquille.
+const GUIDE = '/relais/guide/';
 
 self.addEventListener('install', (evenement) => {
   evenement.waitUntil(
@@ -38,7 +40,11 @@ self.addEventListener('fetch', (evenement) => {
 
   // La page d'abord depuis le cache : elle s'ouvre sans réseau, et une nouvelle
   // version arrive avec le prochain service worker.
-  if (requete.mode === 'navigate' && url.pathname.startsWith(COQUILLE)) {
+  if (
+    requete.mode === 'navigate' &&
+    url.pathname.startsWith(COQUILLE) &&
+    !url.pathname.startsWith(GUIDE)
+  ) {
     evenement.respondWith(caches.match(COQUILLE).then((r) => r ?? fetch(requete)));
     return;
   }

@@ -58,9 +58,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # La construction exporte le guide du relais (PDF et images) : elle a besoin du navigateur de Playwright.
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Construction avec les valeurs publiques du dépôt
         run: pnpm build && pnpm poids
         env:
+          # Jamais un guide en ligne dont la carte de passage porte « [numéro WhatsApp] ».
+          GUIDE_NUMERO_OBLIGATOIRE: 'oui'
           PUBLIC_WHATSAPP: ${{ vars.PUBLIC_WHATSAPP }}
           PUBLIC_SUPABASE_URL: ${{ vars.PUBLIC_SUPABASE_URL }}
           PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.PUBLIC_SUPABASE_PUBLISHABLE_KEY }}

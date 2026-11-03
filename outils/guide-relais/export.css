@@ -1,0 +1,121 @@
+/* La mise en page du PDF et des images du guide du relais : 1 080 x 1 920, lisible sur un téléphone.
+   Ce n'est pas la page du site (src/ui/GuideRelais.astro) : même balisage, autre feuille de style, ici en pixels fixes.
+   Hérité du livret v3 (dépôt `ntanova`, outils/livret-relais/). Les couleurs sont celles de la marque ; outils/ n'est pas
+   couvert par `pnpm couleurs`. Les marges verticales sont serrées exprès : Linux (la CI) coupe certaines lignes autrement
+   que macOS, et le contrôle de l'export refuse un débordement. */
+:root { --vert:#0b5d4a; --vert-fonce:#084337; --creme:#f9f4ec; --jaune:#f2b738; --rouge:#e2543c;
+        --encre:#14231f; --gris:#5d6b66; --trait:#d9d2c4; --rouge-pale:#f9ddd8; --rouge-texte:#a44533; }
+* { box-sizing: border-box; }
+@page { size: 1080px 1920px; margin: 0; }
+html, body { margin: 0; padding: 0; background: var(--vert); }
+body { font-family: 'Poppins', 'Helvetica Neue', Arial, sans-serif; color: var(--encre); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: var(--vert); break-after: page; page-break-after: always; }
+.page:last-child { break-after: auto; page-break-after: auto; }
+.page::before { content: ""; position: absolute; width: 520px; height: 520px; border-radius: 50%; background: var(--vert-fonce); right: -170px; top: -190px; }
+.page::after  { content: ""; position: absolute; width: 520px; height: 520px; border-radius: 50%; background: var(--vert-fonce); left: -230px; bottom: -230px; }
+.page > * { position: relative; z-index: 1; }
+
+.top { display: flex; align-items: center; justify-content: space-between; padding: 40px 56px 0; color: var(--creme); }
+.brand { display: flex; align-items: center; gap: 16px; font-weight: 700; font-size: 24px; letter-spacing: .16em; }
+.brand svg { height: 42px; width: auto; }
+.brand small { color: var(--jaune); font-size: 20px; font-weight: 600; letter-spacing: .14em; }
+.nav { display: flex; align-items: center; }
+/* Le numéro de page : un badge en haut à droite, qui ne touche jamais le contenu dessous. */
+.badge-page { display: inline-flex; align-items: center; padding: 6px 22px; border: 3px solid var(--jaune); border-radius: 999px; color: var(--jaune); font-size: 24px; font-weight: 700; letter-spacing: .06em; line-height: 1.2; white-space: nowrap; }
+
+.page h2.grand { margin: 36px 56px 0; color: var(--creme); font-weight: 800; font-size: 64px; line-height: 1.05; }
+.page h2.grand em { font-style: normal; color: var(--jaune); }
+.page p.lead { margin: 14px 56px 0; color: #cfe0d9; font-size: 28px; line-height: 1.35; }
+
+.panel { margin: 30px 40px 0; background: var(--creme); border-radius: 40px; padding: 30px 40px 18px; }
+.panel h4 { margin: 18px 0 10px; font-size: 24px; letter-spacing: .12em; text-transform: uppercase; color: var(--rouge); font-weight: 700; }
+.panel h4:first-child { margin-top: 0; }
+.panel p { margin: 0 0 12px; font-size: 29px; line-height: 1.34; font-weight: 500; }
+.panel p.petit { font-size: 24px; color: var(--gris); font-weight: 400; }
+.attention { margin: 10px 0 8px; background: var(--jaune); color: var(--encre); border-radius: 26px; padding: 16px 28px; font-weight: 600; font-size: 26px; line-height: 1.32; }
+
+.regles { position: absolute !important; left: 40px; right: 40px; bottom: 36px; display: flex; gap: 12px; }
+.regles span { flex: auto; white-space: nowrap; text-align: center; background: var(--vert-fonce); color: var(--jaune); border-radius: 24px; padding: 15px 16px; font-size: 21px; font-weight: 700; line-height: 1.25; }
+
+.flux { display: flex; align-items: stretch; gap: 0; margin: 34px 40px 0; }
+.flux .case { flex: 1; background: var(--creme); border-radius: 28px; padding: 22px 16px 20px; text-align: center; }
+.flux .case b { display: block; font-size: 26px; font-weight: 800; color: var(--vert); line-height: 1.15; }
+.flux .case span { display: block; margin-top: 8px; font-size: 21px; line-height: 1.25; color: var(--gris); font-weight: 500; }
+.flux .case i { display: flex; width: 54px; height: 54px; margin: 0 auto 10px; border-radius: 50%; background: var(--vert); color: var(--creme); font-style: normal; font-weight: 800; font-size: 28px; align-items: center; justify-content: center; }
+.flux .case.on { background: var(--jaune); }
+.flux .case.on span { color: var(--encre); }
+.flux .fl { flex: none; width: 34px; align-self: center; text-align: center; color: var(--jaune); font-size: 40px; font-weight: 800; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 12px; margin: 4px 0 14px; }
+.chips span { background: #fff; border: 3px solid var(--vert); color: var(--vert); border-radius: 999px; padding: 10px 24px; font-size: 27px; font-weight: 700; }
+.chips span.sortie { border-style: dashed; border-color: var(--gris); color: var(--gris); }
+
+.ligne { display: flex; gap: 22px; padding: 12px 0 14px; border-top: 3px solid var(--trait); }
+.ligne:first-of-type { border-top: 0; padding-top: 0; }
+.ligne .n { flex: none; width: 56px; height: 56px; border-radius: 50%; background: var(--vert); color: var(--creme); font-weight: 800; font-size: 30px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+.ligne h3 { margin: 0 0 4px; font-size: 30px; font-weight: 800; color: var(--vert); }
+.ligne p { margin: 0; font-size: 26px; line-height: 1.32; font-weight: 500; }
+
+/* page 3 : les trois écrans de l'application */
+.panel.large { padding: 26px 24px 16px; }
+.trois { display: flex; gap: 16px; align-items: flex-start; }
+.ec { flex: 1; min-width: 0; }
+.ec .cadre-ecran { height: 596px; }
+.ec .vue { box-sizing: content-box; width: 268px; margin: 0 auto; position: relative; overflow: hidden; background: #fff; border: 5px solid var(--encre); border-bottom: 0; border-radius: 30px 30px 0 0; }
+.ec .vue img { display: block; width: 100%; height: auto; }
+/* Le badge 1/3, 2/3, 3/3 sur sa propre ligne, au-dessus du titre : il ne se coupe pas et ne décale pas le texte. */
+.ec h3 { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 10px 0 6px; font-size: 27px; font-weight: 800; color: var(--vert); line-height: 1.15; }
+.ec h3 .n3 { display: inline-flex; align-items: center; background: var(--vert); color: var(--creme); border-radius: 999px; padding: 2px 16px; font-size: 24px; line-height: 1.2; white-space: nowrap; }
+.ec p { margin: 0; font-size: 21px; line-height: 1.3; font-weight: 500; }
+
+/* « Où trouver chaque information » : une grille, une colonne de libellés qui ne se coupe pas, des filets sur toute la largeur. */
+.ou { margin: 4px 0 6px; }
+.ou .r { display: grid; grid-template-columns: 262px 1fr; column-gap: 18px; align-items: start; padding: 3px 0; border-top: 3px solid var(--trait); font-size: 23px; line-height: 1.26; font-weight: 500; }
+.ou .r:first-child { border-top: 0; padding-top: 0; }
+.ou .k { font-weight: 800; color: var(--vert); white-space: nowrap; }
+
+/* page 4 : la posture */
+.dire { background: #fff; border-left: 10px solid var(--jaune); border-radius: 18px; padding: 14px 26px; margin: 4px 0 12px; font-size: 28px; line-height: 1.38; font-weight: 600; }
+.jamais { display: flex; flex-wrap: wrap; gap: 12px; margin: 6px 0 12px; }
+.jamais span { background: var(--rouge-pale); color: var(--rouge-texte); border-radius: 22px; padding: 10px 22px; font-size: 26px; font-weight: 700; }
+.jamais span::before { content: "✕ "; font-weight: 800; }
+
+/* page 5 : l'argent */
+.argent { display: flex; align-items: center; gap: 22px; padding: 18px 0; border-top: 3px solid var(--trait); }
+.argent:first-of-type { border-top: 0; padding-top: 0; }
+.argent .val { flex: none; width: 250px; text-align: center; white-space: nowrap; background: var(--jaune); color: var(--encre); font-weight: 800; font-size: 32px; border-radius: 999px; padding: 8px 20px; }
+.argent .val.plus { background: var(--vert); color: var(--creme); }
+.argent h3 { margin: 0 0 2px; font-size: 28px; font-weight: 800; color: var(--vert); }
+.argent p { margin: 0; font-size: 23px; line-height: 1.28; color: var(--gris); font-weight: 500; }
+.exemple { background: var(--vert-fonce); color: var(--creme); border-radius: 24px; padding: 18px 28px; margin: 4px 0 8px; font-size: 26px; line-height: 1.4; font-weight: 600; }
+.exemple b { color: var(--jaune); }
+
+/* page 6 : le premier jour */
+.deuxcol { display: flex; gap: 30px; align-items: flex-start; }
+.deuxcol > div { flex: 1; min-width: 0; }
+.deuxcol > .cote-ecran { flex: none; }
+.panel.large + .panel { margin-top: 20px; }
+.ecran { flex: none; width: 300px; border: 6px solid var(--encre); border-radius: 36px; overflow: hidden; background: #fff; box-shadow: 0 14px 30px rgba(0,0,0,.25); }
+.ecran img { display: block; width: 100%; height: auto; }
+.legende { margin: 10px 0 0; font-size: 21px; color: var(--gris); text-align: center; }
+.check li { list-style: none; position: relative; padding-left: 52px; margin-top: 14px; font-size: 27px; line-height: 1.3; font-weight: 600; }
+.check li::before { content: ""; position: absolute; left: 0; top: 2px; width: 30px; height: 30px; border: 4px solid var(--vert); border-radius: 8px; background: #fff; }
+.check { margin: 0; padding: 0; }
+
+/* page 7 : la carte de passage, à montrer sur le téléphone */
+.page.passage { background: var(--creme); }
+.page.passage::before, .page.passage::after { display: none; }
+.passage .haut { background: var(--vert); padding: 60px 56px 50px; color: var(--creme); }
+.passage .haut svg { height: 120px; width: auto; display: block; }
+.passage .haut .mot { margin-top: 22px; font-weight: 800; font-size: 40px; letter-spacing: .24em; }
+.passage .haut .mot small { display: block; margin-top: 8px; color: var(--jaune); font-size: 26px; letter-spacing: .06em; font-weight: 600; }
+.passage h1 { margin: 70px 56px 0; font-size: 78px; line-height: 1.08; font-weight: 800; color: var(--vert); }
+.passage .interdit { margin: 56px 56px 0; background: var(--rouge); color: #fff; border-radius: 40px; padding: 38px 44px; font-size: 62px; font-weight: 800; line-height: 1.12; text-align: center; }
+.passage .texte { margin: 56px 56px 0; font-size: 42px; line-height: 1.4; font-weight: 500; color: var(--encre); }
+.passage .contact { margin: 56px 56px 0; background: var(--vert); color: var(--creme); border-radius: 40px; padding: 36px 44px; }
+.passage .contact small { display: block; font-size: 28px; letter-spacing: .04em; color: var(--jaune); font-weight: 700; text-transform: uppercase; }
+.passage .contact b { display: block; margin-top: 12px; font-size: 74px; font-weight: 800; letter-spacing: 0; white-space: nowrap; }
+/* Le numéro : chaque groupe de chiffres est une boîte, séparée de la suivante par le même écart (jamais une espace de la police). */
+.passage .contact b.tel span { display: inline-block; margin-right: 26px; }
+.passage .contact b.tel span:last-child { margin-right: 0; }
+.passage .contact span.site { display: block; margin-top: 8px; font-size: 28px; color: #cfe0d9; }

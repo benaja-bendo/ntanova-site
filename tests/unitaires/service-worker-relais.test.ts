@@ -32,6 +32,12 @@ const SITE: Record<string, string> = {
   '_astro/commun.cm1.js': 'export const c=1;',
   '_astro/adaptateur.ad1.js': 'import"./erreurs.er1.js";export const a=1;',
   '_astro/erreurs.er1.js': 'export const e=1;',
+  // Le guide du relais (ticket 110) : une page à part, sa feuille de style et une capture, gardées pour se lire sans réseau.
+  'relais/guide/index.html':
+    '<link rel="stylesheet" href="/_astro/Guide.gd1.css"><img src="/guide-relais/captures/mon-lot.webp"><a href="/guide-relais/guide.pdf" download>PDF</a>',
+  '_astro/Guide.gd1.css': '.guide{}',
+  'guide-relais/captures/mon-lot.webp': 'capture',
+  'guide-relais/guide.pdf': 'pdf',
   // L'administration : son îlot, un tableau, et le morceau commun qu'elle partage avec le relais.
   'admin/index.html':
     '<astro-island component-url="/_astro/App.adm1.js" renderer-url="/_astro/client.rl1.js"></astro-island>',
@@ -80,6 +86,9 @@ describe('ce que le service worker du relais garde pour le hors ligne', () => {
     expect([...fichiers].sort()).toEqual(
       [
         '/relais/',
+        '/relais/guide/',
+        '/_astro/Guide.gd1.css',
+        '/guide-relais/captures/mon-lot.webp',
         '/_astro/App.rel1.css',
         '/_astro/App.rel1.js',
         '/_astro/client.rl1.js',
@@ -141,10 +150,29 @@ describe('la version du service worker du relais', () => {
     ['ce que cet adaptateur importe', '_astro/erreurs.er1.js', 'export const e=2;'],
     ['une police', 'polices/poppins-latin-700-normal.woff2', 'autre police'],
     ['l’icône', 'relais/icone-192.png', 'autre icône'],
+    [
+      'la page du guide',
+      'relais/guide/index.html',
+      SITE['relais/guide/index.html'] + '<!-- changée -->',
+    ],
+    ['une capture du guide', 'guide-relais/captures/mon-lot.webp', 'autre capture'],
+    ['le style du guide', '_astro/Guide.gd1.css', '.guide{color:red}'],
   ])('change quand %s change', async (_nom, chemin, contenu) => {
     const avant = await serviceWorker();
     ecrire({ [chemin]: contenu });
     expect((await serviceWorker()).version).not.toBe(avant.version);
+  });
+});
+
+describe('le guide du relais', () => {
+  it('ne garde pas le PDF (un lien à télécharger n’est pas chargé avec la page)', async () => {
+    const { fichiers } = await serviceWorker();
+    expect(fichiers).not.toContain('/guide-relais/guide.pdf');
+  });
+
+  it('échoue quand une capture nommée par la page du guide manque', async () => {
+    rmSync(join(racine, 'guide-relais', 'captures', 'mon-lot.webp'));
+    await expect(serviceWorker()).rejects.toThrow(/mon-lot\.webp/);
   });
 });
 
