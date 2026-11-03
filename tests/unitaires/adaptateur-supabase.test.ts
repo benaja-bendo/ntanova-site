@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { creerPortRelais } from '../../src/infra/supabase/relais';
-import type { PhotoAEnvoyer, ReleveAEnvoyer } from '../../src/modele/ports';
+import { ErreurReseau, type PhotoPrete, type ReleveAEnvoyer } from '../../src/modele/ports';
 
 /**
  * Une fausse API Supabase, qui répond comme la base pour un compte à la fois administrateur et relais : les
@@ -162,7 +162,7 @@ describe('l’envoi d’un relevé par l’adaptateur Supabase', () => {
 });
 
 describe('l’envoi d’une photo par l’adaptateur Supabase', () => {
-  const photo: PhotoAEnvoyer = {
+  const photo: PhotoPrete = {
     id: 'p1',
     role: 'programs_board',
     blob: new Blob(['x'], { type: 'image/webp' }),
@@ -171,6 +171,7 @@ describe('l’envoi d’une photo par l’adaptateur Supabase', () => {
     largeur: 1280,
     hauteur: 960,
     prisLe: '2026-11-02T08:00:00.000Z',
+    contenu: new Uint8Array([120]).buffer,
   };
 
   it('dépose le fichier à un chemin relatif, puis enregistre la photo sans jamais écrire d’adresse de serveur', async () => {
@@ -206,6 +207,67 @@ describe('l’envoi d’une photo par l’adaptateur Supabase', () => {
       },
     });
     expect(JSON.stringify(appels)).not.toMatch(/supabase|https?:/i);
+  });
+
+  // Ticket #74 : un fichier relu dans la base du téléphone (Blob d'IndexedDB) et envoyé en multipart échoue sur iPhone
+  // (« Load failed », sans une requête). La photo part de la mémoire : les octets déjà lus, en corps brut.
+  it('envoie les octets lus en mémoire, avec le type du fichier, jamais le fichier de la base du téléphone', async () => {
+    const depots: { chemin: string; corps: unknown; options: unknown }[] = [];
+    const rpcs: { nom: string; args: Record<string, unknown> }[] = [];
+    const client = {
+      storage: {
+        from: () => ({
+          upload: (chemin: string, corps: unknown, options: unknown) => {
+            depots.push({ chemin, corps, options });
+            return Promise.resolve({ data: { path: chemin }, error: null });
+          },
+        }),
+      },
+      rpc: (nom: string, args: Record<string, unknown>) => {
+        rpcs.push({ nom, args });
+        return Promise.resolve({ data: 'recu', error: null });
+      },
+    };
+    const port = creerPortRelais(() => client as unknown as SupabaseClient);
+    const octets = new Uint8Array([1, 2, 3, 4, 5]).buffer;
+    await port.envoyerPhoto('r1', { ...photo, octets: 5, contenu: octets });
+    expect(depots).toHaveLength(1);
+    expect(depots[0]!.corps).toBe(octets);
+    expect(depots[0]!.corps).not.toBeInstanceOf(Blob);
+    expect(depots[0]!.options).toMatchObject({ contentType: 'image/webp', upsert: false });
+    // La taille enregistrée est celle des octets réellement envoyés.
+    expect(rpcs[0]!.args['p_bytes']).toBe(5);
+  });
+
+  it('une erreur du navigateur à l’envoi reste une erreur de connexion', async () => {
+    const client = {
+      storage: {
+        from: () => ({
+          upload: () => Promise.resolve({ data: null, error: { message: 'Load failed' } }),
+        }),
+      },
+      rpc: () => Promise.resolve({ data: 'recu', error: null }),
+    };
+    const port = creerPortRelais(() => client as unknown as SupabaseClient);
+    await expect(port.envoyerPhoto('r1', photo)).rejects.toBeInstanceOf(ErreurReseau);
+  });
+
+  it('un envoi qui ne finit jamais est abandonné au bout d’une minute : une erreur de connexion, jamais un envoi suspendu', async () => {
+    vi.useFakeTimers();
+    try {
+      const client = {
+        storage: { from: () => ({ upload: () => new Promise(() => {}) }) },
+        rpc: () => Promise.resolve({ data: 'recu', error: null }),
+      };
+      const port = creerPortRelais(() => client as unknown as SupabaseClient);
+      const resultat = port.envoyerPhoto('r1', photo);
+      const attendu = expect(resultat).rejects.toThrow(/délai dépassé/);
+      await vi.advanceTimersByTimeAsync(61_000);
+      await attendu;
+      await expect(resultat).rejects.toBeInstanceOf(ErreurReseau);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('dit « déjà reçu » quand la base connaissait déjà la photo (un envoi rejoué)', async () => {

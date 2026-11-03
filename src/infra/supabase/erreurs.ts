@@ -113,3 +113,20 @@ export function decider(erreur: ErreurApi | null): void {
   }
   traduire(erreur);
 }
+
+/**
+ * Une limite de temps pour un appel réseau (ticket #74) : sans elle, une connexion qui ne répond plus suspendait
+ * l'envoi sans fin, et « Envoyer maintenant » ne faisait plus rien. Passé le délai, c'est une erreur de connexion :
+ * l'envoi suivant rejoue (chaque envoi est rejouable : « déjà reçu »).
+ */
+export async function avecDelai<T>(operation: PromiseLike<T>, ms: number): Promise<T> {
+  let minuterie: ReturnType<typeof setTimeout> | undefined;
+  const delai = new Promise<never>((_, rejeter) => {
+    minuterie = setTimeout(() => rejeter(new ErreurReseau('délai dépassé')), ms);
+  });
+  try {
+    return await Promise.race([operation, delai]);
+  } finally {
+    clearTimeout(minuterie);
+  }
+}

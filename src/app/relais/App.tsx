@@ -22,6 +22,8 @@ import {
 import { MaPaie } from './ecrans/MaPaie';
 import { MesFiches } from './ecrans/MesFiches';
 import { MonLot } from './ecrans/MonLot';
+import type { BilanEnvoi } from '../../modele/envoi';
+import { bilanDuDernierEnvoi } from './file-envoi';
 import { journaliser } from './journal';
 import { synchroniser as synchroniserTout } from './synchro';
 import { useNouvelleVersion } from './version';
@@ -46,6 +48,7 @@ export default function App({ lienNTanova }: { lienNTanova: string | null }) {
   const [adaptateurs, setAdaptateurs] = useState<Adaptateurs | null>(null);
   const [utilisateur, setUtilisateur] = useState<Utilisateur | null | undefined>(undefined);
   const [envoi, setEnvoi] = useState<Contexte['envoi']>(null);
+  const [bilan, setBilan] = useState<BilanEnvoi | null>(null);
   const [premiereLecture, setPremiereLecture] = useState(false);
   const profil = useRequete(() => lireMemoire('profil'));
   const memoireLue = useRequete(async () => (await base.memoire.count()) >= 0);
@@ -64,7 +67,10 @@ export default function App({ lienNTanova }: { lienNTanova: string | null }) {
   const lancer = useCallback(() => {
     if (!adaptateurs) return;
     synchroniserTout(adaptateurs)
-      .then(setEnvoi)
+      .then((resultat) => {
+        setEnvoi(resultat);
+        setBilan(bilanDuDernierEnvoi());
+      })
       .catch((e: unknown) => {
         setEnvoi('erreur');
         void journaliser('synchro', 'inattendue', e);
@@ -107,6 +113,7 @@ export default function App({ lienNTanova }: { lienNTanova: string | null }) {
   const surDeconnexion = useCallback(() => {
     aller('lot');
     setEnvoi(null);
+    setBilan(null);
     setPremiereLecture(false);
     setUtilisateur(null);
   }, []);
@@ -114,9 +121,9 @@ export default function App({ lienNTanova }: { lienNTanova: string | null }) {
   const contexte = useMemo<Contexte | null>(
     () =>
       adaptateurs
-        ? { adaptateurs, envoi, synchroniser, surConnexion, surDeconnexion, lienNTanova }
+        ? { adaptateurs, envoi, bilan, synchroniser, surConnexion, surDeconnexion, lienNTanova }
         : null,
-    [adaptateurs, envoi, synchroniser, surConnexion, surDeconnexion, lienNTanova],
+    [adaptateurs, envoi, bilan, synchroniser, surConnexion, surDeconnexion, lienNTanova],
   );
 
   if (!contexte || utilisateur === undefined || memoireLue === undefined) {

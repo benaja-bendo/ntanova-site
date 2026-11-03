@@ -86,12 +86,12 @@ export function peutEtreModifiee(fiche: Pick<FicheLocale, 'etat' | 'envoyes'>): 
 
 /** Modifier ramène la fiche en brouillon, sans refus ni essais : elle repartira quand le relais la rangera. */
 export function pourModifier(): Partial<FicheLocale> {
-  return { etat: 'brouillon', rejet: null, essais: 0 };
+  return { etat: 'brouillon', rejet: null, essais: 0, dernierEchec: null };
 }
 
 /** Réessayer remet la fiche en file, telle quelle. */
 export function pourReessayer(): Partial<FicheLocale> {
-  return { etat: 'a_envoyer', rejet: null, essais: 0 };
+  return { etat: 'a_envoyer', rejet: null, essais: 0, dernierEchec: null };
 }
 
 /**
@@ -112,4 +112,108 @@ export function explicationDuRejet(rejet: Rejet): { titre: string; detail: strin
               ? "La fiche contient une valeur que NTanova n'accepte pas."
               : "NTanova n'a pas pu recevoir cette fiche.";
   return { titre, detail: rejet.message };
+}
+
+// Une erreur de connexion ne bloque pas la file (ticket #74) ------------------------------------------------------------
+
+/**
+ * Ce qui change quand l'envoi d'une fiche échoue faute de connexion alors que le téléphone se dit en ligne : l'essai est
+ * compté, l'étape et la raison sont gardées, la fiche reste en file. La file passe à la suivante : avant, la première
+ * erreur de ce genre arrêtait tout, sans un mot, et les fiches suivantes n'étaient jamais essayées.
+ */
+export function apresEchecReseau(
+  fiche: Pick<FicheLocale, 'essais'>,
+  etape: EtapeEnvoi,
+  message: string,
+  maintenant: string,
+): Partial<FicheLocale> {
+  return {
+    essais: (fiche.essais ?? 0) + 1,
+    dernierEchec: { etape, message: message.slice(0, 200), le: maintenant },
+  };
+}
+
+/** Le journal garde le premier échec d'une fiche, le deuxième, le cinquième, puis un sur dix : jamais tous. */
+export function doitJournaliserLEchec(essais: number): boolean {
+  return essais === 1 || essais === 2 || essais === 5 || (essais > 0 && essais % 10 === 0);
+}
+
+const NON_PARTIE: Record<EtapeEnvoi, string> = {
+  releve: 'La fiche n’est pas partie',
+  photo: 'La photo n’est pas partie',
+  contact: 'Le contact n’est pas parti',
+};
+
+/** Ce que « Mes fiches » dit d'une fiche dont le dernier essai a échoué : quoi, combien d'essais, et que ça reprend seul. */
+export function phraseDEchecDeLaFiche(
+  fiche: Pick<FicheLocale, 'dernierEchec' | 'essais'>,
+): string | null {
+  const echec = fiche.dernierEchec;
+  if (!echec) return null;
+  const essais = fiche.essais ?? 0;
+  const phrase = `${NON_PARTIE[echec.etape]} : la connexion a échoué${
+    essais > 1 ? ` (${essais} essais)` : ''
+  }. L’envoi reprend tout seul, ou touchez « Envoyer maintenant ».`;
+  return essais >= 3 ? `${phrase} Si cela continue, écrivez à NTanova.` : phrase;
+}
+
+/** Ce qui s'est passé pendant un essai d'envoi, pour le dire au relais. */
+export interface BilanEnvoi {
+  /** La fin de l'essai (ISO). */
+  le: string;
+  /** Les fiches complètement parties pendant cet essai. */
+  envoyees: number;
+  /** Les fiches qui n'ont pas pu avancer faute de connexion, avec l'étape où elles se sont arrêtées. */
+  echecs: { nom: string; etape: EtapeEnvoi }[];
+  /** Les fiches que la base a refusées pendant cet essai. */
+  refusees: number;
+  /** Le téléphone se dit hors ligne : rien n'a été tenté. */
+  horsLigne: boolean;
+}
+
+const DETAIL_DE_L_ECHEC: Record<EtapeEnvoi, (nom: string) => string> = {
+  releve: (nom) => `la fiche « ${nom} » n’est pas partie`,
+  photo: (nom) => `la photo de « ${nom} » n’est pas partie`,
+  contact: (nom) => `le contact de « ${nom} » n’est pas parti`,
+};
+
+/**
+ * Ce que « Envoyer maintenant » dit après un essai : des fiches parties, ou ce qui n'a pas pu partir (laquelle, à quelle
+ * étape). Rien quand le téléphone est hors ligne (la bannière le dit déjà) ou qu'il n'y avait rien à envoyer. `heure` est
+ * l'heure de l'essai, déjà écrite.
+ */
+export function phraseDuBilan(
+  bilan: BilanEnvoi,
+  heure: string,
+): { ton: 'ok' | 'echec'; texte: string } | null {
+  if (bilan.horsLigne) return null;
+  const [premier] = bilan.echecs;
+  if (premier) {
+    const detail =
+      bilan.echecs.length === 1
+        ? DETAIL_DE_L_ECHEC[premier.etape](premier.nom)
+        : `${bilan.echecs.length} fiches n’ont pas pu avancer`;
+    return {
+      ton: 'echec',
+      texte: `Un envoi a échoué (${heure}) : ${detail}. Il reprendra tout seul dans quelques minutes.`,
+    };
+  }
+  if (bilan.envoyees > 0) {
+    const s = bilan.envoyees > 1 ? 's' : '';
+    return { ton: 'ok', texte: `${bilan.envoyees} fiche${s} envoyée${s} à ${heure}.` };
+  }
+  return null;
+}
+
+/**
+ * Le refus que la file se donne quand la photo d'enseigne exigée existe mais ne se relit plus (fichier vide, ou illisible
+ * dans la base du téléphone). Mêmes conduites que `rejetEnseigneAbsente`.
+ */
+export function rejetPhotoIllisible(releveEnvoye: boolean): { code: string; message: string } {
+  return {
+    code: 'photo_illisible',
+    message: releveEnvoye
+      ? 'La photo de l’enseigne n’est plus lisible sur ce téléphone : la fiche est arrivée chez NTanova sans elle. Prévenez NTanova : elle vous renverra la fiche à corriger, et vous reprendrez la photo.'
+      : 'La photo de l’enseigne n’est plus lisible sur ce téléphone : la fiche n’est pas partie. Modifiez la fiche et reprenez la photo.',
+  };
 }

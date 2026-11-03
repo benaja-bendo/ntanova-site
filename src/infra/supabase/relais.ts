@@ -11,7 +11,11 @@ import type {
   Profil,
   ReleveRecu,
 } from '../../modele/ports';
-import { lire, lireListe, traduire } from './erreurs';
+import { avecDelai, lire, lireListe, traduire } from './erreurs';
+
+/** Les limites de temps d'un envoi : un appel ordinaire, puis une photo (plus lourde, sur un réseau mobile). */
+const DELAI_APPEL_MS = 30_000;
+const DELAI_PHOTO_MS = 60_000;
 
 const point = (p: { latitude: number; longitude: number } | null) =>
   p === null ? null : `SRID=4326;POINT(${p.longitude} ${p.latitude})`;
@@ -271,7 +275,8 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
     async envoyerReleve(r) {
       // Sans `.select()` : le relais n'a pas à relire ce qu'il envoie, et un second
       // envoi du même identifiant répond 23505, soit « déjà reçu ».
-      const { error } = await supabase()
+      const { error } = await avecDelai(
+        supabase()
         .from('field_submissions')
         .insert({
           id: r.id,
@@ -293,59 +298,75 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
           sign_phone: r.numeroEnseigne,
           direction_seen: r.direction,
           come_back_note: r.repasser,
-        });
+        }),
+        DELAI_APPEL_MS,
+      );
       return traduire(error);
     },
 
     async envoyerPhoto(releveId, photo) {
       // Le chemin est celui que la base calcule : `<relevé>/<photo>.<extension>`, relatif. Le fichier d'abord ; un
       // fichier déjà là (envoi précédent interrompu) n'empêche pas d'enregistrer la photo, qui est rejouable.
+      // Ce sont les octets déjà lus en mémoire qui partent, en corps brut : jamais le fichier de la base du téléphone,
+      // en multipart (ticket #74 : sur iPhone, il échoue sans qu'une requête parte).
       const extension = photo.mime === 'image/webp' ? 'webp' : 'jpg';
-      const { error } = await supabase()
-        .storage.from('releves')
-        .upload(`${releveId}/${photo.id}.${extension}`, photo.blob, {
-          contentType: photo.mime,
-          upsert: false,
-        });
+      const { error } = await avecDelai(
+        supabase()
+          .storage.from('releves')
+          .upload(`${releveId}/${photo.id}.${extension}`, photo.contenu, {
+            contentType: photo.mime,
+            upsert: false,
+          }),
+        DELAI_PHOTO_MS,
+      );
       traduire(error);
-      const { data, error: erreurEnregistrement } = await supabase().rpc('register_photo', {
-        p_photo: photo.id,
-        p_submission: releveId,
-        p_role: photo.role,
-        p_mime: photo.mime,
-        p_bytes: photo.octets,
-        p_width: photo.largeur > 0 ? photo.largeur : null,
-        p_height: photo.hauteur > 0 ? photo.hauteur : null,
-        p_taken_at: photo.prisLe,
-      });
+      const { data, error: erreurEnregistrement } = await avecDelai(
+        supabase().rpc('register_photo', {
+          p_photo: photo.id,
+          p_submission: releveId,
+          p_role: photo.role,
+          p_mime: photo.mime,
+          p_bytes: photo.contenu.byteLength,
+          p_width: photo.largeur > 0 ? photo.largeur : null,
+          p_height: photo.hauteur > 0 ? photo.hauteur : null,
+          p_taken_at: photo.prisLe,
+        }),
+        DELAI_APPEL_MS,
+      );
       traduire(erreurEnregistrement);
       return data === 'deja_recu' ? 'deja_recu' : 'recu';
     },
 
     async envoyerContact(c) {
-      const { data, error } = await supabase().rpc('send_contact', {
-        p_submission: c.releveId,
-        p_role: c.fonction,
-        p_name: c.nom,
-        p_whatsapp: c.whatsapp,
-        p_agreement: c.accord,
-        p_agreement_at: c.accordLe,
-        p_note: c.note,
-      });
+      const { data, error } = await avecDelai(
+        supabase().rpc('send_contact', {
+          p_submission: c.releveId,
+          p_role: c.fonction,
+          p_name: c.nom,
+          p_whatsapp: c.whatsapp,
+          p_agreement: c.accord,
+          p_agreement_at: c.accordLe,
+          p_note: c.note,
+        }),
+        DELAI_APPEL_MS,
+      );
       traduire(error);
       return data === 'deja_recu' ? 'deja_recu' : 'recu';
     },
 
     async signalerErreur(e) {
-      const { error } = await supabase().from('erreurs').insert({
-        id: e.id,
-        survenue_le: e.survenueLe,
-        ecran: e.ecran,
-        code: e.code,
-        detail: e.detail,
-        version_app: e.versionApp,
-        appareil: e.appareil,
-      });
+      const { error } = await avecDelai(
+        supabase().from('erreurs').insert({
+          id: e.id,
+          survenue_le: e.survenueLe,
+          ecran: e.ecran,
+          code: e.code,
+          detail: e.detail,
+          version_app: e.versionApp,
+          appareil: e.appareil,
+        }),
+        DELAI_APPEL_MS,
+      );
       return traduire(error);
     },
   };

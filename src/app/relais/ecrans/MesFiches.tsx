@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { appartientAuCompte } from '../../../modele/compte';
-import { enAlerte, explicationDuRejet, peutEtreModifiee } from '../../../modele/envoi';
+import {
+  enAlerte,
+  explicationDuRejet,
+  peutEtreModifiee,
+  phraseDEchecDeLaFiche,
+} from '../../../modele/envoi';
 import type { FicheLocale } from '../../../modele/fiche';
 import type { ReleveRecu } from '../../../modele/ports';
 import { libelleFonctionCourt, libelleMotif, libelleStatutReleve } from '../../../modele/libelles';
@@ -30,6 +35,8 @@ interface Ligne {
   refus: { titre: string; detail: string } | null;
   /** Les envois ratés de suite, quand il y en a assez pour prévenir le relais. */
   essaisRates: number | null;
+  /** Ce qui n'est pas parti au dernier essai faute de connexion, et que l'envoi reprend seul (ticket #74). */
+  echec: string | null;
   peutReessayer: boolean;
   peutModifier: boolean;
   peutRetirer: boolean;
@@ -52,6 +59,7 @@ function gestesDe(f: FicheLocale | undefined) {
     return {
       refus: null,
       essaisRates: null,
+      echec: null,
       peutReessayer: false,
       peutModifier: false,
       peutRetirer: false,
@@ -60,6 +68,7 @@ function gestesDe(f: FicheLocale | undefined) {
   return {
     refus: f.etat === 'refusee' && f.rejet ? explicationDuRejet(f.rejet) : null,
     essaisRates: enAlerte(f) ? (f.essais ?? 0) : null,
+    echec: f.etat === 'a_envoyer' ? phraseDEchecDeLaFiche(f) : null,
     peutReessayer: f.etat === 'refusee',
     peutModifier: peutEtreModifiee(f),
     // Une fiche en file dont le relevé est parti est en cours d'envoi : on la laisse finir.
@@ -282,7 +291,12 @@ export function MesFiches() {
                 <b>{l.refus.titre}</b> {l.refus.detail}
               </p>
             )}
-            {l.essaisRates !== null && (
+            {l.echec && (
+              <p className="message-attention" role="status">
+                {l.echec}
+              </p>
+            )}
+            {!l.echec && l.essaisRates !== null && (
               <p className="message-attention">
                 L'envoi a échoué {l.essaisRates} fois de suite. Prévenez NTanova si cela continue.
               </p>
