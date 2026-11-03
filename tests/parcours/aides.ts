@@ -84,7 +84,7 @@ export async function publierLaZoneTieTie(page: Page) {
 
 /** L'administration ouvre la fiche « [École 1] » dans « À valider ». */
 export async function ouvrirLaFiche(page: Page) {
-  await page.goto('/admin/');
+  await page.goto('/admin/#valider');
   await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
   await page.getByRole('link', { name: /\[École 1\]/ }).click();
   await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();

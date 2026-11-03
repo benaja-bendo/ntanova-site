@@ -125,12 +125,17 @@
     padding: var(--espace-3) var(--espace-4);
   }
 
+  /* Les onglets ont leur propre ligne : en ajouter un ne fait jamais passer la marque ou le compte à la ligne. La marque
+     et le compte sont sur la première (le compte à droite), les onglets sur la seconde. */
   .admin-nav {
     flex-direction: row;
     flex-wrap: wrap;
+    flex-basis: 100%;
+    order: 3;
   }
 
   .admin-compte {
+    order: 2;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
@@ -417,4 +422,49 @@
 
 .admin-photos .admin-actions {
   gap: var(--espace-2);
+}
+
+/* La vue d'ensemble : des chiffres, côte à côte dès qu'il y a de la place (ticket #76). */
+.admin-chiffres {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--espace-3);
+}
+
+.admin-chiffre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+}
+
+.admin-chiffre-attention {
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.admin-chiffre-titre {
+  margin: 0;
+  color: var(--texte-doux);
+  font-family: var(--police-titre);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+}
+
+.admin-chiffre-valeur {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-size: var(--taille-titre-page);
+  font-weight: 700;
+  line-height: var(--interligne-titre);
+}
+
+.admin-barre-cellule {
+  inline-size: 40%;
+}
+
+.admin-barre {
+  display: block;
+  min-inline-size: 4px;
+  block-size: 0.75rem;
+  border-radius: var(--rayon-pilule);
+  background: var(--marque-appuyee);
 }

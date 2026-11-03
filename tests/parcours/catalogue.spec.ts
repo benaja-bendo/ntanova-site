@@ -79,7 +79,7 @@ async function relaisConnecte(page: Page, context: BrowserContext, latitude = -4
 }
 
 async function ouvrirLEnvoi(page: Page, nom: string) {
-  await page.goto('/admin/');
+  await page.goto('/admin/#valider');
   await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
   await page.getByRole('link', { name: new RegExp(nom.replace(/[[\]]/g, '\\$&')) }).click();
   await expect(page.getByRole('heading', { name: nom, level: 2 })).toBeVisible();
@@ -356,7 +356,7 @@ test.describe('amorcer le catalogue sans relais', () => {
   ].join('\n');
 
   async function ouvrirLImport(page: Page) {
-    await seConnecter(page, '/admin/');
+    await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Écoles' }).click();
     await page.getByRole('button', { name: 'Ajouter ou importer des écoles' }).click();
     await page
@@ -453,7 +453,7 @@ test.describe('zones et lots', () => {
     page,
   }) => {
     test.setTimeout(60_000);
-    await seConnecter(page, '/admin/');
+    await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Zones' }).click();
     await expect(page.getByRole('heading', { name: 'Zones et lots' })).toBeVisible();
 
@@ -495,7 +495,7 @@ test.describe('zones et lots', () => {
   test('une zone nouvelle s’ouvre avec la zone qui la contient, ou reste fermée avec elle', async ({
     page,
   }) => {
-    await seConnecter(page, '/admin/');
+    await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Zones' }).click();
     const ajout = page.getByRole('form', { name: 'Ajouter une zone' });
 
@@ -584,7 +584,7 @@ test.describe('la paie du vendredi', () => {
   });
 
   test('on ne clôt qu’un vendredi', async ({ page }) => {
-    await seConnecter(page, '/admin/');
+    await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Paie' }).click();
     const champ = page.getByLabel('Jusqu’au vendredi');
     const vendredi = await champ.inputValue();

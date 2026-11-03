@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Point } from '../../modele/geo';
 import type { LigneJournal } from '../../modele/sante';
+import { lireVueEnsemble } from '../../modele/vue-ensemble';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import {
   ErreurDecision,
@@ -24,6 +25,7 @@ import {
   type ReleveDecide,
   type ResultatCreation,
   type SemainePaie,
+  type VueEnsemble,
 } from '../../modele/ports';
 import { decider, lire, lireListe, toutesLesLignes, traduire } from './erreurs';
 
@@ -607,6 +609,12 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         versionApp: l.version_app,
         appareil: l.appareil,
       }));
+    },
+
+    async vueEnsemble(jours = 14): Promise<VueEnsemble> {
+      const reponse = await supabase().rpc('admin_overview', { p_days: jours });
+      if (reponse.error) traduire(reponse.error);
+      return lireVueEnsemble(reponse.data);
     },
 
     async lots(): Promise<LotVu[]> {

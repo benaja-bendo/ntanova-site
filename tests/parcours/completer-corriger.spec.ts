@@ -131,7 +131,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
 
   test('qui n’a pas d’enseigne chez NTanova : la photo est demandée', async ({ page }) => {
     // « [École à situer] » est une école ajoutée par l'administration, sans relevé : aucune photo.
-    await seConnecter(page, '/admin/');
+    await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Écoles' }).click();
     const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
     await ligne.getByRole('button', { name: 'Confier à un relais' }).click();
@@ -190,7 +190,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     expect(await serveur(page)).toMatchObject({ photos: 1, contacts: 1 });
 
     // L'administration voit une correction sans nouvelle photo, et ne croit pas qu'elle n'est « pas encore reçue ».
-    await page.goto('/admin/');
+    await page.goto('/admin/#valider');
     await expect(page.getByText('Pas de nouvelle photo')).toBeVisible();
     await expect(page.getByText('Photo pas encore reçue')).toHaveCount(0);
   });

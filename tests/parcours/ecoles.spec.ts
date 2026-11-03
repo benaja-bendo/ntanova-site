@@ -15,7 +15,7 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
 
   // L'administration confie l'école à situer.
-  await seConnecter(page, '/admin/');
+  await seConnecter(page, '/admin/#valider');
   await page.getByRole('link', { name: 'Écoles' }).click();
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
   await expect(ligne.getByText('À situer', { exact: true })).toBeVisible();
@@ -53,7 +53,7 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await expect(page.getByText(/À compléter/)).toHaveCount(0);
 
   // L'administration la situe et la publie.
-  await page.goto('/admin/');
+  await page.goto('/admin/#valider');
   await page.getByRole('link', { name: /\[École à situer, nom exact\]/ }).click();
   await expect(page.getByText('Contre-visite', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: /^Situer/ }).click();

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cycleAvecFormations } from '../../modele/formations';
+import { ageDe, trierParAnciennete } from '../../modele/age';
 import { messageManquant } from '../../modele/decision';
 import { cheminLisible } from '../../modele/geo-divisions';
 import type { Valeur } from '../../modele/listes';
@@ -73,6 +74,15 @@ function Etiquettes({ r }: { r: ReleveAValider }) {
   );
 }
 
+/** Depuis quand la fiche attend ; au-delà de 24 heures, elle se voit (ticket #76). */
+function AgeDeLaFiche({ age }: { age: ReturnType<typeof ageDe> }) {
+  return age.ancienne ? (
+    <span className="etiquette etat-attente">{age.texte}</span>
+  ) : (
+    <span className="mention">{age.texte}</span>
+  );
+}
+
 export function AValider({
   admin,
   surCompte,
@@ -102,7 +112,11 @@ export function AValider({
     charger();
   }, [charger]);
 
-  const visibles = (releves ?? []).filter((r) => filtre === 'tout' || r.type === filtre);
+  // La plus ancienne d'abord : la promesse faite aux relais est une validation sous 24 à 48 heures (ticket #76).
+  const visibles = trierParAnciennete(
+    (releves ?? []).filter((r) => filtre === 'tout' || r.type === filtre),
+  );
+  const maintenant = new Date();
   const selection =
     filtre === 'decidees'
       ? (decides?.find((r) => r.id === choisi) ?? null)
@@ -111,7 +125,7 @@ export function AValider({
   const apresDecision = (texte: string) => {
     setAnnonce(texte);
     // Seulement si l'on est encore sur « À valider » : un autre onglet ouvert entre-temps reste ouvert.
-    if (location.hash.startsWith('#valider') || location.hash === '') {
+    if (location.hash.startsWith('#valider')) {
       const suivant = visibles.find((r) => r.id !== choisi);
       aller(suivant ? `valider/${suivant.id}` : 'valider', true);
     }
@@ -218,7 +232,7 @@ export function AValider({
                 >
                   <span className="admin-ligne-tete">
                     <b>{r.nomEnseigne}</b>
-                    <span className="mention">{jour(r.recuLe)}</span>
+                    <AgeDeLaFiche age={ageDe(r.recuLe, maintenant)} />
                   </span>
                   <span className="mention">
                     {libelleType[r.type]} · {r.relais}
