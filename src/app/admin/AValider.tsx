@@ -12,7 +12,6 @@ import { messageManquant } from '../../modele/decision';
 import { cheminLisible } from '../../modele/geo-divisions';
 import type { Valeur } from '../../modele/listes';
 import {
-  libelleFonction,
   libelleMotif,
   libelleNiveau,
   libelleRolePhoto,
@@ -40,6 +39,7 @@ import { aller, useAdresse } from '../commun/adresse';
 import { SignauxDuRelais } from './Sante';
 import { messageErreur } from './ChampPosition';
 import { Formations } from './Formations';
+import { Personnes } from './Personnes';
 import { Pont } from './Pont';
 
 type Filtre = 'tout' | 'releve' | 'correction' | 'contre_visite' | 'renvoyees' | 'decidees';
@@ -414,7 +414,7 @@ function Detail({
 }) {
   const [detail, setDetail] = useState<DetailReleve | null>(null);
   const [photos, setPhotos] = useState<PhotoVue[]>([]);
-  const [contact, setContact] = useState<ContactDirection | null>(null);
+  const [personnes, setPersonnes] = useState<ContactDirection[]>([]);
   const [institutions, setInstitutions] = useState<InstitutionVue[]>([]);
   const [domaines, setDomaines] = useState<DomainePublic[]>([]);
   const [divisions, setDivisions] = useState<DivisionVue[]>([]);
@@ -424,7 +424,6 @@ function Detail({
   const [motif, setMotif] = useState<Valeur<'motif_decision'>>('photo_floue');
   const [message, setMessage] = useState('');
   const [enCours, setEnCours] = useState(false);
-  const [aEffacerContact, setAEffacerContact] = useState(false);
   const [efface, setEfface] = useState<string | null>(null);
   const [cible, setCible] = useState<Cible>({ mode: 'nouvelle' });
   const [etiquette, setEtiquette] = useState('');
@@ -441,7 +440,7 @@ function Detail({
     Promise.all([
       admin.detailReleve(id),
       admin.photosReleve(id),
-      admin.contactReleve(id),
+      admin.contactsReleve(id),
       admin.institutions(),
       admin.domaines(),
       admin.divisions(),
@@ -449,7 +448,7 @@ function Detail({
       .then(([d, p, c, i, dom, div]) => {
         setDetail(d);
         setPhotos(p);
-        setContact(c);
+        setPersonnes(c);
         setInstitutions(i);
         setDomaines(dom);
         setDivisions(div);
@@ -474,18 +473,10 @@ function Detail({
     }
   };
 
-  const effacerContact = async () => {
-    setErreur(null);
-    try {
-      // Le contact s'efface de la fiche qui le porte : la fiche d'origine, quand il est arrivé avec elle (ticket #94).
-      await admin.effacerContact(contact?.releveId ?? id, null);
-      setContact(null);
-      setEfface('Le contact de la direction est effacé.');
-    } catch (e) {
-      setErreur(messageErreur(e));
-    } finally {
-      setAEffacerContact(false);
-    }
+  // Les personnes ont changé (ajoutée, corrigée, effacée) : on les relit, car celles d'une correction peuvent venir de
+  // la fiche d'origine (ticket #94).
+  const relirePersonnes = async () => {
+    setPersonnes(await admin.contactsReleve(id));
   };
 
   if (!detail) {
@@ -566,8 +557,9 @@ function Detail({
     : avantDAccepter({
         fiche: detail,
         photos,
-        contact: contact !== null,
-        contactDeLaFicheDOrigine: contact?.releveId !== undefined && contact.releveId !== id,
+        contact: personnes.length > 0,
+        contactDeLaFicheDOrigine:
+          personnes[0]?.releveId !== undefined && personnes[0].releveId !== id,
         nombreDeFormations: formations.length,
         formationsAttendues: avecFormations,
         cible,
@@ -695,83 +687,23 @@ function Detail({
         </dl>
       </section>
 
-      <section className="admin-prive pile-serree" aria-label="Partie privée">
-        <h3 className="rang">
-          <Icone nom="cadenas" />
-          Privé : la direction
-        </h3>
-        {detail.direction === 'absente' && (
-          <p>Direction absente{detail.repasser ? ` · à repasser : ${detail.repasser}` : ''}.</p>
-        )}
-        {detail.direction === null && <p>Le relais n'a rien dit de la direction.</p>}
-        {(detail.direction === 'vue' || detail.direction === 'refus') && !contact && (
-          <p>Contact pas encore reçu.</p>
-        )}
-        {contact && (
-          <>
-            {detail.direction === 'refus' && <p>La direction a refusé.</p>}
-            {contact.releveId && contact.releveId !== id && (
-              <p className="mention">Ce contact est arrivé avec la fiche d’origine.</p>
-            )}
-            <dl className="admin-champs">
-              {contact.fonction && (
-                <>
-                  <dt>Fonction</dt>
-                  <dd>{libelleFonction[contact.fonction]}</dd>
-                </>
-              )}
-              {contact.nom && (
-                <>
-                  <dt>Nom</dt>
-                  <dd>{contact.nom}</dd>
-                </>
-              )}
-              <dt>WhatsApp</dt>
-              <dd>{contact.whatsapp ? afficherTelephone(contact.whatsapp) : '—'}</dd>
-              <dt>Accord pour être contacté</dt>
-              <dd>
-                {contact.accord && contact.accordLe ? `Oui, ${quand(contact.accordLe)}` : 'Non'}
-              </dd>
-              {contact.note && (
-                <>
-                  <dt>Ce qui a été dit</dt>
-                  <dd>{contact.note}</dd>
-                </>
-              )}
-            </dl>
-            {aEffacerContact ? (
-              <span className="admin-actions">
-                <button
-                  type="button"
-                  className="bouton bouton-petit admin-bouton-refus"
-                  onClick={() => void effacerContact()}
-                >
-                  Confirmer : effacer le contact (droit d'effacement)
-                </button>
-                <button
-                  type="button"
-                  className="bouton bouton-secondaire bouton-petit"
-                  onClick={() => setAEffacerContact(false)}
-                >
-                  Annuler
-                </button>
-              </span>
-            ) : (
-              <button type="button" className="lien" onClick={() => setAEffacerContact(true)}>
-                Effacer le contact (droit d'effacement)
-              </button>
-            )}
-          </>
-        )}
-      </section>
+      <Personnes
+        admin={admin}
+        id={id}
+        detail={detail}
+        personnes={personnes}
+        surChangement={relirePersonnes}
+        annoncer={setEfface}
+        surErreur={setErreur}
+      />
 
-      {contact && (
+      {personnes.length > 0 && (
         <section className="pile-serree" aria-label="Écrire à la direction">
           <h3 className="rang">
             <Icone nom="coche" />
             Écrire à la direction
           </h3>
-          <Pont admin={admin} detail={detail} contact={contact} surAnnonce={surAnnonce} />
+          <Pont admin={admin} detail={detail} contacts={personnes} surAnnonce={surAnnonce} />
         </section>
       )}
 

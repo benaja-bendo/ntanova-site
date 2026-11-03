@@ -126,6 +126,20 @@ interface SemaineFausse {
   payes: Record<string, { le: string; reference: string }>;
 }
 
+/** Une personne à contacter dans le faux serveur : ce que le relais envoie, plus ce que l'administration note. */
+type ContactFaux = ContactAEnvoyer & {
+  precisionFonction?: string | null;
+  source?: 'relais' | 'administration';
+  recuLe?: string;
+};
+
+/** Les personnes notées pour une fiche, la première reçue d'abord. */
+function personnesDe(e: Etat, releveId: string): [string, ContactFaux][] {
+  return Object.entries(e.contacts).filter(([, c]) => c.releveId === releveId);
+}
+
+const TROIS_PERSONNES = 'Une fiche a trois personnes à contacter au plus.';
+
 interface Etat {
   utilisateur: { id: string; email: string } | null;
   statut: Profil['statut'];
@@ -133,7 +147,8 @@ interface Etat {
   admin: boolean;
   releves: Record<string, ReleveAEnvoyer>;
   photos: Record<string, PhotoFausse>;
-  contacts: Record<string, ContactAEnvoyer>;
+  /** Les personnes à contacter, par identifiant : celle d'un téléphone d'avant a pour clé le numéro de sa fiche. */
+  contacts: Record<string, ContactFaux>;
   erreurs: ErreurAEnvoyer[];
   decisions: Record<string, Decision>;
   /** Un second relais, fictif, en attente d'activation. */
@@ -444,7 +459,7 @@ const relais: PortRelais = {
         position: r.position,
         precisionM: r.precisionM,
         photos: rolesDesPhotos(e, [r.id]),
-        aContact: r.id in e.contacts,
+        aContact: personnesDe(e, r.id).length > 0,
         corrigeReleveId: r.corrigeReleveId ?? null,
       };
     });
@@ -672,7 +687,7 @@ function ligneDe(r: ReleveAEnvoyer, e: Etat) {
     photos: photos.length,
     enseigneRecue: photos.some((p) => p.role === 'signboard'),
     indiceFormations: Boolean(r.programmesVus) || r.programmesEnPhoto,
-    contactRecu: r.id in e.contacts,
+    contactRecu: personnesDe(e, r.id).length > 0,
   };
 }
 
@@ -893,11 +908,11 @@ const admin: PortAdministration = {
         publiable: p.publiable,
       }));
   },
-  async contactReleve(id) {
+  async contactsReleve(id) {
     await reseau();
     const e = lireEtat();
-    // Le contact reste attaché à la fiche qui l'a reçu : celui d'une fiche qu'on corrige se lit sur sa correction, que le
-    // relais l'ait redonné ou non (ticket #94). On remonte la chaîne, sans jamais boucler.
+    // Les personnes restent attachées à la fiche qui les a reçues : celles d'une fiche qu'on corrige se lisent sur sa
+    // correction, que le relais les ait redonnées ou non (ticket #94). On remonte la chaîne, sans jamais boucler.
     const vus = new Set<string>();
     for (
       let courant: string | null | undefined = id;
@@ -905,21 +920,71 @@ const admin: PortAdministration = {
       courant = e.releves[courant]?.corrigeReleveId
     ) {
       vus.add(courant);
-      const c = e.contacts[courant];
-      if (c) {
-        return {
+      const personnes = personnesDe(e, courant);
+      if (personnes.length > 0) {
+        const fiche = courant;
+        return personnes.map(([cle, c]) => ({
+          id: cle,
           fonction: c.fonction,
+          precisionFonction: c.precisionFonction ?? null,
+          source: c.source ?? 'relais',
           nom: c.nom,
           whatsapp: c.whatsapp,
           accord: c.accord,
           accordLe: c.accordLe,
           note: c.note,
-          recuLe: c.accordLe ?? new Date().toISOString(),
-          releveId: courant,
-        };
+          recuLe: c.recuLe ?? c.accordLe ?? new Date().toISOString(),
+          releveId: fiche,
+        }));
       }
     }
-    return null;
+    return [];
+  },
+  async ajouterContact(releveId, contact) {
+    await reseau();
+    const e = lireEtat();
+    if (!(releveId in e.releves)) throw new ErreurDecision('Relevé introuvable.');
+    if (contact.whatsapp && !contact.accord) {
+      throw new ErreurDecision('Sans l’accord de la personne, on ne note pas son numéro.');
+    }
+    if (personnesDe(e, releveId).length >= 3) throw new ErreurDecision(TROIS_PERSONNES);
+    const id = crypto.randomUUID();
+    const maintenant = new Date().toISOString();
+    ecrire((etat) => {
+      etat.contacts[id] = {
+        releveId,
+        fonction: contact.fonction,
+        precisionFonction: contact.fonction === 'autre' ? contact.precisionFonction : null,
+        nom: contact.nom,
+        whatsapp: contact.whatsapp,
+        accord: contact.accord,
+        accordLe: contact.accord ? maintenant : null,
+        note: contact.note,
+        source: 'administration',
+        recuLe: maintenant,
+      };
+    });
+    return id;
+  },
+  async corrigerContact(contactId, contact) {
+    await reseau();
+    const avant = lireEtat().contacts[contactId];
+    if (!avant) throw new ErreurDecision('Personne introuvable.');
+    if (contact.whatsapp && !contact.accord) {
+      throw new ErreurDecision('Sans l’accord de la personne, on ne note pas son numéro.');
+    }
+    ecrire((etat) => {
+      etat.contacts[contactId] = {
+        ...avant,
+        fonction: contact.fonction,
+        precisionFonction: contact.fonction === 'autre' ? contact.precisionFonction : null,
+        nom: contact.nom,
+        whatsapp: contact.whatsapp,
+        accord: contact.accord,
+        accordLe: contact.accord ? (avant.accordLe ?? new Date().toISOString()) : null,
+        note: contact.note,
+      };
+    });
   },
   async accepter(id, choix: DecisionAcceptation = {}) {
     await reseau();
@@ -1103,11 +1168,10 @@ const admin: PortAdministration = {
         };
       });
   },
-  async effacerContact(releveId) {
+  async effacerContact(contactId) {
     await reseau();
-    if (!(releveId in lireEtat().contacts))
-      throw new ErreurDecision('Aucun contact pour ce relevé.');
-    ecrire((e) => delete e.contacts[releveId]);
+    if (!(contactId in lireEtat().contacts)) throw new ErreurDecision('Personne introuvable.');
+    ecrire((e) => delete e.contacts[contactId]);
   },
   async effacerPhoto(photoId) {
     await reseau();

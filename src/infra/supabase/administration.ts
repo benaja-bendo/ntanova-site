@@ -411,35 +411,42 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       }));
     },
 
-    async contactReleve(id): Promise<ContactDirection | null> {
-      // Le contact reste attaché à la fiche qui l'a reçu : celui d'une fiche qu'on corrige se lit sur sa correction, que le
-      // relais l'ait redonné ou non (ticket #94). On remonte la chaîne des fiches corrigées, sans jamais boucler ; une
-      // lecture de la fiche d'avant qui échoue arrête la chaîne : le détail de la fiche s'affiche quand même.
+    async contactsReleve(id): Promise<ContactDirection[]> {
+      // Les personnes restent attachées à la fiche qui les a reçues : celles d'une fiche qu'on corrige se lisent sur sa
+      // correction, que le relais les ait redonnées ou non (ticket #94). On remonte la chaîne des fiches corrigées, sans
+      // jamais boucler ; une lecture de la fiche d'avant qui échoue arrête la chaîne : le détail s'affiche quand même.
       const vus = new Set<string>();
       let courant: string | null = id;
       while (courant !== null && !vus.has(courant)) {
         vus.add(courant);
         const lignes = lireListe<{
+          // Une base d'avant le ticket #96 ne rend ni identifiant, ni précision, ni source.
+          id?: string;
           role: Valeur<'fonction_direction'> | null;
+          role_detail?: string | null;
           name: string | null;
           whatsapp: string | null;
           contact_agreement: boolean;
           agreement_at: string | null;
           said_note: string | null;
           received_at: string;
+          source?: 'relais' | 'administration';
         }>(await supabase().rpc('contact_of_submission', { p_submission: courant }));
-        const c = lignes[0];
-        if (c) {
-          return {
+        if (lignes.length > 0) {
+          const fiche = courant;
+          return lignes.map((c) => ({
+            id: c.id ?? fiche,
             fonction: c.role,
+            precisionFonction: c.role_detail ?? null,
+            source: c.source ?? 'relais',
             nom: c.name,
             whatsapp: c.whatsapp,
             accord: c.contact_agreement,
             accordLe: c.agreement_at,
             note: c.said_note,
             recuLe: c.received_at,
-            releveId: courant,
-          };
+            releveId: fiche,
+          }));
         }
         const parent: { data: unknown; error: unknown } = await supabase()
           .from('field_submissions')
@@ -449,7 +456,36 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         const ligne = parent.data as { corrects_submission_id: string | null } | null;
         courant = parent.error ? null : (ligne?.corrects_submission_id ?? null);
       }
-      return null;
+      return [];
+    },
+
+    async ajouterContact(releveId, contact) {
+      const { data, error } = await supabase().rpc('add_contact', {
+        p_submission: releveId,
+        p_role: contact.fonction,
+        p_role_detail: contact.precisionFonction,
+        p_name: contact.nom,
+        p_whatsapp: contact.whatsapp,
+        p_agreement: contact.accord,
+        p_agreement_at: null,
+        p_note: contact.note,
+      });
+      decider(error);
+      return data as string;
+    },
+
+    async corrigerContact(contactId, contact) {
+      const { error } = await supabase().rpc('update_contact', {
+        p_contact: contactId,
+        p_role: contact.fonction,
+        p_role_detail: contact.precisionFonction,
+        p_name: contact.nom,
+        p_whatsapp: contact.whatsapp,
+        p_agreement: contact.accord,
+        p_agreement_at: null,
+        p_note: contact.note,
+      });
+      decider(error);
     },
 
     async accepter(id, decision: DecisionAcceptation = {}) {
@@ -532,9 +568,9 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       }));
     },
 
-    async effacerContact(releveId, note) {
-      const { error } = await supabase().rpc('erase_contact', {
-        p_submission: releveId,
+    async effacerContact(contactId, note) {
+      const { error } = await supabase().rpc('erase_contact_person', {
+        p_contact: contactId,
         p_note: note,
       });
       decider(error);

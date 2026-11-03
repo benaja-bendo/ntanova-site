@@ -7,6 +7,7 @@
  * n'existe que si la direction a donné son accord pour être contactée.
  */
 import { useState } from 'react';
+import { libellePersonne } from '../../modele/contacts';
 import { libelleFonction } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
 import {
@@ -30,7 +31,7 @@ const libelleCanal: Record<Canal, string> = {
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
 
-export function Pont({
+function PontPour({
   admin,
   detail,
   contact,
@@ -268,6 +269,59 @@ export function Pont({
           </p>
         )}
       </form>
+    </div>
+  );
+}
+
+/**
+ * Le pont avec une personne de la fiche : celle à qui écrire se choisit quand il y en a plusieurs (ticket #96). Par
+ * défaut, la première qui a donné son accord et son numéro.
+ */
+export function Pont({
+  admin,
+  detail,
+  contacts,
+  surAnnonce,
+}: {
+  admin: PortAdministration;
+  detail: DetailReleve;
+  contacts: ContactDirection[];
+  surAnnonce: (texte: string) => void;
+}) {
+  const [choisi, setChoisi] = useState<string | null>(null);
+  const contact =
+    contacts.find((c) => c.id === choisi) ??
+    contacts.find((c) => c.accord && c.whatsapp) ??
+    contacts[0];
+  if (!contact) return null;
+  return (
+    <div className="pile-serree">
+      {contacts.length > 1 && (
+        <Champ libelle="Écrire à">
+          {(a) => (
+            <select
+              {...a}
+              className="champ"
+              value={contact.id}
+              onChange={(ev) => setChoisi(ev.target.value)}
+            >
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {libellePersonne(c)}
+                </option>
+              ))}
+            </select>
+          )}
+        </Champ>
+      )}
+      {/* Une autre personne, un autre pont : rien ne reste du message ni de la fonction de la précédente. */}
+      <PontPour
+        key={contact.id}
+        admin={admin}
+        detail={detail}
+        contact={contact}
+        surAnnonce={surAnnonce}
+      />
     </div>
   );
 }
