@@ -28,6 +28,7 @@ import type {
 import { afficherTelephone } from '../../modele/telephone';
 import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
+import { SignauxDuRelais } from './Sante';
 import { messageErreur } from './ChampPosition';
 import { Formations } from './Formations';
 import { Pont } from './Pont';
@@ -554,6 +555,8 @@ function Detail({
         nom={detail.nomEnseigne}
         surChangement={chargerPhotos}
       />
+
+      <SignauxDuRelais admin={admin} relaisId={detail.relaisId} prenom={detail.relais} />
 
       <div className="admin-deux">
         <div className="pile-serree">
