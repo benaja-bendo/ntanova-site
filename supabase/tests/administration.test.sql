@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(74);
+select plan(83);
 
 -- Mise en place -------------------------------------------------------------------------------------------------------------------
 
@@ -153,6 +153,29 @@ select throws_ok($$select public.accept_submission('51000000-0000-4000-8000-0000
   'Un refus est définitif : on n''accepte plus un relevé refusé');
 select throws_ok($$select public.request_correction('51000000-0000-4000-8000-000000000008', 'photo_floue')$$, 'P0002', null,
   'On ne demande pas de correction sur un relevé déjà décidé');
+
+-- Avec le motif « autre », le message est obligatoire (ticket #80) ---------------------------------------------------------------------------------------
+
+select pg_temp.envoyer('00000000-0000-4000-8000-0000000000a1', '51000000-0000-4000-8000-00000000000a', 'École [Autre]', '{primaire}');
+select throws_ok($$select public.request_correction('51000000-0000-4000-8000-00000000000a', 'autre')$$, '22023',
+  'Avec le motif « autre », écris un message : le relais doit savoir quoi faire.',
+  'Une correction « autre » sans message est refusée, avec sa phrase');
+select throws_ok($$select public.request_correction('51000000-0000-4000-8000-00000000000a', 'autre', E'  \n ')$$, '22023', null,
+  'Des espaces ne sont pas un message');
+select throws_ok($$select public.refuse_submission('51000000-0000-4000-8000-00000000000a', 'autre')$$, '22023', null,
+  'Un refus « autre » sans message est refusé : un refus est définitif, il dit pourquoi');
+select is((select status from public.field_submissions where id = '51000000-0000-4000-8000-00000000000a'), 'a_valider',
+  'Rien n''a été écrit : la fiche attend toujours');
+select lives_ok($$select public.request_correction('51000000-0000-4000-8000-00000000000a', 'photo_floue')$$,
+  'Un autre motif garde son message facultatif (sa phrase automatique suffit)');
+select lives_ok($$select public.request_correction('51000000-0000-4000-8000-00000000000a', 'autre', 'Le nom du portail diffère.')$$,
+  'Avec un message, « autre » passe');
+select is((select message_to_relay from public.field_submissions where id = '51000000-0000-4000-8000-00000000000a'),
+  'Le nom du portail diffère.', 'Le relais lira ce message');
+select lives_ok($$select public.refuse_submission('51000000-0000-4000-8000-00000000000a', 'autre', 'Hors du périmètre.')$$,
+  'Un refus « autre » avec un message passe');
+select is((select status from public.field_submissions where id = '51000000-0000-4000-8000-00000000000a'), 'refuse',
+  'La fiche est refusée');
 
 -- Le lot d'essai ne se publie jamais, mais se valide pour la paie ------------------------------------------------------------------------------------------
 

@@ -118,6 +118,11 @@ La carte des tables, des droits et des fonctions : [`supabase/schema.md`](supaba
 - La lecture passe par `toutesLesLignes` : le plafond de 1 000 lignes de l'API ne tronque jamais le journal en silence.
 - **Dans le détail d'une fiche à valider** (`SignauxDuRelais`) : ce que le téléphone de CE relais a signalé ces 7 derniers jours (trois signaux au plus, un lien vers tout le journal) ; rien d'affiché quand il n'a rien signalé, et une lecture qui échoue ne bloque jamais la décision.
 
+### Une décision dit toujours quoi faire (ticket #80)
+
+- **Avec le motif « autre », le message de NTanova est obligatoire**, pour une correction comme pour un refus (un refus est définitif : il dit pourquoi). Sa phrase de repli (« Une information est à revoir. ») ne dit rien : un relais s'est déjà retrouvé renvoyé sans savoir quoi corriger. La règle est écrite **trois fois, identique** : `messageManquant` (`src/modele/decision.ts`, l'écran et le faux serveur), `request_correction` et `refuse_submission` (la base, `22023`, la même phrase). Un message d'espaces et de retours à la ligne n'en est pas un (côté base : `!~ '\S'`, car `btrim` ne retire pas les retours à la ligne).
+- Les autres motifs gardent leur phrase automatique (`libelleMotif`) : le message y reste facultatif. Une ancienne ligne « autre » sans message se lit toujours (lecture tolérante) ; rien n'est réécrit. « Refuser » propose « autre » par défaut : il faut donc un message.
+
 ### La carte de position (ticket #72)
 
 - **Une grille de six tuiles d'OpenStreetMap au plus, un repère et le cercle de la précision, en SVG, sans bibliothèque de cartes** : `src/modele/tuiles.ts` (le calcul, pur) et `src/app/commun/CartePosition.tsx` (le dessin). Elle montre une position déjà prise : celle d'une fiche qu'on corrige (le relais la voit au milieu de « Corriger une fiche », avec ses photos, `src/app/relais/ecrans/DejaRecu.tsx`) ou celle que le téléphone vient de mesurer (« Voir sur la carte »). Les coordonnées et un lien vers l'application de cartes sont toujours écrits dessous : **sans réseau, la carte le dit et le reste tient**.
