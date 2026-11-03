@@ -462,3 +462,13 @@
   background: var(--encre-10);
   object-fit: cover;
 }
+
+/* La position est bloquée : ce qu'il faut faire sur ce téléphone (ticket #72) ---------- */
+
+.aide-position-etapes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  margin: 0;
+  padding-left: var(--espace-5);
+}

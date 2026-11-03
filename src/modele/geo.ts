@@ -8,6 +8,12 @@ export interface Point {
   longitude: number;
 }
 
+/**
+ * Pourquoi la position n'a pas pu être prise : refusée par le téléphone ou le navigateur, introuvable (signal), trop
+ * longue, ou pas du tout gérée par le navigateur.
+ */
+export type ErreurPosition = 'refusee' | 'indisponible' | 'trop_longue' | 'absente';
+
 /** Les coordonnées d'un MultiPolygon GeoJSON : [polygone][anneau][point][lng, lat]. */
 export type MultiPolygone = number[][][][];
 
