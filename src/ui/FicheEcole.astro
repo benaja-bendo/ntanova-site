@@ -99,18 +99,18 @@ const nomZone = zone.division.nom;
           et le passage d'un relais. Sans passage, la fiche le dit. */}
       <div class="preuves">
         {e.etat === 'verifiee' && (
-          <p class="carte etat">
+          <p class="etat preuve-direction">
             <b>Confirmée par la direction</b>
             {e.verifieeLe ? ` le ${dateLongue(e.verifieeLe)}` : ''}.
           </p>
         )}
         {e.releveeLe ? (
-          <p class="etat etat-relevee-public">
+          <p class="etat preuve-terrain">
             <b>Vue sur place le {dateLongue(e.releveeLe)}</b> par un jeune du quartier&nbsp;:
             seulement ce qui se voit de la rue.
           </p>
         ) : (
-          <p class="etat etat-relevee-public">
+          <p class="etat preuve-ajoutee">
             <b>Ajoutée par NTanova{e.situeeLe ? ` le ${dateLongue(e.situeeLe)}` : ''}</b>. Pas
             encore vue sur place par un jeune du quartier.
           </p>
@@ -303,16 +303,33 @@ const nomZone = zone.division.nom;
     display: grid;
     gap: var(--espace-2);
   }
+  /* Les preuves (jetons --preuve-…) : l'accord de la direction en plein, le passage du relais en trait
+     plein, l'absence de passage en pointillés. */
   .etat {
+    margin: 0;
     font-size: var(--taille-secondaire);
-  }
-  .etat-relevee-public {
     padding: var(--espace-3) var(--espace-4);
-    border: 2px dashed var(--trait-fort);
+    border: 2px solid transparent;
     border-radius: var(--rayon-m);
+  }
+  .preuve-direction {
+    background: var(--preuve-direction);
+    color: var(--preuve-direction-texte);
+  }
+  .preuve-terrain {
+    border-color: var(--preuve-terrain);
+    background: var(--fond-releve);
     color: var(--texte-doux);
   }
-  .etat-relevee-public b {
+  .preuve-terrain b {
+    color: var(--preuve-terrain);
+  }
+  .preuve-ajoutee {
+    border-style: dashed;
+    border-color: var(--preuve-vide-trait);
+    color: var(--preuve-vide);
+  }
+  .preuve-ajoutee b {
     color: var(--texte);
   }
   .proprietes {
