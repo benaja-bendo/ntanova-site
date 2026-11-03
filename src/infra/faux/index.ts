@@ -10,6 +10,8 @@
  */
 import type { Adaptateurs } from '../index';
 import { arrondissementDeLaPosition } from '../../modele/carte/plan';
+import { heriterDeLOrigine } from '../../modele/acceptation';
+import type { Point } from '../../modele/geo';
 import { messageManquant } from '../../modele/decision';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { prochainVendredi } from '../../modele/paie';
@@ -658,7 +660,8 @@ function ligneDe(r: ReleveAEnvoyer, e: Etat) {
     type: r.type,
     nomEnseigne: r.nomEnseigne,
     relais: '[Prénom]',
-    lot: lot.nom,
+    // Comme la base : un relais sans secteur n'a pas de lot (le faux serveur retombait sur le premier lot).
+    lot: r.lotId ? lot.nom : null,
     essai: lot.essai,
     horsLot: r.position ? !dansLeCarre(r.position, CARRE_DU_LOT) : null,
     enZoneOuverte: enZoneOuverte(r.position, e),
@@ -812,12 +815,29 @@ const admin: PortAdministration = {
     if (!r) throw new ErreurDecision('Relevé introuvable.');
     const ligne = ligneDe(r, e);
     const d = decision(id);
+    const divisionDe = (p: Point | null) => (p ? divisionDeLaPosition(p, e)?.id : null) ?? null;
+    // Une correction d'une fiche pas encore acceptée reprend la position, la division et le secteur de cette fiche (#89).
+    const o = r.corrigeReleveId ? e.releves[r.corrigeReleveId] : undefined;
+    const herite = heriterDeLOrigine(
+      { type: r.type, position: r.position, divisionId: divisionDe(r.position), lot: ligne.lot },
+      o
+        ? {
+            campusId: e.decisions[o.id]?.ecoleId ?? null,
+            position: o.position,
+            divisionId: divisionDe(o.position),
+            lot: o.lotId ? lotDe(o.lotId, e).nom : null,
+          }
+        : null,
+    );
     return {
       ...ligne,
+      lot: herite.lot,
       relaisId: MOI,
       prisLe: r.prisLe,
-      position: r.position,
-      divisionId: (r.position ? divisionDeLaPosition(r.position, e)?.id : null) ?? null,
+      position: herite.position,
+      divisionId: herite.divisionId,
+      corrigeUneFicheEnAttente: herite.corrigeUneFicheEnAttente,
+      positionDeLaFicheDOrigine: herite.positionDeLaFicheDOrigine,
       niveaux: r.niveaux,
       typeEcole: r.typeEcole,
       programme: r.programme,
@@ -923,11 +943,15 @@ const admin: PortAdministration = {
         'Division introuvable : choisissez une ville, un arrondissement ou un quartier.',
       );
     }
-    const lotDuReleve = releve?.lotId ? e0.lots.find((l) => l.id === releve.lotId) : undefined;
+    // Comme la base : une correction d'une fiche pas encore acceptée reprend la position et le secteur de cette fiche (#89).
+    const origine = releve?.corrigeReleveId ? e0.releves[releve.corrigeReleveId] : undefined;
+    const positionRetenue = releve?.position ?? origine?.position ?? null;
+    const lotRetenu = releve?.lotId ?? origine?.lotId ?? null;
+    const lotDuReleve = lotRetenu ? e0.lots.find((l) => l.id === lotRetenu) : undefined;
     const division =
       choisie ??
-      (releve?.position
-        ? divisionDeLaPosition(releve.position, e0)
+      (positionRetenue
+        ? divisionDeLaPosition(positionRetenue, e0)
         : lotDuReleve
           ? (e0.divisions[lotDuReleve.divisionId] ?? null)
           : null);
@@ -970,12 +994,12 @@ const admin: PortAdministration = {
           quartier: null,
           publication: 'prete',
           origine: 'field',
-          position: releve.position,
+          position: positionRetenue,
           divisionId: division?.id ?? null,
           confieeA: null,
           noteMission: null,
           genreMission: 'verify',
-          lotId: releve.lotId,
+          lotId: lotRetenu,
           typeEcole: releve.typeEcole,
           niveaux: releve.niveaux,
           programme: releve.programme,
@@ -1010,7 +1034,10 @@ const admin: PortAdministration = {
       };
       if (releve?.corrigeReleveId && e.decisions[releve.corrigeReleveId]) {
         const o = e.decisions[releve.corrigeReleveId];
-        if (o) o.statut = 'accepte';
+        if (o) {
+          o.statut = 'accepte';
+          o.ecoleId = campusId;
+        }
       }
     });
     return campusId;

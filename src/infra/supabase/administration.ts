@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Point } from '../../modele/geo';
+import { heriterDeLOrigine, type OrigineDeLaCorrection } from '../../modele/acceptation';
 import type { LigneJournal } from '../../modele/sante';
 import { lireVueEnsemble } from '../../modele/vue-ensemble';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
@@ -278,6 +279,40 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       ]);
       const r = lire(detail) as unknown as LigneDetail;
       const ligneFile = file.data as LigneFile | null;
+      // Une correction d'une fiche pas encore acceptée reprend la position, la division et le secteur de cette fiche (#89).
+      let origine: OrigineDeLaCorrection | null = null;
+      if (r.corrects_submission_id) {
+        const lue = await supabase()
+          .from('field_submissions')
+          .select('campus_id, position, division_id, lots(nom)')
+          .eq('id', r.corrects_submission_id)
+          .maybeSingle();
+        const o = lue.error
+          ? null
+          : (lue.data as {
+              campus_id: string | null;
+              position: unknown;
+              division_id: string | null;
+              lots: { nom: string } | null;
+            } | null);
+        if (o) {
+          origine = {
+            campusId: o.campus_id,
+            position: lirePoint(o.position),
+            divisionId: o.division_id,
+            lot: o.lots?.nom ?? null,
+          };
+        }
+      }
+      const herite = heriterDeLOrigine(
+        {
+          type: r.kind,
+          position: lirePoint(r.position),
+          divisionId: r.division_id,
+          lot: r.lots?.nom ?? null,
+        },
+        origine,
+      );
       const nombrePhotos =
         ligneFile?.photos ??
         (await supabase()
@@ -293,11 +328,13 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         type: r.kind,
         nomEnseigne: r.sign_name,
         relais: r.relais?.prenom ?? '',
-        lot: r.lots?.nom ?? null,
+        lot: herite.lot,
         essai: r.lots?.essai ?? false,
         horsLot: r.outside_batch,
         enZoneOuverte: r.in_open_zone,
-        divisionId: r.division_id,
+        divisionId: herite.divisionId,
+        corrigeUneFicheEnAttente: herite.corrigeUneFicheEnAttente,
+        positionDeLaFicheDOrigine: herite.positionDeLaFicheDOrigine,
         doublonPossible: r.possible_duplicate,
         reponseDoublon: r.duplicate_answer,
         precisionM: r.accuracy_m,
@@ -305,7 +342,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         enseigneRecue: ligneFile?.signboard_received ?? nombrePhotos > 0,
         indiceFormations: r.observed_programs !== null || r.programs_photographed,
         contactRecu: ligneFile?.contact_received ?? false,
-        position: lirePoint(r.position),
+        position: herite.position,
         niveaux: niveauxConnus(r.levels),
         typeEcole: typeConnu(r.school_kind),
         programme: r.curriculum_note,

@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cycleAvecFormations } from '../../modele/formations';
+import {
+  ceQuiManquePourAccepter,
+  divisionRequise as divisionRequisePour,
+  type Cible,
+} from '../../modele/acceptation';
 import { ageDe, trierParAnciennete } from '../../modele/age';
 import { messageManquant } from '../../modele/decision';
 import { cheminLisible } from '../../modele/geo-divisions';
@@ -367,13 +372,6 @@ function Photos({
 
 // Le détail d'un envoi -----------------------------------------------------------------------
 
-/** Comment l'envoi entre dans le catalogue : la décision en un geste. */
-type Cible =
-  | { mode: 'nouvelle' }
-  | { mode: 'new_campus'; institutionId: string }
-  | { mode: 'update_campus'; campusId: string }
-  | { mode: 'add_cycle'; campusId: string };
-
 function Detail({
   admin,
   id,
@@ -487,11 +485,7 @@ function Detail({
 
   // La division de l'école : celle de la position quand un contour la contient. Sinon (aucun contour connu, ou ni position
   // ni lot), l'administration la choisit : la fiche ne retombe plus sur la division du lot du relais (ticket n° 67).
-  const divisionRequise =
-    !detail.essai &&
-    (cible.mode === 'nouvelle' || cible.mode === 'new_campus') &&
-    detail.divisionId === null &&
-    (detail.position !== null || detail.lot === null);
+  const divisionRequise = divisionRequisePour(detail, cible);
   const divisionsChoisissables = divisions
     .filter((d) => d.niveau >= 2)
     .map((d) => ({ id: d.id, chemin: cheminLisible(d.id, divisions) }))
@@ -501,7 +495,9 @@ function Detail({
       formations,
       ...(divisionRequise && divisionId !== '' ? { divisionId } : {}),
     };
-    if (detail.type === 'correction') return {};
+    // Une correction d'une école déjà créée met l'école à jour : la base sait laquelle. Celle d'une fiche pas encore
+    // acceptée se traite comme une nouvelle fiche (ticket #89).
+    if (detail.type === 'correction' && !detail.corrigeUneFicheEnAttente) return {};
     switch (cible.mode) {
       case 'nouvelle':
         return { ...base, mode: 'new_institution', etiquette: etiquette.trim() || null };
@@ -534,15 +530,16 @@ function Detail({
       setCible({ mode: valeur, campusId: detail.doublonDe?.id ?? campusConnus[0]?.id ?? '' });
     else setCible({ mode: 'nouvelle' });
   };
-  const cibleIncomplete =
-    (divisionRequise && divisionId === '') ||
-    (cible.mode === 'new_campus' && cible.institutionId === '') ||
-    ((cible.mode === 'update_campus' || cible.mode === 'add_cycle') && cible.campusId === '');
+  // Ce qui manque pour accepter : l'écran le dit, le bouton ne se grise jamais sans un mot (ticket #89).
+  const manque = ceQuiManquePourAccepter(detail, cible, divisionId);
+  const cibleIncomplete = manque !== null;
   const texteAccepter =
-    detail.type === 'correction'
+    detail.type === 'correction' && !detail.corrigeUneFicheEnAttente
       ? 'Accepter la correction'
       : cible.mode === 'nouvelle'
-        ? 'Accepter la fiche'
+        ? detail.type === 'correction'
+          ? 'Accepter la fiche corrigée'
+          : 'Accepter la fiche'
         : cible.mode === 'new_campus'
           ? 'Accepter comme nouvelle implantation'
           : cible.mode === 'update_campus'
@@ -761,7 +758,19 @@ function Detail({
             </Bandeau>
           )}
 
-          {!detail.essai && detail.type !== 'correction' && (
+          {detail.type === 'correction' && detail.corrigeUneFicheEnAttente && (
+            <Bandeau ton="attente" icone="alerte">
+              <p>
+                <b>Cette correction remplace la fiche que tu as renvoyée</b> : l’école n’est pas
+                encore créée.
+                {detail.positionDeLaFicheDOrigine
+                  ? ' Elle reprend la position de la fiche d’origine.'
+                  : ''}
+              </p>
+            </Bandeau>
+          )}
+
+          {!detail.essai && (detail.type !== 'correction' || detail.corrigeUneFicheEnAttente) && (
             <div className="pile-serree" aria-label="Que faire de cette fiche">
               <Choix
                 legende="Que faire de cette fiche ?"
@@ -867,6 +876,12 @@ function Detail({
                 </>
               )}
             </div>
+          )}
+
+          {manque && !detail.essai && (
+            <p className="message-attention" role="status">
+              {manque}
+            </p>
           )}
 
           <div className="admin-actions">
