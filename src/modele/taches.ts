@@ -50,11 +50,19 @@ export function tachesDeLaMission(ecole: EcoleACompleter): Taches {
   };
 }
 
-/** Les tâches d'une fiche renvoyée au relais, d'après le motif de NTanova. */
+/**
+ * Les tâches d'une fiche renvoyée au relais, d'après le motif de NTanova et ce que NTanova a vraiment reçu.
+ *
+ * La photo de l'enseigne est demandée quand le motif la concerne, **ou quand NTanova n'en a reçu aucune** : sans
+ * cela, une fiche arrivée sans photo et renvoyée pour « autre » disait « NTanova a déjà la photo » au relais, qui ne
+ * pouvait pas la remettre (ticket #72). Une ligne gardée avant la mise à jour n'a pas la liste des photos : dans le
+ * doute, on demande.
+ */
 export function tachesDeLaCorrection(recu: ReleveRecu): Taches {
   const motif = recu.motif;
+  const enseigneRecue = (recu.photos ?? []).includes('signboard');
   return {
-    photo: motif === 'photo_floue' || motif === 'enfant_sur_photo',
+    photo: !enseigneRecue || motif === 'photo_floue' || motif === 'enfant_sur_photo',
     position: motif === 'hors_lot' || motif === 'position_imprecise' || motif === 'doublon',
     // Un motif qui ne dit rien de précis (« autre », ou aucun) : le relais relit les informations avec le message.
     informations: motif === 'autre' || motif === null,

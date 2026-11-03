@@ -37,6 +37,7 @@ import { Bandeau, Champ, Choix, EnteteEtape, Icone } from '../composants';
 import { journaliser } from '../journal';
 import { alleger, PhotoTropLourde } from '../photo';
 import { mesurerPosition, type ErreurPosition, type Mesure } from '../position';
+import { PhotosRecues, PositionRecue, VoirSurLaCarte } from './DejaRecu';
 
 /** Change des champs de la fiche en cours ; une fonction reçoit la fiche à jour (deux photos qui se suivent ne s'écrasent pas). */
 type Modifier = (
@@ -273,10 +274,15 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           <h2 className="titre-section">
             La photo de l'enseigne {!photoExigee && <span className="mention">facultatif</span>}
           </h2>
-          {!photoExigee && !enseigne && (
-            <p className="mention">
-              NTanova a déjà la photo de l'enseigne. Reprenez-la seulement si elle est fausse.
-            </p>
+          {fiche.dejaRecu ? (
+            <PhotosRecues fiche={fiche} />
+          ) : (
+            !photoExigee &&
+            !enseigne && (
+              <p className="mention">
+                NTanova a déjà la photo de l'enseigne. Reprenez-la seulement si elle est fausse.
+              </p>
+            )
           )}
           {enseigne && apercus[enseigne.id] ? (
             <div className="apercu-photo">
@@ -413,6 +419,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
         <section className="carte-blanche pile-serree">
           <h2 className="titre-section">La position, devant l'entrée</h2>
+          {fiche.dejaRecu && <PositionRecue fiche={fiche} />}
           {recherche && (
             <p className="rang" aria-live="polite">
               <span className="roue" aria-hidden="true" />
@@ -434,6 +441,11 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
                   la position.
                 </p>
               )}
+              <VoirSurLaCarte
+                position={fiche.position}
+                precisionM={precision}
+                legende="Position prise maintenant"
+              />
             </>
           )}
           {erreurPosition && (
@@ -453,7 +465,9 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
               className="bouton bouton-secondaire bouton-petit"
               onClick={prendrePosition}
             >
-              {fiche.position ? 'Reprendre la position' : 'Prendre la position'}
+              {fiche.position || fiche.dejaRecu?.position
+                ? 'Reprendre la position'
+                : 'Prendre la position'}
             </button>
           )}
           {erreurPosition && !fiche.position && (

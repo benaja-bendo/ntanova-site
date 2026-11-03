@@ -11,7 +11,12 @@ import {
   type FicheLocale,
 } from '../../modele/fiche';
 import { appartientAuCompte } from '../../modele/compte';
-import { apresEchecInattendu, apresRejet } from '../../modele/envoi';
+import {
+  apresEchecInattendu,
+  apresRejet,
+  enseigneExigeeManquante,
+  rejetEnseigneAbsente,
+} from '../../modele/envoi';
 import { ErreurRejet, ErreurReseau, ErreurSession, type EtatSession } from '../../modele/ports';
 import type { Adaptateurs } from '../../infra/index';
 import { base, garder } from './base-locale';
@@ -34,6 +39,14 @@ export function envoyerTout(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
 async function envoyerUneFiche(adaptateurs: Adaptateurs, fiche: FicheLocale): Promise<void> {
   const { relais } = adaptateurs;
   const envoyes = { ...fiche.envoyes };
+
+  // Une enseigne exigée qui n'est plus nulle part (ni partie, ni dans le téléphone) ne se termine pas « Envoyée » en
+  // silence : la fiche sort de la file avec une raison que le relais lit, et le journal la garde (ticket #72). Avant le
+  // relevé, pour ne pas envoyer une fiche qui ne peut pas être complète.
+  if (!envoyes.photo && enseigneExigeeManquante(fiche)) {
+    const { code, message } = rejetEnseigneAbsente(envoyes.releve);
+    throw new ErreurRejet(code, message);
+  }
 
   if (!envoyes.releve) {
     await relais.envoyerReleve(versReleve(fiche));

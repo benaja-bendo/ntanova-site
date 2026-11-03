@@ -95,6 +95,16 @@ export interface ReleveRecu {
   aContact: boolean;
 }
 
+/**
+ * Une photo que NTanova a reçue pour une fiche du relais, à relire (ticket #72). `url` est une adresse de lecture
+ * temporaire (une heure) : elle ne se garde jamais, ni dans le téléphone ni dans la base.
+ */
+export interface PhotoRecue {
+  id: string;
+  role: Valeur<'photo_role'>;
+  url: string;
+}
+
 /** Une photo prête à partir : déjà allégée (moins de 200 Ko, WebP ou JPEG), avec son identifiant créé sur le téléphone. */
 export interface PhotoAEnvoyer {
   id: string;
@@ -231,6 +241,12 @@ export interface PortRelais {
   zonesOuvertes(): Promise<string[]>;
   /** `GET /moi/releves` */
   mesReleves(): Promise<ReleveRecu[]>;
+  /**
+   * Les photos que NTanova a reçues pour une de ses fiches, avec une adresse de lecture temporaire : de quoi montrer
+   * au relais qui corrige ce qui est déjà chez NTanova. Liste vide quand la base ne les lui laisse pas relire (règle
+   * pas encore appliquée) : l'écran dit alors seulement quels rôles sont arrivés. `GET /moi/releves/{id}/photos`
+   */
+  mesPhotos(releveId: string): Promise<PhotoRecue[]>;
   /** Les écoles confiées au relais (ses missions ouvertes). `GET /moi/missions` */
   mesMissions(): Promise<EcoleACompleter[]>;
   /** Sa paie : ce qui lui est acquis, et les semaines closes. `GET /moi/paie` */

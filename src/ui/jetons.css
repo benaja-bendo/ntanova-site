@@ -100,6 +100,15 @@
   --carte-nom-actif: var(--vert-profond);
   --carte-repere: var(--rouge);
 
+  /*
+   * La carte de position (src/app/commun/CartePosition.tsx) : des tuiles d'OpenStreetMap, un repère et le cercle de la
+   * précision. Le fond se voit tant que les tuiles ne sont pas là, ou sans réseau.
+   */
+  --carte-position-fond: var(--sable);
+  --carte-position-repere: var(--rouge);
+  --carte-position-contour: var(--blanc);
+  --carte-position-precision: var(--vert);
+
   /* 3. Typographie : échelle pour un écran de 360 px, texte courant à 16 px */
   --police-titre: 'Poppins', system-ui, sans-serif;
   --police-texte: 'Nunito Sans', system-ui, sans-serif;

@@ -68,6 +68,18 @@ export interface FicheLocale {
    * l'écran ne dépende pas du réseau. Absent d'une école nouvelle (tout est demandé) et des fiches d'avant.
    */
   taches?: Taches | null;
+  /**
+   * Ce que NTanova a déjà de la fiche qu'on corrige, tel qu'il était à l'ouverture de la correction : la position
+   * (pour la montrer sur une carte, même sans réseau), sa précision, la date, et les rôles des photos arrivées. Les
+   * images elles-mêmes se relisent chez NTanova (`mesPhotos`). Absent d'un relevé neuf, d'une contre-visite et des
+   * fiches d'avant (ticket #72).
+   */
+  dejaRecu?: {
+    position: Point | null;
+    precisionM: number | null;
+    prisLe: string;
+    photos: Valeur<'photo_role'>[];
+  } | null;
 
   // 1/3 : photos et position
   /**
@@ -226,6 +238,12 @@ export function nouvelleCorrection(
     direction: recu.direction ?? null,
     repasser: recu.repasser ?? '',
     taches: tachesDeLaCorrection(recu),
+    dejaRecu: {
+      position: recu.position ?? null,
+      precisionM: recu.precisionM ?? null,
+      prisLe: recu.prisLe,
+      photos: recu.photos ?? [],
+    },
   };
 }
 
@@ -244,6 +262,14 @@ export function titreDeLEcran(type: FicheLocale['type']): string {
 }
 
 // Les photos ---------------------------------------------------------------------
+
+/**
+ * Une photo qu'on peut encore envoyer (son fichier est dans le téléphone) ou qui est déjà partie (son fichier s'efface
+ * du téléphone une fois reçue). Une ligne dont le fichier a disparu sans être partie n'est plus une photo (ticket #72).
+ */
+export function photoUtilisable(p: Pick<PhotoLocale, 'blob' | 'envoyee'>): boolean {
+  return p.envoyee || p.blob != null;
+}
 
 /** La photo de l'enseigne, la seule obligatoire. */
 export function photoEnseigne(fiche: FicheLocale): PhotoLocale | undefined {
@@ -299,8 +325,11 @@ export function erreursDe(resultat: z.ZodSafeParseResult<unknown>): Erreurs {
 const etape1 = z
   .object({
     // Seule l'enseigne est obligatoire ; les autres photos sont facultatives.
+    // Une enseigne dont le fichier a disparu du téléphone sans être partie n'est pas une photo (ticket #72).
     photos: z.custom<PhotoLocale[]>(
-      (v) => Array.isArray(v) && v.some((p: PhotoLocale) => p.role === 'signboard'),
+      (v) =>
+        Array.isArray(v) &&
+        v.some((p: PhotoLocale) => p.role === 'signboard' && photoUtilisable(p)),
       { message: "Ajoutez la photo de l'enseigne." },
     ),
     doublonPropose: z.unknown(),

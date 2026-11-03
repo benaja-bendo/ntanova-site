@@ -98,6 +98,18 @@ describe('les positions', () => {
 });
 
 describe('les étapes de la fiche', () => {
+  // Ticket #72 : une enseigne dont le fichier a disparu de la base du téléphone n'est pas une photo. Sans cela, « Modifier »
+  // ramenait le relais à l'étape 1 et le laissait passer avec une case vide, pour être refusé de nouveau à l'envoi.
+  it('1/3 ne prend pas pour une photo une enseigne dont le fichier a disparu', () => {
+    const disparue = [unePhoto('p1', 'signboard', { blob: null })];
+    expect(erreursEtape1(fiche({ photos: disparue }))).toHaveProperty('photo');
+    // Une enseigne déjà partie (son fichier s'efface du téléphone une fois reçue) reste une photo.
+    const partie = [unePhoto('p1', 'signboard', { blob: null, envoyee: true })];
+    expect(erreursEtape1(fiche({ photos: partie }))).toEqual({});
+    // Une autre photo ne remplace pas l'enseigne.
+    expect(erreursEtape1(fiche({ photos: [unePhoto('p2', 'building')] }))).toHaveProperty('photo');
+  });
+
   it('1/3 demande la photo de l’enseigne, et une réponse quand une école est à 40 m', () => {
     expect(erreursEtape1(fiche())).toHaveProperty('photo');
     const photos = [unePhoto('p1', 'signboard')];

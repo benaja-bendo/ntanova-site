@@ -9,10 +9,37 @@
  *   - une panne dont on ne sait rien : la fiche reste en file, on compte les essais ratés et on prévient le relais
  *     au bout de quelques-uns.
  */
-import type { EtapeEnvoi, FicheLocale, Rejet } from './fiche';
+import { photoUtilisable, type EtapeEnvoi, type FicheLocale, type Rejet } from './fiche';
 
 /** Combien d'envois ratés de suite avant de dire au relais que quelque chose ne va pas. */
 export const ESSAIS_AVANT_ALERTE = 5;
+
+/**
+ * La photo d'enseigne que cette fiche doit fournir n'est plus nulle part : ni partie, ni dans le téléphone (le
+ * fichier a disparu de la base du téléphone, ou la fiche n'en a jamais eu). Sans cette vérification, l'étape « photo »
+ * se terminait sans rien avoir envoyé et la fiche passait à « Envoyée » : NTanova la recevait sans photo, et personne
+ * ne le voyait (test réel du 02/11, ticket #72). Une enseigne que NTanova a déjà et que le relais n'a pas à reprendre
+ * (`taches.photo` faux) ne manque pas.
+ */
+export function enseigneExigeeManquante(fiche: Pick<FicheLocale, 'taches' | 'photos'>): boolean {
+  if (!(fiche.taches?.photo ?? true)) return false;
+  return !(fiche.photos ?? []).some((p) => p.role === 'signboard' && photoUtilisable(p));
+}
+
+/**
+ * Le refus que la file se donne à elle-même quand l'enseigne exigée n'est plus là. Il passe par la même voie qu'un
+ * refus de la base : la fiche sort de la file, « Mes fiches » dit pourquoi, le journal le garde. Les mots changent
+ * selon que NTanova a déjà le relevé (le relais ne le modifie plus : il prévient NTanova, qui le lui renvoie) ou non
+ * (« Modifier » reprend la fiche à la photo).
+ */
+export function rejetEnseigneAbsente(releveEnvoye: boolean): { code: string; message: string } {
+  return {
+    code: 'photo_absente',
+    message: releveEnvoye
+      ? "La photo de l'enseigne n'est plus dans le téléphone : la fiche est arrivée chez NTanova sans elle. Prévenez NTanova : elle vous renverra la fiche à corriger, et vous reprendrez la photo."
+      : "La photo de l'enseigne n'est plus dans le téléphone : la fiche n'est pas partie. Modifiez la fiche et reprenez la photo.",
+  };
+}
 
 /** Où en est l'envoi : la première étape qui n'est pas partie. */
 export function etapeEnCours(fiche: Pick<FicheLocale, 'envoyes'>): EtapeEnvoi {

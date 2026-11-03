@@ -445,6 +445,16 @@ const relais: PortRelais = {
       };
     });
   },
+  async mesPhotos(releveId) {
+    await reseau();
+    // Une image d'un pixel, la même pour toutes : le faux serveur ne garde pas les fichiers. Elle se charge, c'est ce
+    // que les parcours vérifient.
+    const image =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    return Object.values(lireEtat().photos)
+      .filter((p) => p.releveId === releveId)
+      .map((p) => ({ id: p.id, role: p.role, url: image }));
+  },
   async mesMissions() {
     await reseau();
     const e = lireEtat();

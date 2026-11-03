@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { nouvelleFiche, type FicheLocale } from '../../src/modele/fiche';
+import { nouvelleFiche, type FicheLocale, type PhotoLocale } from '../../src/modele/fiche';
 import {
   apresEchecInattendu,
   apresRejet,
   enAlerte,
+  enseigneExigeeManquante,
   ESSAIS_AVANT_ALERTE,
   etapeEnCours,
   explicationDuRejet,
   peutEtreModifiee,
   pourModifier,
   pourReessayer,
+  rejetEnseigneAbsente,
 } from '../../src/modele/envoi';
 
 // Les décisions de la file d'envoi, sans navigateur (ticket #55, PR 2). La file elle-même est essayée par les
@@ -154,5 +156,82 @@ describe('ce que le relais lit d’un refus', () => {
   it('dit ce qui est parti quand le relevé est déjà chez NTanova', () => {
     const e = explicationDuRejet({ ...rejet('42501'), etape: 'photo' });
     expect(e.titre).toMatch(/photo/i);
+  });
+});
+
+// Une photo d'enseigne exigée qui n'est plus nulle part (ticket #72). Avant, l'étape « photo » se terminait sans rien
+// avoir envoyé et la fiche passait à « Envoyée » : NTanova la recevait sans photo, et personne ne le voyait.
+describe('la photo d’enseigne exigée n’est plus nulle part', () => {
+  const photo = (champs: Partial<PhotoLocale> = {}): PhotoLocale => ({
+    id: '20000000-0000-4000-8000-000000000001',
+    role: 'signboard',
+    blob: new Blob(['x'], { type: 'image/jpeg' }),
+    mime: 'image/jpeg',
+    octets: 1,
+    largeur: 10,
+    hauteur: 10,
+    prisLe: MAINTENANT,
+    envoyee: false,
+    ...champs,
+  });
+
+  it('une enseigne dans le téléphone, ou déjà partie : rien ne manque', () => {
+    expect(enseigneExigeeManquante(fiche({ photos: [photo()] }))).toBe(false);
+    expect(enseigneExigeeManquante(fiche({ photos: [photo({ blob: null, envoyee: true })] }))).toBe(
+      false,
+    );
+  });
+
+  it('aucune photo, ou une photo dont le fichier a disparu sans être partie : elle manque', () => {
+    expect(enseigneExigeeManquante(fiche({ photos: [] }))).toBe(true);
+    expect(enseigneExigeeManquante(fiche({ photos: [photo({ blob: null })] }))).toBe(true);
+  });
+
+  it('une autre photo ne remplace pas l’enseigne', () => {
+    expect(enseigneExigeeManquante(fiche({ photos: [photo({ role: 'building' })] }))).toBe(true);
+  });
+
+  it('une fiche d’avant la mise à jour, sans liste de photos : elle manque aussi', () => {
+    const ancienne = fiche() as Partial<FicheLocale>;
+    delete ancienne.photos;
+    expect(enseigneExigeeManquante(ancienne as FicheLocale)).toBe(true);
+  });
+
+  it('une enseigne que NTanova a déjà et que le relais n’a pas à reprendre ne manque pas', () => {
+    const taches = {
+      photo: false,
+      position: true,
+      informations: true,
+      direction: false,
+      consigne: null,
+      titre: '[titre]',
+    };
+    expect(enseigneExigeeManquante(fiche({ photos: [], taches }))).toBe(false);
+    expect(enseigneExigeeManquante(fiche({ photos: [], taches: { ...taches, photo: true } }))).toBe(
+      true,
+    );
+  });
+
+  it('le refus dit si la fiche est déjà chez NTanova, et ce que le relais peut faire', () => {
+    const partie = rejetEnseigneAbsente(true);
+    const pasPartie = rejetEnseigneAbsente(false);
+    expect(partie.code).toBe('photo_absente');
+    expect(pasPartie.code).toBe('photo_absente');
+    // Relevé reçu : le relais ne peut plus la modifier, il prévient NTanova qui la lui renvoie.
+    expect(partie.message).toMatch(/arrivée chez NTanova sans/);
+    expect(partie.message).toMatch(/Prévenez NTanova/);
+    // Relevé pas parti : « Modifier » reprend la fiche à l'étape de la photo.
+    expect(pasPartie.message).toMatch(/pas partie/);
+    expect(pasPartie.message).toMatch(/Modifiez la fiche/);
+  });
+
+  it('un refus de ce genre s’affiche comme un refus de photo', () => {
+    const apres = apresRejet(
+      fiche({ envoyes: { releve: true, photo: false, contact: false } }),
+      rejetEnseigneAbsente(true),
+      MAINTENANT,
+    );
+    expect(apres.etat).toBe('refusee');
+    expect(explicationDuRejet(apres.rejet!).titre).toBe("La photo n'a pas pu être reçue.");
   });
 });

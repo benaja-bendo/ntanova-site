@@ -6,6 +6,7 @@ import type {
   EcoleProche,
   Lot,
   MaPaie,
+  PhotoRecue,
   PortRelais,
   Profil,
   ReleveRecu,
@@ -155,6 +156,28 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         photos: r.photo_roles,
         aContact: r.has_contact,
       }));
+    },
+
+    async mesPhotos(releveId: string): Promise<PhotoRecue[]> {
+      // `my_submission_photos` ne rend que les photos d'UNE fiche du relais connecté (ticket #72) ; le stockage ne
+      // fabrique l'adresse de lecture que pour les fichiers de ses relevés. Tant que ces deux règles ne sont pas
+      // appliquées en ligne, la lecture échoue ou rend une liste vide : l'écran ne montre alors que les rôles reçus.
+      const lignes = lireListe<{ id: string; role: Valeur<'photo_role'>; storage_path: string }>(
+        await supabase().rpc('my_submission_photos', { p_submission: releveId }),
+      );
+      if (lignes.length === 0) return [];
+      // Une adresse temporaire par photo (une heure) : le seau est privé.
+      const { data: adresses } = await supabase()
+        .storage.from('releves')
+        .createSignedUrls(
+          lignes.map((l) => l.storage_path),
+          3600,
+        );
+      const parChemin = new Map((adresses ?? []).map((a) => [a.path, a.signedUrl]));
+      return lignes.flatMap((l) => {
+        const url = parChemin.get(l.storage_path);
+        return url ? [{ id: l.id, role: l.role, url }] : [];
+      });
     },
 
     async mesMissions(): Promise<EcoleACompleter[]> {
