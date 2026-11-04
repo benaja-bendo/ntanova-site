@@ -312,6 +312,40 @@ test.describe('site public', () => {
     }
   });
 
+  test('fiche : les panneaux suivent le cadre et les paragraphes restent lisibles', async ({
+    page,
+  }) => {
+    const largeurInitiale = largeurDe(page);
+    const largeurs = largeurInitiale >= ORDINATEUR ? [1024, 1280, 1920] : [largeurInitiale];
+    for (const largeur of largeurs) {
+      await page.setViewportSize({ width: largeur, height: 900 });
+      await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+      const mesures = await page.locator('article.fiche').evaluate((el) => {
+        const cadre = el.getBoundingClientRect(),
+          style = getComputedStyle(el);
+        const principale = el.querySelector('.fiche-principale')!.getBoundingClientRect();
+        const cote = el.querySelector('.fiche-cote')!.getBoundingClientRect();
+        return {
+          gauche: cadre.left + parseFloat(style.paddingLeft),
+          droite: cadre.right - parseFloat(style.paddingRight),
+          principale: { gauche: principale.left, droite: principale.right },
+          cote: { gauche: cote.left, droite: cote.right },
+          paragraphes: [...el.querySelectorAll('p, .photo-ecole figcaption')].map(
+            (p) => p.getBoundingClientRect().width,
+          ),
+          debordement: document.documentElement.scrollWidth > innerWidth,
+        };
+      });
+      expect(mesures.debordement).toBe(false);
+      expect(Math.abs(mesures.principale.gauche - mesures.gauche)).toBeLessThanOrEqual(1);
+      for (const largeurTexte of mesures.paragraphes) expect(largeurTexte).toBeLessThanOrEqual(576);
+      if (largeur >= ORDINATEUR) {
+        expect(mesures.cote.gauche).toBeGreaterThan(mesures.principale.droite);
+        expect(Math.abs(mesures.cote.droite - mesures.droite)).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
   test('« Pour les écoles » : à partir de 1 024 px, le formulaire et les explications sont côte à côte', async ({
     page,
   }) => {
