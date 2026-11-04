@@ -22,3 +22,7 @@ test-results/
 
 # captures d'écran à relire (pnpm captures)
 /captures/
+
+# les fonds de carte fabriqués (une dizaine de Mo, hébergés sur R2) : jamais versionnés
+*.pmtiles
+/outils/fond-de-carte/sortie/

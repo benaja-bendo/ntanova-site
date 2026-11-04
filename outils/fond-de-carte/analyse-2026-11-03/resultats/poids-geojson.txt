@@ -1,0 +1,9 @@
+ecoles.geojson (vrai code, écoles fictives, noms de 40 caractères) :
+  N=   1 :     0.5 Ko brut | gzip    0.3 Ko | brotli    0.3 Ko | 506 octets par école
+  N=  30 :    13.3 Ko brut | gzip    1.8 Ko | brotli    1.6 Ko | 454 octets par école
+  N= 100 :    44.3 Ko brut | gzip    4.5 Ko | brotli    3.9 Ko | 454 octets par école
+  N= 300 :   133.3 Ko brut | gzip   12.2 Ko | brotli   10.2 Ko | 455 octets par école
+  N=1000 :   444.6 Ko brut | gzip   38.6 Ko | brotli   31.3 Ko | 455 octets par école
+  N=3000 :  1338.1 Ko brut | gzip  113.9 Ko | brotli   91.7 Ko | 457 octets par école
+
+zones.geojson (6 arrondissements dessinés, contours embarqués à 10 m) : 10.5 Ko brut | gzip 2.7 Ko | brotli 2.0 Ko

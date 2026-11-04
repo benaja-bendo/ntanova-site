@@ -1,0 +1,67 @@
+// MESURE JETABLE : le poids d'ecoles.geojson et de zones.geojson avec le vrai code, sur des écoles fictives.
+import { describe, it } from 'vitest';
+import { brotliCompressSync, gzipSync } from 'node:zlib';
+import { writeFileSync } from 'node:fs';
+import { ecolesGeoJSON, zonesGeoJSON } from '../../src/modele/carte/donnees';
+import { arrondissementDessine } from '../../src/modele/carte/plan';
+import type { DivisionPublique, EcolePubliee } from '../../src/modele/ports';
+
+const NIVEAUX = [['maternelle', 'primaire'], ['primaire'], ['college', 'lycee'], ['maternelle', 'primaire', 'college'], ['superieur'], ['lycee', 'technique']] as const;
+const QUARTIERS = ['Mpaka', 'Tchimbamba', 'Mahouata', 'Foucks', 'Mbota', 'Fond Tié-Tié', 'Songolo', 'Mongo Kamba'];
+const ARR = [['tie-tie', 'Tié-Tié'], ['ngoyo', 'Ngoyo'], ['lumumba', 'Lumumba'], ['loandjili', 'Loandjili']] as const;
+
+function fausses(n: number): EcolePubliee[] {
+  return Array.from({ length: n }, (_, i) => {
+    const [arr, arrNom] = ARR[i % ARR.length]!;
+    const verifiee = i % 9 === 0;
+    return {
+      id: crypto.randomUUID(),
+      institutionId: crypto.randomUUID(),
+      divisionId: crypto.randomUUID(),
+      slug: `complexe-scolaire-exemple-${i}`,
+      nom: `Complexe scolaire exemple ${i} de ${QUARTIERS[i % QUARTIERS.length]}`,
+      etiquette: i % 7 === 0 ? 'Campus annexe' : null,
+      arrondissement: arr,
+      adresse: ['congo', 'pointe-noire', 'pointe-noire', arr],
+      divisionNoms: ['Congo', 'Pointe-Noire', 'Pointe-Noire', arrNom],
+      quartier: QUARTIERS[i % QUARTIERS.length]!,
+      typeEcole: 'privee',
+      niveaux: [...NIVEAUX[i % NIVEAUX.length]!],
+      programme: null,
+      formations: [],
+      repere: 'en face de la station-service',
+      numeroEnseigne: null,
+      latitude: -4.78 - (i % 50) * 0.001,
+      longitude: 11.87 + (i % 70) * 0.001,
+      etat: verifiee ? 'verifiee' : 'relevee',
+      verifieeLe: verifiee ? '2026-11-20' : null,
+      releveeLe: '2026-11-12T10:00:00Z',
+      situeeLe: null,
+      misAJourLe: '2026-11-12T10:00:00Z',
+    } as unknown as EcolePubliee;
+  });
+}
+
+describe('poids', () => {
+  it('mesure', () => {
+    const lignes: string[] = ['ecoles.geojson (vrai code, écoles fictives, noms de 40 caractères) :'];
+    for (const n of [1, 30, 100, 300, 1000, 3000]) {
+      const json = JSON.stringify(ecolesGeoJSON(fausses(n)));
+      const brut = Buffer.byteLength(json);
+      lignes.push(
+        `  N=${String(n).padStart(4)} : ${(brut / 1024).toFixed(1).padStart(7)} Ko brut | gzip ${(gzipSync(json).length / 1024).toFixed(1).padStart(6)} Ko | brotli ${(brotliCompressSync(json).length / 1024).toFixed(1).padStart(6)} Ko | ${(brut / n).toFixed(0)} octets par école`,
+      );
+    }
+    // zones.geojson : les six arrondissements dessinés + les deux villes, tels que la production les produirait
+    const mk = (slug: string, nom: string, deploiement: 'actif' | 'programme' | null, niveau = 3): DivisionPublique =>
+      ({ id: slug, parentId: null, niveau, genre: niveau === 3 ? 'arrondissement' : 'city', nom, slug, adresse: ['congo', 'pointe-noire', 'pointe-noire', slug], ordinal: null, alias: [], verifieeLe: null, ouverte: deploiement === 'actif', deploiement, position: null }) as DivisionPublique;
+    const divisions = [
+      mk('tie-tie', 'Tié-Tié', 'actif'), mk('ngoyo', 'Ngoyo', 'actif'), mk('lumumba', 'Lumumba', 'programme'),
+      mk('mvou-mvou', 'Mvou-Mvou', 'programme'), mk('loandjili', 'Loandjili', 'programme'), mk('mongo-mpoukou', 'Mongo-Mpoukou', 'programme'),
+    ];
+    const zones = zonesGeoJSON({ divisions, ecoles: fausses(100), contourDe: (d) => arrondissementDessine(d.slug)?.contour ?? null });
+    const z = JSON.stringify(zones);
+    lignes.push(`\nzones.geojson (6 arrondissements dessinés, contours embarqués à 10 m) : ${(Buffer.byteLength(z) / 1024).toFixed(1)} Ko brut | gzip ${(gzipSync(z).length / 1024).toFixed(1)} Ko | brotli ${(brotliCompressSync(z).length / 1024).toFixed(1)} Ko`);
+    writeFileSync(process.env.SIM_OUT as string, lignes.join('\n'));
+  });
+});

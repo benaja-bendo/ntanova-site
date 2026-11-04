@@ -1,0 +1,60 @@
+
+## tie-tie : 29 m par unité du dessin ; deux écoles à moins de 1567 m (en largeur ET en hauteur) fusionnent
+uniforme N=   5 | maisons seules   3 | pastilles   1 (   2 écoles dedans, plus grosse   2) | pages « coin »   1 | écoles jamais vues seules, même de près    0 | groupe le plus étendu 1142 m | calcul 0.3 ms
+uniforme N=  10 | maisons seules   5 | pastilles   1 (   5 écoles dedans, plus grosse   5) | pages « coin »   1 | écoles jamais vues seules, même de près    2 | groupe le plus étendu 1604 m | calcul 0.1 ms
+uniforme N=  30 | maisons seules   4 | pastilles   6 (  26 écoles dedans, plus grosse  10) | pages « coin »   6 | écoles jamais vues seules, même de près    9 | groupe le plus étendu 2260 m | calcul 0.7 ms
+uniforme N=  60 | maisons seules   0 | pastilles   8 (  60 écoles dedans, plus grosse  13) | pages « coin »   8 | écoles jamais vues seules, même de près   25 | groupe le plus étendu 3377 m | calcul 4.3 ms
+uniforme N= 100 | maisons seules   2 | pastilles   9 (  98 écoles dedans, plus grosse  17) | pages « coin »   9 | écoles jamais vues seules, même de près   71 | groupe le plus étendu 2963 m | calcul 13.4 ms
+uniforme N= 200 | maisons seules   0 | pastilles  11 ( 200 écoles dedans, plus grosse  30) | pages « coin »  11 | écoles jamais vues seules, même de près  165 | groupe le plus étendu 3226 m | calcul 17.5 ms
+uniforme N= 300 | maisons seules   0 | pastilles  11 ( 300 écoles dedans, plus grosse  52) | pages « coin »  11 | écoles jamais vues seules, même de près  281 | groupe le plus étendu 3701 m | calcul 71.4 ms
+uniforme N= 600 | maisons seules   0 | pastilles  13 ( 600 écoles dedans, plus grosse  90) | pages « coin »  13 | écoles jamais vues seules, même de près  587 | groupe le plus étendu 3571 m | calcul 571.3 ms
+uniforme N=1000 | maisons seules   0 | pastilles  12 (1000 écoles dedans, plus grosse 131) | pages « coin »  12 | écoles jamais vues seules, même de près  999 | groupe le plus étendu 3605 m | calcul 2724.7 ms
+centre   N=   5 | maisons seules   2 | pastilles   1 (   3 écoles dedans, plus grosse   3) | pages « coin »   1 | écoles jamais vues seules, même de près    0 | groupe le plus étendu 1243 m | calcul 0.0 ms
+centre   N=  10 | maisons seules   1 | pastilles   1 (   9 écoles dedans, plus grosse   9) | pages « coin »   1 | écoles jamais vues seules, même de près    6 | groupe le plus étendu 2589 m | calcul 0.0 ms
+centre   N=  30 | maisons seules   2 | pastilles   3 (  28 écoles dedans, plus grosse  18) | pages « coin »   3 | écoles jamais vues seules, même de près   17 | groupe le plus étendu 3054 m | calcul 0.1 ms
+centre   N=  60 | maisons seules   2 | pastilles   2 (  58 écoles dedans, plus grosse  45) | pages « coin »   2 | écoles jamais vues seules, même de près   55 | groupe le plus étendu 4303 m | calcul 0.9 ms
+centre   N= 100 | maisons seules   1 | pastilles   7 (  99 écoles dedans, plus grosse  31) | pages « coin »   7 | écoles jamais vues seules, même de près   78 | groupe le plus étendu 3001 m | calcul 4.7 ms
+centre   N= 200 | maisons seules   0 | pastilles   7 ( 200 écoles dedans, plus grosse  75) | pages « coin »   7 | écoles jamais vues seules, même de près  184 | groupe le plus étendu 3545 m | calcul 27.2 ms
+centre   N= 300 | maisons seules   1 | pastilles   7 ( 299 écoles dedans, plus grosse 160) | pages « coin »   7 | écoles jamais vues seules, même de près  284 | groupe le plus étendu 4097 m | calcul 91.9 ms
+centre   N= 600 | maisons seules   3 | pastilles   6 ( 597 écoles dedans, plus grosse 240) | pages « coin »   6 | écoles jamais vues seules, même de près  592 | groupe le plus étendu 4383 m | calcul 747.9 ms
+centre   N=1000 | maisons seules   0 | pastilles   8 (1000 écoles dedans, plus grosse 759) | pages « coin »   8 | écoles jamais vues seules, même de près  982 | groupe le plus étendu 5922 m | calcul 3463.4 ms
+
+## ngoyo : 28 m par unité du dessin ; deux écoles à moins de 1512 m (en largeur ET en hauteur) fusionnent
+uniforme N=   5 | maisons seules   3 | pastilles   1 (   2 écoles dedans, plus grosse   2) | pages « coin »   1 | écoles jamais vues seules, même de près    0 | groupe le plus étendu 1139 m | calcul 0.0 ms
+uniforme N=  10 | maisons seules   3 | pastilles   3 (   7 écoles dedans, plus grosse   3) | pages « coin »   3 | écoles jamais vues seules, même de près    0 | groupe le plus étendu 1599 m | calcul 0.0 ms
+uniforme N=  30 | maisons seules   2 | pastilles   8 (  28 écoles dedans, plus grosse   5) | pages « coin »   8 | écoles jamais vues seules, même de près    2 | groupe le plus étendu 1994 m | calcul 0.1 ms
+uniforme N=  60 | maisons seules   2 | pastilles  10 (  58 écoles dedans, plus grosse   9) | pages « coin »  10 | écoles jamais vues seules, même de près   24 | groupe le plus étendu 2530 m | calcul 0.7 ms
+uniforme N= 100 | maisons seules   0 | pastilles  12 ( 100 écoles dedans, plus grosse  16) | pages « coin »  12 | écoles jamais vues seules, même de près   48 | groupe le plus étendu 3744 m | calcul 2.7 ms
+uniforme N= 200 | maisons seules   0 | pastilles  15 ( 200 écoles dedans, plus grosse  30) | pages « coin »  15 | écoles jamais vues seules, même de près  156 | groupe le plus étendu 3088 m | calcul 20.0 ms
+uniforme N= 300 | maisons seules   0 | pastilles  14 ( 300 écoles dedans, plus grosse  39) | pages « coin »  14 | écoles jamais vues seules, même de près  270 | groupe le plus étendu 4027 m | calcul 65.9 ms
+uniforme N= 600 | maisons seules   0 | pastilles  15 ( 600 écoles dedans, plus grosse  72) | pages « coin »  15 | écoles jamais vues seules, même de près  588 | groupe le plus étendu 4026 m | calcul 530.5 ms
+uniforme N=1000 | maisons seules   0 | pastilles   9 (1000 écoles dedans, plus grosse 226) | pages « coin »   9 | écoles jamais vues seules, même de près  999 | groupe le plus étendu 4809 m | calcul 2555.8 ms
+centre   N=   5 | maisons seules   2 | pastilles   1 (   3 écoles dedans, plus grosse   3) | pages « coin »   1 | écoles jamais vues seules, même de près    0 | groupe le plus étendu 1242 m | calcul 0.0 ms
+centre   N=  10 | maisons seules   2 | pastilles   2 (   8 écoles dedans, plus grosse   5) | pages « coin »   2 | écoles jamais vues seules, même de près    0 | groupe le plus étendu 2224 m | calcul 0.0 ms
+centre   N=  30 | maisons seules   2 | pastilles   4 (  28 écoles dedans, plus grosse  16) | pages « coin »   4 | écoles jamais vues seules, même de près   16 | groupe le plus étendu 3053 m | calcul 0.5 ms
+centre   N=  60 | maisons seules   0 | pastilles   5 (  60 écoles dedans, plus grosse  27) | pages « coin »   5 | écoles jamais vues seules, même de près   46 | groupe le plus étendu 3085 m | calcul 1.5 ms
+centre   N= 100 | maisons seules   1 | pastilles   6 (  99 écoles dedans, plus grosse  34) | pages « coin »   6 | écoles jamais vues seules, même de près   78 | groupe le plus étendu 3255 m | calcul 5.0 ms
+centre   N= 200 | maisons seules   1 | pastilles   7 ( 199 écoles dedans, plus grosse  69) | pages « coin »   7 | écoles jamais vues seules, même de près  180 | groupe le plus étendu 3811 m | calcul 37.0 ms
+centre   N= 300 | maisons seules   0 | pastilles   8 ( 300 écoles dedans, plus grosse 140) | pages « coin »   8 | écoles jamais vues seules, même de près  280 | groupe le plus étendu 3774 m | calcul 86.6 ms
+centre   N= 600 | maisons seules   1 | pastilles   8 ( 599 écoles dedans, plus grosse 264) | pages « coin »   8 | écoles jamais vues seules, même de près  583 | groupe le plus étendu 5063 m | calcul 680.5 ms
+centre   N=1000 | maisons seules   0 | pastilles  11 (1000 écoles dedans, plus grosse 410) | pages « coin »  11 | écoles jamais vues seules, même de près  984 | groupe le plus étendu 3991 m | calcul 3278.9 ms
+
+## lumumba : 23 m par unité du dessin ; deux écoles à moins de 1219 m (en largeur ET en hauteur) fusionnent
+uniforme N=   5 | maisons seules   2 | pastilles   1 (   3 écoles dedans, plus grosse   3) | pages « coin »   1 | écoles jamais vues seules, même de près    0 | groupe le plus étendu 1509 m | calcul 0.0 ms
+uniforme N=  10 | maisons seules   1 | pastilles   4 (   9 écoles dedans, plus grosse   3) | pages « coin »   4 | écoles jamais vues seules, même de près    0 | groupe le plus étendu 1505 m | calcul 0.0 ms
+uniforme N=  30 | maisons seules   2 | pastilles   7 (  28 écoles dedans, plus grosse   7) | pages « coin »   7 | écoles jamais vues seules, même de près    7 | groupe le plus étendu 2006 m | calcul 0.1 ms
+uniforme N=  60 | maisons seules   0 | pastilles   8 (  60 écoles dedans, plus grosse  13) | pages « coin »   8 | écoles jamais vues seules, même de près   22 | groupe le plus étendu 1983 m | calcul 0.6 ms
+uniforme N= 100 | maisons seules   2 | pastilles   8 (  98 écoles dedans, plus grosse  19) | pages « coin »   8 | écoles jamais vues seules, même de près   68 | groupe le plus étendu 2659 m | calcul 2.7 ms
+uniforme N= 200 | maisons seules   1 | pastilles  10 ( 199 écoles dedans, plus grosse  55) | pages « coin »  10 | écoles jamais vues seules, même de près  175 | groupe le plus étendu 2974 m | calcul 20.1 ms
+uniforme N= 300 | maisons seules   0 | pastilles  10 ( 300 écoles dedans, plus grosse  55) | pages « coin »  10 | écoles jamais vues seules, même de près  283 | groupe le plus étendu 2950 m | calcul 69.0 ms
+uniforme N= 600 | maisons seules   0 | pastilles  11 ( 600 écoles dedans, plus grosse 116) | pages « coin »  11 | écoles jamais vues seules, même de près  594 | groupe le plus étendu 2945 m | calcul 561.7 ms
+uniforme N=1000 | maisons seules   0 | pastilles   8 (1000 écoles dedans, plus grosse 246) | pages « coin »   8 | écoles jamais vues seules, même de près  999 | groupe le plus étendu 3691 m | calcul 2758.0 ms
+centre   N=   5 | maisons seules   5 | pastilles   0 (   0 écoles dedans, plus grosse   0) | pages « coin »   0 | écoles jamais vues seules, même de près    0 | groupe le plus étendu 0 m | calcul 0.0 ms
+centre   N=  10 | maisons seules   0 | pastilles   3 (  10 écoles dedans, plus grosse   6) | pages « coin »   3 | écoles jamais vues seules, même de près    0 | groupe le plus étendu 1354 m | calcul 0.0 ms
+centre   N=  30 | maisons seules   0 | pastilles   6 (  30 écoles dedans, plus grosse  11) | pages « coin »   6 | écoles jamais vues seules, même de près   10 | groupe le plus étendu 1940 m | calcul 0.1 ms
+centre   N=  60 | maisons seules   2 | pastilles   4 (  58 écoles dedans, plus grosse  34) | pages « coin »   4 | écoles jamais vues seules, même de près   44 | groupe le plus étendu 3368 m | calcul 0.8 ms
+centre   N= 100 | maisons seules   0 | pastilles   6 ( 100 écoles dedans, plus grosse  41) | pages « coin »   6 | écoles jamais vues seules, même de près   84 | groupe le plus étendu 3529 m | calcul 3.3 ms
+centre   N= 200 | maisons seules   1 | pastilles   7 ( 199 écoles dedans, plus grosse  58) | pages « coin »   7 | écoles jamais vues seules, même de près  187 | groupe le plus étendu 3451 m | calcul 24.0 ms
+centre   N= 300 | maisons seules   1 | pastilles   7 ( 299 écoles dedans, plus grosse 129) | pages « coin »   7 | écoles jamais vues seules, même de près  284 | groupe le plus étendu 3371 m | calcul 85.6 ms
+centre   N= 600 | maisons seules   0 | pastilles   8 ( 600 écoles dedans, plus grosse 347) | pages « coin »   8 | écoles jamais vues seules, même de près  585 | groupe le plus étendu 4172 m | calcul 675.3 ms
+centre   N=1000 | maisons seules   0 | pastilles   8 (1000 écoles dedans, plus grosse 272) | pages « coin »   8 | écoles jamais vues seules, même de près  994 | groupe le plus étendu 3297 m | calcul 3321.6 ms
