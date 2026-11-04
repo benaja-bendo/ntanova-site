@@ -66,6 +66,9 @@ echo "== Contrôles"
 node "$DOSSIER/alleger.ts" --controler "$final"
 "$PMTILES" verify -q "$final" && echo "✓ pmtiles verify : la structure de l'archive est valide."
 "$PMTILES" show "$final" | grep -E 'osmosisreplicationtime|tile contents count|addressed tiles count|max zoom'
+echo
+echo "== Glyphes (les plages dont les noms ont besoin sont-elles servies ?)"
+node "$DOSSIER/glyphes.ts" "$final"
 
 echo
 ls -l "$final" | awk '{ printf "Fichier : %s (%.2f Mo)\n", $9, $5 / 1e6 }'
