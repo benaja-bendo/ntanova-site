@@ -1,0 +1,18 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "https://ntanova.com",
+          "https://essai.ntanova.com",
+          "http://localhost:4321",
+          "http://localhost:8787"
+        ],
+        "methods": ["GET", "HEAD"],
+        "headers": ["range", "if-match"]
+      },
+      "exposeHeaders": ["etag", "content-range", "accept-ranges"],
+      "maxAgeSeconds": 86400
+    }
+  ]
+}
