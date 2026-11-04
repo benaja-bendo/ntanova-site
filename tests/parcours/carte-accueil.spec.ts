@@ -150,7 +150,22 @@ test('la popup de l’accueil partage le même aperçu et les deux preuves daté
     return true;
   });
   expect(position).toBe(true);
-  await expect.poll(() => page.locator('.maplibregl-canvas').count()).toBe(1);
+  // jumpTo change la vue avant que le worker ait rendu les épingles du nouveau zoom.
+  // Attendre une épingle réellement dessinée avant de toucher sa position.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const m = (
+          window as unknown as {
+            ntanovaCarte: {
+              queryRenderedFeatures: (o: { layers: string[] }) => unknown[];
+            };
+          }
+        ).ntanovaCarte;
+        return m.queryRenderedFeatures({ layers: ['ecoles-epingles'] }).length;
+      }),
+    )
+    .toBeGreaterThan(0);
   const point = await page.evaluate(() => {
     const m = (
       window as unknown as {
