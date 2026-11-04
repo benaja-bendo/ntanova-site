@@ -26,3 +26,6 @@ test-results/
 # les fonds de carte fabriqués (une dizaine de Mo, hébergés sur R2) : jamais versionnés
 *.pmtiles
 /outils/fond-de-carte/sortie/
+
+# Preuve de CI éphémère, attachée au run GitHub.
+/verification.json

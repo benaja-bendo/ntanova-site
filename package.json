@@ -16,7 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:parcours": "PUBLIC_ADAPTATEUR=faux PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} astro build && PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} pnpm guide:exporter && playwright test",
+    "test:parcours": "pnpm test:parcours:preparer && pnpm test:parcours:exec",
     "captures": "PUBLIC_ADAPTATEUR=faux PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} astro build && playwright test -c playwright.captures.config.ts",
     "couleurs": "node outils/verifier-couleurs.mjs",
     "poids": "node outils/verifier-poids.mjs",
@@ -25,7 +25,10 @@
     "base:reset": "supabase db reset",
     "base:tests": "supabase test db",
     "verif": "pnpm format:check && pnpm lint && pnpm couleurs && pnpm check && pnpm test && pnpm build && pnpm poids",
-    "test:en-ligne": "playwright test -c playwright.en-ligne.config.ts"
+    "test:en-ligne": "playwright test -c playwright.en-ligne.config.ts",
+    "test:parcours:preparer": "PUBLIC_ADAPTATEUR=faux PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} astro build && PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} pnpm guide:exporter",
+    "test:parcours:exec": "playwright test",
+    "verif:ci": "PUBLIC_ADAPTATEUR=faux PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} pnpm verif"
   },
   "dependencies": {
     "@astrojs/react": "^7.1.2",

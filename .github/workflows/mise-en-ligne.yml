@@ -25,6 +25,10 @@ on:
         type: choice
         options: [essai, production, les deux]
         default: essai
+      tout_verifier:
+        description: Rejouer tous les contrôles pour essai
+        type: boolean
+        default: false
   schedule:
     # 1 h UTC, 2 h à Pointe-Noire.
     - cron: '0 1 * * *'
@@ -41,13 +45,47 @@ env:
   ASTRO_TELEMETRY_DISABLED: 1
 
 jobs:
+  verification:
+    name: Vérification déjà disponible pour essai
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      reutiliser: ${{ steps.preuve.outputs.reutiliser }}
+      execution: ${{ steps.preuve.outputs.execution }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Même commit, contrôles complets, preuve récente ; sinon tout vérifier
+        id: preuve
+        run: node outils/verification-ci.ts reutiliser
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CIBLE: ${{ inputs.cible }}
+          EVENEMENT: ${{ github.event_name }}
+          TOUT_VERIFIER: ${{ inputs.tout_verifier }}
+
   controles:
     name: Contrôles
+    needs: verification
+    if: needs.verification.outputs.reutiliser != 'true'
     uses: ./.github/workflows/verif.yml
 
   construction:
     name: Construction
-    needs: controles
+    needs: [verification, controles]
+    if: >-
+      always()
+      && needs.verification.result == 'success'
+      && (needs.controles.result == 'success'
+          || (needs.controles.result == 'skipped'
+              && github.event_name == 'workflow_dispatch' && inputs.cible == 'essai'
+              && inputs.tout_verifier != true
+              && needs.verification.outputs.reutiliser == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -115,12 +153,13 @@ jobs:
 
   production:
     name: Production (ntanova.com)
-    needs: [construction, essai]
+    needs: [construction, essai, controles]
     # Seulement depuis main, et seulement si le site d'essai a passé ses contrôles
     # (ou n'était pas demandé).
     if: >-
       always()
       && needs.construction.result == 'success'
+      && needs.controles.result == 'success'
       && (needs.essai.result == 'success' || needs.essai.result == 'skipped')
       && github.ref == 'refs/heads/main'
       && ((github.event_name == 'schedule' && vars.NUIT_VERS_PRODUCTION == 'oui')

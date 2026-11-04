@@ -29,6 +29,7 @@ interface Situation {
   reference?: string;
   construction?: string;
   essai?: string;
+  controles?: string;
 }
 
 /** Évalue la condition comme GitHub : un contexte absent vaut une chaîne vide, `always()` est vrai. */
@@ -40,6 +41,7 @@ function production(s: Situation): boolean {
     vars: { NUIT_VERS_PRODUCTION: s.variable ?? '' },
     needs: {
       construction: { result: s.construction ?? 'success' },
+      controles: { result: s.controles ?? 'success' },
       essai: { result: s.essai ?? 'success' },
     },
     always: () => true,
@@ -78,6 +80,12 @@ describe('la mise en ligne de nuit', () => {
 });
 
 describe('un lancement à la main', () => {
+  it('exige tous les contrôles avant production, jamais leur simple réutilisation', () => {
+    for (const controles of ['failure', 'cancelled', 'skipped', ''])
+      expect(production({ evenement: 'workflow_dispatch', cible: 'production', controles })).toBe(
+        false,
+      );
+  });
   it('va en production quand on le demande, sans dépendre de la variable', () => {
     expect(production({ evenement: 'workflow_dispatch', cible: 'production' })).toBe(true);
     expect(production({ evenement: 'workflow_dispatch', cible: 'les deux' })).toBe(true);
@@ -129,5 +137,47 @@ describe('ce que l’administration promet de la mise en ligne', () => {
         .map(({ endroit }) => endroit),
     );
     expect(promesses).toEqual([]);
+  });
+});
+
+describe('la construction réelle ne contourne pas les contrôles', () => {
+  const bloc = /\n {2}construction:\n[\s\S]*?\n {4}if: >-\n((?: {6}.*\n)+)/.exec(workflow);
+  if (!bloc?.[1]) throw new Error('Condition de construction absente.');
+  const expression = bloc[1]
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join(' ');
+  function construire({
+    cible = 'essai',
+    evenement = 'workflow_dispatch',
+    preuve = 'false',
+    verification = 'success',
+    controles = 'skipped',
+    force = false,
+  } = {}) {
+    const evaluer = new Function('github', 'inputs', 'needs', 'always', `return (${expression});`);
+    return evaluer(
+      { event_name: evenement },
+      { cible, tout_verifier: force },
+      {
+        verification: { result: verification, outputs: { reutiliser: preuve } },
+        controles: { result: controles },
+      },
+      () => true,
+    );
+  }
+  it('réutilise seulement pour essai après une preuve valide', () => {
+    expect(construire({ preuve: 'true' })).toBe(true);
+    expect(construire({ preuve: 'true', cible: 'production' })).toBe(false);
+    expect(construire({ preuve: 'true', force: true })).toBe(false);
+    expect(construire({ preuve: 'true', evenement: 'schedule' })).toBe(false);
+  });
+  it('une preuve absente ou défaillante impose des contrôles réussis', () => {
+    expect(construire()).toBe(false);
+    expect(construire({ controles: 'success' })).toBe(true);
+    expect(construire({ preuve: 'true', verification: 'failure' })).toBe(false);
+    for (const controles of ['failure', 'cancelled'])
+      expect(construire({ preuve: 'true', controles })).toBe(false);
   });
 });
