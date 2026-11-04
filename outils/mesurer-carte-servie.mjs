@@ -1,4 +1,4 @@
-// Mesure HTTP des corps réellement compressés : node outils/mesurer-carte-servie.mjs [origine] [rapport.json].
+// Mesure HTTP des corps réellement compressés : node outils/mesurer-carte-servie.mjs [origine] [rapport.json] [page].
 // Suit le graphe de l’îlot, worker et CSS compris ; aucune recompression locale. Le premier affichage reste à mesurer au navigateur.
 import { execFileSync } from 'node:child_process';
 import { brotliDecompressSync, gunzipSync } from 'node:zlib';
@@ -63,7 +63,9 @@ function closure(root, dynamic) {
   }
   return seen;
 }
-const html = lire('/carte/');
+const page = process.argv[4] ?? '/carte/';
+if (!['/', '/carte/'].includes(page)) throw new Error('Page de carte attendue : / ou /carte/');
+const html = lire(page);
 const script = /<script[^>]*src="([^"]+\.js)"/.exec(html.text)?.[1];
 if (!script) throw Error('Chargeur absent');
 const initial = closure(script, false),
@@ -83,6 +85,7 @@ const br = rows(island),
 const result = {
   date: new Date().toISOString(),
   base,
+  page,
   html: { bytes: html.bytes, encoding: html.encoding },
   chargeur: rows([...initial]),
   ilot: { brBytes: sum(br), gzipBytes: sum(gz), br, gzip: gz },

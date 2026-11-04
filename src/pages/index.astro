@@ -1,16 +1,17 @@
 ---
 // L'accueil : les villes où des écoles sont publiées, et ce que chacune compte d'écoles.
-// Construit à partir de la base ; aucun JavaScript.
+// HTML construit à partir de la base ; îlot de carte différé à sa visibilité.
 // Sous 48 rem, la page d'un téléphone. À partir de 48 rem, la planche « Accueil sur ordinateur » du canevas.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../infra/index';
-import { arrondissementDeLApercu, vuesSurPlace } from '../modele/carte/plan';
+import { donneesDeLaCarte, arrondissementDuRepli } from '../modele/carte/instantane';
 import { compterEcoles, ecolesSous, lienDivision } from '../modele/geo-divisions';
 import { lienWhatsApp } from '../modele/whatsapp';
-import ApercuCarte from '../ui/ApercuCarte.astro';
+import ExplorateurCarte from '../ui/ExplorateurCarte.astro';
 import PagePublique from '../ui/PagePublique.astro';
 
-const { arbre, ecoles, divisions } = await obtenirSite();
+const site = await obtenirSite();
+const { arbre, ecoles } = site;
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 const pointeNoire = arbre.parAdresse.get('congo/pointe-noire');
 // Les villes et départements : les zones juste sous le pays. Là où l'on a des fiches d'abord, puis par nom.
@@ -27,17 +28,6 @@ const villes = arbre.racines
   .sort(
     (a, b) => b.total - a.total || a.zone.division.nom.localeCompare(b.zone.division.nom, 'fr'),
   );
-
-// L'aperçu de la carte : l'arrondissement dessiné qui a le plus d'écoles sur la carte (aujourd'hui, Pointe-Noire).
-// La carte ne montre que les écoles vues sur place (décision du fondateur du 03/11).
-const ouverts = divisions
-  .filter(
-    (d) => d.niveau === 3 && d.ouverte && d.adresse.join('/').startsWith('congo/pointe-noire/'),
-  )
-  .map((d) => ({ slug: d.slug }));
-const dePointeNoire = ecoles.filter((e) => e.adresse.join('/').startsWith('congo/pointe-noire/'));
-const tete = arrondissementDeLApercu(ouverts, vuesSurPlace(dePointeNoire));
-const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === tete.slug) : [];
 ---
 
 <PagePublique
@@ -46,7 +36,7 @@ const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === t
   whatsapp={whatsapp}
 >
   <div class="cadre accueil">
-    <div class:list={['haut', { 'haut-carte': tete }]}>
+    <div class="haut haut-carte">
       <div class="ouverture">
         <p class="surtitre-public">
           <span class="insecable">Congo-Brazzaville</span>
@@ -74,7 +64,7 @@ const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === t
         )}
       </div>
 
-      {tete && <ApercuCarte arrondissement={tete} ecoles={ecolesDeLaTete} lienCarte="/carte/" />}
+      <ExplorateurCarte donnees={donneesDeLaCarte(site)} repli={arrondissementDuRepli(site)} />
     </div>
 
     <section id="quartiers" aria-labelledby="titre-quartiers">
@@ -415,3 +405,8 @@ const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === t
     }
   }
 </style>
+
+<script>
+  import { initialiserCartes } from '../app/carte/chargeur';
+  initialiserCartes();
+</script>

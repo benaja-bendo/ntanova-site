@@ -15,6 +15,12 @@ async function ouvrir(page: import('@playwright/test').Page) {
 test('depuis l’accueil : accès direct visible, sans charger MapLibre avant le clic', async ({
   page,
 }) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, 'connection', {
+      value: { saveData: true },
+      configurable: true,
+    }),
+  );
   const demandes: string[] = [];
   page.on('request', (r) => demandes.push(r.url()));
   await page.goto('/');

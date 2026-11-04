@@ -23,7 +23,7 @@ const budgetGuide = 400 * 1024;
 // La carte interactive (ticket #103) : la troisième exception. La page /carte/ reste dans son budget de page ; elle porte
 // un petit chargeur (le seul JavaScript de la page), qui décide puis charge l'îlot (MapLibre, les tuiles) par `import()`.
 // L'îlot n'est lié à aucune page : on le trouve en suivant les `import()` du chargeur (voir `ilotDeLaCarte`).
-const pageCarte = /^carte\//;
+const pageCarte = /^(carte\/|index\.html$)/;
 const budgetChargeurCarte = 8 * 1024;
 // Plafonds confirmés par le fondateur le 04/11 après mesure servie et essai téléphone : l'îlot (MapLibre,
 // son worker, sa feuille de style, notre code ; SANS les tuiles) et le premier affichage interactif en tout.
@@ -169,8 +169,10 @@ function ilotDeLaCarte(html) {
   return { chargeur: [...avecLaPage], ilot };
 }
 
-const pageDeLaCarte = join(dist, 'carte', 'index.html');
-if (existsSync(pageDeLaCarte)) {
+for (const cheminCarte of ['carte/index.html', 'index.html']) {
+  const pageDeLaCarte = join(dist, cheminCarte);
+  if (!existsSync(pageDeLaCarte)) continue;
+  const nomCarte = cheminCarte === 'index.html' ? 'accueil' : 'carte';
   const html = readFileSync(pageDeLaCarte, 'utf8');
   const trouve = ilotDeLaCarte(html);
   const total = (fichiers, mesure) =>
@@ -178,7 +180,7 @@ if (existsSync(pageDeLaCarte)) {
   if (!trouve || trouve.ilot.length === 0) {
     echec = true;
     lignes.push(
-      `✗ ${'carte : îlot'.padEnd(32)} introuvable : le chargeur de /carte/ n’importe plus rien.`,
+      `✗ ${`${nomCarte} : îlot`.padEnd(32)} introuvable : le chargeur de /carte/ n’importe plus rien.`,
     );
   } else {
     const { chargeur, ilot } = trouve;
@@ -197,7 +199,7 @@ if (existsSync(pageDeLaCarte)) {
         : 0;
     };
     const premierAffichage =
-      (totauxDesPages.get('carte/index.html') ?? 0) +
+      (totauxDesPages.get(cheminCarte) ?? 0) +
       Math.max(ilotGzip, ilotBrotli5) +
       servi('carte/style.json') +
       servi('carte/zones.geojson') +
@@ -214,9 +216,9 @@ if (existsSync(pageDeLaCarte)) {
     if (fautes.length) echec = true;
     const marque = fautes.length ? '✗' : '✓';
     lignes.push(
-      `${marque} ${'carte : chargeur'.padEnd(32)} ${ko(octetsChargeur).padStart(9)}  (gzip, avec la page)`,
-      `${marque} ${'carte : îlot, sans tuiles'.padEnd(32)} ${ko(ilotBrotli).padStart(9)}  brotli maximum ; ${ko(ilotBrotli5)} en brotli 5, ${ko(ilotGzip)} en gzip (plafond ${ko(budgetIlot)} : contrôle local conservateur, puis mesure servie obligatoire)`,
-      `${marque} ${'carte : premier affichage'.padEnd(32)} ${ko(premierAffichage).padStart(9)}  ${fautes.join(', ')}`.trimEnd(),
+      `${marque} ${`${nomCarte} : chargeur`.padEnd(32)} ${ko(octetsChargeur).padStart(9)}  (gzip, avec la page)`,
+      `${marque} ${`${nomCarte} : îlot, sans tuiles`.padEnd(32)} ${ko(ilotBrotli).padStart(9)}  brotli maximum ; ${ko(ilotBrotli5)} en brotli 5, ${ko(ilotGzip)} en gzip (plafond ${ko(budgetIlot)} : contrôle local conservateur, puis mesure servie obligatoire)`,
+      `${marque} ${`${nomCarte} : premier affichage`.padEnd(32)} ${ko(premierAffichage).padStart(9)}  ${fautes.join(', ')}`.trimEnd(),
     );
   }
 }

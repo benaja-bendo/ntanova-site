@@ -1,4 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, 'connection', {
+      value: { saveData: true },
+      configurable: true,
+    }),
+  );
+});
 
 /** Le nom d'une cible pour le message d'erreur : son texte, ou celui qu'elle donne au lecteur d'écran (un lien de la carte, en SVG). */
 const nomDe = async (cible: Locator) =>
@@ -66,9 +74,11 @@ async function pageLisible(page: Page, baseURL: string | undefined, adresse: str
 
 test.describe('site public', () => {
   for (const adresse of pagesSansJavaScript) {
-    test(`${adresse} : sans JavaScript, 360 px, cibles de 44 px`, async ({ page, baseURL }) => {
+    test(`${adresse} : HTML lisible, 360 px, cibles de 44 px`, async ({ page, baseURL }) => {
       await pageLisible(page, baseURL, adresse);
-      expect(await page.locator('script:not([type="application/ld+json"])').count()).toBe(0);
+      expect(await page.locator('script:not([type="application/ld+json"])').count()).toBe(
+        adresse === '/' ? 1 : 0,
+      );
     });
   }
 

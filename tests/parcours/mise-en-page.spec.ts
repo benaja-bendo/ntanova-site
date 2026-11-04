@@ -1,6 +1,15 @@
 import { servirLesTuiles } from './aides-carte';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { seConnecter, textesPeuLisibles } from './aides';
+test.beforeEach(async ({ page, context }) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, 'connection', {
+      value: { saveData: true },
+      configurable: true,
+    }),
+  );
+  await servirLesTuiles(context);
+});
 
 /** Le nom d'une cible pour le message d'erreur : son texte, ou celui qu'elle donne au lecteur d'écran (un lien de la carte, en SVG). */
 const nomDe = async (cible: Locator) =>
@@ -237,7 +246,7 @@ test.describe('site public', () => {
   }) => {
     await page.goto('/');
     const titre = await position(page, 'Trouvez une école au Congo-Brazzaville.');
-    const apercu = await page.getByRole('region', { name: 'La carte de Tié-Tié' }).boundingBox();
+    const apercu = await page.locator('.explorateur').boundingBox();
     if (largeurDe(page) >= ORDINATEUR) {
       expect(apercu?.x ?? 0, 'à droite du titre').toBeGreaterThanOrEqual(titre.x + titre.width);
     } else {

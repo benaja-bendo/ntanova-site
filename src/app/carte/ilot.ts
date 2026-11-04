@@ -1,3 +1,4 @@
+import { creerApercu } from './apercu';
 /**
  * L'îlot de la carte interactive (ticket 103) : MapLibre 6 et le fichier de tuiles, chargés par `import()` seulement quand
  * la page l'a décidé (`modele/carte/chargement.ts`). Rien d'autre que du navigateur : le style vient de `/carte/style.json`
@@ -46,29 +47,6 @@ export interface DemarrageDeLaCarte {
 
 /** Une cible de doigt : 44 px de large, donc 22 px autour du point touché. */
 const RAYON_DU_DOIGT = 22;
-
-/** Le texte d'un aperçu est toujours posé avec `textContent` : les noms viennent de la base, jamais du HTML. */
-function apercuDeLEcole(f: FeatureEcole['properties']): HTMLElement {
-  const racine = document.createElement('div');
-  racine.className = 'carte-apercu';
-  const ligne = (classe: string, texte: string) => {
-    const p = document.createElement('p');
-    p.className = classe;
-    p.textContent = texte;
-    racine.append(p);
-  };
-  ligne('carte-apercu-nom', f.nom);
-  ligne('carte-apercu-preuve', f.preuveTexte);
-  const niveaux = Array.isArray(f.niveaux) ? f.niveaux : [];
-  if (niveaux.length > 0) ligne('carte-apercu-niveaux', niveaux.join(' · '));
-  if (f.lieu) ligne('carte-apercu-lieu', f.lieu);
-  const lien = document.createElement('a');
-  lien.href = f.lien;
-  lien.className = 'carte-apercu-lien';
-  lien.textContent = 'Voir la fiche';
-  racine.append(lien);
-  return racine;
-}
 
 /** Les propriétés d'une feature GeoJSON de MapLibre : un tableau est renvoyé sous forme de texte JSON. */
 function lireLEcole(f: MapGeoJSONFeature): FeatureEcole['properties'] {
@@ -129,6 +107,17 @@ export async function demarrerLaCarte(options: DemarrageDeLaCarte): Promise<MapL
     pitchWithRotate: false,
     touchPitch: false,
     cooperativeGestures: options.integree ?? false,
+    locale: {
+      'Map.Title': 'Carte',
+      'NavigationControl.ZoomIn': 'Zoomer',
+      'NavigationControl.ZoomOut': 'Dézoomer',
+      'Popup.Close': 'Fermer l’aperçu',
+      'AttributionControl.ToggleAttribution': 'Afficher les crédits',
+      'CooperativeGesturesHandler.WindowsHelpText':
+        'Utilisez Ctrl et la molette pour zoomer sur la carte',
+      'CooperativeGesturesHandler.MacHelpText': 'Utilisez ⌘ et la molette pour zoomer sur la carte',
+      'CooperativeGesturesHandler.MobileHelpText': 'Utilisez deux doigts pour déplacer la carte',
+    },
   });
   carte.touchZoomRotate.disableRotation();
   carte.addControl(new AttributionControl({ compact: false }), 'bottom-right');
@@ -191,7 +180,7 @@ export async function demarrerLaCarte(options: DemarrageDeLaCarte): Promise<MapL
     ouvert?.remove();
     ouvert = new Popup({ offset: [0, -40], maxWidth: '280px' })
       .setLngLat(centre)
-      .setDOMContent(apercuDeLEcole(lireLEcole(premier)))
+      .setDOMContent(creerApercu(lireLEcole(premier), centre))
       .addTo(carte);
   });
   for (const couche of [COUCHE_EPINGLES, COUCHE_GROUPES]) {

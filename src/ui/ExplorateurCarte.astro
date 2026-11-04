@@ -167,11 +167,13 @@ const cycles = [
     padding: var(--espace-3);
   }
   .carte-interactive .carte-toile {
+    pointer-events: none;
     position: absolute;
     inset: 0;
     opacity: 0;
   }
   [data-etat='prete'] .carte-toile {
+    pointer-events: auto;
     opacity: 1;
   }
   [data-etat='prete'] .carte-repli {
@@ -412,5 +414,33 @@ const cycles = [
   }
   .panneau-carte {
     padding-bottom: 2rem;
+  }
+</style>
+
+<style is:global>
+  .explorateur:not(.explorateur-app) {
+    min-width: 0;
+    width: 100%;
+  }
+  .explorateur:not(.explorateur-app) .carte-interactive {
+    height: 70dvh;
+    max-height: 42rem;
+  }
+  .explorateur:not(.explorateur-app) .carte-repli {
+    align-content: center;
+  }
+  .explorateur .maplibregl-popup-close-button {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.5rem;
+    color: var(--texte);
+  }
+  .explorateur .maplibregl-popup-content {
+    max-height: 65dvh;
+    overflow: auto;
+  }
+  .explorateur .maplibregl-popup .carte-apercu {
+    border: 0;
+    padding: var(--espace-2);
   }
 </style>
