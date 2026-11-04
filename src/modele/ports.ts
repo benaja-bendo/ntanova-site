@@ -385,6 +385,7 @@ export interface DetailReleve extends ReleveAValider {
 
 /** Une photo d'un relevé, avec une adresse temporaire pour la voir (jamais publique d'office). */
 export interface PhotoVue {
+  publique?: boolean;
   id: string;
   role: Valeur<'photo_role'>;
   adresse: string | null;
@@ -680,6 +681,8 @@ export interface PortAdministration {
   detailReleve(id: string): Promise<DetailReleve>;
   /** Les photos d'un relevé (l'enseigne, le panneau des formations, le prospectus, le bâtiment). `GET /admin/releves/{id}/photos` */
   photosReleve(id: string): Promise<PhotoVue[]>;
+  photosEcole(id: string): Promise<PhotoVue[]>;
+  choisirPhotoPublique(ecoleId: string, photoId: string | null, confirme: boolean): Promise<void>;
   /**
    * Les personnes à contacter pour un relevé, la première reçue d'abord (vide : aucune). Elles restent attachées à la
    * fiche qui les a reçues : celles d'une fiche qu'on corrige se lisent sur sa correction (ticket #94).
@@ -920,6 +923,7 @@ export interface FormationPublique {
 
 /** Un campus publié, tel que le site public le montre : une implantation d'une institution. */
 export interface EcolePubliee {
+  photo?: import('./photos-publiques').PhotoPublique | null;
   origine?: string;
   declareeLe?: string | null;
   equipements?: Equipement[];
@@ -968,6 +972,7 @@ export interface EcolePubliee {
 
 /** Lu à la construction du site : les pages publiques n'appellent jamais la base. */
 export interface PortCatalogue {
+  lirePhotoPublique?(id: string): Promise<Uint8Array>;
   /** `GET /public/divisions` */
   divisions(): Promise<DivisionPublique[]>;
   /** `GET /public/ecoles` */

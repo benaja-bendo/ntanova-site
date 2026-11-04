@@ -161,14 +161,16 @@ export function svgDePartage({
   lieu,
   preuve,
   couleurs: c,
+  photo,
 }: {
   titre: string;
   lieu: string;
   preuve: PreuveDePartage | null;
   couleurs: CouleursDePartage;
+  photo?: string | undefined;
 }): string {
-  const lignes = coupeEnLignes(titre, 26, 3);
-  const taille = lignes.length > 2 ? 60 : 68;
+  const lignes = coupeEnLignes(titre, photo ? 17 : 26, 3);
+  const taille = photo ? 48 : lignes.length > 2 ? 60 : 68;
   const haut = 250 - (lignes.length - 1) * (taille / 2);
   const titreSvg = lignes
     .map(
@@ -178,7 +180,7 @@ export function svgDePartage({
     .join('');
   const basTitre = haut + (lignes.length - 1) * taille * 1.12;
   const lieuSvg = lieu
-    ? `<text x="80" y="${basTitre + 64}" font-family="Nunito Sans" font-size="34" fill="${c.texteDoux}">${echapper(lieu)}</text>`
+    ? `<text x="80" y="${photo ? 450 : basTitre + 64}" font-family="Nunito Sans" font-size="${photo ? 26 : 34}" fill="${c.texteDoux}">${echapper(photo ? (coupeEnLignes(lieu, 64, 1)[0] ?? lieu) : lieu)}</text>`
     : '';
   const preuveSvg = preuve
     ? (() => {
@@ -202,7 +204,7 @@ export function svgDePartage({
     (d, i) =>
       `<path d="${d}" fill="${[c.barreCreme, c.barreJaune, c.barreRouge][i]}" stroke="${c.trait}" stroke-width="3.2" stroke-linejoin="round"/>`,
   ).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${LARGEUR_PARTAGE}" height="${HAUTEUR_PARTAGE}" viewBox="0 0 ${LARGEUR_PARTAGE} ${HAUTEUR_PARTAGE}"><rect width="${LARGEUR_PARTAGE}" height="${HAUTEUR_PARTAGE}" fill="${c.fond}"/><rect y="0" width="${LARGEUR_PARTAGE}" height="12" fill="${c.marque}"/><g transform="translate(80 64) scale(0.42)">${barres}</g><text x="166" y="104" font-family="Poppins" font-weight="700" font-size="40" fill="${c.texte}">NTanova</text>${titreSvg}${lieuSvg}${preuveSvg}<text x="1120" y="590" text-anchor="end" font-family="Nunito Sans" font-size="28" fill="${c.texteDoux}">ntanova.com</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${LARGEUR_PARTAGE}" height="${HAUTEUR_PARTAGE}" viewBox="0 0 ${LARGEUR_PARTAGE} ${HAUTEUR_PARTAGE}"><rect width="${LARGEUR_PARTAGE}" height="${HAUTEUR_PARTAGE}" fill="${c.fond}"/><rect y="0" width="${LARGEUR_PARTAGE}" height="12" fill="${c.marque}"/><g transform="translate(80 64) scale(0.42)">${barres}</g><text x="166" y="104" font-family="Poppins" font-weight="700" font-size="40" fill="${c.texte}">NTanova</text>${photo ? `<image x="700" y="150" width="420" height="280" preserveAspectRatio="xMidYMid meet" href="${echapper(photo)}"/>` : ''}${titreSvg}${lieuSvg}${preuveSvg}<text x="1120" y="590" text-anchor="end" font-family="Nunito Sans" font-size="28" fill="${c.texteDoux}">ntanova.com</text></svg>`;
 }
 
 /** Les mots de l'image d'une fiche. */

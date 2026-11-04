@@ -58,6 +58,7 @@ interface Decision {
 }
 
 interface PhotoFausse {
+  publique?: boolean;
   id: string;
   releveId: string;
   role: Valeur<'photo_role'>;
@@ -924,6 +925,48 @@ const admin: PortAdministration = {
         prisLe: null,
         publiable: p.publiable,
       }));
+  },
+  async photosEcole(id) {
+    await reseau();
+    const e = lireEtat();
+    return Object.values(e.photos)
+      .filter(
+        (p) =>
+          e.decisions[p.releveId]?.statut === 'accepte' && e.decisions[p.releveId]?.ecoleId === id,
+      )
+      .map((p) => ({
+        id: p.id,
+        role: p.role,
+        adresse: '/relais/icone-512.png',
+        octets: p.octets,
+        largeur: 1280,
+        hauteur: 960,
+        prisLe: null,
+        publiable: p.publiable,
+        publique: p.publique ?? false,
+      }));
+  },
+  async choisirPhotoPublique(ecoleId, photoId, confirme) {
+    await reseau();
+    const e = lireEtat();
+    if (!e.campus[ecoleId]) throw new ErreurDecision('École introuvable.');
+    if (photoId) {
+      const p = e.photos[photoId];
+      if (
+        !confirme ||
+        !p ||
+        p.role !== 'signboard' ||
+        e.decisions[p.releveId]?.statut !== 'accepte' ||
+        e.decisions[p.releveId]?.ecoleId !== ecoleId
+      )
+        throw new ErreurDecision('Enseigne acceptée et confirmation requises.');
+    }
+    ecrire((e) => {
+      for (const p of Object.values(e.photos)) {
+        if (e.decisions[p.releveId]?.ecoleId === ecoleId) p.publique = p.id === photoId;
+        if (p.id === photoId) p.publiable = true;
+      }
+    });
   },
   async contactsReleve(id) {
     await reseau();

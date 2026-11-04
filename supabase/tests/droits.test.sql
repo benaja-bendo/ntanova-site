@@ -162,7 +162,7 @@ select is((select string_agg(table_name, ',' order by table_name) from informati
   null, 'Un visiteur n''a que le droit de lire (jamais d''écrire)');
 select is((select string_agg(table_name, ',' order by table_name) from information_schema.role_table_grants
            where grantee = 'anon' and table_schema = 'public' and privilege_type = 'SELECT'),
-  'campus_cycles,campus_facts,campus_fees,campus_programs,campuses,education_domains,geo_divisions,institutions,public_campus_cycles,public_campus_programs,public_campus_redirects,public_campuses',
+  'campus_cycles,campus_facts,campus_fees,campus_programs,campuses,education_domains,geo_divisions,institutions,public_campus_cycles,public_campus_photos,public_campus_programs,public_campus_redirects,public_campuses',
   'Le visiteur ne lit que le catalogue publié, la géographie et les domaines');
 select is((select count(*)::int from information_schema.role_table_grants
            where grantee in ('anon', 'authenticated', 'public') and table_schema = 'prive'), 0,

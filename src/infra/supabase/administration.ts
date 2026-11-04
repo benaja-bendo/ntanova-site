@@ -422,6 +422,20 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       }));
     },
 
+    async photosEcole(id): Promise<PhotoVue[]> {
+      const releves=await toutesLesLignes<{id:string}>((de,a)=>supabase().from('field_submissions').select('id').eq('campus_id',id).eq('status','accepte').order('id').range(de,a));
+      if(!releves.length) return [];
+      const lignes=await toutesLesLignes<{id:string;role:Valeur<'photo_role'>;storage_path:string;bytes:number;width:number|null;height:number|null;taken_at:string|null;child_free_checked_at:string|null;is_public:boolean}>((de,a)=>supabase().from('field_submission_photos').select('id,role,storage_path,bytes,width,height,taken_at,child_free_checked_at,is_public').in('submission_id',releves.map(r=>r.id)).eq('role','signboard').order('received_at').order('id').range(de,a));
+      if(!lignes.length) return [];
+      const {data:urls}=await supabase().storage.from(SEAU_PHOTOS).createSignedUrls(lignes.map(l=>l.storage_path),3600);
+      const adresses=new Map((urls??[]).map(a=>[a.path,a.signedUrl]));
+      return lignes.map(l=>({id:l.id,role:l.role,adresse:adresses.get(l.storage_path)??null,octets:l.bytes,largeur:l.width,hauteur:l.height,prisLe:l.taken_at,publiable:l.child_free_checked_at!==null,publique:l.is_public}));
+    },
+    async choisirPhotoPublique(ecoleId,photoId,confirme) {
+      const {error}=await supabase().rpc('set_campus_public_photo',{p_campus:ecoleId,p_photo:photoId,p_confirmed:confirme});
+      decider(error);
+    },
+
     async contactsReleve(id): Promise<ContactDirection[]> {
       // Les personnes restent attachées à la fiche qui les a reçues : celles d'une fiche qu'on corrige se lisent sur sa
       // correction, que le relais les ait redonnées ou non (ticket #94). On remonte la chaîne des fiches corrigées, sans

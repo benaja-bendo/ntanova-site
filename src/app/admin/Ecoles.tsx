@@ -1,3 +1,4 @@
+import { PhotoPublique } from './PhotoPublique';
 import { dateLongue } from '../../modele/pointe-noire';
 import { EquipementsEcole } from './EquipementsEcole';
 import { FraisEcole } from './FraisEcole';
@@ -90,6 +91,7 @@ function LigneEcole({
     | 'modifier'
     | 'situer'
     | 'mission'
+    | 'photo-publique'
     | 'equipements'
     | 'frais'
     | 'contact-public'
@@ -256,7 +258,24 @@ function LigneEcole({
           >
             Équipements
           </button>
+          <button
+            type="button"
+            className="bouton bouton-secondaire bouton-petit"
+            aria-expanded={mode === 'photo-publique'}
+            onClick={() => setMode(mode === 'photo-publique' ? null : 'photo-publique')}
+          >
+            Photo publique
+          </button>
         </div>
+        {mode === 'photo-publique' && (
+          <PhotoPublique
+            ecoleId={e.id}
+            nom={e.nom}
+            admin={admin}
+            fermer={() => setMode(null)}
+            surChangement={surChangement}
+          />
+        )}
         {mode === 'equipements' && (
           <EquipementsEcole
             ecoleId={e.id}
