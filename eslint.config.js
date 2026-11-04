@@ -81,4 +81,6 @@ export default defineConfig(
   frontiere('app/commun', [supabase, infraInterne, versRelais, versAdmin, versPages]),
   frontiere('app/relais', [supabase, infraInterne, versAdmin, versPages]),
   frontiere('app/admin', [supabase, infraInterne, versRelais, versPages]),
+  // La carte interactive (ticket #103) : un îlot du navigateur, sans réseau vers autre chose que ses fichiers.
+  frontiere('app/carte', [supabase, infraInterne, versRelais, versAdmin, versPages]),
 );
