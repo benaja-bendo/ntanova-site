@@ -328,6 +328,10 @@ function Photos({
   }
   return (
     <div className="pile-serree">
+      <p className="mention">
+        Effacer l’original ne retire pas les copies déjà publiées sur le site : reconstruis le site
+        après un retrait. Les copies partagées peuvent subsister.
+      </p>
       <div className="admin-photos" role="list" aria-label="Photos de l'envoi">
         {photos.map((p) => (
           <figure className="admin-figure" key={p.id} role="listitem">

@@ -31,6 +31,7 @@ import { listes } from '../modele/listes';
 import type { EcolePubliee, FormationPublique } from '../modele/ports';
 import { dateLongue } from '../modele/pointe-noire';
 import { lienFacette } from '../modele/recherche';
+import PhotoEcole from './PhotoEcole.astro';
 import ContactEcole from './ContactEcole.astro';
 import Carte from './Carte.astro';
 import FraisEcole from './FraisEcole.astro';
@@ -133,6 +134,8 @@ const nomZone = zone.division.nom;
         {e.etiquette && <p class="etiquette-campus">{e.etiquette}</p>}
         <p class="texte-doux">{lieu || zone.noms[0]}</p>
       </div>
+
+      {e.photo && <PhotoEcole photo={e.photo} nom={e.nom} />}
 
       <dl class="carte proprietes">
         {niveaux && (
@@ -258,7 +261,7 @@ const nomZone = zone.division.nom;
         <p class="surtitre-doux-public">Non communiqué par la direction</p>
         <ul class="pastilles-vides">
           {!e.frais?.length && <li>Frais</li>}
-          <li>Photos de l'école</li>
+          <li>Photos de l’école communiquées par la direction</li>
           {!e.equipements?.length && <li>Équipements</li>}
           {!e.contactPublic && <li>Contact de l'école</li>}
         </ul>

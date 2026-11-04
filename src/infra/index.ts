@@ -111,3 +111,19 @@ export function obtenirSite(): Promise<Site> {
   })();
   return site;
 }
+
+const photosPubliques = new Map<string, Promise<Uint8Array>>();
+/** Octets autorisés seulement, à la construction ; aucune URL privée dans le HTML public. */
+export function obtenirPhotoPublique(id: string): Promise<Uint8Array> {
+  let photo = photosPubliques.get(id);
+  if (!photo) {
+    photo = (async () => {
+      const c = await obtenirCatalogue();
+      if (!c.lirePhotoPublique) throw new Error('Lecture de photo publique indisponible.');
+      return c.lirePhotoPublique(id);
+    })();
+    if (photosPubliques.size >= 32) photosPubliques.delete(photosPubliques.keys().next().value!);
+    photosPubliques.set(id, photo);
+  }
+  return photo;
+}

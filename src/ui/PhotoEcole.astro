@@ -1,0 +1,46 @@
+---
+import type { PhotoPublique } from '../modele/photos-publiques';
+import { cheminPhotoPublique } from '../modele/photos-publiques';
+import { dateLongue } from '../modele/pointe-noire';
+interface Props {
+  photo: PhotoPublique;
+  nom: string;
+}
+const { photo, nom } = Astro.props;
+---
+
+<figure class="photo-ecole">
+  <img
+    src={cheminPhotoPublique(photo)}
+    alt={`Enseigne de ${nom}`}
+    width="720"
+    height="480"
+    loading="lazy"
+    decoding="async"
+  />
+  <figcaption>
+    Photo d’enseigne prise sur place
+    {photo.prisLe ? ` le ${dateLongue(photo.prisLe)}` : ' — date non renseignée'}. Sélectionnée par
+    NTanova ; elle ne vaut pas confirmation par la direction.
+  </figcaption>
+</figure>
+<style>
+  .photo-ecole {
+    margin: 0;
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .photo-ecole img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3/2;
+    object-fit: contain;
+    background: var(--fond-releve);
+    border-radius: var(--rayon-m);
+  }
+  figcaption {
+    font-size: var(--taille-secondaire);
+    color: var(--texte-doux);
+  }
+</style>

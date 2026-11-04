@@ -87,6 +87,14 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
     })());
 
   return {
+    async lirePhotoPublique(id) {
+      if(!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Photo publique inconnue.');
+      const [p]=await lireTout<{storage_path:string}>(`public_campus_photos?select=storage_path&id=eq.${id}`);
+      if(!p) throw new Error('Photo non publiée.');
+      const r=await fetch(`${url}/storage/v1/object/releves/${p.storage_path}`,{headers:{apikey:cle,Authorization:`Bearer ${cle}`}});
+      if(!r.ok) throw new Error(`Photo publique illisible (${r.status}).`);
+      return new Uint8Array(await r.arrayBuffer());
+    },
     divisions: lireDivisions,
 
     async domaines(): Promise<DomainePublic[]> {
@@ -116,7 +124,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
     },
 
     async ecoles(): Promise<EcolePubliee[]> {
-      const [campus, cycles, formations, frais, equipements] = await Promise.all([
+      const [campus, cycles, formations, frais, equipements, photos] = await Promise.all([
         lireTout<{
           id: string;
           institution_id: string;
@@ -160,8 +168,10 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
         }>('public_campus_programs?select=*&order=campus_id,cycle,title'),
         lireTout<LigneFrais>('campus_fees?select=*&order=id'),
         lireTout<LigneEquipement>('campus_facts?select=*&order=id'),
+        lireTout<{campus_id:string;id:string;taken_at:string|null}>('public_campus_photos?select=campus_id,id,taken_at&order=campus_id'),
       ]);
 
+      const photosDe=new Map(photos.map(p=>[p.campus_id,{id:p.id,prisLe:p.taken_at}]));
       const cyclesDe = new Map<string, string[]>();
       for (const c of cycles) cyclesDe.set(c.campus_id, [...(cyclesDe.get(c.campus_id) ?? []), c.cycle]);
       const equipementsDe=new Map<string,Equipement[]>();
@@ -188,6 +198,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           const adresse = sansRepetition(e.division_slugs);
           return {
             id: e.id,
+            photo: photosDe.get(e.id)??null,
             institutionId: e.institution_id,
             divisionId: e.division_id,
             slug: e.slug,

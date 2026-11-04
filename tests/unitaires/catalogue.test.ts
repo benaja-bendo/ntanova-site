@@ -121,6 +121,7 @@ describe('le catalogue du site public', () => {
       'public_campus_programs',
       'campus_fees',
       'campus_facts',
+      'public_campus_photos',
     ]);
   });
 
@@ -396,4 +397,23 @@ it('garde l’origine école et sa date sans inventer un passage terrain', async
   });
   const [e] = await catalogue().ecoles();
   expect(e).toMatchObject({ origine: 'school', declareeLe: '2026-11-01', releveeLe: null });
+});
+
+it('ne charge que la photo sélectionnée via le catalogue public', async () => {
+  fausseBase({
+    public_campuses: [CAMPUS],
+    public_campus_photos: [
+      { campus_id: 'c1', id: '93000000-0000-4000-8000-000000000001', taken_at: '2026-11-03' },
+    ],
+  });
+  const [e] = await catalogue().ecoles();
+  expect(e?.photo).toEqual({ id: '93000000-0000-4000-8000-000000000001', prisLe: '2026-11-03' });
+  await expect(catalogue().lirePhotoPublique!('../prive')).rejects.toThrow('inconnue');
+});
+
+it('refuse un fichier absent de la vue publique et ne télécharge jamais un chemin arbitraire', async () => {
+  fausseBase({ public_campus_photos: [] });
+  await expect(
+    catalogue().lirePhotoPublique!('93000000-0000-4000-8000-000000000001'),
+  ).rejects.toThrow('non publiée');
 });

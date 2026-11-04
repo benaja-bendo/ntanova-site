@@ -1,3 +1,4 @@
+import { photoExemple } from './photo-exemple';
 import type {
   DivisionPublique,
   DomainePublic,
@@ -245,6 +246,7 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000001',
     division: D.tieTie,
     slug: 'complexe-scolaire-exemple',
+    photo: { id: '93000000-0000-4000-8000-000000000001', prisLe: '2026-11-03' },
     equipements: [
       {
         id: '83000000-0000-4000-8000-000000000001',
@@ -491,6 +493,10 @@ const ECOLES: EcolePubliee[] = [
 ];
 
 export const catalogueFaux: PortCatalogue = {
+  async lirePhotoPublique(id) {
+    if (id !== '93000000-0000-4000-8000-000000000001') throw new Error('Photo inconnue.');
+    return photoExemple();
+  },
   async divisions() {
     return DIVISIONS;
   },
