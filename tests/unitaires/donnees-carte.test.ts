@@ -32,6 +32,7 @@ const division = (
   ouverte: false,
   deploiement: null,
   position: null,
+  contour: null,
   ...reste,
 });
 
@@ -178,6 +179,59 @@ describe('les écoles de la carte', () => {
     });
   });
 
+  it('porte le rang du cycle le plus élevé (1 à 6) pour regrouper, trier et filtrer', () => {
+    const rang = (niveaux: EcolePubliee['niveaux']) =>
+      ecolesGeoJSON([ecole('r', { niveaux })]).features[0]?.properties.rang;
+    expect(rang(['creche'])).toBe(1);
+    expect(rang(['maternelle'])).toBe(1);
+    expect(rang(['primaire'])).toBe(2);
+    expect(rang(['primaire', 'college'])).toBe(3);
+    expect(rang(['college', 'lycee'])).toBe(4);
+    expect(rang(['technique'])).toBe(5);
+    expect(rang(['superieur'])).toBe(6);
+    expect(rang(['autre_formation'])).toBe(6);
+    expect(rang([])).toBeNull();
+  });
+
+  it('porte les lettres de TOUS les cycles, du plus bas au plus haut, une fois chacune : la lettre suit le filtre (D9)', () => {
+    const lettres = (niveaux: EcolePubliee['niveaux']) =>
+      ecolesGeoJSON([ecole('l', { niveaux })]).features[0]?.properties.lettres;
+    expect(lettres(['maternelle', 'primaire', 'college'])).toBe('MPC');
+    expect(lettres(['creche', 'maternelle'])).toBe('M');
+    expect(lettres(['lycee', 'primaire'])).toBe('PL');
+    expect(lettres(['superieur', 'autre_formation'])).toBe('S');
+    expect(lettres([])).toBe('');
+  });
+
+  it('dit le type comme les listes du site, et rien quand il n’est pas connu', () => {
+    const type = (typeEcole: EcolePubliee['typeEcole']) =>
+      ecolesGeoJSON([ecole('t', { typeEcole })]).features[0]?.properties.type;
+    expect(type('privee')).toBe('Privée');
+    expect(type('publique')).toBe('Publique');
+    expect(type('confessionnelle')).toBe('Confessionnelle');
+    expect(type('communautaire')).toBe('Communautaire');
+    expect(type('autre')).toBeNull();
+    expect(type('non_indique')).toBeNull();
+  });
+
+  it('porte un repère court : espaces nettoyés, coupé sur un mot à 80 caractères, rien quand il est vide', () => {
+    const repere = (r: string | null) =>
+      ecolesGeoJSON([ecole('p', { repere: r })]).features[0]?.properties.repere;
+    expect(repere('  En face de la station  ')).toBe('En face de la station');
+    expect(repere('')).toBeNull();
+    expect(repere('   ')).toBeNull();
+    expect(repere(null)).toBeNull();
+    const long =
+      'Derrière le grand marché, à côté de la pharmacie, après le carrefour de la mairie et avant le rond-point';
+    const coupe = repere(long) as string;
+    expect(coupe.length).toBeLessThanOrEqual(80);
+    expect(coupe.endsWith('…')).toBe(true);
+    expect(coupe).not.toMatch(/[ ,;:]…$/);
+    expect(long.startsWith(coupe.slice(0, -1))).toBe(true);
+    // Un mot plus long que la place est coupé net, jamais perdu en entier.
+    expect(repere('x'.repeat(200)) as string).toHaveLength(80);
+  });
+
   it('n’écrit rien de privé', () => {
     const brut = JSON.stringify(ecolesGeoJSON([ecole('x', { numeroEnseigne: '242060000001' })]));
     expect(brut).not.toMatch(/242060000001|whatsapp|contact/i);
@@ -254,6 +308,123 @@ describe('les zones de la carte', () => {
 
   it('une zone dessinée a la page de ses écoles ; un lien n’est jamais inventé', () => {
     expect(parSlug('tie-tie')?.properties.lien).toBe('/ecoles/congo/pointe-noire/tie-tie/');
+  });
+});
+
+describe('les contours des zones viennent de la base', () => {
+  // Un carré de 1 km de côté avec dix points par côté, à sept décimales : la base garde plus que la carte n'en veut.
+  const COTE = 0.009;
+  const detaille: number[][] = [];
+  for (let i = 0; i <= 10; i++) detaille.push([11.9 + (COTE * i) / 10 + 1e-8, -4.8 + 1e-8]);
+  for (let i = 1; i <= 10; i++) detaille.push([11.9 + COTE + 1e-8, -4.8 + (COTE * i) / 10 + 1e-8]);
+  for (let i = 1; i <= 10; i++)
+    detaille.push([11.9 + COTE - (COTE * i) / 10 + 1e-8, -4.8 + COTE + 1e-8]);
+  for (let i = 1; i <= 10; i++) detaille.push([11.9 + 1e-8, -4.8 + COTE - (COTE * i) / 10 + 1e-8]);
+  detaille[detaille.length - 1] = detaille[0] as number[];
+
+  const avec = (slug: string, niveau: number, reste: Partial<DivisionPublique>) =>
+    D.map((d) => (d.slug === slug && d.niveau === niveau ? { ...d, ...reste } : d));
+  const parSlug = (z: ReturnType<typeof zonesGeoJSON>, slug: string, genre?: string) =>
+    z.features.filter(
+      (f) => f.properties.slug === slug && (!genre || f.properties.genre === genre),
+    );
+
+  it('un arrondissement prend le contour de la base avant le repli dessiné', () => {
+    const repli = [
+      [
+        [
+          [1, 1],
+          [2, 1],
+          [2, 2],
+          [1, 1],
+        ],
+      ],
+    ];
+    const zones = zonesGeoJSON({
+      divisions: avec('lumumba', 3, { contour: [[detaille]] }),
+      ecoles: [],
+      contourDe: () => repli,
+    });
+    const lumumba = parSlug(zones, 'lumumba')[0];
+    expect(lumumba?.geometry.type).toBe('MultiPolygon');
+    expect(JSON.stringify(lumumba?.geometry)).not.toContain('[1,1]');
+    expect(JSON.stringify(lumumba?.geometry)).toContain('11.9');
+  });
+
+  it('le repli dessiné sert quand la base n’a pas de contour', () => {
+    const repli = [
+      [
+        [
+          [11.9, -4.8],
+          [11.95, -4.8],
+          [11.95, -4.82],
+          [11.9, -4.8],
+        ],
+      ],
+    ];
+    const zones = zonesGeoJSON({ divisions: D, ecoles: [], contourDe: () => repli });
+    expect(parSlug(zones, 'tie-tie')[0]?.geometry.type).toBe('MultiPolygon');
+  });
+
+  it('le contour est simplifié à 10 m et arrondi au mètre : le téléphone n’en veut pas plus', () => {
+    const zones = zonesGeoJSON({
+      divisions: avec('lumumba', 3, { contour: [[detaille]] }),
+      ecoles: [],
+      contourDe: () => null,
+    });
+    const geometrie = parSlug(zones, 'lumumba')[0]?.geometry;
+    expect(geometrie?.type).toBe('MultiPolygon');
+    const anneau = (geometrie as { coordinates: number[][][][] }).coordinates[0]![0]!;
+    expect(anneau).toHaveLength(5);
+    for (const [lon, lat] of anneau) {
+      expect(Number(lon!.toFixed(5))).toBe(lon);
+      expect(Number(lat!.toFixed(5))).toBe(lat);
+    }
+  });
+
+  it('la commune qui a un état propre et un contour sort aussi en polygone, en plus de son point', () => {
+    const zones = zonesGeoJSON({
+      divisions: avec('brazzaville', 2, { contour: [[detaille]] }),
+      ecoles: [],
+      contourDe: () => null,
+    });
+    const bzv = parSlug(zones, 'brazzaville').filter((f) => f.properties.nom === 'Brazzaville');
+    expect(bzv.map((f) => f.properties.genre).sort()).toEqual(['ville', 'zone']);
+    expect(bzv.map((f) => f.geometry.type).sort()).toEqual(['MultiPolygon', 'Point']);
+    expect(bzv.every((f) => f.properties.etat === 'programme')).toBe(true);
+    const polygone = bzv.find((f) => f.properties.genre === 'zone');
+    expect(polygone?.properties).toMatchObject({
+      libelle: 'Déploiement programmé',
+      ecoles: 0,
+      vues: 0,
+    });
+  });
+
+  it('une ville qui n’a pas d’état propre reste un point seul, même quand la base a son contour', () => {
+    const zones = zonesGeoJSON({
+      divisions: avec('pointe-noire', 2, { contour: [[detaille]] }),
+      ecoles: [],
+      contourDe: () => null,
+    });
+    const pn = parSlug(zones, 'pointe-noire');
+    expect(pn).toHaveLength(1);
+    expect(pn[0]?.geometry.type).toBe('Point');
+  });
+
+  it('un arrondissement qui a un contour mais pas d’état n’est pas sur la carte (Brazzaville, aujourd’hui)', () => {
+    const moungali = division(
+      'moungali',
+      'bzv',
+      3,
+      'arrondissement',
+      'Moungali',
+      'moungali',
+      ['congo', 'brazzaville', 'brazzaville', 'moungali'],
+      { contour: [[detaille]] },
+    );
+    const zones = zonesGeoJSON({ divisions: [...D, moungali], ecoles: [], contourDe: () => null });
+    expect(parSlug(zones, 'moungali')).toHaveLength(0);
+    expect(JSON.stringify(zones)).not.toContain('11.9009');
   });
 });
 

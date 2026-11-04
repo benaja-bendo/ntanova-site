@@ -30,7 +30,7 @@ select is((select count(*)::int from public.geo_divisions where source is null),
 select is((select count(*)::int from public.geo_divisions where level = 3 and path::text like 'congo.pointe_noire.%' and boundary is not null),
   6, 'Les six arrondissements de Pointe-Noire ont un contour (OpenStreetMap)');
 select is((select count(*)::int from public.geo_divisions where level = 3 and path::text like 'congo.brazzaville.%' and boundary is not null),
-  0, 'Aucun contour n''est inventé pour Brazzaville');
+  9, 'Les neuf arrondissements de Brazzaville ont un contour (OpenStreetMap, ticket 113)');
 
 -- Les zones ouvertes aux relais -----------------------------------------------------------------------------
 

@@ -57,9 +57,9 @@ select is((select payable from public.field_submissions where id = '89000000-000
 
 -- 2. La position d'origine n'est dans aucun contour connu : l'administration choisit la division ---------------------------------------------
 
-select is(public.division_of_position(-4.27, 15.28, 3::smallint), null,
-  'La mise en place : Brazzaville n''a pas de contour connu, la division n''est pas déduite de la position');
-select pg_temp.envoyer('00000000-0000-4000-8000-0000000000b1', '89000000-0000-4000-8000-000000000011', 'École [Deux]', 15.28, -4.27);
+select is(public.division_of_position(-4.20, 12.67, 3::smallint), null,
+  'La mise en place : une position du Niari (Dolisie, dont les arrondissements ne sont pas amorcés) n''est dans aucun contour connu, la division n''est pas déduite de la position');
+select pg_temp.envoyer('00000000-0000-4000-8000-0000000000b1', '89000000-0000-4000-8000-000000000011', 'École [Deux]', 12.67, -4.20);
 select public.request_correction('89000000-0000-4000-8000-000000000011', 'photo_floue');
 select pg_temp.envoyer('00000000-0000-4000-8000-0000000000b1', '89000000-0000-4000-8000-000000000012', 'École [Deux]', null, null,
                        'correction', '89000000-0000-4000-8000-000000000011');
@@ -69,7 +69,7 @@ select lives_ok($$select public.accept_submission('89000000-0000-4000-8000-00000
                  (select id from public.geo_divisions where path::text = 'congo.pointe_noire.pointe_noire.tie_tie'))$$,
   'Avec la division choisie par l''administration, elle s''accepte');
 select is((select extensions.st_astext(position) from public.campuses where id = pg_temp.campus_de('89000000-0000-4000-8000-000000000012')),
-  'POINT(15.28 -4.27)', 'avec la position de la fiche d''origine');
+  'POINT(12.67 -4.2)', 'avec la position de la fiche d''origine');
 select is((select division_id from public.campuses where id = pg_temp.campus_de('89000000-0000-4000-8000-000000000012')),
   (select id from public.geo_divisions where path::text = 'congo.pointe_noire.pointe_noire.tie_tie'),
   'et la division choisie');

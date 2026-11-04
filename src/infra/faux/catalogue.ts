@@ -37,6 +37,7 @@ const division = (
   ouverte,
   deploiement: null,
   position: null,
+  contour: null,
 });
 
 const D = {

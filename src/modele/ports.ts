@@ -873,6 +873,11 @@ export interface DivisionPublique {
   deploiement: 'actif' | 'programme' | null;
   /** Le point d'une ville ou d'une zone, quand il est connu et sourcé (jamais inventé). */
   position: Point | null;
+  /**
+   * Le contour de la zone, quand la base le connaît (OpenStreetMap, simplifié, sourcé ; jamais inventé) : la carte le
+   * dessine. Pointe-Noire et Brazzaville aujourd'hui (ticket 113).
+   */
+  contour: MultiPolygone | null;
 }
 
 /** Un domaine de formation (Informatique, Gestion, BTP, Santé…). */
