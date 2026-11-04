@@ -115,7 +115,7 @@ describe('le catalogue du site public', () => {
     expect(appels.every((a) => a.cle === 'cle-publique')).toBe(true);
     expect(
       appels.map((a) => a.url.replace('https://base.exemple/rest/v1/', '').split('?')[0]),
-    ).toEqual(['public_campuses', 'public_campus_cycles', 'public_campus_programs']);
+    ).toEqual(['public_campuses', 'public_campus_cycles', 'public_campus_programs', 'campus_fees']);
   });
 
   it('l’adresse publique saute la répétition ville / département, et garde le pays', async () => {
@@ -310,5 +310,43 @@ describe('contact public autorisé', () => {
     const e = (await creerCatalogue('https://exemple.test', 'cle-fictive').ecoles())[0];
     expect(e?.contactPublic).toBeNull();
     expect(e?.numeroEnseigne).toBe('242060000009');
+  });
+});
+
+describe('frais déclarés dans le catalogue', () => {
+  it('lit les montants tels que déclarés sans calcul de total ni mélange avec le badge', async () => {
+    fausseBase({
+      public_campuses: [CAMPUS],
+      campus_fees: [
+        {
+          id: 'f1',
+          campus_id: 'c1',
+          cycle: 'primaire',
+          minimum: 25000,
+          maximum: 30000,
+          period: 'mois',
+          period_detail: null,
+          registration: null,
+          school_year: null,
+          declared_on: '2026-11-03',
+          note: null,
+        },
+      ],
+    });
+    const [e] = await catalogue().ecoles();
+    expect(e?.frais).toEqual([
+      {
+        id: 'f1',
+        cycle: 'primaire',
+        minimum: 25000,
+        maximum: 30000,
+        periode: 'mois',
+        precisionPeriode: null,
+        inscription: null,
+        anneeScolaire: null,
+        declaresLe: '2026-11-03',
+        note: null,
+      },
+    ]);
   });
 });

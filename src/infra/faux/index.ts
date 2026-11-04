@@ -1,3 +1,4 @@
+import { lireFraisEcole, saisieDeFrais, type FraisEcole } from '../../modele/frais-ecole';
 import { lireAccordContactPublic, type ContactPublic } from '../../modele/contact-public';
 /**
  * Un faux serveur, gardé dans le navigateur, pour les parcours Playwright
@@ -61,6 +62,7 @@ interface PhotoFausse {
 
 /** Une institution et son campus, réunis (le faux serveur n'a qu'un campus par institution, sauf ajout). */
 interface CampusFaux {
+  frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;
   id: string;
   institutionId: string;
@@ -729,6 +731,7 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     programme: c.programme ?? null,
     repere: c.repere ?? null,
     numeroEnseigne: c.numeroEnseigne ?? null,
+    frais: c.frais ?? [],
     contactPublic: c.contactPublic ?? null,
     formations: (c.formations ?? []).length,
     verifieeLe: c.verifieeLe ?? null,
@@ -1484,6 +1487,9 @@ const admin: PortAdministration = {
     return rapport;
   },
   async modifierEcole(ecoleId, correction) {
+    const frais = lireEtat().campus[ecoleId]?.frais ?? [];
+    if (correction.niveaux && frais.some((f) => !correction.niveaux!.includes(f.cycle)))
+      throw new ErreurDecision('Retire d’abord les frais déclarés pour ce cycle.');
     await reseau();
     if (!lireEtat().campus[ecoleId]) {
       throw new ErreurDecision('École introuvable, ou modification refusée.');
@@ -1620,6 +1626,51 @@ const admin: PortAdministration = {
         },
       }),
     );
+  },
+
+  async enregistrerFraisEcole(ecoleId, frais, id) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    if (!c || !(c.niveaux ?? []).includes(frais.cycle))
+      throw new ErreurDecision('Ce cycle doit être renseigné dans la fiche de l’école.');
+    if (id && !(c.frais ?? []).some((f) => f.id === id))
+      throw new ErreurDecision('Ligne de frais introuvable.');
+    const resultat = lireFraisEcole({
+      ...saisieDeFrais({ ...frais, id: id ?? '' }),
+      declarationConfirmee: true,
+    });
+    if (!resultat.frais) throw new ErreurDecision(resultat.erreur!);
+    if (
+      (c.frais ?? []).some(
+        (f) =>
+          f.id !== id &&
+          f.cycle === frais.cycle &&
+          f.periode === frais.periode &&
+          f.precisionPeriode === frais.precisionPeriode &&
+          f.anneeScolaire === frais.anneeScolaire,
+      )
+    )
+      throw new ErreurDecision(
+        'Une ligne existe déjà pour ce cycle, cette période et cette année scolaire : modifie-la.',
+      );
+    const identifiant = id ?? crypto.randomUUID();
+    ecrire((e) => {
+      const c = e.campus[ecoleId]!;
+      c.frais = [
+        ...(c.frais ?? []).filter((f) => f.id !== identifiant),
+        { ...resultat.frais!, id: identifiant },
+      ];
+    });
+    return identifiant;
+  },
+  async retirerFraisEcole(ecoleId, id) {
+    await reseau();
+    if (!(lireEtat().campus[ecoleId]?.frais ?? []).some((f) => f.id === id))
+      throw new ErreurDecision('Ligne de frais introuvable.');
+    ecrire((e) => {
+      const c = e.campus[ecoleId]!;
+      c.frais = (c.frais ?? []).filter((f) => f.id !== id);
+    });
   },
 
   async enregistrerContactPublic(ecoleId, contact) {

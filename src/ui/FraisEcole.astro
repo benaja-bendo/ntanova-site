@@ -1,0 +1,71 @@
+---
+import { montantFrais, francsCFA, periodesFrais, type FraisEcole } from '../modele/frais-ecole';
+import { libelleNiveau } from '../modele/libelles';
+import { dateLongue } from '../modele/pointe-noire';
+interface Props {
+  frais: FraisEcole[];
+}
+const { frais } = Astro.props;
+---
+
+{frais.length > 0 && (
+  <section class="carte frais-ecole" aria-label="Frais déclarés par l’école">
+    <h2>Frais déclarés par l’école</h2>
+    <p>Informations communiquées par l’école, à confirmer auprès d’elle.</p>
+    <ul>
+      {frais.map((f) => (
+        <li>
+          <h3>{libelleNiveau[f.cycle]}</h3>
+          <p>
+            <b>{montantFrais(f)}</b> ·{' '}
+            {f.periode === 'autre' ? f.precisionPeriode : periodesFrais[f.periode]}
+          </p>
+          <p>
+            {f.anneeScolaire
+              ? `Année scolaire : ${f.anneeScolaire}`
+              : 'Année scolaire non précisée'}
+          </p>
+          <p>
+            Frais d’inscription :{' '}
+            {f.inscription === null ? 'non communiqués' : francsCFA(f.inscription)}
+          </p>
+          {f.note && <p>{f.note}</p>}
+          <p class="date-frais">Déclarés par l’école le {dateLongue(f.declaresLe)}.</p>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
+<style>
+  .frais-ecole {
+    padding: var(--espace-4);
+    display: grid;
+    gap: var(--espace-3);
+  }
+  h2 {
+    font-size: var(--taille-titre-fiche);
+  }
+  h3 {
+    font-size: var(--taille-courante);
+  }
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--espace-4);
+  }
+  li {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  p,
+  h2,
+  h3 {
+    margin: 0;
+  }
+  .date-frais {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+</style>

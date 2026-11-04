@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { Dialogue } from '../../ui/Dialogue';
+import { jourDuCongo } from '../../modele/date-declaration';
 import {
-  jourDuCongo,
   lireAccordContactPublic,
   type ContactPublic as Contact,
 } from '../../modele/contact-public';
@@ -26,12 +27,6 @@ export function ContactPublic({
   surChangement: (texte: string) => void;
   fermer: () => void;
 }) {
-  const dialogue = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const d = dialogue.current!;
-    d.showModal();
-    return () => d.close();
-  }, []);
   const [numero, setNumero] = useState(contact?.numero ?? '');
   const [accordLe, setAccordLe] = useState('');
   const [fonction, setFonction] = useState('');
@@ -68,19 +63,7 @@ export function ContactPublic({
     }
   };
   return (
-    <dialog
-      ref={dialogue}
-      className="dialogue-contact-public"
-      aria-label={`Contact public de ${nom}`}
-      onClose={fermer}
-    >
-      <button
-        type="button"
-        className="bouton bouton-secondaire"
-        onClick={() => dialogue.current?.close()}
-      >
-        Fermer
-      </button>
+    <Dialogue titre={`Contact public de ${nom}`} fermer={fermer}>
       <form
         className="admin-motif"
         aria-label={`Contact public de ${nom}`}
@@ -182,6 +165,6 @@ export function ContactPublic({
           familles.
         </p>
       </form>
-    </dialog>
+    </Dialogue>
   );
 }

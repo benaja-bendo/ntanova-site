@@ -1,3 +1,4 @@
+import { FraisEcole } from './FraisEcole';
 import { ContactPublic } from './ContactPublic';
 /**
  * Les écoles et leur cycle de vie (supabase/schema.md, « Le cycle de vie ») :
@@ -82,7 +83,7 @@ function LigneEcole({
     e.confiee?.genre ?? (e.aSituer ? 'locate' : 'verify'),
   );
   const [mode, setMode] = useState<
-    'retirer' | 'fusionner' | 'modifier' | 'situer' | 'mission' | 'contact-public' | null
+    'retirer' | 'fusionner' | 'modifier' | 'situer' | 'mission' | 'frais' | 'contact-public' | null
   >(null);
   const [motif, setMotif] = useState<Valeur<'motif_retrait'>>('demande_ecole');
   const [noteRetrait, setNoteRetrait] = useState('');
@@ -228,7 +229,26 @@ function LigneEcole({
           >
             Contact public
           </button>
+          <button
+            type="button"
+            className="bouton bouton-secondaire bouton-petit"
+            aria-expanded={mode === 'frais'}
+            onClick={() => setMode(mode === 'frais' ? null : 'frais')}
+          >
+            Frais déclarés
+          </button>
         </div>
+        {mode === 'frais' && (
+          <FraisEcole
+            ecoleId={e.id}
+            nom={e.nom}
+            cycles={e.niveaux}
+            frais={e.frais ?? []}
+            admin={admin}
+            fermer={() => setMode(null)}
+            surChangement={surChangement}
+          />
+        )}
         {mode === 'contact-public' && (
           <ContactPublic
             ecoleId={e.id}

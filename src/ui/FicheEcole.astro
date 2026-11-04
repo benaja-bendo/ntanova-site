@@ -33,6 +33,7 @@ import { dateLongue } from '../modele/pointe-noire';
 import { lienFacette } from '../modele/recherche';
 import ContactEcole from './ContactEcole.astro';
 import Carte from './Carte.astro';
+import FraisEcole from './FraisEcole.astro';
 
 interface Props {
   e: EcolePubliee;
@@ -230,6 +231,7 @@ const nomZone = zone.division.nom;
     </div>
 
     <div class="fiche-cote">
+      <FraisEcole frais={e.frais ?? []} />
       {pasReleve.length > 0 && (
         <section class="manque">
           <p class="surtitre-doux-public">Pas encore relevé</p>
@@ -243,7 +245,7 @@ const nomZone = zone.division.nom;
       <section class="manque">
         <p class="surtitre-doux-public">Non communiqué par la direction</p>
         <ul class="pastilles-vides">
-          <li>Frais</li>
+          {!e.frais?.length && <li>Frais</li>}
           <li>Photos de l'école</li>
           <li>Équipements</li>
           {!e.contactPublic && <li>Contact de l'école</li>}
