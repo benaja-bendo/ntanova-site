@@ -90,21 +90,24 @@ export const motifsProposes: Valeur<'motif_decision'>[] = [
  * relevé pose : une fiche sans cette date n'est jamais dite vue sur place. Les deux preuves ne se
  * fusionnent pas : la fiche les écrit l'une après l'autre ; une liste n'en montre qu'une, la plus forte.
  */
-export type Provenance = 'verifiee' | 'relevee' | 'ajoutee';
+export type Provenance = 'verifiee' | 'relevee' | 'ajoutee' | 'declaree';
 
 export function provenanceDe(e: {
+  origine?: string;
   etat: Valeur<'etat_ecole'>;
   releveeLe: string | null;
   situeeLe: string | null;
 }): Provenance {
   if (e.etat === 'verifiee') return 'verifiee';
-  return e.releveeLe === null ? 'ajoutee' : 'relevee';
+  if (e.releveeLe !== null) return 'relevee';
+  return e.origine === 'school' ? 'declaree' : 'ajoutee';
 }
 
 export const libelleProvenance: Record<Provenance, string> = {
   verifiee: 'Confirmée par la direction',
   relevee: 'Vue sur place',
   ajoutee: 'Ajoutée par NTanova, pas encore vue sur place',
+  declaree: 'Déclarée par l’école',
 };
 
 // Le catalogue universel : formations, photos, origine, divisions ------------------------------
@@ -168,6 +171,7 @@ export const libelleOrigine: Record<Valeur<'origin_kind'>, string> = {
   field: 'Relevée par un relais',
   admin: 'Ajoutée par NTanova',
   import: 'Importée',
+  school: 'Déclarée par l’école',
 };
 
 export const libelleGenreDivision: Record<Valeur<'geo_kind'>, string> = {

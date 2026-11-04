@@ -1,3 +1,4 @@
+import { erreursDeclaration } from '../../modele/declaration-ecole';
 import {
   lireEquipement,
   saisieDeEquipement,
@@ -77,6 +78,7 @@ interface CampusFaux {
   quartier: string | null;
   publication: Valeur<'publication'>;
   origine: Valeur<'origin_kind'>;
+  declareeLe?: string | null;
   position: { latitude: number; longitude: number } | null;
   divisionId: string | null;
   confieeA: string | null;
@@ -721,6 +723,7 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     divisionId: division?.id ?? null,
     publication: c.publication,
     origine: c.origine,
+    declareeLe: c.declareeLe ?? null,
     retrait: c.retrait ?? null,
     aSituer: c.position === null,
     position: c.position,
@@ -1458,11 +1461,19 @@ const admin: PortAdministration = {
       })),
     }));
   },
-  async creerEcole(entree) {
+  async creerEcole(entree, declaration) {
     await reseau();
-    // D'abord sur une copie : les erreurs de validation remontent sans rien écrire.
-    const resultat = creerEntree(lireEtat(), entree, 'admin');
-    ecrire((e) => void creerEntree(e, entree, 'admin'));
+    if (declaration && Object.keys(erreursDeclaration(declaration)).length)
+      throw new ErreurDecision('Date et confirmation de la déclaration requises.');
+    if (declaration && entree.campus.some((c) => c.numeroEnseigne !== null))
+      throw new ErreurDecision('Le contact public nécessite son accord séparé.');
+    const origine = declaration ? 'school' : 'admin';
+    const resultat = creerEntree(lireEtat(), entree, origine);
+    ecrire((e) => {
+      const r = creerEntree(e, entree, origine);
+      if (r.statut === 'creee' && declaration)
+        for (const id of r.campusIds) e.campus[id]!.declareeLe = declaration.declareeLe;
+    });
     return resultat;
   },
   async importerEcoles(entrees, simulation) {

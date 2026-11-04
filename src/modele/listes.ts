@@ -75,7 +75,7 @@ export const listes = {
   ],
   study_rhythm: ['jour', 'soir', 'weekend'],
   photo_role: ['signboard', 'programs_board', 'brochure', 'building'],
-  origin_kind: ['field', 'admin', 'import'],
+  origin_kind: ['field', 'admin', 'import', 'school'],
   mission_kind: ['verify', 'locate', 'complete'],
   mission_status: ['open', 'done', 'cancelled'],
   equipment_key: [

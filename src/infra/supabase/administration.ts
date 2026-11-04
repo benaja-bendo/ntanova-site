@@ -182,6 +182,7 @@ interface LigneCampus {
   verified_on: string | null;
   publication: Valeur<'publication'>;
   origin: Valeur<'origin_kind'>;
+  school_declared_on: string | null;
   curriculum_note: string | null;
   retired_at: string | null;
   retirement_reason: Valeur<'motif_retrait'> | null;
@@ -201,7 +202,7 @@ interface LigneCampus {
 
 const COLONNES_CAMPUS =
   'id, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
-  'publication, origin, curriculum_note, retired_at, retirement_reason, retirement_note, replaced_by_campus_id, ' +
+  'publication, origin, school_declared_on, curriculum_note, retired_at, retirement_reason, retirement_note, replaced_by_campus_id, ' +
   'institutions(name, kind), geo_divisions(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
   'campus_cycles(cycle, campus_programs(id)), campus_fees(*), campus_facts(*)';
 
@@ -218,6 +219,7 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     divisionId: e.division_id,
     publication: e.publication,
     origine: e.origin,
+    declareeLe: e.school_declared_on,
     retrait:
       e.publication === 'retiree' && e.retirement_reason && e.retired_at
         ? {
@@ -938,11 +940,10 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         .sort((x, y) => x.nom.localeCompare(y.nom, 'fr'));
     },
 
-    async creerEcole(entree): Promise<ResultatCreation> {
-      const { data, error } = await supabase().rpc('create_catalog_entry', {
-        p_entry: versEntree(entree),
-        p_origin: 'admin',
-      });
+    async creerEcole(entree, declaration): Promise<ResultatCreation> {
+      const { data, error } = declaration
+        ? await supabase().rpc('create_school_declaration', { p_entry: versEntree(entree), p_declared_on: declaration.declareeLe, p_confirmed: declaration.confirmee })
+        : await supabase().rpc('create_catalog_entry', { p_entry: versEntree(entree), p_origin: 'admin' });
       decider(error);
       const r = data as {
         status: 'created' | 'exists';

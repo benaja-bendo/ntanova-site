@@ -452,6 +452,8 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000008',
     division: D.moungali,
     slug: 'ecole-de-brazzaville-exemple',
+    origine: 'school',
+    declareeLe: '2026-11-01',
     nom: '[École de Brazzaville Exemple]',
     etiquette: null,
     quartier: null,

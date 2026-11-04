@@ -103,6 +103,16 @@ const lienListe = lienDivision(page.adresse);
     </p>
   )}
 
+  <p class="carte">
+    <a class="chercher" href="/pour-les-ecoles/#referencer">
+      Référencez votre établissement
+      {page.division.deploiement === 'programme' ? ' en avant-première' : ''}
+    </a>
+    <br />
+    La demande est ouverte partout au Congo-Brazzaville ; la publication reste une décision de
+    NTanova.
+  </p>
+
   {estPointeNoire && surLaCarte.length > 0 && (
     <div class="disposition">
       <Carte

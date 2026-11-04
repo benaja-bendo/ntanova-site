@@ -34,6 +34,8 @@ type Fiche = Pick<
   | 'verifieeLe'
   | 'releveeLe'
   | 'situeeLe'
+  | 'origine'
+  | 'declareeLe'
 >;
 
 /** L'adresse de l'image d'une fiche : celle de la fiche, en `.png`, sous `/partage/`. */
@@ -49,7 +51,7 @@ export interface PreuveDePartage {
 
 /** La preuve la plus forte, avec sa date : les mots de la fiche (ticket #99). */
 export function preuveDePartage(
-  e: Pick<Fiche, 'etat' | 'verifieeLe' | 'releveeLe' | 'situeeLe'>,
+  e: Pick<Fiche, 'etat' | 'verifieeLe' | 'releveeLe' | 'situeeLe' | 'origine' | 'declareeLe'>,
 ): PreuveDePartage {
   const provenance = provenanceDe(e);
   if (provenance === 'verifiee') {
@@ -64,6 +66,11 @@ export function preuveDePartage(
       texte: `${libelleProvenance.relevee} le ${dateLongue(e.releveeLe)}`,
     };
   }
+  if (provenance === 'declaree')
+    return {
+      genre: 'ajoutee',
+      texte: `${libelleProvenance.declaree}${e.declareeLe ? ` le ${dateLongue(e.declareeLe)}` : ''}`,
+    };
   return { genre: 'ajoutee', texte: libelleProvenance.ajoutee };
 }
 

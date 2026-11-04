@@ -387,3 +387,13 @@ describe('équipements avec provenance', () => {
     ]);
   });
 });
+
+it('garde l’origine école et sa date sans inventer un passage terrain', async () => {
+  fausseBase({
+    public_campuses: [
+      { ...CAMPUS, origin: 'school', school_declared_on: '2026-11-01', surveyed_at: null },
+    ],
+  });
+  const [e] = await catalogue().ecoles();
+  expect(e).toMatchObject({ origine: 'school', declareeLe: '2026-11-01', releveeLe: null });
+});

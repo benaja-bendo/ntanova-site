@@ -1,3 +1,4 @@
+import { dateLongue } from '../../modele/pointe-noire';
 import { EquipementsEcole } from './EquipementsEcole';
 import { FraisEcole } from './FraisEcole';
 import { ContactPublic } from './ContactPublic';
@@ -132,6 +133,7 @@ function LigneEcole({
         </span>
         <span className="mention admin-sous-ligne">
           {libelleOrigine[e.origine]}
+          {e.declareeLe ? ` le ${dateLongue(e.declareeLe)}` : ''}
           {e.verifieeLe && ` · vérifiée par la direction le ${jour(e.verifieeLe)}`}
         </span>
         {e.position && (
@@ -867,6 +869,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           { valeur: 'field', libelle: libelleOrigine.field },
           { valeur: 'admin', libelle: libelleOrigine.admin },
           { valeur: 'import', libelle: libelleOrigine.import },
+          { valeur: 'school', libelle: libelleOrigine.school },
         ]}
         valeurs={[origine]}
         surChoix={(o) => setOrigine(o)}
