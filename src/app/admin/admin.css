@@ -513,13 +513,15 @@
   opacity: 0.35;
 }
 
-.admin-frais-liste {
+.admin-frais-liste,
+.admin-equipements-liste {
   list-style: none;
   padding: 0;
   display: grid;
   gap: var(--espace-3);
 }
-.admin-frais-liste li {
+.admin-frais-liste li,
+.admin-equipements-liste li {
   display: grid;
   gap: var(--espace-2);
   border-bottom: 1px solid var(--trait);

@@ -1,3 +1,4 @@
+import { versEquipement, type LigneEquipement } from './equipements';
 import { versFrais, type LigneFrais } from './frais';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Point } from '../../modele/geo';
@@ -166,6 +167,7 @@ const COLONNES_DETAIL =
   'campus:campuses!field_submissions_campus_id_fkey(label, publication, institutions(name), geo_divisions(name))';
 
 interface LigneCampus {
+  campus_facts: LigneEquipement[];
   campus_fees: LigneFrais[];
   id: string;
   institution_id: string;
@@ -201,7 +203,7 @@ const COLONNES_CAMPUS =
   'id, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
   'publication, origin, curriculum_note, retired_at, retirement_reason, retirement_note, replaced_by_campus_id, ' +
   'institutions(name, kind), geo_divisions(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
-  'campus_cycles(cycle, campus_programs(id)), campus_fees(*)';
+  'campus_cycles(cycle, campus_programs(id)), campus_fees(*), campus_facts(*)';
 
 const versEcole = (e: LigneCampus): EcoleVue => {
   const mission = e.missions.find((m) => m.status === 'open');
@@ -241,6 +243,7 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     repere: e.landmark,
     numeroEnseigne: e.sign_phone,
     frais: (e.campus_fees ?? []).map(versFrais),
+    equipements: (e.campus_facts ?? []).map(versEquipement),
     contactPublic: e.public_phone && e.public_phone_agreed_on ? { numero: e.public_phone, accordLe: e.public_phone_agreed_on } : null,
     formations: e.campus_cycles.reduce((n, c) => n + c.campus_programs.length, 0),
     verifieeLe: e.verified_on,
@@ -1093,6 +1096,18 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
     },
 
     // Pont avec la direction -----------------------------------------------------------------------------
+
+    async enregistrerEquipement(ecoleId, equipement, id) {
+      const { data,error }=await supabase().rpc('set_school_fact',{
+        p_campus:ecoleId,p_fact:id,p_key:equipement.cle,p_label:equipement.precision,p_value:equipement.etat,
+        p_source:equipement.source,p_observed_on:equipement.constateLe,p_note:equipement.note,
+      });
+      decider(error);return data as string;
+    },
+    async retirerEquipement(ecoleId,id) {
+      const { error }=await supabase().rpc('withdraw_school_fact',{p_campus:ecoleId,p_fact:id});
+      decider(error);
+    },
 
     async enregistrerFraisEcole(ecoleId, frais, id) {
       const { data, error } = await supabase().rpc('set_school_fee', {

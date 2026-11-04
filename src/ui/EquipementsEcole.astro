@@ -1,0 +1,78 @@
+---
+import {
+  nomEquipement,
+  etatPublicEquipement,
+  libelleEquipement,
+  type Equipement,
+} from '../modele/equipements-ecole';
+import { listes } from '../modele/listes';
+import { dateLongue } from '../modele/pointe-noire';
+interface Props {
+  equipements: Equipement[];
+}
+const { equipements } = Astro.props;
+const manquants = listes.equipment_key.filter(
+  (c) => c !== 'autre' && !equipements.some((e) => e.cle === c),
+);
+---
+
+{equipements.length > 0 && (
+  <section class="carte equipements-ecole" aria-label="Équipements et infrastructures">
+    <h2>Équipements et infrastructures</h2>
+    <ul>
+      {equipements.map((e) => (
+        <li>
+          <h3>{nomEquipement(e)}</h3>
+          <p>{etatPublicEquipement(e)}</p>
+          <p class="date-equipement">
+            {e.source === 'terrain'
+              ? 'Observation'
+              : e.source === 'ecole'
+                ? 'Déclaration'
+                : 'Information'}{' '}
+            du {dateLongue(e.constateLe)}.
+          </p>
+          {e.note && <p>{e.note}</p>}
+        </li>
+      ))}
+    </ul>
+    {manquants.length > 0 && (
+      <p class="date-equipement">
+        Non renseignés : {manquants.map((c) => libelleEquipement[c]).join(', ')}.
+      </p>
+    )}
+  </section>
+)}
+<style>
+  .equipements-ecole {
+    padding: var(--espace-4);
+    display: grid;
+    gap: var(--espace-3);
+  }
+  h2 {
+    font-size: var(--taille-titre-fiche);
+  }
+  h3 {
+    font-size: var(--taille-courante);
+  }
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--espace-4);
+  }
+  li {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  p,
+  h2,
+  h3 {
+    margin: 0;
+  }
+  .date-equipement {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+</style>

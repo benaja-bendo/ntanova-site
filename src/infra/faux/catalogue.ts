@@ -245,6 +245,35 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000001',
     division: D.tieTie,
     slug: 'complexe-scolaire-exemple',
+    equipements: [
+      {
+        id: '83000000-0000-4000-8000-000000000001',
+        cle: 'cloture',
+        precision: null,
+        etat: 'present',
+        source: 'terrain',
+        constateLe: '2026-11-03',
+        note: 'Visible depuis la rue.',
+      },
+      {
+        id: '83000000-0000-4000-8000-000000000002',
+        cle: 'cantine',
+        precision: null,
+        etat: 'absent',
+        source: 'ecole',
+        constateLe: '2026-11-03',
+        note: null,
+      },
+      {
+        id: '83000000-0000-4000-8000-000000000003',
+        cle: 'eau',
+        precision: null,
+        etat: 'non_precise',
+        source: 'ecole',
+        constateLe: '2026-11-03',
+        note: null,
+      },
+    ],
     frais: [
       {
         id: '73000000-0000-4000-8000-000000000001',

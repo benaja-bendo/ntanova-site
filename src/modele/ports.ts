@@ -1,3 +1,4 @@
+import type { Equipement, EquipementASaisir } from './equipements-ecole';
 import type { FraisASaisir, FraisEcole } from './frais-ecole';
 import type { AccordContactPublic, ContactPublic } from './contact-public';
 /**
@@ -537,6 +538,7 @@ export interface InstitutionVue {
 }
 
 export interface EcoleVue {
+  equipements?: Equipement[];
   frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;
   /** L'identifiant du campus. */
@@ -785,6 +787,12 @@ export interface PortAdministration {
   enregistrerContactPublic(ecoleId: string, contact: AccordContactPublic | null): Promise<void>;
   enregistrerFraisEcole(ecoleId: string, frais: FraisASaisir, id: string | null): Promise<string>;
   retirerFraisEcole(ecoleId: string, id: string): Promise<void>;
+  enregistrerEquipement(
+    ecoleId: string,
+    equipement: EquipementASaisir,
+    id: string | null,
+  ): Promise<string>;
+  retirerEquipement(ecoleId: string, id: string): Promise<void>;
 
   // Pont avec la direction
   /** Le badge « Vérifié » : l'accord daté de la direction, après un relevé accepté. `POST /admin/ecoles/{id}/verification` */
@@ -908,6 +916,7 @@ export interface FormationPublique {
 
 /** Un campus publié, tel que le site public le montre : une implantation d'une institution. */
 export interface EcolePubliee {
+  equipements?: Equipement[];
   frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;
   /** L'identifiant du campus. */

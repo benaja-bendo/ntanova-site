@@ -34,6 +34,7 @@ import { lienFacette } from '../modele/recherche';
 import ContactEcole from './ContactEcole.astro';
 import Carte from './Carte.astro';
 import FraisEcole from './FraisEcole.astro';
+import EquipementsEcole from './EquipementsEcole.astro';
 
 interface Props {
   e: EcolePubliee;
@@ -232,6 +233,7 @@ const nomZone = zone.division.nom;
 
     <div class="fiche-cote">
       <FraisEcole frais={e.frais ?? []} />
+      <EquipementsEcole equipements={e.equipements ?? []} />
       {pasReleve.length > 0 && (
         <section class="manque">
           <p class="surtitre-doux-public">Pas encore relevé</p>
@@ -247,7 +249,7 @@ const nomZone = zone.division.nom;
         <ul class="pastilles-vides">
           {!e.frais?.length && <li>Frais</li>}
           <li>Photos de l'école</li>
-          <li>Équipements</li>
+          {!e.equipements?.length && <li>Équipements</li>}
           {!e.contactPublic && <li>Contact de l'école</li>}
         </ul>
       </section>
