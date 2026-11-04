@@ -231,10 +231,10 @@ function LigneEcole({
         </div>
         {mode === 'contact-public' && (
           <ContactPublic
-            key={e.id + (e.contactPublic?.numero ?? '') + (e.contactPublic?.accordLe ?? '')}
             ecoleId={e.id}
             nom={e.nom}
             contact={e.contactPublic ?? null}
+            fermer={() => setMode(null)}
             admin={admin}
             surChangement={surChangement}
           />

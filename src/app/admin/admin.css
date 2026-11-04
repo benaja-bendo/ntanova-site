@@ -482,3 +482,33 @@
   border-radius: var(--rayon-pilule);
   background: var(--marque-appuyee);
 }
+
+/* Le formulaire de contact sort du tableau : ses champs restent dans la largeur du téléphone. */
+.dialogue-contact-public {
+  width: min(42rem, calc(100% - 2rem));
+  max-width: calc(100% - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  margin: auto;
+  padding: var(--espace-3);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-s);
+  background: var(--fond);
+  color: var(--texte);
+  text-align: left;
+}
+.dialogue-contact-public .admin-motif {
+  max-width: none;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  padding: var(--espace-2) 0;
+}
+.dialogue-contact-public .champ {
+  min-width: 0;
+  width: 100%;
+}
+
+.dialogue-contact-public::backdrop {
+  background: var(--texte);
+  opacity: 0.35;
+}

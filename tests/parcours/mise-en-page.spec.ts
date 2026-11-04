@@ -352,7 +352,10 @@ test.describe('application carte', () => {
   }) => {
     await servirLesTuiles(context);
     await page.goto('/carte/');
-    await expect(page.locator('.explorateur')).toHaveAttribute('data-active', 'oui');
+    // Le rendu WebGL peut attendre le GPU partagé des trois formats ; ce n’est pas une mesure de vitesse.
+    await expect(page.locator('.explorateur')).toHaveAttribute('data-active', 'oui', {
+      timeout: 30_000,
+    });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

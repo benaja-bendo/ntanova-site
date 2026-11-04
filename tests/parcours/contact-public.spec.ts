@@ -60,3 +60,25 @@ test('sans accord public : pas de nouveau contact ni de mention inventée', asyn
   await expect(page.getByText('Contact communiqué par l’école', { exact: true })).toHaveCount(0);
   await expect(page.getByText("Contact de l'école", { exact: true })).toBeVisible();
 });
+
+test('sur téléphone : formulaire entier dans une fenêtre, Échap rend le focus', async ({
+  page,
+}) => {
+  await page.goto('/admin/');
+  await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
+  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  const ouvrir = page
+    .getByRole('row', { name: /\[École à situer\]/ })
+    .getByRole('button', { name: 'Contact public', exact: true });
+  await ouvrir.click();
+  const fenetre = page.getByRole('dialog', { name: 'Contact public de [École à situer]' });
+  await expect(fenetre).toBeVisible();
+  const boite = await fenetre.boundingBox();
+  expect(boite!.x).toBeGreaterThanOrEqual(0);
+  expect(boite!.x + boite!.width).toBeLessThanOrEqual(360);
+  expect(boite!.height).toBeLessThanOrEqual(640);
+  expect(await fenetre.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(fenetre).toHaveCount(0);
+  await expect(ouvrir).toBeFocused();
+});
