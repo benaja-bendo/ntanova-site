@@ -128,6 +128,8 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           neighbourhood: string | null;
           landmark: string | null;
           sign_phone: string | null;
+          public_phone: string | null;
+          public_phone_agreed_on: string | null;
           latitude: number | null;
           longitude: number | null;
           verification_state: EcolePubliee['etat'];
@@ -190,6 +192,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
             formations: formationsDe.get(e.id) ?? [],
             repere: e.landmark,
             numeroEnseigne: e.sign_phone,
+            contactPublic: e.public_phone && e.public_phone_agreed_on ? { numero: e.public_phone, accordLe: e.public_phone_agreed_on } : null,
             latitude: e.latitude,
             longitude: e.longitude,
             etat: e.verification_state,

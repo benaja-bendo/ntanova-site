@@ -260,3 +260,15 @@ Les migrations s'appliquent **depuis le Mac du fondateur, après relecture, jama
 | Une source à citer pour les subdivisions des villes autres que Brazzaville et Pointe-Noire (leurs lignes portent `verified_on` vide en attendant) | Avant d'afficher ces zones comme « vérifiées » |
 | L'accord parental d'un relais mineur (la proposition technique du 30/10 le prévoyait ; il n'est pas encore dans la base) | Avant d'accueillir des relais mineurs |
 | Les photos publiques : `is_public` existe, mais le site n'affiche encore aucune photo | Avec la fiche vérifiée |
+
+## Contact public de l’école — 04/11/2026, ticket 104
+
+Migration `20261104170000_contact_public_ecole.sql` : `campuses.public_phone` et `public_phone_agreed_on`, indissociables, ajoutés à la fin de `public_campuses`. La RLS existante ne montre que les campus publiés. Aucun numéro privé ou d’enseigne n’est copié automatiquement.
+
+`set_school_public_contact(p_campus, p_phone, p_agreed_on, p_role, p_channel)` exige une session administrateur. Numéro et accord complet (date réelle non future, fonction et canal) sont obligatoires. Tous les paramètres d’accord à `null` retirent le contact. Le déclencheur `prive.proteger_contact_public` empêche les écritures directes par les rôles de l’API, y compris INSERT, de contourner cette commande. La commande ne modifie ni contact privé, ni numéro d’enseigne, ni publication, ni badge.
+
+`prive.public_contact_agreements` garde les événements d’ajout, modification et retrait, avec auteur et date de saisie. Aucune lecture ou écriture directe par `anon` ou `authenticated` ; seuls numéro et date d’accord sont publics. Les accords ne sont pas des accords de vérification de la fiche.
+
+Le site public est statique : un ajout ou retrait en base exige une reconstruction puis une mise en ligne des pages. L’administration le dit et ouvre le workflow existant, par défaut sur essai. Vérifier sur essai puis publier en production pour que les familles voient le changement. Retirer le contact communiqué ne retire pas le numéro d’enseigne : s’il faut retirer aussi celui-ci, modifier explicitement la fiche. Les copies déjà enregistrées chez un tiers ne sont pas révoquées par une reconstruction.
+
+Vérifications dédiées : `supabase/tests/contact_public.test.sql` (28), validation du téléphone et de l’accord, contrat de schéma, catalogue, parcours ajout/relecture/retrait et affichage public avec dédoublonnage. Les frais, équipements, photos et l’origine `school` ne font pas partie de cette migration.

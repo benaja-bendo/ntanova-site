@@ -31,7 +31,7 @@ import { listes } from '../modele/listes';
 import type { EcolePubliee, FormationPublique } from '../modele/ports';
 import { dateLongue } from '../modele/pointe-noire';
 import { lienFacette } from '../modele/recherche';
-import { afficherTelephone } from '../modele/telephone';
+import ContactEcole from './ContactEcole.astro';
 import Carte from './Carte.astro';
 
 interface Props {
@@ -141,14 +141,7 @@ const nomZone = zone.division.nom;
             <dd>{e.programme}</dd>
           </>
         )}
-        {e.numeroEnseigne && (
-          <>
-            <dt>Numéro sur l'enseigne</dt>
-            <dd>
-              <a href={`tel:+${e.numeroEnseigne}`}>{afficherTelephone(e.numeroEnseigne)}</a>
-            </dd>
-          </>
-        )}
+        <ContactEcole contact={e.contactPublic ?? null} enseigne={e.numeroEnseigne} />
       </dl>
 
       {parCycle.length > 0 && (
@@ -253,7 +246,7 @@ const nomZone = zone.division.nom;
           <li>Frais</li>
           <li>Photos de l'école</li>
           <li>Équipements</li>
-          <li>Contact de l'école</li>
+          {!e.contactPublic && <li>Contact de l'école</li>}
         </ul>
       </section>
       <aside class="ecoles-appel">

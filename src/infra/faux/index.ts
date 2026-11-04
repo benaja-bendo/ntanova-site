@@ -1,3 +1,4 @@
+import { lireAccordContactPublic, type ContactPublic } from '../../modele/contact-public';
 /**
  * Un faux serveur, gardé dans le navigateur, pour les parcours Playwright
  * (`PUBLIC_ADAPTATEUR=faux`). Il répond comme la base : « reçu », « déjà reçu »,
@@ -60,6 +61,7 @@ interface PhotoFausse {
 
 /** Une institution et son campus, réunis (le faux serveur n'a qu'un campus par institution, sauf ajout). */
 interface CampusFaux {
+  contactPublic?: ContactPublic | null;
   id: string;
   institutionId: string;
   nom: string;
@@ -727,6 +729,7 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     programme: c.programme ?? null,
     repere: c.repere ?? null,
     numeroEnseigne: c.numeroEnseigne ?? null,
+    contactPublic: c.contactPublic ?? null,
     formations: (c.formations ?? []).length,
     verifieeLe: c.verifieeLe ?? null,
   };
@@ -1617,6 +1620,20 @@ const admin: PortAdministration = {
         },
       }),
     );
+  },
+
+  async enregistrerContactPublic(ecoleId, contact) {
+    await reseau();
+    if (!lireEtat().campus[ecoleId]) throw new ErreurDecision('École introuvable.');
+    if (contact) {
+      const resultat = lireAccordContactPublic({ ...contact, autorise: true });
+      if (resultat.erreur) throw new ErreurDecision(resultat.erreur);
+    }
+    ecrire((e) => {
+      e.campus[ecoleId]!.contactPublic = contact
+        ? { numero: contact.numero, accordLe: contact.accordLe }
+        : null;
+    });
   },
 
   async enregistrerVerification(campusId, accordLe) {

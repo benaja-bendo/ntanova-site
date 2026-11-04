@@ -1,0 +1,29 @@
+---
+import type { ContactPublic } from '../modele/contact-public';
+import { dateLongue } from '../modele/pointe-noire';
+import { afficherTelephone } from '../modele/telephone';
+interface Props {
+  contact?: ContactPublic | null;
+  enseigne: string | null;
+}
+const { contact, enseigne } = Astro.props;
+---
+
+{contact && (
+  <>
+    <dt>Contact communiqué par l’école</dt>
+    <dd>
+      <a href={`tel:+${contact.numero}`}>{afficherTelephone(contact.numero)}</a>
+      <p class="mention">Publication autorisée le {dateLongue(contact.accordLe)}.</p>
+      {enseigne === contact.numero && <p class="mention">Également lu sur l’enseigne.</p>}
+    </dd>
+  </>
+)}
+{enseigne && enseigne !== contact?.numero && (
+  <>
+    <dt>Numéro sur l’enseigne</dt>
+    <dd>
+      <a href={`tel:+${enseigne}`}>{afficherTelephone(enseigne)}</a>
+    </dd>
+  </>
+)}

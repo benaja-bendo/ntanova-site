@@ -1,3 +1,4 @@
+import { ContactPublic } from './ContactPublic';
 /**
  * Les écoles et leur cycle de vie (supabase/schema.md, « Le cycle de vie ») :
  * à situer → prête → publiée → retirée (→ publiée). Publier est un geste à part :
@@ -81,7 +82,7 @@ function LigneEcole({
     e.confiee?.genre ?? (e.aSituer ? 'locate' : 'verify'),
   );
   const [mode, setMode] = useState<
-    'retirer' | 'fusionner' | 'modifier' | 'situer' | 'mission' | null
+    'retirer' | 'fusionner' | 'modifier' | 'situer' | 'mission' | 'contact-public' | null
   >(null);
   const [motif, setMotif] = useState<Valeur<'motif_retrait'>>('demande_ecole');
   const [noteRetrait, setNoteRetrait] = useState('');
@@ -219,7 +220,25 @@ function LigneEcole({
               Modifier la fiche
             </button>
           )}
+          <button
+            type="button"
+            className="bouton bouton-secondaire bouton-petit"
+            aria-expanded={mode === 'contact-public'}
+            onClick={() => setMode(mode === 'contact-public' ? null : 'contact-public')}
+          >
+            Contact public
+          </button>
         </div>
+        {mode === 'contact-public' && (
+          <ContactPublic
+            key={e.id + (e.contactPublic?.numero ?? '') + (e.contactPublic?.accordLe ?? '')}
+            ecoleId={e.id}
+            nom={e.nom}
+            contact={e.contactPublic ?? null}
+            admin={admin}
+            surChangement={surChangement}
+          />
+        )}
 
         {mode === 'retirer' && (
           <form
