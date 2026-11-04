@@ -34,6 +34,11 @@ const cycles = [
     role="region"
     aria-label="Carte interactive des écoles"
   >
+    {application && (
+      <p class="carte-attente" role="status">
+        Chargement de la carte…
+      </p>
+    )}
     <div class="carte-repli">
       {repli.tete ? (
         <ApercuCarte arrondissement={repli.tete} ecoles={repli.ecoles} lienCarte="/carte/" />
@@ -159,6 +164,23 @@ const cycles = [
     border: 1px solid var(--trait);
     border-radius: var(--rayon-s);
     background: var(--carte-fond);
+  }
+  .carte-attente {
+    display: none;
+    padding: var(--espace-3);
+    color: var(--texte-doux);
+  }
+  /* Dès le premier rendu HTML, avant même la réception du chargeur.
+     Sans JavaScript, le dessin reste immédiat. Un échec ou l’absence de WebGL2 le rétablit. */
+  @media (scripting: enabled) {
+    .explorateur-app [data-etat='repli'] .carte-repli,
+    .explorateur-app [data-etat='chargement'] .carte-repli {
+      visibility: hidden;
+    }
+    .explorateur-app [data-etat='repli'] .carte-attente,
+    .explorateur-app [data-etat='chargement'] .carte-attente {
+      display: block;
+    }
   }
   .carte-repli {
     position: absolute;

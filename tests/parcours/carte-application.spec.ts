@@ -139,3 +139,34 @@ test('GPS obtenu : aucune coordonnée personnelle dans URL, stockage ou partage'
     await page.evaluate(() => JSON.stringify(localStorage) + JSON.stringify(sessionStorage)),
   ).not.toMatch(/812345|912345/);
 });
+
+test('plein écran : aucun flash du dessin pendant le chargement du moteur', async ({ page }) => {
+  let liberer!: () => void;
+  const attente = new Promise<void>((resolve) => (liberer = resolve));
+  await page.route('**/_astro/*.js', async (route) => {
+    await attente;
+    await route.continue();
+  });
+  try {
+    // Le HTML peut être peint alors que son premier module n’est pas encore reçu.
+    await page.goto('/carte/#12/-4.8/11.93', { waitUntil: 'commit' });
+    await expect(page.locator('#carte')).toBeVisible();
+    await expect(page.locator('.carte-repli')).toBeHidden();
+    await expect(page.locator('.carte-attente')).toBeVisible();
+    await expect(page.locator('.listes-repli')).toBeVisible();
+  } finally {
+    liberer();
+  }
+  await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'prete');
+  await expect(page.locator('.carte-attente')).toBeHidden();
+});
+
+test.describe('plein écran sans JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+  test('le dessin et les listes restent immédiatement disponibles', async ({ page }) => {
+    await page.goto('/carte/');
+    await expect(page.locator('.carte-repli')).toBeVisible();
+    await expect(page.locator('.listes-repli')).toBeVisible();
+    await expect(page.locator('.carte-attente')).toBeHidden();
+  });
+});
