@@ -45,6 +45,13 @@
   --framboise: #be185d; /* L, lycée : 6,0:1 */
   --ardoise: #475569; /* T, technique et professionnel : 7,6:1 */
   --indigo: #1e3a8a; /* S, supérieur et autre formation : 10,4:1 */
+  /* Le fond de la carte interactive : clair et désaturé, pour que seules les écoles et les zones aient de la couleur */
+  --gris-terre: #f2f3f0; /* la terre */
+  --vert-parc: #e5eae1; /* parcs, forêts, prairies : un souffle de vert */
+  --bleu-eau: #cfe3ea; /* l'eau */
+  --bleu-eau-texte: #3f6272; /* les noms sur l'eau : 4,9:1 */
+  --gris-nom: #646a65; /* les noms de rues et de quartiers : 5,0:1 sur la terre, 4,5:1 sur un parc (le gris-vide, 4,1:1) */
+  --gris-grande-route: #cdd2cd; /* le bord des grandes routes */
 
   /* La carte détourée : les couleurs du canevas « Site NTanova », un plateau de jeu vu d'en haut */
   --sable: #efe2bf; /* la terre de l'arrondissement qu'on regarde */
@@ -143,6 +150,22 @@
   --carte-position-repere: var(--rouge);
   --carte-position-contour: var(--blanc);
   --carte-position-precision: var(--vert);
+
+  /*
+   * Le fond de la carte interactive (src/modele/carte/style.ts, ticket #114) : les tuiles d'OpenStreetMap repeintes à
+   * ces seules couleurs. Le style est écrit à la construction : changer un jeton ici change le fond de toute la carte.
+   */
+  --fond-de-carte-terre: var(--gris-terre);
+  --fond-de-carte-parc: var(--vert-parc);
+  --fond-de-carte-eau: var(--bleu-eau);
+  --fond-de-carte-route: var(--blanc);
+  --fond-de-carte-route-bord: var(--gris-filet);
+  --fond-de-carte-grande-route-bord: var(--gris-grande-route);
+  --fond-de-carte-limite: var(--encre-50);
+  --fond-de-carte-nom: var(--gris-nom);
+  --fond-de-carte-nom-fort: var(--encre-75);
+  --fond-de-carte-nom-eau: var(--bleu-eau-texte);
+  --fond-de-carte-halo: var(--blanc);
 
   /* 3. Typographie : échelle pour un écran de 360 px, texte courant à 16 px */
   --police-titre: 'Poppins', system-ui, sans-serif;
