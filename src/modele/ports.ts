@@ -1,3 +1,4 @@
+import type { AccordContactPublic, ContactPublic } from './contact-public';
 /**
  * Les contrats entre les écrans et le serveur. Les écrans n'appellent que ces
  * ports ; src/infra/ les branche sur Supabase aujourd'hui, sur un serveur REST
@@ -535,6 +536,7 @@ export interface InstitutionVue {
 }
 
 export interface EcoleVue {
+  contactPublic?: ContactPublic | null;
   /** L'identifiant du campus. */
   id: string;
   institutionId: string;
@@ -777,6 +779,9 @@ export interface PortAdministration {
   /** Le premier campus est retiré et renvoie vers le second. */
   fusionnerEcoles(doublonId: string, gardeeId: string): Promise<void>;
 
+  /** Accord explicite de publication du contact ; null retire le contact public. Ne touche pas au privé ni au badge. */
+  enregistrerContactPublic(ecoleId: string, contact: AccordContactPublic | null): Promise<void>;
+
   // Pont avec la direction
   /** Le badge « Vérifié » : l'accord daté de la direction, après un relevé accepté. `POST /admin/ecoles/{id}/verification` */
   enregistrerVerification(
@@ -899,6 +904,7 @@ export interface FormationPublique {
 
 /** Un campus publié, tel que le site public le montre : une implantation d'une institution. */
 export interface EcolePubliee {
+  contactPublic?: ContactPublic | null;
   /** L'identifiant du campus. */
   id: string;
   institutionId: string;

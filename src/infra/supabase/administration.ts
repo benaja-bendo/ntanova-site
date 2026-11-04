@@ -171,6 +171,8 @@ interface LigneCampus {
   neighbourhood: string | null;
   landmark: string | null;
   sign_phone: string | null;
+  public_phone: string | null;
+  public_phone_agreed_on: string | null;
   position: unknown;
   division_id: string | null;
   verified_on: string | null;
@@ -194,7 +196,7 @@ interface LigneCampus {
 }
 
 const COLONNES_CAMPUS =
-  'id, institution_id, label, neighbourhood, landmark, sign_phone, position, division_id, verified_on, ' +
+  'id, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
   'publication, origin, curriculum_note, retired_at, retirement_reason, retirement_note, replaced_by_campus_id, ' +
   'institutions(name, kind), geo_divisions(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
   'campus_cycles(cycle, campus_programs(id))';
@@ -236,6 +238,7 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     programme: e.curriculum_note,
     repere: e.landmark,
     numeroEnseigne: e.sign_phone,
+    contactPublic: e.public_phone && e.public_phone_agreed_on ? { numero: e.public_phone, accordLe: e.public_phone_agreed_on } : null,
     formations: e.campus_cycles.reduce((n, c) => n + c.campus_programs.length, 0),
     verifieeLe: e.verified_on,
   };
@@ -1087,6 +1090,15 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
     },
 
     // Pont avec la direction -----------------------------------------------------------------------------
+
+    async enregistrerContactPublic(ecoleId, contact) {
+      const { error } = await supabase().rpc('set_school_public_contact', {
+        p_campus: ecoleId, p_phone: contact?.numero ?? null,
+        p_agreed_on: contact?.accordLe ?? null, p_role: contact?.fonction ?? null,
+        p_channel: contact?.canal ?? null,
+      });
+      decider(error);
+    },
 
     async enregistrerVerification(campusId, accordLe, fonction, canal, note) {
       const { error } = await supabase().rpc('record_verification', {

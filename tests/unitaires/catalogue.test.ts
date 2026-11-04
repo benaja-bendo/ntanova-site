@@ -289,3 +289,26 @@ describe('le catalogue du site public', () => {
     );
   });
 });
+
+describe('contact public autorisé', () => {
+  it('ne transmet un numéro communiqué que si sa date d’accord accompagne le catalogue', async () => {
+    fausseBase({
+      public_campuses: [
+        { ...CAMPUS, public_phone: '242060000009', public_phone_agreed_on: '2026-11-03' },
+      ],
+    });
+    expect(
+      (await creerCatalogue('https://exemple.test', 'cle-fictive').ecoles())[0]?.contactPublic,
+    ).toEqual({ numero: '242060000009', accordLe: '2026-11-03' });
+  });
+  it('ne reprend jamais le numéro d’enseigne pour remplir un contact public retiré', async () => {
+    fausseBase({
+      public_campuses: [
+        { ...CAMPUS, sign_phone: '242060000009', public_phone: null, public_phone_agreed_on: null },
+      ],
+    });
+    const e = (await creerCatalogue('https://exemple.test', 'cle-fictive').ecoles())[0];
+    expect(e?.contactPublic).toBeNull();
+    expect(e?.numeroEnseigne).toBe('242060000009');
+  });
+});
