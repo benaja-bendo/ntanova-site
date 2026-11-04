@@ -25,6 +25,12 @@
 /polices/*
   Cache-Control: public, max-age=2592000
 
+# Les glyphes de la carte (ticket #114) : le dossier porte le nom de la police, qui change si la police change.
+# Gardés un an : un téléphone ne repaie pas ses 74 Ko à chaque visite.
+/polices/carte/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
 # Le guide du relais (ticket #110) : public mais non listé. Ni la page, ni le PDF, ni les images dans un moteur de
 # recherche. Les fichiers exportés portent la version et la date dans leur nom : ils ne changent jamais sous un même nom.
 /guide-relais/*

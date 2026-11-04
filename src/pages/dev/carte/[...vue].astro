@@ -1,0 +1,143 @@
+---
+// Le fond de carte tel que le style le dessine (ticket 114). Réservé au développement : en production,
+// getStaticPaths ne renvoie rien et la page n'existe pas. Elle lit le fichier de tuiles servi en local :
+//   node outils/fond-de-carte/servir.ts    puis    pnpm dev    et    /dev/carte/
+import '../../../ui/jetons.css';
+import '../../../ui/base.css';
+import '../../../ui/composants.css';
+import jetons from '../../../ui/jetons.css?raw';
+import { FICHIER_DES_TUILES } from '../../../modele/carte/fond';
+import { styleDuFond } from '../../../modele/carte/style';
+
+export function getStaticPaths() {
+  return import.meta.env.DEV ? [{ params: { vue: undefined } }] : [];
+}
+
+const style = styleDuFond(jetons, {
+  adresseDesTuiles: `http://127.0.0.1:8077/${FICHIER_DES_TUILES}`,
+});
+// Des vues pour juger le fond : la ville, une rue, la seconde ville, le pays, et un endroit sans tuiles au-delà du zoom 10.
+const vues = [
+  { nom: 'Pointe-Noire', centre: [11.86, -4.79], zoom: 10.8 },
+  { nom: 'Une rue (Pointe-Noire)', centre: [11.9, -4.78], zoom: 14.5 },
+  { nom: 'Brazzaville', centre: [15.27, -4.27], zoom: 12 },
+  { nom: 'Un quartier (Brazzaville)', centre: [15.27, -4.27], zoom: 14.5 },
+  { nom: 'Le pays', centre: [15, -1], zoom: 4.7 },
+  { nom: 'Dolisie (zoom 12 : vide attendu)', centre: [12.67, -4.2], zoom: 12 },
+];
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Fond de carte · développement</title>
+  </head>
+  <body>
+    <div id="carte" data-style={JSON.stringify(style)}></div>
+    <div class="outils">
+      <p class="titre">
+        Fond de carte <span id="info"></span>
+      </p>
+      <div class="vues">
+        {vues.map((v) => (
+          <button class="bouton bouton-secondaire" type="button" data-vue={JSON.stringify(v)}>
+            {v.nom}
+          </button>
+        ))}
+      </div>
+      <p class="note">
+        Développement seulement. Les tuiles viennent de <code>servir.ts</code> (port 8077).
+      </p>
+    </div>
+    <script>
+      import { addProtocol, MapLibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl';
+      import 'maplibre-gl/dist/maplibre-gl.css';
+      import travailleur from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
+      import { Protocol } from 'pmtiles';
+
+      // Le calcul des tuiles tourne dans un worker : MapLibre cherche son fichier à côté du sien, ce qui ne tient plus
+      // une fois le script regroupé par Vite. On lui donne l'adresse du fichier que Vite a copié.
+      setWorkerUrl(travailleur);
+      addProtocol('pmtiles', new Protocol().tile);
+
+      const conteneur = document.getElementById('carte');
+      if (!conteneur) throw new Error('Le conteneur de la carte manque.');
+      const carte = new MapLibreMap({
+        container: conteneur,
+        style: JSON.parse(conteneur.dataset.style ?? '{}'),
+        center: [11.86, -4.79],
+        zoom: 10.8,
+        maxZoom: 17.5,
+        hash: true,
+      });
+      carte.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+      carte.on('error', (e) => console.error('carte :', e.error?.message ?? e));
+
+      const info = document.getElementById('info');
+      const majInfo = () => {
+        const c = carte.getCenter();
+        if (info)
+          info.textContent = `zoom ${carte.getZoom().toFixed(1)} · ${c.lng.toFixed(3)}, ${c.lat.toFixed(3)}`;
+      };
+      carte.on('move', majInfo);
+      carte.on('load', majInfo);
+      carte.on('idle', () => (document.title = 'Fond de carte · prêt'));
+
+      document.querySelectorAll<HTMLButtonElement>('[data-vue]').forEach((bouton) => {
+        bouton.addEventListener('click', () => {
+          const vue = JSON.parse(bouton.dataset.vue ?? '{}') as {
+            centre: [number, number];
+            zoom: number;
+          };
+          carte.jumpTo({ center: vue.centre, zoom: vue.zoom });
+        });
+      });
+      // Pour la console du navigateur pendant les essais.
+      Object.assign(window, { carte });
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      #carte {
+        position: fixed;
+        inset: 0;
+      }
+      .outils {
+        position: fixed;
+        left: 8px;
+        bottom: 28px;
+        max-width: calc(100vw - 16px);
+        padding: 8px 12px;
+        background: var(--fond-releve);
+        border: 1px solid var(--trait);
+        border-radius: var(--rayon-s);
+        z-index: 2;
+      }
+      .titre {
+        margin: 0 0 6px;
+        font-size: var(--taille-secondaire);
+        font-weight: 700;
+      }
+      .titre span {
+        font-weight: 400;
+        color: var(--texte-doux);
+      }
+      .vues {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--ecart-cibles);
+      }
+      .note {
+        margin: 6px 0 0;
+        font-size: var(--taille-mention);
+        color: var(--texte-doux);
+      }
+    </style>
+  </body>
+</html>

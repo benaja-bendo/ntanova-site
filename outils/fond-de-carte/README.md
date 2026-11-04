@@ -11,6 +11,7 @@ Décisions du fondateur (03/11/2026, [document de la carte](https://github.com/b
 | `fabriquer.sh` | Les trois extractions, la fusion, l'allègement, les contrôles : une commande. |
 | `alleger.ts` | Retire des tuiles les couches qu'on ne dessine pas et réécrit l'archive ; `--controler` la relit. |
 | `servir.ts` | Sert les archives en local, avec les requêtes partielles et CORS (développement, mesures). |
+| `glyphes.ts` | Dit quelles plages de glyphes les noms du fichier demandent, et si `public/polices/carte/` les a. `fabriquer.sh` le lance. |
 | `cors.json` | Les règles CORS du seau R2. Le test `tests/unitaires/cors-tuiles.test.ts` les garde. |
 | `verifier-hebergement.sh` | Contrôle le fichier une fois sur R2 : HTTP 206, CORS, cache. |
 | `analyse-2026-11-03/` | Les scripts de mesure et les résultats de l'état des lieux de la carte. |
@@ -57,6 +58,19 @@ Ce que coûte une vue à un téléphone (4 tuiles, Ko compressés, mesurés sur 
 | Descendre de la ville à la rue, zooms 11 à 15 : Pointe-Noire / Brazzaville | 772 / 1 143 | **421 / 572** |
 
 L'estimation du 03/11 au soir (≈ 12,9 Mo) était un peu haute, surtout pour Pointe-Noire (4,5 Mo estimés, 1,8 mesurés). Il reste ≈ 0,4 à 0,6 Mo à la descente : les routes (54 à 70 % d'une tuile allégée) et l'occupation du sol des zooms 11 à 13, à travailler dans le style ou le schéma si ce poids gêne.
+
+## La police des étiquettes et le style
+
+**Une seule police, Noto Sans Regular** (décision D6), servie par le site : `public/polices/carte/NotoSans-Regular/` (licence SIL OFL : `public/polices/LICENCE-noto-sans.txt`). MapLibre dessine un nom avec des **glyphes servis par plages de 256 codes** et ne télécharge une plage que si un nom y touche. Les fichiers viennent de [protomaps/basemaps-assets](https://github.com/protomaps/basemaps-assets) (`fonts/Noto Sans Regular/`, commit `028c18f`, 31/10/2025) ; il y a deux plages :
+
+| Plage | Poids | Pourquoi |
+| --- | --- | --- |
+| `0-255.pbf` | 74,3 Ko | Le latin : tout le français. Chargée dès qu'une étiquette s'affiche. |
+| `8192-8447.pbf` | 62,7 Ko | L'apostrophe courbe (U+2019) : 78 noms de rues, au zoom 12 et plus (mesuré le 04/11/2026). Chargée seulement quand l'un d'eux est à l'écran. |
+
+**À chaque nouvelle build**, `fabriquer.sh` lance `glyphes.ts`, qui lit les noms que la carte écrit (`name:fr`, sinon `name`) et **échoue** si une plage dont ils ont besoin n'est pas dans le dossier : copier alors le fichier depuis le dépôt ci-dessus. Sans ce contrôle, l'étiquette perdrait son caractère et la console du visiteur dirait 404.
+
+**Le style** est écrit à la construction par `src/modele/carte/style.ts` : le style de Protomaps (`@protomaps/basemaps`, au build seulement) repeint aux jetons `--fond-de-carte-…` de `src/ui/jetons.css`, réduit aux couches que le fichier contient, sans pictogramme ni sprite, avec un nom de lieu qui vaut `name:fr`, sinon `name` (21 Ko, 2,5 Ko compressés). **Pour le voir** : `node outils/fond-de-carte/servir.ts` dans un terminal, `pnpm dev` dans un autre, puis `/dev/carte/` (des vues pour juger la ville, une rue, le pays, et un endroit sans tuiles). Cette page n'existe pas en production.
 
 ## Héberger sur Cloudflare R2 (une action du fondateur)
 
@@ -125,7 +139,7 @@ Il sert `sortie/` sur `http://127.0.0.1:8077/congo-AAAA-MM-JJ.pmtiles` (uniqueme
 ## Mettre à jour
 
 - **Une nouvelle build** (OpenStreetMap change tous les jours ; un trimestre suffit) : `fabriquer.sh`, envoyer le nouveau fichier (nouveau nom daté), faire pointer le site dessus, **garder l'ancien** le temps de la mise en ligne, l'effacer après (`pnpm exec wrangler r2 object delete ntanova-tuiles/congo-ancien.pmtiles --remote`).
-- **Une nouvelle ville** : ajouter sa fenêtre dans `fabriquer.sh` (un `extract` de plus, et le `merge`). Une ville coûte de l'ordre de 5 à 20 Mo brut, 2 à 5 Mo allégé. Ajouter aussi son point, son contour et son état public dans la base (voir `CLAUDE.md`, « Les données de la carte interactive »).
+- **Une nouvelle ville** : ajouter sa fenêtre dans `fabriquer.sh` (un `extract` de plus, et le `merge`) **et** dans `FENETRES_DES_VILLES` (`src/modele/carte/fond.ts`) : un test compare les deux. Une ville coûte de l'ordre de 5 à 20 Mo brut, 2 à 5 Mo allégé. Ajouter aussi son point, son contour et son état public dans la base (voir `CLAUDE.md`, « Les données de la carte interactive »).
 
 ## Pièges
 

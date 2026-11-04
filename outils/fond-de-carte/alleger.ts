@@ -63,7 +63,7 @@ export function couchesARetirer(
 // --- Le protobuf d'une tuile (MVT) -----------------------------------------------------------------------------------------------
 
 /** Un entier protobuf (varint) à partir de `pos` : sa valeur et la position qui suit. */
-function lireVarint(octets: Uint8Array, pos: number): [valeur: number, suite: number] {
+export function lireVarint(octets: Uint8Array, pos: number): [valeur: number, suite: number] {
   let valeur = 0;
   let decalage = 0;
   for (;;) {
@@ -77,7 +77,7 @@ function lireVarint(octets: Uint8Array, pos: number): [valeur: number, suite: nu
 }
 
 /** Les champs de premier niveau d'un message : numéro, type de fil, début et fin (octets de l'entête du champ compris). */
-function* champs(
+export function* champs(
   octets: Uint8Array,
 ): Generator<{ champ: number; type: number; debut: number; contenu: number; fin: number }> {
   let pos = 0;
