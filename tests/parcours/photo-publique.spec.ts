@@ -7,6 +7,9 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
+  await expect(
+    page.getByText(/Effacer l’original ne retire pas les copies déjà publiées/),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Accepter la fiche', exact: true }).click();
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
