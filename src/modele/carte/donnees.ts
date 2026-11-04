@@ -108,6 +108,8 @@ export interface FeatureEcole {
     repere: string | null;
     preuve: 'direction' | 'terrain';
     preuveTexte: string;
+    passage?: string | null;
+    confirmation?: string | null;
   };
 }
 
@@ -138,6 +140,8 @@ export function ecolesGeoJSON(ecoles: readonly EcolePubliee[]): {
         repere: repereCourt(e.repere),
         preuve: preuve.genre === 'direction' ? 'direction' : 'terrain',
         preuveTexte: preuve.texte,
+        passage: e.releveeLe,
+        confirmation: e.etat === 'verifiee' ? e.verifieeLe : null,
       },
     });
   }

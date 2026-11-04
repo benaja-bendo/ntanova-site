@@ -39,3 +39,8 @@
   Cache-Control: public, max-age=86400
 /guide-relais/*.png
   Cache-Control: public, max-age=86400
+
+# Carte : position uniquement à l’appui du bouton, sans caméra ni microphone.
+/carte/*
+  ! Permissions-Policy
+  Permissions-Policy: camera=(), microphone=(), geolocation=(self)

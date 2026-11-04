@@ -1,0 +1,416 @@
+---
+import ApercuCarte from './ApercuCarte.astro';
+import type { donneesDeLaCarte, arrondissementDuRepli } from '../modele/carte/instantane';
+interface Props {
+  donnees: ReturnType<typeof donneesDeLaCarte>;
+  repli: ReturnType<typeof arrondissementDuRepli>;
+  application?: boolean;
+}
+const {
+  donnees: { zones, ecoles, cadre },
+  repli,
+  application = false,
+} = Astro.props;
+const cycles = [
+  ['', 'Tous'],
+  ['M', 'Crèche et maternelle'],
+  ['P', 'Primaire'],
+  ['C', 'Collège'],
+  ['L', 'Lycée'],
+  ['T', 'Technique'],
+  ['S', 'Supérieur et formation'],
+];
+---
+
+<section
+  class:list={['explorateur', { 'explorateur-app': application }]}
+  data-carte-page={application ? 'carte' : 'accueil'}
+>
+  <div
+    id="carte"
+    class="carte-interactive"
+    data-etat="repli"
+    data-boite={JSON.stringify(cadre.boite)}
+    role="region"
+    aria-label="Carte interactive des écoles"
+  >
+    <div class="carte-repli">
+      {repli.tete ? (
+        <ApercuCarte arrondissement={repli.tete} ecoles={repli.ecoles} lienCarte="/carte/" />
+      ) : (
+        <p>La carte s’affiche ici quand elle est chargée.</p>
+      )}
+    </div>
+    <div id="carte-toile" class="carte-toile"></div>
+  </div>
+  {!application && (
+    <a class="plein-ecran bouton" href="/carte/">
+      Explorer la carte en plein écran
+    </a>
+  )}
+  <button type="button" class="bouton activer-carte" hidden>
+    Explorer la carte interactive
+  </button>
+  <a
+    class="attribution-carte"
+    href="https://www.openstreetmap.org/copyright"
+    target="_blank"
+    rel="noopener"
+  >
+    © les contributeurs d’OpenStreetMap
+  </a>
+  <p id="carte-note" class="carte-note" role="status"></p>
+  {application && (
+    <>
+      <div class="outils-carte" hidden>
+        <label>
+          Cycle{' '}
+          <select class="champ" data-cycle>
+            {cycles.map(([valeur, nom]) => (
+              <option value={valeur}>{nom}</option>
+            ))}
+          </select>
+        </label>
+        <button class="bouton bouton-secondaire" type="button" data-position>
+          Ma position
+        </button>
+      </div>
+      <aside class="panneau-carte" aria-label="Écoles et recherche" data-hauteur="petit">
+        <div class="commandes-tiroir" hidden>
+          <button type="button" data-tiroir="petit" aria-controls="contenu-tiroir">
+            Réduire
+          </button>
+          <button
+            type="button"
+            data-tiroir="moyen"
+            aria-controls="contenu-tiroir"
+            aria-expanded="false"
+          >
+            Voir les écoles
+          </button>
+          <button type="button" data-tiroir="grand" aria-controls="contenu-tiroir">
+            Agrandir
+          </button>
+        </div>
+        <form role="search" aria-label="Chercher sur la carte" class="recherche-carte" hidden>
+          <label for="recherche-carte">Quelle école, où ?</label>
+          <div>
+            <input
+              id="recherche-carte"
+              class="champ"
+              name="q"
+              type="search"
+              placeholder="Nom, ville ou quartier"
+              autocomplete="off"
+            />
+            <button type="submit" class="bouton">
+              Chercher
+            </button>
+          </div>
+        </form>
+        <div id="contenu-tiroir">
+          <p data-zone class="texte-doux"></p>
+          <div data-selection></div>
+          <p data-compte role="status" aria-live="polite"></p>
+          <ul data-resultats class="resultats-carte"></ul>
+          <div class="listes-repli">
+            <h2>Les zones</h2>
+            <ul>
+              {zones.features
+                .filter((z) => z.properties.genre === 'zone')
+                .map((z) => (
+                  <li>
+                    <a href={z.properties.lien}>{z.properties.nom}</a> · {z.properties.libelle}
+                  </li>
+                ))}
+            </ul>
+            <h2>Les écoles sur la carte ({ecoles.features.length})</h2>
+            <ul>
+              {ecoles.features.map((e) => (
+                <li>
+                  <a href={e.properties.lien}>{e.properties.nom}</a> · {e.properties.preuveTexte}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <p class="carte-liens">
+            <a href="/recherche/">Recherche complète</a> · <a href="/ecoles/">Toutes les écoles</a>{' '}
+            · <a href="/a-propos/">Comment les fiches sont tenues</a> ·{' '}
+            <a href="/pour-les-ecoles/">Pour les écoles</a>
+          </p>
+          <p class="confidentialite-position" hidden>
+            NTanova ne conserve pas votre position. Elle sert à vous situer sur la carte. Le fond de
+            carte reçoit des demandes de tuiles correspondant à la zone consultée.
+          </p>
+        </div>
+      </aside>
+    </>
+  )}
+</section>
+<style is:global>
+  .explorateur {
+    position: relative;
+  }
+  .carte-interactive {
+    position: relative;
+    height: min(70dvh, 42rem);
+    min-height: 22rem;
+    overflow: hidden;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    background: var(--carte-fond);
+  }
+  .carte-repli {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    padding: var(--espace-3);
+  }
+  .carte-interactive .carte-toile {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+  }
+  [data-etat='prete'] .carte-toile {
+    opacity: 1;
+  }
+  [data-etat='prete'] .carte-repli {
+    display: none;
+  }
+  .carte-note {
+    color: var(--texte-doux);
+    margin: var(--espace-2) 0;
+  }
+  .plein-ecran {
+    margin-block: var(--espace-3);
+  }
+  .explorateur [hidden] {
+    display: none !important;
+  }
+  .panneau-carte {
+    background: var(--fond);
+    padding: var(--espace-3);
+  }
+  .panneau-carte a {
+    text-underline-offset: 3px;
+  }
+  .resultats-carte {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .resultats-carte li {
+    border-bottom: 1px solid var(--trait);
+    padding-bottom: var(--espace-3);
+  }
+  .resultats-carte button,
+  .commandes-tiroir button {
+    min-height: 44px;
+    padding: var(--espace-2);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    background: var(--fond);
+    color: var(--texte);
+    cursor: pointer;
+  }
+  .resultats-carte a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 700;
+  }
+  .resultats-carte p {
+    margin: 0;
+  }
+  .recherche-carte {
+    display: grid;
+    gap: var(--espace-1);
+    margin-bottom: var(--espace-3);
+  }
+  .recherche-carte div {
+    display: flex;
+    gap: var(--espace-1);
+  }
+  .recherche-carte input {
+    min-width: 0;
+    width: 100%;
+  }
+  .recherche-carte .bouton {
+    padding-inline: var(--espace-2);
+  }
+  .outils-carte {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-2);
+    flex-wrap: wrap;
+  }
+  .outils-carte label {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-1);
+  }
+  .outils-carte select {
+    max-width: 7rem;
+    width: 7rem;
+  }
+  .carte-apercu {
+    position: relative;
+    display: grid;
+    gap: var(--espace-2);
+    padding: var(--espace-3);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    background: var(--fond);
+    color: var(--texte);
+    font: inherit;
+  }
+  .carte-apercu p {
+    margin: 0;
+  }
+  .carte-apercu-nom {
+    font-weight: 700;
+    padding-right: 44px;
+  }
+  .carte-apercu-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+  }
+  .carte-apercu-actions a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .carte-apercu .maplibregl-popup-close-button {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.5rem;
+    color: var(--texte);
+  }
+  .explorateur-app[data-active] {
+    height: calc(100dvh - 5rem);
+    min-height: 20rem;
+  }
+  .explorateur-app[data-active] .carte-interactive {
+    height: 100%;
+    min-height: 0;
+    border-radius: 0;
+  }
+  .explorateur-app[data-active] .panneau-carte {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    max-height: 88%;
+    height: 10rem;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m) var(--rayon-m) 0 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .explorateur-app[data-active] .panneau-carte[data-hauteur='moyen'] {
+    height: 48%;
+  }
+  .explorateur-app[data-active] .panneau-carte[data-hauteur='grand'] {
+    height: 88%;
+  }
+  .explorateur-app[data-active] .commandes-tiroir {
+    display: flex;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--fond);
+    z-index: 1;
+  }
+  .explorateur-app[data-active] .outils-carte {
+    position: absolute;
+    top: var(--espace-2);
+    left: var(--espace-2);
+    right: 3.5rem;
+    background: var(--fond);
+    padding: var(--espace-1);
+    border-radius: var(--rayon-s);
+  }
+  .explorateur-app[data-active] .listes-repli {
+    display: none;
+  }
+  .explorateur-app[data-active] .carte-note:not(:empty) {
+    position: absolute;
+    top: 5rem;
+    left: var(--espace-2);
+    right: var(--espace-2);
+    background: var(--fond);
+    padding: var(--espace-2);
+    z-index: 3;
+  }
+  .page-exploration {
+    padding: 0;
+  }
+  .page-exploration > h1 {
+    font-size: var(--taille-courante);
+    margin: var(--espace-2) var(--espace-3);
+  }
+  .page-exploration:has([data-active]) > h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  body:has(.explorateur-app[data-active]) .pied {
+    display: none;
+  }
+  @media (min-width: 64rem) {
+    .explorateur-app[data-active] .panneau-carte {
+      top: 0;
+      width: 380px;
+      max-height: 100%;
+      height: 100% !important;
+      right: auto;
+      border-radius: 0;
+    }
+    .explorateur-app[data-active] .commandes-tiroir {
+      display: none;
+    }
+    .explorateur-app[data-active] .outils-carte {
+      left: calc(380px + var(--espace-2));
+      right: auto;
+    }
+  }
+</style>
+
+<style is:global>
+  .outils-carte {
+    font-size: var(--taille-secondaire);
+  }
+  .outils-carte .bouton {
+    padding-inline: var(--espace-2);
+    font-size: var(--taille-secondaire);
+  }
+</style>
+
+<style is:global>
+  .attribution-carte {
+    display: none;
+  }
+  .explorateur-app[data-active] .attribution-carte {
+    display: block;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 4;
+    background: var(--fond);
+    padding: 2px var(--espace-2);
+    font-size: var(--taille-secondaire);
+  }
+  .panneau-carte:has(.carte-apercu) .recherche-carte,
+  .panneau-carte:has(.carte-apercu) [data-zone] {
+    display: none;
+  }
+  .panneau-carte {
+    padding-bottom: 2rem;
+  }
+</style>

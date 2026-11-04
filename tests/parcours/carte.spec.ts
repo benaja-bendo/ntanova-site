@@ -155,7 +155,7 @@ test('l’accueil montre un aperçu de la carte de Tié-Tié, qui mène à sa ca
   // La porte accessible vers la carte est le bouton ; le dessin en est une autre, cachée du clavier
   // et du lecteur d'écran.
   await apercu.getByRole('link', { name: 'Voir la carte de Tié-Tié' }).click();
-  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
+  await expect(page).toHaveURL(/\/carte\/$/);
 });
 
 test('le dessin de l’aperçu est lui-même un lien vers la carte, sans entrer dans l’ordre du clavier', async ({
@@ -165,11 +165,11 @@ test('le dessin de l’aperçu est lui-même un lien vers la carte, sans entrer 
   const lien = page
     .getByRole('region', { name: 'La carte de Tié-Tié' })
     .locator('a.plateau-lien:visible');
-  await expect(lien).toHaveAttribute('href', '/cartes/congo/pointe-noire/tie-tie/');
+  await expect(lien).toHaveAttribute('href', '/carte/');
   await expect(lien).toHaveAttribute('tabindex', '-1');
   await expect(lien).toHaveAttribute('aria-hidden', 'true');
   await lien.click();
-  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
+  await expect(page).toHaveURL(/\/carte\/$/);
 });
 
 test('« Voir la carte de Pointe-Noire » garde son espace à l’écran', async ({ page }) => {

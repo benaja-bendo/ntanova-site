@@ -1,3 +1,4 @@
+import { servirLesTuiles } from './aides-carte';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { seConnecter, textesPeuLisibles } from './aides';
 
@@ -235,7 +236,7 @@ test.describe('site public', () => {
     page,
   }) => {
     await page.goto('/');
-    const titre = await position(page, 'Les écoles près de chez vous, ville par ville.');
+    const titre = await position(page, 'Trouvez une école au Congo-Brazzaville.');
     const apercu = await page.getByRole('region', { name: 'La carte de Tié-Tié' }).boundingBox();
     if (largeurDe(page) >= ORDINATEUR) {
       expect(apercu?.x ?? 0, 'à droite du titre').toBeGreaterThanOrEqual(titre.x + titre.width);
@@ -327,5 +328,46 @@ test.describe('site public', () => {
     } else {
       expect(garde.y).toBeGreaterThan(publie.y);
     }
+  });
+});
+
+test.use({
+  launchOptions: {
+    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
+  },
+});
+test.describe('application carte', () => {
+  test('carte : tiroir ou panneau, sans débordement et commandes au clavier', async ({
+    page,
+    context,
+  }) => {
+    await servirLesTuiles(context);
+    await page.goto('/carte/');
+    await expect(page.locator('.explorateur')).toHaveAttribute('data-active', 'oui');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    const panneau = await page.locator('.panneau-carte').boundingBox();
+    if ((page.viewportSize()?.width ?? 0) >= 1024) expect(panneau?.width).toBeCloseTo(380, 0);
+    else {
+      const bouton = page.getByRole('button', { name: 'Voir les écoles', exact: true });
+      await bouton.focus();
+      await page.keyboard.press('Enter');
+      await expect(bouton).toHaveAttribute('aria-expanded', 'true');
+      await page.keyboard.press('Escape');
+      await expect(bouton).toHaveAttribute('aria-expanded', 'false');
+    }
+    await page.getByRole('searchbox').fill('Groupe scolaire quartier');
+    await page.getByRole('searchbox').press('Enter');
+    const choix = page
+      .locator('[data-resultats]')
+      .getByRole('button', { name: 'Voir sur la carte' })
+      .first();
+    await choix.focus();
+    await choix.press('Enter');
+    await expect(page.locator('.carte-apercu')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.carte-apercu')).toHaveCount(0);
+    await expect(page.getByRole('searchbox')).toBeVisible();
   });
 });

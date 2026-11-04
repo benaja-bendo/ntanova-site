@@ -38,6 +38,8 @@ export interface DemarrageDeLaCarte {
   boite: Fenetre;
   /** Premier affichage complet : le repli peut s'effacer. */
   surPrete: () => void;
+  surSelection?: (ecole: FeatureEcole['properties']) => void;
+  integree?: boolean;
   /** Le fichier de tuiles ne répond pas : les zones et les écoles se dessinent, le fond manque. */
   surFondAbsent: () => void;
 }
@@ -126,6 +128,7 @@ export async function demarrerLaCarte(options: DemarrageDeLaCarte): Promise<MapL
     dragRotate: false,
     pitchWithRotate: false,
     touchPitch: false,
+    cooperativeGestures: options.integree ?? false,
   });
   carte.touchZoomRotate.disableRotation();
   carte.addControl(new AttributionControl({ compact: false }), 'bottom-right');
@@ -144,7 +147,11 @@ export async function demarrerLaCarte(options: DemarrageDeLaCarte): Promise<MapL
   const borner = () => {
     const { lng, lat } = carte.getCenter();
     const max = zoomMaxEn(lng, lat);
-    if (carte.getZoom() > max + 0.01) carte.easeTo({ zoom: max, duration: 300 });
+    if (carte.getZoom() > max + 0.01)
+      carte.easeTo({
+        zoom: max,
+        duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 300,
+      });
     else carte.setMaxZoom(max);
   };
   carte.on('moveend', borner);
@@ -175,6 +182,10 @@ export async function demarrerLaCarte(options: DemarrageDeLaCarte): Promise<MapL
             carte.easeTo({ center: centre, zoom: Math.min(zoom + 0.25, ZOOM_MAX_DE_LA_CARTE) }),
           );
       }
+      return;
+    }
+    if (options.surSelection) {
+      options.surSelection(lireLEcole(premier));
       return;
     }
     ouvert?.remove();

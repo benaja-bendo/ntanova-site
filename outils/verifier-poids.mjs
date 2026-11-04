@@ -25,9 +25,9 @@ const budgetGuide = 400 * 1024;
 // L'îlot n'est lié à aucune page : on le trouve en suivant les `import()` du chargeur (voir `ilotDeLaCarte`).
 const pageCarte = /^carte\//;
 const budgetChargeurCarte = 8 * 1024;
-// Plafonds de départ du fondateur (décision D7, 03/11), à figer après la mesure sur un Android réel : l'îlot (MapLibre,
+// Plafonds confirmés par le fondateur le 04/11 après mesure servie et essai téléphone : l'îlot (MapLibre,
 // son worker, sa feuille de style, notre code ; SANS les tuiles) et le premier affichage interactif en tout.
-const budgetIlot = 400 * 1024;
+const budgetIlot = 500 * 1024;
 const budgetPremierAffichage = 700 * 1024;
 // Les tuiles d'une vue de la ville (quatre tuiles, zoom 10, centre de Brazzaville, mesurées le 03/11/2026 sur le fichier
 // allégé de outils/fond-de-carte/, Ko compressés) : la seule valeur de ce fichier qui ne vient pas de dist/.
@@ -190,11 +190,15 @@ if (existsSync(pageDeLaCarte)) {
     // et les tuiles d'une vue de la ville. Tout vient de dist/, sauf les tuiles (R2).
     const servi = (chemin) => {
       const fichier = join(dist, chemin);
-      return existsSync(fichier) ? gzipSync(readFileSync(fichier)).length : 0;
+      return existsSync(fichier)
+        ? /\.(pbf|woff2)$/.test(fichier)
+          ? readFileSync(fichier).length
+          : gzipSync(readFileSync(fichier)).length
+        : 0;
     };
     const premierAffichage =
       (totauxDesPages.get('carte/index.html') ?? 0) +
-      ilotBrotli +
+      Math.max(ilotGzip, ilotBrotli5) +
       servi('carte/style.json') +
       servi('carte/zones.geojson') +
       servi('carte/ecoles.geojson') +
@@ -203,14 +207,15 @@ if (existsSync(pageDeLaCarte)) {
     const fautes = [];
     if (octetsChargeur > budgetChargeurCarte)
       fautes.push(`le chargeur dépasse ${ko(budgetChargeurCarte)}`);
-    if (ilotBrotli > budgetIlot) fautes.push(`l’îlot dépasse ${ko(budgetIlot)}`);
+    if (Math.max(ilotGzip, ilotBrotli5) > budgetIlot)
+      fautes.push(`l’îlot dépasse ${ko(budgetIlot)}`);
     if (premierAffichage > budgetPremierAffichage)
       fautes.push(`le premier affichage dépasse ${ko(budgetPremierAffichage)}`);
     if (fautes.length) echec = true;
     const marque = fautes.length ? '✗' : '✓';
     lignes.push(
       `${marque} ${'carte : chargeur'.padEnd(32)} ${ko(octetsChargeur).padStart(9)}  (gzip, avec la page)`,
-      `${marque} ${'carte : îlot, sans tuiles'.padEnd(32)} ${ko(ilotBrotli).padStart(9)}  brotli maximum ; ${ko(ilotBrotli5)} en brotli 5, ${ko(ilotGzip)} en gzip (plafond ${ko(budgetIlot)} : à figer sur la taille servie, voir CLAUDE.md)`,
+      `${marque} ${'carte : îlot, sans tuiles'.padEnd(32)} ${ko(ilotBrotli).padStart(9)}  brotli maximum ; ${ko(ilotBrotli5)} en brotli 5, ${ko(ilotGzip)} en gzip (plafond ${ko(budgetIlot)} : contrôle local conservateur, puis mesure servie obligatoire)`,
       `${marque} ${'carte : premier affichage'.padEnd(32)} ${ko(premierAffichage).padStart(9)}  ${fautes.join(', ')}`.trimEnd(),
     );
   }

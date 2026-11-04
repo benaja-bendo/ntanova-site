@@ -108,6 +108,9 @@ const LIGNES = ECOLES.map(ligneDe);
 const noms = (r: ReturnType<typeof chercher>) => r.map((x) => x.ligne.i);
 
 describe('normaliser', () => {
+  it('cherche aussi un nom entouré de parenthèses ou crochets', () => {
+    expect(normaliser('[École ajoutée] (Centre)')).toBe('ecole ajoutee centre');
+  });
   it('lit « Tié-Tié » comme « tie tie », sans accent, sans tiret, sans apostrophe', () => {
     expect(normaliser('Tié-Tié')).toBe('tie tie');
     expect(normaliser('  Lycée   de  l’Étoile ')).toBe('lycee de l etoile');

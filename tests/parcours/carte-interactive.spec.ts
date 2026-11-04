@@ -51,7 +51,12 @@ async function rendues(page: Page, couche: string) {
     const boite = m.getCanvas().getBoundingClientRect();
     return m.queryRenderedFeatures({ layers: [c] }).map((f) => {
       const p = m.project(f.geometry.coordinates);
-      return { proprietes: f.properties, x: boite.x + p.x, y: boite.y + p.y };
+      return {
+        proprietes: f.properties,
+        coordonnees: f.geometry.coordinates,
+        x: boite.x + p.x,
+        y: boite.y + p.y,
+      };
     });
   }, couche);
 }
@@ -86,8 +91,11 @@ test('s’active d’office sur /carte/ : le fond, les zones et les écoles, l�
   expect(tuiles.requetes.some((r) => r.range?.startsWith('bytes='))).toBe(true);
   // Le dessin de repli s'efface quand la carte est prête ; la liste, elle, reste.
   await expect(page.locator('.carte-repli')).toBeHidden();
-  await expect(page.getByRole('heading', { name: 'Les écoles sur la carte (5)' })).toBeVisible();
-  await expect(page.getByRole('link', { name: '[Complexe scolaire Exemple]' })).toBeVisible();
+  await page.getByRole('button', { name: 'Voir les écoles', exact: true }).click();
+  await expect(page.locator('[data-compte]')).toContainText('5 école(s)');
+  await expect(
+    page.locator('[data-resultats]').getByRole('link', { name: '[Complexe scolaire Exemple]' }),
+  ).toBeVisible();
   // Le style, les zones et les écoles sont ceux du site construit.
   expect(
     await carte<string>(page, 'getStyle').then((s) => (s as unknown as { name: string }).name),
@@ -146,7 +154,11 @@ test('un groupe se défait au toucher, une épingle ouvre son aperçu avec le li
   // L'école confirmée par sa direction : son aperçu dit la preuve, sans la confondre avec « vue sur place ».
   const confirmee = epingles.find((e) => e.proprietes.preuve === 'direction');
   expect(confirmee, 'l’épingle de l’école confirmée est sur la carte').toBeDefined();
-  await page.touchscreen.tap(confirmee!.x, confirmee!.y);
+  await carte(page, 'jumpTo', { center: confirmee!.coordonnees });
+  const cibleConfirmee = (await rendues(page, 'ecoles-epingles')).find(
+    (e) => e.proprietes.preuve === 'direction',
+  )!;
+  await page.touchscreen.tap(cibleConfirmee.x, cibleConfirmee.y);
   const apercu = page.locator('.carte-apercu');
   await expect(apercu).toBeVisible();
   await expect(apercu).toContainText(String(confirmee!.proprietes.nom));
@@ -165,9 +177,16 @@ test('un groupe se défait au toucher, une épingle ouvre son aperçu avec le li
   await expect(page.locator('.carte-apercu')).toHaveCount(0);
 
   // Une école « vue sur place » dit sa propre preuve, sans emprunter celle d'une autre.
-  const vue = epingles.find((e) => e.proprietes.preuve === 'terrain');
+  await page.getByRole('button', { name: 'Réduire', exact: true }).click();
+  const vue = (await rendues(page, 'ecoles-epingles')).find(
+    (e) => e.proprietes.preuve === 'terrain',
+  );
   expect(vue, 'une épingle « vue sur place » est sur la carte').toBeDefined();
-  await page.touchscreen.tap(vue!.x, vue!.y);
+  await carte(page, 'jumpTo', { center: vue!.coordonnees });
+  const cibleVue = (await rendues(page, 'ecoles-epingles')).find(
+    (e) => e.proprietes.id === vue!.proprietes.id,
+  )!;
+  await page.touchscreen.tap(cibleVue.x, cibleVue.y);
   await expect(page.locator('.carte-apercu')).toContainText(String(vue!.proprietes.nom));
   await expect(page.locator('.carte-apercu')).toContainText('Vue sur place le');
   await expect(page.locator('.carte-apercu')).not.toContainText('Confirmée par la direction');
@@ -284,7 +303,7 @@ test('ne demande jamais la position, et n’envoie rien de la personne', async (
   await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'prete', { timeout: 30_000 });
 
   // Les en-têtes de la page n'ouvrent pas la position (elle reste fermée tant qu'aucun bouton ne la demande).
-  expect(reponse?.headers()['permissions-policy']).toContain('geolocation=()');
+  expect(reponse?.headers()['permissions-policy']).toContain('geolocation=(self)');
   expect(
     await page.evaluate(() => (window as unknown as { __position: string[] }).__position),
   ).toEqual([]);

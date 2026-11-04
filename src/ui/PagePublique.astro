@@ -83,6 +83,9 @@ const surEcoles =
         <div class="entete-droite">
           {/* La navigation du haut n'existe qu'à partir de 48 rem : sur téléphone, le pied la porte. */}
           <nav aria-label="Navigation principale" class="nav-haut">
+            <a href="/carte/" aria-current={chemin.startsWith('/carte/') ? 'page' : undefined}>
+              Carte
+            </a>
             <a href="/ecoles/" aria-current={surEcoles ? 'page' : undefined}>
               Les écoles
             </a>
@@ -112,6 +115,7 @@ const surEcoles =
     <footer class="pied">
       <div class="cadre pied-cadre">
         <nav aria-label="NTanova" class="pied-liens">
+          <a href="/carte/">Carte</a>
           <a href="/ecoles/">Les écoles</a>
           <a href="/recherche/">Rechercher une école</a>
           <a href="/autour-de-moi/">Autour de moi</a>
