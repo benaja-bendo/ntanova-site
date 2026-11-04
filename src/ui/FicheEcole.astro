@@ -477,7 +477,8 @@ const nomZone = zone.division.nom;
   }
   @media (min-width: 64rem) {
     .fiche-corps {
-      grid-template-columns: minmax(0, var(--largeur-texte)) 22rem;
+      /* Les pistes occupent le cadre ; les paragraphes gardent leur limite de lecture. */
+      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
       gap: var(--espace-7);
       align-items: start;
       max-width: none;
