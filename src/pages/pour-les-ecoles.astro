@@ -8,12 +8,16 @@ import PagePublique from '../ui/PagePublique.astro';
 
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 const sansFiche = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, je dirige l’école ');
+const referencer = lienWhatsApp(
+  PUBLIC_WHATSAPP,
+  'Bonjour NTanova, je souhaite référencer mon établissement au Congo-Brazzaville. Nom : … Ville ou localité : …',
+);
 const formulaire = lienWhatsApp(PUBLIC_WHATSAPP);
 ---
 
 <PagePublique
   titre="Pour les écoles · NTanova"
-  description="Vous dirigez une école à Pointe-Noire ? Sa fiche est peut-être déjà sur NTanova : confirmez-la et complétez-la avec nous."
+  description="Vous dirigez un établissement au Congo-Brazzaville ? Demandez son référencement ou complétez sa fiche avec nous."
   whatsapp={whatsapp}
 >
   <section class="cadre page ecoles-page">
@@ -27,6 +31,24 @@ const formulaire = lienWhatsApp(PUBLIC_WHATSAPP);
         </p>
       </div>
 
+      <section class="carte bloc" id="referencer" aria-labelledby="titre-referencer">
+        <h2 id="titre-referencer">Référencez votre établissement</h2>
+        <p class="texte-doux">
+          Partout au Congo-Brazzaville, même si aucun relais n’est encore passé dans votre localité.
+          Transmettez-nous le nom et la localité de l’établissement ; nous relirons les informations
+          avec vous.
+        </p>
+        {referencer && (
+          <a class="bouton" href={referencer}>
+            Demander le référencement sur WhatsApp
+          </a>
+        )}
+        <p class="mention-public">
+          La demande ne publie pas automatiquement votre établissement. Avant un passage sur place,
+          sa fiche porte la mention « Déclarée par l’école ». La confirmation par la direction reste
+          une démarche distincte.
+        </p>
+      </section>
       {formulaire && (
         <form class="carte liaison" action={formulaire} method="get">
           <h2>Vous avez reçu une fiche de liaison&nbsp;?</h2>
@@ -73,13 +95,15 @@ const formulaire = lienWhatsApp(PUBLIC_WHATSAPP);
       <section class="bloc">
         <h2>Ce que nous vous demanderons</h2>
         <ol class="etapes">
-          <li>La grille des frais, avec le cachet de l'école.</li>
+          <li>Les frais communiqués par l’école, avec leur période et leur date.</li>
           <li>Le numéro WhatsApp que l'école veut publier.</li>
           <li>Trois à cinq photos&nbsp;: la façade, une salle, la cour. Sans enfant.</li>
           <li>Si vous le voulez, quelques mots de la direction.</li>
         </ol>
         <p class="texte-doux">
-          Le site ne les affiche pas encore&nbsp;: rien ne paraîtra sans votre accord daté.
+          Le contact public, les frais et les équipements peuvent figurer sur la fiche avec leur
+          source et leur date. Les photos ne sont pas encore publiées par cette démarche. Chaque
+          publication se décide avec vous ; une modification apparaît après une mise à jour du site.
         </p>
       </section>
 

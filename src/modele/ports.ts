@@ -552,6 +552,7 @@ export interface EcoleVue {
   divisionId: string | null;
   publication: Valeur<'publication'>;
   origine: Valeur<'origin_kind'>;
+  declareeLe?: string | null;
   /** Pour un campus retiré : pourquoi, quand, et vers quel campus un doublon renvoie. */
   retrait: {
     motif: Valeur<'motif_retrait'>;
@@ -754,7 +755,10 @@ export interface PortAdministration {
   /** `GET /admin/institutions` : pour rattacher un relevé à une institution connue. */
   institutions(): Promise<InstitutionVue[]>;
   /** Une école d'un coup : institution, campus, cycles, formations. `POST /admin/ecoles` */
-  creerEcole(entree: EntreeCatalogue): Promise<ResultatCreation>;
+  creerEcole(
+    entree: EntreeCatalogue,
+    declaration?: import('./declaration-ecole').DeclarationEcole,
+  ): Promise<ResultatCreation>;
   /** Une liste d'écoles, avec simulation d'abord. `POST /admin/importations` */
   importerEcoles(entrees: EntreeCatalogue[], simulation: boolean): Promise<RapportImport>;
   /** Confie un campus à un relais actif, avec ce qu'il doit vérifier. `POST /admin/ecoles/{id}/mission` */
@@ -916,6 +920,8 @@ export interface FormationPublique {
 
 /** Un campus publié, tel que le site public le montre : une implantation d'une institution. */
 export interface EcolePubliee {
+  origine?: string;
+  declareeLe?: string | null;
   equipements?: Equipement[];
   frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;

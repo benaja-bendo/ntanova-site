@@ -142,6 +142,8 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           surveyed_at: string | null;
           located_at: string | null;
           updated_at: string;
+          origin: string;
+          school_declared_on: string | null;
         }>('public_campuses?select=*&order=id'),
         lireTout<{ campus_id: string; cycle: string }>(
           'public_campus_cycles?select=campus_id,cycle&order=campus_id,cycle',
@@ -212,6 +214,8 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
             releveeLe: e.surveyed_at,
             situeeLe: e.located_at,
             misAJourLe: e.updated_at,
+            origine: e.origin,
+            declareeLe: e.school_declared_on,
           };
         })
         .sort((a, b) => a.nom.localeCompare(b.nom, 'fr') || a.slug.localeCompare(b.slug));

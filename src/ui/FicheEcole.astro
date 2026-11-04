@@ -106,6 +106,12 @@ const nomZone = zone.division.nom;
             {e.verifieeLe ? ` le ${dateLongue(e.verifieeLe)}` : ''}.
           </p>
         )}
+        {e.origine === 'school' && (
+          <p class="etat preuve-ajoutee">
+            <b>Déclarée par l’école{e.declareeLe ? ` le ${dateLongue(e.declareeLe)}` : ''}</b>.
+            Informations transmises par l’école ; cette déclaration ne confirme pas toute la fiche.
+          </p>
+        )}
         {e.releveeLe ? (
           <p class="etat preuve-terrain">
             <b>Vue sur place le {dateLongue(e.releveeLe)}</b> par un jeune du quartier&nbsp;:
@@ -113,8 +119,12 @@ const nomZone = zone.division.nom;
           </p>
         ) : (
           <p class="etat preuve-ajoutee">
-            <b>Ajoutée par NTanova{e.situeeLe ? ` le ${dateLongue(e.situeeLe)}` : ''}</b>. Pas
-            encore vue sur place par un jeune du quartier.
+            {e.origine !== 'school' && (
+              <>
+                <b>Ajoutée par NTanova{e.situeeLe ? ` le ${dateLongue(e.situeeLe)}` : ''}</b>.{' '}
+              </>
+            )}
+            Pas encore vue sur place par un jeune du quartier.
           </p>
         )}
       </div>

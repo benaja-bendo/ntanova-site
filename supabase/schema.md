@@ -292,3 +292,9 @@ Source terrain : présence seulement, pour clôture, terrain de sport ou autre c
 Ajouts/modifications/retraits sont archivés dans `prive.campus_fact_history`, avec valeurs avant/après, auteur et date de saisie, sans accès de l’API à cet historique. Le retrait enlève la ligne active du catalogue. Aucun changement de publication, de badge ou d’origine de la fiche ; une observation d’équipement ne rend pas une école éligible à la carte à elle seule. Reconstruction du site toujours nécessaire après modification ou retrait. Agrément, reconnaissance par l’État et photos sont hors de cette livraison.
 
 Tests dédiés : `supabase/tests/equipements_ecole.test.sql` (36 contrôles), validation des états/sources et lectures tolérantes, catalogue, contrats de schéma et parcours d’ajout/relecture/modification/retrait. La liste exacte des tables publiques autorisées de `droits.test.sql` ajoute `campus_facts` en lecture seulement.
+
+## Déclaration d’une école — 04/11/2026
+
+`origin_kind` ajoute `school` sans retirer de valeur. `create_school_declaration(jsonb,date,boolean)` exige une session admin, une date non future et la confirmation que l’école a transmis ses informations pour publication. Réutilise les contrôles de création/doublon et crée tout dans une transaction, puis inscrit origine et date de déclaration sur les campus et l’origine sur leurs formations. Aucun `surveyed_at`, `verified_on` ni publication automatique. Les numéros de déclaration ne peuvent pas remplir le numéro d’enseigne ; le contact public a sa commande distincte.
+
+`campuses.school_declared_on` et la vue `public_campuses` exposent seulement la date sur les campus publiés. `prive.school_declarations` garde campus, date, auteur et heure de saisie ; pas de lecture API. Le déclencheur protège l’origine école et sa date contre les écritures directes utilisateur. Une création générique `origin=school` sans date échoue. Migration additive `20261104200000_declaration_ecole.sql`.

@@ -1,3 +1,5 @@
+import { erreursDeclaration } from '../../modele/declaration-ecole';
+import { jourDuCongo } from '../../modele/date-declaration';
 /**
  * Amorcer le catalogue sans attendre le terrain : ajouter une école à la main (institution, campus, niveaux,
  * formations), ou importer une liste (CSV ou JSON) avec une simulation d'abord. Ces écoles ont pour origine
@@ -27,7 +29,7 @@ import { Champ, Choix } from '../../ui/composants';
 import { ChampPosition, messageErreur } from './ChampPosition';
 import { Formations } from './Formations';
 
-type Vue = 'une' | 'liste';
+type Vue = 'une' | 'liste' | 'ecole';
 
 function Division({
   valeur,
@@ -64,12 +66,14 @@ function Division({
 }
 
 function FormulaireUne({
+  declaration = false,
   admin,
   divisions,
   domaines,
   surEnregistre,
   surAnnuler,
 }: {
+  declaration?: boolean;
   admin: PortAdministration;
   divisions: DivisionVue[];
   domaines: DomainePublic[];
@@ -79,11 +83,14 @@ function FormulaireUne({
   const [champs, setChamps] = useState<FormulaireCreation>(formulaireCreationVide);
   const [erreurs, setErreurs] = useState<Erreurs>({});
   const [erreur, setErreur] = useState<string | null>(null);
+  const [declareeLe, setDeclareeLe] = useState('');
+  const [confirmee, setConfirmee] = useState(false);
   const [existe, setExiste] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const changer = (nouveaux: Partial<FormulaireCreation>) => {
     setChamps((avant) => ({ ...avant, ...nouveaux }));
     setExiste(null);
+    setConfirmee(false);
   };
 
   const basculerCycle = (n: Valeur<'niveau'>) =>
@@ -99,13 +106,19 @@ function FormulaireUne({
   const enregistrer = async (ev: { preventDefault: () => void }) => {
     ev.preventDefault();
     setErreur(null);
-    const trouvees = erreursCreation(champs);
+    const trouvees = {
+      ...erreursCreation(champs),
+      ...(declaration ? erreursDeclaration({ declareeLe, confirmee }) : {}),
+    };
     setErreurs(trouvees);
     if (Object.keys(trouvees).length > 0) return;
     setEnCours(true);
     try {
       const entree = versEntree(champs);
-      const resultat = await admin.creerEcole(entree);
+      const resultat = await admin.creerEcole(
+        entree,
+        declaration ? { declareeLe, confirmee } : undefined,
+      );
       if (resultat.statut === 'existe') {
         setExiste(resultat.message ?? 'Cette école est déjà enregistrée.');
         return;
@@ -131,6 +144,45 @@ function FormulaireUne({
       onSubmit={(ev) => void enregistrer(ev)}
     >
       <h2 className="titre-section admin-pleine-largeur">Ajouter une école</h2>
+      {declaration && (
+        <>
+          <p className="mention admin-pleine-largeur">
+            Informations transmises par l’école pour publication. Cela ne confirme pas toute la
+            fiche et ne remplace pas un passage sur place. Aucun numéro privé n’est publié ; le
+            contact public se renseigne séparément avec son accord.
+          </p>
+          <Champ libelle="Date de déclaration de l’école" erreur={erreurs.declareeLe}>
+            {(a) => (
+              <input
+                {...a}
+                className="champ"
+                type="date"
+                max={jourDuCongo()}
+                value={declareeLe}
+                onChange={(ev) => {
+                  setDeclareeLe(ev.target.value);
+                  setConfirmee(false);
+                }}
+              />
+            )}
+          </Champ>
+          <div className="admin-pleine-largeur">
+            <label>
+              <input
+                type="checkbox"
+                checked={confirmee}
+                onChange={(ev) => setConfirmee(ev.target.checked)}
+              />{' '}
+              L’école a transmis ces informations pour publication.
+            </label>
+            {erreurs.confirmee && (
+              <p className="message-erreur" role="alert">
+                {erreurs.confirmee}
+              </p>
+            )}
+          </div>
+        </>
+      )}
       <Champ libelle="Nom de l’école" erreur={erreurs['nom']}>
         {(a) => (
           <input
@@ -187,7 +239,7 @@ function FormulaireUne({
         valeur={champs.division}
         divisions={divisions}
         surChange={(division) => changer({ division })}
-        aide="Sans position, choisis la division où est l’école : elle devient prête à publier. Sans position ni division, elle reste « à situer »."
+        aide="Choisis une division connue, même sans position. La publication reste un geste séparé ; cela ne remplace pas un passage sur place."
       />
       <Champ libelle="Quartier, tel qu’on le dit sur place" facultatif erreur={erreurs['quartier']}>
         {(a) => (
@@ -214,20 +266,22 @@ function FormulaireUne({
           />
         )}
       </Champ>
-      <Champ libelle="Numéro sur l'enseigne" facultatif erreur={erreurs['numeroEnseigne']}>
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="tel"
-            inputMode="tel"
-            autoComplete="off"
-            placeholder="+242 …"
-            value={champs.numeroEnseigne}
-            onChange={(ev) => changer({ numeroEnseigne: ev.target.value })}
-          />
-        )}
-      </Champ>
+      {!declaration && (
+        <Champ libelle="Numéro sur l'enseigne" facultatif erreur={erreurs['numeroEnseigne']}>
+          {(a) => (
+            <input
+              {...a}
+              className="champ"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              placeholder="+242 …"
+              value={champs.numeroEnseigne}
+              onChange={(ev) => changer({ numeroEnseigne: ev.target.value })}
+            />
+          )}
+        </Champ>
+      )}
       <Champ libelle="Programme et langues" facultatif erreur={erreurs['programme']}>
         {(a) => (
           <input
@@ -481,13 +535,16 @@ export function Creation({
         legende="Comment ajouter"
         options={[
           { valeur: 'une', libelle: 'Une école' },
+          { valeur: 'ecole', libelle: 'Déclaration d’une école' },
           { valeur: 'liste', libelle: 'Une liste (CSV ou JSON)' },
         ]}
         valeurs={[vue]}
         surChoix={setVue}
       />
-      {vue === 'une' ? (
+      {vue !== 'liste' ? (
         <FormulaireUne
+          key={vue}
+          declaration={vue === 'ecole'}
           admin={admin}
           divisions={divisions}
           domaines={domaines}
