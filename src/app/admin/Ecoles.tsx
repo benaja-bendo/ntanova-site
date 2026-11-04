@@ -1,3 +1,4 @@
+import { EquipementsEcole } from './EquipementsEcole';
 import { FraisEcole } from './FraisEcole';
 import { ContactPublic } from './ContactPublic';
 /**
@@ -83,7 +84,15 @@ function LigneEcole({
     e.confiee?.genre ?? (e.aSituer ? 'locate' : 'verify'),
   );
   const [mode, setMode] = useState<
-    'retirer' | 'fusionner' | 'modifier' | 'situer' | 'mission' | 'frais' | 'contact-public' | null
+    | 'retirer'
+    | 'fusionner'
+    | 'modifier'
+    | 'situer'
+    | 'mission'
+    | 'equipements'
+    | 'frais'
+    | 'contact-public'
+    | null
   >(null);
   const [motif, setMotif] = useState<Valeur<'motif_retrait'>>('demande_ecole');
   const [noteRetrait, setNoteRetrait] = useState('');
@@ -237,7 +246,25 @@ function LigneEcole({
           >
             Frais déclarés
           </button>
+          <button
+            type="button"
+            className="bouton bouton-secondaire bouton-petit"
+            aria-expanded={mode === 'equipements'}
+            onClick={() => setMode(mode === 'equipements' ? null : 'equipements')}
+          >
+            Équipements
+          </button>
         </div>
+        {mode === 'equipements' && (
+          <EquipementsEcole
+            ecoleId={e.id}
+            nom={e.nom}
+            equipements={e.equipements ?? []}
+            admin={admin}
+            fermer={() => setMode(null)}
+            surChangement={surChangement}
+          />
+        )}
         {mode === 'frais' && (
           <FraisEcole
             ecoleId={e.id}

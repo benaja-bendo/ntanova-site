@@ -282,3 +282,13 @@ L’API ne dispose que de SELECT sur la table. RLS : école publiée pour le pub
 La clé vers `campus_cycles` garantit que le cycle est enseigné. Un déclencheur explique qu’il faut d’abord retirer les frais actifs avant de retirer le cycle ; il ne les efface pas silencieusement. Montants négatifs, maximum inférieur au minimum et date future refusés ; une autre période exige sa précision. Le total annuel n’est jamais déduit d’un montant mensuel. L’année scolaire non fournie est explicitement non précisée sur la fiche.
 
 Comme le contact public, ces données nécessitent reconstruction et mise en ligne du site après modification/retrait. Les tests dédiés sont `supabase/tests/frais_ecole.test.sql` (34 contrôles), `tests/unitaires/frais-ecole.test.ts`, `tests/unitaires/date-declaration.test.ts` et les parcours des frais, du catalogue et de la fenêtre partagée.
+
+## Équipements et provenance — ticket 104, 04/11/2026
+
+Migration `20261104190000_equipements_ecole.sql` : domaines `equipment_key`, `equipment_state` et `fact_source`, recopiés dans `src/modele/listes.ts`. `campus_facts` contient la clé d’équipement (avec « autre » précisé), son état, sa source, sa date et une précision facultative. Le public ne lit que les faits des campus publiés ; l’administration lit aussi les autres campus. Aucune écriture directe par les rôles de l’API : `set_school_fact` et `withdraw_school_fact` exigent la session administrateur.
+
+Source terrain : présence seulement, pour clôture, terrain de sport ou autre constat visible précisé. Le fait de ne pas voir un équipement ne prouve pas son absence ; eau, électricité, cantine et autres services nécessitent une déclaration de l’école. Les trois états sont conservés : présent, absent selon l’école, non précisé. Une date réelle non future et une provenance explicite sont requises. Une source inconnue d’une future version n’est pas rebaptisée « école » par le rendu.
+
+Ajouts/modifications/retraits sont archivés dans `prive.campus_fact_history`, avec valeurs avant/après, auteur et date de saisie, sans accès de l’API à cet historique. Le retrait enlève la ligne active du catalogue. Aucun changement de publication, de badge ou d’origine de la fiche ; une observation d’équipement ne rend pas une école éligible à la carte à elle seule. Reconstruction du site toujours nécessaire après modification ou retrait. Agrément, reconnaissance par l’État et photos sont hors de cette livraison.
+
+Tests dédiés : `supabase/tests/equipements_ecole.test.sql` (36 contrôles), validation des états/sources et lectures tolérantes, catalogue, contrats de schéma et parcours d’ajout/relecture/modification/retrait. La liste exacte des tables publiques autorisées de `droits.test.sql` ajoute `campus_facts` en lecture seulement.

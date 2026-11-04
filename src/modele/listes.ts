@@ -78,6 +78,19 @@ export const listes = {
   origin_kind: ['field', 'admin', 'import'],
   mission_kind: ['verify', 'locate', 'complete'],
   mission_status: ['open', 'done', 'cancelled'],
+  equipment_key: [
+    'electricite',
+    'eau',
+    'cantine',
+    'transport',
+    'bibliotheque',
+    'informatique',
+    'terrain_sport',
+    'cloture',
+    'autre',
+  ],
+  equipment_state: ['present', 'absent', 'non_precise'],
+  fact_source: ['ecole', 'terrain'],
 } as const;
 
 export type Liste = keyof typeof listes;

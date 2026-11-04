@@ -1,3 +1,8 @@
+import {
+  lireEquipement,
+  saisieDeEquipement,
+  type Equipement,
+} from '../../modele/equipements-ecole';
 import { lireFraisEcole, saisieDeFrais, type FraisEcole } from '../../modele/frais-ecole';
 import { lireAccordContactPublic, type ContactPublic } from '../../modele/contact-public';
 /**
@@ -62,6 +67,7 @@ interface PhotoFausse {
 
 /** Une institution et son campus, réunis (le faux serveur n'a qu'un campus par institution, sauf ajout). */
 interface CampusFaux {
+  equipements?: Equipement[];
   frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;
   id: string;
@@ -732,6 +738,7 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     repere: c.repere ?? null,
     numeroEnseigne: c.numeroEnseigne ?? null,
     frais: c.frais ?? [],
+    equipements: c.equipements ?? [],
     contactPublic: c.contactPublic ?? null,
     formations: (c.formations ?? []).length,
     verifieeLe: c.verifieeLe ?? null,
@@ -1626,6 +1633,43 @@ const admin: PortAdministration = {
         },
       }),
     );
+  },
+
+  async enregistrerEquipement(ecoleId, equipement, id) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    if (!c) throw new ErreurDecision('École introuvable.');
+    if (id && !(c.equipements ?? []).some((e) => e.id === id))
+      throw new ErreurDecision('Équipement introuvable.');
+    const resultat = lireEquipement({
+      ...saisieDeEquipement({ ...equipement, id: id ?? '' }),
+      confirme: true,
+    });
+    if (!resultat.equipement) throw new ErreurDecision(resultat.erreur!);
+    if (
+      (c.equipements ?? []).some(
+        (e) => e.id !== id && e.cle === equipement.cle && e.precision === equipement.precision,
+      )
+    )
+      throw new ErreurDecision('Cet équipement existe déjà : modifie sa ligne.');
+    const identifiant = id ?? crypto.randomUUID();
+    ecrire((e) => {
+      const c = e.campus[ecoleId]!;
+      c.equipements = [
+        ...(c.equipements ?? []).filter((e) => e.id !== identifiant),
+        { ...resultat.equipement!, id: identifiant },
+      ];
+    });
+    return identifiant;
+  },
+  async retirerEquipement(ecoleId, id) {
+    await reseau();
+    if (!(lireEtat().campus[ecoleId]?.equipements ?? []).some((e) => e.id === id))
+      throw new ErreurDecision('Équipement introuvable.');
+    ecrire((e) => {
+      const c = e.campus[ecoleId]!;
+      c.equipements = (c.equipements ?? []).filter((e) => e.id !== id);
+    });
   },
 
   async enregistrerFraisEcole(ecoleId, frais, id) {

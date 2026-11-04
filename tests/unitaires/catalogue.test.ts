@@ -115,7 +115,13 @@ describe('le catalogue du site public', () => {
     expect(appels.every((a) => a.cle === 'cle-publique')).toBe(true);
     expect(
       appels.map((a) => a.url.replace('https://base.exemple/rest/v1/', '').split('?')[0]),
-    ).toEqual(['public_campuses', 'public_campus_cycles', 'public_campus_programs', 'campus_fees']);
+    ).toEqual([
+      'public_campuses',
+      'public_campus_cycles',
+      'public_campus_programs',
+      'campus_fees',
+      'campus_facts',
+    ]);
   });
 
   it('l’adresse publique saute la répétition ville / département, et garde le pays', async () => {
@@ -345,6 +351,37 @@ describe('frais déclarés dans le catalogue', () => {
         inscription: null,
         anneeScolaire: null,
         declaresLe: '2026-11-03',
+        note: null,
+      },
+    ]);
+  });
+});
+
+describe('équipements avec provenance', () => {
+  it('conserve absence déclarée et état non précisé sans inventer de preuve terrain', async () => {
+    fausseBase({
+      public_campuses: [CAMPUS],
+      campus_facts: [
+        {
+          id: 'f1',
+          campus_id: 'c1',
+          key: 'cantine',
+          custom_label: null,
+          value: 'absent',
+          source: 'ecole',
+          observed_on: '2026-11-03',
+          note: null,
+        },
+      ],
+    });
+    expect((await catalogue().ecoles())[0]?.equipements).toEqual([
+      {
+        id: 'f1',
+        cle: 'cantine',
+        precision: null,
+        etat: 'absent',
+        source: 'ecole',
+        constateLe: '2026-11-03',
         note: null,
       },
     ]);
