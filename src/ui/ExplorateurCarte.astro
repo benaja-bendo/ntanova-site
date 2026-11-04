@@ -34,6 +34,11 @@ const cycles = [
     role="region"
     aria-label="Carte interactive des écoles"
   >
+    {application && (
+      <p class="carte-attente" role="status">
+        Chargement de la carte…
+      </p>
+    )}
     <div class="carte-repli">
       {repli.tete ? (
         <ApercuCarte arrondissement={repli.tete} ecoles={repli.ecoles} lienCarte="/carte/" />
@@ -160,6 +165,23 @@ const cycles = [
     border-radius: var(--rayon-s);
     background: var(--carte-fond);
   }
+  .carte-attente {
+    display: none;
+    padding: var(--espace-3);
+    color: var(--texte-doux);
+  }
+  /* Dès le premier rendu HTML, avant même la réception du chargeur.
+     Sans JavaScript, le dessin reste immédiat. Un échec ou l’absence de WebGL2 le rétablit. */
+  @media (scripting: enabled) {
+    .explorateur-app [data-etat='repli'] .carte-repli,
+    .explorateur-app [data-etat='chargement'] .carte-repli {
+      visibility: hidden;
+    }
+    .explorateur-app [data-etat='repli'] .carte-attente,
+    .explorateur-app [data-etat='chargement'] .carte-attente {
+      display: block;
+    }
+  }
   .carte-repli {
     position: absolute;
     inset: 0;
@@ -167,11 +189,13 @@ const cycles = [
     padding: var(--espace-3);
   }
   .carte-interactive .carte-toile {
+    pointer-events: none;
     position: absolute;
     inset: 0;
     opacity: 0;
   }
   [data-etat='prete'] .carte-toile {
+    pointer-events: auto;
     opacity: 1;
   }
   [data-etat='prete'] .carte-repli {
@@ -412,5 +436,33 @@ const cycles = [
   }
   .panneau-carte {
     padding-bottom: 2rem;
+  }
+</style>
+
+<style is:global>
+  .explorateur:not(.explorateur-app) {
+    min-width: 0;
+    width: 100%;
+  }
+  .explorateur:not(.explorateur-app) .carte-interactive {
+    height: 70dvh;
+    max-height: 42rem;
+  }
+  .explorateur:not(.explorateur-app) .carte-repli {
+    align-content: center;
+  }
+  .explorateur .maplibregl-popup-close-button {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.5rem;
+    color: var(--texte);
+  }
+  .explorateur .maplibregl-popup-content {
+    max-height: 65dvh;
+    overflow: auto;
+  }
+  .explorateur .maplibregl-popup .carte-apercu {
+    border: 0;
+    padding: var(--espace-2);
   }
 </style>

@@ -1,4 +1,14 @@
+import { servirLesTuiles } from './aides-carte';
 import { expect, test } from '@playwright/test';
+test.beforeEach(async ({ page, context }) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, 'connection', {
+      value: { saveData: true },
+      configurable: true,
+    }),
+  );
+  await servirLesTuiles(context);
+});
 
 // La carte détourée (ticket 15), sur le catalogue fictif : à Tié-Tié, deux écoles situées à
 // 270 m l'une de l'autre (une pastille de 2 sur la carte de l'arrondissement), une troisième loin

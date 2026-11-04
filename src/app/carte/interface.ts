@@ -1,3 +1,4 @@
+import { creerApercu, dateCarte as date } from './apercu';
 import type { MapLibreMap, GeoJSONSource } from 'maplibre-gl';
 import type { FeatureEcole, FeatureZone } from '../../modele/carte/donnees';
 import { adresseVue, lireVue, filtrerEcoles } from '../../modele/carte/navigation';
@@ -10,13 +11,6 @@ async function lire<T>(url: string): Promise<T> {
   if (!r.ok) throw new Error(`Lecture impossible : ${r.status}`);
   return r.json() as Promise<T>;
 }
-const date = (s: string) =>
-  new Intl.DateTimeFormat('fr', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'Africa/Brazzaville',
-  }).format(new Date(s));
 const texte = (tag: string, contenu: string) => {
   const e = document.createElement(tag);
   e.textContent = contenu;
@@ -106,47 +100,7 @@ export async function installerInterface(
     if (centrer) recadrer(e);
     hauteur('moyen');
     selection.replaceChildren();
-    const bloc = document.createElement('div');
-    bloc.className = 'carte-apercu';
-    bloc.tabIndex = -1;
-    const nom = texte('p', e.properties.nom);
-    nom.className = 'carte-apercu-nom';
-    bloc.append(nom);
-    if (e.properties.passage)
-      bloc.append(texte('p', `Vue sur place le ${date(e.properties.passage)}`));
-    if (e.properties.confirmation)
-      bloc.append(texte('p', `Confirmée par la direction le ${date(e.properties.confirmation)}`));
-    if (!e.properties.passage && !e.properties.confirmation)
-      bloc.append(texte('p', e.properties.preuveTexte));
-    bloc.append(
-      texte('p', e.properties.niveaux.join(' · ')),
-      texte(
-        'p',
-        [e.properties.type, e.properties.lieu, e.properties.repere].filter(Boolean).join(' · '),
-      ),
-    );
-    const actions = document.createElement('div');
-    actions.className = 'carte-apercu-actions';
-    actions.append(lien('Voir la fiche', e.properties.lien));
-    const [x, y] = e.geometry.coordinates;
-    actions.append(lien('Y aller', `https://www.google.com/maps/dir/?api=1&destination=${y},${x}`));
-    const partage = new URL('/carte/', location.origin);
-    partage.searchParams.set('ecole', e.properties.lien);
-    partage.hash = adresseVue({ zoom: Math.min(15, zoomMaxEn(x, y)), latitude: y, longitude: x });
-    actions.append(
-      lien(
-        'Partager sur WhatsApp',
-        `https://wa.me/?text=${encodeURIComponent(e.properties.nom + ' · ' + partage.href)}`,
-      ),
-    );
-    bloc.append(actions);
-    const fermerBouton = document.createElement('button');
-    fermerBouton.type = 'button';
-    fermerBouton.className = 'maplibregl-popup-close-button';
-    fermerBouton.setAttribute('aria-label', 'Fermer l’aperçu');
-    fermerBouton.textContent = '×';
-    fermerBouton.onclick = () => fermer();
-    bloc.append(fermerBouton);
+    const bloc = creerApercu(e.properties, e.geometry.coordinates, () => fermer());
     selection.append(bloc);
     bloc.focus({ preventScroll: true });
     if (historique) {

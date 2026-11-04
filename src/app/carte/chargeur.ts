@@ -1,3 +1,4 @@
+import { adresseVue } from '../../modele/carte/navigation';
 import { modeDeChargement, type Connexion } from '../../modele/carte/chargement';
 import { ADRESSE_DES_TUILES, type Fenetre } from '../../modele/carte/fond';
 export function initialiserCartes(): void {
@@ -25,7 +26,9 @@ export function initialiserCartes(): void {
     if (!gl) {
       conteneur!.dataset.etat = 'repli-sans-webgl2';
       dire(
-        'La carte interactive n’est pas disponible sur cet appareil. La liste ci-dessous donne les mêmes écoles.',
+        application
+          ? 'La carte interactive n’est pas disponible sur cet appareil. La liste ci-dessous donne les mêmes écoles.'
+          : 'La carte interactive n’est pas disponible sur cet appareil. Le dessin et les listes d’écoles restent accessibles.',
       );
       return;
     }
@@ -61,6 +64,17 @@ export function initialiserCartes(): void {
           );
         },
       });
+      if (!application) {
+        const pleinEcran = racine!.querySelector<HTMLAnchorElement>('.plein-ecran');
+        const partagerVue = () => {
+          const c = carte.getCenter();
+          if (pleinEcran)
+            pleinEcran.href =
+              '/carte/' + adresseVue({ zoom: carte.getZoom(), latitude: c.lat, longitude: c.lng });
+        };
+        carte.on('moveend', partagerVue);
+        carte.once('idle', partagerVue);
+      }
       if (application) {
         const { installerInterface } = await import('./interface');
         choisir = await installerInterface(racine!, carte);
