@@ -167,6 +167,23 @@
   --fond-de-carte-nom-eau: var(--bleu-eau-texte);
   --fond-de-carte-halo: var(--blanc);
 
+  /*
+   * Les couches de NTanova sur la carte interactive (src/modele/carte/couches.ts, ticket #103) : les zones, les groupes
+   * d'écoles, les marqueurs. Les cycles et les preuves gardent leurs jetons (--cycle-…, --preuve-…).
+   */
+  --carte-zone-actif: var(--vert); /* « relevé en cours » : contour net, remplissage léger */
+  --carte-zone-programme: var(--encre-50); /* « déploiement programmé » : tirets et hachures */
+  --carte-zone-nom: var(--encre);
+  --carte-zone-nom-doux: var(--encre-75);
+  --carte-zone-halo: var(--blanc);
+  --carte-groupe: var(--vert);
+  --carte-groupe-texte: var(--blanc);
+  --carte-groupe-anneau: var(--blanc);
+  --carte-ecusson: var(--vert); /* la coche d'une école confirmée par sa direction */
+  --carte-ecusson-fond: var(--blanc);
+  --carte-epingle-contour: var(--blanc);
+  --carte-epingle-neutre: var(--gris-vide); /* une école dont aucun niveau n'est noté */
+
   /* 3. Typographie : échelle pour un écran de 360 px, texte courant à 16 px */
   --police-titre: 'Poppins', system-ui, sans-serif;
   --police-texte: 'Nunito Sans', system-ui, sans-serif;
