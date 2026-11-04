@@ -484,7 +484,7 @@
 }
 
 /* Le formulaire de contact sort du tableau : ses champs restent dans la largeur du téléphone. */
-.dialogue-contact-public {
+.dialogue-admin {
   width: min(42rem, calc(100% - 2rem));
   max-width: calc(100% - 2rem);
   max-height: calc(100dvh - 2rem);
@@ -497,18 +497,31 @@
   color: var(--texte);
   text-align: left;
 }
-.dialogue-contact-public .admin-motif {
+.dialogue-admin .admin-motif {
   max-width: none;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr);
   padding: var(--espace-2) 0;
 }
-.dialogue-contact-public .champ {
+.dialogue-admin .champ {
   min-width: 0;
   width: 100%;
 }
 
-.dialogue-contact-public::backdrop {
+.dialogue-admin::backdrop {
   background: var(--texte);
   opacity: 0.35;
+}
+
+.admin-frais-liste {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--espace-3);
+}
+.admin-frais-liste li {
+  display: grid;
+  gap: var(--espace-2);
+  border-bottom: 1px solid var(--trait);
+  padding-block: var(--espace-3);
 }

@@ -1,3 +1,4 @@
+import type { FraisASaisir, FraisEcole } from './frais-ecole';
 import type { AccordContactPublic, ContactPublic } from './contact-public';
 /**
  * Les contrats entre les écrans et le serveur. Les écrans n'appellent que ces
@@ -536,6 +537,7 @@ export interface InstitutionVue {
 }
 
 export interface EcoleVue {
+  frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;
   /** L'identifiant du campus. */
   id: string;
@@ -781,6 +783,8 @@ export interface PortAdministration {
 
   /** Accord explicite de publication du contact ; null retire le contact public. Ne touche pas au privé ni au badge. */
   enregistrerContactPublic(ecoleId: string, contact: AccordContactPublic | null): Promise<void>;
+  enregistrerFraisEcole(ecoleId: string, frais: FraisASaisir, id: string | null): Promise<string>;
+  retirerFraisEcole(ecoleId: string, id: string): Promise<void>;
 
   // Pont avec la direction
   /** Le badge « Vérifié » : l'accord daté de la direction, après un relevé accepté. `POST /admin/ecoles/{id}/verification` */
@@ -904,6 +908,7 @@ export interface FormationPublique {
 
 /** Un campus publié, tel que le site public le montre : une implantation d'une institution. */
 export interface EcolePubliee {
+  frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;
   /** L'identifiant du campus. */
   id: string;

@@ -1,3 +1,4 @@
+import { dateDeclareeValide, jourDuCongo } from './date-declaration';
 import { listes, type Valeur } from './listes';
 import { normaliserTelephone, numeroCongolaisSuspect } from './telephone';
 export interface ContactPublic {
@@ -8,23 +9,12 @@ export interface AccordContactPublic extends ContactPublic {
   fonction: Valeur<'fonction_direction'>;
   canal: 'whatsapp' | 'appel' | 'sur_place' | 'autre';
 }
-export function jourDuCongo(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Africa/Brazzaville',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
-}
 export function lireAccordContactPublic(
   s: { numero: string; accordLe: string; fonction: string; canal: string; autorise: boolean },
   aujourdHui = jourDuCongo(),
 ): { contact: AccordContactPublic | null; erreur: string | null } {
   const numero = normaliserTelephone(s.numero);
-  const date =
-    /^\d{4}-\d{2}-\d{2}$/.test(s.accordLe) &&
-    Number.isFinite(Date.parse(s.accordLe)) &&
-    new Date(s.accordLe).toISOString().slice(0, 10) === s.accordLe;
+  const date = dateDeclareeValide(s.accordLe, aujourdHui);
   let erreur: string | null = null;
   if (!numero || numeroCongolaisSuspect(numero)) erreur = 'Vérifie le numéro public de l’école.';
   else if (!s.autorise) erreur = 'Confirme l’autorisation de publier ce numéro sur le site.';

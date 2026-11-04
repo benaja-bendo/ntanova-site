@@ -272,3 +272,13 @@ Migration `20261104170000_contact_public_ecole.sql` : `campuses.public_phone` et
 Le site public est statique : un ajout ou retrait en base exige une reconstruction puis une mise en ligne des pages. L’administration le dit et ouvre le workflow existant, par défaut sur essai. Vérifier sur essai puis publier en production pour que les familles voient le changement. Retirer le contact communiqué ne retire pas le numéro d’enseigne : s’il faut retirer aussi celui-ci, modifier explicitement la fiche. Les copies déjà enregistrées chez un tiers ne sont pas révoquées par une reconstruction.
 
 Vérifications dédiées : `supabase/tests/contact_public.test.sql` (28), validation du téléphone et de l’accord, contrat de schéma, catalogue, parcours ajout/relecture/retrait et affichage public avec dédoublonnage. Les frais, équipements, photos et l’origine `school` ne font pas partie de cette migration.
+
+## Frais déclarés par l’école — ticket 104, 04/11/2026
+
+Migration `20261104180000_frais_declares_ecole.sql` : `campus_fees` porte uniquement les données publiques (cycle enseigné, minimum/maximum entiers en FCFA, période, inscription facultative, année scolaire facultative, date de déclaration, précision et source fixée à `ecole`). Les inconnues restent nulles, distinctes de zéro. Plusieurs périodes ou années peuvent être déclarées pour un même cycle ; une ligne de même cycle/période/année n’est pas dupliquée.
+
+L’API ne dispose que de SELECT sur la table. RLS : école publiée pour le public, tous les campus pour l’administration. Les commandes `set_school_fee` et `withdraw_school_fee` exigent la session administrateur et tracent les valeurs avant/après dans `prive.campus_fee_history` (inaccessible aux rôles de l’API). Le retrait enlève la ligne du catalogue actif et en conserve l’archive privée. Aucun paiement n’intervient dans ces commandes. La déclaration ne change ni badge ni publication.
+
+La clé vers `campus_cycles` garantit que le cycle est enseigné. Un déclencheur explique qu’il faut d’abord retirer les frais actifs avant de retirer le cycle ; il ne les efface pas silencieusement. Montants négatifs, maximum inférieur au minimum et date future refusés ; une autre période exige sa précision. Le total annuel n’est jamais déduit d’un montant mensuel. L’année scolaire non fournie est explicitement non précisée sur la fiche.
+
+Comme le contact public, ces données nécessitent reconstruction et mise en ligne du site après modification/retrait. Les tests dédiés sont `supabase/tests/frais_ecole.test.sql` (34 contrôles), `tests/unitaires/frais-ecole.test.ts`, `tests/unitaires/date-declaration.test.ts` et les parcours des frais, du catalogue et de la fenêtre partagée.

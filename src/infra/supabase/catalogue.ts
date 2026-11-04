@@ -1,3 +1,5 @@
+import type { FraisEcole } from '../../modele/frais-ecole';
+import { versFrais, type LigneFrais } from './frais';
 import type { MultiPolygone } from '../../modele/geo';
 import { sansRepetition } from '../../modele/geo-divisions';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
@@ -112,7 +114,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
     },
 
     async ecoles(): Promise<EcolePubliee[]> {
-      const [campus, cycles, formations] = await Promise.all([
+      const [campus, cycles, formations, frais] = await Promise.all([
         lireTout<{
           id: string;
           institution_id: string;
@@ -152,10 +154,13 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           diploma: Valeur<'diploma_kind'> | null;
           rhythms: Valeur<'study_rhythm'>[];
         }>('public_campus_programs?select=*&order=campus_id,cycle,title'),
+        lireTout<LigneFrais>('campus_fees?select=*&order=id'),
       ]);
 
       const cyclesDe = new Map<string, string[]>();
       for (const c of cycles) cyclesDe.set(c.campus_id, [...(cyclesDe.get(c.campus_id) ?? []), c.cycle]);
+      const fraisDe = new Map<string, FraisEcole[]>();
+      for (const f of frais) fraisDe.set(f.campus_id, [...(fraisDe.get(f.campus_id) ?? []), versFrais(f)]);
       const formationsDe = new Map<string, FormationPublique[]>();
       for (const f of formations) {
         formationsDe.set(f.campus_id, [
@@ -192,6 +197,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
             formations: formationsDe.get(e.id) ?? [],
             repere: e.landmark,
             numeroEnseigne: e.sign_phone,
+            frais: fraisDe.get(e.id) ?? [],
             contactPublic: e.public_phone && e.public_phone_agreed_on ? { numero: e.public_phone, accordLe: e.public_phone_agreed_on } : null,
             latitude: e.latitude,
             longitude: e.longitude,
