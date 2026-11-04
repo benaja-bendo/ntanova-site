@@ -1,0 +1,28 @@
+---
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirSite } from '../../infra/index';
+import { donneesDeLaCarte, arrondissementDuRepli } from '../../modele/carte/instantane';
+import { lienWhatsApp } from '../../modele/whatsapp';
+import ExplorateurCarte from '../../ui/ExplorateurCarte.astro';
+import PagePublique from '../../ui/PagePublique.astro';
+const site = await obtenirSite();
+---
+
+<PagePublique
+  titre="La carte des écoles · NTanova"
+  description="Explorez les écoles du Congo-Brazzaville vues sur place, sur la carte ou dans la liste."
+  whatsapp={lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ')}
+>
+  <div class="page-exploration">
+    <h1>La carte des écoles</h1>
+    <ExplorateurCarte
+      donnees={donneesDeLaCarte(site)}
+      repli={arrondissementDuRepli(site)}
+      application
+    />
+  </div>
+</PagePublique>
+<script>
+  import { initialiserCartes } from '../../app/carte/chargeur';
+  initialiserCartes();
+</script>

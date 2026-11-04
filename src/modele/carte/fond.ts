@@ -42,6 +42,26 @@ export const FENETRES_DES_VILLES = {
   brazzaville: [15.1, -4.45, 15.4, -4.15],
 } as const satisfies Record<string, Fenetre>;
 
+/** Le plus grand zoom de la carte : au-delà de 15, on agrandit les dernières tuiles. */
+export const ZOOM_MAX_DE_LA_CARTE = 17.5;
+/** À l'arrivée, la carte ne s'approche jamais plus que cela : le cadre par défaut ne tombe jamais sur du vide (D7). */
+export const ZOOM_MAX_DU_CADRE_PAR_DEFAUT = 13;
+/** Le pays et un peu d'air : la carte ne sort pas de cette boîte (c'est aussi la fenêtre des tuiles du pays). */
+export const BOITE_DU_PAYS: Fenetre = [11.1, -5.1, 18.7, 3.8];
+
+/**
+ * Le plus grand zoom permis à cet endroit : celui de la carte dans Pointe-Noire et Brazzaville, 10 partout ailleurs, où le
+ * fichier n'a pas de tuile plus fine (plus près, la carte serait blanche). Une position dans une fenêtre d'une ville
+ * (bords compris) a les tuiles jusqu'au zoom 15.
+ */
+export function zoomMaxEn(longitude: number, latitude: number): number {
+  for (const [ouest, sud, est, nord] of Object.values(FENETRES_DES_VILLES)) {
+    if (longitude >= ouest && longitude <= est && latitude >= sud && latitude <= nord)
+      return ZOOM_MAX_DE_LA_CARTE;
+  }
+  return ZOOM_MAX_HORS_DES_VILLES;
+}
+
 /** Une seule police, servie par le site (ses glyphes sont dans `public/polices/carte/`). */
 export const POLICE_DE_LA_CARTE = 'NotoSans-Regular';
 export const ADRESSE_DES_GLYPHES = '/polices/carte/{fontstack}/{range}.pbf';

@@ -5,7 +5,7 @@
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../infra/index';
 import { arrondissementDeLApercu, vuesSurPlace } from '../modele/carte/plan';
-import { compterEcoles, ecolesSous, lienCarte, lienDivision } from '../modele/geo-divisions';
+import { compterEcoles, ecolesSous, lienDivision } from '../modele/geo-divisions';
 import { lienWhatsApp } from '../modele/whatsapp';
 import ApercuCarte from '../ui/ApercuCarte.astro';
 import PagePublique from '../ui/PagePublique.astro';
@@ -51,17 +51,18 @@ const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === t
         <p class="surtitre-public">
           <span class="insecable">Congo-Brazzaville</span>
         </p>
-        <h1>Les écoles près de chez vous, ville par ville.</h1>
+        <h1>Trouvez une école au Congo-Brazzaville.</h1>
         <p class="chapeau">
-          Maternelles, écoles, collèges, lycées, instituts et universités&nbsp;: trouvez une école
-          près de chez vous, ou pour un enfant de la famille, et cherchez par série du bac, diplôme
-          ou domaine.
+          Explorez les écoles vues sur place ou cherchez par nom, ville et formation.
         </p>
         <nav class="actions-accueil" aria-label="Chercher une école">
-          <a class="bouton" href="/recherche/">
+          <a class="bouton" href="/carte/">
+            Explorer la carte
+          </a>
+          <a class="bouton bouton-secondaire" href="/recherche/">
             Rechercher une école
           </a>
-          <a class="bouton bouton-secondaire" href="/autour-de-moi/">
+          <a class="lien-carte" href="/autour-de-moi/">
             Autour de moi
           </a>
         </nav>
@@ -73,13 +74,7 @@ const ecolesDeLaTete = tete ? dePointeNoire.filter((e) => e.arrondissement === t
         )}
       </div>
 
-      {tete && (
-        <ApercuCarte
-          arrondissement={tete}
-          ecoles={ecolesDeLaTete}
-          lienCarte={lienCarte(['congo', 'pointe-noire', tete.slug])}
-        />
-      )}
+      {tete && <ApercuCarte arrondissement={tete} ecoles={ecolesDeLaTete} lienCarte="/carte/" />}
     </div>
 
     <section id="quartiers" aria-labelledby="titre-quartiers">

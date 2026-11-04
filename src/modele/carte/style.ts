@@ -17,6 +17,7 @@ import {
   POLICE_DE_LA_CARTE,
   ZOOM_MIN_DE_L_OCCUPATION_DU_SOL,
 } from './fond';
+import { couchesDeLaCarte, couleursDeLaCarte } from './couches';
 import { lireJeton } from './jetons';
 
 export interface CouleursDuFond {
@@ -202,5 +203,40 @@ export function styleDuFond(css: string, options: OptionsDuFond = {}): StyleSpec
       fond: { type: 'vector', url: `pmtiles://${adresse}`, attribution: ATTRIBUTION_DU_FOND },
     },
     layers: couches,
+  };
+}
+
+/**
+ * Le style complet de la carte interactive (ticket 103) : le fond, puis les couches de NTanova (`couches.ts`) rangées dans
+ * l'ordre qui compte.
+ *
+ * - les remplissages des zones passent **sous l'eau** : la commune de Brazzaville s'arrête au milieu du fleuve, et un fleuve
+ *   hachuré dirait « déploiement programmé » sur de l'eau (la limite est celle de la base, on corrige le dessin, pas la base) ;
+ * - leurs contours passent au-dessus du fond, **sous ses noms** ;
+ * - les noms des zones, les villes, les groupes et les marqueurs sont tout en haut.
+ * Un fond qui n'a plus de couche d'eau ou de nom fait échouer la construction : on ne range pas au hasard.
+ */
+export function styleDeLaCarte(css: string, options: OptionsDuFond = {}): StyleSpecification {
+  const fond = styleDuFond(css, options);
+  const couches = couchesDeLaCarte(couleursDeLaCarte(css));
+  const eau = fond.layers.findIndex((l) => 'source-layer' in l && l['source-layer'] === 'water');
+  const nom = fond.layers.findIndex((l) => l.type === 'symbol');
+  if (eau < 0 || nom < 0 || nom < eau) {
+    throw new Error(
+      'Le fond n’a plus la couche d’eau ou de noms que la carte attend pour ranger les zones.',
+    );
+  }
+  return {
+    ...fond,
+    name: 'NTanova · carte',
+    sources: { ...fond.sources, ...couches.sources },
+    layers: [
+      ...fond.layers.slice(0, eau),
+      ...couches.sousLEau,
+      ...fond.layers.slice(eau, nom),
+      ...couches.contours,
+      ...fond.layers.slice(nom),
+      ...couches.dessus,
+    ],
   };
 }

@@ -148,3 +148,11 @@ Il sert `sortie/` sur `http://127.0.0.1:8077/congo-AAAA-MM-JJ.pmtiles` (uniqueme
 - **La build la plus récente peut manquer** (`builds.json` est mis à jour avec retard) : donner la date à `fabriquer.sh`.
 - Le fichier hébergé est public : il ne contient que des données d'OpenStreetMap.
 - Ces fichiers ne vont jamais dans git (`*.pmtiles` est ignoré).
+
+## Hébergement constaté le 04/11/2026
+
+R2 est activé : compartiment `ntanova-tuiles` (Standard, Europe de l'Ouest), domaine `tuiles.ntanova.com` actif avec TLS minimum 1.2. L'archive `congo-2026-11-03.pmtiles` (10 174 443 octets) est envoyée ; les quatre origines de `cors.json` passent les contrôles de lecture. L'URL publique de développement R2 reste désactivée.
+
+**Particularité de l'envoi par le tableau de bord** : l'objet n'avait pas d'en-tête Cache-Control. La règle « Fond de carte NTanova — archives datées » impose un an au cache Edge et au navigateur, uniquement pour `http.host eq "tuiles.ntanova.com" and http.request.uri.path eq "/congo-2026-11-03.pmtiles"`. La règle de transformation « Fond de carte NTanova — lectures partielles », limitée au même domaine et chemin, pose `Accept-Ranges: bytes` : Cloudflare omettait cet en-tête en cache alors que les plages répondaient bien 206. **Pour une nouvelle archive, adapter les chemins de ces deux règles avant de changer l'URL du site.** Ne jamais remplacer les octets sous un nom daté existant.
+
+Vérifié avec `verifier-hebergement.sh` sur les quatre origines : code de sortie 0, « Tout va bien », cache d'un an et deux réponses HIT consécutives. Le rendu de la carte sur essai et sur téléphone reste distinct de cette vérification d'hébergement.

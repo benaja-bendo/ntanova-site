@@ -435,3 +435,12 @@ describe('les mots de l’état public', () => {
     expect(JSON.stringify(libelleDeploiement)).not.toMatch(/complet|terminé|100/i);
   });
 });
+
+it('conserve les deux dates sans confondre confirmation et passage', () => {
+  const f = ecolesGeoJSON([ecole('deux', { etat: 'verifiee', verifieeLe: '2026-11-04' })])
+    .features[0]!;
+  expect(f.properties.passage).toBe('2026-11-02T10:00:00Z');
+  expect(f.properties.confirmation).toBe('2026-11-04');
+  const g = ecolesGeoJSON([ecole('rue', { verifieeLe: '2026-11-04' })]).features[0]!;
+  expect(g.properties.confirmation).toBeNull();
+});

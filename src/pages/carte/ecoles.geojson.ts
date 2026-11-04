@@ -2,11 +2,11 @@
 // Chaque école porte tous ses cycles et le plus élevé. Rien de privé. Voir src/modele/carte/donnees.ts.
 import type { APIRoute } from 'astro';
 import { obtenirSite } from '../../infra/index';
-import { ecolesGeoJSON } from '../../modele/carte/donnees';
+import { donneesDeLaCarte } from '../../modele/carte/instantane';
 
 export const GET: APIRoute = async () => {
-  const { ecoles } = await obtenirSite();
-  return new Response(JSON.stringify(ecolesGeoJSON(ecoles)), {
+  const { ecoles } = donneesDeLaCarte(await obtenirSite());
+  return new Response(JSON.stringify(ecoles), {
     headers: { 'Content-Type': 'application/geo+json; charset=utf-8' },
   });
 };
