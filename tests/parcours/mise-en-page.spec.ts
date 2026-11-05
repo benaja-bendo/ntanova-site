@@ -676,3 +676,69 @@ test('relais : confirmation accessible, annulation sans perte et suppression ré
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeFocused();
 });
+
+test('en-tête public : polices retardées et texte agrandi sans débordement', async ({
+  page,
+}, info) => {
+  let liberer!: () => void;
+  const attente = new Promise<void>((fin) => {
+    liberer = fin;
+  });
+  await page.route('**/polices/*.woff2', async (route) => {
+    await attente;
+    await route.continue();
+  });
+  try {
+    await page.goto('/ecoles/congo/pointe-noire/', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Pointe-Noire', exact: true })).toBeVisible();
+    await aucunDefilementDeCote(page, 'page ville avant les polices');
+  } finally {
+    liberer();
+  }
+  await page.evaluate(() => document.fonts.ready);
+  // Un texte de navigation plus grand reproduit aussi les métriques d'une police de repli large.
+  await page.addStyleTag({ content: '.entete { font-size: 18px; }' });
+  const largeurs =
+    info.project.name === 'tablette-768' ? [767, 768, 769, 820, 1023, 1024] : [largeurDe(page)];
+  for (const largeur of largeurs) {
+    await page.setViewportSize({ width: largeur, height: 1024 });
+    await aucunDefilementDeCote(page, `en-tête avec texte agrandi à ${largeur} px`);
+    if (largeur >= 768) {
+      const navigation = page.getByRole('navigation', { name: 'Navigation principale' });
+      await expect(navigation).toBeVisible();
+      for (const lien of await navigation.getByRole('link').all()) {
+        const boite = await lien.boundingBox();
+        expect(boite!.x).toBeGreaterThanOrEqual(0);
+        expect(boite!.x + boite!.width).toBeLessThanOrEqual(largeur);
+        expect(boite!.height).toBeGreaterThanOrEqual(44);
+        await lien.focus();
+        await expect(lien).toBeFocused();
+      }
+    }
+  }
+});
+
+test('divisions : noms longs et chemin complet restent lisibles dans le cadre', async ({
+  page,
+}) => {
+  await page.goto('/ecoles/congo/pointe-noire/');
+  await page.evaluate(() => document.fonts.ready);
+  const nom = `Ville${'Exemple'.repeat(18)}`;
+  await page.getByRole('heading', { level: 1 }).evaluate((e, nom) => {
+    e.textContent = nom;
+  }, nom);
+  await page
+    .locator('.zone-nom')
+    .first()
+    .evaluate((e) => {
+      e.textContent = `Quartier${'Exemple'.repeat(18)}`;
+    });
+  await page.locator('.titre-vue .texte-doux span').evaluate((e) => {
+    e.textContent = `Département${'Exemple'.repeat(18)} › Congo-Brazzaville`;
+  });
+  await aucunDefilementDeCote(page, 'noms longs des divisions');
+  await expect(page.getByRole('heading', { name: nom, exact: true })).toBeVisible();
+  for (const cible of await page.locator('main .titre-vue, main .zone').all()) {
+    expect(await cible.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  }
+});

@@ -189,16 +189,25 @@ const surEcoles =
     font-weight: 700;
   }
 
-  /* À partir de 48 rem : la barre du haut de la planche « Accueil sur ordinateur », le pied sur une ligne. */
+  /* Sur tablette, la navigation a sa ligne : une police de repli plus large ne pousse pas le pays hors du cadre. */
   @media (min-width: 48rem) {
     .entete {
       border-bottom: 1px solid var(--trait);
     }
     .entete-cadre {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--espace-2) var(--espace-3);
       min-height: 4.75rem;
       padding-block: var(--espace-3);
     }
+    .entete-droite {
+      display: contents;
+    }
     .lien-marque {
+      grid-column: 1;
+      grid-row: 1;
+      justify-self: start;
       gap: var(--espace-3);
       font-size: var(--taille-titre-fiche);
     }
@@ -207,7 +216,10 @@ const surEcoles =
       height: 2.25rem;
     }
     .nav-haut {
+      grid-column: 1 / -1;
+      grid-row: 2;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: var(--espace-4);
     }
@@ -232,6 +244,9 @@ const surEcoles =
       text-underline-offset: 0.35em;
     }
     .ville {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;
       padding: var(--espace-2) var(--espace-4);
       font-size: var(--taille-secondaire);
     }
@@ -244,6 +259,17 @@ const surEcoles =
 
   /* À partir de 64 rem : la phrase à gauche, les liens à droite. */
   @media (min-width: 64rem) {
+    .entete-cadre {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+    .nav-haut {
+      grid-column: 2;
+      grid-row: 1;
+      justify-content: flex-end;
+    }
+    .ville {
+      grid-column: 3;
+    }
     .pied-cadre {
       grid-template-columns: minmax(0, 1fr) auto;
       grid-template-areas: 'phrase liens';

@@ -85,7 +85,7 @@ const lienListe = lienDivision(page.adresse);
         {page.noms.length > 1 && (
           <>
             {' '}
-            · <span class="insecable">{page.noms.slice(0, -1).join(' › ')}</span>
+            · <span>{page.noms.slice(0, -1).join(' › ')}</span>
           </>
         )}
       </p>
@@ -175,7 +175,18 @@ const lienListe = lienDivision(page.adresse);
 <style>
   .hub {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--espace-4);
+  }
+  .titre-vue > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .hub h1,
+  .titre-vue p,
+  .zone-nom,
+  .zone-detail {
+    overflow-wrap: anywhere;
   }
   .hub h1 {
     margin: 0;
