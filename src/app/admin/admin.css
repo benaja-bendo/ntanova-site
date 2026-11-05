@@ -342,7 +342,10 @@
 }
 
 .admin-decision {
-  padding-top: var(--espace-4);
+  min-inline-size: 0;
+  margin: 0;
+  padding: var(--espace-4) 0 0;
+  border: 0;
   border-top: 1px solid var(--trait);
 }
 
@@ -601,4 +604,15 @@
   .section-repliable .admin-champs dd:not(:last-child) {
     margin-bottom: var(--espace-2);
   }
+}
+
+/* Le groupe natif protège aussi les champs pendant l’écriture. */
+.formulaire-occupe {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.admin-motif.formulaire-occupe {
+  padding: var(--espace-4);
 }

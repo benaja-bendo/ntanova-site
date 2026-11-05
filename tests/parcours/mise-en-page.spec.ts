@@ -6,6 +6,7 @@ import {
   ouvrirGestion,
   uneFicheEnvoyee,
   ouvrirLaFiche,
+  ouvrirContacts,
   prendrePhotoEtPosition,
 } from './aides';
 test.beforeEach(async ({ page, context }) => {
@@ -741,4 +742,69 @@ test('divisions : noms longs et chemin complet restent lisibles dans le cadre', 
   for (const cible of await page.locator('main .titre-vue, main .zone').all()) {
     expect(await cible.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
   }
+});
+
+test('décision : attente explicite, choix protégés et message conservé après une coupure', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  await page.getByRole('button', { name: 'Demander une correction', exact: true }).click();
+  await page.getByLabel('Motif', { exact: true }).selectOption('autre');
+  const message = page.getByLabel('Message au relais', { exact: false });
+  await message.fill('Reprenez la photo de face, sans enfant.');
+  await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '1000'));
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Envoyer la demande', exact: true }).click();
+  const attente = page.getByRole('button', { name: 'Envoi de la demande…', exact: true });
+  await expect(attente).toBeDisabled();
+  await expect(attente).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByRole('button', { name: 'Accepter la fiche', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Refuser', exact: true })).toBeDisabled();
+  await expect(message).toBeDisabled();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(message).toHaveValue('Reprenez la photo de face, sans enfant.');
+  await expect(message).toBeEnabled();
+  await context.setOffline(false);
+  await page.getByRole('button', { name: 'Envoyer la demande', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('correction part au relais');
+});
+
+test('contacts : enregistrement et confirmation de fonction montrent leur attente sans perdre la saisie', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  await ouvrirContacts(page);
+  await page.getByRole('button', { name: 'Ajouter une personne', exact: true }).click();
+  const formulaire = page.getByRole('form', { name: 'Nouvelle personne' });
+  await formulaire.getByLabel('Fonction', { exact: true }).selectOption('directeur');
+  const note = formulaire.getByRole('textbox', { name: /^Note/ });
+  await note.fill('À rappeler demain.');
+  await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '1000'));
+  await context.setOffline(true);
+  await formulaire.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(
+    formulaire.getByRole('button', { name: 'Enregistrement…', exact: true }),
+  ).toBeDisabled();
+  await expect(formulaire.getByRole('button', { name: 'Annuler', exact: true })).toBeDisabled();
+  await expect(note).toBeDisabled();
+  await expect(page.locator('details.section-repliable').getByRole('alert')).toBeVisible();
+  await expect(note).toHaveValue('À rappeler demain.');
+  await context.setOffline(false);
+  await formulaire.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(formulaire).toHaveCount(0);
+  const pont = page.getByRole('region', { name: 'Écrire à la direction' });
+  await context.setOffline(true);
+  await pont.getByRole('button', { name: 'Confirmer sa fonction', exact: true }).click();
+  await expect(pont.getByRole('button', { name: 'Confirmation…', exact: true })).toBeDisabled();
+  await expect(pont.getByLabel('Fonction de la personne qui a répondu')).toBeDisabled();
+  await expect(pont.getByRole('alert')).toBeVisible();
+  await context.setOffline(false);
+  await pont.getByRole('button', { name: 'Confirmer sa fonction', exact: true }).click();
+  await expect(pont.getByText('Fonction confirmée', { exact: true })).toBeVisible();
 });

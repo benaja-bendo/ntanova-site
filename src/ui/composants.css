@@ -484,8 +484,8 @@ textarea.champ {
 .action-discret {
   border-color: transparent;
 }
-.action-secondaire:hover,
-.action-discret:hover {
+.action-secondaire:hover:not(:disabled),
+.action-discret:hover:not(:disabled) {
   background: var(--fond-bande);
   color: var(--marque-appuyee);
 }
@@ -494,7 +494,7 @@ textarea.champ {
   border-color: var(--erreur);
   color: var(--erreur);
 }
-.action-danger:hover {
+.action-danger:hover:not(:disabled) {
   background: var(--etat-refusee-fond);
   border-color: var(--erreur);
   color: var(--erreur);

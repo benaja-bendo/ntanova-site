@@ -33,6 +33,7 @@ import type {
   ReleveAValider,
   ReleveDecide,
 } from '../../modele/ports';
+import { Bouton } from '../../ui/actions';
 import { SectionRepliable } from '../../ui/SectionRepliable';
 import { afficherTelephone } from '../../modele/telephone';
 import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
@@ -428,7 +429,10 @@ function Detail({
   const [mode, setMode] = useState<'correction' | 'refus' | null>(null);
   const [motif, setMotif] = useState<Valeur<'motif_decision'>>('photo_floue');
   const [message, setMessage] = useState('');
-  const [enCours, setEnCours] = useState(false);
+  const [operation, setOperation] = useState<
+    'acceptation' | 'essai' | 'correction' | 'refus' | null
+  >(null);
+  const enCours = operation !== null;
   const [efface, setEfface] = useState<string | null>(null);
   const [erreurContact, setErreurContact] = useState<string | null>(null);
   const [cible, setCible] = useState<Cible>({ mode: 'nouvelle' });
@@ -466,8 +470,12 @@ function Detail({
       .catch((e: unknown) => setErreur(messageErreur(e)));
   }, [admin, id]);
 
-  const agir = async (action: () => Promise<unknown>, texte: string) => {
-    setEnCours(true);
+  const agir = async (
+    nom: NonNullable<typeof operation>,
+    action: () => Promise<unknown>,
+    texte: string,
+  ) => {
+    setOperation(nom);
     setErreur(null);
     try {
       await action();
@@ -475,7 +483,7 @@ function Detail({
     } catch (e) {
       setErreur(messageErreur(e));
     } finally {
-      setEnCours(false);
+      setOperation(null);
     }
   };
 
@@ -715,7 +723,11 @@ function Detail({
           définitif), ou agir sur l'école dans l'onglet « Écoles ».
         </p>
       ) : (
-        <div className="admin-decision pile">
+        <fieldset
+          className="admin-decision pile"
+          disabled={enCours}
+          aria-label="Décision de NTanova"
+        >
           {detail.essai && (
             <Bandeau ton="attente" icone="alerte">
               <p>
@@ -878,12 +890,14 @@ function Detail({
 
           <div className="admin-actions">
             {!detail.essai && (
-              <button
+              <Bouton
                 type="button"
-                className="bouton"
+                enCours={operation === 'acceptation'}
+                texteEnCours="Acceptation…"
                 disabled={enCours || cibleIncomplete}
                 onClick={() =>
                   void agir(
+                    'acceptation',
                     () => admin.accepter(id, decision()),
                     cible.mode === 'update_campus' || cible.mode === 'add_cycle'
                       ? 'La fiche de l’école est mise à jour. Si elle était déjà en ligne, la correction paraît après la prochaine mise à jour du site ; sinon, publie-la depuis « Écoles ».'
@@ -892,22 +906,24 @@ function Detail({
                 }
               >
                 {texteAccepter}
-              </button>
+              </Bouton>
             )}
             {detail.essai && !detail.essaiValideLe && (
-              <button
+              <Bouton
                 type="button"
-                className="bouton"
+                enCours={operation === 'essai'}
+                texteEnCours="Validation…"
                 disabled={enCours}
                 onClick={() =>
                   void agir(
+                    'essai',
                     () => admin.validerEssai(id),
                     'Validée avec le relais : elle compte pour son essai et ne sera jamais publiée.',
                   )
                 }
               >
                 Valider pour l’essai
-              </button>
+              </Bouton>
             )}
             <button
               type="button"
@@ -943,6 +959,7 @@ function Detail({
                   return;
                 }
                 void agir(
+                  mode,
                   () =>
                     mode === 'correction'
                       ? admin.demanderCorrection(id, motif, texte)
@@ -990,12 +1007,18 @@ function Detail({
                   />
                 )}
               </Champ>
-              <button type="submit" className="bouton" disabled={enCours}>
+              <Bouton
+                type="submit"
+                variante={mode === 'refus' ? 'danger' : 'principal'}
+                enCours={operation === mode}
+                texteEnCours={mode === 'correction' ? 'Envoi de la demande…' : 'Refus…'}
+                disabled={enCours}
+              >
                 {mode === 'correction' ? 'Envoyer la demande' : 'Refuser la fiche'}
-              </button>
+              </Bouton>
             </form>
           )}
-        </div>
+        </fieldset>
       )}
       <SectionRepliable
         titre="Contact et échanges avec la direction"
