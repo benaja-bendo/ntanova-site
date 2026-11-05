@@ -179,6 +179,17 @@ describe('les écoles de la carte', () => {
     });
   });
 
+  it('porte la lettre de chaque niveau, dans l’ordre des niveaux : le disque de la fiche d’aperçu', () => {
+    const lettres = (niveaux: EcolePubliee['niveaux']) =>
+      ecolesGeoJSON([ecole('d', { niveaux })]).features[0]?.properties;
+    const p = lettres(['college', 'creche', 'maternelle', 'autre_formation']);
+    // Les niveaux sont dans l'ordre de la liste (de la crèche au supérieur), pas dans celui de la saisie.
+    expect(p?.niveaux).toEqual(['Crèche ou garderie', 'Maternelle', 'Collège', 'Autre formation']);
+    expect(p?.niveauxLettres).toEqual(['M', 'M', 'C', 'S']);
+    expect(p?.niveauxLettres).toHaveLength(p?.niveaux.length ?? -1);
+    expect(lettres([])?.niveauxLettres).toEqual([]);
+  });
+
   it('porte le rang du cycle le plus élevé (1 à 6) pour regrouper, trier et filtrer', () => {
     const rang = (niveaux: EcolePubliee['niveaux']) =>
       ecolesGeoJSON([ecole('r', { niveaux })]).features[0]?.properties.rang;

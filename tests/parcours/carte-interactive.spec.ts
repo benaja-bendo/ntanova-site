@@ -92,9 +92,9 @@ test('s’active d’office sur /carte/ : le fond, les zones et les écoles, l�
   // Le dessin de repli s'efface quand la carte est prête ; la liste, elle, reste.
   await expect(page.locator('.carte-repli')).toBeHidden();
   await page.getByRole('button', { name: 'Voir les écoles', exact: true }).click();
-  await expect(page.locator('[data-compte]')).toContainText('5 école(s)');
+  await expect(page.locator('[data-compte]')).toContainText('5 écoles dans cette vue');
   await expect(
-    page.locator('[data-resultats]').getByRole('link', { name: '[Complexe scolaire Exemple]' }),
+    page.locator('[data-resultats]').getByRole('button', { name: /\[Complexe scolaire Exemple\]/ }),
   ).toBeVisible();
   // Le style, les zones et les écoles sont ceux du site construit.
   expect(
@@ -176,8 +176,13 @@ test('un groupe se défait au toucher, une épingle ouvre son aperçu avec le li
   await croix.tap();
   await expect(page.locator('.carte-apercu')).toHaveCount(0);
 
-  // Une école « vue sur place » dit sa propre preuve, sans emprunter celle d'une autre.
-  await page.getByRole('button', { name: 'Réduire', exact: true }).click();
+  // Une école « vue sur place » dit sa propre preuve, sans emprunter celle d'une autre. La poignée referme la liste, pour
+  // que la carte reprenne la place.
+  await page.getByRole('button', { name: 'Voir les écoles', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Voir les écoles', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
   const vue = (await rendues(page, 'ecoles-epingles')).find(
     (e) => e.proprietes.preuve === 'terrain',
   );
@@ -277,7 +282,7 @@ test('un fond de carte qui ne répond pas est dit calmement : les zones, les éc
         (await rendues(page, 'ecoles-epingles')).length,
     )
     .toBeGreaterThan(0);
-  await expect(page.getByRole('link', { name: '[Complexe scolaire Exemple]' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /\[Complexe scolaire Exemple\]/ })).toBeVisible();
 });
 
 test('ne demande jamais la position, et n’envoie rien de la personne', async ({
@@ -310,4 +315,46 @@ test('ne demande jamais la position, et n’envoie rien de la personne', async (
   // Aucune requête qui écrit, et le serveur de tuiles ne reçoit que des lectures partielles.
   expect(sortantes.filter((s) => !/\/\/tuiles\.ntanova\.com\//.test(s.url))).toEqual([]);
   expect(tuiles.requetes.every((r) => ['GET', 'OPTIONS'].includes(r.methode))).toBe(true);
+});
+
+test('l’école choisie grandit, a son halo et son nom ; la fermer les efface', async ({
+  page,
+  context,
+}) => {
+  await servirLesTuiles(context);
+  const ecoles = (await page.request.get('/carte/ecoles.geojson').then((r) => r.json())) as {
+    features: {
+      geometry: { coordinates: [number, number] };
+      properties: { id: string; nom: string; lien: string };
+    }[];
+  };
+  const ecole = ecoles.features[0]!;
+  const [x, y] = ecole.geometry.coordinates;
+  await page.goto(`/carte/?ecole=${encodeURIComponent(ecole.properties.lien)}#15/${y}/${x}`);
+  await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'prete', { timeout: 30_000 });
+  await expect(page.locator('.carte-apercu')).toContainText(ecole.properties.nom);
+
+  // Son épingle (plus grande), son halo et son nom sont ceux de l'école choisie, et d'elle seule.
+  await expect
+    .poll(async () => (await rendues(page, 'ecole-choisie-epingle')).length, { timeout: 15_000 })
+    .toBe(1);
+  expect((await rendues(page, 'ecole-choisie-epingle'))[0]?.proprietes.id).toBe(
+    ecole.properties.id,
+  );
+  await expect
+    .poll(async () => (await rendues(page, 'ecole-choisie-halo')).length, { timeout: 15_000 })
+    .toBe(1);
+  // Le nom du fond ne se double pas avec celui de l'école choisie.
+  expect(
+    (await rendues(page, 'ecoles-noms')).some((f) => f.proprietes.id === ecole.properties.id),
+  ).toBe(false);
+
+  // La fermer efface le halo et la grande épingle ; l'épingle ordinaire reste.
+  await page.locator('.apercu-fermer').tap();
+  await expect(page.locator('.carte-apercu')).toHaveCount(0);
+  await expect
+    .poll(async () => (await rendues(page, 'ecole-choisie-epingle')).length, { timeout: 15_000 })
+    .toBe(0);
+  expect(await rendues(page, 'ecole-choisie-halo')).toHaveLength(0);
+  expect((await rendues(page, 'ecoles-epingles')).length).toBeGreaterThanOrEqual(1);
 });

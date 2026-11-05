@@ -21,6 +21,27 @@ export const SOURCE_ZONES = 'zones';
 export const SOURCE_ECOLES = 'ecoles';
 export const COUCHE_EPINGLES = 'ecoles-epingles';
 export const COUCHE_GROUPES = 'ecoles-groupes';
+export const COUCHE_NOMS = 'ecoles-noms';
+/** L'école choisie vit dans sa propre source : un groupe ne la cache jamais, et le halo la suit. */
+export const SOURCE_CHOISIE = 'ecole-choisie';
+export const COUCHE_CHOISIE_HALO = 'ecole-choisie-halo';
+export const COUCHE_CHOISIE = 'ecole-choisie-epingle';
+export const COUCHE_CHOISIE_NOM = 'ecole-choisie-nom';
+
+/** Le nom d'une école s'écrit à côté de son épingle à partir de ce zoom : avant, les épingles se touchent. */
+export const ZOOM_MIN_DES_NOMS = 13;
+/**
+ * La trame d'un « déploiement programmé » s'efface entre ces deux zooms : de loin elle dit « pas encore parcouru », à hauteur
+ * de rue elle rayerait la carte. Le contour pointillé reste, et l'état se lit dans la légende.
+ */
+export const ZOOM_TRAME_PLEINE = 11;
+export const ZOOM_TRAME_EFFACEE = 12.5;
+
+/** Les noms d'école du fond, sauf celui de l'école choisie (elle écrit le sien, plus grand). */
+export function filtreDesNoms(idChoisi?: string): ExpressionSpecification {
+  const base = ['!', ['has', 'point_count']];
+  return expr(idChoisi ? ['all', base, ['!=', ['get', 'id'], idChoisi]] : base);
+}
 
 /** Deux écoles à moins de ce nombre de pixels forment un groupe (la cible d'un doigt fait 44 px), jusqu'au zoom 14. */
 export const RAYON_DES_GROUPES = 56;
@@ -42,6 +63,7 @@ export interface CouleursDeLaCarte {
   groupe: string;
   groupeTexte: string;
   groupeAnneau: string;
+  selectionHalo: string;
 }
 
 /** Les couleurs des couches de NTanova, lues dans le texte de `jetons.css` (en suivant les `var(--…)`). */
@@ -56,6 +78,7 @@ export function couleursDeLaCarte(css: string): CouleursDeLaCarte {
     groupe: jeton('groupe'),
     groupeTexte: jeton('groupe-texte'),
     groupeAnneau: jeton('groupe-anneau'),
+    selectionHalo: jeton('selection-halo'),
   };
 }
 
@@ -74,6 +97,16 @@ const de = (cle: string) => ['==', ['get', 'etat'], cle];
 const estUneZone = ['==', ['get', 'genre'], 'zone'];
 const estUneVille = ['==', ['get', 'genre'], 'ville'];
 const police = [POLICE_DE_LA_CARTE];
+const aucuneEcole = { type: 'FeatureCollection', features: [] } as const;
+/** Le nom du marqueur d'une école, comme `couches` le demande à l'îlot : lettre, écusson si confirmée, et grandeur. */
+const imageDeLEpingle = (suffixe: string) =>
+  expr([
+    'concat',
+    'epingle-',
+    ['coalesce', ['get', 'lettre'], 'neutre'],
+    ['case', ['==', ['get', 'preuve'], 'direction'], '-confirmee', ''],
+    suffixe,
+  ]);
 
 export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
   const parEtat = (actif: string, programme: string) =>
@@ -87,6 +120,7 @@ export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
     ['get', 'libelle'],
     { 'font-scale': 0.85 },
   ]);
+  const nomSeul = expr(['format', ['get', 'nom'], { 'font-scale': 1 }]);
   const texteDeZone = {
     'text-color': parEtat(c.zoneNom, c.zoneNomDoux),
     'text-halo-color': c.zoneHalo,
@@ -107,6 +141,7 @@ export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
           confirmees: expr(['+', ['case', ['==', ['get', 'preuve'], 'direction'], 1, 0]]),
         },
       },
+      [SOURCE_CHOISIE]: { type: 'geojson', data: aucuneEcole },
     },
 
     sousLEau: [
@@ -124,7 +159,18 @@ export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
         source: SOURCE_ZONES,
         minzoom: ZOOM_MIN_DES_ZONES,
         filter: expr(['all', estUneZone, de('programme')]),
-        paint: { 'fill-pattern': IMAGE_HACHURES },
+        paint: {
+          'fill-pattern': IMAGE_HACHURES,
+          'fill-opacity': expr([
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            ZOOM_TRAME_PLEINE,
+            1,
+            ZOOM_TRAME_EFFACEE,
+            0,
+          ]),
+        },
       },
     ],
 
@@ -156,7 +202,9 @@ export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
         minzoom: ZOOM_MIN_DES_ZONES + 0.5,
         filter: expr(estUneZone),
         layout: {
-          'text-field': nomEtLibelle,
+          // Une zone « relevé en cours » dit son état ; une zone « déploiement programmé » n'écrit que son nom : l'état se
+          // lit dans la légende et dans le panneau, jamais répété sur chaque quartier.
+          'text-field': expr(['case', de('actif'), nomEtLibelle, nomSeul]),
           'text-font': police,
           'text-size': expr(['interpolate', ['linear'], ['zoom'], 8, 12, 14, 15]),
           'text-max-width': 8,
@@ -249,6 +297,19 @@ export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
         },
       },
       {
+        // Le halo de l'école choisie : sous toutes les épingles, pour que la sienne, plus grande, le recouvre à moitié.
+        id: COUCHE_CHOISIE_HALO,
+        type: 'circle',
+        source: SOURCE_CHOISIE,
+        paint: {
+          'circle-radius': 20,
+          'circle-color': c.selectionHalo,
+          'circle-opacity': 0.6,
+          'circle-blur': 0.35,
+          'circle-pitch-alignment': 'map',
+        },
+      },
+      {
         id: COUCHE_EPINGLES,
         minzoom: ZOOM_MAX_DES_VILLES,
         type: 'symbol',
@@ -256,15 +317,63 @@ export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
         filter: expr(['!', ['has', 'point_count']]),
         layout: {
           // Forme = preuve (épingle, avec écusson quand la direction a confirmé), lettre et couleur = cycle le plus élevé.
-          'icon-image': expr([
-            'concat',
-            'epingle-',
-            ['coalesce', ['get', 'lettre'], 'neutre'],
-            ['case', ['==', ['get', 'preuve'], 'direction'], '-confirmee', ''],
-          ]),
+          'icon-image': imageDeLEpingle(''),
           'icon-anchor': 'bottom',
           'icon-allow-overlap': true,
           'icon-ignore-placement': true,
+        },
+      },
+      {
+        // Le nom de chaque école, à côté de son épingle : une épingle sans nom oblige à la toucher pour savoir.
+        id: COUCHE_NOMS,
+        minzoom: ZOOM_MIN_DES_NOMS,
+        type: 'symbol',
+        source: SOURCE_ECOLES,
+        filter: filtreDesNoms(),
+        layout: {
+          'text-field': expr(['get', 'nom']),
+          'text-font': police,
+          'text-size': 13,
+          'text-anchor': 'left',
+          'text-offset': [1.4, -1.8],
+          'text-max-width': 9,
+          'text-padding': 2,
+        },
+        paint: {
+          'text-color': c.zoneNom,
+          'text-halo-color': c.zoneHalo,
+          'text-halo-width': 2,
+        },
+      },
+      {
+        id: COUCHE_CHOISIE,
+        type: 'symbol',
+        source: SOURCE_CHOISIE,
+        layout: {
+          'icon-image': imageDeLEpingle('-choisie'),
+          'icon-anchor': 'bottom',
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+        },
+      },
+      {
+        id: COUCHE_CHOISIE_NOM,
+        type: 'symbol',
+        source: SOURCE_CHOISIE,
+        layout: {
+          'text-field': expr(['get', 'nom']),
+          'text-font': police,
+          'text-size': 15,
+          'text-anchor': 'left',
+          'text-offset': [1.6, -2.1],
+          'text-max-width': 10,
+          // Toujours écrit, et il pèse sur les noms du dessous : celui de la zone s'efface plutôt que de le chevaucher.
+          'text-allow-overlap': true,
+        },
+        paint: {
+          'text-color': c.zoneNom,
+          'text-halo-color': c.zoneHalo,
+          'text-halo-width': 2,
         },
       },
     ],

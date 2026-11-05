@@ -288,10 +288,26 @@ describe('le nom des marqueurs', () => {
   it('se relit sans rien perdre, pour chaque lettre et chaque preuve', () => {
     for (const lettre of LETTRES_DES_CYCLES) {
       for (const confirmee of [false, true]) {
-        expect(lireLEpingle(nomDeLEpingle(lettre, confirmee))).toEqual({ lettre, confirmee });
+        for (const choisie of [false, true]) {
+          expect(lireLEpingle(nomDeLEpingle(lettre, confirmee, choisie))).toEqual({
+            lettre,
+            confirmee,
+            choisie,
+          });
+        }
       }
     }
-    expect(lireLEpingle(nomDeLEpingle(null, true))).toEqual({ lettre: null, confirmee: true });
+    expect(lireLEpingle(nomDeLEpingle(null, true))).toEqual({
+      lettre: null,
+      confirmee: true,
+      choisie: false,
+    });
+  });
+
+  it('nomme l’épingle de l’école choisie sans toucher aux autres', () => {
+    expect(nomDeLEpingle('S', false, true)).toBe('epingle-S-choisie');
+    expect(nomDeLEpingle('S', true, true)).toBe('epingle-S-confirmee-choisie');
+    expect(nomDeLEpingle('S', false)).toBe('epingle-S');
   });
 
   it('ne dessine pas ce qui n’est pas un marqueur', () => {

@@ -11,6 +11,7 @@ const ecole = (id: string, lettres: string, x: number): FeatureEcole => ({
     lieu: 'Pointe-Noire',
     lettres,
     niveaux: [],
+    niveauxLettres: [],
     cycle: null,
     lettre: 'S',
     rang: 6,

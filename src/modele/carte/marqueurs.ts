@@ -29,24 +29,33 @@ export const IMAGE_HACHURES = 'hachures';
 
 const PREFIXE = 'epingle-';
 const SUFFIXE_CONFIRMEE = '-confirmee';
+/** L'école choisie : la même épingle, plus grande (le halo et le nom sont des couches à part). */
+const SUFFIXE_CHOISIE = '-choisie';
 const NEUTRE = 'neutre';
 
 export function estUneLettreDeCycle(texte: string | null | undefined): texte is LettreDeCycle {
   return (LETTRES_DES_CYCLES as readonly string[]).includes(texte ?? '');
 }
 
-/** Le nom de l'image d'un marqueur : `epingle-P`, `epingle-P-confirmee`, `epingle-neutre`. */
-export function nomDeLEpingle(lettre: string | null | undefined, confirmee: boolean): string {
-  return `${PREFIXE}${estUneLettreDeCycle(lettre) ? lettre : NEUTRE}${confirmee ? SUFFIXE_CONFIRMEE : ''}`;
+/** Le nom de l'image d'un marqueur : `epingle-P`, `epingle-P-confirmee`, `epingle-neutre`, `epingle-P-choisie`. */
+export function nomDeLEpingle(
+  lettre: string | null | undefined,
+  confirmee: boolean,
+  choisie = false,
+): string {
+  return `${PREFIXE}${estUneLettreDeCycle(lettre) ? lettre : NEUTRE}${confirmee ? SUFFIXE_CONFIRMEE : ''}${choisie ? SUFFIXE_CHOISIE : ''}`;
 }
 
 /** L'inverse : ce qu'il faut dessiner pour ce nom ; rien quand le nom n'est pas celui d'un marqueur. */
 export function lireLEpingle(
   nom: string,
-): { lettre: LettreDeCycle | null; confirmee: boolean } | null {
+): { lettre: LettreDeCycle | null; confirmee: boolean; choisie: boolean } | null {
   if (!nom.startsWith(PREFIXE)) return null;
-  const confirmee = nom.endsWith(SUFFIXE_CONFIRMEE);
-  const lettre = nom.slice(PREFIXE.length, confirmee ? -SUFFIXE_CONFIRMEE.length : undefined);
-  if (lettre === NEUTRE) return { lettre: null, confirmee };
-  return estUneLettreDeCycle(lettre) ? { lettre, confirmee } : null;
+  let reste = nom.slice(PREFIXE.length);
+  const choisie = reste.endsWith(SUFFIXE_CHOISIE);
+  if (choisie) reste = reste.slice(0, -SUFFIXE_CHOISIE.length);
+  const confirmee = reste.endsWith(SUFFIXE_CONFIRMEE);
+  if (confirmee) reste = reste.slice(0, -SUFFIXE_CONFIRMEE.length);
+  if (reste === NEUTRE) return { lettre: null, confirmee, choisie };
+  return estUneLettreDeCycle(reste) ? { lettre: reste, confirmee, choisie } : null;
 }

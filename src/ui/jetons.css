@@ -183,6 +183,15 @@
   --carte-ecusson-fond: var(--blanc);
   --carte-epingle-contour: var(--blanc);
   --carte-epingle-neutre: var(--gris-vide); /* une école dont aucun niveau n'est noté */
+  --carte-selection-halo: var(--jaune); /* le halo sous l'école choisie */
+
+  /*
+   * La page carte (ticket 103, refonte du 05/11) : ce qui flotte au-dessus de la carte (commandes, puces, panneau, tiroir)
+   * se détache du fond par une ombre, jamais par un cadre de plus.
+   */
+  --ombre-flottante: 0 1px 2px rgb(20 35 31 / 14%), 0 4px 14px rgb(20 35 31 / 14%);
+  --ombre-panneau: 6px 0 20px rgb(20 35 31 / 10%);
+  --ombre-tiroir: 0 -6px 24px rgb(20 35 31 / 18%);
 
   /* 3. Typographie : échelle pour un écran de 360 px, texte courant à 16 px */
   --police-titre: 'Poppins', system-ui, sans-serif;

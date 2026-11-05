@@ -51,11 +51,14 @@ const RAYON_DU_DOIGT = 22;
 /** Les propriétés d'une feature GeoJSON de MapLibre : un tableau est renvoyé sous forme de texte JSON. */
 function lireLEcole(f: MapGeoJSONFeature): FeatureEcole['properties'] {
   const p = { ...f.properties } as Record<string, unknown>;
-  if (typeof p.niveaux === 'string') {
-    try {
-      p.niveaux = JSON.parse(p.niveaux);
-    } catch {
-      p.niveaux = [];
+  for (const cle of ['niveaux', 'niveauxLettres']) {
+    const valeur = p[cle];
+    if (typeof valeur === 'string') {
+      try {
+        p[cle] = JSON.parse(valeur);
+      } catch {
+        p[cle] = [];
+      }
     }
   }
   return p as unknown as FeatureEcole['properties'];

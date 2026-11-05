@@ -45,15 +45,47 @@ test('liste accessible, recherche hors de la vue, école sans épingle et filtre
   await page.getByRole('searchbox').fill('École ajoutée');
   await page.getByRole('button', { name: 'Chercher', exact: true }).click();
   await expect(page.locator('[data-resultats]')).toContainText('École ajoutée Exemple');
-  await expect(page.locator('[data-resultats]')).toContainText(
-    'n’est pas encore visible sur la carte',
-  );
+  // Une école du catalogue qui n'est pas sur la carte le dit, et ouvre sa fiche : elle n'a rien à montrer sur la carte.
+  await expect(page.locator('[data-resultats]')).toContainText('Pas encore sur la carte');
   await expect(
-    page.locator('[data-resultats]').getByRole('button', { name: 'Voir sur la carte' }),
+    page.locator('[data-resultats]').getByRole('link', { name: /École ajoutée Exemple/ }),
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-resultats]').getByRole('button', { name: /École ajoutée Exemple/ }),
   ).toHaveCount(0);
   await page.getByRole('searchbox').fill('');
-  await page.getByRole('combobox', { name: 'Cycle' }).selectOption('M');
+  // Le filtre de niveau est une rangée de puces : celle qu'on touche est « appuyée », les autres non.
+  const maternelle = page.getByRole('button', { name: 'Maternelle', exact: true });
+  await maternelle.click();
+  await expect(maternelle).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Tous', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
   await expect(page.locator('[data-resultats]')).not.toContainText('Centre de formation Exemple');
+  // La toucher de nouveau revient à « Tous ».
+  await maternelle.click();
+  await expect(page.getByRole('button', { name: 'Tous', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+});
+test('une école absente de la carte : une phrase et un bouton WhatsApp, jamais une impasse', async ({
+  page,
+}) => {
+  await ouvrir(page);
+  await page.getByRole('button', { name: 'Voir les écoles', exact: true }).click();
+  const manque = page.locator('.ecole-manque');
+  await expect(manque).toBeVisible();
+  await expect(manque).toContainText('Une école manque ?');
+  // Les familles aussi osent écrire : la phrase s'adresse à qui connaît l'école, pas seulement à sa direction.
+  await expect(manque).toContainText('Vous la connaissez ou vous la dirigez ?');
+  await expect(manque).toContainText('nous la noterons pour le prochain passage');
+  // Le numéro vient de la configuration : le parcours ne l'attend jamais en dur.
+  const whatsapp = manque.getByRole('link', { name: 'Écrire sur WhatsApp' });
+  await expect(whatsapp).toHaveAttribute('href', /^https:\/\/wa\.me\/\d+\?text=/);
+  await expect(whatsapp).toHaveAttribute('href', /une%20%C3%A9cole%20manque/);
+  await expect(manque.getByRole('link', { name: 'Chercher dans toutes les écoles' })).toBeVisible();
 });
 test('sélection, deux preuves datées, partage puis retour sans quitter la carte', async ({
   page,
@@ -62,14 +94,22 @@ test('sélection, deux preuves datées, partage puis retour sans quitter la cart
   await page.getByRole('button', { name: 'Voir les écoles', exact: true }).click();
   await page.getByRole('searchbox').fill('Groupe scolaire quartier');
   await page.getByRole('button', { name: 'Chercher', exact: true }).click();
-  await page
-    .locator('[data-resultats]')
-    .getByRole('button', { name: 'Voir sur la carte' })
-    .first()
-    .click();
+  await page.locator('[data-resultats]').getByRole('button').first().click();
   const apercu = page.locator('.carte-apercu');
   await expect(apercu).toContainText('Vue sur place le');
   await expect(apercu).toContainText('Confirmée par la direction le');
+  // La fiche dit le niveau comme l'épingle : un disque à la lettre du cycle, puis le mot.
+  await expect(apercu.locator('.etiquette-niveau .disque').first()).toHaveText(/^[MPCLTS]$/);
+  await expect(apercu.locator('.apercu-tete .disque')).toHaveText(/^[MPCLTS]$/);
+  // Deux preuves, deux blocs : jamais fusionnées.
+  await expect(apercu.locator('.preuve')).toHaveCount(2);
+  await expect(apercu.locator('.preuve-direction')).toContainText('Confirmée par la direction le');
+  // Une action principale (la fiche), puis deux secondaires, toutes de vraies cibles de doigt.
+  await expect(apercu.getByRole('link', { name: 'Voir la fiche' })).toHaveClass(/bouton-large/);
+  for (const nom of ['Voir la fiche', 'Y aller', 'Partager sur WhatsApp'])
+    expect(
+      (await apercu.getByRole('link', { name: nom }).boundingBox())?.height,
+    ).toBeGreaterThanOrEqual(44);
   await expect(page).toHaveURL(/ecole=/);
   await expect(apercu.getByRole('link', { name: 'Partager sur WhatsApp' })).toHaveAttribute(
     'href',

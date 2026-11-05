@@ -17,6 +17,8 @@ import Carte from '../../ui/Carte.astro';
 import LegendeCarte from '../../ui/LegendeCarte.astro';
 import BasculeVue from '../../ui/BasculeVue.astro';
 import PagePublique from '../../ui/PagePublique.astro';
+// Les pièces de la page carte : les mêmes feuilles que celles de /carte/, jamais une copie.
+import '../../ui/carte-pieces.css';
 
 export function getStaticPaths() {
   return import.meta.env.DEV ? [{ params: { page: 'catalogue' } }] : [];
@@ -24,8 +26,11 @@ export function getStaticPaths() {
 
 const noms = [...jetons.matchAll(/^\s*--([a-z0-9-]+):/gm)].map((m) => m[1] ?? '');
 const couleurs = noms.filter(
-  (n) => !/^(police|taille|interligne|espace|rayon|cible|hauteur|ecart|largeur|epaisseur)/.test(n),
+  (n) =>
+    !/^(police|taille|interligne|espace|rayon|cible|hauteur|ecart|largeur|epaisseur|ombre)/.test(n),
 );
+const ombres = noms.filter((n) => n.startsWith('ombre-'));
+const cycles = ['M', 'P', 'C', 'L', 'T', 'S'] as const;
 const tailles = noms.filter((n) => n.startsWith('taille-'));
 const etats = ['verifiee', 'relevee', 'attente', 'a-corriger', 'refusee', 'telephone', 'envoye'];
 
@@ -136,6 +141,126 @@ const autour = arrondissementsDessines.map((a) => ({
     <LegendeCarte groupes />
     <BasculeVue carte="#carte" liste="#" actuelle="carte" />
 
+    <h2 id="carte-interactive">La carte interactive : les pièces de /carte/</h2>
+    <p>
+      Les mêmes feuilles que la page (<code>carte-pieces.css</code>) et la même fiche (
+      <code>creerApercu</code>), avec des écoles fictives. La mise en page (panneau, tiroir,
+      commandes) se trouve dans <code>ExplorateurCarte.astro</code>.
+    </p>
+    <div class="explorateur pieces-carte">
+      <h3>Disque de cycle</h3>
+      <div class="rangee">
+        {cycles.map((c) => (
+          <span class={`disque c-${c}`}>{c}</span>
+        ))}
+        <span class="disque disque-l c-S">S</span>
+        <span class="disque disque-xl c-S">S</span>
+        <span class="disque disque-l disque-vide">–</span>
+        <span class="disque disque-l">&nbsp;</span>
+      </div>
+
+      <h3>Puces de niveau : normal, appuyée, focus</h3>
+      <div class="rangee">
+        <button class="pastille-choix" type="button" aria-pressed="true">
+          Tous
+        </button>
+        <button class="pastille-choix avec-disque" type="button" aria-pressed="false">
+          <span class="disque c-M" aria-hidden="true">
+            M
+          </span>
+          Maternelle
+        </button>
+        <button class="pastille-choix avec-disque" type="button" aria-pressed="true">
+          <span class="disque c-P" aria-hidden="true">
+            P
+          </span>
+          Primaire
+        </button>
+        <button class="pastille-choix avec-disque simule-focus" type="button" aria-pressed="false">
+          <span class="disque c-C" aria-hidden="true">
+            C
+          </span>
+          Collège
+        </button>
+        <button class="pastille-choix avec-disque" type="button" aria-pressed="false" disabled>
+          <span class="disque c-L" aria-hidden="true">
+            L
+          </span>
+          Lycée
+        </button>
+      </div>
+
+      <h3>
+        Fiche d'aperçu : vue sur place, confirmée par la direction, rien de noté, avec fermeture
+      </h3>
+      <div class="fiches" id="fiches-apercu"></div>
+
+      <h3>Lignes de liste : sur la carte, pas encore sur la carte</h3>
+      <div class="lignes">
+        <a class="ligne-ecole" href="#carte-interactive">
+          <span class="disque disque-l c-C" aria-hidden="true">
+            C
+          </span>
+          <span class="ligne-corps">
+            <span class="ligne-nom">[Nom de l'école]</span>
+            <span class="ligne-sous">Collège · Privée</span>
+            <span class="ligne-sous">[Quartier] · [Ville]</span>
+          </span>
+        </a>
+        <a class="ligne-ecole" href="#carte-interactive">
+          <span class="disque disque-l disque-vide" aria-hidden="true">
+            –
+          </span>
+          <span class="ligne-corps">
+            <span class="ligne-nom">[Nom de l'école]</span>
+            <span class="ligne-sous">[Quartier] · [Ville]</span>
+            <span class="etiquette-vide">Pas encore sur la carte</span>
+          </span>
+        </a>
+      </div>
+
+      <h3>Zones : étiquettes et légende</h3>
+      <div class="rangee">
+        <span class="etiquette-zone etiquette-zone-actif">[Zone] · Relevé en cours</span>
+        <span class="etiquette-zone etiquette-zone-programme">[Zone] · Déploiement programmé</span>
+      </div>
+      <div class="legende-carte legende-statique">
+        <p>
+          <span class="puce-trame"></span>Déploiement programmé
+        </p>
+        <p>
+          <span class="puce-actif"></span>Relevé en cours
+        </p>
+      </div>
+
+      <h3>Bouton rond : normal, désactivé</h3>
+      <div class="rangee">
+        <button class="rond" type="button" aria-label="Ma position">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12a7 7 0 1 0 14 0a7 7 0 1 0-14 0"></path>
+            <path d="M9.8 12a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0"></path>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>
+          </svg>
+        </button>
+        <button class="rond" type="button" aria-label="Ma position (recherche en cours)" disabled>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12a7 7 0 1 0 14 0a7 7 0 1 0-14 0"></path>
+            <path d="M9.8 12a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0"></path>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>
+          </svg>
+        </button>
+      </div>
+
+      <h3>Ombres des éléments flottants</h3>
+      <div class="rangee">
+        {ombres.map((n) => (
+          <span class="echantillon-ombre" style={`box-shadow: var(--${n})`}>
+            --{n}
+          </span>
+        ))}
+      </div>
+    </div>
+
     <h2>États</h2>
     <div class="rangee">
       {etats.map((e) => (
@@ -144,6 +269,116 @@ const autour = arrondissementsDessines.map((a) => ({
     </div>
   </div>
 </PagePublique>
+
+<script>
+  // Les fiches du catalogue sont celles de la page : le même code les construit (écoles fictives, rien de réel).
+  import { creerApercu } from '../../app/carte/apercu';
+  import type { FeatureEcole } from '../../modele/carte/donnees';
+
+  type Ecole = FeatureEcole['properties'];
+  const base: Ecole = {
+    id: 'catalogue',
+    nom: '[Nom de l’école]',
+    lien: '#carte-interactive',
+    lieu: '[Quartier] · [Ville]',
+    niveaux: ['Maternelle', 'Primaire'],
+    niveauxLettres: ['M', 'P'],
+    cycle: 'primaire',
+    lettre: 'P',
+    rang: 2,
+    lettres: 'MP',
+    type: 'Privée',
+    repere: '[Repère en mots]',
+    preuve: 'terrain',
+    preuveTexte: 'Vue sur place le 2 novembre 2026',
+    passage: '2026-11-02T10:00:00Z',
+    confirmation: null,
+  };
+  const fiches: { ecole: Ecole; fermeture: boolean }[] = [
+    { ecole: base, fermeture: false },
+    {
+      ecole: {
+        ...base,
+        niveaux: ['Primaire', 'Collège'],
+        niveauxLettres: ['P', 'C'],
+        cycle: 'college',
+        lettre: 'C',
+        preuve: 'direction',
+        confirmation: '2026-11-04T10:00:00Z',
+      },
+      fermeture: false,
+    },
+    {
+      ecole: {
+        ...base,
+        niveaux: [],
+        niveauxLettres: [],
+        cycle: null,
+        lettre: null,
+        rang: null,
+        lettres: '',
+        type: null,
+        repere: null,
+        passage: null,
+        preuveTexte: 'Ajoutée par NTanova, pas encore vue sur place',
+      },
+      fermeture: false,
+    },
+    { ecole: base, fermeture: true },
+  ];
+  const conteneur = document.getElementById('fiches-apercu');
+  for (const { ecole, fermeture } of fiches) {
+    const cadre = document.createElement('div');
+    cadre.className = 'fiche-cadre';
+    const coordonnees: [number, number] = [11.925, -4.791];
+    cadre.append(
+      fermeture
+        ? creerApercu(ecole, coordonnees, () => undefined)
+        : creerApercu(ecole, coordonnees),
+    );
+    conteneur?.append(cadre);
+  }
+</script>
+
+<style is:global>
+  .pieces-carte {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .pieces-carte h3 {
+    margin: 0;
+    font-size: var(--taille-intertitre);
+  }
+  .pieces-carte .fiches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+    gap: var(--espace-4);
+  }
+  .pieces-carte .fiche-cadre {
+    padding: var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .pieces-carte .lignes {
+    display: grid;
+    gap: var(--espace-3);
+    max-width: 24rem;
+  }
+  .pieces-carte .simule-focus {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  .pieces-carte .legende-statique {
+    max-width: 18rem;
+  }
+  .echantillon-ombre {
+    padding: var(--espace-3) var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    font-size: var(--taille-secondaire);
+  }
+</style>
 
 <style>
   .cartes {

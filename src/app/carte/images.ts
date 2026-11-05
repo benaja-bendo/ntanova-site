@@ -64,12 +64,19 @@ function tracerEcusson(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.stroke();
 }
 
+/** L'épingle de l'école choisie est celle des autres, 28 % plus grande : dessinée à sa taille, elle reste nette. */
+const ECHELLE_CHOISIE = 1.28;
+
 /** Une épingle : le corps a la couleur du cycle, la lettre est blanche, l'écusson dit la confirmation de la direction. */
-function dessinerEpingle(lettre: string | null, confirmee: boolean): ImageDessinee {
-  const largeur = 40;
-  const hauteur = 46;
-  const t = toile(largeur, hauteur);
+function dessinerEpingle(
+  lettre: string | null,
+  confirmee: boolean,
+  choisie: boolean,
+): ImageDessinee {
+  const echelle = choisie ? ECHELLE_CHOISIE : 1;
+  const t = toile(Math.ceil(40 * echelle), Math.ceil(46 * echelle));
   const { ctx } = t;
+  ctx.scale(echelle, echelle);
   const cx = 18;
   const cy = 18;
   const r = 15;
@@ -108,9 +115,9 @@ function dessinerHachures(): ImageDessinee {
   const taille = 12;
   const t = toile(taille, taille);
   const { ctx } = t;
-  ctx.globalAlpha = 0.45;
+  ctx.globalAlpha = 0.3;
   ctx.strokeStyle = jeton('carte-zone-programme');
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = 1;
   ctx.beginPath();
   for (const decalage of [-taille, 0, taille]) {
     ctx.moveTo(decalage, taille);
@@ -125,7 +132,7 @@ export function imageDeLaCarte(nom: string): ImageDessinee | null {
   if (nom === IMAGE_ECUSSON) return dessinerEcusson();
   if (nom === IMAGE_HACHURES) return dessinerHachures();
   const epingle = lireLEpingle(nom);
-  return epingle ? dessinerEpingle(epingle.lettre, epingle.confirmee) : null;
+  return epingle ? dessinerEpingle(epingle.lettre, epingle.confirmee, epingle.choisie) : null;
 }
 
 /**

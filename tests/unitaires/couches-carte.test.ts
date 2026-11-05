@@ -11,14 +11,23 @@ import { describe, expect, it } from 'vitest';
 import {
   ADRESSE_DES_ECOLES,
   ADRESSE_DES_ZONES,
+  COUCHE_CHOISIE,
+  COUCHE_CHOISIE_HALO,
+  COUCHE_CHOISIE_NOM,
   COUCHE_EPINGLES,
   COUCHE_GROUPES,
+  COUCHE_NOMS,
   RAYON_DES_GROUPES,
+  SOURCE_CHOISIE,
   SOURCE_ECOLES,
   ZOOM_MAX_DES_GROUPES,
   ZOOM_MAX_DES_VILLES,
+  ZOOM_MIN_DES_NOMS,
+  ZOOM_TRAME_EFFACEE,
+  ZOOM_TRAME_PLEINE,
   couchesDeLaCarte,
   couleursDeLaCarte,
+  filtreDesNoms,
 } from '../../src/modele/carte/couches';
 import { POLICE_DE_LA_CARTE } from '../../src/modele/carte/fond';
 import { IMAGE_ECUSSON, IMAGE_HACHURES, nomDeLEpingle } from '../../src/modele/carte/marqueurs';
@@ -68,7 +77,9 @@ describe('le style complet de la carte', () => {
     for (const i of indices) expect(i).toBeLessThan(premierNom + indices.length);
     const fin = ids.slice(-couches.dessus.length);
     expect(fin).toEqual(idsDe(couches.dessus));
-    expect(ids.at(-1)).toBe(COUCHE_EPINGLES);
+    // Le nom de l'école choisie est la couche du dessus : rien ne le recouvre. Les épingles sont au-dessus des groupes.
+    expect(ids.at(-1)).toBe(COUCHE_CHOISIE_NOM);
+    expect(ids.indexOf(COUCHE_EPINGLES)).toBeGreaterThan(ids.indexOf(COUCHE_GROUPES));
   });
 
   it('garde toutes les couches du fond, dans le même ordre', () => {
@@ -182,5 +193,102 @@ describe('le nom du marqueur que le style demande', () => {
   it('est neutre quand aucun niveau n’est noté (lettre nulle ou absente)', () => {
     expect(nom({ lettre: null, preuve: 'terrain' })).toBe(nomDeLEpingle(null, false));
     expect(nom({ preuve: 'direction' })).toBe(nomDeLEpingle(null, true));
+  });
+});
+
+describe('l’école choisie, le nom des écoles et la trame des zones (refonte de la page carte, 05/11)', () => {
+  const toutes = [...couches.sousLEau, ...couches.contours, ...couches.dessus];
+  const couche = (id: string) => toutes.find((l) => l.id === id);
+  /** Évalue une expression de propriété du style, comme le ferait MapLibre, pour un zoom et une feature donnés. */
+  function evaluer(
+    valeur: unknown,
+    cle: string,
+    spec: unknown,
+    zoom: number,
+    properties: Record<string, unknown> = {},
+    type = 1,
+  ): unknown {
+    const r = expression.createPropertyExpression(valeur, cle, spec as never);
+    if (r.result !== 'success') throw new Error(`Expression invalide : ${cle}`);
+    return (r.value as { evaluate: (g: unknown, f: unknown) => unknown }).evaluate(
+      { zoom },
+      { type, properties },
+    );
+  }
+
+  it('donne à l’école choisie sa propre source, un halo sous les épingles et sa grande épingle au-dessus', () => {
+    expect(couches.sources[SOURCE_CHOISIE]).toBeDefined();
+    const ids = idsDe(couches.dessus);
+    expect(ids.indexOf(COUCHE_CHOISIE_HALO)).toBeLessThan(ids.indexOf(COUCHE_EPINGLES));
+    expect(ids.indexOf(COUCHE_CHOISIE)).toBeGreaterThan(ids.indexOf(COUCHE_EPINGLES));
+    for (const id of [COUCHE_CHOISIE_HALO, COUCHE_CHOISIE, COUCHE_CHOISIE_NOM])
+      expect((couche(id) as { source?: string }).source).toBe(SOURCE_CHOISIE);
+  });
+
+  it('demande à l’îlot la grande épingle de la même lettre et de la même preuve', () => {
+    const spec = styleSpec.layout_symbol['icon-image'];
+    const image = (properties: Record<string, unknown>) =>
+      (
+        evaluer(
+          (couche(COUCHE_CHOISIE)?.layout as Record<string, unknown>)['icon-image'],
+          'icon-image',
+          spec,
+          14,
+          properties,
+        ) as { name: string }
+      ).name;
+    expect(image({ lettre: 'S', preuve: 'terrain' })).toBe(nomDeLEpingle('S', false, true));
+    expect(image({ lettre: 'P', preuve: 'direction' })).toBe(nomDeLEpingle('P', true, true));
+    expect(image({ preuve: 'terrain' })).toBe(nomDeLEpingle(null, false, true));
+  });
+
+  it('écrit le nom des écoles à partir du zoom 13, sauf celui de l’école choisie', () => {
+    expect(ZOOM_MIN_DES_NOMS).toBe(13);
+    expect(couche(COUCHE_NOMS)?.minzoom).toBe(ZOOM_MIN_DES_NOMS);
+    expect(JSON.stringify(filtreDesNoms('ETB-1'))).toContain('ETB-1');
+    expect(JSON.stringify(filtreDesNoms())).not.toContain('ETB');
+  });
+
+  it('efface la trame d’un déploiement programmé de près, sans toucher à son contour', () => {
+    const opacite = (zoom: number) =>
+      evaluer(
+        (couche('zones-fond-programme')?.paint as Record<string, unknown>)['fill-opacity'],
+        'fill-opacity',
+        styleSpec.paint_fill['fill-opacity'],
+        zoom,
+        {},
+        3,
+      ) as number;
+    expect(opacite(ZOOM_TRAME_PLEINE - 1)).toBe(1);
+    expect(opacite(ZOOM_TRAME_EFFACEE + 1)).toBe(0);
+    const milieu = opacite((ZOOM_TRAME_PLEINE + ZOOM_TRAME_EFFACEE) / 2);
+    expect(milieu).toBeGreaterThan(0);
+    expect(milieu).toBeLessThan(1);
+    // Le contour pointillé reste, à tous les zooms où la zone existe.
+    expect(couche('zones-contour-programme')?.maxzoom).toBeUndefined();
+  });
+
+  it('n’écrit l’état d’une zone que pour « relevé en cours » : celui d’un déploiement programmé est dans la légende', () => {
+    const texte = (etat: string) =>
+      (
+        evaluer(
+          (couche('zones-nom')?.layout as Record<string, unknown>)['text-field'],
+          'text-field',
+          styleSpec.layout_symbol['text-field'],
+          12,
+          {
+            genre: 'zone',
+            nom: 'Loandjili',
+            libelle: etat === 'actif' ? 'Relevé en cours' : 'Déploiement programmé',
+            etat,
+          },
+          3,
+        ) as { sections: { text: string }[] }
+      ).sections
+        .map((s) => s.text)
+        .join('');
+    expect(texte('programme')).toBe('Loandjili');
+    expect(texte('actif')).toContain('Loandjili');
+    expect(texte('actif')).toContain('Relevé en cours');
   });
 });

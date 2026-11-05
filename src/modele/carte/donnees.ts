@@ -96,6 +96,8 @@ export interface FeatureEcole {
     lieu: string;
     /** Tous les cycles, dans les mots du site : l'aperçu les liste. */
     niveaux: string[];
+    /** La lettre du cycle de chaque niveau de `niveaux`, dans le même ordre : le disque de l'aperçu. */
+    niveauxLettres: string[];
     cycle: Niveau | null;
     lettre: string | null;
     /** La place du cycle le plus élevé, de 1 (M) à 6 (S) : pour trier, regrouper et agréger. */
@@ -123,6 +125,7 @@ export function ecolesGeoJSON(ecoles: readonly EcolePubliee[]): {
     if (e.latitude === null || e.longitude === null) continue;
     const preuve = preuveDePartage(e);
     const cycle = cycleLePlusEleve(e.niveaux);
+    const niveaux = listes.niveau.filter((n) => e.niveaux.includes(n));
     features.push({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [e.longitude, e.latitude] },
@@ -131,7 +134,8 @@ export function ecolesGeoJSON(ecoles: readonly EcolePubliee[]): {
         nom: e.etiquette ? `${e.nom} (${e.etiquette})` : e.nom,
         lien: lienEcole(e),
         lieu: ligneDeLieu(e.quartier, e.divisionNoms),
-        niveaux: listes.niveau.filter((n) => e.niveaux.includes(n)).map((n) => libelleNiveau[n]),
+        niveaux: niveaux.map((n) => libelleNiveau[n]),
+        niveauxLettres: niveaux.map((n) => lettresDesCycles([n])),
         cycle: cycle?.cycle ?? null,
         lettre: cycle?.lettre ?? null,
         rang: cycle ? ORDRE_LETTRES.indexOf(cycle.lettre) + 1 : null,

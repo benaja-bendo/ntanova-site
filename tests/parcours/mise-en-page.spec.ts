@@ -402,7 +402,7 @@ test.describe('application carte', () => {
       true,
     );
     const panneau = await page.locator('.panneau-carte').boundingBox();
-    if ((page.viewportSize()?.width ?? 0) >= 1024) expect(panneau?.width).toBeCloseTo(380, 0);
+    if ((page.viewportSize()?.width ?? 0) >= 1024) expect(panneau?.width).toBeCloseTo(400, 0);
     else {
       const bouton = page.getByRole('button', { name: 'Voir les écoles', exact: true });
       await bouton.focus();
@@ -413,10 +413,7 @@ test.describe('application carte', () => {
     }
     await page.getByRole('searchbox').fill('Groupe scolaire quartier');
     await page.getByRole('searchbox').press('Enter');
-    const choix = page
-      .locator('[data-resultats]')
-      .getByRole('button', { name: 'Voir sur la carte' })
-      .first();
+    const choix = page.locator('[data-resultats]').getByRole('button').first();
     await choix.focus();
     await choix.press('Enter');
     await expect(page.locator('.carte-apercu')).toBeFocused();

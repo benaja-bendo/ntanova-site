@@ -5,21 +5,24 @@ interface Props {
   donnees: ReturnType<typeof donneesDeLaCarte>;
   repli: ReturnType<typeof arrondissementDuRepli>;
   application?: boolean;
+  /** Le lien WhatsApp de NTanova, avec le message « une école manque » : rien quand le numéro n'est pas configuré. */
+  whatsapp?: string | null;
 }
 const {
   donnees: { zones, ecoles, cadre },
   repli,
   application = false,
+  whatsapp = null,
 } = Astro.props;
+// La valeur est la lettre du cycle (celle de l'épingle), puis le mot de la puce, puis les mots complets en infobulle.
 const cycles = [
-  ['', 'Tous'],
-  ['M', 'Crèche et maternelle'],
-  ['P', 'Primaire'],
-  ['C', 'Collège'],
-  ['L', 'Lycée'],
-  ['T', 'Technique'],
-  ['S', 'Supérieur et formation'],
-];
+  ['M', 'Maternelle', 'Crèche et maternelle'],
+  ['P', 'Primaire', 'Primaire'],
+  ['C', 'Collège', 'Collège'],
+  ['L', 'Lycée', 'Lycée'],
+  ['T', 'Technique', 'Technique et professionnel'],
+  ['S', 'Supérieur', 'Supérieur et formation'],
+] as const;
 ---
 
 <section
@@ -67,57 +70,97 @@ const cycles = [
   <p id="carte-note" class="carte-note" role="status"></p>
   {application && (
     <>
-      <div class="outils-carte" hidden>
-        <label>
-          Cycle{' '}
-          <select class="champ" data-cycle>
-            {cycles.map(([valeur, nom]) => (
-              <option value={valeur}>{nom}</option>
-            ))}
-          </select>
-        </label>
-        <button class="bouton bouton-secondaire" type="button" data-position>
-          Ma position
+      <div class="rangee-puces" role="group" aria-label="Niveau des écoles" hidden>
+        <button type="button" class="pastille-choix" data-cycle="" aria-pressed="true">
+          Tous
         </button>
-      </div>
-      <aside class="panneau-carte" aria-label="Écoles et recherche" data-hauteur="petit">
-        <div class="commandes-tiroir" hidden>
-          <button type="button" data-tiroir="petit" aria-controls="contenu-tiroir">
-            Réduire
-          </button>
+        {cycles.map(([lettre, mot, complet]) => (
           <button
             type="button"
-            data-tiroir="moyen"
-            aria-controls="contenu-tiroir"
-            aria-expanded="false"
+            class="pastille-choix avec-disque"
+            data-cycle={lettre}
+            aria-pressed="false"
+            title={complet}
           >
-            Voir les écoles
+            <span class={`disque c-${lettre}`} aria-hidden="true">
+              {lettre}
+            </span>
+            {mot}
           </button>
-          <button type="button" data-tiroir="grand" aria-controls="contenu-tiroir">
-            Agrandir
-          </button>
-        </div>
+        ))}
+      </div>
+      <button type="button" class="rond" data-position aria-label="Ma position" hidden>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M5 12a7 7 0 1 0 14 0a7 7 0 1 0-14 0" />
+          <path d="M9.8 12a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0" />
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+        </svg>
+      </button>
+      <div class="legende-carte" role="group" aria-label="Légende des zones" hidden>
+        <p data-legende="programme">
+          <span class="puce-trame" aria-hidden="true"></span>Déploiement programmé
+        </p>
+        <p data-legende="actif">
+          <span class="puce-actif" aria-hidden="true"></span>Relevé en cours
+        </p>
+      </div>
+      <aside class="panneau-carte" aria-label="Écoles et recherche" data-hauteur="petit">
+        <button
+          type="button"
+          class="poignee-tiroir"
+          data-poignee
+          aria-controls="contenu-tiroir"
+          aria-expanded="false"
+          hidden
+        >
+          <span class="visuellement-cache">Voir les écoles</span>
+          <i aria-hidden="true"></i>
+        </button>
         <form role="search" aria-label="Chercher sur la carte" class="recherche-carte" hidden>
-          <label for="recherche-carte">Quelle école, où ?</label>
-          <div>
-            <input
-              id="recherche-carte"
-              class="champ"
-              name="q"
-              type="search"
-              placeholder="Nom, ville ou quartier"
-              autocomplete="off"
-            />
-            <button type="submit" class="bouton">
-              Chercher
-            </button>
-          </div>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0" />
+            <path d="M20 20l-4-4" />
+          </svg>
+          <label for="recherche-carte" class="visuellement-cache">
+            Quelle école, où ?
+          </label>
+          <input
+            id="recherche-carte"
+            name="q"
+            type="search"
+            placeholder="Nom de l’école, quartier ou ville"
+            autocomplete="off"
+          />
+          <button type="submit" class="valider" aria-label="Chercher">
+            <svg class="ico ico-s" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </button>
         </form>
         <div id="contenu-tiroir">
-          <p data-zone class="texte-doux"></p>
+          <p data-zone class="contexte"></p>
           <div data-selection></div>
-          <p data-compte role="status" aria-live="polite"></p>
+          <p data-compte role="status" aria-live="polite" class="titre-liste"></p>
           <ul data-resultats class="resultats-carte"></ul>
+          <div class="ecole-manque" hidden>
+            <h2>Une école manque ?</h2>
+            <p>
+              Cette carte montre les écoles vues sur place par un jeune du quartier : une école
+              absente existe peut-être. Vous la connaissez ou vous la dirigez ? Écrivez-nous, nous
+              la noterons pour le prochain passage.
+            </p>
+            {whatsapp && (
+              <a class="bouton" href={whatsapp} target="_blank" rel="noopener">
+                <svg class="ico ico-s" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M21 12a8.5 8.5 0 0 1-12.5 7.5L3 21l1.6-5A8.5 8.5 0 1 1 21 12z" />
+                </svg>
+                Écrire sur WhatsApp
+              </a>
+            )}
+            <a class="lien-carte" href="/ecoles/">
+              Chercher dans toutes les écoles
+            </a>
+          </div>
           <div class="listes-repli">
             <h2>Les zones</h2>
             <ul>
@@ -153,6 +196,7 @@ const cycles = [
   )}
 </section>
 <style is:global>
+  @import './carte-pieces.css';
   .explorateur {
     position: relative;
   }
@@ -211,12 +255,25 @@ const cycles = [
   .explorateur [hidden] {
     display: none !important;
   }
+  /* Le panneau et le tiroir */
   .panneau-carte {
-    background: var(--fond);
+    background: var(--fond-releve);
     padding: var(--espace-3);
   }
   .panneau-carte a {
     text-underline-offset: 3px;
+  }
+  .titre-liste {
+    margin: 0 0 var(--espace-3);
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+    font-weight: 700;
+    line-height: var(--interligne-titre);
+  }
+  .contexte {
+    margin: 0 0 var(--espace-3);
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
   }
   .resultats-carte {
     list-style: none;
@@ -225,97 +282,136 @@ const cycles = [
     display: grid;
     gap: var(--espace-3);
   }
-  .resultats-carte li {
-    border-bottom: 1px solid var(--trait);
-    padding-bottom: var(--espace-3);
+  .resultats-carte .ligne-vide {
+    color: var(--texte-doux);
   }
-  .resultats-carte button,
-  .commandes-tiroir button {
-    min-height: 44px;
-    padding: var(--espace-2);
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-s);
-    background: var(--fond);
-    color: var(--texte);
-    cursor: pointer;
+  .ecole-manque {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-3);
+    margin-top: var(--espace-4);
+    padding: var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--fond-bande);
   }
-  .resultats-carte a {
+  .ecole-manque h2 {
+    margin: 0;
+    font-size: var(--taille-courante);
+  }
+  .ecole-manque p {
+    margin: 0;
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .lien-carte {
     display: inline-flex;
     align-items: center;
-    min-height: 44px;
+    min-height: var(--cible-min);
     font-weight: 700;
   }
-  .resultats-carte p {
-    margin: 0;
-  }
   .recherche-carte {
-    display: grid;
-    gap: var(--espace-1);
-    margin-bottom: var(--espace-3);
-  }
-  .recherche-carte div {
     display: flex;
-    gap: var(--espace-1);
+    align-items: center;
+    gap: var(--espace-2);
+    min-height: var(--hauteur-champ);
+    margin-bottom: var(--espace-3);
+    padding: var(--espace-1) var(--espace-1) var(--espace-1) var(--espace-4);
+    border: 2px solid var(--trait-fort);
+    border-radius: var(--rayon-pilule);
+    background: var(--fond-releve);
+    color: var(--texte-doux);
+  }
+  .recherche-carte:focus-within {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
   }
   .recherche-carte input {
+    flex: 1;
     min-width: 0;
-    width: 100%;
-  }
-  .recherche-carte .bouton {
-    padding-inline: var(--espace-2);
-  }
-  .outils-carte {
-    display: flex;
-    align-items: center;
-    gap: var(--espace-2);
-    flex-wrap: wrap;
-  }
-  .outils-carte label {
-    display: flex;
-    align-items: center;
-    gap: var(--espace-1);
-  }
-  .outils-carte select {
-    max-width: 7rem;
-    width: 7rem;
-  }
-  .carte-apercu {
-    position: relative;
-    display: grid;
-    gap: var(--espace-2);
-    padding: var(--espace-3);
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-s);
-    background: var(--fond);
+    border: 0;
+    outline: 0;
+    background: transparent;
     color: var(--texte);
     font: inherit;
   }
-  .carte-apercu p {
-    margin: 0;
+  .recherche-carte input::placeholder {
+    color: var(--texte-doux);
+    opacity: 1;
   }
-  .carte-apercu-nom {
-    font-weight: 700;
-    padding-right: 44px;
-  }
-  .carte-apercu-actions {
+  .recherche-carte .valider {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--espace-2);
-  }
-  .carte-apercu-actions a {
-    min-height: 44px;
-    display: inline-flex;
     align-items: center;
+    justify-content: center;
+    flex: none;
+    width: var(--cible-min);
+    height: var(--cible-min);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--marque);
+    color: var(--texte-sur-marque);
+    cursor: pointer;
   }
-  .carte-apercu .maplibregl-popup-close-button {
-    min-width: 44px;
-    min-height: 44px;
-    font-size: 1.5rem;
-    color: var(--texte);
+  .panneau-carte .carte-liens {
+    margin-top: var(--espace-5);
   }
+  .poignee-tiroir {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: var(--cible-min);
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    touch-action: none;
+  }
+  .poignee-tiroir i {
+    display: block;
+    width: 44px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--trait-fort);
+  }
+  .rangee-puces {
+    display: flex;
+    gap: var(--espace-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .rangee-puces::-webkit-scrollbar {
+    display: none;
+  }
+  /* La rangée défile, donc elle coupe ses ombres : on lui laisse la place, et seules les puces reçoivent le toucher. */
+  .rangee-puces {
+    pointer-events: none;
+  }
+  .rangee-puces .pastille-choix {
+    flex: none;
+    gap: var(--espace-2);
+    padding-inline: var(--espace-3);
+    pointer-events: auto;
+    box-shadow: var(--ombre-flottante);
+  }
+  .explorateur .rangee-puces .pastille-choix.avec-disque {
+    padding-left: var(--espace-1);
+  }
+  .explorateur-app .maplibregl-ctrl-group {
+    border-radius: 12px;
+    box-shadow: var(--ombre-flottante);
+  }
+  /* --- La page carte active : tiroir sur téléphone, panneau sur ordinateur --- */
   .explorateur-app[data-active] {
     height: calc(100dvh - 5rem);
     min-height: 20rem;
+    --tiroir: 10.5rem;
+  }
+  .explorateur-app[data-active][data-hauteur='moyen'] {
+    --tiroir: 48%;
+  }
+  .explorateur-app[data-active][data-hauteur='grand'] {
+    --tiroir: 88%;
   }
   .explorateur-app[data-active] .carte-interactive {
     height: 100%;
@@ -329,9 +425,10 @@ const cycles = [
     right: 0;
     z-index: 2;
     max-height: 88%;
-    height: 10rem;
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-m) var(--rayon-m) 0 0;
+    height: 10.5rem;
+    padding: 0 var(--espace-4) 2.5rem;
+    border-radius: var(--rayon-l) var(--rayon-l) 0 0;
+    box-shadow: var(--ombre-tiroir);
     overflow: auto;
     overscroll-behavior: contain;
   }
@@ -341,34 +438,59 @@ const cycles = [
   .explorateur-app[data-active] .panneau-carte[data-hauteur='grand'] {
     height: 88%;
   }
-  .explorateur-app[data-active] .commandes-tiroir {
-    display: flex;
-    justify-content: space-between;
+  /* Une école choisie : le tiroir prend la hauteur de sa fiche, sans jamais cacher toute la carte. */
+  .explorateur-app[data-active] .panneau-carte:has(.carte-apercu)[data-hauteur='moyen'] {
+    height: auto;
+  }
+  .explorateur-app[data-active] .poignee-tiroir {
     position: sticky;
     top: 0;
-    background: var(--fond);
     z-index: 1;
+    background: var(--fond-releve);
   }
-  .explorateur-app[data-active] .outils-carte {
+  .explorateur-app[data-active] .rangee-puces {
     position: absolute;
     top: var(--espace-2);
-    left: var(--espace-2);
-    right: 3.5rem;
-    background: var(--fond);
-    padding: var(--espace-1);
-    border-radius: var(--rayon-s);
+    left: 0;
+    right: 0;
+    z-index: 3;
+    padding: var(--espace-1) var(--espace-3) var(--espace-5);
+  }
+  .explorateur-app[data-active] .rond {
+    position: absolute;
+    right: var(--espace-3);
+    bottom: calc(var(--tiroir) + var(--espace-4));
+    z-index: 3;
+  }
+  .explorateur-app[data-active] .legende-carte {
+    position: absolute;
+    left: var(--espace-3);
+    bottom: calc(var(--tiroir) + var(--espace-4));
+    z-index: 3;
+  }
+  .explorateur-app[data-active][data-hauteur='grand'] .rond,
+  .explorateur-app[data-active][data-hauteur='grand'] .legende-carte,
+  .explorateur-app[data-active]:has(.carte-apercu) .rond,
+  .explorateur-app[data-active]:has(.carte-apercu) .legende-carte {
+    display: none !important;
+  }
+  /* Les commandes de MapLibre se rangent sous les puces. */
+  .explorateur-app[data-active] .maplibregl-ctrl-top-right {
+    top: 3.5rem;
   }
   .explorateur-app[data-active] .listes-repli {
     display: none;
   }
   .explorateur-app[data-active] .carte-note:not(:empty) {
     position: absolute;
-    top: 5rem;
-    left: var(--espace-2);
-    right: var(--espace-2);
-    background: var(--fond);
-    padding: var(--espace-2);
+    top: 4.5rem;
+    left: var(--espace-3);
+    right: 4.5rem;
     z-index: 3;
+    padding: var(--espace-2) var(--espace-3);
+    border-radius: var(--rayon-s);
+    background: var(--fond-releve);
+    box-shadow: var(--ombre-flottante);
   }
   .page-exploration {
     padding: 0;
@@ -387,32 +509,61 @@ const cycles = [
   body:has(.explorateur-app[data-active]) .pied {
     display: none;
   }
+  /* L'aperçu ouvert montre sa fiche : la recherche, la zone et la liste attendent derrière le retour. */
+  .panneau-carte:has(.carte-apercu) .recherche-carte,
+  .panneau-carte:has(.carte-apercu) [data-zone],
+  .panneau-carte:has(.carte-apercu) .titre-liste,
+  .panneau-carte:has(.carte-apercu) .resultats-carte,
+  .panneau-carte:has(.carte-apercu) .ecole-manque {
+    display: none;
+  }
+  .explorateur-app .apercu-retour {
+    display: none;
+  }
   @media (min-width: 64rem) {
     .explorateur-app[data-active] .panneau-carte {
       top: 0;
-      width: 380px;
+      width: 25rem;
       max-height: 100%;
       height: 100% !important;
       right: auto;
+      padding-top: var(--espace-5);
       border-radius: 0;
+      box-shadow: var(--ombre-panneau);
     }
-    .explorateur-app[data-active] .commandes-tiroir {
+    .explorateur-app[data-active] .poignee-tiroir {
       display: none;
     }
-    .explorateur-app[data-active] .outils-carte {
-      left: calc(380px + var(--espace-2));
-      right: auto;
+    .explorateur-app[data-active] .rangee-puces {
+      left: calc(25rem + var(--espace-4));
+      right: 4.5rem;
+      padding-left: 0;
     }
-  }
-</style>
-
-<style is:global>
-  .outils-carte {
-    font-size: var(--taille-secondaire);
-  }
-  .outils-carte .bouton {
-    padding-inline: var(--espace-2);
-    font-size: var(--taille-secondaire);
+    .explorateur-app[data-active] .rond {
+      bottom: 3rem;
+      right: var(--espace-4);
+    }
+    .explorateur-app[data-active] .legende-carte {
+      left: calc(25rem + var(--espace-4));
+      bottom: var(--espace-6);
+    }
+    .explorateur-app[data-active] .carte-note:not(:empty) {
+      left: calc(25rem + var(--espace-4));
+      right: 4.5rem;
+    }
+    .explorateur-app[data-active]:has(.carte-apercu) .rond,
+    .explorateur-app[data-active][data-hauteur='grand'] .rond {
+      display: flex !important;
+    }
+    .explorateur-app[data-active]:has(.carte-apercu) .legende-carte {
+      display: grid !important;
+    }
+    .explorateur-app .apercu-retour {
+      display: inline-flex;
+    }
+    .explorateur-app .carte-apercu .apercu-fermer {
+      display: none;
+    }
   }
 </style>
 
@@ -429,10 +580,6 @@ const cycles = [
     background: var(--fond);
     padding: 2px var(--espace-2);
     font-size: var(--taille-secondaire);
-  }
-  .panneau-carte:has(.carte-apercu) .recherche-carte,
-  .panneau-carte:has(.carte-apercu) [data-zone] {
-    display: none;
   }
   .panneau-carte {
     padding-bottom: 2rem;
@@ -451,6 +598,7 @@ const cycles = [
   .explorateur:not(.explorateur-app) .carte-repli {
     align-content: center;
   }
+  /* La fiche dans la bulle de l'accueil : la même fiche, en plus petit. */
   .explorateur .maplibregl-popup-close-button {
     min-width: 44px;
     min-height: 44px;
@@ -460,9 +608,26 @@ const cycles = [
   .explorateur .maplibregl-popup-content {
     max-height: 65dvh;
     overflow: auto;
+    border-radius: var(--rayon-m);
+    box-shadow: var(--ombre-flottante);
   }
   .explorateur .maplibregl-popup .carte-apercu {
-    border: 0;
+    gap: var(--espace-3);
     padding: var(--espace-2);
+  }
+  .explorateur .maplibregl-popup .apercu-tete {
+    padding-right: 44px;
+  }
+  .explorateur .maplibregl-popup .disque-xl {
+    width: 40px;
+    height: 40px;
+    font-size: var(--taille-intertitre);
+  }
+  .explorateur .maplibregl-popup .carte-apercu-nom {
+    font-size: var(--taille-intertitre);
+  }
+  .explorateur .maplibregl-popup .maplibregl-popup-close-button {
+    top: var(--espace-1);
+    right: var(--espace-1);
   }
 </style>

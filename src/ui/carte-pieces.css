@@ -1,0 +1,358 @@
+/*
+ * Les pièces de la page carte (ticket 103, refonte du 05/11/2026) : icône, disque de cycle, fiche d'aperçu, preuves, étiquettes de
+ * zone, lignes de liste, légende, bouton rond. Rien ici ne dit OÙ elles se posent : la mise en page (panneau, tiroir, commandes)
+ * est dans `ExplorateurCarte.astro`. Le catalogue `/dev/catalogue/` les montre dans chacun de leurs états.
+ * Seuls les jetons de `jetons.css` donnent des valeurs.
+ */
+/* --- Les pièces communes de la page carte : icône, disque de cycle, puce, fiche --- */
+.explorateur .ico {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.explorateur .ico-s {
+  width: 20px;
+  height: 20px;
+}
+/* Le disque d'un cycle : la lettre et la couleur de l'épingle, partout où le cycle s'écrit. */
+.explorateur .disque {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--cycle, var(--carte-epingle-neutre));
+  color: var(--cycle-lettre);
+  font-family: var(--police-titre);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  line-height: 1;
+}
+.explorateur .disque-xl {
+  width: 52px;
+  height: 52px;
+  font-size: var(--taille-titre-fiche);
+}
+.explorateur .disque-l {
+  width: 40px;
+  height: 40px;
+  font-size: var(--taille-intertitre);
+}
+.explorateur .disque-vide {
+  border: 2px dashed var(--trait-fort);
+  background: transparent;
+  color: var(--preuve-vide);
+}
+.explorateur .c-M {
+  --cycle: var(--cycle-maternelle);
+}
+.explorateur .c-P {
+  --cycle: var(--cycle-primaire);
+}
+.explorateur .c-C {
+  --cycle: var(--cycle-college);
+}
+.explorateur .c-L {
+  --cycle: var(--cycle-lycee);
+}
+.explorateur .c-T {
+  --cycle: var(--cycle-technique);
+}
+.explorateur .c-S {
+  --cycle: var(--cycle-superieur);
+}
+.explorateur .pastille-choix.avec-disque {
+  padding-left: var(--espace-2);
+}
+.explorateur .pastille-choix:focus-visible,
+.explorateur .poignee-tiroir:focus-visible,
+.explorateur .rond:focus-visible,
+.explorateur .ligne-ecole:focus-visible {
+  outline: var(--epaisseur-focus) solid var(--focus);
+  outline-offset: 2px;
+}
+/* La fiche d'aperçu d'une école (src/app/carte/apercu.ts) */
+.carte-apercu {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  color: var(--texte);
+  font: inherit;
+}
+.carte-apercu p {
+  margin: 0;
+}
+.apercu-retour {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+  align-self: flex-start;
+  min-height: var(--cible-min);
+  margin-left: calc(var(--espace-2) * -1);
+  padding: 0 var(--espace-2);
+  border: 0;
+  background: none;
+  color: var(--marque);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.apercu-tete {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+}
+.apercu-titres {
+  flex: 1;
+  min-width: 0;
+}
+.carte-apercu-nom {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-size: var(--taille-titre-fiche);
+  font-weight: 700;
+  line-height: var(--interligne-titre);
+  overflow-wrap: anywhere;
+}
+.apercu-lieu {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-1);
+  margin-top: var(--espace-1) !important;
+  color: var(--texte-doux);
+}
+.apercu-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+}
+.etiquette-niveau,
+.etiquette-type {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: 36px;
+  border-radius: var(--rayon-pilule);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+}
+.etiquette-niveau {
+  padding: 0 var(--espace-3) 0 var(--espace-1);
+  border: 2px solid var(--trait);
+  background: var(--fond-releve);
+}
+.etiquette-type {
+  padding: 0 var(--espace-3);
+  background: var(--fond-bande);
+}
+.apercu-repere {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-2);
+}
+.apercu-repere .ico {
+  margin-top: 2px;
+}
+/* Les deux preuves, jamais fusionnées : un relevé sur place, et l'accord de la direction. */
+.preuve {
+  display: flex;
+  gap: var(--espace-3);
+  padding: var(--espace-3);
+  border: 2px solid var(--preuve-terrain);
+  border-radius: 12px;
+  background: var(--fond-releve);
+  font-size: var(--taille-secondaire);
+  line-height: 1.45;
+}
+.preuve .ico {
+  color: var(--preuve-terrain);
+}
+.preuve strong {
+  display: block;
+  color: var(--preuve-terrain);
+  font-size: var(--taille-courante);
+}
+.preuve-direction {
+  border-color: var(--preuve-direction);
+  background: var(--preuve-direction);
+  color: var(--preuve-direction-texte);
+}
+.preuve-direction .ico,
+.preuve-direction strong {
+  color: var(--preuve-direction-texte);
+}
+.preuve-vide {
+  border-color: var(--preuve-vide-trait);
+  border-style: dashed;
+}
+.preuve-vide .ico {
+  color: var(--preuve-vide);
+}
+.apercu-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espace-2);
+}
+.apercu-actions .bouton {
+  padding-inline: var(--espace-3);
+}
+.apercu-actions .bouton-large {
+  grid-column: 1 / -1;
+}
+.carte-apercu .maplibregl-popup-close-button,
+.carte-apercu .apercu-fermer {
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 2px solid var(--trait);
+  border-radius: 50%;
+  background: var(--fond-releve);
+  color: var(--texte);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.etiquette-zone {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: 28px;
+  padding: 0 var(--espace-3);
+  border-radius: var(--rayon-pilule);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+}
+.etiquette-zone-actif {
+  background: var(--vert-pale);
+  color: var(--marque-appuyee);
+}
+.etiquette-zone-programme {
+  border: 1.5px dashed var(--trait-fort);
+  background: var(--fond-bande);
+  color: var(--texte-doux);
+}
+.ligne-ecole {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  width: 100%;
+  min-height: 72px;
+  padding: var(--espace-3);
+  border: 2px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  color: var(--texte);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ligne-ecole:hover {
+  border-color: var(--marque);
+  background: var(--vert-pale);
+}
+.ligne-corps {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ligne-nom {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.ligne-sous {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+  line-height: 1.35;
+}
+.etiquette-vide {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 var(--espace-2);
+  border: 2px dashed var(--preuve-vide-trait);
+  border-radius: var(--rayon-pilule);
+  color: var(--preuve-vide);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+}
+/* La fiche reçoit le focus pour les lecteurs d'écran, pas pour s'encadrer : ses boutons montrent le leur. */
+.carte-apercu:focus {
+  outline: none;
+}
+.ligne-ecole .ico {
+  color: var(--texte-doux);
+}
+.rond {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cible-principale);
+  height: var(--cible-principale);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fond-releve);
+  color: var(--marque);
+  box-shadow: var(--ombre-flottante);
+  cursor: pointer;
+}
+.rond:disabled {
+  color: var(--preuve-vide);
+  cursor: progress;
+}
+.legende-carte {
+  display: grid;
+  gap: var(--espace-2);
+  padding: var(--espace-3);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  box-shadow: var(--ombre-flottante);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+}
+.legende-carte p {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  margin: 0;
+}
+.puce-trame,
+.puce-actif {
+  flex: none;
+  width: 24px;
+  height: 16px;
+  border-radius: 3px;
+}
+.puce-trame {
+  border: 1.5px dashed var(--carte-zone-programme);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--carte-zone-programme) 0 1px,
+    transparent 1px 6px
+  );
+}
+.puce-actif {
+  border: 2px solid var(--carte-zone-actif);
+  background: var(--vert-pale);
+}
+/* Sur téléphone, la croix ferme la fiche ; sur ordinateur, le retour à la liste. */
