@@ -9,9 +9,9 @@ name: Mise en ligne
 # La production ne part que de `main` ; le site d'essai peut recevoir une branche,
 # pour essayer une pull request sur un téléphone avant de la fusionner.
 #
-# La première semaine, pas de bouton dans l'administration : une mise en ligne
-# chaque nuit (elle relit la base, ce qui la garde éveillée), et un lancement à la
-# main depuis l'onglet Actions de GitHub.
+# Pas de bouton dans l'administration : une mise en ligne par semaine (budget Actions
+# limité, décision du fondateur du 05/11/2026 ; la base reste éveillée par la
+# sauvegarde quotidienne), et un lancement à la main depuis l'onglet Actions de GitHub.
 #
 # La nuit met toujours à jour essai ; elle n'envoie la production que si la variable
 # GitHub NUIT_VERS_PRODUCTION vaut « oui » (Settings, Secrets and variables, Actions,
@@ -30,8 +30,8 @@ on:
         type: boolean
         default: false
   schedule:
-    # 1 h UTC, 2 h à Pointe-Noire.
-    - cron: '0 1 * * *'
+    # Une fois par semaine, le lundi à 1 h UTC (2 h à Pointe-Noire).
+    - cron: '0 1 * * 1'
 
 permissions:
   contents: read
