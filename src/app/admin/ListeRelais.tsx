@@ -24,10 +24,10 @@ function LigneRelais({
   admin: PortAdministration;
   surChangement: (texte: string) => void;
 }) {
-  // Un nouveau relais commence par le lot d'essai, le temps de sa formation. Un relais déjà actif sans lot reste sans
-  // lot (valeur vide) : il relève où il se trouve.
-  const parDefaut =
-    r.lotId ?? (r.statut === 'actif' ? '' : (lots.find((l) => l.essai)?.id ?? lots[0]?.id ?? ''));
+  // Un relais sans lot (valeur vide) relève où il se trouve : le lot n'est qu'un secteur conseillé. Un nouveau relais
+  // ne commence plus par le lot d'essai (décision du fondateur, 05/11/2026) : ses fiches ne se publieraient jamais, et un
+  // relais qu'on sortait de l'essai envoyait encore des fiches « du lot d'essai ». Le lot d'essai reste dans le menu.
+  const parDefaut = r.lotId ?? '';
   const [lot, setLot] = useState(parDefaut);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);

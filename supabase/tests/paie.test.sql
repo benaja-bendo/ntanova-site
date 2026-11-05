@@ -48,6 +48,9 @@ select ('5e000000-0000-4000-8000-0000000000' || lpad(g::text, 2, '0'))::uuid, '0
 insert into public.field_submissions (id, relay_id, batch_id, taken_at, sign_name, trial_validated_at)
 select ('5f000000-0000-4000-8000-0000000000' || lpad(g::text, 2, '0'))::uuid, '00000000-0000-4000-8000-0000000000b1',
        (select id from public.lots where essai), now(), '[Essai]', timestamptz '2026-11-03 15:00+01' from generate_series(1, 2) g;
+-- Ces relais ne sont pas sur le lot d'essai : à l'arrivée, la base remplace ce lot périmé (`lot_essai_perime.test.sql`).
+-- Ce sont des fiches arrivées PENDANT l'essai : on les replace dans le lot d'essai, comme elles l'étaient.
+update public.field_submissions set batch_id = (select id from public.lots where essai) where sign_name = '[Essai]';
 
 -- Les tarifs ---------------------------------------------------------------------------------------------------------------------------------------------
 

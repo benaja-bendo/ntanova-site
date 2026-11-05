@@ -41,6 +41,9 @@ select pg_temp.fiche('51000000-0000-4000-8000-000000000006', '00000000-0000-4000
 insert into public.field_submissions (id, relay_id, batch_id, taken_at, sign_name, trial_validated_at)
 select ('5e000000-0000-4000-8000-0000000000' || lpad(g::text, 2, '0'))::uuid, '00000000-0000-4000-8000-0000000000a1',
        (select id from public.lots where essai), now(), '[Essai]', timestamptz '2026-11-03 15:00+01' from generate_series(1, 3) g;
+-- Alice n'est pas sur le lot d'essai : à l'arrivée, la base remplace ce lot périmé (`lot_essai_perime.test.sql`). Ce sont
+-- des fiches arrivées PENDANT l'essai : on les replace dans le lot d'essai, comme elles l'étaient.
+update public.field_submissions set batch_id = (select id from public.lots where essai) where sign_name = '[Essai]';
 -- Bastien : une fiche acceptée vendredi 6 à 22 h (avant la fin de journée), une le samedi à 0 h 30 (après)
 select pg_temp.fiche('51000000-0000-4000-8000-000000000011', '00000000-0000-4000-8000-0000000000b1', timestamptz '2026-11-06 22:00+01', true, 'releve', null, null, 'Ngoyo');
 select pg_temp.fiche('51000000-0000-4000-8000-000000000012', '00000000-0000-4000-8000-0000000000b1', timestamptz '2026-11-07 00:30+01', true, 'releve', null, null, 'Ngoyo');
