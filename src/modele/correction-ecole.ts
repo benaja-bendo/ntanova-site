@@ -21,7 +21,12 @@ export interface FormulaireEcole {
 }
 
 /** Le formulaire part de ce que la fiche dit aujourd'hui. */
-export function formulaireDe(ecole: EcoleVue): FormulaireEcole {
+export function formulaireDe(
+  ecole: Pick<
+    EcoleVue,
+    'nom' | 'typeEcole' | 'niveaux' | 'programme' | 'repere' | 'numeroEnseigne'
+  >,
+): FormulaireEcole {
   return {
     nom: ecole.nom,
     typeEcole: ecole.typeEcole,
@@ -56,7 +61,13 @@ const sansDoublon = (a: readonly string[], b: readonly string[]) =>
  * relevé) n'est pas touché, et une valeur que cette version ne connaît pas encore, laissée
  * telle quelle, n'est jamais réécrite.
  */
-export function versCorrection(avant: EcoleVue, champs: FormulaireEcole): CorrectionEcole {
+export function versCorrection(
+  avant: Pick<
+    EcoleVue,
+    'nom' | 'typeEcole' | 'niveaux' | 'programme' | 'repere' | 'numeroEnseigne'
+  >,
+  champs: FormulaireEcole,
+): CorrectionEcole {
   const correction: CorrectionEcole = {};
   const nom = champs.nom.trim();
   if (nom !== avant.nom) correction.nom = nom;

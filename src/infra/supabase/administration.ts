@@ -8,6 +8,7 @@ import { lireVueEnsemble } from '../../modele/vue-ensemble';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import {
   ErreurDecision,
+  type CorrectionEcole,
   type CompteursRelais,
   type ContactDirection,
   type DecisionAcceptation,
@@ -56,6 +57,24 @@ const versProgramme = (f: Omit<FormationSaisie, 'cycle'> & { cycle?: string }) =
   bac_track: f.serie,
   diploma: f.diplome,
   rhythms: f.rythmes,
+});
+
+const versCorrections = (c: CorrectionEcole) => ({
+  ...(c.nom !== undefined ? { sign_name: c.nom } : {}),
+  ...(c.typeEcole !== undefined ? { school_kind: c.typeEcole } : {}),
+  ...(c.niveaux !== undefined ? { levels: c.niveaux } : {}),
+  ...(c.programme !== undefined ? { curriculum_note: c.programme } : {}),
+  ...(c.repere !== undefined ? { landmark: c.repere } : {}),
+  ...(c.numeroEnseigne !== undefined ? { sign_phone: c.numeroEnseigne } : {}),
+});
+
+const lireCorrections = (c: Record<string, unknown>): CorrectionEcole => ({
+  ...(typeof c.sign_name === 'string' ? { nom: c.sign_name } : {}),
+  ...(typeof c.school_kind === 'string' ? { typeEcole: typeConnu(c.school_kind) } : {}),
+  ...(Array.isArray(c.levels) ? { niveaux: niveauxConnus(c.levels) } : {}),
+  ...('curriculum_note' in c ? { programme: c.curriculum_note as string | null } : {}),
+  ...('landmark' in c ? { repere: c.landmark as string | null } : {}),
+  ...('sign_phone' in c ? { numeroEnseigne: c.sign_phone as string | null } : {}),
 });
 
 /** Une école à créer, dans la forme que lit la base (`create_catalog_entry`). */
@@ -290,6 +309,21 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       ]);
       const r = lire(detail) as unknown as LigneDetail;
       const ligneFile = file.data as LigneFile | null;
+      const revision = r.campus_id
+        ? await supabase()
+            .from('submission_reviews')
+            .select('changes, reviewed_at, reviewed_by')
+            .eq('submission_id', id)
+            .maybeSingle()
+        : null;
+      if (revision?.error && !['42P01', 'PGRST205'].includes(revision.error.code ?? ''))
+        decider(revision.error);
+      const revue = revision?.data as {
+        changes: Record<string, unknown>;
+        reviewed_at: string;
+        reviewed_by: string;
+      } | null;
+
       // Une correction d'une fiche pas encore acceptée reprend la position, la division et le secteur de cette fiche (#89).
       let origine: OrigineDeLaCorrection | null = null;
       if (r.corrects_submission_id) {
@@ -333,6 +367,13 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         0;
       return {
         id: r.id,
+        revision: revue
+          ? {
+              valeurs: lireCorrections(revue.changes),
+              le: revue.reviewed_at,
+              auteur: revue.reviewed_by,
+            }
+          : null,
         relaisId: r.relay_id,
         recuLe: r.received_at,
         prisLe: r.taken_at,
@@ -514,15 +555,28 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
     },
 
     async accepter(id, decision: DecisionAcceptation = {}) {
-      const { data, error } = await supabase().rpc('accept_submission', {
-        p_submission: id,
-        p_mode: decision.mode ?? null,
-        p_campus: decision.campusId ?? null,
-        p_institution: decision.institutionId ?? null,
-        p_label: decision.etiquette ?? null,
-        p_programs: (decision.formations ?? []).map((f) => versProgramme(f)),
-        p_division: decision.divisionId ?? null,
-      });
+      const corrections = versCorrections(decision.corrections ?? {});
+      const avecCorrections = Object.keys(corrections).length > 0;
+      const { data, error } = avecCorrections
+        ? await supabase().rpc('accept_reviewed_submission', {
+            p_submission: id,
+            p_mode: decision.mode ?? null,
+            p_campus: decision.campusId ?? null,
+            p_institution: decision.institutionId ?? null,
+            p_label: decision.etiquette ?? null,
+            p_programs: (decision.formations ?? []).map((f) => versProgramme(f)),
+            p_division: decision.divisionId ?? null,
+            p_changes: corrections,
+          })
+        : await supabase().rpc('accept_submission', {
+            p_submission: id,
+            p_mode: decision.mode ?? null,
+            p_campus: decision.campusId ?? null,
+            p_institution: decision.institutionId ?? null,
+            p_label: decision.etiquette ?? null,
+            p_programs: (decision.formations ?? []).map((f) => versProgramme(f)),
+            p_division: decision.divisionId ?? null,
+          });
       decider(error);
       return data as string;
     },

@@ -1,3 +1,4 @@
+import { CorrectionAvantAcceptation } from './CorrectionAvantAcceptation';
 import { useCallback, useEffect, useState } from 'react';
 import { cycleAvecFormations } from '../../modele/formations';
 import {
@@ -20,6 +21,7 @@ import {
   motifsProposes,
 } from '../../modele/libelles';
 import type {
+  CorrectionEcole,
   ContactDirection,
   DecisionAcceptation,
   DetailReleve,
@@ -437,6 +439,8 @@ function Detail({
   const [erreurContact, setErreurContact] = useState<string | null>(null);
   const [cible, setCible] = useState<Cible>({ mode: 'nouvelle' });
   const [etiquette, setEtiquette] = useState('');
+  const [corrections, setCorrections] = useState<CorrectionEcole>({});
+  const [editionInformations, setEditionInformations] = useState(false);
   const [formations, setFormations] = useState<FormationSaisie[]>([]);
 
   const chargerPhotos = useCallback(() => {
@@ -501,6 +505,15 @@ function Detail({
     );
   }
 
+  const nouvelleEcole =
+    cible.mode === 'nouvelle' &&
+    !detail.essai &&
+    (detail.type !== 'correction' || detail.corrigeUneFicheEnAttente);
+  const retenues = nouvelleEcole ? corrections : {};
+  const valeurs = { ...detail, ...retenues, nomEnseigne: retenues.nom ?? detail.nomEnseigne };
+  const formationsRetenues = retenues.niveaux
+    ? formations.filter((f) => retenues.niveaux?.includes(f.cycle))
+    : formations;
   const position = detail.position;
   // Sur le lot d'entraînement, on se forme n'importe où : ni la zone ni le secteur ne disent rien.
   const enZoneOuverte = detail.essai ? null : detail.enZoneOuverte;
@@ -513,7 +526,7 @@ function Detail({
     })),
   );
   const avecFormations =
-    detail.niveaux.some(cycleAvecFormations) || detail.indiceFormations || formations.length > 0;
+    valeurs.niveaux.some(cycleAvecFormations) || detail.indiceFormations || formations.length > 0;
 
   // La division de l'école : celle de la position quand un contour la contient. Sinon (aucun contour connu, ou ni position
   // ni lot), l'administration la choisit : la fiche ne retombe plus sur la division du lot du relais (ticket n° 67).
@@ -524,7 +537,7 @@ function Detail({
     .sort((a, b) => a.chemin.localeCompare(b.chemin, 'fr'));
   const decision = (): DecisionAcceptation => {
     const base: DecisionAcceptation = {
-      formations,
+      formations: formationsRetenues,
       ...(divisionRequise && divisionId !== '' ? { divisionId } : {}),
     };
     // Une correction d'une école déjà créée met l'école à jour : la base sait laquelle. Celle d'une fiche pas encore
@@ -532,7 +545,12 @@ function Detail({
     if (detail.type === 'correction' && !detail.corrigeUneFicheEnAttente) return {};
     switch (cible.mode) {
       case 'nouvelle':
-        return { ...base, mode: 'new_institution', etiquette: etiquette.trim() || null };
+        return {
+          ...base,
+          corrections: retenues,
+          mode: 'new_institution',
+          etiquette: etiquette.trim() || null,
+        };
       case 'new_campus':
         return {
           ...base,
@@ -569,12 +587,12 @@ function Detail({
   const bilanAvant = detail.essai
     ? null
     : avantDAccepter({
-        fiche: detail,
+        fiche: valeurs,
         photos,
         contact: personnes.length > 0,
         contactDeLaFicheDOrigine:
           personnes[0]?.releveId !== undefined && personnes[0].releveId !== id,
-        nombreDeFormations: formations.length,
+        nombreDeFormations: formationsRetenues.length,
         formationsAttendues: avecFormations,
         cible,
         divisionChoisie: divisionId,
@@ -711,6 +729,47 @@ function Detail({
         </dl>
       </section>
 
+      {(Object.keys(retenues).length > 0 || detail.revision) && (
+        <section className="admin-motif pile-serree" aria-label="Valeurs retenues par NTanova">
+          <h3>Valeurs retenues par NTanova</h3>
+          <p className="mention">
+            {detail.revision
+              ? `Enregistrées ${quand(detail.revision.le)}. Le relevé original ci-dessus est conservé.`
+              : 'Préparées pour l’acceptation ; le relevé original ci-dessus est conservé.'}
+          </p>
+          <dl className="admin-champs">
+            {Object.entries(detail.revision?.valeurs ?? retenues).map(([cle, valeur]) => (
+              <div className="admin-pleine-largeur" key={cle}>
+                <dt>
+                  {
+                    (
+                      {
+                        nom: 'Nom',
+                        typeEcole: 'Type',
+                        niveaux: 'Niveaux',
+                        programme: 'Programme et langues',
+                        repere: 'Repère',
+                        numeroEnseigne: 'Numéro sur l’enseigne',
+                      } as Record<string, string>
+                    )[cle]
+                  }
+                </dt>
+                <dd>
+                  {cle === 'niveaux'
+                    ? (valeur as Valeur<'niveau'>[]).map((n) => libelleNiveau[n]).join(', ') ||
+                      'Pas indiqué'
+                    : cle === 'typeEcole'
+                      ? libelleTypeEcole[valeur as Valeur<'type_ecole'>]
+                      : cle === 'numeroEnseigne' && valeur
+                        ? afficherTelephone(valeur as string)
+                        : (valeur as string) || 'Pas indiqué'}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+
       {erreur && (
         <p className="message-erreur" role="alert">
           {erreur}
@@ -728,6 +787,19 @@ function Detail({
           disabled={enCours}
           aria-label="Décision de NTanova"
         >
+          {nouvelleEcole && (
+            <CorrectionAvantAcceptation
+              fiche={detail}
+              correction={corrections}
+              surChangement={setCorrections}
+              surEdition={setEditionInformations}
+            />
+          )}
+          {editionInformations && (
+            <p className="mention">
+              Utilise les valeurs corrigées ou annule leur saisie avant de décider.
+            </p>
+          )}
           {detail.essai && (
             <Bandeau ton="attente" icone="alerte">
               <p>
@@ -750,7 +822,11 @@ function Detail({
           )}
 
           {!detail.essai && (detail.type !== 'correction' || detail.corrigeUneFicheEnAttente) && (
-            <div className="pile-serree" aria-label="Que faire de cette fiche">
+            <fieldset
+              className="pile-serree formulaire-occupe"
+              disabled={editionInformations}
+              aria-label="Que faire de cette fiche"
+            >
               <Choix
                 legende="Que faire de cette fiche ?"
                 options={options}
@@ -847,14 +923,14 @@ function Detail({
                     ici rendent l’école cherchable (série C, BTS, licence…).
                   </p>
                   <Formations
-                    cycles={detail.niveaux}
-                    formations={formations}
+                    cycles={valeurs.niveaux}
+                    formations={formationsRetenues}
                     domaines={domaines}
                     surChangement={setFormations}
                   />
                 </>
               )}
-            </div>
+            </fieldset>
           )}
 
           {bilanAvant && (
@@ -894,7 +970,7 @@ function Detail({
                 type="button"
                 enCours={operation === 'acceptation'}
                 texteEnCours="Acceptation…"
-                disabled={enCours || cibleIncomplete}
+                disabled={enCours || cibleIncomplete || editionInformations}
                 onClick={() =>
                   void agir(
                     'acceptation',
@@ -928,6 +1004,7 @@ function Detail({
             <button
               type="button"
               className="bouton bouton-secondaire"
+              disabled={editionInformations}
               aria-expanded={mode === 'correction'}
               onClick={() => setMode(mode === 'correction' ? null : 'correction')}
             >
@@ -936,6 +1013,7 @@ function Detail({
             <button
               type="button"
               className="bouton bouton-secondaire admin-bouton-refus"
+              disabled={editionInformations}
               aria-expanded={mode === 'refus'}
               onClick={() => {
                 setMode(mode === 'refus' ? null : 'refus');

@@ -74,6 +74,13 @@ test('une capture de chaque écran', async ({ page, context }) => {
 
   await ouvrirLaFiche(page);
   await prendre('admin-a-valider');
+  await page.getByRole('button', { name: 'Corriger avant d’accepter', exact: true }).click();
+  const revision = page.getByRole('form', { name: 'Corriger avant d’accepter' });
+  await revision.getByLabel('Repère', { exact: false }).fill('En face du marché');
+  await prendre('admin-corriger-avant-acceptation');
+  await revision.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
+  await prendre('admin-valeurs-retenues');
+  await page.getByRole('button', { name: 'Reprendre les valeurs du relais' }).click();
   await ouvrirContacts(page);
   await prendre('admin-direction');
 

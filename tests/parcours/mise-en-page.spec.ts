@@ -808,3 +808,87 @@ test('contacts : enregistrement et confirmation de fonction montrent leur attent
   await pont.getByRole('button', { name: 'Confirmer sa fonction', exact: true }).click();
   await expect(pont.getByText('Fonction confirmée', { exact: true })).toBeVisible();
 });
+
+test('nouvelle école : corriger avant d’accepter, conserver l’original et reprendre après une coupure', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  await page.getByRole('button', { name: 'Corriger avant d’accepter', exact: true }).click();
+  const edition = page.getByRole('form', { name: 'Corriger avant d’accepter' });
+  await expect(edition.getByLabel('Nom', { exact: true })).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  const accepter = page.getByRole('button', { name: 'Accepter la fiche', exact: true });
+  await expect(accepter).toBeDisabled();
+  await edition.getByLabel('Nom', { exact: true }).fill('');
+  await edition.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
+  await expect(edition.getByText('Écris le nom de l’école.')).toBeVisible();
+  await edition.getByLabel('Nom', { exact: true }).fill('[École corrigée]');
+  await edition.getByLabel("Type d'école").selectOption('publique');
+  const niveaux = edition.getByRole('group', { name: 'Niveaux', exact: true });
+  await niveaux.getByRole('button', { name: 'Primaire', exact: true }).click();
+  await niveaux.getByRole('button', { name: 'Collège', exact: true }).click();
+  await edition.getByLabel('Repère', { exact: false }).fill('En face du marché');
+  await edition.getByLabel("Numéro sur l'enseigne").fill('06 123 45 67');
+  await edition.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
+  const retenues = page.getByRole('region', { name: 'Valeurs retenues par NTanova' });
+  await expect(retenues).toContainText('[École corrigée]');
+  await expect(retenues).toContainText('Collège');
+  await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText('[École 1]');
+  await context.setOffline(true);
+  await accepter.click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(retenues).toContainText('[École corrigée]');
+  await context.setOffline(false);
+  await accepter.click();
+  await expect(page.getByRole('status')).toContainText('prête');
+  await page.getByRole('button', { name: 'Décidées', exact: true }).click();
+  await page.getByRole('link', { name: /\[École 1\]/ }).click();
+  await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText('[École 1]');
+  await expect(page.getByRole('region', { name: 'Valeurs retenues par NTanova' })).toContainText(
+    '[École corrigée]',
+  );
+  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Écoles', exact: true })).toBeVisible();
+  await expect(page.getByText('[École corrigée]', { exact: true }).first()).toBeVisible();
+  const catalogue = await page.evaluate(() => {
+    const e = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
+      campus: Record<string, { nom: string }>;
+    };
+    return Object.values(e.campus).find((c) => c.nom === '[École corrigée]');
+  });
+  expect(catalogue).toMatchObject({
+    publication: 'prete',
+    niveaux: ['college'],
+    typeEcole: 'publique',
+    numeroEnseigne: '242061234567',
+    repere: 'En face du marché',
+  });
+});
+
+test('nouvelle école : annuler une saisie ou reprendre le relevé ne conserve aucune correction', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  const ouvrir = page.getByRole('button', { name: 'Corriger avant d’accepter', exact: true });
+  await ouvrir.click();
+  const edition = page.getByRole('form', { name: 'Corriger avant d’accepter' });
+  await edition.getByLabel('Nom', { exact: true }).fill('[Nom abandonné]');
+  await edition.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Valeurs retenues par NTanova' })).toHaveCount(0);
+  await ouvrir.click();
+  await expect(edition.getByLabel('Nom', { exact: true })).toHaveValue('[École 1]');
+  await edition.getByLabel('Nom', { exact: true }).fill('[Nom temporaire]');
+  await edition.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
+  await page.getByRole('button', { name: 'Reprendre les valeurs du relais' }).click();
+  await expect(page.getByRole('region', { name: 'Valeurs retenues par NTanova' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Accepter la fiche', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('prête');
+});

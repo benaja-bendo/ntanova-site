@@ -1,3 +1,4 @@
+import { erreursFormulaireEcole, formulaireDe } from '../../modele/correction-ecole';
 import { erreursDeclaration } from '../../modele/declaration-ecole';
 import {
   lireEquipement,
@@ -46,6 +47,7 @@ import {
 const CLE = 'ntanova-faux-serveur';
 
 interface Decision {
+  revision?: import('../../modele/ports').DetailReleve['revision'];
   statut: Valeur<'statut_releve'>;
   motif: Valeur<'motif_decision'> | null;
   message: string | null;
@@ -883,6 +885,7 @@ const admin: PortAdministration = {
     );
     return {
       ...ligne,
+      revision: d.revision ?? null,
       lot: herite.lot,
       relaisId: MOI,
       prisLe: r.prisLe,
@@ -1067,7 +1070,11 @@ const admin: PortAdministration = {
   async accepter(id, choix: DecisionAcceptation = {}) {
     await reseau();
     const e0 = lireEtat();
-    const releve = e0.releves[id];
+    const original = e0.releves[id];
+    const corrections = choix.corrections ?? {};
+    const releve = original
+      ? { ...original, ...corrections, nomEnseigne: corrections.nom ?? original.nomEnseigne }
+      : undefined;
     const avant = decision(id);
     if (avant.statut === 'refuse') {
       throw new ErreurDecision(
@@ -1087,11 +1094,18 @@ const admin: PortAdministration = {
     const mode =
       choix.mode ??
       (cible ? 'update_campus' : choix.institutionId ? 'new_campus' : 'new_institution');
+    if (Object.keys(corrections).length && mode !== 'new_institution')
+      throw new ErreurDecision('Les corrections avant acceptation concernent une nouvelle école.');
     if ((mode === 'update_campus' || mode === 'add_cycle') && !cible) {
       throw new ErreurDecision('Il faut dire quel campus mettre à jour.');
     }
     if (mode === 'new_campus' && !choix.institutionId) {
       throw new ErreurDecision('Il faut dire à quelle institution rattacher le nouveau campus.');
+    }
+    if (Object.keys(corrections).length && releve) {
+      const erreurs = erreursFormulaireEcole(formulaireDe({ ...releve, nom: releve.nomEnseigne }));
+      if (Object.keys(erreurs).length)
+        throw new ErreurDecision(Object.values(erreurs)[0] ?? 'Valeurs de correction invalides.');
     }
     // Comme la base : la division choisie par l'administration, sinon celle de la position, sinon (sans position seulement)
     // celle du lot du relais. Une position qu'aucun contour ne contient n'est plus rattachée d'office au lot.
@@ -1184,6 +1198,9 @@ const admin: PortAdministration = {
       );
       e.decisions[id] = {
         ...avant,
+        revision: Object.keys(corrections).length
+          ? { valeurs: corrections, le: new Date().toISOString(), auteur: MOI }
+          : null,
         statut: 'accepte',
         ecoleId: campusId,
         motif: null,
