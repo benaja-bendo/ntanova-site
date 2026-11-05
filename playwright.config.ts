@@ -12,6 +12,7 @@ const port = portDesParcours();
 export default defineConfig({
   testDir: 'tests/parcours',
   forbidOnly: !!process.env.CI,
+  ...(process.env.CI ? { workers: 1, fullyParallel: true, globalTimeout: 12 * 60 * 1000 } : {}),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
