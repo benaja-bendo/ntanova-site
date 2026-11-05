@@ -118,7 +118,10 @@ jobs:
   essai:
     name: Essai (essai.ntanova.com)
     needs: construction
-    if: github.event_name == 'schedule' || inputs.cible != 'production'
+    if: >-
+      always()
+      && needs.construction.result == 'success'
+      && (github.event_name == 'schedule' || inputs.cible != 'production')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

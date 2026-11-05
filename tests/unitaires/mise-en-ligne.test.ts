@@ -181,3 +181,27 @@ describe('la construction réelle ne contourne pas les contrôles', () => {
       expect(construire({ preuve: 'true', controles })).toBe(false);
   });
 });
+
+describe('déploiement essai après réutilisation des contrôles', () => {
+  it('évalue explicitement la construction même si un ancêtre est sauté', () => {
+    const condition = /\n {2}essai:\n[\s\S]*?\n {4}if: >-\n((?: {6}.*\n)+)/.exec(workflow)?.[1];
+    expect(condition).toBeDefined();
+    const evaluer = new Function(
+      'github',
+      'inputs',
+      'needs',
+      'always',
+      `return (${condition!.trim().replace(/\n/g, ' ')});`,
+    );
+    const resultat = (construction: string, cible = 'essai') =>
+      evaluer(
+        { event_name: 'workflow_dispatch' },
+        { cible },
+        { construction: { result: construction } },
+        () => true,
+      );
+    expect(resultat('success')).toBe(true);
+    expect(resultat('success', 'production')).toBe(false);
+    for (const etat of ['failure', 'cancelled', 'skipped']) expect(resultat(etat)).toBe(false);
+  });
+});
