@@ -1,3 +1,4 @@
+import { ouvrirGestion } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter, uneFicheEnvoyee } from './aides';
 
@@ -39,7 +40,7 @@ async function accepter(page: Page, options: { confirmerLeContact: boolean }) {
 async function confier(page: Page, genre: 'verify' | 'locate' | 'complete', consigne: string) {
   await page.getByRole('link', { name: 'Écoles' }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-  await ligne.getByRole('button', { name: 'Confier à un relais' }).click();
+  await ouvrirGestion(ligne, 'Mission');
   await ligne.getByLabel('Ce que le relais doit faire').selectOption(genre);
   await ligne.getByLabel('À vérifier').fill(consigne);
   await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
@@ -134,7 +135,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Écoles' }).click();
     const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
-    await ligne.getByRole('button', { name: 'Confier à un relais' }).click();
+    await ouvrirGestion(ligne, 'Mission');
     await ligne.getByLabel('Ce que le relais doit faire').selectOption('complete');
     await ligne.getByLabel('À vérifier').fill('Tout reprendre.');
     await ligne.getByRole('button', { name: 'Confier', exact: true }).click();

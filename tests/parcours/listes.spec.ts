@@ -1,3 +1,4 @@
+import { ouvrirGestion } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter } from './aides';
 
@@ -241,7 +242,7 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     await seConnecter(page, '/admin/');
     await page.getByRole('link', { name: 'Écoles' }).click();
     const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
-    await ligne.getByRole('button', { name: 'Confier à un relais' }).click();
+    await ouvrirGestion(ligne, 'Mission');
     await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 

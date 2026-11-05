@@ -1,4 +1,4 @@
-import { expect, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page, type Locator } from '@playwright/test';
 
 // Les gestes répétés des parcours, sur le site construit avec le faux serveur.
 
@@ -155,4 +155,24 @@ export async function textesPeuLisibles(page: Page, selecteur: string): Promise<
     }
     return trouves;
   });
+}
+
+/** Ouvre la gestion depuis la liste, sans contourner les contrôles visibles. */
+export async function ouvrirGestion(ligne: Locator, section: string) {
+  if (section === 'retirer' || section === 'fusionner') {
+    await ligne.locator('summary').click();
+    await ligne
+      .getByRole('button', {
+        name: section === 'retirer' ? 'Retirer du site' : 'Fusionner…',
+        exact: true,
+      })
+      .click();
+  } else {
+    await ligne.getByRole('button', { name: 'Gérer la fiche', exact: true }).click();
+    if (section !== 'Informations')
+      await ligne
+        .getByRole('navigation', { name: 'Sections de la fiche' })
+        .getByRole('button', { name: section, exact: true })
+        .click();
+  }
 }

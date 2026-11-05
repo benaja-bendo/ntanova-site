@@ -1,6 +1,12 @@
 import { servirLesTuiles } from './aides-carte';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { seConnecter, textesPeuLisibles } from './aides';
+import {
+  seConnecter,
+  textesPeuLisibles,
+  ouvrirGestion,
+  uneFicheEnvoyee,
+  ouvrirLaFiche,
+} from './aides';
 test.beforeEach(async ({ page, context }) => {
   await page.addInitScript(() =>
     Object.defineProperty(navigator, 'connection', {
@@ -80,7 +86,7 @@ test.describe('administration', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/');
-    await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Vue d’ensemble' })).toBeVisible();
     await verifierLaBarre(page, 'À valider (vide)');
   });
 
@@ -416,4 +422,126 @@ test.describe('application carte', () => {
     await expect(page.locator('.carte-apercu')).toHaveCount(0);
     await expect(page.getByRole('searchbox')).toBeVisible();
   });
+});
+
+test('administration : accueil et écoles tiennent dans l’écran, gestion et focus au clavier', async ({
+  page,
+}) => {
+  await seConnecter(page, '/admin/');
+  await expect(page.getByRole('heading', { name: 'Relevés reçus par jour' })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
+  const gerer = ligne.getByRole('button', { name: 'Gérer la fiche', exact: true });
+  await expect(gerer).toBeVisible();
+  expect(
+    await page.locator('.ecoles-tableau').evaluate((e) => e.scrollWidth <= e.clientWidth),
+  ).toBe(true);
+  await gerer.focus();
+  await page.keyboard.press('Enter');
+  const panneau = page.getByRole('dialog', { name: 'Gérer [École à situer]' });
+  await expect(panneau).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  const boite = await panneau.boundingBox();
+  expect(boite!.x).toBeGreaterThanOrEqual(0);
+  expect(boite!.x + boite!.width).toBeLessThanOrEqual(largeurDe(page));
+  expect(await panneau.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  await expect(panneau.getByRole('button', { name: 'Fermer', exact: true })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  expect(await panneau.evaluate((e) => e.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Tab');
+  await expect(panneau.getByRole('button', { name: 'Fermer', exact: true })).toBeFocused();
+  await panneau.getByRole('button', { name: 'Contact public', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await panneau.locator('.dialogue-corps').evaluate((e) => (e.scrollTop = e.scrollHeight));
+  await expect(
+    panneau.getByRole('heading', { name: '[École à situer]', exact: true }),
+  ).toBeInViewport();
+  await page.keyboard.press('Escape');
+  await expect(panneau).toHaveCount(0);
+  await expect(gerer).toBeFocused();
+  const menu = ligne.locator('summary');
+  await menu.focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    ligne.getByRole('button', { name: 'Confier à un relais', exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(
+    ligne.getByRole('button', { name: 'Confier à un relais', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  await expect(ligne.locator('details')).not.toHaveAttribute('open');
+});
+
+test('administration : un enregistrement lent annonce son travail, une panne garde les valeurs et permet le réessai', async ({
+  page,
+  context,
+}) => {
+  await seConnecter(page, '/admin/#ecoles');
+  const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
+  await ouvrirGestion(ligne, 'Informations');
+  const panneau = page.getByRole('dialog');
+  await panneau.getByLabel('Nom', { exact: true }).fill('[Nom corrigé]');
+  await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '1200'));
+  await context.setOffline(true);
+  await panneau.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(
+    panneau.getByRole('button', { name: 'Enregistrement…', exact: true }),
+  ).toBeDisabled();
+  await expect(panneau.getByRole('button', { name: 'Fermer', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(panneau).toBeVisible();
+  await expect(panneau.getByRole('alert')).toBeVisible();
+  await expect(panneau.getByLabel('Nom', { exact: true })).toHaveValue('[Nom corrigé]');
+  await expect(panneau.getByRole('button', { name: 'Enregistrer', exact: true })).toBeEnabled();
+  await context.setOffline(false);
+  await panneau.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(panneau).toHaveCount(0);
+  await expect(page.getByRole('row', { name: /\[Nom corrigé\]/ })).toBeVisible();
+});
+
+test('administration : rechercher sans accent, filtrer une zone et confirmer une fusion sans perdre le focus', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  await page.getByRole('button', { name: 'Accepter la fiche', exact: true }).click();
+  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  const recherche = page.getByLabel('Rechercher une école');
+  await recherche.fill('ecole a situer');
+  await expect(page.getByRole('row', { name: /\[École à situer\]/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /\[École 1\]/ })).toHaveCount(0);
+  await recherche.fill('');
+  await page.getByLabel('Zone', { exact: true }).selectOption('d-pn-ngoyo');
+  await expect(page.getByText('Aucune école ici.')).toBeVisible();
+  await page.getByLabel('Zone', { exact: true }).selectOption('');
+  const ligne = page.getByRole('row', { name: /\[École 1\]/ });
+  await ouvrirGestion(ligne, 'fusionner');
+  const confirmation = page.getByRole('alertdialog', { name: 'Fusionner [École 1]' });
+  await expect(confirmation).toBeVisible();
+  await expect(
+    confirmation.getByRole('button', { name: 'Fusionner (cette fiche est retirée)', exact: true }),
+  ).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(confirmation).toHaveCount(0);
+  await expect(ligne.locator('summary')).toBeFocused();
+  await expect(ligne.getByText('Prête', { exact: true })).toBeVisible();
+  await ouvrirGestion(ligne, 'fusionner');
+  await confirmation
+    .getByLabel("C'est la même école que…")
+    .selectOption({ label: '[École à situer]' });
+  await confirmation
+    .getByRole('button', { name: 'Fusionner (cette fiche est retirée)', exact: true })
+    .click();
+  await expect(confirmation).toHaveCount(0);
+  await expect(ligne.getByText('Retirée', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('est fusionnée');
 });

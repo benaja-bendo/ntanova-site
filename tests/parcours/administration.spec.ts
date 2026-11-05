@@ -1,3 +1,4 @@
+import { ouvrirGestion } from './aides';
 import { expect, test } from '@playwright/test';
 import {
   ouvrirLaFiche,
@@ -87,7 +88,7 @@ test.describe('administration', () => {
     // La liste se rafraîchit après « Publier » et remet la ligne à zéro : on attend qu'elle soit à
     // jour, sinon le formulaire ouvert par le clic suivant se referme sous les doigts.
     await expect(ligne().getByText('Publiée', { exact: true })).toBeVisible();
-    await ligne().getByRole('button', { name: 'Retirer du site' }).click();
+    await ouvrirGestion(ligne(), 'retirer');
     await ligne().getByLabel('Motif').selectOption('demande_ecole');
     await ligne()
       .getByRole('button', { name: /Retirer \[École 1\] du site/ })
@@ -162,7 +163,7 @@ test.describe('administration', () => {
     await expect(page.getByRole('status')).toHaveText(/1 école de Tié-Tié publiée/);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
     await expect(ligne.getByText('Publiée', { exact: true })).toBeVisible();
-    await ligne.getByRole('button', { name: 'Retirer du site' }).click();
+    await ouvrirGestion(ligne, 'retirer');
     await expect(ligne.getByLabel('Motif')).toBeVisible();
     expect(await textesPeuLisibles(page, 'body'), 'Écoles, retirer du site').toEqual([]);
   });

@@ -474,3 +474,191 @@ textarea.champ {
 .carte-position-attribution {
   font-size: var(--taille-mention);
 }
+
+/* Actions et preuves : un rôle métier ne dépend pas du nom d'un autre état. */
+.action-secondaire,
+.action-discret {
+  background: var(--fond-releve);
+  color: var(--marque);
+}
+.action-discret {
+  border-color: transparent;
+}
+.action-secondaire:hover,
+.action-discret:hover {
+  background: var(--fond-bande);
+  color: var(--marque-appuyee);
+}
+.action-danger {
+  background: var(--fond-releve);
+  border-color: var(--erreur);
+  color: var(--erreur);
+}
+.action-danger:hover {
+  background: var(--etat-refusee-fond);
+  border-color: var(--erreur);
+  color: var(--erreur);
+}
+.publication-brouillon {
+  background: var(--fond-bande);
+  color: var(--texte-doux);
+}
+.publication-a_situer {
+  background: var(--etat-attente-fond);
+  color: var(--texte);
+}
+.publication-prete {
+  background: var(--fond-releve);
+  color: var(--marque);
+  border: 2px solid var(--marque);
+}
+.publication-publiee {
+  background: var(--etat-envoye-fond);
+  color: var(--etat-envoye-texte);
+}
+.publication-retiree {
+  background: var(--etat-refusee-fond);
+  color: var(--erreur);
+}
+.badge-terrain {
+  background: var(--fond-releve);
+  border: 1px solid var(--preuve-terrain);
+  color: var(--texte);
+}
+.badge-photo {
+  background: var(--fond-bande);
+  color: var(--texte);
+}
+.badge-direction {
+  background: var(--preuve-direction);
+  color: var(--preuve-direction-texte);
+}
+.actions-secondaires {
+  position: relative;
+}
+.actions-secondaires summary {
+  list-style: none;
+  min-width: var(--cible-principale);
+  padding-inline: var(--espace-3);
+}
+.actions-secondaires summary::-webkit-details-marker {
+  display: none;
+}
+.actions-secondaires-liste {
+  position: absolute;
+  z-index: 5;
+  inset-inline-end: 0;
+  top: calc(100% + var(--espace-1));
+  width: min(18rem, calc(100vw - 3rem));
+  padding: var(--espace-2);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  box-shadow: 0 4px 16px var(--trait);
+}
+.actions-secondaires-liste .bouton {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  border-radius: var(--rayon-s);
+}
+.actions-danger {
+  display: grid;
+  gap: var(--espace-2);
+  margin-top: var(--espace-2);
+  padding-top: var(--espace-2);
+  border-top: 1px solid var(--trait);
+}
+
+/* Le formulaire de contact sort du tableau : ses champs restent dans la largeur du téléphone. */
+.dialogue-admin {
+  width: min(42rem, calc(100% - 2rem));
+  max-width: calc(100% - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  margin: auto;
+  padding: var(--espace-3);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-s);
+  background: var(--fond);
+  color: var(--texte);
+  text-align: left;
+}
+.dialogue-admin .admin-motif {
+  max-width: none;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  padding: var(--espace-2) 0;
+}
+.dialogue-admin .champ {
+  min-width: 0;
+  width: 100%;
+}
+
+.dialogue-admin::backdrop {
+  background: var(--texte);
+  opacity: 0.35;
+}
+
+/* Gestion d'une école : une fenêtre, un défilement, une identité toujours visible. */
+.dialogue-entete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espace-3);
+}
+.dialogue-entete h2 {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-size: var(--taille-intertitre);
+  overflow-wrap: anywhere;
+}
+.dialogue-corps {
+  min-width: 0;
+}
+.dialogue-tiroir {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(46rem, 100%);
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0 0 0 auto;
+  padding: 0;
+  border-radius: var(--rayon-l) 0 0 var(--rayon-l);
+}
+.dialogue-tiroir[open] {
+  display: flex;
+  flex-direction: column;
+}
+.dialogue-tiroir > .dialogue-entete {
+  flex-shrink: 0;
+  padding: var(--espace-4);
+  border-bottom: 1px solid var(--trait);
+  background: var(--fond-releve);
+}
+.dialogue-tiroir > .dialogue-corps {
+  overflow-y: auto;
+  padding: var(--espace-4);
+  overscroll-behavior: contain;
+}
+.dialogue-tiroir .admin-motif {
+  background: transparent;
+  padding-inline: 0;
+}
+.gestion-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ecart-cibles);
+  margin-bottom: var(--espace-5);
+}
+.dialogue-integre {
+  min-width: 0;
+}
+
+@media (max-width: 47.99rem) {
+  .dialogue-tiroir {
+    border: 0;
+    border-radius: 0;
+  }
+}

@@ -1,3 +1,4 @@
+import { ouvrirGestion } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, publierLaZoneTieTie, uneFicheEnvoyee } from './aides';
 
@@ -27,7 +28,7 @@ test('l’administration corrige le nom, le type, les niveaux et le programme, s
   // Ce que la fiche dit aujourd'hui se lit sous son nom : de quoi repérer celles qui attendent un type.
   await expect(ligne(page).getByText('Pas indiqué · Primaire')).toBeVisible();
 
-  await ligne(page).getByRole('button', { name: 'Modifier la fiche' }).click();
+  await ouvrirGestion(ligne(page), 'Informations');
   const formulaire = page.getByRole('form', { name: 'Modifier [École 1]' });
   await expect(formulaire.getByLabel('Nom', { exact: true })).toHaveValue('[École 1]');
   await expect(formulaire.getByLabel("Type d'école")).toHaveValue('non_indique');
@@ -47,7 +48,7 @@ test('l’administration corrige le nom, le type, les niveaux et le programme, s
   await expect(corrigee.getByText('Publique · Primaire, Collège')).toBeVisible();
 
   // Rouverte, la fiche montre ce qui a été enregistré.
-  await corrigee.getByRole('button', { name: 'Modifier la fiche' }).click();
+  await ouvrirGestion(corrigee, 'Informations');
   await expect(page.getByLabel('Programme et langues')).toHaveValue('Programme congolais');
   await expect(page.getByLabel("Type d'école")).toHaveValue('publique');
 });
@@ -60,7 +61,7 @@ test('une fiche publiée se corrige aussi, et la correction dit quand elle para�
   await publierLaZoneTieTie(page);
   await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
 
-  await ligne(page).getByRole('button', { name: 'Modifier la fiche' }).click();
+  await ouvrirGestion(ligne(page), 'Informations');
   await page
     .getByRole('form', { name: 'Modifier [École 1]' })
     .getByLabel("Type d'école")
@@ -81,7 +82,7 @@ test('rien n’a changé : rien ne part ; un nom vide se dit en français', asyn
   context,
 }) => {
   await uneEcolePrete(page, context);
-  await ligne(page).getByRole('button', { name: 'Modifier la fiche' }).click();
+  await ouvrirGestion(ligne(page), 'Informations');
   const formulaire = page.getByRole('form', { name: 'Modifier [École 1]' });
 
   await formulaire.getByRole('button', { name: 'Enregistrer' }).click();
@@ -97,13 +98,18 @@ test('une école retirée du site ne se modifie plus', async ({ page, context })
   await uneEcolePrete(page, context);
   await publierLaZoneTieTie(page);
   await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
-  await expect(ligne(page).getByRole('button', { name: 'Modifier la fiche' })).toBeVisible();
+  await expect(ligne(page).getByRole('button', { name: 'Gérer la fiche' })).toBeVisible();
 
-  await ligne(page).getByRole('button', { name: 'Retirer du site' }).click();
+  await ouvrirGestion(ligne(page), 'retirer');
   await ligne(page).getByLabel('Motif').selectOption('erreur');
   await ligne(page)
     .getByRole('button', { name: /Retirer \[École 1\] du site/ })
     .click();
   await expect(ligne(page).getByText('Retirée', { exact: true })).toBeVisible();
-  await expect(ligne(page).getByRole('button', { name: 'Modifier la fiche' })).toHaveCount(0);
+  await ouvrirGestion(ligne(page), 'Contact public');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Sections de la fiche' })
+      .getByRole('button', { name: 'Informations', exact: true }),
+  ).toHaveCount(0);
 });

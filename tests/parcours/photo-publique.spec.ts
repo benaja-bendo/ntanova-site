@@ -1,3 +1,4 @@
+import { ouvrirGestion } from './aides';
 import { expect, test } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee, seConnecter } from './aides';
 test.use({ permissions: ['geolocation'] });
@@ -13,8 +14,8 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
   await page.getByRole('button', { name: 'Accepter la fiche', exact: true }).click();
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-  await ligne.getByRole('button', { name: 'Photo publique', exact: true }).click();
-  const d = page.getByRole('dialog', { name: 'Photo publique de [École 1]' });
+  await ouvrirGestion(ligne, 'Photo publique');
+  const d = page.getByRole('dialog', { name: 'Gérer [École 1]' });
   await d.getByRole('button', { name: 'Choisir cette enseigne' }).click();
   await expect(d.getByRole('checkbox')).not.toBeChecked();
   await d.getByRole('button', { name: 'Confirmer la photo publique' }).click();
@@ -28,19 +29,16 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
   expect(await d.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await page.keyboard.press('Escape');
   await expect(d).toHaveCount(0);
-  await expect(ligne.getByRole('button', { name: 'Photo publique', exact: true })).toBeFocused();
+  await expect(ligne.getByRole('button', { name: 'Gérer la fiche', exact: true })).toBeFocused();
   await page.reload();
-  await ligne.getByRole('button', { name: 'Photo publique', exact: true }).click();
+  await ouvrirGestion(ligne, 'Photo publique');
   await d.getByRole('button', { name: 'Retirer la photo publique' }).click();
   await expect(d).not.toContainText('Sélectionnée pour la publication.');
   await expect(d.getByRole('button', { name: 'Choisir cette enseigne' })).toBeVisible();
 });
 test('sans enseigne acceptée : aucun choix inventé', async ({ page }) => {
   await seConnecter(page, '/admin/#ecoles');
-  await page
-    .getByRole('row', { name: /\[École à situer\]/ })
-    .getByRole('button', { name: 'Photo publique', exact: true })
-    .click();
+  await ouvrirGestion(page.getByRole('row', { name: /\[École à situer\]/ }), 'Photo publique');
   await expect(page.getByRole('dialog')).toContainText(
     'Aucune photo d’enseigne issue d’un relevé accepté.',
   );
