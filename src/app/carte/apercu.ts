@@ -8,6 +8,7 @@
 import type { FeatureEcole } from '../../modele/carte/donnees';
 import { adresseVue } from '../../modele/carte/navigation';
 import { zoomMaxEn } from '../../modele/carte/fond';
+import { ICONES, type NomIcone } from '../../modele/carte/icones';
 import { estUneLettreDeCycle } from '../../modele/carte/marqueurs';
 
 export const dateCarte = (s: string) =>
@@ -18,30 +19,8 @@ export const dateCarte = (s: string) =>
     timeZone: 'Africa/Brazzaville',
   }).format(new Date(s));
 
-/** Les tracés des icônes (viewBox 24, trait de 2) : un cercle est écrit par deux arcs. */
-const ICONES = {
-  lieu: [
-    'M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z',
-    'M9.7 10a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0-4.6 0',
-  ],
-  repere: ['M12 3v18', 'M5 6h10l3 2.5-3 2.5H5z'],
-  oeil: ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z', 'M9 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0'],
-  bouclier: ['M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z', 'M9 12l2.2 2.2L15.5 10'],
-  fleche: ['M5 12h14', 'M13 6l6 6-6 6'],
-  aller: ['M3 11l18-8-8 18-2-8z'],
-  partage: [
-    'M15.5 5a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0',
-    'M3.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0',
-    'M15.5 19a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0',
-    'M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4',
-  ],
-  croix: ['M6 6l12 12M18 6L6 18'],
-  retour: ['M15 6l-6 6 6 6'],
-  suite: ['M9 6l6 6-6 6'],
-} as const;
-
 const SVG = 'http://www.w3.org/2000/svg';
-export function icone(nom: keyof typeof ICONES, petite = true): SVGSVGElement {
+export function icone(nom: NomIcone, petite = true): SVGSVGElement {
   const svg = document.createElementNS(SVG, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
@@ -78,7 +57,7 @@ export function disque(lettre: string | null | undefined, taille = ''): HTMLElem
 }
 
 /** Un bloc de preuve : un titre en gras avec sa date, et ce que cette preuve veut dire. */
-function preuve(classe: string, icon: keyof typeof ICONES, titre: string, suite?: string) {
+function preuve(classe: string, icon: NomIcone, titre: string, suite?: string) {
   const bloc = element('div', `preuve ${classe}`.trim());
   const texte = element('div');
   texte.append(element('strong', undefined, titre));
@@ -162,7 +141,7 @@ export function creerApercu(
     classe: string,
     url: string,
     texte: string,
-    icon: keyof typeof ICONES,
+    icon: NomIcone,
     avant: boolean,
     libelle?: string,
   ) => {

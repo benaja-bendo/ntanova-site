@@ -23,8 +23,8 @@ test('l’accueil reçoit le composant partagé et active la carte visible sans 
   await page.locator('.explorateur').scrollIntoViewIfNeeded();
   await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'prete');
   await expect(page.locator('.carte-repli')).toBeHidden();
-  await expect(page.locator('.plein-ecran')).toBeVisible();
-  await expect(page.locator('.plein-ecran')).toHaveAttribute('href', /\/carte\/#/);
+  await expect(page.locator('[data-vers-carte]')).toBeVisible();
+  await expect(page.locator('[data-vers-carte]')).toHaveAttribute('href', /\/carte\/#/);
 });
 for (const c of [
   { saveData: true },
@@ -102,8 +102,8 @@ test('le plein écran conserve la vue choisie', async ({ page }) => {
     const m = (window as unknown as { ntanovaCarte: { jumpTo: (x: object) => void } }).ntanovaCarte;
     m.jumpTo({ center: [15.27, -4.27], zoom: 10 });
   });
-  await expect(page.locator('.plein-ecran')).toHaveAttribute('href', /#10\/-4.27\/15.27$/);
-  await page.locator('.plein-ecran').click();
+  await expect(page.locator('[data-vers-carte]')).toHaveAttribute('href', /#10\/-4.27\/15.27$/);
+  await page.locator('[data-vers-carte]').click();
   await expect(page.locator('.explorateur-app')).toHaveAttribute('data-active', 'oui');
   await expect(page).toHaveURL(/#10\/-4.27\/15.27$/);
 });

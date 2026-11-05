@@ -52,6 +52,18 @@ const pagesSansJavaScript = [
 
 const pagesAvecJavaScript = ['/recherche/', '/autour-de-moi/'];
 
+// Les fiches d'école : sans JavaScript, sauf le petit script inline du bouton « Partager » (quatrième exception de poids).
+const fichesDEcole = [
+  `${TIE_TIE}complexe-scolaire-exemple/`,
+  `${TIE_TIE}centre-de-formation-exemple/`,
+  `${TIE_TIE}ecole-sans-detail-exemple/`,
+  `${TIE_TIE}ecole-ajoutee-exemple/`,
+  '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/groupe-scolaire-exemple/',
+  '/ecoles/congo/pointe-noire/mongo-mpoukou/groupe-scolaire-exemple/',
+  '/ecoles/congo/pointe-noire/loandjili/institut-superieur-exemple/',
+  '/ecoles/congo/brazzaville/moungali/ecole-de-brazzaville-exemple/',
+];
+
 /** Ce que toute page publique respecte : en français, aucune ressource extérieure, 360 px, des cibles de 44 px. */
 async function pageLisible(page: Page, baseURL: string | undefined, adresse: string) {
   const exterieures: string[] = [];
@@ -77,8 +89,15 @@ test.describe('site public', () => {
     test(`${adresse} : HTML lisible, 360 px, cibles de 44 px`, async ({ page, baseURL }) => {
       await pageLisible(page, baseURL, adresse);
       expect(await page.locator('script:not([type="application/ld+json"])').count()).toBe(
-        adresse === '/' ? 1 : 0,
+        adresse === '/' || fichesDEcole.includes(adresse) ? 1 : 0,
       );
+      // Sur une fiche, ce seul script est écrit dans la page (rien à télécharger) et sert « Partager ».
+      if (fichesDEcole.includes(adresse)) {
+        await expect(page.locator('script[src]')).toHaveCount(0);
+        expect(
+          await page.locator('script:not([type="application/ld+json"])').innerHTML(),
+        ).toContain('data-partager');
+      }
     });
   }
 
@@ -117,7 +136,9 @@ test.describe('site public', () => {
     await expect(page.getByRole('heading', { name: '[Complexe scolaire Exemple]' })).toBeVisible();
     await expect(page.getByText(/Vue sur place le 2 novembre 2026/)).toBeVisible();
     await expect(page.getByText(/Confirmée par la direction/)).toHaveCount(0);
-    await expect(page.getByText('Maternelle, Primaire')).toBeVisible();
+    const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
+    await expect(puces.getByRole('listitem').filter({ hasText: 'Maternelle' })).toBeVisible();
+    await expect(puces.getByRole('listitem').filter({ hasText: 'Primaire' })).toBeVisible();
     await expect(page.getByRole('link', { name: '+242 06 000 00 01' })).toHaveAttribute(
       'href',
       'tel:+242060000001',
@@ -343,8 +364,11 @@ test.describe('site public', () => {
     test('la fiche dit le type, les niveaux et le programme de l’école', async ({ page }) => {
       await page.goto(`${TIE_TIE}complexe-scolaire-exemple/`);
       const proprietes = page.locator('dl.proprietes');
-      await expect(proprietes.getByText('Privée', { exact: true })).toBeVisible();
-      await expect(proprietes.getByText('Maternelle, Primaire')).toBeVisible();
+      // Le type et les niveaux sont des puces sous le nom (audit du 05/11, chantier 2), plus des lignes de tableau.
+      const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
+      await expect(puces.getByRole('listitem').filter({ hasText: 'Privée' })).toBeVisible();
+      await expect(puces.getByRole('listitem').filter({ hasText: 'Maternelle' })).toBeVisible();
+      await expect(puces.getByRole('listitem').filter({ hasText: 'Primaire' })).toBeVisible();
       await expect(proprietes.getByText('Programme et langues', { exact: true })).toBeVisible();
       await expect(proprietes.getByText('Programme français-congolais, bilingue')).toBeVisible();
       // Tout est renseigné : rien à ranger parmi ce qui manque.
@@ -372,9 +396,10 @@ test.describe('site public', () => {
       page,
     }) => {
       await page.goto(`${TIE_TIE}centre-de-formation-exemple/`);
-      const proprietes = page.locator('dl.proprietes');
-      await expect(proprietes.getByText('Autre formation', { exact: true })).toBeVisible();
-      await expect(proprietes.getByText('Type', { exact: true })).toHaveCount(0);
+      const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
+      // La puce porte la lettre du cycle (aria-hidden) puis son nom : « S Autre formation ».
+      await expect(puces.getByRole('listitem')).toHaveText([/^S\s*Autre formation$/]);
+      await expect(puces).not.toContainText('Autre,');
       await expect(page.locator('.fiche-cote')).toContainText("Type d'école");
     });
 

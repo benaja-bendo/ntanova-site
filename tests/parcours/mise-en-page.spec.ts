@@ -212,7 +212,7 @@ test.describe('site public', () => {
     });
   }
 
-  test('accueil : navigation du haut, villes côte à côte, étapes : seulement à partir de la tablette', async ({
+  test('accueil : navigation du haut à partir de la tablette (le menu avant), villes côte à côte, étapes visibles partout', async ({
     page,
   }) => {
     await page.goto('/');
@@ -230,7 +230,8 @@ test.describe('site public', () => {
       expect(a?.y, 'les deux villes sont sur la même ligne').toBe(b?.y);
     } else {
       await expect(navigation).toBeHidden();
-      await expect(etapes).toBeHidden();
+      // D14 : la preuve de la page, « Comment les fiches sont tenues », se lit aussi sur téléphone.
+      await expect(etapes).toBeVisible();
       expect(b?.y ?? 0, 'au téléphone, les villes se suivent').toBeGreaterThan(
         (a?.y ?? 0) + (a?.height ?? 0) - 1,
       );
@@ -238,7 +239,9 @@ test.describe('site public', () => {
     // Pas de mise à jour automatique : tant que ce n'est pas vrai, on ne le dit pas. La carte,
     // elle, existe (ticket 15) : l'accueil y mène.
     await expect(page.getByText(/mettent la fiche à jour/)).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' })).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' }),
+    ).toBeVisible();
   });
 
   test('accueil : la ville qui a le plus de fiches passe avant les autres', async ({ page }) => {

@@ -51,11 +51,6 @@ const cycles = [
     </div>
     <div id="carte-toile" class="carte-toile"></div>
   </div>
-  {!application && (
-    <a class="plein-ecran bouton" href="/carte/">
-      Explorer la carte en plein écran
-    </a>
-  )}
   <button type="button" class="bouton activer-carte" hidden>
     Explorer la carte interactive
   </button>
@@ -249,9 +244,6 @@ const cycles = [
   .carte-note {
     color: var(--texte-doux);
     margin: var(--espace-2) 0;
-  }
-  .plein-ecran {
-    margin-block: var(--espace-3);
   }
   .explorateur [hidden] {
     display: none !important;

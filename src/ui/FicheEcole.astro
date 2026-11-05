@@ -1,7 +1,14 @@
 ---
 // La fiche d'un campus publié : ce qui se voit de la rue, ce qu'il enseigne (cycles, séries, diplômes,
-// domaines, rythmes), ses autres implantations, et comment y aller. Aucun JavaScript.
+// domaines, rythmes), ses autres implantations, et comment y aller.
+// Elle parle comme l'aperçu de la carte (audit du 05/11/2026, chantier 2) : le disque et les puces de niveau, les deux
+// preuves en blocs, la barre « Y aller · Appeler · Partager ». Les pièces viennent de `carte-pieces.css`.
+// Aucun JavaScript, sauf un script de moins de 2 Ko pour « Partager » (partage du téléphone, ou copie du lien) :
+// sans lui, le bouton est un lien WhatsApp.
 // Une institution à plusieurs campus a une fiche par campus, qui renvoient l'une vers l'autre.
+import { cycleLePlusEleve, lettresDesCycles } from '../modele/carte/donnees';
+import { zoomMaxEn } from '../modele/carte/fond';
+import { adresseVue } from '../modele/carte/navigation';
 import {
   arrondissementDessine,
   arrondissementsDessines,
@@ -36,6 +43,7 @@ import ContactEcole from './ContactEcole.astro';
 import Carte from './Carte.astro';
 import FraisEcole from './FraisEcole.astro';
 import EquipementsEcole from './EquipementsEcole.astro';
+import Icone from './Icone.astro';
 
 interface Props {
   e: EcolePubliee;
@@ -58,6 +66,11 @@ const itineraire =
     ? `https://www.google.com/maps/dir/?api=1&destination=${e.latitude},${e.longitude}`
     : null;
 
+// Le disque de l'école (le cycle le plus élevé, comme son épingle) et la puce de chaque niveau : même lettre, même couleur.
+const lettreEcole = cycleLePlusEleve(e.niveaux)?.lettre ?? '';
+const classeDisque = (lettre: string) => (lettre ? `disque c-${lettre}` : 'disque');
+const puces = e.niveaux.map((n) => ({ libelle: libelleNiveau[n], lettre: lettresDesCycles([n]) }));
+
 // Les formations, cycle par cycle (dans l'ordre de la liste des cycles).
 const parCycle = listes.niveau
   .map((cycle) => ({ cycle, formations: e.formations.filter((f) => f.cycle === cycle) }))
@@ -76,19 +89,47 @@ const pasReleve = [
 ].filter((x): x is string => !!x);
 const rythmes = (f: FormationPublique) => f.rythmes.map((r) => libelleRythme[r]).join(', ');
 
-// Le petit plan de la fiche : seulement quand le contour de l'arrondissement est dessiné. Il dit où est
-// l'école, qu'un relais l'ait vue ou non : seule la carte des écoles est réservée à celles vues sur place.
+// Ce que seule la direction peut compléter. Tant que l'école n'est pas confirmée, on dit qu'il reste à compléter avec elle ;
+// confirmée, ce qui manque encore est ce qu'elle n'a pas communiqué.
+const confirmee = e.etat === 'verifiee';
+const aCompleter = [
+  !e.frais?.length && 'Frais',
+  !e.photo && 'Photos de l’école',
+  !e.equipements?.length && 'Équipements',
+  !e.contactPublic && "Contact de l'école",
+].filter((x): x is string => !!x);
+
+// La barre d'actions : l'adresse de la fiche (celle que WhatsApp montre avec son image), le numéro à appeler (le contact
+// publié avec l'accord de la direction, sinon celui de l'enseigne).
+const urlFiche = new URL(lienEcole(e), Astro.site ?? Astro.url).href;
+const lienPartage = `https://wa.me/?text=${encodeURIComponent(`${e.nom} · ${urlFiche}`)}`;
+const numeroAppel = e.contactPublic?.numero ?? e.numeroEnseigne;
+
+// Le petit plan de la fiche : seulement quand le contour de l'arrondissement ET ses rues sont dessinés. Un contour sans rues
+// n'est qu'un grand rectangle vide avec une maison (D21) : la fiche dit alors le repère en mots et renvoie à la vraie carte.
 const dessin = zone.adresse.join('/').startsWith('congo/pointe-noire/')
   ? arrondissementDessine(zone.adresse[zone.adresse.length - 1] ?? '')
   : null;
+const rues = dessin ? ruesDe(dessin.slug) : null;
 const situee = situees([e]).map(marqueDe)[0];
 const carteDuQuartier = dessin ? lienCarte(zone.adresse) : '';
 const plan =
-  situee && dessin
+  situee && dessin && rues
     ? (() => {
         const { boite, projection } = cadreEcole(situee);
         return planer(boite, [{ ...situee, lien: carteDuQuartier }], projection);
       })()
+    : null;
+// Sans plan dessiné : la carte interactive, centrée sur l'école. L'école n'y a son épingle que vue sur place ; sinon la carte
+// s'ouvre sur son quartier, et le lien le dit.
+const vueSurPlace = e.releveeLe !== null;
+const lienSurLaCarte =
+  !plan && e.latitude !== null && e.longitude !== null
+    ? `/carte/${vueSurPlace ? `?${new URLSearchParams({ ecole: lienEcole(e) })}` : ''}${adresseVue({
+        zoom: Math.min(15, zoomMaxEn(e.longitude, e.latitude)),
+        latitude: e.latitude,
+        longitude: e.longitude,
+      })}`
     : null;
 const nomZone = zone.division.nom;
 ---
@@ -100,66 +141,124 @@ const nomZone = zone.division.nom;
 
   <div class="fiche-corps">
     <div class="fiche-principale">
+      <header class="apercu-tete">
+        <span class={`${classeDisque(lettreEcole)} disque-xl`} aria-hidden="true">
+          {lettreEcole}
+        </span>
+        <div class="apercu-titres">
+          <h1>{e.nom}</h1>
+          {e.etiquette && <p class="etiquette-campus">{e.etiquette}</p>}
+          <p class="apercu-lieu">
+            <Icone nom="lieu" />
+            <span>{lieu || zone.noms[0]}</span>
+          </p>
+        </div>
+      </header>
+
+      {(puces.length > 0 || typeSeLit) && (
+        <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
+          {puces.map((p) => (
+            <li class="etiquette-niveau">
+              <span class={classeDisque(p.lettre)} aria-hidden="true">
+                {p.lettre}
+              </span>
+              {p.libelle}
+            </li>
+          ))}
+          {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
+        </ul>
+      )}
+
       {/* Deux preuves, jamais fusionnées (décision du fondateur du 03/11) : l'accord daté de la direction,
           et le passage d'un relais. Sans passage, la fiche le dit. */}
       <div class="preuves">
-        {e.etat === 'verifiee' && (
-          <p class="etat preuve-direction">
-            <b>Confirmée par la direction</b>
-            {e.verifieeLe ? ` le ${dateLongue(e.verifieeLe)}` : ''}.
-          </p>
+        {confirmee && (
+          <div class="preuve preuve-direction">
+            <Icone nom="bouclier" petite={false} />
+            <div>
+              <strong>
+                Confirmée par la direction{e.verifieeLe ? ` le ${dateLongue(e.verifieeLe)}` : ''}
+              </strong>
+            </div>
+          </div>
         )}
         {e.origine === 'school' && (
-          <p class="etat preuve-ajoutee">
-            <b>Déclarée par l’école{e.declareeLe ? ` le ${dateLongue(e.declareeLe)}` : ''}</b>.
-            Informations transmises par l’école ; cette déclaration ne confirme pas toute la fiche.
-          </p>
+          <div class="preuve preuve-vide">
+            <Icone nom="repere" petite={false} />
+            <div>
+              <strong>
+                Déclarée par l’école{e.declareeLe ? ` le ${dateLongue(e.declareeLe)}` : ''}
+              </strong>
+              Informations transmises par l’école ; cette déclaration ne confirme pas toute la
+              fiche.
+            </div>
+          </div>
         )}
         {e.releveeLe ? (
-          <p class="etat preuve-terrain">
-            <b>Vue sur place le {dateLongue(e.releveeLe)}</b> par un jeune du quartier&nbsp;:
-            seulement ce qui se voit de la rue.
-          </p>
+          <div class="preuve">
+            <Icone nom="oeil" petite={false} />
+            <div>
+              <strong>Vue sur place le {dateLongue(e.releveeLe)}</strong>
+              Par un jeune du quartier&nbsp;: seulement ce qui se voit de la rue.
+            </div>
+          </div>
         ) : (
-          <p class="etat preuve-ajoutee">
-            {e.origine !== 'school' && (
-              <>
-                <b>Ajoutée par NTanova{e.situeeLe ? ` le ${dateLongue(e.situeeLe)}` : ''}</b>.{' '}
-              </>
-            )}
-            Pas encore vue sur place par un jeune du quartier.
-          </p>
+          <div class="preuve preuve-vide">
+            <Icone nom="oeil" petite={false} />
+            <div>
+              {e.origine !== 'school' && (
+                <strong>
+                  Ajoutée par NTanova{e.situeeLe ? ` le ${dateLongue(e.situeeLe)}` : ''}
+                </strong>
+              )}
+              Pas encore vue sur place par un jeune du quartier.
+            </div>
+          </div>
         )}
       </div>
-      <div>
-        <h1>{e.nom}</h1>
-        {e.etiquette && <p class="etiquette-campus">{e.etiquette}</p>}
-        <p class="texte-doux">{lieu || zone.noms[0]}</p>
+
+      {/* Les trois gestes d'une famille. Le premier est plein : « Y aller » quand l'école est située, sinon « Appeler ». */}
+      <div class="apercu-actions fiche-actions">
+        {itineraire && (
+          <a class="bouton bouton-large" href={itineraire}>
+            <Icone nom="aller" />Y aller
+          </a>
+        )}
+        {numeroAppel && (
+          <a
+            class:list={['bouton', itineraire ? 'bouton-secondaire' : 'bouton-large']}
+            href={`tel:+${numeroAppel}`}
+          >
+            <Icone nom="appeler" />
+            Appeler
+          </a>
+        )}
+        <a
+          class:list={['bouton', itineraire || numeroAppel ? 'bouton-secondaire' : 'bouton-large']}
+          href={lienPartage}
+          data-partager
+          data-url={urlFiche}
+          data-titre={e.nom}
+        >
+          <Icone nom="partage" />
+          <span data-libelle>Partager</span>
+        </a>
       </div>
+      <p class="visuellement-cache" role="status" data-partager-etat></p>
 
       {e.photo && <PhotoEcole photo={e.photo} nom={e.nom} />}
 
-      <dl class="carte proprietes">
-        {niveaux && (
-          <>
-            <dt>Niveaux</dt>
-            <dd>{niveaux}</dd>
-          </>
-        )}
-        {typeSeLit && (
-          <>
-            <dt>Type</dt>
-            <dd>{libelleTypeEcole[e.typeEcole]}</dd>
-          </>
-        )}
-        {e.programme && (
-          <>
-            <dt>Programme et langues</dt>
-            <dd>{e.programme}</dd>
-          </>
-        )}
-        <ContactEcole contact={e.contactPublic ?? null} enseigne={e.numeroEnseigne} />
-      </dl>
+      {(e.programme || e.contactPublic || e.numeroEnseigne) && (
+        <dl class="carte proprietes">
+          {e.programme && (
+            <>
+              <dt>Programme et langues</dt>
+              <dd>{e.programme}</dd>
+            </>
+          )}
+          <ContactEcole contact={e.contactPublic ?? null} enseigne={e.numeroEnseigne} />
+        </dl>
+      )}
 
       {parCycle.length > 0 && (
         <section class="carte formations" aria-label="Formations">
@@ -228,21 +327,24 @@ const nomZone = zone.division.nom;
               arrondissement: a,
               role: a.slug === dessin.slug ? 'focus' : 'voisin',
             }))}
-            rues={ruesDe(dessin.slug)}
+            rues={rues}
             marques={plan.marques}
             reperes={reperes}
             halo={situee}
           />
         )}
-        <p>
-          <b>Repère&nbsp;:</b> {e.repere ?? 'pas encore relevé'}
+        <p class="apercu-repere">
+          <Icone nom="repere" petite={false} />
+          <span>
+            <b>Repère&nbsp;:</b> {e.repere ?? 'pas encore relevé'}
+          </span>
         </p>
-        {itineraire && (
-          <a class="bouton bouton-secondaire" href={itineraire}>
-            Y aller
+        {plan && <a href={carteDuQuartier}>Voir sur la carte de {nomZone}</a>}
+        {lienSurLaCarte && (
+          <a href={lienSurLaCarte}>
+            {vueSurPlace ? 'Voir sur la carte' : 'Voir le quartier sur la carte'}
           </a>
         )}
-        {plan && <a href={carteDuQuartier}>Voir sur la carte de {nomZone}</a>}
       </section>
     </div>
 
@@ -259,15 +361,18 @@ const nomZone = zone.division.nom;
           </ul>
         </section>
       )}
-      <section class="manque">
-        <p class="surtitre-doux-public">Non communiqué par la direction</p>
-        <ul class="pastilles-vides">
-          {!e.frais?.length && <li>Frais</li>}
-          <li>Photos de l’école communiquées par la direction</li>
-          {!e.equipements?.length && <li>Équipements</li>}
-          {!e.contactPublic && <li>Contact de l'école</li>}
-        </ul>
-      </section>
+      {aCompleter.length > 0 && (
+        <section class="manque">
+          <p class="surtitre-doux-public">
+            {confirmee ? 'Non communiqué par la direction' : 'À compléter avec la direction'}
+          </p>
+          <ul class="pastilles-vides">
+            {aCompleter.map((x) => (
+              <li>{x}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       <aside class="ecoles-appel">
         <p>
           <b>Vous gérez cet établissement&nbsp;?</b>
@@ -283,6 +388,47 @@ const nomZone = zone.division.nom;
   </div>
 </article>
 
+{/* « Partager » : le partage du téléphone quand il existe, sinon la copie du lien avec un retour visible. Sans l'un ni l'autre
+    (page sans connexion sécurisée, navigateur ancien) ou sans JavaScript, le lien WhatsApp du bouton fait le travail. */}
+<script is:inline>
+  (function () {
+    const a = document.querySelector('[data-partager]');
+    if (!a) return;
+    const libelle = a.querySelector('[data-libelle]');
+    const etat = document.querySelector('[data-partager-etat]');
+    let minuteur;
+    a.addEventListener('click', function (ev) {
+      const url = a.getAttribute('data-url');
+      if (navigator.share) {
+        ev.preventDefault();
+        navigator.share({ title: a.getAttribute('data-titre'), url: url }).catch(function () {});
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        ev.preventDefault();
+        navigator.clipboard.writeText(url).then(
+          function () {
+            libelle.textContent = 'Lien copié';
+            a.classList.add('copie');
+            etat.textContent = 'Lien de la fiche copié.';
+            clearTimeout(minuteur);
+            minuteur = setTimeout(function () {
+              libelle.textContent = 'Partager';
+              a.classList.remove('copie');
+              etat.textContent = '';
+            }, 2500);
+          },
+          function () {
+            location.href = a.href;
+          },
+        );
+      }
+    });
+  })();
+</script>
+
+<style is:global>
+  @import './carte-pieces.css';
+</style>
+
 <style>
   .fiche {
     display: grid;
@@ -293,6 +439,7 @@ const nomZone = zone.division.nom;
     font-family: var(--police-titre);
     font-size: var(--taille-titre-fiche);
     line-height: var(--interligne-titre);
+    overflow-wrap: anywhere;
   }
   .fiche h2 {
     margin: 0;
@@ -312,38 +459,24 @@ const nomZone = zone.division.nom;
     font-family: var(--police-titre);
     font-weight: 700;
   }
+  .puces {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
   .preuves {
     display: grid;
     gap: var(--espace-2);
   }
-  /* Les preuves (jetons --preuve-…) : l'accord de la direction en plein, le passage du relais en trait
-     plein, l'absence de passage en pointillés. */
-  .etat {
-    margin: 0;
-    font-size: var(--taille-secondaire);
-    padding: var(--espace-3) var(--espace-4);
-    border: 2px solid transparent;
-    border-radius: var(--rayon-m);
-  }
-  .preuve-direction {
-    background: var(--preuve-direction);
-    color: var(--preuve-direction-texte);
-  }
-  .preuve-terrain {
+  /* Le bouton « Partager » dit qu'il a copié le lien. */
+  .fiche-actions .copie {
     border-color: var(--preuve-terrain);
-    background: var(--fond-releve);
-    color: var(--texte-doux);
+    background: var(--vert-pale);
+    color: var(--marque-appuyee);
   }
-  .preuve-terrain b {
-    color: var(--preuve-terrain);
-  }
-  .preuve-ajoutee {
-    border-style: dashed;
-    border-color: var(--preuve-vide-trait);
-    color: var(--preuve-vide);
-  }
-  .preuve-ajoutee b {
-    color: var(--texte);
+  /* Deux actions seulement : la seconde prend toute la largeur au lieu de la moitié. */
+  .fiche-actions .bouton:last-child:nth-child(even) {
+    grid-column: 1 / -1;
   }
   .proprietes {
     display: grid;
@@ -352,21 +485,16 @@ const nomZone = zone.division.nom;
     margin: 0;
     padding: var(--espace-4);
   }
-  .proprietes dt {
+  /* Le contact est écrit par ContactEcole : ses dt et dd n'ont pas l'attribut de cette feuille, d'où `:global`. Les lignes
+     « Programme », « Contact » et « Numéro sur l'enseigne » sont alignées de la même façon. */
+  .proprietes :global(dt) {
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
   }
-  .proprietes dd {
+  .proprietes :global(dd) {
     margin: 0;
     font-weight: 700;
     text-align: right;
-  }
-  .proprietes a {
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--cible-min);
-    color: var(--marque);
   }
   .formations,
   .autres {
@@ -393,6 +521,7 @@ const nomZone = zone.division.nom;
   .liens-formation {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: var(--espace-1) var(--espace-3);
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
@@ -419,7 +548,7 @@ const nomZone = zone.division.nom;
     gap: var(--espace-3);
     padding: var(--espace-4);
   }
-  .ou > a:not(.bouton) {
+  .ou > a {
     display: inline-flex;
     align-items: center;
     min-height: var(--cible-min);
@@ -468,12 +597,13 @@ const nomZone = zone.division.nom;
     .proprietes {
       grid-template-columns: minmax(9rem, auto) 1fr;
     }
-    .proprietes dt {
+    .proprietes :global(dt) {
       align-self: center;
     }
-    .proprietes dd {
+    .proprietes :global(dd) {
       text-align: left;
     }
+    .ou > a,
     .ou .bouton {
       justify-self: start;
     }

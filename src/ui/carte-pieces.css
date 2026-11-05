@@ -4,8 +4,8 @@
  * est dans `ExplorateurCarte.astro`. Le catalogue `/dev/catalogue/` les montre dans chacun de leurs états.
  * Seuls les jetons de `jetons.css` donnent des valeurs.
  */
-/* --- Les pièces communes de la page carte : icône, disque de cycle, puce, fiche --- */
-.explorateur .ico {
+/* --- Les pièces communes (carte et fiches d'école) : icône, disque de cycle, puce, fiche --- */
+.ico {
   width: 24px;
   height: 24px;
   flex: none;
@@ -15,12 +15,12 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.explorateur .ico-s {
+.ico-s {
   width: 20px;
   height: 20px;
 }
 /* Le disque d'un cycle : la lettre et la couleur de l'épingle, partout où le cycle s'écrit. */
-.explorateur .disque {
+.disque {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -35,37 +35,37 @@
   font-weight: 700;
   line-height: 1;
 }
-.explorateur .disque-xl {
+.disque-xl {
   width: 52px;
   height: 52px;
   font-size: var(--taille-titre-fiche);
 }
-.explorateur .disque-l {
+.disque-l {
   width: 40px;
   height: 40px;
   font-size: var(--taille-intertitre);
 }
-.explorateur .disque-vide {
+.disque-vide {
   border: 2px dashed var(--trait-fort);
   background: transparent;
   color: var(--preuve-vide);
 }
-.explorateur .c-M {
+.c-M {
   --cycle: var(--cycle-maternelle);
 }
-.explorateur .c-P {
+.c-P {
   --cycle: var(--cycle-primaire);
 }
-.explorateur .c-C {
+.c-C {
   --cycle: var(--cycle-college);
 }
-.explorateur .c-L {
+.c-L {
   --cycle: var(--cycle-lycee);
 }
-.explorateur .c-T {
+.c-T {
   --cycle: var(--cycle-technique);
 }
-.explorateur .c-S {
+.c-S {
   --cycle: var(--cycle-superieur);
 }
 .explorateur .pastille-choix.avec-disque {

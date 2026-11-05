@@ -49,7 +49,9 @@ const villes = arbre.racines
           Explorez les écoles vues sur place ou cherchez par nom, ville et formation.
         </p>
         <nav class="actions-accueil" aria-label="Chercher une école">
-          <a class="bouton" href="/carte/">
+          {/* Le seul bouton principal vers /carte/ (audit du 05/11, D9) : une fois la carte de l'aperçu chargée, son adresse
+              emporte la vue choisie (`chargeur.ts`). */}
+          <a class="bouton" href="/carte/" data-vers-carte>
             Explorer la carte
           </a>
           <a class="bouton bouton-secondaire" href="/recherche/">
@@ -106,7 +108,7 @@ const villes = arbre.racines
         {pointeNoire && (
           <a class="lien-carte" href={lienDivision(pointeNoire.adresse)}>
             <span>
-              Voir la carte de <span class="insecable">Pointe-Noire</span>
+              Les arrondissements de <span class="insecable">Pointe-Noire</span>
             </span>
           </a>
         )}
@@ -120,7 +122,8 @@ const villes = arbre.racines
     </section>
   </div>
 
-  {/* Sur téléphone, la page s'arrête aux arrondissements : cette bande n'existe qu'à partir de 48 rem. */}
+  {/* La preuve de la page : comment une fiche est tenue. Visible aussi sur téléphone (audit du 05/11, D14), en une colonne
+      entre les villes et l'appel aux directions. */}
   <section class="etapes-bande" aria-labelledby="titre-etapes">
     <div class="cadre">
       <h2 id="titre-etapes">Comment les fiches sont tenues</h2>
@@ -270,8 +273,58 @@ const villes = arbre.racines
   .quartier-numero::after {
     content: ' · ';
   }
+  /* « Comment les fiches sont tenues » sur téléphone : trois étapes l'une sous l'autre, le numéro à gauche du texte. */
   .etapes-bande {
-    display: none;
+    padding-block: var(--espace-5);
+    background: var(--fond-bande);
+  }
+  .etapes-bande h2 {
+    margin: 0 0 var(--espace-4);
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .etapes {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .etape {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--espace-1) var(--espace-3);
+    padding: var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .etape h3,
+  .etape p {
+    margin: 0;
+  }
+  .etape h3 {
+    font-family: var(--police-titre);
+    font-size: var(--taille-courante);
+  }
+  .etape p {
+    grid-column: 2;
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .etape-numero {
+    grid-row: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--marque);
+    color: var(--texte-sur-marque);
+    font-family: var(--police-titre);
+    font-weight: 700;
   }
 
   /* À partir de 48 rem : la planche « Accueil sur ordinateur ». */
@@ -374,50 +427,36 @@ const villes = arbre.racines
       color: var(--texte);
     }
 
+    /* Les étapes passent en cartes côte à côte : le numéro au-dessus du texte. */
     .etapes-bande {
-      display: block;
       padding-block: var(--espace-7);
-      background: var(--fond-bande);
     }
     .etapes-bande h2 {
       margin-bottom: var(--espace-5);
-      color: var(--marque-appuyee);
       font-size: var(--taille-titre-section);
     }
     .etapes {
-      display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
       gap: var(--espace-4);
-      margin: 0;
-      padding: 0;
-      list-style: none;
     }
     .etape {
-      display: grid;
+      grid-template-columns: none;
       align-content: start;
       gap: var(--espace-3);
       padding: var(--espace-5);
       border-radius: var(--rayon-l);
-      background: var(--fond-releve);
     }
-    .etape h3,
-    .etape p {
-      margin: 0;
+    .etape h3 {
+      font-size: var(--taille-intertitre);
     }
     .etape p {
-      color: var(--texte-doux);
+      grid-column: auto;
+      font-size: inherit;
     }
     .etape-numero {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      grid-row: auto;
       width: 2.5rem;
       height: 2.5rem;
-      border-radius: 50%;
-      background: var(--marque);
-      color: var(--texte-sur-marque);
-      font-family: var(--police-titre);
-      font-weight: 700;
     }
   }
 

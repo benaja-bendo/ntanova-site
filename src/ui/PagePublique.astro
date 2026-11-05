@@ -1,9 +1,10 @@
 ---
-// Le gabarit des pages publiques : aucun JavaScript, du HTML et du CSS.
+// Le gabarit des pages publiques : aucun JavaScript, du HTML et du CSS. Le menu du téléphone est un `<details>`.
 import './jetons.css';
 import './base.css';
 import './composants.css';
 import './public.css';
+import Icone from './Icone.astro';
 import Marque from './Marque.astro';
 import { HAUTEUR_PARTAGE, IMAGE_PARTAGE_SITE, LARGEUR_PARTAGE } from '../modele/partage';
 
@@ -34,6 +35,18 @@ const chemin = Astro.url.pathname;
 const surPourLesEcoles = chemin.startsWith('/pour-les-ecoles');
 const surEcoles =
   chemin.startsWith('/ecoles') || chemin.startsWith('/cartes') || chemin.startsWith('/formations');
+// Les cinq portes du site : la navigation du haut (à partir de 48 rem) et le menu du téléphone les écrivent toutes deux.
+const portes = [
+  { href: '/carte/', texte: 'Carte', courante: chemin.startsWith('/carte/') },
+  { href: '/ecoles/', texte: 'Les écoles', courante: surEcoles },
+  { href: '/recherche/', texte: 'Rechercher', courante: chemin.startsWith('/recherche') },
+  {
+    href: '/autour-de-moi/',
+    texte: 'Autour de moi',
+    courante: chemin.startsWith('/autour-de-moi'),
+  },
+  { href: '/pour-les-ecoles/', texte: 'Pour les écoles', courante: surPourLesEcoles },
+];
 ---
 
 <!doctype html>
@@ -76,36 +89,42 @@ const surEcoles =
   <body>
     <header class="entete">
       <div class="cadre entete-cadre">
-        <a class="lien-marque" href="/">
-          <Marque taille={28} />
-          <span>NTanova</span>
-        </a>
-        <div class="entete-droite">
-          {/* La navigation du haut n'existe qu'à partir de 48 rem : sur téléphone, le pied la porte. */}
-          <nav aria-label="Navigation principale" class="nav-haut">
-            <a href="/carte/" aria-current={chemin.startsWith('/carte/') ? 'page' : undefined}>
-              Carte
-            </a>
-            <a href="/ecoles/" aria-current={surEcoles ? 'page' : undefined}>
-              Les écoles
-            </a>
-            <a
-              href="/recherche/"
-              aria-current={chemin.startsWith('/recherche') ? 'page' : undefined}
-            >
-              Rechercher
-            </a>
-            <a
-              href="/autour-de-moi/"
-              aria-current={chemin.startsWith('/autour-de-moi') ? 'page' : undefined}
-            >
-              Autour de moi
-            </a>
-            <a href="/pour-les-ecoles/" aria-current={surPourLesEcoles ? 'page' : undefined}>
-              Pour les écoles
-            </a>
-          </nav>
+        <div class="identite">
+          <a class="lien-marque" href="/">
+            <Marque taille={28} />
+            <span>NTanova</span>
+          </a>
+          {/* Une simple étiquette : le pays où l'on est. Ni bouton ni lien (audit du 05/11, D13). */}
           <span class="ville">Congo-Brazzaville</span>
+        </div>
+        <div class="entete-droite">
+          {/* La navigation du haut n'existe qu'à partir de 48 rem ; sur téléphone, le menu l'ouvre (et le pied la répète). */}
+          <nav aria-label="Navigation principale" class="nav-haut">
+            {portes.map((p) => (
+              <a href={p.href} aria-current={p.courante ? 'page' : undefined}>
+                {p.texte}
+              </a>
+            ))}
+          </nav>
+          {/* Sans JavaScript : un `<details>`. Le panneau passe sous l'en-tête, sur toute sa largeur. */}
+          <details class="menu-tel">
+            <summary class="menu-bouton">
+              <span class="menu-icone menu-icone-ferme">
+                <Icone nom="menu" petite={false} />
+              </span>
+              <span class="menu-icone menu-icone-ouvert">
+                <Icone nom="croix" petite={false} />
+              </span>
+              Menu
+            </summary>
+            <nav aria-label="Menu principal" class="menu-liens">
+              {portes.map((p) => (
+                <a href={p.href} aria-current={p.courante ? 'page' : undefined}>
+                  {p.texte}
+                </a>
+              ))}
+            </nav>
+          </details>
         </div>
       </div>
     </header>
@@ -160,12 +179,17 @@ const surEcoles =
 </html>
 
 <style>
+  /* Le panneau du menu s'ouvre sous l'en-tête et passe au-dessus de la page (la carte, ses commandes). */
+  .entete {
+    position: relative;
+    z-index: 30;
+  }
   .entete-cadre {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--espace-3);
-    padding-block: var(--espace-4);
+    padding-block: var(--espace-3);
   }
   .entete-droite {
     display: flex;
@@ -175,14 +199,97 @@ const surEcoles =
   .nav-haut {
     display: none;
   }
+  /* Sur téléphone, la marque et, juste dessous, le pays. */
+  .identite {
+    display: grid;
+    gap: 0;
+    min-width: 0;
+  }
+  /* Le pays n'est pas une porte : du texte posé, sans trait ni fond, qui ne ressemble pas à un bouton. */
   .ville {
-    padding: var(--espace-1) var(--espace-3);
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-pilule);
-    background: var(--fond-releve);
+    margin-top: calc(var(--espace-1) * -1);
+    color: var(--texte-doux);
     font-family: var(--police-titre);
     font-size: var(--taille-mention);
     font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .menu-bouton {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espace-2);
+    min-height: var(--cible-principale);
+    padding: 0 var(--espace-4);
+    border: 2px solid var(--marque);
+    border-radius: var(--rayon-pilule);
+    background: var(--fond-releve);
+    color: var(--marque);
+    font-family: var(--police-titre);
+    font-size: var(--taille-courante);
+    font-weight: 700;
+    list-style: none;
+    cursor: pointer;
+  }
+  .menu-bouton::-webkit-details-marker {
+    display: none;
+  }
+  .menu-bouton:hover,
+  .menu-tel[open] .menu-bouton {
+    background: var(--vert-pale);
+    color: var(--marque-appuyee);
+  }
+  .menu-bouton:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  .menu-icone :global(svg) {
+    display: block;
+    width: 24px;
+    height: 24px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .menu-icone-ouvert,
+  .menu-tel[open] .menu-icone-ferme {
+    display: none;
+  }
+  .menu-tel[open] .menu-icone-ouvert {
+    display: block;
+  }
+  .menu-liens {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: grid;
+    padding: var(--espace-2) var(--espace-4) var(--espace-4);
+    border-bottom: 1px solid var(--trait);
+    background: var(--fond-releve);
+    box-shadow: var(--ombre-flottante);
+  }
+  .menu-liens a {
+    display: flex;
+    align-items: center;
+    min-height: var(--cible-principale);
+    border-bottom: 1px solid var(--trait);
+    color: var(--texte);
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .menu-liens a:last-child {
+    border-bottom: 0;
+  }
+  .menu-liens a[aria-current='page'] {
+    color: var(--marque);
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
+    text-underline-offset: 0.35em;
   }
   .lien-marque {
     display: inline-flex;
@@ -257,8 +364,12 @@ const surEcoles =
       min-height: 4.75rem;
       padding-block: var(--espace-3);
     }
-    .entete-droite {
+    .entete-droite,
+    .identite {
       display: contents;
+    }
+    .menu-tel {
+      display: none;
     }
     .lien-marque {
       grid-column: 1;
@@ -303,7 +414,7 @@ const surEcoles =
       grid-column: 2;
       grid-row: 1;
       justify-self: end;
-      padding: var(--espace-2) var(--espace-4);
+      margin-top: 0;
       font-size: var(--taille-secondaire);
     }
     /* Les deux groupes l'un sous l'autre, titres et liens alignés à gauche, le bloc à droite de la phrase. */

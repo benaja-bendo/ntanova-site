@@ -65,11 +65,12 @@ export function initialiserCartes(): void {
         },
       });
       if (!application) {
-        const pleinEcran = racine!.querySelector<HTMLAnchorElement>('.plein-ecran');
+        // Le bouton principal de l'accueil (« Explorer la carte ») ouvre la carte sur la vue choisie dans l'aperçu.
+        const versLaCarte = document.querySelector<HTMLAnchorElement>('[data-vers-carte]');
         const partagerVue = () => {
           const c = carte.getCenter();
-          if (pleinEcran)
-            pleinEcran.href =
+          if (versLaCarte)
+            versLaCarte.href =
               '/carte/' + adresseVue({ zoom: carte.getZoom(), latitude: c.lat, longitude: c.lng });
         };
         carte.on('moveend', partagerVue);
