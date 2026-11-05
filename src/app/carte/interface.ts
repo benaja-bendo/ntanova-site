@@ -3,8 +3,14 @@ import { montrerLEcoleChoisie } from './choisie';
 import type { MapLibreMap, GeoJSONSource } from 'maplibre-gl';
 import type { FeatureEcole, FeatureZone } from '../../modele/carte/donnees';
 import { adresseVue, lireVue, filtrerEcoles } from '../../modele/carte/navigation';
-import { zoomMaxEn, BOITE_DU_PAYS, type Fenetre } from '../../modele/carte/fond';
+import { zoomMaxEn, type Fenetre } from '../../modele/carte/fond';
 import { SOURCE_ECOLES, ZOOM_TRAME_EFFACEE } from '../../modele/carte/couches';
+import {
+  MESSAGES_DE_POSITION,
+  dansLePays,
+  messageDErreurDePosition,
+  zoneVisibleAvecClavier,
+} from '../../modele/carte/mobile';
 import { chercher, type LigneRecherche } from '../../modele/recherche';
 
 async function lire<T>(url: string): Promise<T> {
@@ -52,7 +58,9 @@ export async function installerInterface(
   const puces = racine.querySelectorAll<HTMLButtonElement>('[data-cycle]');
   const zone = racine.querySelector<HTMLElement>('[data-zone]')!;
   const poignee = racine.querySelector<HTMLButtonElement>('[data-poignee]')!;
-  const legende = racine.querySelector<HTMLElement>('.legende-carte')!;
+  // La légende des zones existe deux fois : sur la carte (ordinateur) et dans le tiroir (téléphone, une ligne). Une seule
+  // est affichée selon la largeur ; les deux disent la même chose.
+  const legendes = racine.querySelectorAll<HTMLElement>('.legende-carte, .legende-tiroir');
   let choisie: FeatureEcole | undefined;
   let retourFocus: HTMLElement | null = null;
   let catalogue: LigneRecherche[] | null = null;
@@ -64,6 +72,7 @@ export async function installerInterface(
   let initialisation = true;
   const adresseInitiale = new URL(location.href);
   const reduit = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const surTelephone = () => !window.matchMedia('(min-width: 64rem)').matches;
   const hauteur = (h: string) => {
     panneau.dataset.hauteur = h;
     racine.dataset.hauteur = h;
@@ -71,19 +80,51 @@ export async function installerInterface(
     poignee.setAttribute('aria-expanded', String(h !== 'petit'));
   };
   /**
-   * La marge de la carte : ce que le panneau ou le tiroir couvre. Sur téléphone, une école choisie prend la hauteur de sa
-   * fiche : la carte la centre dans ce qui reste visible, jamais derrière la fiche.
+   * La marge de la carte : ce que le panneau ou le tiroir couvre. Sur téléphone, le tiroir bas et une école choisie
+   * prennent la hauteur de leur contenu : la carte centre ce qu'elle montre dans ce qui reste visible, jamais derrière.
    */
   function marges() {
-    const mobile = !window.matchMedia('(min-width: 64rem)').matches;
-    return mobile
+    return surTelephone()
       ? {
           top: 64,
-          bottom: choisie ? Math.round(panneau.offsetHeight) + 12 : 176,
+          bottom:
+            choisie || panneau.dataset.hauteur === 'petit'
+              ? Math.round(panneau.offsetHeight) + 12
+              : 176,
           left: 12,
           right: 12,
         }
       : { left: 420, top: 76, bottom: 24, right: 24 };
+  }
+  // Le fond de carte ne répond pas (le serveur de tuiles, le réseau) : la carte est presque vide, la liste est ce qui reste.
+  // Le tiroir s'ouvre à moitié pour la montrer, comme le message le promet (« les écoles restent dans la liste »).
+  const conteneur = racine.querySelector<HTMLElement>('#carte')!;
+  function listeSansFond() {
+    if (conteneur.dataset.fond !== 'absent' || choisie || panneau.dataset.hauteur !== 'petit')
+      return;
+    hauteur('moyen');
+    geometrie(true);
+  }
+  new MutationObserver(listeSansFond).observe(conteneur, {
+    attributes: true,
+    attributeFilter: ['data-fond'],
+  });
+  // La hauteur du tiroir, lue par la feuille de style : le bouton « Ma position » et l'attribution se posent juste au-dessus
+  // de lui, quelle que soit sa hauteur (contenu, moitié ou presque tout l'écran), au lieu d'une hauteur supposée.
+  new ResizeObserver(() => {
+    racine.style.setProperty('--tiroir-h', `${Math.round(panneau.offsetHeight)}px`);
+    if (surTelephone() && !choisie && panneau.dataset.hauteur === 'petit')
+      carte.setPadding(marges());
+  }).observe(panneau);
+  // Un message discret sur la carte : il s'efface seul quand la situation n'est pas durable (une position refusée).
+  let minuterie = 0;
+  function annoncer(texte: string, effacerApres = 0) {
+    clearTimeout(minuterie);
+    note.textContent = texte;
+    if (effacerApres)
+      minuterie = window.setTimeout(() => {
+        if (note.textContent === texte) note.textContent = '';
+      }, effacerApres);
   }
   function geometrie(animer = false) {
     if (animer) carte.easeTo({ padding: marges(), duration: reduit() ? 0 : 200 });
@@ -123,7 +164,10 @@ export async function installerInterface(
     if (initialisation) return;
     hauteur('moyen');
     geometrie(true);
-    (retourFocus?.isConnected ? retourFocus : champ).focus({ preventScroll: true });
+    // Sur téléphone, rendre le focus au champ de recherche ferait surgir le clavier : on le rend à la poignée.
+    (retourFocus?.isConnected ? retourFocus : surTelephone() ? poignee : champ).focus({
+      preventScroll: true,
+    });
   }
   function choisir(e: FeatureEcole, historique = true, centrer = true) {
     retourFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -215,18 +259,24 @@ export async function installerInterface(
   /** De loin, les deux états ; de près, seulement celui de la zone qu'on regarde (la trame s'est effacée). */
   function legender(z: FeatureZone | undefined) {
     const dePres = carte.getZoom() >= ZOOM_TRAME_EFFACEE - 0.5;
-    legende.hidden = dePres && !z;
-    legende
-      .querySelectorAll<HTMLElement>('[data-legende]')
-      .forEach((l) => (l.hidden = dePres && l.dataset.legende !== z?.properties.etat));
+    legendes.forEach((legende) => {
+      legende.hidden = dePres && !z;
+      legende
+        .querySelectorAll<HTMLElement>('[data-legende]')
+        .forEach((l) => (l.hidden = dePres && l.dataset.legende !== z?.properties.etat));
+    });
   }
   async function actualiser() {
     const tour = ++generation;
     const b = carte.getBounds();
     const boite = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] as Fenetre;
-    const sousLeCentre = carte.queryRenderedFeatures(carte.project(carte.getCenter()), {
-      layers: ['zones-fond-actif', 'zones-fond-programme'],
-    });
+    // Le premier « moveend » peut arriver avant que le style ait posé ses couches : on n'interroge que celles qui existent.
+    const couchesDeZone = ['zones-fond-actif', 'zones-fond-programme'].filter((id) =>
+      carte.getLayer(id),
+    );
+    const sousLeCentre = couchesDeZone.length
+      ? carte.queryRenderedFeatures(carte.project(carte.getCenter()), { layers: couchesDeZone })
+      : [];
     const z = zones.features.find(
       (f) =>
         f.properties.genre === 'zone' &&
@@ -274,7 +324,7 @@ export async function installerInterface(
   }
   function activer() {
     racine.dataset.active = 'oui';
-    racine.querySelector<HTMLElement>('#carte')!.dataset.etat = 'prete';
+    conteneur.dataset.etat = 'prete';
     racine
       .querySelectorAll<HTMLElement>(
         '.rangee-puces,.recherche-carte,[data-poignee],[data-position],.ecole-manque',
@@ -282,6 +332,7 @@ export async function installerInterface(
       .forEach((e) => (e.hidden = false));
     hauteur('petit');
     geometrie();
+    listeSansFond();
     if (adresseInitiale.hash || adresseInitiale.searchParams.has('ecole'))
       restaurer(adresseInitiale);
     initialisation = false;
@@ -305,6 +356,7 @@ export async function installerInterface(
     glisse = true;
     const i = HAUTEURS.indexOf((panneau.dataset.hauteur ?? 'petit') as (typeof HAUTEURS)[number]);
     hauteur(HAUTEURS[Math.max(0, Math.min(HAUTEURS.length - 1, i + (ecart < 0 ? 1 : -1)))]!);
+    if (panneau.dataset.hauteur !== 'grand') champ.blur();
     geometrie(true);
   });
   poignee.addEventListener('pointercancel', () => (departY = null));
@@ -314,12 +366,23 @@ export async function installerInterface(
       return;
     }
     hauteur(panneau.dataset.hauteur === 'petit' ? 'moyen' : 'petit');
+    // Replier le tiroir referme aussi le clavier : Safari ne retire pas le focus d'un champ quand on touche un bouton.
+    if (panneau.dataset.hauteur === 'petit') champ.blur();
+    geometrie(true);
+  });
+  // Toucher la recherche sur téléphone ouvre le tiroir en grand : le champ est en haut du tiroir, donc il reste au-dessus
+  // du clavier, et les résultats ont la place d'apparaître pendant qu'on tape.
+  champ.addEventListener('focus', () => {
+    if (!surTelephone() || panneau.dataset.hauteur === 'grand') return;
+    hauteur('grand');
     geometrie(true);
   });
   racine.querySelector('form')!.addEventListener('submit', (e) => {
     e.preventDefault();
     recherche = champ.value.trim();
     hauteur('grand');
+    // Le clavier se referme : les résultats prennent tout le tiroir.
+    if (surTelephone()) champ.blur();
     void actualiser();
   });
   champ.addEventListener('input', () => {
@@ -346,11 +409,40 @@ export async function installerInterface(
     if (!restaure && !initialisation) history.replaceState(history.state, '', url(choisie));
   });
   window.addEventListener('resize', () => geometrie());
+  // Le clavier d'un téléphone ne change pas la hauteur de la page : il recouvre le bas de l'écran, et le navigateur fait
+  // glisser la page pour montrer le champ, ce qui fait sauter la mise en page. Quand il est ouvert, la carte et le tiroir
+  // prennent exactement la partie de l'écran qui reste visible (`data-clavier`, voir la feuille de style).
+  const ecran = window.visualViewport;
+  if (ecran) {
+    let image = 0;
+    let derniere = '';
+    const suivre = () => {
+      image = 0;
+      const vue = surTelephone() ? zoneVisibleAvecClavier(window.innerHeight, ecran) : null;
+      const cle = vue ? `${vue.haut}/${vue.hauteur}` : '';
+      if (cle === derniere) return;
+      derniere = cle;
+      if (vue) {
+        racine.style.setProperty('--vv-haut', `${vue.haut}px`);
+        racine.style.setProperty('--vv-hauteur', `${vue.hauteur}px`);
+        racine.dataset.clavier = 'oui';
+      } else {
+        racine.style.removeProperty('--vv-haut');
+        racine.style.removeProperty('--vv-hauteur');
+        delete racine.dataset.clavier;
+      }
+      geometrie();
+    };
+    const planifier = () => (image ||= requestAnimationFrame(suivre));
+    ecran.addEventListener('resize', planifier);
+    ecran.addEventListener('scroll', planifier);
+  }
   panneau.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (choisie) fermer();
       else {
         hauteur('petit');
+        champ.blur();
         geometrie(true);
       }
     }
@@ -377,26 +469,26 @@ export async function installerInterface(
   window.addEventListener('hashchange', () => restaurer());
   const position = racine.querySelector<HTMLButtonElement>('[data-position]')!;
   position.onclick = () => {
-    racine.querySelector<HTMLElement>('.confidentialite-position')!.hidden = false;
     if (!navigator.geolocation) {
-      note.textContent =
-        'La position n’est pas disponible. Cherchez une école ou déplacez la carte.';
+      annoncer(MESSAGES_DE_POSITION.absente, 9000);
       return;
     }
+    // Sans https, le navigateur refuse la position avant même de la demander (iPhone en http sur le réseau local, par
+    // exemple) : on le dit, au lieu de laisser le bouton muet.
+    if (!window.isSecureContext) {
+      annoncer(MESSAGES_DE_POSITION.nonSecurisee, 9000);
+      return;
+    }
+    racine.querySelector<HTMLElement>('.confidentialite-position')!.hidden = false;
     position.disabled = true;
-    note.textContent = 'Recherche de votre position…';
+    annoncer(MESSAGES_DE_POSITION.enCours);
     navigator.geolocation.getCurrentPosition(
       (p) => {
         position.disabled = false;
         const { longitude: x, latitude: y } = p.coords;
-        if (
-          x < BOITE_DU_PAYS[0] ||
-          x > BOITE_DU_PAYS[2] ||
-          y < BOITE_DU_PAYS[1] ||
-          y > BOITE_DU_PAYS[3]
-        ) {
-          note.textContent =
-            'Votre position est hors de la zone de la carte. Explorez le Congo ou cherchez une école.';
+        // Hors du pays (le fondateur testant depuis la France, la diaspora) : la carte ne bouge pas, elle ne se vide pas.
+        if (!dansLePays(x, y)) {
+          annoncer(MESSAGES_DE_POSITION.horsDuPays, 9000);
           return;
         }
         privee = true;
@@ -411,12 +503,11 @@ export async function installerInterface(
           padding: marges(),
           duration: reduit() ? 0 : 300,
         });
-        note.textContent = 'Vous êtes situé sur la carte. NTanova ne conserve pas votre position.';
+        annoncer(MESSAGES_DE_POSITION.situee, 9000);
       },
-      () => {
+      (erreur) => {
         position.disabled = false;
-        note.textContent =
-          'La position n’a pas pu être obtenue. La recherche et la carte restent disponibles.';
+        annoncer(messageDErreurDePosition(erreur.code), 9000);
       },
       { timeout: 10000, maximumAge: 60000, enableHighAccuracy: false },
     );

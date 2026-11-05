@@ -59,14 +59,6 @@ const cycles = [
   <button type="button" class="bouton activer-carte" hidden>
     Explorer la carte interactive
   </button>
-  <a
-    class="attribution-carte"
-    href="https://www.openstreetmap.org/copyright"
-    target="_blank"
-    rel="noopener"
-  >
-    © les contributeurs d’OpenStreetMap
-  </a>
   <p id="carte-note" class="carte-note" role="status"></p>
   {application && (
     <>
@@ -139,6 +131,15 @@ const cycles = [
         </form>
         <div id="contenu-tiroir">
           <p data-zone class="contexte"></p>
+          {/* Sur téléphone, la légende tient en une ligne ici, sous le texte d'aide : elle ne cache plus la carte. */}
+          <div class="legende-tiroir" role="group" aria-label="Légende des zones" hidden>
+            <p data-legende="programme">
+              <span class="puce-trame" aria-hidden="true"></span>Déploiement programmé
+            </p>
+            <p data-legende="actif">
+              <span class="puce-actif" aria-hidden="true"></span>Relevé en cours
+            </p>
+          </div>
           <div data-selection></div>
           <p data-compte role="status" aria-live="polite" class="titre-liste"></p>
           <ul data-resultats class="resultats-carte"></ul>
@@ -314,7 +315,8 @@ const cycles = [
     align-items: center;
     gap: var(--espace-2);
     min-height: var(--hauteur-champ);
-    margin-bottom: var(--espace-3);
+    /* Le haut du contour de focus (3 px, à 2 px du champ) ne passe pas sous la poignée collée en haut du tiroir. */
+    margin: var(--espace-2) 0 var(--espace-3);
     padding: var(--espace-1) var(--espace-1) var(--espace-1) var(--espace-4);
     border: 2px solid var(--trait-fort);
     border-radius: var(--rayon-pilule);
@@ -374,24 +376,26 @@ const cycles = [
     border-radius: 3px;
     background: var(--trait-fort);
   }
+  /* La rangée défile avec le doigt, de gauche à droite, jusqu'à la dernière puce. Elle reçoit le toucher (un
+     « pointer-events: none » sur un conteneur qui défile l'empêche de défiler sur iPhone) et ne laisse passer
+     à la page que le geste horizontal : la carte, elle, n'est pas dessous mais à côté, hors de cette bande. */
   .rangee-puces {
     display: flex;
     gap: var(--espace-2);
     overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
   .rangee-puces::-webkit-scrollbar {
     display: none;
   }
-  /* La rangée défile, donc elle coupe ses ombres : on lui laisse la place, et seules les puces reçoivent le toucher. */
-  .rangee-puces {
-    pointer-events: none;
-  }
   .rangee-puces .pastille-choix {
     flex: none;
     gap: var(--espace-2);
     padding-inline: var(--espace-3);
-    pointer-events: auto;
     box-shadow: var(--ombre-flottante);
   }
   .explorateur .rangee-puces .pastille-choix.avec-disque {
@@ -401,32 +405,64 @@ const cycles = [
     border-radius: 12px;
     box-shadow: var(--ombre-flottante);
   }
-  /* --- La page carte active : tiroir sur téléphone, panneau sur ordinateur --- */
+  /* --- La page carte active : tiroir sur téléphone, panneau sur ordinateur ---
+     Tout tient dans l'écran : seuls la carte, les puces et le tiroir bougent. Sur iPhone, `100vh` est la hauteur SANS les
+     barres du navigateur et `100dvh` celle qu'on voit : le corps de la page prenait l'une (`base.css`) et la carte l'autre,
+     la page débordait et défilait, et l'en-tête comme le haut des puces passaient sous la barre. Le corps prend donc
+     `100dvh`, ne défile pas, et la carte remplit ce que l'en-tête lui laisse. */
+  html:has(.explorateur-app[data-active]) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  body:has(.explorateur-app[data-active]) {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  body:has(.explorateur-app[data-active]) .contenu,
+  body:has(.explorateur-app[data-active]) .page-exploration {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
   .explorateur-app[data-active] {
-    height: calc(100dvh - 5rem);
-    min-height: 20rem;
-    --tiroir: 10.5rem;
-  }
-  .explorateur-app[data-active][data-hauteur='moyen'] {
-    --tiroir: 48%;
-  }
-  .explorateur-app[data-active][data-hauteur='grand'] {
-    --tiroir: 88%;
+    flex: 1;
+    min-height: 0;
+    /* La hauteur du tiroir, mesurée par le script (`--tiroir-h`) ; en attendant, une valeur proche. */
+    --tiroir-h: 13.5rem;
   }
   .explorateur-app[data-active] .carte-interactive {
-    height: 100%;
+    position: absolute;
+    inset: 0;
+    height: auto;
     min-height: 0;
     border-radius: 0;
+  }
+  /* Le clavier est ouvert : la carte et le tiroir prennent exactement la partie visible de l'écran, à l'endroit où le
+     navigateur l'a fait glisser (`--vv-haut`, `--vv-hauteur`, posés par le script). Rien ne saute, rien ne passe dessous. */
+  .explorateur-app[data-active][data-clavier] {
+    position: fixed;
+    z-index: 20;
+    top: var(--vv-haut, 0);
+    left: 0;
+    right: 0;
+    height: var(--vv-hauteur, 100dvh);
+    flex: none;
   }
   .explorateur-app[data-active] .panneau-carte {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 2;
+    z-index: 4;
     max-height: 88%;
-    height: 10.5rem;
-    padding: 0 var(--espace-4) 2.5rem;
+    /* Bas : la hauteur de son contenu (poignée, recherche, texte d'aide, légende). */
+    height: auto;
+    padding: 0 var(--espace-4) calc(var(--espace-3) + env(safe-area-inset-bottom, 0px));
     border-radius: var(--rayon-l) var(--rayon-l) 0 0;
     box-shadow: var(--ombre-tiroir);
     overflow: auto;
@@ -434,9 +470,20 @@ const cycles = [
   }
   .explorateur-app[data-active] .panneau-carte[data-hauteur='moyen'] {
     height: 48%;
+    padding-bottom: calc(2.5rem + env(safe-area-inset-bottom, 0px));
   }
   .explorateur-app[data-active] .panneau-carte[data-hauteur='grand'] {
     height: 88%;
+    padding-bottom: calc(2.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  /* Sur téléphone, le tiroir bas ne montre que de quoi chercher et se repérer (recherche, texte d'aide, légende) : la
+     liste attend derrière la poignée, qui l'ouvre. Sans cela, sa hauteur « selon le contenu » compterait toute la liste. */
+  @media (max-width: 63.99rem) {
+    .explorateur-app[data-active]
+      .panneau-carte[data-hauteur='petit']
+      :is(.titre-liste, .resultats-carte, .ecole-manque, .carte-liens, .confidentialite-position) {
+      display: none;
+    }
   }
   /* Une école choisie : le tiroir prend la hauteur de sa fiche, sans jamais cacher toute la carte. */
   .explorateur-app[data-active] .panneau-carte:has(.carte-apercu)[data-hauteur='moyen'] {
@@ -459,24 +506,61 @@ const cycles = [
   .explorateur-app[data-active] .rond {
     position: absolute;
     right: var(--espace-3);
-    bottom: calc(var(--tiroir) + var(--espace-4));
+    bottom: calc(var(--tiroir-h) + 2.5rem);
     z-index: 3;
   }
+  /* Tant que la carte n'est pas active, aucune légende : le script les dévoile dès le premier mouvement de la carte. */
+  .explorateur-app:not([data-active]) :is(.legende-carte, .legende-tiroir) {
+    display: none;
+  }
+  /* La légende des zones : dans le tiroir sur téléphone (une ligne, sous le texte d'aide), sur la carte sur ordinateur. */
   .explorateur-app[data-active] .legende-carte {
+    display: none;
     position: absolute;
     left: var(--espace-3);
-    bottom: calc(var(--tiroir) + var(--espace-4));
+    bottom: var(--espace-6);
     z-index: 3;
   }
+  .legende-tiroir {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-1) var(--espace-4);
+    margin: 0 0 var(--espace-3);
+    color: var(--texte-doux);
+    font-size: var(--taille-mention);
+    font-weight: 700;
+  }
+  .legende-tiroir p {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-2);
+    margin: 0;
+  }
+  .legende-tiroir .puce-trame,
+  .legende-tiroir .puce-actif {
+    width: 18px;
+    height: 12px;
+  }
   .explorateur-app[data-active][data-hauteur='grand'] .rond,
-  .explorateur-app[data-active][data-hauteur='grand'] .legende-carte,
-  .explorateur-app[data-active]:has(.carte-apercu) .rond,
-  .explorateur-app[data-active]:has(.carte-apercu) .legende-carte {
+  .explorateur-app[data-active]:has(.carte-apercu) .rond {
     display: none !important;
   }
   /* Les commandes de MapLibre se rangent sous les puces. */
   .explorateur-app[data-active] .maplibregl-ctrl-top-right {
     top: 3.5rem;
+  }
+  /* L'attribution d'OpenStreetMap (celle de MapLibre : une seule) reste écrite, jamais repliée (ODbL), et se pose juste
+     au-dessus du tiroir : elle ne passe jamais dessus. */
+  .explorateur-app .maplibregl-ctrl-attrib {
+    border-radius: var(--rayon-s) 0 0 0;
+    background: var(--fond-releve);
+    font-size: var(--taille-mention);
+  }
+  .explorateur-app .maplibregl-ctrl-attrib a {
+    color: var(--texte);
+  }
+  .explorateur-app[data-active] .maplibregl-ctrl-bottom-right {
+    bottom: var(--tiroir-h);
   }
   .explorateur-app[data-active] .listes-repli {
     display: none;
@@ -512,6 +596,7 @@ const cycles = [
   /* L'aperçu ouvert montre sa fiche : la recherche, la zone et la liste attendent derrière le retour. */
   .panneau-carte:has(.carte-apercu) .recherche-carte,
   .panneau-carte:has(.carte-apercu) [data-zone],
+  .panneau-carte:has(.carte-apercu) .legende-tiroir,
   .panneau-carte:has(.carte-apercu) .titre-liste,
   .panneau-carte:has(.carte-apercu) .resultats-carte,
   .panneau-carte:has(.carte-apercu) .ecole-manque {
@@ -544,8 +629,15 @@ const cycles = [
       right: var(--espace-4);
     }
     .explorateur-app[data-active] .legende-carte {
+      display: grid;
       left: calc(25rem + var(--espace-4));
       bottom: var(--espace-6);
+    }
+    .legende-tiroir {
+      display: none !important;
+    }
+    .explorateur-app[data-active] .maplibregl-ctrl-bottom-right {
+      bottom: 0;
     }
     .explorateur-app[data-active] .carte-note:not(:empty) {
       left: calc(25rem + var(--espace-4));
@@ -554,9 +646,6 @@ const cycles = [
     .explorateur-app[data-active]:has(.carte-apercu) .rond,
     .explorateur-app[data-active][data-hauteur='grand'] .rond {
       display: flex !important;
-    }
-    .explorateur-app[data-active]:has(.carte-apercu) .legende-carte {
-      display: grid !important;
     }
     .explorateur-app .apercu-retour {
       display: inline-flex;
@@ -568,19 +657,6 @@ const cycles = [
 </style>
 
 <style is:global>
-  .attribution-carte {
-    display: none;
-  }
-  .explorateur-app[data-active] .attribution-carte {
-    display: block;
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    z-index: 4;
-    background: var(--fond);
-    padding: 2px var(--espace-2);
-    font-size: var(--taille-secondaire);
-  }
   .panneau-carte {
     padding-bottom: 2rem;
   }

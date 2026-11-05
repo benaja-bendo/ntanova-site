@@ -402,7 +402,11 @@ test.describe('application carte', () => {
       true,
     );
     const panneau = await page.locator('.panneau-carte').boundingBox();
-    if ((page.viewportSize()?.width ?? 0) >= 1024) expect(panneau?.width).toBeCloseTo(400, 0);
+    // La légende des zones : sur la carte à partir de 64 rem, dans le tiroir en dessous (elle ne cache pas la carte).
+    const surOrdinateur = (page.viewportSize()?.width ?? 0) >= 1024;
+    await expect(page.locator('.legende-carte')).toBeVisible({ visible: surOrdinateur });
+    await expect(page.locator('.legende-tiroir')).toBeVisible({ visible: !surOrdinateur });
+    if (surOrdinateur) expect(panneau?.width).toBeCloseTo(400, 0);
     else {
       const bouton = page.getByRole('button', { name: 'Voir les écoles', exact: true });
       await bouton.focus();

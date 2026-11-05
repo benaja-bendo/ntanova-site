@@ -274,6 +274,8 @@ test('un fond de carte qui ne répond pas est dit calmement : les zones, les éc
   await expect(page.locator('#carte-note')).toContainText('Le fond de carte ne se charge pas');
   await expect(page.locator('#carte')).toHaveAttribute('data-fond', 'absent');
   await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'prete', { timeout: 30_000 });
+  // Le tiroir s'ouvre à moitié : la liste est ce qui reste, et le message la promet.
+  await expect(page.locator('.explorateur')).toHaveAttribute('data-hauteur', 'moyen');
   // Les écoles se dessinent quand même (leur GeoJSON vient du site, pas du serveur de tuiles).
   await expect
     .poll(

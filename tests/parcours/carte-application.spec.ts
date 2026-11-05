@@ -143,9 +143,100 @@ test('GPS refusé : recherche disponible, aucune demande avant le geste', async 
   await ouvrir(page);
   expect(await page.evaluate(() => (window as unknown as { appelsGPS: number }).appelsGPS)).toBe(0);
   await page.getByRole('button', { name: 'Ma position', exact: true }).click();
-  await expect(page.locator('#carte-note')).toContainText('n’a pas pu être obtenue');
+  // Refusée : le message dit que la localisation est bloquée pour ce site, et ce qui reste possible.
+  await expect(page.locator('#carte-note')).toContainText(
+    'La localisation est bloquée pour ce site',
+  );
+  await expect(page.locator('#carte-note')).toContainText('cherchez une école');
   await expect(page.getByRole('button', { name: 'Ma position', exact: true })).toBeEnabled();
   expect(await page.evaluate(() => (window as unknown as { appelsGPS: number }).appelsGPS)).toBe(1);
+});
+
+/** Le centre de la carte, pour vérifier qu'elle ne bouge pas (ou qu'elle bouge). */
+const centreDeLaCarte = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    const c = (
+      window as unknown as { ntanovaCarte: { getCenter(): { lng: number; lat: number } } }
+    ).ntanovaCarte.getCenter();
+    return [c.lng, c.lat];
+  });
+/** Remplace la position du navigateur : une réponse (`ok`) ou une erreur de code `code`. */
+async function simulerLaPosition(
+  page: import('@playwright/test').Page,
+  reponse: { latitude: number; longitude: number } | { code: number },
+) {
+  await page.addInitScript((r) => {
+    navigator.geolocation.getCurrentPosition = ((
+      ok: PositionCallback,
+      erreur?: PositionErrorCallback | null,
+    ) => {
+      if ('code' in r)
+        erreur?.({
+          code: r.code,
+          message: 'simulée',
+          PERMISSION_DENIED: 1,
+          POSITION_UNAVAILABLE: 2,
+          TIMEOUT: 3,
+        });
+      else
+        ok({
+          coords: { ...r, accuracy: 20 } as GeolocationCoordinates,
+          timestamp: Date.now(),
+        } as GeolocationPosition);
+    }) as typeof navigator.geolocation.getCurrentPosition;
+  }, reponse);
+}
+test('position depuis la France : la carte ne bouge pas et le dit clairement', async ({ page }) => {
+  await simulerLaPosition(page, { latitude: 48.8566, longitude: 2.3522 });
+  await ouvrir(page);
+  const avant = await centreDeLaCarte(page);
+  await page.getByRole('button', { name: 'Ma position', exact: true }).click();
+  await expect(page.locator('#carte-note')).toHaveText(
+    'Vous êtes actuellement hors du Congo-Brazzaville. La carte reste centrée sur le pays.',
+  );
+  await page.waitForTimeout(700);
+  expect(await centreDeLaCarte(page)).toEqual(avant);
+  await expect(page.getByRole('button', { name: 'Ma position', exact: true })).toBeEnabled();
+  // Le message est discret : il s'efface seul, la carte n'est pas encombrée.
+  await expect(page.locator('#carte-note')).toBeEmpty({ timeout: 15_000 });
+});
+test('position introuvable ou trop longue : un message, et la carte reste utilisable', async ({
+  page,
+}) => {
+  await simulerLaPosition(page, { code: 2 });
+  await ouvrir(page);
+  await page.getByRole('button', { name: 'Ma position', exact: true }).click();
+  await expect(page.locator('#carte-note')).toContainText('n’a pas pu être obtenue');
+  await expect(page.getByRole('searchbox')).toBeVisible();
+});
+test('position sur une connexion non sécurisée (http) : dite, sans demander au navigateur', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'isSecureContext', { value: false, configurable: true });
+    let appels = 0;
+    Object.defineProperty(window, 'appelsGPS', { get: () => appels });
+    navigator.geolocation.getCurrentPosition = (() =>
+      appels++) as unknown as typeof navigator.geolocation.getCurrentPosition;
+  });
+  await ouvrir(page);
+  await page.getByRole('button', { name: 'Ma position', exact: true }).click();
+  await expect(page.locator('#carte-note')).toContainText('connexion sécurisée');
+  await expect(page.locator('#carte-note')).toContainText('Cherchez une école');
+  expect(await page.evaluate(() => (window as unknown as { appelsGPS: number }).appelsGPS)).toBe(0);
+  await expect(page.getByRole('button', { name: 'Ma position', exact: true })).toBeEnabled();
+});
+test('position dans le pays : la carte s’y rend', async ({ page }) => {
+  await simulerLaPosition(page, { latitude: -4.78, longitude: 11.88 });
+  await ouvrir(page);
+  await page.getByRole('button', { name: 'Ma position', exact: true }).click();
+  await expect(page.locator('#carte-note')).toContainText('Vous êtes situé sur la carte');
+  await expect
+    .poll(async () => {
+      const [x, y] = await centreDeLaCarte(page);
+      return Math.abs(x! - 11.88) < 0.02 && Math.abs(y! + 4.78) < 0.02;
+    })
+    .toBe(true);
 });
 test('GPS obtenu : aucune coordonnée personnelle dans URL, stockage ou partage', async ({
   page,
