@@ -1,3 +1,4 @@
+import { ouvrirContacts } from '../parcours/aides';
 import { ouvrirGestion } from '../parcours/aides';
 import { mkdirSync } from 'node:fs';
 import { test } from '@playwright/test';
@@ -66,11 +67,14 @@ test('une capture de chaque écran', async ({ page, context }) => {
 
   await ouvrirLaFiche(page);
   await prendre('admin-a-valider');
+  await ouvrirContacts(page);
+  await prendre('admin-direction');
 
   await page.getByRole('button', { name: 'Accepter la fiche' }).click();
   await page.getByRole('status').waitFor();
   await page.getByRole('button', { name: 'Décidées' }).click();
   await page.getByRole('link', { name: /\[École 1\]/ }).click();
+  await ouvrirContacts(page);
   await page.getByRole('button', { name: /Effacer le contact/ }).click();
   await prendre('admin-effacer-le-contact');
 

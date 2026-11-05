@@ -1,3 +1,4 @@
+import { ouvrirContacts } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
 
@@ -48,6 +49,7 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
 
     // NTanova renvoie la fiche pour revoir les informations.
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: 'Demander une correction' }).click();
     await page.getByLabel('Motif').selectOption('autre');
     await page.getByLabel(/Message au relais/).fill('Vérifiez le nom sur l’enseigne.');
@@ -78,6 +80,7 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
 
     // L'administration le lit sur la correction.
     await ouvrirLaCorrection(page);
+    await ouvrirContacts(page);
     await expect(page.getByText('+242 06 765 43 21')).toBeVisible();
     await expect(page.getByText('Contact pas encore reçu.')).toHaveCount(0);
   });
@@ -89,6 +92,7 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     test.setTimeout(90_000);
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: 'Demander une correction' }).click();
     await page.getByLabel('Motif').selectOption('autre');
     await page.getByLabel(/Message au relais/).fill('Vérifiez le nom sur l’enseigne.');
@@ -155,6 +159,7 @@ test.describe('la correction d’une fiche dont le contact est arrivé avec l’
     await uneFicheEnvoyee(page, context);
     await uneCorrectionSansContact(page);
     await ouvrirLaCorrection(page);
+    await ouvrirContacts(page);
 
     // Le contact est là (celui de la fiche d'origine) : plus de « pas encore reçu » trompeur.
     await expect(page.getByText('+242 06 123 45 61')).toBeVisible();

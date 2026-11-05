@@ -545,3 +545,71 @@ test('administration : rechercher sans accent, filtrer une zone et confirmer une
   await expect(ligne.getByText('Retirée', { exact: true })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('est fusionnée');
 });
+
+test('à valider : décider après les preuves, contact replié et saisie conservée au clavier', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  const contact = page.locator('details.section-repliable');
+  const titre = contact.locator('summary');
+  await expect(titre).toContainText('Contact et échanges avec la direction');
+  await expect(titre).toContainText('1 personne enregistrée · 1 accord de contact');
+  await expect(contact).not.toHaveAttribute('open');
+  await expect(page.getByRole('button', { name: 'Accepter la fiche', exact: true })).toBeVisible();
+  expect(
+    await page.locator('.admin-decision').evaluate((e) => {
+      const prive = document.querySelector('details.section-repliable');
+      const preuves = document.querySelector('[aria-label="Partie publique"]');
+      return (
+        !!prive &&
+        !!preuves &&
+        e.getBoundingClientRect().top >= preuves.getBoundingClientRect().bottom &&
+        e.getBoundingClientRect().bottom <= prive.getBoundingClientRect().top
+      );
+    }),
+  ).toBe(true);
+  await expect(page.getByRole('region', { name: 'Partie privée' })).toHaveCount(0);
+  await titre.focus();
+  await page.keyboard.press('Enter');
+  await expect(contact).toHaveAttribute('open');
+  await expect(
+    page.getByRole('region', { name: 'Partie privée' }).getByText('+242 06 123 45 61'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Ajouter une personne', exact: true }).click();
+  const note = page
+    .getByRole('form', { name: 'Nouvelle personne' })
+    .getByRole('textbox', { name: /^Note/ });
+  await note.fill('À rappeler demain');
+  await titre.focus();
+  await page.keyboard.press('Space');
+  await expect(contact).not.toHaveAttribute('open');
+  await page.keyboard.press('Tab');
+  expect(await contact.evaluate((e) => e.contains(document.activeElement))).toBe(false);
+  await titre.focus();
+  await page.keyboard.press('Space');
+  await expect(note).toBeVisible();
+  await expect(note).toHaveValue('À rappeler demain');
+  const formulaire = page.getByRole('form', { name: 'Nouvelle personne' });
+  await formulaire.getByLabel('Fonction', { exact: true }).selectOption('directeur');
+  await context.setOffline(true);
+  await formulaire.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(contact.getByRole('alert')).toBeVisible();
+  await expect(note).toHaveValue('À rappeler demain');
+  await titre.click();
+  await expect(titre).toContainText('Action à réessayer');
+  await titre.click();
+  await context.setOffline(false);
+  await formulaire.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(formulaire).toHaveCount(0);
+  await expect(contact.getByRole('alert')).toHaveCount(0);
+  await expect(titre).toContainText('2 personnes enregistrées · 1 accord de contact');
+
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+});

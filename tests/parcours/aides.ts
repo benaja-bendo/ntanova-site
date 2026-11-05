@@ -176,3 +176,10 @@ export async function ouvrirGestion(ligne: Locator, section: string) {
         .click();
   }
 }
+
+/** Le bloc privé est secondaire ; les parcours de contact l'ouvrent explicitement. */
+export async function ouvrirContacts(page: Page): Promise<void> {
+  const section = page.locator('details.section-repliable');
+  await section.locator('summary').waitFor();
+  if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
+}

@@ -1,3 +1,4 @@
+import { ouvrirContacts } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter } from './aides';
 
@@ -65,6 +66,7 @@ test.describe('le relais note plusieurs personnes', () => {
 
     // L'administration lit les trois personnes.
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     const privee = page.getByRole('region', { name: 'Partie privée' });
     await expect(privee.getByRole('listitem')).toHaveCount(3);
     await expect(privee.getByText('+242 06 111 11 11')).toBeVisible();

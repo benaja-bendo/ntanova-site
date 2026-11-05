@@ -1,3 +1,4 @@
+import { ouvrirContacts } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 
@@ -30,6 +31,7 @@ test('le relais lit ce qui lui est acquis, la semaine close, puis le paiement av
 
   // L'administration confirme la fonction de la direction et accepte la fiche.
   await ouvrirLaFiche(page);
+  await ouvrirContacts(page);
   await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
   await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Accepter la fiche' }).click();

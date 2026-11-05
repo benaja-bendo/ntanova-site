@@ -1,3 +1,4 @@
+import { ouvrirContacts } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { seConnecter } from './aides';
 
@@ -83,6 +84,7 @@ async function ouvrirLEnvoi(page: Page, nom: string) {
   await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
   await page.getByRole('link', { name: new RegExp(nom.replace(/[[\]]/g, '\\$&')) }).click();
   await expect(page.getByRole('heading', { name: nom, level: 2 })).toBeVisible();
+  await ouvrirContacts(page);
 }
 
 /** Ce que le faux serveur a gardé des campus. */
@@ -298,6 +300,7 @@ test.describe('le pont avec la direction', () => {
     // Dans « Décidées », la fiche porte maintenant son école : l'accord se note, daté.
     await page.getByRole('button', { name: 'Décidées' }).click();
     await page.getByRole('link', { name: /\[Lycée A\]/ }).click();
+    await ouvrirContacts(page);
     const accord = page.getByRole('region', { name: 'Écrire à la direction' });
     await expect(accord.getByLabel(/Date de l.accord/)).toBeVisible();
     await accord.getByLabel('Comment l’accord a été donné').selectOption({ label: 'Par WhatsApp' });

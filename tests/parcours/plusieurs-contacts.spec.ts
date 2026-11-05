@@ -1,3 +1,4 @@
+import { ouvrirContacts } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 
@@ -55,6 +56,7 @@ test.describe('l’administration note les personnes à contacter', () => {
     test.setTimeout(120_000);
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
 
     // Le relais en a donné une.
     await expect(privee(page).getByText('+242 06 123 45 61')).toBeVisible();
@@ -129,6 +131,7 @@ test.describe('l’administration note les personnes à contacter', () => {
     await uneFicheEnvoyee(page, context);
     await perdreLeContact(page);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     await expect(privee(page).getByText('Contact pas encore reçu.')).toBeVisible();
     await expect(page.getByRole('region', { name: 'Écrire à la direction' })).toHaveCount(0);
 
@@ -156,6 +159,7 @@ test.describe('l’administration note les personnes à contacter', () => {
     test.setTimeout(90_000);
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     await privee(page).getByRole('button', { name: 'Ajouter une personne' }).click();
     const nouvelle = page.getByRole('form', { name: 'Nouvelle personne' });
     await remplir(nouvelle, {
@@ -183,6 +187,7 @@ test.describe('l’administration note les personnes à contacter', () => {
     test.setTimeout(90_000);
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     await privee(page).getByRole('button', { name: 'Ajouter une personne' }).click();
     const nouvelle = page.getByRole('form', { name: 'Nouvelle personne' });
 

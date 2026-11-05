@@ -582,3 +582,23 @@
 .ecoles-origine[open] summary {
   margin-bottom: var(--espace-2);
 }
+
+.admin-personnes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.admin-personnes li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 47.99rem) {
+  .section-repliable .admin-champs {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--espace-1);
+  }
+  .section-repliable .admin-champs dd:not(:last-child) {
+    margin-bottom: var(--espace-2);
+  }
+}

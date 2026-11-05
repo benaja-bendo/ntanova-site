@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActionsSecondaires, Badge, BadgePublication, Bouton } from './actions';
+import { SectionRepliable } from './SectionRepliable';
 import { Dialogue } from './Dialogue';
 import { Champ } from './composants';
 
@@ -53,6 +54,27 @@ export default function CatalogueInteractions() {
           <Bouton type="submit">Enregistrer la démonstration</Bouton>
         </div>
       </form>
+      <h2>Sections repliables</h2>
+      <SectionRepliable
+        titre="Contact et échanges"
+        synthese="1 personne enregistrée · données privées"
+      >
+        <Champ libelle="Note de démonstration" facultatif>
+          {(a) => (
+            <input {...a} className="champ" placeholder="La saisie reste présente après repli" />
+          )}
+        </Champ>
+      </SectionRepliable>
+      <SectionRepliable
+        titre="Section ouverte"
+        synthese="Les informations restent accessibles au clavier"
+        ouverte
+      >
+        <p>
+          Entrée ou Espace sur le titre replie la section. Tab parcourt les champs lorsqu’elle est
+          ouverte.
+        </p>
+      </SectionRepliable>
       <h2>Publication et preuves</h2>
       <div className="choix-ligne">
         {(['brouillon', 'a_situer', 'prete', 'publiee', 'retiree'] as const).map((etat) => (

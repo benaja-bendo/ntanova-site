@@ -33,6 +33,7 @@ import type {
   ReleveAValider,
   ReleveDecide,
 } from '../../modele/ports';
+import { SectionRepliable } from '../../ui/SectionRepliable';
 import { afficherTelephone } from '../../modele/telephone';
 import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
@@ -429,6 +430,7 @@ function Detail({
   const [message, setMessage] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [efface, setEfface] = useState<string | null>(null);
+  const [erreurContact, setErreurContact] = useState<string | null>(null);
   const [cible, setCible] = useState<Cible>({ mode: 'nouvelle' });
   const [etiquette, setEtiquette] = useState('');
   const [formations, setFormations] = useState<FormationSaisie[]>([]);
@@ -585,6 +587,16 @@ function Detail({
               : 'Mettre à jour la fiche'
             : 'Ajouter les niveaux à la fiche';
 
+  const nombreAccords = personnes.filter((p) => p.accord).length;
+  const syntheseContact =
+    personnes.length > 0
+      ? `${personnes.length} personne${personnes.length > 1 ? 's' : ''} enregistrée${personnes.length > 1 ? 's' : ''} · ${nombreAccords} accord${nombreAccords > 1 ? 's' : ''} de contact`
+      : detail.direction === 'absente'
+        ? 'Direction absente · aucun contact reçu'
+        : detail.direction === 'refus'
+          ? 'Contact refusé · aucun contact reçu'
+          : 'Aucun contact reçu';
+
   return (
     <section className="admin-detail" aria-label="Envoi sélectionné">
       <div className="admin-titre">
@@ -691,31 +703,6 @@ function Detail({
         </dl>
       </section>
 
-      <Personnes
-        admin={admin}
-        id={id}
-        detail={detail}
-        personnes={personnes}
-        surChangement={relirePersonnes}
-        annoncer={setEfface}
-        surErreur={setErreur}
-      />
-
-      {personnes.length > 0 && (
-        <section className="pile-serree" aria-label="Écrire à la direction">
-          <h3 className="rang">
-            <Icone nom="coche" />
-            Écrire à la direction
-          </h3>
-          <Pont admin={admin} detail={detail} contacts={personnes} surAnnonce={surAnnonce} />
-        </section>
-      )}
-
-      {efface && (
-        <p className="bandeau bandeau-envoye" role="status">
-          {efface}
-        </p>
-      )}
       {erreur && (
         <p className="message-erreur" role="alert">
           {erreur}
@@ -1010,6 +997,40 @@ function Detail({
           )}
         </div>
       )}
+      <SectionRepliable
+        titre="Contact et échanges avec la direction"
+        synthese={`${syntheseContact}${erreurContact ? ' · Action à réessayer' : ''}`}
+      >
+        {efface && (
+          <p className="bandeau bandeau-envoye" role="status">
+            {efface}
+          </p>
+        )}
+        {erreurContact && (
+          <p className="message-erreur" role="alert">
+            {erreurContact}
+          </p>
+        )}
+        <Personnes
+          admin={admin}
+          id={id}
+          detail={detail}
+          personnes={personnes}
+          surChangement={relirePersonnes}
+          annoncer={setEfface}
+          surErreur={setErreurContact}
+        />
+
+        {personnes.length > 0 && (
+          <section className="pile-serree" aria-label="Écrire à la direction">
+            <h3 className="rang">
+              <Icone nom="coche" />
+              Écrire à la direction
+            </h3>
+            <Pont admin={admin} detail={detail} contacts={personnes} surAnnonce={surAnnonce} />
+          </section>
+        )}
+      </SectionRepliable>
     </section>
   );
 }

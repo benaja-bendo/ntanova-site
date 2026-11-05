@@ -662,3 +662,51 @@ textarea.champ {
     border-radius: 0;
   }
 }
+
+/* Une section secondaire garde sa synthèse lisible lorsqu'elle est repliée. */
+.section-repliable {
+  min-width: 0;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+}
+.section-repliable > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--espace-3);
+  row-gap: var(--espace-1);
+  min-height: var(--cible-principale);
+  padding: var(--espace-4);
+  border-radius: var(--rayon-m);
+  cursor: pointer;
+  list-style: none;
+}
+.section-repliable > summary::-webkit-details-marker {
+  display: none;
+}
+.section-repliable-indice {
+  grid-row: 1 / 3;
+  align-self: center;
+  color: var(--marque);
+  font-size: var(--taille-intertitre);
+}
+.section-repliable-indice::before {
+  content: '+';
+}
+.section-repliable[open] .section-repliable-indice::before {
+  content: '−';
+}
+.section-repliable-titre {
+  font-family: var(--police-titre);
+  font-weight: 700;
+  color: var(--marque);
+}
+.section-repliable-synthese {
+  grid-column: 2;
+  font-size: var(--taille-secondaire);
+  color: var(--texte-doux);
+  overflow-wrap: anywhere;
+}
+.section-repliable-contenu {
+  padding: var(--espace-4);
+}

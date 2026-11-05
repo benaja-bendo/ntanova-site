@@ -1,3 +1,4 @@
+import { ouvrirContacts } from './aides';
 import { ouvrirGestion } from './aides';
 import { expect, test } from '@playwright/test';
 import {
@@ -20,6 +21,7 @@ test.describe('administration', () => {
   }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
 
     // Le contact de la direction n'est lisible que par l'administration.
     await expect(page.getByText('+242 06 123 45 61')).toBeVisible();
@@ -57,6 +59,7 @@ test.describe('administration', () => {
   test('une demande de correction arrive au relais avec son message', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
 
     await page.getByRole('button', { name: 'Demander une correction' }).click();
     await page.getByLabel('Motif').selectOption('photo_floue');
@@ -78,6 +81,7 @@ test.describe('administration', () => {
   test('une école publiée se retire avec un motif, puis se republie', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: 'Accepter la fiche' }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
     await page.getByRole('link', { name: 'Écoles' }).click();
@@ -107,6 +111,7 @@ test.describe('administration', () => {
   }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: 'Accepter la fiche' }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
     await page.getByRole('button', { name: 'Décidées' }).click();
@@ -115,6 +120,7 @@ test.describe('administration', () => {
     await expect(page.getByRole('button', { name: 'Accepter la fiche' })).toHaveCount(0);
     await expect(page.getByText(/un refus est définitif/)).toBeVisible();
 
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: /Effacer le contact/ }).click();
     await page.getByRole('button', { name: /Confirmer : effacer le contact/ }).click();
     await expect(page.getByText('Le contact de la direction est effacé.')).toBeVisible();
@@ -127,6 +133,7 @@ test.describe('administration', () => {
   }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     // Une 3G qui traîne : la base répond après que l'on a changé d'onglet.
     await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '600'));
     await page.getByRole('button', { name: 'Accepter la fiche' }).click();
@@ -144,6 +151,7 @@ test.describe('administration', () => {
   }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     // La partie privée est un panneau sombre : ses liens et ses boutons doivent s'y lire. Le pont avec la direction
     // (le message, la fonction, l'accord) est dans une carte claire à côté.
     expect(await textesPeuLisibles(page, 'body'), 'À valider, une fiche').toEqual([]);
@@ -152,6 +160,7 @@ test.describe('administration', () => {
 
     await page.getByRole('button', { name: 'Décidées' }).click();
     await page.getByRole('link', { name: /\[École 1\]/ }).click();
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: /Effacer le contact/ }).click();
     await expect(
       page.getByRole('button', { name: /Confirmer : effacer le contact/ }),
@@ -230,6 +239,7 @@ test.describe('administration', () => {
   test('une fiche relevée dans la zone ouverte le dit, sans alerte', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     await expect(
       page
         .getByRole('region', { name: 'Envoi sélectionné' })
@@ -244,6 +254,7 @@ test.describe('administration', () => {
   }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: 'Demander une correction' }).click();
     const motifs = await page.getByLabel('Motif').locator('option').allTextContents();
     expect(motifs).toContain("La position n'est pas celle de l'entrée.");
@@ -315,6 +326,7 @@ test.describe('administration', () => {
   test('tient dans 360 px sans défilement horizontal de la page', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
+    await ouvrirContacts(page);
     for (const ecran of ['#valider', '#relais']) {
       await page.goto(`/admin/${ecran}`);
       await page.waitForTimeout(300);
