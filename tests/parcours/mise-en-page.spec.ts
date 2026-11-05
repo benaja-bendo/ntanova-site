@@ -6,6 +6,7 @@ import {
   ouvrirGestion,
   uneFicheEnvoyee,
   ouvrirLaFiche,
+  prendrePhotoEtPosition,
 } from './aides';
 test.beforeEach(async ({ page, context }) => {
   await page.addInitScript(() =>
@@ -612,4 +613,66 @@ test('à valider : décider après les preuves, contact replié et saisie conser
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     ),
   ).toBe(true);
+});
+
+test('relais : confirmation accessible, annulation sans perte et suppression réessayable hors ligne', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
+  await seConnecter(page, '/relais/');
+  await prendrePhotoEtPosition(page);
+  await page.getByRole('button', { name: 'Suivant', exact: true }).click();
+  const nom = page.getByLabel("Nom sur l'enseigne");
+  await nom.fill('[Fiche conservée]');
+  await context.setOffline(true);
+  const ouvrir = page.getByRole('button', { name: 'Abandonner cette fiche', exact: true });
+  await ouvrir.click();
+  const confirmation = page.getByRole('alertdialog', { name: 'Abandonner cette fiche ?' });
+  await expect(confirmation).toContainText('Ce qui a été saisi sera effacé du téléphone');
+  const annuler = confirmation.getByRole('button', { name: 'Annuler', exact: true });
+  const supprimer = confirmation.getByRole('button', {
+    name: 'Oui, abandonner la fiche',
+    exact: true,
+  });
+  await expect(annuler).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(supprimer).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(annuler).toBeFocused();
+  expect(await confirmation.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  const boite = await confirmation.boundingBox();
+  expect(boite!.x).toBeGreaterThanOrEqual(0);
+  expect(boite!.x + boite!.width).toBeLessThanOrEqual(largeurDe(page));
+  await page.keyboard.press('Escape');
+  await expect(confirmation).toHaveCount(0);
+  await expect(ouvrir).toBeFocused();
+  await expect(nom).toHaveValue('[Fiche conservée]');
+  await ouvrir.click();
+  await annuler.click();
+  await expect(nom).toHaveValue('[Fiche conservée]');
+  // Une panne de la base locale doit se voir et laisser la fiche intacte.
+  await page.evaluate(() => {
+    const retirer = IDBObjectStore.prototype.delete;
+    let premiere = true;
+    IDBObjectStore.prototype.delete = function (cle) {
+      if (premiere && this.name === 'fiches') {
+        premiere = false;
+        throw new DOMException('Échec simulé', 'UnknownError');
+      }
+      return retirer.call(this, cle);
+    };
+  });
+  await ouvrir.click();
+  await supprimer.click();
+  await expect(confirmation.getByRole('alert')).toHaveText('L’action n’a pas abouti. Réessayez.');
+  await expect(supprimer).toBeEnabled();
+  await annuler.click();
+  await expect(nom).toHaveValue('[Fiche conservée]');
+  await ouvrir.click();
+  await supprimer.click();
+  await expect(confirmation).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeFocused();
 });

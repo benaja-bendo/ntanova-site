@@ -49,7 +49,13 @@ export function Entete({ titre, principal = false }: { titre: string; principal?
     <header className="entete-relais">
       <span className="entete-marque">
         <img src="/favicon.svg" alt="" width={30} height={23} />
-        <Titre className="entete-titre">{titre}</Titre>
+        <Titre
+          className="entete-titre"
+          tabIndex={principal ? -1 : undefined}
+          data-retour-liste={principal || undefined}
+        >
+          {titre}
+        </Titre>
       </span>
       <PastilleReseau />
     </header>

@@ -18,7 +18,11 @@ test('une capture de chaque écran', async ({ page, context }) => {
   const prendre = (ecran: string) =>
     page.screenshot({
       path: `${dossier}${ecran}-${largeur}.png`,
-      fullPage: !['admin-modifier-la-fiche', 'admin-retirer-du-site'].includes(ecran),
+      fullPage: ![
+        'admin-modifier-la-fiche',
+        'admin-retirer-du-site',
+        'relais-confirmer-abandon',
+      ].includes(ecran),
     });
 
   for (const [ecran, adresse] of [
@@ -64,6 +68,9 @@ test('une capture de chaque écran', async ({ page, context }) => {
     .getByLabel(/Programme, langues ou autre mention écrite/)
     .fill('Programme français-congolais, bilingue');
   await prendre('relais-ajouter-2-rempli');
+  await page.getByRole('button', { name: 'Abandonner cette fiche', exact: true }).click();
+  await prendre('relais-confirmer-abandon');
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Annuler', exact: true }).click();
 
   await ouvrirLaFiche(page);
   await prendre('admin-a-valider');

@@ -12,6 +12,7 @@ export function Dialogue({
   retourFocus,
   occupe = false,
   description,
+  libelleFermeture = 'Fermer',
 }: {
   titre: string;
   fermer: () => void;
@@ -22,6 +23,7 @@ export function Dialogue({
   retourFocus?: HTMLElement | null;
   occupe?: boolean;
   description?: string | undefined;
+  libelleFermeture?: string;
 }) {
   const idDescription = useId();
   const ref = useRef<HTMLDialogElement>(null);
@@ -75,7 +77,7 @@ export function Dialogue({
       <header className="dialogue-entete">
         {entete && <div className="pile-serree">{entete}</div>}
         <Bouton variante="secondaire" disabled={occupe} onClick={fermer}>
-          Fermer
+          {libelleFermeture}
         </Bouton>
       </header>
       <div className="dialogue-corps">

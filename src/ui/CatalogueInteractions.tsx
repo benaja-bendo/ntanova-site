@@ -1,3 +1,4 @@
+import { ConfirmationAction } from './ConfirmationAction';
 import { useState } from 'react';
 import { ActionsSecondaires, Badge, BadgePublication, Bouton } from './actions';
 import { SectionRepliable } from './SectionRepliable';
@@ -9,6 +10,7 @@ export default function CatalogueInteractions() {
   const [erreur, setErreur] = useState(false);
   const [nom, setNom] = useState('');
   const [annonce, setAnnonce] = useState('');
+  const [essaisSuppression, setEssaisSuppression] = useState(0);
   return (
     <section className="pile" aria-label="Composants interactifs">
       <h2>Actions et formulaires React</h2>
@@ -54,6 +56,23 @@ export default function CatalogueInteractions() {
           <Bouton type="submit">Enregistrer la démonstration</Bouton>
         </div>
       </form>
+      <h2>Confirmation d’une action</h2>
+      <ConfirmationAction
+        libelle="Essayer une suppression"
+        titre="Effacer la fiche fictive ?"
+        description="Cette démonstration ne supprime aucune donnée. Le premier essai simule une erreur ; le suivant réussit."
+        confirmer="Oui, effacer la fiche fictive"
+        surConfirmer={async () => {
+          await new Promise((fin) => setTimeout(fin, 1000));
+          if (essaisSuppression === 0) {
+            setEssaisSuppression(1);
+            setAnnonce('La suppression peut être réessayée.');
+            return 'La fiche n’a pas pu être effacée. Réessayez.';
+          }
+          setAnnonce('Suppression de démonstration terminée.');
+          return undefined;
+        }}
+      />
       <h2>Sections repliables</h2>
       <SectionRepliable
         titre="Contact et échanges"

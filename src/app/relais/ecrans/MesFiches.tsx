@@ -1,3 +1,4 @@
+import { ConfirmationAction } from '../../../ui/ConfirmationAction';
 import { useState } from 'react';
 import { appartientAuCompte } from '../../../modele/compte';
 import {
@@ -227,13 +228,10 @@ export function MesFiches() {
   };
 
   const retirer = async (l: Ligne) => {
-    const local = localesParId.get(l.id);
-    const dejaChezNTanova = local?.envoyes.releve ?? false;
-    const question = dejaChezNTanova
-      ? 'Retirer cette fiche du téléphone ? NTanova a déjà reçu la fiche : seuls les éléments encore sur le téléphone (photos, contact) seront effacés.'
-      : 'Retirer cette fiche du téléphone ? Elle n’a pas été envoyée : elle sera perdue.';
-    if (!confirm(question)) return;
-    apres(await retirerDuTelephone(l.id));
+    const issue = await retirerDuTelephone(l.id);
+    if (issue !== 'ok') return avisDesGestes[issue];
+    setAvis(null);
+    return undefined;
   };
 
   return (
@@ -351,13 +349,18 @@ export function MesFiches() {
                   </button>
                 )}
                 {l.peutRetirer && (
-                  <button
-                    type="button"
-                    className="lien lien-discret"
-                    onClick={() => void retirer(l)}
-                  >
-                    Retirer du téléphone
-                  </button>
+                  <ConfirmationAction
+                    libelle="Retirer du téléphone"
+                    titre={`Retirer « ${l.nom} » du téléphone ?`}
+                    description={
+                      localesParId.get(l.id)?.envoyes.releve
+                        ? 'NTanova a déjà reçu la fiche : seuls les éléments encore sur le téléphone (photos, contact) seront effacés. La fiche reçue par NTanova est conservée.'
+                        : 'Cette fiche n’a pas été envoyée. Elle sera effacée du téléphone et sera perdue.'
+                    }
+                    confirmer="Oui, retirer du téléphone"
+                    classe="lien lien-discret"
+                    surConfirmer={() => retirer(l)}
+                  />
                 )}
               </div>
             )}

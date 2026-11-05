@@ -125,7 +125,9 @@ export function MonLot() {
     <div className="ecran">
       <Entete titre="Espace relais" />
       <main className="contenu-relais">
-        <h1 className="titre-ecran">Bonjour {profil?.prenom || ''}</h1>
+        <h1 className="titre-ecran" tabIndex={-1} data-retour-liste>
+          Bonjour {profil?.prenom || ''}
+        </h1>
         <EtatEnvoi />
 
         {premiersPas === null && (

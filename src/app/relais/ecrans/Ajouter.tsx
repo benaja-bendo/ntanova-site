@@ -1,3 +1,4 @@
+import { ConfirmationAction } from '../../../ui/ConfirmationAction';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   avecPhoto,
@@ -106,14 +107,18 @@ function PiedEtape({ children }: { children: React.ReactNode }) {
  */
 function BoutonAbandonner({ fiche }: { fiche: FicheLocale }) {
   const abandonner = async () => {
-    if (!confirm('Abandonner cette fiche ? Ce qui a été saisi sera effacé du téléphone.')) return;
     await base.fiches.delete(fiche.id);
     aller('lot', true);
   };
   return (
-    <button type="button" className="lien lien-discret" onClick={() => void abandonner()}>
-      Abandonner cette fiche
-    </button>
+    <ConfirmationAction
+      libelle="Abandonner cette fiche"
+      titre="Abandonner cette fiche ?"
+      description="Ce qui a été saisi sera effacé du téléphone. Cette action est définitive."
+      confirmer="Oui, abandonner la fiche"
+      classe="lien lien-discret"
+      surConfirmer={abandonner}
+    />
   );
 }
 
