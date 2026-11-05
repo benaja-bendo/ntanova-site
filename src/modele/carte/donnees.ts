@@ -11,6 +11,7 @@
  * Des fonctions pures : les fichiers sont écrits par `src/pages/carte/`.
  */
 import { lienDivision, lienEcole, ligneDeLieu, sansRepetition } from '../geo-divisions';
+import { etatPublicDe, libelleDeploiement, type EtatDeploiement } from '../etat-zone';
 import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../libelles';
 import { listes } from '../listes';
 import type { MultiPolygone } from '../geo';
@@ -21,13 +22,8 @@ import { vuesSurPlace } from './plan';
 import { simplifierContour } from './simplification';
 
 type Niveau = Valeur<'niveau'>;
-export type EtatDeploiement = NonNullable<DivisionPublique['deploiement']>;
-
-/** Les mots de l'état public d'une zone : jamais « complet », rien ne le mesure. */
-export const libelleDeploiement: Record<EtatDeploiement, string> = {
-  actif: 'Relevé en cours',
-  programme: 'Déploiement programmé',
-};
+// L'état d'une zone et ses mots vivent dans `modele/etat-zone.ts` : la carte et les pages de zone lisent la même vérité.
+export { libelleDeploiement, type EtatDeploiement } from '../etat-zone';
 
 /** La lettre d'un cycle sur son marqueur. Du plus bas au plus haut : M, P, C, L, T, S. */
 const CYCLES: readonly { cycle: Niveau; lettre: 'M' | 'P' | 'C' | 'L' | 'T' | 'S' }[] = [
@@ -251,16 +247,7 @@ export function zonesGeoJSON({
 
   for (const d of divisions) {
     if (d.genre === 'city') {
-      let etat: EtatDeploiement | null = d.deploiement;
-      if (!etat) {
-        const prefixe = adresseDe(d);
-        const dessous = divisions.filter((x) => adresseDe(x).startsWith(`${prefixe}/`));
-        etat = dessous.some((x) => x.deploiement === 'actif')
-          ? 'actif'
-          : dessous.some((x) => x.deploiement === 'programme')
-            ? 'programme'
-            : null;
-      }
+      const etat: EtatDeploiement | null = etatPublicDe(d, divisions);
       const lePoint = point(d);
       if (etat && lePoint) ajouter(d, 'ville', etat, lePoint);
       const contour = d.deploiement ? contourDeLaZone(d) : null;

@@ -69,9 +69,10 @@ export interface ArrondissementSurCarte {
   arrondissement: ArrondissementDessine;
   /**
    * `focus` : celui qu'on regarde, en relief, avec ses rues. `voisin` : autour, pâle.
-   * Sur la carte de la ville : `en-cours` (le relevé a commencé) ou `pas-encore`.
+   * Sur la carte de la ville, l'état public de la carte interactive : `en-cours` (relevé en cours), `programme` (déploiement
+   * programmé, en pointillés) ou `pas-encore` (aucun état).
    */
-  role: 'focus' | 'voisin' | 'en-cours' | 'pas-encore';
+  role: 'focus' | 'voisin' | 'en-cours' | 'programme' | 'pas-encore';
   /** Toucher l'arrondissement mène ici (la carte de la ville). */
   lien?: string;
   /** La seconde ligne sous son nom : « 3 écoles », « pas encore ». */

@@ -115,13 +115,43 @@ const surEcoles =
     <footer class="pied">
       <div class="cadre pied-cadre">
         <nav aria-label="NTanova" class="pied-liens">
-          <a href="/carte/">Carte</a>
-          <a href="/ecoles/">Les écoles</a>
-          <a href="/recherche/">Rechercher une école</a>
-          <a href="/autour-de-moi/">Autour de moi</a>
-          <a href="/pour-les-ecoles/">Pour les écoles</a>
-          <a href="/a-propos/">À propos et données personnelles</a>
-          {whatsapp && <a href={whatsapp}>Écrire à NTanova sur WhatsApp</a>}
+          <div class="pied-groupe">
+            <p class="pied-titre" id="pied-trouver">
+              Trouver une école
+            </p>
+            <ul aria-labelledby="pied-trouver">
+              <li>
+                <a href="/carte/">Carte</a>
+              </li>
+              <li>
+                <a href="/ecoles/">Les écoles</a>
+              </li>
+              <li>
+                <a href="/recherche/">Rechercher une école</a>
+              </li>
+              <li>
+                <a href="/autour-de-moi/">Autour de moi</a>
+              </li>
+            </ul>
+          </div>
+          <div class="pied-groupe">
+            <p class="pied-titre" id="pied-ntanova">
+              NTanova
+            </p>
+            <ul aria-labelledby="pied-ntanova">
+              <li>
+                <a href="/pour-les-ecoles/">Pour les écoles</a>
+              </li>
+              <li>
+                <a href="/a-propos/">À propos et données personnelles</a>
+              </li>
+              {whatsapp && (
+                <li>
+                  <a href={whatsapp}>Écrire à NTanova sur WhatsApp</a>
+                </li>
+              )}
+            </ul>
+          </div>
         </nav>
         <p>NTanova · République du Congo</p>
       </div>
@@ -178,8 +208,34 @@ const surEcoles =
   .pied p {
     margin: 0;
   }
+  /* Deux groupes côte à côte sur téléphone (≈ 180 px de haut au lieu de ≈ 310 px), l'un sous l'autre sous 22 rem. */
   .pied-liens {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--espace-3) var(--espace-4);
+  }
+  @media (max-width: 21.99rem) {
+    .pied-liens {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  .pied-groupe {
+    display: grid;
+    align-content: start;
+  }
+  .pied-titre {
+    color: var(--texte-doux);
+    font-family: var(--police-titre);
+    font-size: var(--taille-mention);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .pied ul {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
   .pied-liens a {
     display: flex;
@@ -250,7 +306,15 @@ const surEcoles =
       padding: var(--espace-2) var(--espace-4);
       font-size: var(--taille-secondaire);
     }
+    /* Les deux groupes l'un sous l'autre, titres et liens alignés à gauche, le bloc à droite de la phrase. */
     .pied-liens {
+      display: grid;
+      grid-template-columns: minmax(0, auto);
+      justify-items: start;
+      justify-self: end;
+      gap: var(--espace-3);
+    }
+    .pied ul {
       display: flex;
       flex-wrap: wrap;
       gap: 0 var(--espace-5);
@@ -270,14 +334,16 @@ const surEcoles =
     .ville {
       grid-column: 3;
     }
+    /* La phrase garde sa place et ne se casse pas en trois lignes : ce sont les liens qui se partagent le reste. */
     .pied-cadre {
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: auto minmax(0, 1fr);
       grid-template-areas: 'phrase liens';
       align-items: center;
       gap: var(--espace-5);
     }
-    .pied p {
+    .pied-cadre > p {
       grid-area: phrase;
+      white-space: nowrap;
     }
     .pied-liens {
       grid-area: liens;

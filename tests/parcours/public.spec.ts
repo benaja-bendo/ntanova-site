@@ -126,7 +126,15 @@ test.describe('site public', () => {
       'href',
       'https://www.google.com/maps/dir/?api=1&destination=-4.79105,11.925',
     );
-    await page.getByRole('link', { name: 'Compléter cette fiche' }).click();
+    // « Confirmer cette fiche » ouvre WhatsApp avec le nom de l'école, son lieu et l'adresse de sa fiche : NTanova sait de
+    // quelle fiche il s'agit sans rien redemander.
+    const confirmer = page.getByRole('link', { name: 'Confirmer cette fiche' });
+    const message = decodeURIComponent((await confirmer.getAttribute('href')) ?? '');
+    expect(message).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+    expect(message).toContain('je dirige [Complexe scolaire Exemple]');
+    expect(message).toContain('/ecoles/congo/pointe-noire/tie-tie/');
+    // Ce que NTanova demande se lit sur « Pour les écoles », un lien plus bas.
+    await page.getByRole('link', { name: 'Ce que nous vous demanderons' }).click();
     await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
   });
 
@@ -135,7 +143,7 @@ test.describe('site public', () => {
       page,
     }) => {
       await page.goto('/ecoles/');
-      await page.getByRole('link', { name: 'Congo', exact: true }).click();
+      await page.getByRole('link', { name: 'Congo-Brazzaville', exact: true }).click();
       await expect(page).toHaveURL(/\/ecoles\/congo\/$/);
       // Trois zones du pays ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
       await expect(page.locator('a.zone')).toHaveCount(3);
@@ -426,6 +434,12 @@ test.describe('site public', () => {
 
   test('le code de la fiche de liaison part sur WhatsApp, sans JavaScript', async ({ page }) => {
     await page.goto('/pour-les-ecoles/');
+    // Replié : un seul bouton plein sur la page, celui qui écrit sur WhatsApp ; le code s'ouvre d'un toucher.
+    const liaison = page.locator('details.liaison');
+    await expect(liaison).not.toHaveAttribute('open', '');
+    await expect(page.getByLabel('Le code à 4 chiffres écrit dessus')).toBeHidden();
+    await liaison.getByText('Vous avez reçu une fiche de liaison ?').click();
+    await expect(page.getByLabel('Le code à 4 chiffres écrit dessus')).toBeVisible();
     const formulaire = page.locator('form');
     await expect(formulaire).toHaveAttribute('action', /^https:\/\/wa\.me\/\d+$/);
     await expect(formulaire).toHaveAttribute('method', 'get');

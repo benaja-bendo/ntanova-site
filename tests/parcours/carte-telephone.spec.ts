@@ -230,3 +230,22 @@ test('la recherche validée referme le clavier, et la poignée replie le tiroir'
   await expect(page.locator('.explorateur')).toHaveAttribute('data-hauteur', 'petit');
   await expect(champ).not.toBeFocused();
 });
+
+test('le zoom de la carte est une cible de doigt de 44 px, sur /carte/ comme sur l’accueil', async ({
+  page,
+}) => {
+  await ouvrir(page);
+  for (const nom of ['Zoomer', 'Dézoomer']) {
+    const b = await boite(page, `button[aria-label="${nom}"]`);
+    expect(b.width, `${nom} : largeur`).toBeGreaterThanOrEqual(44);
+    expect(b.height, `${nom} : hauteur`).toBeGreaterThanOrEqual(44);
+  }
+  // L'aperçu de l'accueil dessine la même carte avec les mêmes commandes.
+  await page.goto('/');
+  await page.locator('.explorateur').scrollIntoViewIfNeeded();
+  const zoom = page.getByRole('button', { name: 'Zoomer', exact: true });
+  await expect(zoom).toBeVisible({ timeout: 30_000 });
+  const b = (await zoom.boundingBox())!;
+  expect(b.width).toBeGreaterThanOrEqual(44);
+  expect(b.height).toBeGreaterThanOrEqual(44);
+});

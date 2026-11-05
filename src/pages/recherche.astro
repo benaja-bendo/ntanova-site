@@ -6,17 +6,18 @@ import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../infra/index';
 import { libelleNiveau } from '../modele/libelles';
 import { listes } from '../modele/listes';
-import { lienDivision, type PageDivision } from '../modele/geo-divisions';
+import { ecolesSous, lienDivision, type PageDivision } from '../modele/geo-divisions';
 import { lienWhatsApp } from '../modele/whatsapp';
 import PagePublique from '../ui/PagePublique.astro';
 
 const { facettes, arbre } = await obtenirSite();
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 const valeursDe = (facette: string) => facettes.filter((f) => f.facette === facette);
-// Les zones où l'on peut chercher : les pays, départements et villes qui ont des écoles, puis les arrondissements.
+// Les zones où l'on peut chercher : les pays, départements, villes et arrondissements qui ont des écoles (une zone qui n'a que
+// son état public, comme Brazzaville aujourd'hui, a sa page mais rien à chercher).
 const zones: PageDivision[] = [];
 const parcourir = (p: PageDivision) => {
-  if (p.division.niveau <= 3) zones.push(p);
+  if (p.division.niveau <= 3 && ecolesSous(p).length > 0) zones.push(p);
   p.enfants.forEach(parcourir);
 };
 arbre.racines.forEach(parcourir);
@@ -34,7 +35,8 @@ arbre.racines.forEach(parcourir);
     <div>
       <h1>Rechercher une école</h1>
       <p class="texte-doux">
-        Par nom, quartier ou repère, et par ce que l’école enseigne. Tous les critères se combinent.
+        Par nom, quartier ou repère, et par ce que l’école enseigne. Chaque critère choisi réduit la
+        liste.
       </p>
     </div>
 

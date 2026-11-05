@@ -22,12 +22,11 @@ test('de la ville à la fiche : arrondissement, pastille, coin vu de près, éco
   await page.goto('/');
   await page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' }).click();
 
-  // La ville : Tié-Tié et Ngoyo ouverts, Loandjili et Mongo-Mpoukou ont déjà des fiches, les deux autres pas encore.
+  // La ville : Tié-Tié et Ngoyo « relevé en cours », Loandjili, Mongo-Mpoukou et Mvou-Mvou « déploiement programmé » (l'état
+  // de la carte), et le dernier arrondissement sans état : « pas encore relevé ».
   await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pointe-Noire');
-  await expect(
-    page.getByText('Les deux autres arrondissements : pas encore relevés.'),
-  ).toBeVisible();
+  await expect(page.getByText('L’autre arrondissement : pas encore relevé.')).toBeVisible();
   await page.getByRole('link', { name: 'Tié-Tié : 4 écoles' }).click();
 
   // L'arrondissement : la pastille regroupe les deux écoles situées.

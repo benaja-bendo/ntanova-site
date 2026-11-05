@@ -354,16 +354,19 @@ test.describe('site public', () => {
     }
   });
 
-  test('« Pour les écoles » : à partir de 1 024 px, le formulaire et les explications sont côte à côte', async ({
+  test('« Pour les écoles » : les gains viennent avant l’action ; à partir de 1 024 px, ce qu’on demande est à côté', async ({
     page,
   }) => {
     await page.goto('/pour-les-ecoles/');
-    const formulaire = await position(page, /fiche de liaison/);
     const gains = await position(page, 'Ce que votre école y gagne');
+    const action = await position(page, 'Confirmez ou ajoutez votre école');
+    const demandes = await position(page, 'Ce que nous vous demanderons');
+    // Partout : ce que l'école y gagne se lit avant le bouton qui écrit sur WhatsApp.
+    expect(gains.y).toBeLessThan(action.y);
     if (largeurDe(page) >= ORDINATEUR) {
-      expect(gains.x).toBeGreaterThan(formulaire.x + formulaire.width / 2);
+      expect(demandes.x).toBeGreaterThan(action.x + action.width / 2);
     } else {
-      expect(gains.y).toBeGreaterThan(formulaire.y);
+      expect(demandes.y).toBeGreaterThan(action.y);
     }
   });
 

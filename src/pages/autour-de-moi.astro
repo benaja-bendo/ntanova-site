@@ -55,11 +55,10 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
       <ul class="ecoles"></ul>
     </section>
 
-    <p>
+    <p class="autres-chemins">
       <a class="chercher" href="/ecoles/">
         Ou parcourez les villes
       </a>
-      ·{' '}
       <a class="chercher" href="/recherche/">
         Ou cherchez par nom
       </a>
@@ -134,6 +133,12 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
   }
   .autour .ecole-etat {
     font-weight: 700;
+  }
+  .autour .autres-chemins {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--espace-5);
+    margin: 0;
   }
   .autour .chercher {
     display: inline-flex;

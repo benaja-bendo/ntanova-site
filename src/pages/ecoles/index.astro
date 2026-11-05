@@ -4,11 +4,21 @@
 // Construite à partir de la base ; aucun JavaScript.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../../infra/index';
-import { compterEcoles, ecolesSous, lienDivision } from '../../modele/geo-divisions';
+import { etatPublicDe, libelleDeploiement } from '../../modele/etat-zone';
+import { compterEcoles, ecolesSous, lienDivision, nomAffiche } from '../../modele/geo-divisions';
 import { lienWhatsApp } from '../../modele/whatsapp';
 import PagePublique from '../../ui/PagePublique.astro';
 
-const { arbre, ecoles } = await obtenirSite();
+const { arbre, ecoles, divisions } = await obtenirSite();
+// Une ville sans école dit son état public (le même que la carte), jamais « 0 écoles » ni « relevé en cours » par défaut.
+const detailDe = (enfant: (typeof arbre.racines)[number]) => {
+  const n = ecolesSous(enfant).length;
+  const etat = etatPublicDe(enfant.division, divisions);
+  const morceaux = [n > 0 ? compterEcoles(n) : null, etat ? libelleDeploiement[etat] : null].filter(
+    (x): x is string => x !== null,
+  );
+  return morceaux.length > 0 ? morceaux.join(' · ') : 'aucune école publiée';
+};
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque : ');
 ---
@@ -46,7 +56,9 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
     {arbre.racines.map((racine) => (
       <section aria-label={racine.division.nom} class="pays">
         <h2>
-          <a href={lienDivision(racine.adresse)}>{racine.division.nom}</a>
+          <a href={lienDivision(racine.adresse)}>
+            {nomAffiche(racine.division.nom, racine.division.niveau)}
+          </a>
           <span class="texte-doux"> · {compterEcoles(ecolesSous(racine).length)}</span>
         </h2>
         <ul class="zones">
@@ -54,11 +66,7 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
             <li>
               <a class="zone" href={lienDivision(enfant.adresse)}>
                 <span class="zone-nom">{enfant.division.nom}</span>
-                <span class="zone-detail">
-                  {ecolesSous(enfant).length === 0
-                    ? 'relevé en cours'
-                    : compterEcoles(ecolesSous(enfant).length)}
-                </span>
+                <span class="zone-detail">{detailDe(enfant)}</span>
               </a>
             </li>
           ))}
@@ -68,8 +76,8 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
 
     <div class="encadre-pointille">
       <p>
-        Le relevé continue ville après ville&nbsp;: une zone n'apparaît ici qu'avec sa première
-        école publiée.
+        Le relevé continue ville après ville&nbsp;: une ville apparaît ici dès que son déploiement
+        est programmé ou qu'une première école est publiée.
       </p>
       {manque && <a href={manque}>Une ville manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
     </div>

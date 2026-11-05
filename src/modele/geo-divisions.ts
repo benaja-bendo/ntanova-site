@@ -138,11 +138,14 @@ export function construireArbre(
     page?.ecoles.push(e);
   }
 
-  // Les zones sans campus publié, ni dessus ni dessous, sortent de l'arbre, sauf celles où le relevé a été ouvert : leur
-  // page dit « relevé en cours ». Ouvrir un pays ne crée pas la page de chacune de ses villes : seule la zone ouverte
-  // elle-même (le réglage direct) en a une.
+  // Les zones sans campus publié, ni dessus ni dessous, sortent de l'arbre, sauf celles où le relevé a été ouvert et celles
+  // qui ont leur propre état public (« relevé en cours », « déploiement programmé » : Brazzaville n'a pas encore d'école,
+  // mais la carte la montre et son lien doit mener quelque part). Leur page dit l'état de la carte (`etat-zone.ts`).
+  // Ouvrir un pays ne crée pas la page de chacune de ses villes : seule la zone réglée elle-même en a une.
   const ouverteDirectement = (p: PageDivision): boolean =>
-    p.division.ouverte || p.fusionnees.some((f) => f.ouverte);
+    p.division.ouverte ||
+    p.division.deploiement !== null ||
+    p.fusionnees.some((f) => f.ouverte || f.deploiement !== null);
   const aUnePage = (p: PageDivision): boolean =>
     p.ecoles.length > 0 || ouverteDirectement(p) || p.enfants.some(aUnePage);
   for (const p of pages.values()) p.enfants = p.enfants.filter(aUnePage);
@@ -186,6 +189,30 @@ export const NOM_NIVEAU: Readonly<Record<number, string>> = {
 /** « 3 écoles » / « 1 école » */
 export function compterEcoles(n: number): string {
   return n === 1 ? '1 école' : `${n} écoles`;
+}
+
+/**
+ * Le compteur d'une page de zone, dit comme celui de l'accueil : « 2 écoles, dont 2 vues sur place et 1 confirmée par la
+ * direction ». Un nombre seul, sans « dont », quand rien n'est vu ni confirmé.
+ */
+export function phraseDeCompte(total: number, vues: number, confirmees: number): string {
+  const morceaux = [
+    vues > 0 ? `${vues} vue${vues > 1 ? 's' : ''} sur place` : null,
+    confirmees > 0 ? `${confirmees} confirmée${confirmees > 1 ? 's' : ''} par la direction` : null,
+  ].filter((x): x is string => x !== null);
+  return morceaux.length > 0
+    ? `${compterEcoles(total)}, dont ${morceaux.join(' et ')}`
+    : compterEcoles(total);
+}
+
+/** Le nom d'une zone tel qu'on l'écrit dans une phrase : le pays s'appelle « Congo-Brazzaville », jamais « Congo » seul. */
+export function nomAffiche(nom: string, niveau: number): string {
+  return niveau === 0 ? 'Congo-Brazzaville' : nom;
+}
+
+/** « à Pointe-Noire », « à Ngoyo », « au Congo-Brazzaville » : la préposition d'une zone. */
+export function lieuAvecPreposition(nom: string, niveau: number): string {
+  return niveau === 0 ? `au ${nomAffiche(nom, niveau)}` : `à ${nom}`;
 }
 
 /**

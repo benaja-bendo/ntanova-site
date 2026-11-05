@@ -49,6 +49,7 @@ const D = {
   ngoyo: 'd0000000-0000-4000-8000-000000000005',
   loandjili: 'd0000000-0000-4000-8000-000000000006',
   mongo: 'd0000000-0000-4000-8000-00000000000d',
+  mvou: 'd0000000-0000-4000-8000-00000000000e',
   quartier: 'd0000000-0000-4000-8000-000000000007',
   bzvDep: 'd0000000-0000-4000-8000-000000000008',
   bzvVille: 'd0000000-0000-4000-8000-000000000009',
@@ -110,6 +111,18 @@ const DIVISIONS_BRUTES: DivisionPublique[] = [
     ['congo', 'pointe-noire', 'pointe-noire', 'mongo-mpoukou'],
     5,
   ),
+  // Une zone « déploiement programmé » sans école ni relevé ouvert : sa page ne vient que de son état public (comme
+  // Brazzaville en production).
+  division(
+    D.mvou,
+    D.pnVille,
+    3,
+    'arrondissement',
+    'Mvou-Mvou',
+    'mvou-mvou',
+    ['congo', 'pointe-noire', 'pointe-noire', 'mvou-mvou'],
+    2,
+  ),
   division(D.quartier, D.loandjili, 4, 'quarter', '[Quartier Exemple]', 'quartier-exemple', [
     'congo',
     'pointe-noire',
@@ -158,6 +171,7 @@ const ETATS_PUBLICS: Partial<Record<string, 'actif' | 'programme'>> = {
   [D.ngoyo]: 'actif',
   [D.loandjili]: 'programme',
   [D.mongo]: 'programme',
+  [D.mvou]: 'programme',
   [D.bzvVille]: 'programme',
 };
 const POINTS: Partial<Record<string, { latitude: number; longitude: number }>> = {

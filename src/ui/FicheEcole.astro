@@ -45,8 +45,10 @@ interface Props {
   autres: EcolePubliee[];
   /** « Une erreur sur la fiche… » : le lien WhatsApp, s'il est configuré. */
   erreur: string | null;
+  /** « Je dirige cette école et je souhaite confirmer sa fiche » : le lien WhatsApp avec son nom et son adresse, s'il est configuré. */
+  confirmer?: string | null;
 }
-const { e, zone, autres, erreur } = Astro.props;
+const { e, zone, autres, erreur, confirmer = null } = Astro.props;
 
 const niveaux = e.niveaux.map((n) => libelleNiveau[n]).join(', ');
 const typeSeLit = typeInformatif(e.typeEcole);
@@ -270,10 +272,11 @@ const nomZone = zone.division.nom;
         <p>
           <b>Vous gérez cet établissement&nbsp;?</b>
         </p>
-        <p>Complétez cette fiche avec nous. Rien n'est publié sans votre accord daté.</p>
-        <a class="bouton bouton-accent" href="/pour-les-ecoles/">
-          Compléter cette fiche
+        <p>Confirmez cette fiche avec nous. Rien n'est publié sans votre accord daté.</p>
+        <a class="bouton bouton-accent" href={confirmer ?? '/pour-les-ecoles/'}>
+          Confirmer cette fiche
         </a>
+        {confirmer && <a href="/pour-les-ecoles/">Ce que nous vous demanderons</a>}
         {erreur && <a href={erreur}>Signaler une erreur</a>}
       </aside>
     </div>

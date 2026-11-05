@@ -405,6 +405,11 @@ const cycles = [
     border-radius: 12px;
     box-shadow: var(--ombre-flottante);
   }
+  /* Le zoom de MapLibre se dessine à 29 px : c'est une cible de doigt, elle en mesure 44 (accueil et /carte/). */
+  .explorateur .maplibregl-ctrl-group button {
+    width: var(--cible-min);
+    height: var(--cible-min);
+  }
   /* --- La page carte active : tiroir sur téléphone, panneau sur ordinateur ---
      Tout tient dans l'écran : seuls la carte, les puces et le tiroir bougent. Sur iPhone, `100vh` est la hauteur SANS les
      barres du navigateur et `100dvh` celle qu'on voit : le corps de la page prenait l'une (`base.css`) et la carte l'autre,

@@ -11,7 +11,13 @@ import type { GetStaticPaths } from 'astro';
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../../infra/index';
 import { coinsDe, arrondissementDessine, surCarte } from '../../modele/carte/plan';
-import { lienCarte, lienDivision, lienEcole } from '../../modele/geo-divisions';
+import {
+  ecolesSous,
+  lienCarte,
+  lienDivision,
+  lienEcole,
+  lieuAvecPreposition,
+} from '../../modele/geo-divisions';
 import { cheminImagePartage, donneesEcole, preuveDePartage } from '../../modele/partage';
 import { lienWhatsApp } from '../../modele/whatsapp';
 import FicheEcole from '../../ui/FicheEcole.astro';
@@ -76,12 +82,28 @@ const zone = e ? site.arbre.parId.get(e.divisionId) : undefined;
 const autres = e
   ? site.ecoles.filter((x) => x.institutionId === e.institutionId && x.id !== e.id)
   : [];
+// « Une école manque ? » : le message dit où, et, dans une zone sans école, que la personne la connaît ou la dirige.
+const lieuDeLaPage = page ? lieuAvecPreposition(page.division.nom, page.division.niveau) : '';
 const manque = page
-  ? lienWhatsApp(PUBLIC_WHATSAPP, `Bonjour NTanova, une école manque à ${page.division.nom} : `)
+  ? lienWhatsApp(
+      PUBLIC_WHATSAPP,
+      ecolesSous(page).length === 0
+        ? `Bonjour NTanova, je connais ou je dirige une école ${lieuDeLaPage} : `
+        : `Bonjour NTanova, une école manque ${lieuDeLaPage} : `,
+    )
   : null;
 const erreur = e
   ? lienWhatsApp(PUBLIC_WHATSAPP, `Bonjour NTanova, une erreur sur la fiche de ${e.nom} : `)
   : null;
+// « Confirmer cette fiche » : le message part déjà avec le nom de l'école, son lieu et l'adresse de sa fiche, pour que NTanova
+// sache de quelle fiche il s'agit sans rien redemander.
+const confirmer =
+  e && zone
+    ? lienWhatsApp(
+        PUBLIC_WHATSAPP,
+        `Bonjour NTanova, je dirige ${e.nom}${e.etiquette ? ` (${e.etiquette})` : ''}, à ${zone.noms.join(', ')}, et je souhaite confirmer sa fiche : ${new URL(lienEcole(e), Astro.site ?? Astro.url).href}`,
+      )
+    : null;
 ---
 
 {cas.genre === 'renvoi' ? (
@@ -114,6 +136,6 @@ const erreur = e
     image={{ chemin: cheminImagePartage(e), alt: `${e.nom} : ${preuveDePartage(e).texte}` }}
     donnees={donneesEcole(e, new URL(lienEcole(e), Astro.site ?? Astro.url).href)}
   >
-    <FicheEcole e={e} zone={zone} autres={autres} erreur={erreur} />
+    <FicheEcole e={e} zone={zone} autres={autres} erreur={erreur} confirmer={confirmer} />
   </PagePublique>
 ) : null}
