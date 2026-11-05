@@ -130,6 +130,9 @@ insert into public.field_submissions (id, relay_id, batch_id, taken_at, position
   ('63000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-0000000000a7', '62000000-0000-4000-8000-000000000008', now(), 'SRID=4326;POINT(12.55 -4.85)', '[Sur la limite]'),
   ('63000000-0000-4000-8000-000000000005', '00000000-0000-4000-8000-0000000000a7', '62000000-0000-4000-8000-000000000007', now(), 'SRID=4326;POINT(12.515 -4.885)', '[Au lot d''essai]');
 update public.field_submissions set outside_batch = true where id = '63000000-0000-4000-8000-000000000001';
+-- Alice n'est pas sur le lot d'essai : à l'arrivée, la base remplace ce lot périmé (`lot_essai_perime.test.sql`). Cette
+-- fiche est arrivée PENDANT l'essai : on la replace dans le lot d'essai, comme elle l'était.
+update public.field_submissions set batch_id = '62000000-0000-4000-8000-000000000007' where id = '63000000-0000-4000-8000-000000000005';
 
 select is(prive.attach_submissions_to_fine_lots('70000000-0000-4000-8000-000000000001'), 2,
   'Deux relevés sont rattachés : ceux dont la position est dans un seul lot fin');

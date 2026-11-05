@@ -261,6 +261,27 @@ test.describe('administration', () => {
     expect(motifs.join(' ')).not.toMatch(/lot/i);
   });
 
+  test('un relais en attente est proposé sans lot, jamais sur le lot d’essai', async ({ page }) => {
+    await seConnecter(page, '/admin/#valider');
+    await page.getByRole('link', { name: 'Relais' }).click();
+    const ligne = page.getByRole('row', { name: /\[Relais en attente\]/ });
+    await expect(ligne.getByText('À activer')).toBeVisible();
+    // Sans toucher au menu : « Activer » ne doit pas ranger le relais en essai (ses fiches ne se publieraient jamais).
+    await expect(ligne.getByLabel(/Lot de/)).toHaveValue('');
+    await ligne.getByRole('button', { name: 'Activer' }).click();
+    await expect(page.getByRole('status')).toHaveText(/est actif/);
+    await expect(page.getByRole('row', { name: /\[Relais en attente\]/ })).toContainText(
+      'Aucun lot',
+    );
+    // Le lot d'essai reste proposé dans le menu, pour qui voudrait un jour former un relais.
+    await expect(
+      page
+        .getByRole('row', { name: /\[Relais en attente\]/ })
+        .getByLabel(/Lot de/)
+        .locator('option'),
+    ).toContainText(['Sans lot', 'Essai']);
+  });
+
   test('un relais en attente est activé sans lot : il relève où il se trouve', async ({ page }) => {
     await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Relais' }).click();
