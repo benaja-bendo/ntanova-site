@@ -658,6 +658,9 @@ textarea.champ {
 
 @media (max-width: 47.99rem) {
   .dialogue-tiroir {
+    inset: 0;
+    width: auto;
+    min-width: 0;
     border: 0;
     border-radius: 0;
   }
