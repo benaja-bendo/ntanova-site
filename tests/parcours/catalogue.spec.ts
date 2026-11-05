@@ -492,6 +492,36 @@ test.describe('zones et lots', () => {
     ).toBeVisible();
   });
 
+  test('l’état sur la carte se règle zone par zone, sans toucher à l’ouverture aux relais', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#valider');
+    await page.getByRole('link', { name: 'Zones' }).click();
+    await expect(page.getByRole('heading', { name: 'Zones et lots' })).toBeVisible();
+    // Les relais peuvent relever partout : le texte ne dit plus que « seule une zone ouverte » le permet.
+    await expect(
+      page.getByText(/Les relais peuvent relever partout au Congo-Brazzaville/),
+    ).toBeVisible();
+    await expect(page.getByText(/ne relèvent que dans une zone ouverte/)).toHaveCount(0);
+
+    // Loandjili : « Déploiement programmé » au départ (grisée sur la carte), fermée aux relais.
+    const etat = page.getByRole('combobox', { name: 'État de Loandjili sur la carte' });
+    await expect(etat).toHaveValue('programme');
+    await etat.selectOption({ label: 'Relevé en cours' });
+    await expect(page.getByRole('status')).toHaveText(
+      'Loandjili est « Relevé en cours » sur la carte. Les relais ne sont pas concernés.',
+    );
+    await expect(etat).toHaveValue('actif');
+    // L'ouverture aux relais n'a pas bougé.
+    await expect(page.getByRole('button', { name: 'Ouvrir Loandjili au relevé' })).toBeVisible();
+
+    await etat.selectOption({ label: 'Pas encore couverte' });
+    await expect(page.getByRole('status')).toContainText('Pas encore couverte');
+    await expect(etat).toHaveValue('');
+    // Une zone qui n'est pas dessinée sur la carte (un quartier, un pays) n'a pas de réglage.
+    await expect(page.getByRole('combobox', { name: /État de Congo sur la carte/ })).toHaveCount(0);
+  });
+
   test('une zone nouvelle s’ouvre avec la zone qui la contient, ou reste fermée avec elle', async ({
     page,
   }) => {

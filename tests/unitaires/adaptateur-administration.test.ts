@@ -585,6 +585,24 @@ describe('l’adaptateur Supabase de l’administration', () => {
       ]);
     });
 
+    it('règle l’état public d’une zone sans toucher à son ouverture aux relais', async () => {
+      const { port, appels } = fausseApi({
+        set_division_public_status: { data: null, error: null },
+      });
+      await port.etatPublicZone('d-1', 'actif');
+      await port.etatPublicZone('d-1', 'programme');
+      await port.etatPublicZone('d-1', null);
+      expect(appels).toEqual([
+        { nom: 'set_division_public_status', arguments: { p_division: 'd-1', p_status: 'actif' } },
+        {
+          nom: 'set_division_public_status',
+          arguments: { p_division: 'd-1', p_status: 'programme' },
+        },
+        { nom: 'set_division_public_status', arguments: { p_division: 'd-1', p_status: null } },
+      ]);
+      expect(appels.map((a) => a.nom)).not.toContain('set_division_open');
+    });
+
     it('compte une zone avec tout ce qu’elle contient', async () => {
       const { port } = fausseApi(
         {},

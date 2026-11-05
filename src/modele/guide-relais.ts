@@ -157,9 +157,9 @@ export const GUIDE: Guide = {
             {
               type: 'texte',
               html:
-                'NTanova vous indique sur WhatsApp un <b>secteur</b> de Tié-Tié ou de Ngoyo : un quartier ou un groupe ' +
+                'NTanova vous indique sur WhatsApp un <b>secteur</b> : un quartier ou un groupe ' +
                 'de rues, à parcourir à pied. C’est un <b>conseil, pas une limite</b> : relevez <b>toutes</b> les écoles ' +
-                'que vous croisez à Tié-Tié et à Ngoyo, de la crèche à l’université. Essayez de couvrir votre secteur ' +
+                'que vous croisez, où que vous soyez au Congo-Brazzaville, de la crèche à l’université. Essayez de couvrir votre secteur ' +
                 'avant la date « à rendre le » affichée sur l’écran « Mon secteur ».',
             },
             { type: 'titre', texte: 'L’état d’esprit' },

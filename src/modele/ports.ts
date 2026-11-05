@@ -518,6 +518,12 @@ export interface DivisionVue {
   chemin: string;
   /** Les relais peuvent-ils relever ici ? */
   ouverte: boolean;
+  /**
+   * Ce que la carte du site dit aux familles de cette zone : « actif » (relevé en cours), « programme » (déploiement
+   * programmé), rien (pas encore couverte). **Distinct de `ouverte`** (ticket 102) : l'administration le règle ici,
+   * à part.
+   */
+  deploiement: 'actif' | 'programme' | null;
   ecoles: number;
   publiees: number;
   /** D'où viennent les fiches : relevées par un relais, ajoutées par l'administration, importées. */
@@ -742,6 +748,11 @@ export interface PortAdministration {
   divisions(): Promise<DivisionVue[]>;
   /** Ouvre ou ferme une zone aux relais. `PUT /admin/divisions/{id}/ouverture` */
   ouvrirZone(divisionId: string, ouverte: boolean): Promise<void>;
+  /**
+   * Règle ce que la carte du site dit d'une zone : relevé en cours, déploiement programmé, ou rien (pas encore couverte).
+   * Ne touche jamais à l'ouverture aux relais. `set_division_public_status`
+   */
+  etatPublicZone(divisionId: string, etat: 'actif' | 'programme' | null): Promise<void>;
   /** Ajoute un quartier, une zone, une ville ou un arrondissement sous une division. `POST /admin/divisions` */
   ajouterDivision(
     parentId: string,

@@ -113,6 +113,8 @@ interface DivisionFausse {
   slug: string;
   chemin: string;
   ouverte: boolean;
+  /** L'état public sur la carte ; absent des états gardés avant ce réglage (= non couverte). */
+  deploiement?: 'actif' | 'programme' | null;
 }
 
 interface LotFaux {
@@ -242,6 +244,17 @@ const DIVISIONS_INITIALES: DivisionFausse[] = [
   div('d-dolisie', 'd-ni', 2, 'commune', 'Dolisie', 'dolisie', 'congo.niari.dolisie'),
 ];
 
+/** L'état public de départ, celui de la base : deux arrondissements actifs, les autres programmés. */
+const DEPLOIEMENTS_INITIAUX: Partial<Record<string, 'actif' | 'programme'>> = {
+  'd-pn-tie-tie': 'actif',
+  'd-pn-ngoyo': 'actif',
+  'd-pn-lumumba': 'programme',
+  'd-pn-mvou-mvou': 'programme',
+  'd-pn-loandjili': 'programme',
+  'd-pn-mongo-mpoukou': 'programme',
+  'd-bz': 'programme',
+};
+
 const LOT = {
   id: '00000000-0000-4000-8000-0000000000e1',
   nom: 'Tié-Tié',
@@ -293,7 +306,12 @@ const etatInitial = (): Etat => ({
       genreMission: 'locate',
     },
   },
-  divisions: Object.fromEntries(DIVISIONS_INITIALES.map((d) => [d.id, d])),
+  divisions: Object.fromEntries(
+    DIVISIONS_INITIALES.map((d) => [
+      d.id,
+      { ...d, deploiement: DEPLOIEMENTS_INITIAUX[d.id] ?? null },
+    ]),
+  ),
   lots: LOTS_INITIAUX,
   messages: {},
   paie: { semaines: [], numeros: {}, deja: [] },
@@ -1435,6 +1453,7 @@ const admin: PortAdministration = {
         slug: d.slug,
         chemin: d.chemin,
         ouverte: d.ouverte,
+        deploiement: d.deploiement ?? null,
         ecoles: siens.length,
         publiees: siens.filter((x) => x.publication === 'publiee').length,
         relevees: siens.filter((x) => x.origine === 'field').length,
@@ -1449,6 +1468,14 @@ const admin: PortAdministration = {
     ecrire((e) => {
       const d = e.divisions[divisionId];
       if (d) d.ouverte = ouverte;
+    });
+  },
+  async etatPublicZone(divisionId, etat) {
+    await reseau();
+    if (!lireEtat().divisions[divisionId]) throw new ErreurDecision('Division introuvable.');
+    ecrire((e) => {
+      const d = e.divisions[divisionId];
+      if (d) d.deploiement = etat;
     });
   },
   async ajouterDivision(parentId, genre, nom, adresse) {
