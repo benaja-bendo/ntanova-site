@@ -11,6 +11,8 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
   await page.getByRole('button', { name: 'Accepter la fiche' }).click();
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
+  await expect(page.getByRole('combobox', { name: 'Zone à publier' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
   await ouvrirGestion(ligne, 'Équipements');
   const d = page.getByRole('dialog', { name: 'Gérer [École 1]' }),
     f = d.getByRole('form');

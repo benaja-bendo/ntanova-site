@@ -11,6 +11,8 @@ test('frais déclarés : ajout, relecture, modification et retrait, sans badge n
   await page.getByRole('button', { name: 'Accepter la fiche' }).click();
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
+  await expect(page.getByRole('combobox', { name: 'Zone à publier' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
   await ouvrirGestion(ligne, 'Frais déclarés');
   const dialog = page.getByRole('dialog', { name: 'Gérer [École 1]' });
   const f = dialog.getByRole('form');

@@ -417,6 +417,8 @@
 
 .admin-choix-lot {
   width: auto;
+  min-width: 0;
+  max-width: 100%;
   min-height: var(--cible-min);
   padding: var(--espace-1) var(--espace-3);
 }
