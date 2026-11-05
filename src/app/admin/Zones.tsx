@@ -6,6 +6,7 @@
  * Ouvrir une zone n'est pas annoncer une couverture : le site n'affiche que ce qui est publié.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { libelleDeploiement } from '../../modele/carte/donnees';
 import { cheminLisible } from '../../modele/geo-divisions';
 import { libelleGenreDivision } from '../../modele/libelles';
 import type { Valeur } from '../../modele/listes';
@@ -298,6 +299,14 @@ function NouveauLot({
   );
 }
 
+/** Les zones que la carte du site dessine ou pointe : une ville, une commune, un district, un arrondissement. */
+const GENRES_SUR_LA_CARTE: readonly Valeur<'geo_kind'>[] = [
+  'city',
+  'commune',
+  'district',
+  'arrondissement',
+];
+
 export function Zones({ admin }: { admin: PortAdministration }) {
   const [divisions, setDivisions] = useState<DivisionVue[] | null>(null);
   const [lots, setLots] = useState<LotVu[]>([]);
@@ -356,6 +365,25 @@ export function Zones({ admin }: { admin: PortAdministration }) {
     }
   };
 
+  // Ce que la carte du site dit de la zone : elle ne touche pas à l'ouverture aux relais.
+  const regler = async (d: DivisionVue, etat: 'actif' | 'programme' | null) => {
+    setEnCours(true);
+    setErreur(null);
+    try {
+      await admin.etatPublicZone(d.id, etat);
+      setAnnonce(
+        etat === null
+          ? `${d.nom} n’apparaît plus comme zone suivie sur la carte : « Pas encore couverte ». Les relais ne sont pas concernés.`
+          : `${d.nom} est « ${libelleDeploiement[etat]} » sur la carte. Les relais ne sont pas concernés.`,
+      );
+      charger();
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
   // Un secteur est « rendu » quand l'administration le déclare terminé : c'est ce que compte la mesure, à sa date.
   const rendre = async (l: LotVu, rendu: boolean) => {
     setEnCours(true);
@@ -394,9 +422,12 @@ export function Zones({ admin }: { admin: PortAdministration }) {
         <div>
           <h1>Zones et lots</h1>
           <p className="texte-doux">
-            Les relais ne relèvent que dans une zone ouverte. Ouvrir une zone ouvre tout ce qu’elle
-            contient. Les écoles ajoutées par toi ou importées sont comptées à part de celles qu’un
-            relais a relevées.
+            Les relais peuvent relever partout au Congo-Brazzaville : « ouverte » dit où NTanova
+            envoie des relais et où l’on pose des secteurs, jamais où il leur est interdit de
+            relever. Ouvrir une zone ouvre tout ce qu’elle contient. La colonne « Sur la carte »
+            règle ce que les familles lisent sur la carte du site, à part : elle ne change rien pour
+            les relais, et une fiche n’apparaît sur le site qu’une fois publiée. Les écoles ajoutées
+            par toi ou importées sont comptées à part de celles qu’un relais a relevées.
           </p>
         </div>
       </div>
@@ -434,12 +465,13 @@ export function Zones({ admin }: { admin: PortAdministration }) {
               <th scope="col">Publiées</th>
               <th scope="col">Relevées / ajoutées / importées</th>
               <th scope="col">Relevé</th>
+              <th scope="col">Sur la carte</th>
             </tr>
           </thead>
           <tbody>
             {divisions === null && !erreur && (
               <tr>
-                <td colSpan={5} className="texte-doux" aria-busy="true">
+                <td colSpan={6} className="texte-doux" aria-busy="true">
                   Chargement des zones…
                 </td>
               </tr>
@@ -482,6 +514,30 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                       >
                         Fermée : ouvrir
                       </button>
+                    )}
+                  </td>
+                  <td>
+                    {GENRES_SUR_LA_CARTE.includes(d.genre) ? (
+                      <select
+                        className="champ"
+                        disabled={enCours}
+                        aria-label={`État de ${d.nom} sur la carte`}
+                        value={d.deploiement ?? ''}
+                        onChange={(ev) =>
+                          void regler(
+                            d,
+                            ev.target.value === ''
+                              ? null
+                              : (ev.target.value as 'actif' | 'programme'),
+                          )
+                        }
+                      >
+                        <option value="">Pas encore couverte</option>
+                        <option value="programme">{libelleDeploiement.programme}</option>
+                        <option value="actif">{libelleDeploiement.actif}</option>
+                      </select>
+                    ) : (
+                      <span className="texte-doux">—</span>
                     )}
                   </td>
                 </tr>

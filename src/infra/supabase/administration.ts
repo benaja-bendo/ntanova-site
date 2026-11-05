@@ -824,10 +824,11 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           slug: string;
           path: string;
           open_for_fieldwork: boolean;
+          public_status?: 'actif' | 'programme' | null;
         }>((de, a) =>
           supabase()
             .from('geo_divisions')
-            .select('id, parent_id, level, kind, name, slug, path, open_for_fieldwork')
+            .select('id, parent_id, level, kind, name, slug, path, open_for_fieldwork, public_status')
             .order('path')
             .range(de, a),
         ),
@@ -861,6 +862,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           slug: d.slug,
           chemin: d.path,
           ouverte: d.open_for_fieldwork,
+          deploiement: d.public_status ?? null,
           ecoles: somme('campuses'),
           publiees: somme('published'),
           relevees: somme('from_field'),
@@ -874,6 +876,14 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const { error } = await supabase().rpc('set_division_open', {
         p_division: divisionId,
         p_open: ouverte,
+      });
+      decider(error);
+    },
+
+    async etatPublicZone(divisionId, etat) {
+      const { error } = await supabase().rpc('set_division_public_status', {
+        p_division: divisionId,
+        p_status: etat,
       });
       decider(error);
     },
