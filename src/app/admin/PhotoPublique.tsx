@@ -7,12 +7,16 @@ export function PhotoPublique({
   nom,
   admin,
   fermer,
+  integre = false,
+  surOccupation,
   surChangement,
 }: {
   ecoleId: string;
   nom: string;
   admin: PortAdministration;
   fermer: () => void;
+  integre?: boolean;
+  surOccupation?: (occupe: boolean) => void;
   surChangement: (texte: string) => void;
 }) {
   const [photos, setPhotos] = useState<PhotoVue[] | null>(null),
@@ -20,6 +24,10 @@ export function PhotoPublique({
     [choix, setChoix] = useState(''),
     [confirme, setConfirme] = useState(false),
     [enCours, setEnCours] = useState(false);
+  useEffect(() => {
+    surOccupation?.(enCours);
+    return () => surOccupation?.(false);
+  }, [enCours, surOccupation]);
   useEffect(() => {
     let vivant = true;
     void admin
@@ -57,7 +65,7 @@ export function PhotoPublique({
   };
   const enseignes = photos?.filter((p) => p.role === 'signboard') ?? [];
   return (
-    <Dialogue titre={`Photo publique de ${nom}`} fermer={fermer}>
+    <Dialogue titre={`Photo publique de ${nom}`} fermer={fermer} integre={integre}>
       <h2>Photo d’enseigne publique</h2>
       <p>
         Une seule enseigne, choisie parmi les relevés acceptés de cette école. « Publiable » ne veut

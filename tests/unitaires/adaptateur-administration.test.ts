@@ -995,3 +995,63 @@ describe('la vue d’ensemble, côté Supabase (ticket n° 76)', () => {
     await expect(port.vueEnsemble()).rejects.toBeInstanceOf(ErreurDecision);
   });
 });
+
+describe('les corrections préparées à l’acceptation', () => {
+  it('envoie les valeurs explicites dans un seul appel, y compris les effacements', async () => {
+    const { port, appels } = fausseApi({
+      accept_reviewed_submission: { data: 'campus-revu', error: null },
+    });
+    await expect(
+      port.accepter('releve-revu', {
+        mode: 'new_institution',
+        corrections: {
+          nom: 'École corrigée',
+          typeEcole: 'publique',
+          niveaux: ['college'],
+          programme: null,
+          repere: 'Marché',
+          numeroEnseigne: null,
+        },
+      }),
+    ).resolves.toBe('campus-revu');
+    expect(appels).toEqual([
+      {
+        nom: 'accept_reviewed_submission',
+        arguments: {
+          p_submission: 'releve-revu',
+          p_mode: 'new_institution',
+          p_campus: null,
+          p_institution: null,
+          p_label: null,
+          p_programs: [],
+          p_division: null,
+          p_changes: {
+            sign_name: 'École corrigée',
+            school_kind: 'publique',
+            levels: ['college'],
+            curriculum_note: null,
+            landmark: 'Marché',
+            sign_phone: null,
+          },
+        },
+      },
+    ]);
+  });
+  it('garde l’appel historique quand aucune information n’a changé', async () => {
+    const { port, appels } = fausseApi({ accept_submission: { data: 'campus', error: null } });
+    await port.accepter('releve', { corrections: {} });
+    expect(appels.map((a) => a.nom)).toEqual(['accept_submission']);
+  });
+  it('propage un refus de correction sans tenter une acceptation non corrigée', async () => {
+    const { port, appels } = fausseApi({
+      accept_reviewed_submission: {
+        data: null,
+        error: { code: '22023', message: 'Nom invalide.' },
+      },
+    });
+    await expect(port.accepter('releve', { corrections: { nom: '' } })).rejects.toThrow(
+      'Nom invalide.',
+    );
+    expect(appels.map((a) => a.nom)).toEqual(['accept_reviewed_submission']);
+  });
+});

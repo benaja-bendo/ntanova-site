@@ -342,7 +342,10 @@
 }
 
 .admin-decision {
-  padding-top: var(--espace-4);
+  min-inline-size: 0;
+  margin: 0;
+  padding: var(--espace-4) 0 0;
+  border: 0;
   border-top: 1px solid var(--trait);
 }
 
@@ -372,6 +375,7 @@
 
 /* Relais : des tableaux qui défilent sur un petit écran. */
 .admin-tableau {
+  position: relative;
   overflow-x: auto;
   border-radius: var(--rayon-l);
   background: var(--fond-releve);
@@ -413,6 +417,8 @@
 
 .admin-choix-lot {
   width: auto;
+  min-width: 0;
+  max-width: 100%;
   min-height: var(--cible-min);
   padding: var(--espace-1) var(--espace-3);
 }
@@ -483,36 +489,6 @@
   background: var(--marque-appuyee);
 }
 
-/* Le formulaire de contact sort du tableau : ses champs restent dans la largeur du téléphone. */
-.dialogue-admin {
-  width: min(42rem, calc(100% - 2rem));
-  max-width: calc(100% - 2rem);
-  max-height: calc(100dvh - 2rem);
-  overflow: auto;
-  margin: auto;
-  padding: var(--espace-3);
-  border: 1px solid var(--trait);
-  border-radius: var(--rayon-s);
-  background: var(--fond);
-  color: var(--texte);
-  text-align: left;
-}
-.dialogue-admin .admin-motif {
-  max-width: none;
-  min-width: 0;
-  grid-template-columns: minmax(0, 1fr);
-  padding: var(--espace-2) 0;
-}
-.dialogue-admin .champ {
-  min-width: 0;
-  width: 100%;
-}
-
-.dialogue-admin::backdrop {
-  background: var(--texte);
-  opacity: 0.35;
-}
-
 .admin-frais-liste,
 .admin-equipements-liste {
   list-style: none;
@@ -526,4 +502,119 @@
   gap: var(--espace-2);
   border-bottom: 1px solid var(--trait);
   padding-block: var(--espace-3);
+}
+
+.ecoles-recherche {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espace-4);
+}
+.ecoles-tableau {
+  overflow: visible;
+}
+.ecoles-tableau table {
+  min-width: 0;
+}
+.ecole-actions {
+  min-width: 18rem;
+}
+.ecole-actions .bouton {
+  font-size: var(--taille-secondaire);
+  padding-inline: var(--espace-3);
+}
+@media (max-width: 47.99rem) {
+  .ecoles-recherche {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ecoles-tableau {
+    background: transparent;
+    box-shadow: none;
+  }
+  .ecoles-tableau table,
+  .ecoles-tableau tbody {
+    display: block;
+  }
+  .ecoles-tableau thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    contain: strict;
+  }
+  .ecoles-tableau tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--espace-3);
+    margin-bottom: var(--espace-4);
+    padding: var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-l);
+    background: var(--fond-releve);
+  }
+  .ecoles-tableau td {
+    display: block;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  .ecoles-tableau td:first-child {
+    grid-column: 1;
+  }
+  .ecoles-tableau td:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .ecoles-tableau td:nth-child(n + 3),
+  .ecoles-tableau td[colspan] {
+    grid-column: 1 / -1;
+  }
+  .ecole-actions {
+    min-width: 0;
+  }
+  .ecole-actions > .bouton {
+    flex: 1 1 auto;
+  }
+}
+
+.ecoles-origine summary {
+  min-height: var(--cible-min);
+  padding-block: var(--espace-2);
+  color: var(--marque);
+  font-weight: 700;
+  cursor: pointer;
+}
+.ecoles-origine[open] summary {
+  margin-bottom: var(--espace-2);
+}
+
+.admin-personnes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.admin-personnes li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 47.99rem) {
+  .section-repliable .admin-champs {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--espace-1);
+  }
+  .section-repliable .admin-champs dd:not(:last-child) {
+    margin-bottom: var(--espace-2);
+  }
+}
+
+/* Le groupe natif protège aussi les champs pendant l’écriture. */
+.formulaire-occupe {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.admin-motif.formulaire-occupe {
+  padding: var(--espace-4);
 }

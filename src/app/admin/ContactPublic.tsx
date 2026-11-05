@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialogue } from '../../ui/Dialogue';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
@@ -19,6 +19,8 @@ export function ContactPublic({
   admin,
   surChangement,
   fermer,
+  integre = false,
+  surOccupation,
 }: {
   ecoleId: string;
   nom: string;
@@ -26,6 +28,8 @@ export function ContactPublic({
   admin: PortAdministration;
   surChangement: (texte: string) => void;
   fermer: () => void;
+  integre?: boolean;
+  surOccupation?: (occupe: boolean) => void;
 }) {
   const [numero, setNumero] = useState(contact?.numero ?? '');
   const [accordLe, setAccordLe] = useState('');
@@ -34,6 +38,10 @@ export function ContactPublic({
   const [autorise, setAutorise] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  useEffect(() => {
+    surOccupation?.(enCours);
+    return () => surOccupation?.(false);
+  }, [enCours, surOccupation]);
   const agir = async (retirer: boolean) => {
     const resultat = retirer
       ? { contact: null, erreur: null }
@@ -63,7 +71,7 @@ export function ContactPublic({
     }
   };
   return (
-    <Dialogue titre={`Contact public de ${nom}`} fermer={fermer}>
+    <Dialogue titre={`Contact public de ${nom}`} fermer={fermer} integre={integre}>
       <form
         className="admin-motif"
         aria-label={`Contact public de ${nom}`}

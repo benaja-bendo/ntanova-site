@@ -338,6 +338,8 @@ export interface VueEnsemble {
 }
 
 export interface DetailReleve extends ReleveAValider {
+  /** Valeurs retenues par l’administration à l’acceptation ; le relevé original reste intact. */
+  revision?: { valeurs: CorrectionEcole; le: string; auteur: string } | null;
   /** Le relais qui l'a envoyé : de quoi lire ce que son téléphone a signalé (ticket #77). */
   relaisId: string;
   /**
@@ -419,6 +421,8 @@ export interface FormationSaisie {
 export type ModeAcceptation = 'new_institution' | 'new_campus' | 'update_campus' | 'add_cycle';
 
 export interface DecisionAcceptation {
+  /** Corrections explicites d’une nouvelle école, appliquées dans la même transaction que l’acceptation. */
+  corrections?: CorrectionEcole;
   mode?: ModeAcceptation;
   campusId?: string | null;
   institutionId?: string | null;

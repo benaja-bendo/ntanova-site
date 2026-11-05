@@ -1,3 +1,4 @@
+import { Bouton } from '../../ui/actions';
 /**
  * Les personnes à contacter pour une fiche (ticket #96) : celles que le relais a rencontrées, et celles que
  * l'administration note elle-même (un numéro reçu par WhatsApp que l'application n'a pas pu prendre). Trois au plus.
@@ -44,8 +45,10 @@ export function Personnes({
 }) {
   const [edition, setEdition] = useState<Edition>(null);
   const [aEffacer, setAEffacer] = useState<string | null>(null);
+  const [operation, setOperation] = useState<'enregistrement' | 'suppression' | null>(null);
 
   const effacer = async (c: ContactDirection) => {
+    setOperation('suppression');
     surErreur(null);
     try {
       await admin.effacerContact(c.id, null);
@@ -54,140 +57,154 @@ export function Personnes({
     } catch (e) {
       surErreur(messageErreur(e));
     } finally {
+      setOperation(null);
       setAEffacer(null);
     }
   };
 
   const enregistrer = async (saisie: PersonneSaisie): Promise<void> => {
     surErreur(null);
-    const contact = versContactASaisir(saisie);
-    if (edition?.mode === 'correction') {
-      await admin.corrigerContact(edition.contact.id, contact);
-      annoncer('La personne est corrigée.');
-    } else {
-      // La personne rejoint la fiche qui porte déjà les autres (l'original d'une correction), sinon la fiche regardée.
-      await admin.ajouterContact(ficheQuiPorteLesPersonnes(personnes, id), contact);
-      annoncer('La personne est ajoutée.');
+    setOperation('enregistrement');
+    try {
+      const contact = versContactASaisir(saisie);
+      if (edition?.mode === 'correction') {
+        await admin.corrigerContact(edition.contact.id, contact);
+        annoncer('La personne est corrigée.');
+      } else {
+        // La personne rejoint la fiche qui porte déjà les autres (l'original d'une correction), sinon la fiche regardée.
+        await admin.ajouterContact(ficheQuiPorteLesPersonnes(personnes, id), contact);
+        annoncer('La personne est ajoutée.');
+      }
+      await surChangement();
+      setEdition(null);
+    } finally {
+      setOperation(null);
     }
-    await surChangement();
-    setEdition(null);
   };
 
   const plusieurs = personnes.length > 1;
   return (
     <section className="admin-prive pile-serree" aria-label="Partie privée">
-      <h3 className="rang">
-        <Icone nom="cadenas" />
-        Privé : la direction
-      </h3>
-      {detail.direction === 'absente' && (
-        <p>Direction absente{detail.repasser ? ` · à repasser : ${detail.repasser}` : ''}.</p>
-      )}
-      {detail.direction === null && <p>Le relais n'a rien dit de la direction.</p>}
-      {(detail.direction === 'vue' || detail.direction === 'refus') && personnes.length === 0 && (
-        <p>Contact pas encore reçu.</p>
-      )}
-      {detail.direction === 'refus' && personnes.length > 0 && <p>La direction a refusé.</p>}
+      <fieldset
+        className="pile-serree formulaire-occupe"
+        disabled={operation !== null}
+        aria-label="Gestion des personnes"
+      >
+        <h3 className="rang">
+          <Icone nom="cadenas" />
+          Privé : la direction
+        </h3>
+        {detail.direction === 'absente' && (
+          <p>Direction absente{detail.repasser ? ` · à repasser : ${detail.repasser}` : ''}.</p>
+        )}
+        {detail.direction === null && <p>Le relais n'a rien dit de la direction.</p>}
+        {(detail.direction === 'vue' || detail.direction === 'refus') && personnes.length === 0 && (
+          <p>Contact pas encore reçu.</p>
+        )}
+        {detail.direction === 'refus' && personnes.length > 0 && <p>La direction a refusé.</p>}
 
-      {personnes.length > 0 && (
-        <ul className="pile admin-personnes" aria-label="Personnes à contacter">
-          {personnes.map((c) => (
-            <li key={c.id} className="pile-serree">
-              {plusieurs && <h4 className="rang">{libellePersonne(c)}</h4>}
-              {c.releveId && c.releveId !== id && (
-                <p className="mention">Ce contact est arrivé avec la fiche d’origine.</p>
-              )}
-              <dl className="admin-champs">
-                {c.fonction && (
-                  <>
-                    <dt>Fonction</dt>
-                    <dd>
-                      {c.fonction === 'autre' && c.precisionFonction
-                        ? `Autre : ${c.precisionFonction}`
-                        : libelleFonction[c.fonction]}
-                    </dd>
-                  </>
+        {personnes.length > 0 && (
+          <ul className="pile admin-personnes" aria-label="Personnes à contacter">
+            {personnes.map((c) => (
+              <li key={c.id} className="pile-serree">
+                {plusieurs && <h4 className="rang">{libellePersonne(c)}</h4>}
+                {c.releveId && c.releveId !== id && (
+                  <p className="mention">Ce contact est arrivé avec la fiche d’origine.</p>
                 )}
-                {c.nom && (
-                  <>
-                    <dt>Nom</dt>
-                    <dd>{c.nom}</dd>
-                  </>
+                <dl className="admin-champs">
+                  {c.fonction && (
+                    <>
+                      <dt>Fonction</dt>
+                      <dd>
+                        {c.fonction === 'autre' && c.precisionFonction
+                          ? `Autre : ${c.precisionFonction}`
+                          : libelleFonction[c.fonction]}
+                      </dd>
+                    </>
+                  )}
+                  {c.nom && (
+                    <>
+                      <dt>Nom</dt>
+                      <dd>{c.nom}</dd>
+                    </>
+                  )}
+                  <dt>WhatsApp</dt>
+                  <dd>{c.whatsapp ? afficherTelephone(c.whatsapp) : '—'}</dd>
+                  <dt>Accord pour être contacté</dt>
+                  <dd>{c.accord && c.accordLe ? `Oui, ${quand(c.accordLe)}` : 'Non'}</dd>
+                  {c.note && (
+                    <>
+                      <dt>Ce qui a été dit</dt>
+                      <dd>{c.note}</dd>
+                    </>
+                  )}
+                  <dt>Notée par</dt>
+                  <dd>{c.source === 'administration' ? 'L’administration' : 'Le relais'}</dd>
+                </dl>
+                {aEffacer === c.id ? (
+                  <span className="admin-actions">
+                    <Bouton
+                      enCours={operation === 'suppression'}
+                      texteEnCours="Suppression…"
+                      className="bouton-petit"
+                      variante="danger"
+                      onClick={() => void effacer(c)}
+                    >
+                      Confirmer : effacer le contact (droit d'effacement)
+                    </Bouton>
+                    <button
+                      type="button"
+                      className="bouton bouton-secondaire bouton-petit"
+                      onClick={() => setAEffacer(null)}
+                    >
+                      Annuler
+                    </button>
+                  </span>
+                ) : (
+                  <span className="admin-actions">
+                    <button
+                      type="button"
+                      className="lien"
+                      onClick={() => setEdition({ mode: 'correction', contact: c })}
+                    >
+                      Corriger cette personne
+                    </button>
+                    <button type="button" className="lien" onClick={() => setAEffacer(c.id)}>
+                      {plusieurs
+                        ? `Effacer le contact de ${libellePersonne(c)} (droit d'effacement)`
+                        : "Effacer le contact (droit d'effacement)"}
+                    </button>
+                  </span>
                 )}
-                <dt>WhatsApp</dt>
-                <dd>{c.whatsapp ? afficherTelephone(c.whatsapp) : '—'}</dd>
-                <dt>Accord pour être contacté</dt>
-                <dd>{c.accord && c.accordLe ? `Oui, ${quand(c.accordLe)}` : 'Non'}</dd>
-                {c.note && (
-                  <>
-                    <dt>Ce qui a été dit</dt>
-                    <dd>{c.note}</dd>
-                  </>
-                )}
-                <dt>Notée par</dt>
-                <dd>{c.source === 'administration' ? 'L’administration' : 'Le relais'}</dd>
-              </dl>
-              {aEffacer === c.id ? (
-                <span className="admin-actions">
-                  <button
-                    type="button"
-                    className="bouton bouton-petit admin-bouton-refus"
-                    onClick={() => void effacer(c)}
-                  >
-                    Confirmer : effacer le contact (droit d'effacement)
-                  </button>
-                  <button
-                    type="button"
-                    className="bouton bouton-secondaire bouton-petit"
-                    onClick={() => setAEffacer(null)}
-                  >
-                    Annuler
-                  </button>
-                </span>
-              ) : (
-                <span className="admin-actions">
-                  <button
-                    type="button"
-                    className="lien"
-                    onClick={() => setEdition({ mode: 'correction', contact: c })}
-                  >
-                    Corriger cette personne
-                  </button>
-                  <button type="button" className="lien" onClick={() => setAEffacer(c.id)}>
-                    {plusieurs
-                      ? `Effacer le contact de ${libellePersonne(c)} (droit d'effacement)`
-                      : "Effacer le contact (droit d'effacement)"}
-                  </button>
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+              </li>
+            ))}
+          </ul>
+        )}
 
-      {edition ? (
-        <FormulairePersonne
-          // Une autre personne, un autre formulaire : rien ne reste de la précédente.
-          key={edition.mode === 'correction' ? edition.contact.id : 'ajout'}
-          nom={edition.mode === 'correction' ? 'Corriger la personne' : 'Nouvelle personne'}
-          depart={
-            edition.mode === 'correction' ? versPersonneSaisie(edition.contact) : personneVide()
-          }
-          enregistrer={enregistrer}
-          annuler={() => setEdition(null)}
-          surErreur={surErreur}
-        />
-      ) : peutAjouterUnePersonne(personnes.length) ? (
-        <button
-          type="button"
-          className="bouton bouton-secondaire bouton-petit"
-          onClick={() => setEdition({ mode: 'ajout' })}
-        >
-          Ajouter une personne
-        </button>
-      ) : (
-        <p className="mention">Trois personnes au plus par fiche.</p>
-      )}
+        {edition ? (
+          <FormulairePersonne
+            // Une autre personne, un autre formulaire : rien ne reste de la précédente.
+            key={edition.mode === 'correction' ? edition.contact.id : 'ajout'}
+            nom={edition.mode === 'correction' ? 'Corriger la personne' : 'Nouvelle personne'}
+            depart={
+              edition.mode === 'correction' ? versPersonneSaisie(edition.contact) : personneVide()
+            }
+            enregistrer={enregistrer}
+            annuler={() => setEdition(null)}
+            surErreur={surErreur}
+          />
+        ) : peutAjouterUnePersonne(personnes.length) ? (
+          <button
+            type="button"
+            className="bouton bouton-secondaire bouton-petit"
+            onClick={() => setEdition({ mode: 'ajout' })}
+          >
+            Ajouter une personne
+          </button>
+        ) : (
+          <p className="mention">Trois personnes au plus par fiche.</p>
+        )}
+      </fieldset>
     </section>
   );
 }
@@ -312,9 +329,9 @@ function FormulairePersonne({
         )}
       </Champ>
       <div className="admin-actions admin-pleine-largeur">
-        <button type="submit" className="bouton bouton-petit" disabled={enCours}>
+        <Bouton type="submit" className="bouton-petit" enCours={enCours}>
           Enregistrer
-        </button>
+        </Bouton>
         <button type="button" className="bouton bouton-secondaire bouton-petit" onClick={annuler}>
           Annuler
         </button>

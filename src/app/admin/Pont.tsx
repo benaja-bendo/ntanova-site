@@ -1,3 +1,4 @@
+import { Bouton } from '../../ui/actions';
 /**
  * Le pont avec la direction, en un clic : le premier message WhatsApp, déjà écrit, puis les deux gestes
  * qui comptent : confirmer la fonction de la personne (le relais touche alors son bonus de contact) et noter
@@ -58,7 +59,8 @@ function PontPour({
   const [note, setNote] = useState('');
   const [verifiee, setVerifiee] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState(false);
+  const [operation, setOperation] = useState<'fonction' | 'accord' | null>(null);
+  const enCours = operation !== null;
 
   const honnete = messageHonnete(texte, [infos.ecole]);
   const lien =
@@ -66,8 +68,13 @@ function PontPour({
   // Le lien par défaut (message d'origine) sert à vérifier que le numéro est valide, même si le texte a été changé.
   const numeroValide = lienPont(contact, infos) !== null;
 
-  const agir = async (action: () => Promise<unknown>, annonce: string, apres?: () => void) => {
-    setEnCours(true);
+  const agir = async (
+    nom: NonNullable<typeof operation>,
+    action: () => Promise<unknown>,
+    annonce: string,
+    apres?: () => void,
+  ) => {
+    setOperation(nom);
     setErreur(null);
     try {
       await action();
@@ -76,7 +83,7 @@ function PontPour({
     } catch (e) {
       setErreur(messageErreur(e));
     } finally {
-      setEnCours(false);
+      setOperation(null);
     }
   };
 
@@ -90,6 +97,7 @@ function PontPour({
     if (!detail.campusId) return;
     const campusId = detail.campusId;
     void agir(
+      'accord',
       () => admin.enregistrerVerification(campusId, accordLe, fonction, canal, note.trim() || null),
       `L’accord de la direction est noté au ${accordLe.split('-').reverse().join('/')} : la fiche portera « Vérifié par la direction » à la prochaine mise à jour du site.`,
       () => setVerifiee(true),
@@ -148,126 +156,133 @@ function PontPour({
         </>
       )}
 
-      <form
-        className="admin-motif"
-        aria-label="Fonction et accord de la direction"
-        onSubmit={enregistrerAccord}
-      >
-        <Champ
-          libelle="Fonction de la personne qui a répondu"
-          aide="La confirmer débloque le bonus de contact du relais (sauf le secrétariat : un secrétariat ne décide pas)."
+      <form aria-label="Fonction et accord de la direction" onSubmit={enregistrerAccord}>
+        <fieldset
+          className="admin-motif formulaire-occupe"
+          disabled={enCours}
+          aria-label="Fonction et accord"
         >
-          {(a) => (
-            <select
-              {...a}
-              className="champ"
-              value={fonction}
-              onChange={(ev) => setFonction(ev.target.value as Valeur<'fonction_direction'>)}
-            >
-              {listes.fonction_direction.map((f) => (
-                <option key={f} value={f}>
-                  {libelleFonction[f]}
-                </option>
-              ))}
-            </select>
-          )}
-        </Champ>
-        <div className="admin-actions admin-pleine-largeur">
-          {confirmee ? (
-            <span className="etiquette etat-verifiee">Fonction confirmée</span>
-          ) : (
-            <button
-              type="button"
-              className="bouton bouton-secondaire bouton-petit"
-              disabled={enCours}
-              onClick={() =>
-                void agir(
-                  () => admin.confirmerContact(detail.id, fonction),
-                  `Fonction confirmée : ${libelleFonction[fonction]}.`,
-                  () => setConfirmee(true),
-                )
-              }
-            >
-              Confirmer sa fonction
-            </button>
-          )}
-        </div>
+          <Champ
+            libelle="Fonction de la personne qui a répondu"
+            aide="La confirmer débloque le bonus de contact du relais (sauf le secrétariat : un secrétariat ne décide pas)."
+          >
+            {(a) => (
+              <select
+                {...a}
+                className="champ"
+                value={fonction}
+                onChange={(ev) => setFonction(ev.target.value as Valeur<'fonction_direction'>)}
+              >
+                {listes.fonction_direction.map((f) => (
+                  <option key={f} value={f}>
+                    {libelleFonction[f]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Champ>
+          <div className="admin-actions admin-pleine-largeur">
+            {confirmee ? (
+              <span className="etiquette etat-verifiee">Fonction confirmée</span>
+            ) : (
+              <Bouton
+                enCours={operation === 'fonction'}
+                texteEnCours="Confirmation…"
+                className="bouton-petit"
+                variante="secondaire"
+                disabled={enCours}
+                onClick={() =>
+                  void agir(
+                    'fonction',
+                    () => admin.confirmerContact(detail.id, fonction),
+                    `Fonction confirmée : ${libelleFonction[fonction]}.`,
+                    () => setConfirmee(true),
+                  )
+                }
+              >
+                Confirmer sa fonction
+              </Bouton>
+            )}
+          </div>
 
-        {detail.campusId ? (
-          <>
-            <Champ
-              libelle="Date de l’accord pour « Vérifié »"
-              aide="La date où la direction a répondu « OK » : elle est gardée comme preuve, sans le message."
-            >
-              {(a) => (
-                <input
-                  {...a}
-                  className="champ"
-                  type="date"
-                  max={aujourdhui()}
-                  value={accordLe}
-                  onChange={(ev) => setAccordLe(ev.target.value)}
-                  required
-                />
-              )}
-            </Champ>
-            <Champ libelle="Comment l’accord a été donné">
-              {(a) => (
-                <select
-                  {...a}
-                  className="champ"
-                  value={canal}
-                  onChange={(ev) => setCanal(ev.target.value as Canal)}
-                >
-                  {(Object.keys(libelleCanal) as Canal[]).map((c) => (
-                    <option key={c} value={c}>
-                      {libelleCanal[c]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Champ>
-            <Champ libelle="Note" facultatif>
-              {(a) => (
-                <input
-                  {...a}
-                  className="champ"
-                  type="text"
-                  maxLength={500}
-                  autoComplete="off"
-                  value={note}
-                  onChange={(ev) => setNote(ev.target.value)}
-                />
-              )}
-            </Champ>
-            <div className="admin-actions admin-pleine-largeur">
-              {verifiee ? (
-                <span className="etiquette etat-verifiee">Accord noté</span>
-              ) : (
-                <button
-                  type="submit"
-                  className="bouton bouton-petit"
-                  disabled={enCours || accordLe === ''}
-                >
-                  Noter l’accord de la direction (badge « Vérifié »)
-                </button>
-              )}
-            </div>
-          </>
-        ) : (
-          <p className="mention admin-pleine-largeur">
-            Accepte d’abord la fiche : l’accord de la direction se note sur l’école
-            {contact.accordLe
-              ? ` (accord pour être contactée donné ${quand(contact.accordLe)})`
-              : ''}
-            .
-          </p>
-        )}
-        {erreur && (
-          <p className="message-erreur admin-pleine-largeur" role="alert">
-            {erreur}
-          </p>
-        )}
+          {detail.campusId ? (
+            <>
+              <Champ
+                libelle="Date de l’accord pour « Vérifié »"
+                aide="La date où la direction a répondu « OK » : elle est gardée comme preuve, sans le message."
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    className="champ"
+                    type="date"
+                    max={aujourdhui()}
+                    value={accordLe}
+                    onChange={(ev) => setAccordLe(ev.target.value)}
+                    required
+                  />
+                )}
+              </Champ>
+              <Champ libelle="Comment l’accord a été donné">
+                {(a) => (
+                  <select
+                    {...a}
+                    className="champ"
+                    value={canal}
+                    onChange={(ev) => setCanal(ev.target.value as Canal)}
+                  >
+                    {(Object.keys(libelleCanal) as Canal[]).map((c) => (
+                      <option key={c} value={c}>
+                        {libelleCanal[c]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Champ>
+              <Champ libelle="Note" facultatif>
+                {(a) => (
+                  <input
+                    {...a}
+                    className="champ"
+                    type="text"
+                    maxLength={500}
+                    autoComplete="off"
+                    value={note}
+                    onChange={(ev) => setNote(ev.target.value)}
+                  />
+                )}
+              </Champ>
+              <div className="admin-actions admin-pleine-largeur">
+                {verifiee ? (
+                  <span className="etiquette etat-verifiee">Accord noté</span>
+                ) : (
+                  <Bouton
+                    type="submit"
+                    enCours={operation === 'accord'}
+                    texteEnCours="Enregistrement…"
+                    className="bouton-petit"
+                    disabled={enCours || accordLe === ''}
+                  >
+                    Noter l’accord de la direction (badge « Vérifié »)
+                  </Bouton>
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="mention admin-pleine-largeur">
+              Accepte d’abord la fiche : l’accord de la direction se note sur l’école
+              {contact.accordLe
+                ? ` (accord pour être contactée donné ${quand(contact.accordLe)})`
+                : ''}
+              .
+            </p>
+          )}
+          {erreur && (
+            <p className="message-erreur admin-pleine-largeur" role="alert">
+              {erreur}
+            </p>
+          )}
+        </fieldset>
       </form>
     </div>
   );

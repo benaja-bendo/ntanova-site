@@ -98,6 +98,16 @@ Tout est d'abord **retiré**, puis donné table par table (`20261101200800`) : e
 - **L'administration** (`prive.admins`) : les mêmes jetons, des règles de plus : elle lit tout le terrain, écrit le catalogue, les zones, les lots, les tarifs ; ses fonctions refusent tout autre appel.
 - **Jamais de suppression** d'une institution, d'un campus ni d'un relevé par l'API : on retire (`retire_campus`), on fusionne, on efface un contact ou une photo par leur fonction, qui garde la trace de l'effacement.
 
+## Corriger une nouvelle école avant l’acceptation
+
+Dans « À valider », « Corriger avant d’accepter » prépare le nom, le type, les niveaux, le programme, le repère ou le numéro public. « Utiliser ces valeurs » reste local : seule l’acceptation enregistre. Les champs et leurs contrôles sont partagés avec l’onglet « Écoles » ; une implantation déjà connue se modifie depuis cet onglet.
+
+`accept_reviewed_submission` reprend les paramètres de `accept_submission`, plus `p_changes` (les champs de relevé explicitement corrigés). Les valeurs corrigées servent à créer l’institution et son campus, dans la même transaction que la décision. Le relevé du relais reste intact, ainsi que sa position, sa date et ses photos. `submission_reviews` garde les valeurs retenues, `reviewed_by` et `reviewed_at`, fournis par le serveur : lecture et insertion réservées à l’administration, aucune réécriture. La suppression du relevé efface aussi cette trace. La révision se relit dans « Décidées » avec l’original.
+
+L’ancien appel sans corrections reste disponible et délègue au même moteur. Une répétition renvoie le campus déjà accepté sans modifier la révision. Une erreur annule toute la décision. Accepter ne publie jamais automatiquement.
+
+**Mise en ligne : appliquer `20261105120000_corrections_avant_acceptation.sql` avant le code.** Aucun changement de base du téléphone, de file d’envoi ou de règle de paie.
+
 ## Les listes (types, niveaux…) : des listes qui ne bloquent personne
 
 Les listes fermées sont des **domaines SQL**, copiés dans `src/modele/listes.ts` (un test vérifie qu'ils restent identiques, même ordre). Règles, pour **toute liste fermée** d'un écran relais ou administration :

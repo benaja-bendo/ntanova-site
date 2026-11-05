@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
   lireFraisEcole,
@@ -22,6 +22,8 @@ export function FraisEcole({
   frais,
   admin,
   fermer,
+  integre = false,
+  surOccupation,
   surChangement,
 }: {
   ecoleId: string;
@@ -30,12 +32,18 @@ export function FraisEcole({
   frais: Frais[];
   admin: PortAdministration;
   fermer: () => void;
+  integre?: boolean;
+  surOccupation?: (occupe: boolean) => void;
   surChangement: (texte: string) => void;
 }) {
   const [saisie, setSaisie] = useState(saisieFraisVide);
   const [id, setId] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  useEffect(() => {
+    surOccupation?.(enCours);
+    return () => surOccupation?.(false);
+  }, [enCours, surOccupation]);
   const champ = (cle: keyof SaisieFrais, valeur: string | boolean) =>
     setSaisie((s) => ({ ...s, [cle]: valeur }));
   const sauver = async () => {
@@ -78,7 +86,7 @@ export function FraisEcole({
     }
   };
   return (
-    <Dialogue titre={`Frais de ${nom}`} fermer={fermer}>
+    <Dialogue titre={`Frais de ${nom}`} fermer={fermer} integre={integre}>
       <h3>Frais déclarés par l’école</h3>
       <p>
         Saisis les montants et la période communiqués par l’école. Pas de calcul automatique d’un

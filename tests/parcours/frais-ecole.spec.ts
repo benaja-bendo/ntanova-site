@@ -1,3 +1,4 @@
+import { ouvrirGestion } from './aides';
 import { expect, test } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 test.use({ permissions: ['geolocation'] });
@@ -10,8 +11,10 @@ test('frais déclarés : ajout, relecture, modification et retrait, sans badge n
   await page.getByRole('button', { name: 'Accepter la fiche' }).click();
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-  await ligne.getByRole('button', { name: 'Frais déclarés', exact: true }).click();
-  const dialog = page.getByRole('dialog', { name: 'Frais de [École 1]' });
+  await expect(page.getByRole('combobox', { name: 'Zone à publier' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
+  await ouvrirGestion(ligne, 'Frais déclarés');
+  const dialog = page.getByRole('dialog', { name: 'Gérer [École 1]' });
   const f = dialog.getByRole('form');
   await f.getByRole('combobox', { name: 'Cycle', exact: true }).selectOption('primaire');
   await f.getByLabel('Montant minimum ou unique (FCFA)', { exact: true }).fill('25 000');
@@ -34,9 +37,9 @@ test('frais déclarés : ajout, relecture, modification et retrait, sans badge n
   expect(await dialog.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(ligne.getByRole('button', { name: 'Frais déclarés', exact: true })).toBeFocused();
+  await expect(ligne.getByRole('button', { name: 'Gérer la fiche', exact: true })).toBeFocused();
   await page.reload();
-  await ligne.getByRole('button', { name: 'Frais déclarés', exact: true }).click();
+  await ouvrirGestion(ligne, 'Frais déclarés');
   await dialog.getByRole('button', { name: 'Modifier les frais de Primaire' }).click();
   await expect(f.getByLabel('Montant minimum ou unique (FCFA)', { exact: true })).toHaveValue(
     '25000',

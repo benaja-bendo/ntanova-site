@@ -1,3 +1,6 @@
+import { ChampsFiche } from './ChampsFiche';
+import { Dialogue } from '../../ui/Dialogue';
+import { ActionsSecondaires, BadgePublication, Bouton } from '../../ui/actions';
 import { PhotoPublique } from './PhotoPublique';
 import { dateLongue } from '../../modele/pointe-noire';
 import { EquipementsEcole } from './EquipementsEcole';
@@ -8,7 +11,7 @@ import { ContactPublic } from './ContactPublic';
  * à situer → prête → publiée → retirée (→ publiée). Publier est un geste à part :
  * une école, une zone (ville, arrondissement, quartier), ou un lot.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ecrirePosition, lienGoogleMaps } from '../../modele/coordonnees';
 import {
   erreursFormulaireEcole,
@@ -54,14 +57,6 @@ function etatDe(e: EcoleVue): Etat {
   return e.aSituer ? 'a_situer' : 'brouillon';
 }
 
-const libelleEtat: Record<Etat, { texte: string; classe: string }> = {
-  a_situer: { texte: 'À situer', classe: 'etat-attente' },
-  prete: { texte: 'Prête', classe: 'etat-a-corriger' },
-  publiee: { texte: 'Publiée', classe: 'etat-verifiee' },
-  retiree: { texte: 'Retirée', classe: 'etat-refusee' },
-  brouillon: { texte: 'Brouillon', classe: 'etat-telephone' },
-};
-
 const EN_LIGNE = 'Elle paraît sur ntanova.com après la prochaine mise à jour du site.';
 
 function LigneEcole({
@@ -80,6 +75,9 @@ function LigneEcole({
   surChangement: (texte: string) => void;
 }) {
   const etat = etatDe(e);
+  const [declencheur, setDeclencheur] = useState<HTMLElement | null>(null);
+  const [operation, setOperation] = useState(false);
+  const gestion = useRef<HTMLButtonElement>(null);
   const [relaisId, setRelaisId] = useState(e.confiee?.relaisId ?? relais[0]?.id ?? '');
   const [note, setNote] = useState(e.confiee?.note ?? '');
   const [genre, setGenre] = useState<Valeur<'mission_kind'>>(
@@ -108,6 +106,7 @@ function LigneEcole({
     setErreur(null);
     try {
       await action();
+      setMode(null);
       surChangement(texte);
     } catch (err) {
       setErreur(message(err));
@@ -118,6 +117,24 @@ function LigneEcole({
 
   const autres = ecoles.filter((x) => x.id !== e.id && x.publication !== 'retiree');
   const prenom = relais.find((r) => r.id === relaisId)?.prenom ?? '';
+
+  const ouvrir = (section: NonNullable<typeof mode>, bouton: HTMLElement) => {
+    setDeclencheur(bouton.closest('details')?.querySelector('summary') ?? bouton);
+    const menu = bouton.closest('details');
+    if (menu) menu.open = false;
+    setErreur(null);
+    setMode(section);
+  };
+  const sections = [
+    ['modifier', 'Informations'],
+    ['situer', 'Position'],
+    ['contact-public', 'Contact public'],
+    ['frais', 'Frais déclarés'],
+    ['equipements', 'Équipements'],
+    ['photo-publique', 'Photo publique'],
+    ['mission', 'Mission'],
+  ] as const;
+  const confirmation = mode === 'retirer' || mode === 'fusionner';
 
   return (
     <tr>
@@ -157,9 +174,9 @@ function LigneEcole({
         )}
       </td>
       <td>
-        <span className={`etiquette ${libelleEtat[etat].classe}`}>{libelleEtat[etat].texte}</span>
+        <BadgePublication etat={etat} />
       </td>
-      <td>
+      <td data-colonne="Mission">
         {e.confiee ? (
           <>
             <b>{e.confiee.prenom}</b>
@@ -167,338 +184,363 @@ function LigneEcole({
             {e.confiee.note && <span className="mention admin-sous-ligne">{e.confiee.note}</span>}
           </>
         ) : (
-          '—'
+          <span className="mention">Aucune mission</span>
         )}
       </td>
       <td>
-        <div className="admin-actions">
+        <div className="admin-actions ecole-actions">
           {(etat === 'prete' || (etat === 'retiree' && !e.retrait?.remplaceePar)) && (
-            <button
-              type="button"
-              className="bouton bouton-petit"
-              disabled={enCours}
+            <Bouton
+              enCours={enCours}
+              texteEnCours="Publication…"
               onClick={() =>
                 void agir(() => admin.publierEcole(e.id), `${e.nom} est publiée. ${EN_LIGNE}`)
               }
             >
               {etat === 'retiree' ? 'Republier' : 'Publier'}
-            </button>
+            </Bouton>
           )}
-          {(etat === 'prete' || etat === 'publiee') && (
-            <>
-              <button
-                type="button"
-                className="bouton bouton-secondaire bouton-petit admin-bouton-refus"
-                aria-expanded={mode === 'retirer'}
-                onClick={() => setMode(mode === 'retirer' ? null : 'retirer')}
-              >
-                Retirer du site
-              </button>
-              <button
-                type="button"
-                className="bouton bouton-secondaire bouton-petit"
-                aria-expanded={mode === 'fusionner'}
-                onClick={() => setMode(mode === 'fusionner' ? null : 'fusionner')}
-              >
-                Fusionner…
-              </button>
-            </>
-          )}
-          {etat !== 'retiree' && (
-            <button
-              type="button"
-              className="bouton bouton-secondaire bouton-petit"
-              aria-expanded={mode === 'mission'}
-              onClick={() => setMode(mode === 'mission' ? null : 'mission')}
-            >
-              {e.confiee ? 'Mission en cours…' : 'Confier à un relais'}
-            </button>
-          )}
-          {etat !== 'retiree' && (
-            <button
-              type="button"
-              className={`bouton bouton-petit${e.aSituer ? '' : ' bouton-secondaire'}`}
-              aria-expanded={mode === 'situer'}
-              onClick={() => setMode(mode === 'situer' ? null : 'situer')}
-            >
-              {e.aSituer ? 'Situer' : 'Changer la position'}
-            </button>
-          )}
-          {etat !== 'retiree' && (
-            <button
-              type="button"
-              className="bouton bouton-secondaire bouton-petit"
-              aria-expanded={mode === 'modifier'}
-              onClick={() => setMode(mode === 'modifier' ? null : 'modifier')}
-            >
-              Modifier la fiche
-            </button>
+          {etat !== 'retiree' && e.aSituer && (
+            <Bouton onClick={(ev) => ouvrir('situer', ev.currentTarget)}>Situer</Bouton>
           )}
           <button
+            ref={gestion}
+            disabled={enCours}
             type="button"
-            className="bouton bouton-secondaire bouton-petit"
-            aria-expanded={mode === 'contact-public'}
-            onClick={() => setMode(mode === 'contact-public' ? null : 'contact-public')}
+            className="bouton bouton-secondaire"
+            onClick={(ev) =>
+              ouvrir(etat === 'retiree' ? 'contact-public' : 'modifier', ev.currentTarget)
+            }
           >
-            Contact public
+            Gérer la fiche
           </button>
-          <button
-            type="button"
-            className="bouton bouton-secondaire bouton-petit"
-            aria-expanded={mode === 'frais'}
-            onClick={() => setMode(mode === 'frais' ? null : 'frais')}
-          >
-            Frais déclarés
-          </button>
-          <button
-            type="button"
-            className="bouton bouton-secondaire bouton-petit"
-            aria-expanded={mode === 'equipements'}
-            onClick={() => setMode(mode === 'equipements' ? null : 'equipements')}
-          >
-            Équipements
-          </button>
-          <button
-            type="button"
-            className="bouton bouton-secondaire bouton-petit"
-            aria-expanded={mode === 'photo-publique'}
-            onClick={() => setMode(mode === 'photo-publique' ? null : 'photo-publique')}
-          >
-            Photo publique
-          </button>
+          <ActionsSecondaires nom={e.nom}>
+            {etat !== 'retiree' && (
+              <Bouton variante="discret" onClick={(ev) => ouvrir('mission', ev.currentTarget)}>
+                {e.confiee ? 'Mission en cours…' : 'Confier à un relais'}
+              </Bouton>
+            )}
+            {(etat === 'prete' || etat === 'publiee') && (
+              <div className="actions-danger">
+                <Bouton variante="danger" onClick={(ev) => ouvrir('retirer', ev.currentTarget)}>
+                  Retirer du site
+                </Bouton>
+                <Bouton variante="danger" onClick={(ev) => ouvrir('fusionner', ev.currentTarget)}>
+                  Fusionner…
+                </Bouton>
+              </div>
+            )}
+          </ActionsSecondaires>
         </div>
-        {mode === 'photo-publique' && (
-          <PhotoPublique
-            ecoleId={e.id}
-            nom={e.nom}
-            admin={admin}
+        {mode && (
+          <Dialogue
+            titre={
+              confirmation
+                ? `${mode === 'retirer' ? 'Retirer' : 'Fusionner'} ${e.nom}`
+                : `Gérer ${e.nom}`
+            }
+            variante={confirmation ? 'confirmation' : 'tiroir'}
+            description={
+              mode === 'retirer'
+                ? 'Cette école sera retirée du catalogue après la prochaine mise à jour du site. Son historique est conservé.'
+                : mode === 'fusionner'
+                  ? 'Cette fiche sera retirée et son ancienne adresse renverra vers l’école choisie. Vérifie qu’il s’agit de la même école.'
+                  : undefined
+            }
+            retourFocus={declencheur}
+            occupe={enCours || operation}
             fermer={() => setMode(null)}
-            surChangement={surChangement}
-          />
-        )}
-        {mode === 'equipements' && (
-          <EquipementsEcole
-            ecoleId={e.id}
-            nom={e.nom}
-            equipements={e.equipements ?? []}
-            admin={admin}
-            fermer={() => setMode(null)}
-            surChangement={surChangement}
-          />
-        )}
-        {mode === 'frais' && (
-          <FraisEcole
-            ecoleId={e.id}
-            nom={e.nom}
-            cycles={e.niveaux}
-            frais={e.frais ?? []}
-            admin={admin}
-            fermer={() => setMode(null)}
-            surChangement={surChangement}
-          />
-        )}
-        {mode === 'contact-public' && (
-          <ContactPublic
-            ecoleId={e.id}
-            nom={e.nom}
-            contact={e.contactPublic ?? null}
-            fermer={() => setMode(null)}
-            admin={admin}
-            surChangement={surChangement}
-          />
-        )}
-
-        {mode === 'retirer' && (
-          <form
-            className="admin-motif"
-            onSubmit={(ev) => {
-              ev.preventDefault();
-              void agir(
-                () => admin.retirerEcole(e.id, motif, noteRetrait.trim() || null),
-                `${e.nom} est retirée du site. Son ancienne adresse dira « n'existe pas ou n'est plus publiée », sans son nom.`,
-              );
-            }}
-          >
-            <label className="champ-groupe">
-              Motif
-              <select
-                className="champ"
-                value={motif}
-                onChange={(ev) => setMotif(ev.target.value as Valeur<'motif_retrait'>)}
-              >
-                {listes.motif_retrait
-                  .filter((m) => m !== 'doublon')
-                  .map((m) => (
-                    <option key={m} value={m}>
-                      {libelleMotifRetrait[m]}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label className="champ-groupe">
-              Note (facultatif)
-              <input
-                className="champ"
-                maxLength={500}
-                value={noteRetrait}
-                onChange={(ev) => setNoteRetrait(ev.target.value)}
-              />
-            </label>
-            <button type="submit" className="bouton admin-bouton-refus" disabled={enCours}>
-              Retirer {e.nom} du site
-            </button>
-          </form>
-        )}
-
-        {mode === 'fusionner' && (
-          <form
-            className="admin-motif"
-            onSubmit={(ev) => {
-              ev.preventDefault();
-              const cible = autres.find((x) => x.id === gardee);
-              if (!cible) return;
-              void agir(
-                () => admin.fusionnerEcoles(e.id, cible.id),
-                `${e.nom} est fusionnée dans ${cible.nom} : son ancienne adresse y renvoie.`,
-              );
-            }}
-          >
-            <label className="champ-groupe">
-              C'est la même école que…
-              <select
-                className="champ"
-                value={gardee}
-                onChange={(ev) => setGardee(ev.target.value)}
-              >
-                <option value="">Choisir l'école à garder</option>
-                {autres.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.nom}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" className="bouton" disabled={enCours || !gardee}>
-              Fusionner (cette fiche est retirée)
-            </button>
-          </form>
-        )}
-
-        {mode === 'mission' && (
-          <form
-            className="admin-motif"
-            aria-label={`Mission pour ${e.nom}`}
-            onSubmit={(ev) => {
-              ev.preventDefault();
-              if (!relaisId) return;
-              void agir(
-                () => admin.confierEcole(e.id, relaisId, genre, note.trim() || null),
-                `${e.nom} est confiée à ${prenom}.`,
-              );
-            }}
-          >
-            {relais.length === 0 ? (
-              <p className="mention admin-pleine-largeur">
-                Aucun relais actif : active un relais dans l’onglet « Relais » d’abord.
-              </p>
-            ) : (
+            entete={
               <>
-                <Champ libelle="Relais">
-                  {(a) => (
-                    <select
-                      {...a}
-                      className="champ"
-                      value={relaisId}
-                      onChange={(ev) => setRelaisId(ev.target.value)}
-                    >
-                      {relais.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.prenom || '[sans prénom]'}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Champ>
-                <Champ libelle="Ce que le relais doit faire">
-                  {(a) => (
-                    <select
-                      {...a}
-                      className="champ"
-                      value={genre}
-                      onChange={(ev) => setGenre(ev.target.value as Valeur<'mission_kind'>)}
-                    >
-                      {listes.mission_kind.map((m) => (
-                        <option key={m} value={m}>
-                          {libelleTypeMission[m]}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Champ>
-                <Champ
-                  libelle="À vérifier"
-                  facultatif
-                  aide="Le relais le lit dans « Mon secteur ». Vouvoie-le."
-                >
-                  {(a) => (
-                    <input
-                      {...a}
-                      className="champ"
-                      maxLength={500}
-                      placeholder="Ex. : le nom sur l’enseigne, le repère…"
-                      value={note}
-                      onChange={(ev) => setNote(ev.target.value)}
-                    />
-                  )}
-                </Champ>
-                <div className="admin-actions admin-pleine-largeur">
-                  <button type="submit" className="bouton" disabled={enCours || !relaisId}>
-                    {e.confiee ? 'Confier de nouveau' : 'Confier'}
-                  </button>
-                  {e.confiee && (
-                    <button
-                      type="button"
-                      className="bouton bouton-secondaire"
-                      disabled={enCours}
-                      onClick={() =>
-                        void agir(() => admin.reprendreEcole(e.id), `${e.nom} n'est plus confiée.`)
-                      }
-                    >
-                      Reprendre
-                    </button>
-                  )}
+                <h2>{e.nom}</h2>
+                <div className="rang">
+                  <BadgePublication etat={etat} />
+                  <span className="mention">{e.division}</span>
                 </div>
               </>
+            }
+          >
+            {!confirmation && (
+              <nav className="gestion-sections" aria-label="Sections de la fiche">
+                {sections
+                  .filter(
+                    ([cle]) =>
+                      etat !== 'retiree' || !['modifier', 'situer', 'mission'].includes(cle),
+                  )
+                  .map(([cle, libelle]) => (
+                    <button
+                      key={cle}
+                      type="button"
+                      className="pastille-choix"
+                      disabled={operation || enCours}
+                      aria-pressed={mode === cle}
+                      onClick={() => {
+                        setErreur(null);
+                        setMode(cle);
+                      }}
+                    >
+                      {libelle}
+                    </button>
+                  ))}
+              </nav>
             )}
-          </form>
-        )}
+            {mode === 'photo-publique' && (
+              <PhotoPublique
+                surOccupation={setOperation}
+                integre
+                ecoleId={e.id}
+                nom={e.nom}
+                admin={admin}
+                fermer={() => setMode(null)}
+                surChangement={surChangement}
+              />
+            )}
+            {mode === 'equipements' && (
+              <EquipementsEcole
+                surOccupation={setOperation}
+                integre
+                ecoleId={e.id}
+                nom={e.nom}
+                equipements={e.equipements ?? []}
+                admin={admin}
+                fermer={() => setMode(null)}
+                surChangement={surChangement}
+              />
+            )}
+            {mode === 'frais' && (
+              <FraisEcole
+                surOccupation={setOperation}
+                integre
+                ecoleId={e.id}
+                nom={e.nom}
+                cycles={e.niveaux}
+                frais={e.frais ?? []}
+                admin={admin}
+                fermer={() => setMode(null)}
+                surChangement={surChangement}
+              />
+            )}
+            {mode === 'contact-public' && (
+              <ContactPublic
+                surOccupation={setOperation}
+                integre
+                ecoleId={e.id}
+                nom={e.nom}
+                contact={e.contactPublic ?? null}
+                fermer={() => setMode(null)}
+                admin={admin}
+                surChangement={surChangement}
+              />
+            )}
 
-        {mode === 'situer' && (
-          <FormulairePosition
-            e={e}
-            divisions={divisions}
-            admin={admin}
-            surEnregistre={(texte) => {
-              setMode(null);
-              surChangement(texte);
-            }}
-            surAnnuler={() => setMode(null)}
-          />
-        )}
+            {mode === 'retirer' && (
+              <form
+                className="admin-motif"
+                onSubmit={(ev) => {
+                  ev.preventDefault();
+                  void agir(
+                    () => admin.retirerEcole(e.id, motif, noteRetrait.trim() || null),
+                    `${e.nom} est retirée du site. Son ancienne adresse dira « n'existe pas ou n'est plus publiée », sans son nom.`,
+                  );
+                }}
+              >
+                <label className="champ-groupe">
+                  Motif
+                  <select
+                    className="champ"
+                    value={motif}
+                    onChange={(ev) => setMotif(ev.target.value as Valeur<'motif_retrait'>)}
+                  >
+                    {listes.motif_retrait
+                      .filter((m) => m !== 'doublon')
+                      .map((m) => (
+                        <option key={m} value={m}>
+                          {libelleMotifRetrait[m]}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className="champ-groupe">
+                  Note (facultatif)
+                  <input
+                    className="champ"
+                    maxLength={500}
+                    value={noteRetrait}
+                    onChange={(ev) => setNoteRetrait(ev.target.value)}
+                  />
+                </label>
+                <Bouton type="submit" variante="danger" enCours={enCours} texteEnCours="Retrait…">
+                  Retirer {e.nom} du site
+                </Bouton>
+              </form>
+            )}
 
-        {mode === 'modifier' && (
-          <FormulaireEcole
-            e={e}
-            admin={admin}
-            surEnregistre={(texte) => {
-              setMode(null);
-              surChangement(texte);
-            }}
-            surAnnuler={() => setMode(null)}
-          />
-        )}
+            {mode === 'fusionner' && (
+              <form
+                className="admin-motif"
+                onSubmit={(ev) => {
+                  ev.preventDefault();
+                  const cible = autres.find((x) => x.id === gardee);
+                  if (!cible) return;
+                  void agir(
+                    () => admin.fusionnerEcoles(e.id, cible.id),
+                    `${e.nom} est fusionnée dans ${cible.nom} : son ancienne adresse y renvoie.`,
+                  );
+                }}
+              >
+                <label className="champ-groupe">
+                  C'est la même école que…
+                  <select
+                    className="champ"
+                    value={gardee}
+                    onChange={(ev) => setGardee(ev.target.value)}
+                  >
+                    <option value="">Choisir l'école à garder</option>
+                    {autres.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.nom}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Bouton
+                  type="submit"
+                  variante="danger"
+                  enCours={enCours}
+                  disabled={!gardee}
+                  texteEnCours="Fusion…"
+                >
+                  Fusionner (cette fiche est retirée)
+                </Bouton>
+              </form>
+            )}
 
-        {erreur && <p className="message-erreur">{erreur}</p>}
+            {mode === 'mission' && (
+              <form
+                className="admin-motif"
+                aria-label={`Mission pour ${e.nom}`}
+                onSubmit={(ev) => {
+                  ev.preventDefault();
+                  if (!relaisId) return;
+                  void agir(
+                    () => admin.confierEcole(e.id, relaisId, genre, note.trim() || null),
+                    `${e.nom} est confiée à ${prenom}.`,
+                  );
+                }}
+              >
+                {relais.length === 0 ? (
+                  <p className="mention admin-pleine-largeur">
+                    Aucun relais actif : active un relais dans l’onglet « Relais » d’abord.
+                  </p>
+                ) : (
+                  <>
+                    <Champ libelle="Relais">
+                      {(a) => (
+                        <select
+                          {...a}
+                          className="champ"
+                          value={relaisId}
+                          onChange={(ev) => setRelaisId(ev.target.value)}
+                        >
+                          {relais.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.prenom || '[sans prénom]'}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </Champ>
+                    <Champ libelle="Ce que le relais doit faire">
+                      {(a) => (
+                        <select
+                          {...a}
+                          className="champ"
+                          value={genre}
+                          onChange={(ev) => setGenre(ev.target.value as Valeur<'mission_kind'>)}
+                        >
+                          {listes.mission_kind.map((m) => (
+                            <option key={m} value={m}>
+                              {libelleTypeMission[m]}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </Champ>
+                    <Champ
+                      libelle="À vérifier"
+                      facultatif
+                      aide="Le relais le lit dans « Mon secteur ». Vouvoie-le."
+                    >
+                      {(a) => (
+                        <input
+                          {...a}
+                          className="champ"
+                          maxLength={500}
+                          placeholder="Ex. : le nom sur l’enseigne, le repère…"
+                          value={note}
+                          onChange={(ev) => setNote(ev.target.value)}
+                        />
+                      )}
+                    </Champ>
+                    <div className="admin-actions admin-pleine-largeur">
+                      <Bouton type="submit" enCours={enCours} disabled={!relaisId}>
+                        {e.confiee ? 'Confier de nouveau' : 'Confier'}
+                      </Bouton>
+                      {e.confiee && (
+                        <button
+                          type="button"
+                          className="bouton bouton-secondaire"
+                          disabled={enCours}
+                          onClick={() =>
+                            void agir(
+                              () => admin.reprendreEcole(e.id),
+                              `${e.nom} n'est plus confiée.`,
+                            )
+                          }
+                        >
+                          Reprendre
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </form>
+            )}
+
+            {mode === 'situer' && (
+              <FormulairePosition
+                surOccupation={setOperation}
+                e={e}
+                divisions={divisions}
+                admin={admin}
+                surEnregistre={(texte) => {
+                  setMode(null);
+                  surChangement(texte);
+                }}
+                surAnnuler={() => setMode(null)}
+              />
+            )}
+
+            {mode === 'modifier' && (
+              <FormulaireEcole
+                surOccupation={setOperation}
+                e={e}
+                admin={admin}
+                surEnregistre={(texte) => {
+                  setMode(null);
+                  surChangement(texte);
+                }}
+                surAnnuler={() => setMode(null)}
+              />
+            )}
+
+            {erreur && (
+              <p className="message-erreur" role="alert">
+                {erreur}
+              </p>
+            )}
+          </Dialogue>
+        )}
       </td>
     </tr>
   );
@@ -513,17 +555,23 @@ function FormulaireEcole({
   admin,
   surEnregistre,
   surAnnuler,
+  surOccupation,
 }: {
   e: EcoleVue;
   admin: PortAdministration;
   surEnregistre: (texte: string) => void;
   surAnnuler: () => void;
+  surOccupation: (occupe: boolean) => void;
 }) {
   const [champs, setChamps] = useState<FormulaireEcole>(() => formulaireDe(e));
   const [erreurs, setErreurs] = useState<Erreurs>({});
   const [rienADire, setRienADire] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  useEffect(() => {
+    surOccupation(enCours);
+    return () => surOccupation(false);
+  }, [enCours, surOccupation]);
 
   const changer = (nouveaux: Partial<FormulaireEcole>) => {
     setChamps((avant) => ({ ...avant, ...nouveaux }));
@@ -573,111 +621,19 @@ function FormulaireEcole({
         </p>
       )}
       <div className="admin-actions admin-pleine-largeur">
-        <button type="submit" className="bouton" disabled={enCours}>
+        <Bouton type="submit" enCours={enCours}>
           Enregistrer
-        </button>
-        <button type="button" className="bouton bouton-secondaire" onClick={surAnnuler}>
+        </Bouton>
+        <button
+          type="button"
+          className="bouton bouton-secondaire"
+          disabled={enCours}
+          onClick={surAnnuler}
+        >
           Annuler
         </button>
       </div>
     </form>
-  );
-}
-
-/** Les champs d'une fiche : ceux qu'on corrige, et ceux d'une école qu'on ajoute. */
-function ChampsFiche({
-  champs,
-  erreurs,
-  changer,
-}: {
-  champs: FormulaireEcole;
-  erreurs: Erreurs;
-  changer: (nouveaux: Partial<FormulaireEcole>) => void;
-}) {
-  const basculerNiveau = (n: Valeur<'niveau'>) =>
-    changer({
-      niveaux: champs.niveaux.includes(n)
-        ? champs.niveaux.filter((x) => x !== n)
-        : listes.niveau.filter((x) => x === n || champs.niveaux.includes(x)),
-    });
-  return (
-    <>
-      <Champ libelle="Nom" erreur={erreurs.nom}>
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="text"
-            autoComplete="off"
-            value={champs.nom}
-            onChange={(ev) => changer({ nom: ev.target.value })}
-          />
-        )}
-      </Champ>
-      <Champ libelle="Type d'école" erreur={erreurs.typeEcole}>
-        {(a) => (
-          <select
-            {...a}
-            className="champ"
-            value={champs.typeEcole}
-            onChange={(ev) => changer({ typeEcole: ev.target.value as Valeur<'type_ecole'> })}
-          >
-            {(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => (
-              <option key={t} value={t}>
-                {libelleTypeEcole[t]}
-              </option>
-            ))}
-          </select>
-        )}
-      </Champ>
-      <div className="admin-pleine-largeur">
-        <Choix
-          legende="Niveaux"
-          options={listes.niveau.map((n) => ({ valeur: n, libelle: libelleNiveau[n] }))}
-          valeurs={champs.niveaux}
-          surChoix={basculerNiveau}
-          erreur={erreurs.niveaux}
-        />
-      </div>
-      <Champ libelle="Programme et langues" facultatif erreur={erreurs.programme}>
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="text"
-            autoComplete="off"
-            value={champs.programme}
-            onChange={(ev) => changer({ programme: ev.target.value })}
-          />
-        )}
-      </Champ>
-      <Champ libelle="Repère" facultatif erreur={erreurs.repere}>
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="text"
-            autoComplete="off"
-            value={champs.repere}
-            onChange={(ev) => changer({ repere: ev.target.value })}
-          />
-        )}
-      </Champ>
-      <Champ libelle="Numéro sur l'enseigne" facultatif erreur={erreurs.numeroEnseigne}>
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="tel"
-            inputMode="tel"
-            autoComplete="off"
-            placeholder="+242 …"
-            value={champs.numeroEnseigne}
-            onChange={(ev) => changer({ numeroEnseigne: ev.target.value })}
-          />
-        )}
-      </Champ>
-    </>
   );
 }
 
@@ -688,18 +644,24 @@ function FormulairePosition({
   admin,
   surEnregistre,
   surAnnuler,
+  surOccupation,
 }: {
   e: EcoleVue;
   divisions: DivisionVue[];
   admin: PortAdministration;
   surEnregistre: (texte: string) => void;
   surAnnuler: () => void;
+  surOccupation: (occupe: boolean) => void;
 }) {
   const [texte, setTexte] = useState(e.position ? ecrirePosition(e.position) : '');
   const [divisionId, setDivisionId] = useState('');
   const [erreurChamp, setErreurChamp] = useState<string | undefined>();
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  useEffect(() => {
+    surOccupation(enCours);
+    return () => surOccupation(false);
+  }, [enCours, surOccupation]);
 
   const enregistrer = async (ev: { preventDefault: () => void }) => {
     ev.preventDefault();
@@ -765,10 +727,15 @@ function FormulairePosition({
         </p>
       )}
       <div className="admin-actions admin-pleine-largeur">
-        <button type="submit" className="bouton" disabled={enCours}>
+        <Bouton type="submit" enCours={enCours}>
           Enregistrer la position
-        </button>
-        <button type="button" className="bouton bouton-secondaire" onClick={surAnnuler}>
+        </Bouton>
+        <button
+          type="button"
+          className="bouton bouton-secondaire"
+          disabled={enCours}
+          onClick={surAnnuler}
+        >
           Annuler
         </button>
       </div>
@@ -787,6 +754,8 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   const [lot, setLot] = useState('');
   const [zone, setZone] = useState('');
   const [filtre, setFiltre] = useState<Filtre>('toutes');
+  const [recherche, setRecherche] = useState('');
+  const [divisionFiltre, setDivisionFiltre] = useState('');
   const [origine, setOrigine] = useState<FiltreOrigine>('toutes');
   const [erreur, setErreur] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
@@ -832,7 +801,23 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   const visibles = (ecoles ?? []).filter(
     (e) =>
       (filtre === 'toutes' || etatDe(e) === filtre) &&
-      (origine === 'toutes' || e.origine === origine),
+      (origine === 'toutes' || e.origine === origine) &&
+      e.nom
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLocaleLowerCase('fr')
+        .includes(
+          recherche
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLocaleLowerCase('fr'),
+        ) &&
+      (!divisionFiltre ||
+        e.divisionId === divisionFiltre ||
+        divisions
+          .find((d) => d.id === e.divisionId)
+          ?.chemin.startsWith(`${divisions.find((d) => d.id === divisionFiltre)?.chemin}.`)),
   );
   const filtres: { valeur: Filtre; libelle: string }[] = [
     { valeur: 'toutes', libelle: 'Toutes' },
@@ -859,12 +844,12 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
     <div className="pile">
       <div className="admin-titre">
         <div>
-          <h1>Écoles</h1>
+          <h1 tabIndex={-1} data-retour-liste>
+            Écoles
+          </h1>
           <p className="texte-doux">
-            Accepter une fiche rend l'école <b>prête</b> ; tu choisis quand la <b>publier</b> : une
-            école, une zone (ville, arrondissement, quartier), ou un lot. Une école à situer attend
-            sa position : tu la donnes toi-même (prise sur Google Maps), ou tu la confies à un
-            relais.
+            Prépare les écoles et choisis celles à publier. Les changements paraissent après la
+            prochaine mise à jour du site.
           </p>
         </div>
         <div className="filtres" role="group" aria-label="Filtrer par état">
@@ -881,18 +866,56 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           ))}
         </div>
       </div>
-      <Choix
-        legende="D'où vient la fiche"
-        options={[
-          { valeur: 'toutes', libelle: 'Toutes' },
-          { valeur: 'field', libelle: libelleOrigine.field },
-          { valeur: 'admin', libelle: libelleOrigine.admin },
-          { valeur: 'import', libelle: libelleOrigine.import },
-          { valeur: 'school', libelle: libelleOrigine.school },
-        ]}
-        valeurs={[origine]}
-        surChoix={(o) => setOrigine(o)}
-      />
+      <div className="ecoles-recherche">
+        <Champ libelle="Rechercher une école">
+          {(a) => (
+            <input
+              {...a}
+              type="search"
+              className="champ"
+              placeholder="Nom de l’école"
+              value={recherche}
+              onChange={(ev) => setRecherche(ev.target.value)}
+            />
+          )}
+        </Champ>
+        <Champ libelle="Zone">
+          {(a) => (
+            <select
+              {...a}
+              className="champ"
+              value={divisionFiltre}
+              onChange={(ev) => setDivisionFiltre(ev.target.value)}
+            >
+              <option value="">Toutes les zones</option>
+              {divisions
+                .filter((d) => d.niveau >= 2)
+                .map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {cheminLisible(d.id, divisions)}
+                  </option>
+                ))}
+            </select>
+          )}
+        </Champ>
+      </div>
+      <details className="ecoles-origine">
+        <summary>
+          Filtrer par origine{origine !== 'toutes' ? ` · ${libelleOrigine[origine]}` : ''}
+        </summary>
+        <Choix
+          legende="D'où vient la fiche"
+          options={[
+            { valeur: 'toutes', libelle: 'Toutes' },
+            { valeur: 'field', libelle: libelleOrigine.field },
+            { valeur: 'admin', libelle: libelleOrigine.admin },
+            { valeur: 'import', libelle: libelleOrigine.import },
+            { valeur: 'school', libelle: libelleOrigine.school },
+          ]}
+          valeurs={[origine]}
+          surChoix={(o) => setOrigine(o)}
+        />
+      </details>
 
       {ajout ? (
         <Creation
@@ -991,7 +1014,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
         </p>
       )}
 
-      <div className="admin-tableau">
+      <div className="admin-tableau ecoles-tableau">
         <table>
           <thead>
             <tr>
@@ -1018,7 +1041,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
             )}
             {visibles.map((e) => (
               <LigneEcole
-                key={`${e.id}-${e.confiee?.relaisId ?? ''}-${e.publication}`}
+                key={e.id}
                 e={e}
                 ecoles={ecoles ?? []}
                 relais={relais}

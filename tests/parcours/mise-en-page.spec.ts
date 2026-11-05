@@ -1,6 +1,14 @@
 import { servirLesTuiles } from './aides-carte';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { seConnecter, textesPeuLisibles } from './aides';
+import {
+  seConnecter,
+  textesPeuLisibles,
+  ouvrirGestion,
+  uneFicheEnvoyee,
+  ouvrirLaFiche,
+  ouvrirContacts,
+  prendrePhotoEtPosition,
+} from './aides';
 test.beforeEach(async ({ page, context }) => {
   await page.addInitScript(() =>
     Object.defineProperty(navigator, 'connection', {
@@ -80,7 +88,7 @@ test.describe('administration', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/');
-    await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Vue d’ensemble' })).toBeVisible();
     await verifierLaBarre(page, 'À valider (vide)');
   });
 
@@ -416,4 +424,471 @@ test.describe('application carte', () => {
     await expect(page.locator('.carte-apercu')).toHaveCount(0);
     await expect(page.getByRole('searchbox')).toBeVisible();
   });
+});
+
+test('administration : accueil et écoles tiennent dans l’écran, gestion et focus au clavier', async ({
+  page,
+}) => {
+  await seConnecter(page, '/admin/');
+  await expect(page.getByRole('heading', { name: 'Relevés reçus par jour' })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
+  const gerer = ligne.getByRole('button', { name: 'Gérer la fiche', exact: true });
+  await expect(gerer).toBeVisible();
+  expect(
+    await page.locator('.ecoles-tableau').evaluate((e) => e.scrollWidth <= e.clientWidth),
+  ).toBe(true);
+  await gerer.focus();
+  await page.keyboard.press('Enter');
+  const panneau = page.getByRole('dialog', { name: 'Gérer [École à situer]' });
+  await expect(panneau).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  const boite = await panneau.boundingBox();
+  expect(boite!.x).toBeGreaterThanOrEqual(0);
+  expect(boite!.x + boite!.width).toBeLessThanOrEqual(largeurDe(page));
+  expect(await panneau.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  await expect(panneau.getByRole('button', { name: 'Fermer', exact: true })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  expect(await panneau.evaluate((e) => e.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Tab');
+  await expect(panneau.getByRole('button', { name: 'Fermer', exact: true })).toBeFocused();
+  await panneau.getByRole('button', { name: 'Contact public', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await panneau.locator('.dialogue-corps').evaluate((e) => (e.scrollTop = e.scrollHeight));
+  await expect(
+    panneau.getByRole('heading', { name: '[École à situer]', exact: true }),
+  ).toBeInViewport();
+  await page.keyboard.press('Escape');
+  await expect(panneau).toHaveCount(0);
+  await expect(gerer).toBeFocused();
+  const menu = ligne.locator('summary');
+  await menu.focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    ligne.getByRole('button', { name: 'Confier à un relais', exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(
+    ligne.getByRole('button', { name: 'Confier à un relais', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  await expect(ligne.locator('details')).not.toHaveAttribute('open');
+});
+
+test('administration : un enregistrement lent annonce son travail, une panne garde les valeurs et permet le réessai', async ({
+  page,
+  context,
+}) => {
+  await seConnecter(page, '/admin/#ecoles');
+  const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
+  await ouvrirGestion(ligne, 'Informations');
+  const panneau = page.getByRole('dialog');
+  await panneau.getByLabel('Nom', { exact: true }).fill('[Nom corrigé]');
+  await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '1200'));
+  await context.setOffline(true);
+  await panneau.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(
+    panneau.getByRole('button', { name: 'Enregistrement…', exact: true }),
+  ).toBeDisabled();
+  await expect(panneau.getByRole('button', { name: 'Fermer', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(panneau).toBeVisible();
+  await expect(panneau.getByRole('alert')).toBeVisible();
+  await expect(panneau.getByLabel('Nom', { exact: true })).toHaveValue('[Nom corrigé]');
+  await expect(panneau.getByRole('button', { name: 'Enregistrer', exact: true })).toBeEnabled();
+  await context.setOffline(false);
+  await panneau.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(panneau).toHaveCount(0);
+  await expect(page.getByRole('row', { name: /\[Nom corrigé\]/ })).toBeVisible();
+});
+
+test('administration : rechercher sans accent, filtrer une zone et confirmer une fusion sans perdre le focus', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  await page.getByRole('button', { name: 'Accepter la fiche', exact: true }).click();
+  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  const recherche = page.getByLabel('Rechercher une école');
+  await recherche.fill('ecole a situer');
+  await expect(page.getByRole('row', { name: /\[École à situer\]/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /\[École 1\]/ })).toHaveCount(0);
+  await recherche.fill('');
+  await page.getByLabel('Zone', { exact: true }).selectOption('d-pn-ngoyo');
+  await expect(page.getByText('Aucune école ici.')).toBeVisible();
+  await page.getByLabel('Zone', { exact: true }).selectOption('');
+  const ligne = page.getByRole('row', { name: /\[École 1\]/ });
+  await ouvrirGestion(ligne, 'fusionner');
+  const confirmation = page.getByRole('alertdialog', { name: 'Fusionner [École 1]' });
+  await expect(confirmation).toBeVisible();
+  await expect(
+    confirmation.getByRole('button', { name: 'Fusionner (cette fiche est retirée)', exact: true }),
+  ).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(confirmation).toHaveCount(0);
+  await expect(ligne.locator('summary')).toBeFocused();
+  await expect(ligne.getByText('Prête', { exact: true })).toBeVisible();
+  await ouvrirGestion(ligne, 'fusionner');
+  await confirmation
+    .getByLabel("C'est la même école que…")
+    .selectOption({ label: '[École à situer]' });
+  await confirmation
+    .getByRole('button', { name: 'Fusionner (cette fiche est retirée)', exact: true })
+    .click();
+  await expect(confirmation).toHaveCount(0);
+  await expect(ligne.getByText('Retirée', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('est fusionnée');
+});
+
+test('à valider : décider après les preuves, contact replié et saisie conservée au clavier', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  const contact = page.locator('details.section-repliable');
+  const titre = contact.locator('summary');
+  await expect(titre).toContainText('Contact et échanges avec la direction');
+  await expect(titre).toContainText('1 personne enregistrée · 1 accord de contact');
+  await expect(contact).not.toHaveAttribute('open');
+  await expect(page.getByRole('button', { name: 'Accepter la fiche', exact: true })).toBeVisible();
+  expect(
+    await page.locator('.admin-decision').evaluate((e) => {
+      const prive = document.querySelector('details.section-repliable');
+      const preuves = document.querySelector('[aria-label="Partie publique"]');
+      return (
+        !!prive &&
+        !!preuves &&
+        e.getBoundingClientRect().top >= preuves.getBoundingClientRect().bottom &&
+        e.getBoundingClientRect().bottom <= prive.getBoundingClientRect().top
+      );
+    }),
+  ).toBe(true);
+  await expect(page.getByRole('region', { name: 'Partie privée' })).toHaveCount(0);
+  await titre.focus();
+  await page.keyboard.press('Enter');
+  await expect(contact).toHaveAttribute('open');
+  await expect(
+    page.getByRole('region', { name: 'Partie privée' }).getByText('+242 06 123 45 61'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Ajouter une personne', exact: true }).click();
+  const note = page
+    .getByRole('form', { name: 'Nouvelle personne' })
+    .getByRole('textbox', { name: /^Note/ });
+  await note.fill('À rappeler demain');
+  await titre.focus();
+  await page.keyboard.press('Space');
+  await expect(contact).not.toHaveAttribute('open');
+  await page.keyboard.press('Tab');
+  expect(await contact.evaluate((e) => e.contains(document.activeElement))).toBe(false);
+  await titre.focus();
+  await page.keyboard.press('Space');
+  await expect(note).toBeVisible();
+  await expect(note).toHaveValue('À rappeler demain');
+  const formulaire = page.getByRole('form', { name: 'Nouvelle personne' });
+  await formulaire.getByLabel('Fonction', { exact: true }).selectOption('directeur');
+  await context.setOffline(true);
+  await formulaire.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(contact.getByRole('alert')).toBeVisible();
+  await expect(note).toHaveValue('À rappeler demain');
+  await titre.click();
+  await expect(titre).toContainText('Action à réessayer');
+  await titre.click();
+  await context.setOffline(false);
+  await formulaire.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(formulaire).toHaveCount(0);
+  await expect(contact.getByRole('alert')).toHaveCount(0);
+  await expect(titre).toContainText('2 personnes enregistrées · 1 accord de contact');
+
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+});
+
+test('relais : confirmation accessible, annulation sans perte et suppression réessayable hors ligne', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
+  await seConnecter(page, '/relais/');
+  await prendrePhotoEtPosition(page);
+  await page.getByRole('button', { name: 'Suivant', exact: true }).click();
+  const nom = page.getByLabel("Nom sur l'enseigne");
+  await nom.fill('[Fiche conservée]');
+  await context.setOffline(true);
+  const ouvrir = page.getByRole('button', { name: 'Abandonner cette fiche', exact: true });
+  await ouvrir.click();
+  const confirmation = page.getByRole('alertdialog', { name: 'Abandonner cette fiche ?' });
+  await expect(confirmation).toContainText('Ce qui a été saisi sera effacé du téléphone');
+  const annuler = confirmation.getByRole('button', { name: 'Annuler', exact: true });
+  const supprimer = confirmation.getByRole('button', {
+    name: 'Oui, abandonner la fiche',
+    exact: true,
+  });
+  await expect(annuler).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(supprimer).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(annuler).toBeFocused();
+  expect(await confirmation.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  const boite = await confirmation.boundingBox();
+  expect(boite!.x).toBeGreaterThanOrEqual(0);
+  expect(boite!.x + boite!.width).toBeLessThanOrEqual(largeurDe(page));
+  await page.keyboard.press('Escape');
+  await expect(confirmation).toHaveCount(0);
+  await expect(ouvrir).toBeFocused();
+  await expect(nom).toHaveValue('[Fiche conservée]');
+  await ouvrir.click();
+  await annuler.click();
+  await expect(nom).toHaveValue('[Fiche conservée]');
+  // Une panne de la base locale doit se voir et laisser la fiche intacte.
+  await page.evaluate(() => {
+    const retirer = IDBObjectStore.prototype.delete;
+    let premiere = true;
+    IDBObjectStore.prototype.delete = function (cle) {
+      if (premiere && this.name === 'fiches') {
+        premiere = false;
+        throw new DOMException('Échec simulé', 'UnknownError');
+      }
+      return retirer.call(this, cle);
+    };
+  });
+  await ouvrir.click();
+  await supprimer.click();
+  await expect(confirmation.getByRole('alert')).toHaveText('L’action n’a pas abouti. Réessayez.');
+  await expect(supprimer).toBeEnabled();
+  await annuler.click();
+  await expect(nom).toHaveValue('[Fiche conservée]');
+  await ouvrir.click();
+  await supprimer.click();
+  await expect(confirmation).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeFocused();
+});
+
+test('en-tête public : polices retardées et texte agrandi sans débordement', async ({
+  page,
+}, info) => {
+  let liberer!: () => void;
+  const attente = new Promise<void>((fin) => {
+    liberer = fin;
+  });
+  await page.route('**/polices/*.woff2', async (route) => {
+    await attente;
+    await route.continue();
+  });
+  try {
+    await page.goto('/ecoles/congo/pointe-noire/', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Pointe-Noire', exact: true })).toBeVisible();
+    await aucunDefilementDeCote(page, 'page ville avant les polices');
+  } finally {
+    liberer();
+  }
+  await page.evaluate(() => document.fonts.ready);
+  // Un texte de navigation plus grand reproduit aussi les métriques d'une police de repli large.
+  await page.addStyleTag({ content: '.entete { font-size: 18px; }' });
+  const largeurs =
+    info.project.name === 'tablette-768' ? [767, 768, 769, 820, 1023, 1024] : [largeurDe(page)];
+  for (const largeur of largeurs) {
+    await page.setViewportSize({ width: largeur, height: 1024 });
+    await aucunDefilementDeCote(page, `en-tête avec texte agrandi à ${largeur} px`);
+    if (largeur >= 768) {
+      const navigation = page.getByRole('navigation', { name: 'Navigation principale' });
+      await expect(navigation).toBeVisible();
+      for (const lien of await navigation.getByRole('link').all()) {
+        const boite = await lien.boundingBox();
+        expect(boite!.x).toBeGreaterThanOrEqual(0);
+        expect(boite!.x + boite!.width).toBeLessThanOrEqual(largeur);
+        expect(boite!.height).toBeGreaterThanOrEqual(44);
+        await lien.focus();
+        await expect(lien).toBeFocused();
+      }
+    }
+  }
+});
+
+test('divisions : noms longs et chemin complet restent lisibles dans le cadre', async ({
+  page,
+}) => {
+  await page.goto('/ecoles/congo/pointe-noire/');
+  await page.evaluate(() => document.fonts.ready);
+  const nom = `Ville${'Exemple'.repeat(18)}`;
+  await page.getByRole('heading', { level: 1 }).evaluate((e, nom) => {
+    e.textContent = nom;
+  }, nom);
+  await page
+    .locator('.zone-nom')
+    .first()
+    .evaluate((e) => {
+      e.textContent = `Quartier${'Exemple'.repeat(18)}`;
+    });
+  await page.locator('.titre-vue .texte-doux span').evaluate((e) => {
+    e.textContent = `Département${'Exemple'.repeat(18)} › Congo-Brazzaville`;
+  });
+  await aucunDefilementDeCote(page, 'noms longs des divisions');
+  await expect(page.getByRole('heading', { name: nom, exact: true })).toBeVisible();
+  for (const cible of await page.locator('main .titre-vue, main .zone').all()) {
+    expect(await cible.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  }
+});
+
+test('décision : attente explicite, choix protégés et message conservé après une coupure', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  await page.getByRole('button', { name: 'Demander une correction', exact: true }).click();
+  await page.getByLabel('Motif', { exact: true }).selectOption('autre');
+  const message = page.getByLabel('Message au relais', { exact: false });
+  await message.fill('Reprenez la photo de face, sans enfant.');
+  await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '1000'));
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Envoyer la demande', exact: true }).click();
+  const attente = page.getByRole('button', { name: 'Envoi de la demande…', exact: true });
+  await expect(attente).toBeDisabled();
+  await expect(attente).toHaveAttribute('aria-busy', 'true');
+  await expect(page.getByRole('button', { name: 'Accepter la fiche', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Refuser', exact: true })).toBeDisabled();
+  await expect(message).toBeDisabled();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(message).toHaveValue('Reprenez la photo de face, sans enfant.');
+  await expect(message).toBeEnabled();
+  await context.setOffline(false);
+  await page.getByRole('button', { name: 'Envoyer la demande', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('correction part au relais');
+});
+
+test('contacts : enregistrement et confirmation de fonction montrent leur attente sans perdre la saisie', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  await ouvrirContacts(page);
+  await page.getByRole('button', { name: 'Ajouter une personne', exact: true }).click();
+  const formulaire = page.getByRole('form', { name: 'Nouvelle personne' });
+  await formulaire.getByLabel('Fonction', { exact: true }).selectOption('directeur');
+  const note = formulaire.getByRole('textbox', { name: /^Note/ });
+  await note.fill('À rappeler demain.');
+  await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '1000'));
+  await context.setOffline(true);
+  await formulaire.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(
+    formulaire.getByRole('button', { name: 'Enregistrement…', exact: true }),
+  ).toBeDisabled();
+  await expect(formulaire.getByRole('button', { name: 'Annuler', exact: true })).toBeDisabled();
+  await expect(note).toBeDisabled();
+  await expect(page.locator('details.section-repliable').getByRole('alert')).toBeVisible();
+  await expect(note).toHaveValue('À rappeler demain.');
+  await context.setOffline(false);
+  await formulaire.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await expect(formulaire).toHaveCount(0);
+  const pont = page.getByRole('region', { name: 'Écrire à la direction' });
+  await context.setOffline(true);
+  await pont.getByRole('button', { name: 'Confirmer sa fonction', exact: true }).click();
+  await expect(pont.getByRole('button', { name: 'Confirmation…', exact: true })).toBeDisabled();
+  await expect(pont.getByLabel('Fonction de la personne qui a répondu')).toBeDisabled();
+  await expect(pont.getByRole('alert')).toBeVisible();
+  await context.setOffline(false);
+  await pont.getByRole('button', { name: 'Confirmer sa fonction', exact: true }).click();
+  await expect(pont.getByText('Fonction confirmée', { exact: true })).toBeVisible();
+});
+
+test('nouvelle école : corriger avant d’accepter, conserver l’original et reprendre après une coupure', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  await page.getByRole('button', { name: 'Corriger avant d’accepter', exact: true }).click();
+  const edition = page.getByRole('form', { name: 'Corriger avant d’accepter' });
+  await expect(edition.getByLabel('Nom', { exact: true })).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  const accepter = page.getByRole('button', { name: 'Accepter la fiche', exact: true });
+  await expect(accepter).toBeDisabled();
+  await edition.getByLabel('Nom', { exact: true }).fill('');
+  await edition.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
+  await expect(edition.getByText('Écris le nom de l’école.')).toBeVisible();
+  await edition.getByLabel('Nom', { exact: true }).fill('[École corrigée]');
+  await edition.getByLabel("Type d'école").selectOption('publique');
+  const niveaux = edition.getByRole('group', { name: 'Niveaux', exact: true });
+  await niveaux.getByRole('button', { name: 'Primaire', exact: true }).click();
+  await niveaux.getByRole('button', { name: 'Collège', exact: true }).click();
+  await edition.getByLabel('Repère', { exact: false }).fill('En face du marché');
+  await edition.getByLabel("Numéro sur l'enseigne").fill('06 123 45 67');
+  await edition.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
+  const retenues = page.getByRole('region', { name: 'Valeurs retenues par NTanova' });
+  await expect(retenues).toContainText('[École corrigée]');
+  await expect(retenues).toContainText('Collège');
+  await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText('[École 1]');
+  await context.setOffline(true);
+  await accepter.click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(retenues).toContainText('[École corrigée]');
+  await context.setOffline(false);
+  await accepter.click();
+  await expect(page.getByRole('status')).toContainText('prête');
+  await page.getByRole('button', { name: 'Décidées', exact: true }).click();
+  await page.getByRole('link', { name: /\[École 1\]/ }).click();
+  await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText('[École 1]');
+  await expect(page.getByRole('region', { name: 'Valeurs retenues par NTanova' })).toContainText(
+    '[École corrigée]',
+  );
+  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Écoles', exact: true })).toBeVisible();
+  await expect(page.getByText('[École corrigée]', { exact: true }).first()).toBeVisible();
+  const catalogue = await page.evaluate(() => {
+    const e = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
+      campus: Record<string, { nom: string }>;
+    };
+    return Object.values(e.campus).find((c) => c.nom === '[École corrigée]');
+  });
+  expect(catalogue).toMatchObject({
+    publication: 'prete',
+    niveaux: ['college'],
+    typeEcole: 'publique',
+    numeroEnseigne: '242061234567',
+    repere: 'En face du marché',
+  });
+});
+
+test('nouvelle école : annuler une saisie ou reprendre le relevé ne conserve aucune correction', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  const ouvrir = page.getByRole('button', { name: 'Corriger avant d’accepter', exact: true });
+  await ouvrir.click();
+  const edition = page.getByRole('form', { name: 'Corriger avant d’accepter' });
+  await edition.getByLabel('Nom', { exact: true }).fill('[Nom abandonné]');
+  await edition.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Valeurs retenues par NTanova' })).toHaveCount(0);
+  await ouvrir.click();
+  await expect(edition.getByLabel('Nom', { exact: true })).toHaveValue('[École 1]');
+  await edition.getByLabel('Nom', { exact: true }).fill('[Nom temporaire]');
+  await edition.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
+  await page.getByRole('button', { name: 'Reprendre les valeurs du relais' }).click();
+  await expect(page.getByRole('region', { name: 'Valeurs retenues par NTanova' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Accepter la fiche', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('prête');
 });

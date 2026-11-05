@@ -1,3 +1,4 @@
+import { CorrectionAvantAcceptation } from './CorrectionAvantAcceptation';
 import { useCallback, useEffect, useState } from 'react';
 import { cycleAvecFormations } from '../../modele/formations';
 import {
@@ -20,6 +21,7 @@ import {
   motifsProposes,
 } from '../../modele/libelles';
 import type {
+  CorrectionEcole,
   ContactDirection,
   DecisionAcceptation,
   DetailReleve,
@@ -33,6 +35,8 @@ import type {
   ReleveAValider,
   ReleveDecide,
 } from '../../modele/ports';
+import { Bouton } from '../../ui/actions';
+import { SectionRepliable } from '../../ui/SectionRepliable';
 import { afficherTelephone } from '../../modele/telephone';
 import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
@@ -427,10 +431,16 @@ function Detail({
   const [mode, setMode] = useState<'correction' | 'refus' | null>(null);
   const [motif, setMotif] = useState<Valeur<'motif_decision'>>('photo_floue');
   const [message, setMessage] = useState('');
-  const [enCours, setEnCours] = useState(false);
+  const [operation, setOperation] = useState<
+    'acceptation' | 'essai' | 'correction' | 'refus' | null
+  >(null);
+  const enCours = operation !== null;
   const [efface, setEfface] = useState<string | null>(null);
+  const [erreurContact, setErreurContact] = useState<string | null>(null);
   const [cible, setCible] = useState<Cible>({ mode: 'nouvelle' });
   const [etiquette, setEtiquette] = useState('');
+  const [corrections, setCorrections] = useState<CorrectionEcole>({});
+  const [editionInformations, setEditionInformations] = useState(false);
   const [formations, setFormations] = useState<FormationSaisie[]>([]);
 
   const chargerPhotos = useCallback(() => {
@@ -464,8 +474,12 @@ function Detail({
       .catch((e: unknown) => setErreur(messageErreur(e)));
   }, [admin, id]);
 
-  const agir = async (action: () => Promise<unknown>, texte: string) => {
-    setEnCours(true);
+  const agir = async (
+    nom: NonNullable<typeof operation>,
+    action: () => Promise<unknown>,
+    texte: string,
+  ) => {
+    setOperation(nom);
     setErreur(null);
     try {
       await action();
@@ -473,7 +487,7 @@ function Detail({
     } catch (e) {
       setErreur(messageErreur(e));
     } finally {
-      setEnCours(false);
+      setOperation(null);
     }
   };
 
@@ -491,6 +505,15 @@ function Detail({
     );
   }
 
+  const nouvelleEcole =
+    cible.mode === 'nouvelle' &&
+    !detail.essai &&
+    (detail.type !== 'correction' || detail.corrigeUneFicheEnAttente);
+  const retenues = nouvelleEcole ? corrections : {};
+  const valeurs = { ...detail, ...retenues, nomEnseigne: retenues.nom ?? detail.nomEnseigne };
+  const formationsRetenues = retenues.niveaux
+    ? formations.filter((f) => retenues.niveaux?.includes(f.cycle))
+    : formations;
   const position = detail.position;
   // Sur le lot d'entraînement, on se forme n'importe où : ni la zone ni le secteur ne disent rien.
   const enZoneOuverte = detail.essai ? null : detail.enZoneOuverte;
@@ -503,7 +526,7 @@ function Detail({
     })),
   );
   const avecFormations =
-    detail.niveaux.some(cycleAvecFormations) || detail.indiceFormations || formations.length > 0;
+    valeurs.niveaux.some(cycleAvecFormations) || detail.indiceFormations || formations.length > 0;
 
   // La division de l'école : celle de la position quand un contour la contient. Sinon (aucun contour connu, ou ni position
   // ni lot), l'administration la choisit : la fiche ne retombe plus sur la division du lot du relais (ticket n° 67).
@@ -514,7 +537,7 @@ function Detail({
     .sort((a, b) => a.chemin.localeCompare(b.chemin, 'fr'));
   const decision = (): DecisionAcceptation => {
     const base: DecisionAcceptation = {
-      formations,
+      formations: formationsRetenues,
       ...(divisionRequise && divisionId !== '' ? { divisionId } : {}),
     };
     // Une correction d'une école déjà créée met l'école à jour : la base sait laquelle. Celle d'une fiche pas encore
@@ -522,7 +545,12 @@ function Detail({
     if (detail.type === 'correction' && !detail.corrigeUneFicheEnAttente) return {};
     switch (cible.mode) {
       case 'nouvelle':
-        return { ...base, mode: 'new_institution', etiquette: etiquette.trim() || null };
+        return {
+          ...base,
+          corrections: retenues,
+          mode: 'new_institution',
+          etiquette: etiquette.trim() || null,
+        };
       case 'new_campus':
         return {
           ...base,
@@ -559,12 +587,12 @@ function Detail({
   const bilanAvant = detail.essai
     ? null
     : avantDAccepter({
-        fiche: detail,
+        fiche: valeurs,
         photos,
         contact: personnes.length > 0,
         contactDeLaFicheDOrigine:
           personnes[0]?.releveId !== undefined && personnes[0].releveId !== id,
-        nombreDeFormations: formations.length,
+        nombreDeFormations: formationsRetenues.length,
         formationsAttendues: avecFormations,
         cible,
         divisionChoisie: divisionId,
@@ -584,6 +612,16 @@ function Detail({
               ? 'Situer l’école'
               : 'Mettre à jour la fiche'
             : 'Ajouter les niveaux à la fiche';
+
+  const nombreAccords = personnes.filter((p) => p.accord).length;
+  const syntheseContact =
+    personnes.length > 0
+      ? `${personnes.length} personne${personnes.length > 1 ? 's' : ''} enregistrée${personnes.length > 1 ? 's' : ''} · ${nombreAccords} accord${nombreAccords > 1 ? 's' : ''} de contact`
+      : detail.direction === 'absente'
+        ? 'Direction absente · aucun contact reçu'
+        : detail.direction === 'refus'
+          ? 'Contact refusé · aucun contact reçu'
+          : 'Aucun contact reçu';
 
   return (
     <section className="admin-detail" aria-label="Envoi sélectionné">
@@ -691,31 +729,47 @@ function Detail({
         </dl>
       </section>
 
-      <Personnes
-        admin={admin}
-        id={id}
-        detail={detail}
-        personnes={personnes}
-        surChangement={relirePersonnes}
-        annoncer={setEfface}
-        surErreur={setErreur}
-      />
-
-      {personnes.length > 0 && (
-        <section className="pile-serree" aria-label="Écrire à la direction">
-          <h3 className="rang">
-            <Icone nom="coche" />
-            Écrire à la direction
-          </h3>
-          <Pont admin={admin} detail={detail} contacts={personnes} surAnnonce={surAnnonce} />
+      {(Object.keys(retenues).length > 0 || detail.revision) && (
+        <section className="admin-motif pile-serree" aria-label="Valeurs retenues par NTanova">
+          <h3>Valeurs retenues par NTanova</h3>
+          <p className="mention">
+            {detail.revision
+              ? `Enregistrées ${quand(detail.revision.le)}. Le relevé original ci-dessus est conservé.`
+              : 'Préparées pour l’acceptation ; le relevé original ci-dessus est conservé.'}
+          </p>
+          <dl className="admin-champs">
+            {Object.entries(detail.revision?.valeurs ?? retenues).map(([cle, valeur]) => (
+              <div className="admin-pleine-largeur" key={cle}>
+                <dt>
+                  {
+                    (
+                      {
+                        nom: 'Nom',
+                        typeEcole: 'Type',
+                        niveaux: 'Niveaux',
+                        programme: 'Programme et langues',
+                        repere: 'Repère',
+                        numeroEnseigne: 'Numéro sur l’enseigne',
+                      } as Record<string, string>
+                    )[cle]
+                  }
+                </dt>
+                <dd>
+                  {cle === 'niveaux'
+                    ? (valeur as Valeur<'niveau'>[]).map((n) => libelleNiveau[n]).join(', ') ||
+                      'Pas indiqué'
+                    : cle === 'typeEcole'
+                      ? libelleTypeEcole[valeur as Valeur<'type_ecole'>]
+                      : cle === 'numeroEnseigne' && valeur
+                        ? afficherTelephone(valeur as string)
+                        : (valeur as string) || 'Pas indiqué'}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </section>
       )}
 
-      {efface && (
-        <p className="bandeau bandeau-envoye" role="status">
-          {efface}
-        </p>
-      )}
       {erreur && (
         <p className="message-erreur" role="alert">
           {erreur}
@@ -728,7 +782,24 @@ function Detail({
           définitif), ou agir sur l'école dans l'onglet « Écoles ».
         </p>
       ) : (
-        <div className="admin-decision pile">
+        <fieldset
+          className="admin-decision pile"
+          disabled={enCours}
+          aria-label="Décision de NTanova"
+        >
+          {nouvelleEcole && (
+            <CorrectionAvantAcceptation
+              fiche={detail}
+              correction={corrections}
+              surChangement={setCorrections}
+              surEdition={setEditionInformations}
+            />
+          )}
+          {editionInformations && (
+            <p className="mention">
+              Utilise les valeurs corrigées ou annule leur saisie avant de décider.
+            </p>
+          )}
           {detail.essai && (
             <Bandeau ton="attente" icone="alerte">
               <p>
@@ -751,7 +822,11 @@ function Detail({
           )}
 
           {!detail.essai && (detail.type !== 'correction' || detail.corrigeUneFicheEnAttente) && (
-            <div className="pile-serree" aria-label="Que faire de cette fiche">
+            <fieldset
+              className="pile-serree formulaire-occupe"
+              disabled={editionInformations}
+              aria-label="Que faire de cette fiche"
+            >
               <Choix
                 legende="Que faire de cette fiche ?"
                 options={options}
@@ -848,14 +923,14 @@ function Detail({
                     ici rendent l’école cherchable (série C, BTS, licence…).
                   </p>
                   <Formations
-                    cycles={detail.niveaux}
-                    formations={formations}
+                    cycles={valeurs.niveaux}
+                    formations={formationsRetenues}
                     domaines={domaines}
                     surChangement={setFormations}
                   />
                 </>
               )}
-            </div>
+            </fieldset>
           )}
 
           {bilanAvant && (
@@ -891,12 +966,14 @@ function Detail({
 
           <div className="admin-actions">
             {!detail.essai && (
-              <button
+              <Bouton
                 type="button"
-                className="bouton"
-                disabled={enCours || cibleIncomplete}
+                enCours={operation === 'acceptation'}
+                texteEnCours="Acceptation…"
+                disabled={enCours || cibleIncomplete || editionInformations}
                 onClick={() =>
                   void agir(
+                    'acceptation',
                     () => admin.accepter(id, decision()),
                     cible.mode === 'update_campus' || cible.mode === 'add_cycle'
                       ? 'La fiche de l’école est mise à jour. Si elle était déjà en ligne, la correction paraît après la prochaine mise à jour du site ; sinon, publie-la depuis « Écoles ».'
@@ -905,26 +982,29 @@ function Detail({
                 }
               >
                 {texteAccepter}
-              </button>
+              </Bouton>
             )}
             {detail.essai && !detail.essaiValideLe && (
-              <button
+              <Bouton
                 type="button"
-                className="bouton"
+                enCours={operation === 'essai'}
+                texteEnCours="Validation…"
                 disabled={enCours}
                 onClick={() =>
                   void agir(
+                    'essai',
                     () => admin.validerEssai(id),
                     'Validée avec le relais : elle compte pour son essai et ne sera jamais publiée.',
                   )
                 }
               >
                 Valider pour l’essai
-              </button>
+              </Bouton>
             )}
             <button
               type="button"
               className="bouton bouton-secondaire"
+              disabled={editionInformations}
               aria-expanded={mode === 'correction'}
               onClick={() => setMode(mode === 'correction' ? null : 'correction')}
             >
@@ -933,6 +1013,7 @@ function Detail({
             <button
               type="button"
               className="bouton bouton-secondaire admin-bouton-refus"
+              disabled={editionInformations}
               aria-expanded={mode === 'refus'}
               onClick={() => {
                 setMode(mode === 'refus' ? null : 'refus');
@@ -956,6 +1037,7 @@ function Detail({
                   return;
                 }
                 void agir(
+                  mode,
                   () =>
                     mode === 'correction'
                       ? admin.demanderCorrection(id, motif, texte)
@@ -1003,13 +1085,53 @@ function Detail({
                   />
                 )}
               </Champ>
-              <button type="submit" className="bouton" disabled={enCours}>
+              <Bouton
+                type="submit"
+                variante={mode === 'refus' ? 'danger' : 'principal'}
+                enCours={operation === mode}
+                texteEnCours={mode === 'correction' ? 'Envoi de la demande…' : 'Refus…'}
+                disabled={enCours}
+              >
                 {mode === 'correction' ? 'Envoyer la demande' : 'Refuser la fiche'}
-              </button>
+              </Bouton>
             </form>
           )}
-        </div>
+        </fieldset>
       )}
+      <SectionRepliable
+        titre="Contact et échanges avec la direction"
+        synthese={`${syntheseContact}${erreurContact ? ' · Action à réessayer' : ''}`}
+      >
+        {efface && (
+          <p className="bandeau bandeau-envoye" role="status">
+            {efface}
+          </p>
+        )}
+        {erreurContact && (
+          <p className="message-erreur" role="alert">
+            {erreurContact}
+          </p>
+        )}
+        <Personnes
+          admin={admin}
+          id={id}
+          detail={detail}
+          personnes={personnes}
+          surChangement={relirePersonnes}
+          annoncer={setEfface}
+          surErreur={setErreurContact}
+        />
+
+        {personnes.length > 0 && (
+          <section className="pile-serree" aria-label="Écrire à la direction">
+            <h3 className="rang">
+              <Icone nom="coche" />
+              Écrire à la direction
+            </h3>
+            <Pont admin={admin} detail={detail} contacts={personnes} surAnnonce={surAnnonce} />
+          </section>
+        )}
+      </SectionRepliable>
     </section>
   );
 }

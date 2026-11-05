@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
   lireEquipement,
@@ -22,6 +22,8 @@ export function EquipementsEcole({
   equipements,
   admin,
   fermer,
+  integre = false,
+  surOccupation,
   surChangement,
 }: {
   ecoleId: string;
@@ -29,12 +31,18 @@ export function EquipementsEcole({
   equipements: Equipement[];
   admin: PortAdministration;
   fermer: () => void;
+  integre?: boolean;
+  surOccupation?: (occupe: boolean) => void;
   surChangement: (texte: string) => void;
 }) {
   const [saisie, setSaisie] = useState(saisieEquipementVide);
   const [id, setId] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  useEffect(() => {
+    surOccupation?.(enCours);
+    return () => surOccupation?.(false);
+  }, [enCours, surOccupation]);
   const champ = (cle: keyof SaisieEquipement, valeur: string | boolean) =>
     setSaisie((s) => ({ ...s, [cle]: valeur }));
   const sauver = async () => {
@@ -77,7 +85,7 @@ export function EquipementsEcole({
     }
   };
   return (
-    <Dialogue titre={`Équipements de ${nom}`} fermer={fermer}>
+    <Dialogue titre={`Équipements de ${nom}`} fermer={fermer} integre={integre}>
       <h3>Équipements et infrastructures</h3>
       <p>
         Non observé ne veut pas dire absent. Le terrain atteste seulement un élément réellement

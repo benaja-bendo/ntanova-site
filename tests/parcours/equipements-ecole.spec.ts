@@ -1,3 +1,4 @@
+import { ouvrirGestion } from './aides';
 import { expect, test } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 test.use({ permissions: ['geolocation'] });
@@ -10,8 +11,10 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
   await page.getByRole('button', { name: 'Accepter la fiche' }).click();
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-  await ligne.getByRole('button', { name: 'Équipements', exact: true }).click();
-  const d = page.getByRole('dialog', { name: 'Équipements de [École 1]' }),
+  await expect(page.getByRole('combobox', { name: 'Zone à publier' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
+  await ouvrirGestion(ligne, 'Équipements');
+  const d = page.getByRole('dialog', { name: 'Gérer [École 1]' }),
     f = d.getByRole('form');
   await f.getByRole('combobox', { name: 'Équipement', exact: true }).selectOption('cloture');
   await f.getByRole('combobox', { name: 'État', exact: true }).selectOption('absent');
@@ -34,9 +37,9 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
   expect(await d.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
   await page.keyboard.press('Escape');
   await expect(d).toHaveCount(0);
-  await expect(ligne.getByRole('button', { name: 'Équipements', exact: true })).toBeFocused();
+  await expect(ligne.getByRole('button', { name: 'Gérer la fiche', exact: true })).toBeFocused();
   await page.reload();
-  await ligne.getByRole('button', { name: 'Équipements', exact: true }).click();
+  await ouvrirGestion(ligne, 'Équipements');
   await d.getByRole('button', { name: 'Modifier Clôture', exact: true }).click();
   await expect(f.getByRole('combobox', { name: 'Source', exact: true })).toHaveValue('terrain');
   await expect(f.getByRole('checkbox')).not.toBeChecked();

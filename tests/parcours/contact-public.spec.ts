@@ -1,3 +1,4 @@
+import { ouvrirGestion } from './aides';
 import { expect, test } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 test.use({ permissions: ['geolocation'] });
@@ -10,7 +11,7 @@ test('contact public : accord distinct, ajout, relecture et retrait sans badge',
   await page.getByRole('button', { name: 'Accepter la fiche' }).click();
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-  await ligne.getByRole('button', { name: 'Contact public', exact: true }).click();
+  await ouvrirGestion(ligne, 'Contact public');
   const f = page.getByRole('form', { name: 'Contact public de [École 1]', exact: true });
   // Pas de copie du contact privé reçu avec la fiche.
   await expect(f.getByLabel('Numéro public', { exact: true })).toHaveValue('');
@@ -29,7 +30,7 @@ test('contact public : accord distinct, ajout, relecture et retrait sans badge',
   await expect(f).toContainText('+242 06 000 00 01');
   await expect(ligne).not.toContainText('vérifiée par la direction');
   await page.reload();
-  await ligne.getByRole('button', { name: 'Contact public', exact: true }).click();
+  await ouvrirGestion(ligne, 'Contact public');
   await expect(f.getByLabel('Numéro public', { exact: true })).toHaveValue('242060000001');
   await expect(
     f.getByLabel('La direction autorise la publication de ce numéro sur le site.'),
@@ -69,9 +70,13 @@ test('sur téléphone : formulaire entier dans une fenêtre, Échap rend le focu
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ouvrir = page
     .getByRole('row', { name: /\[École à situer\]/ })
-    .getByRole('button', { name: 'Contact public', exact: true });
+    .getByRole('button', { name: 'Gérer la fiche', exact: true });
   await ouvrir.click();
-  const fenetre = page.getByRole('dialog', { name: 'Contact public de [École à situer]' });
+  await page
+    .getByRole('navigation', { name: 'Sections de la fiche' })
+    .getByRole('button', { name: 'Contact public', exact: true })
+    .click();
+  const fenetre = page.getByRole('dialog', { name: 'Gérer [École à situer]' });
   await expect(fenetre).toBeVisible();
   const boite = await fenetre.boundingBox();
   expect(boite!.x).toBeGreaterThanOrEqual(0);

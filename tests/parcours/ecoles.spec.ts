@@ -1,3 +1,4 @@
+import { ouvrirGestion } from './aides';
 import { expect, test } from '@playwright/test';
 import { seConnecter } from './aides';
 
@@ -19,7 +20,7 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.getByRole('link', { name: 'Écoles' }).click();
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
   await expect(ligne.getByText('À situer', { exact: true })).toBeVisible();
-  await ligne.getByRole('button', { name: 'Confier à un relais' }).click();
+  await ouvrirGestion(ligne, 'Mission');
   // Une école sans position : la mission par défaut est de la situer.
   await expect(ligne.getByLabel('Ce que le relais doit faire')).toHaveValue('locate');
   await ligne.getByLabel('À vérifier').fill('Le nom exact');

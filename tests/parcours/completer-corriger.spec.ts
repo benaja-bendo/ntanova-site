@@ -1,3 +1,5 @@
+import { ouvrirContacts } from './aides';
+import { ouvrirGestion } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter, uneFicheEnvoyee } from './aides';
 
@@ -27,6 +29,7 @@ function serveur(page: Page) {
 /** L'administration accepte « [École 1] » (et confirme d'abord la fonction de la direction si on le demande). */
 async function accepter(page: Page, options: { confirmerLeContact: boolean }) {
   await ouvrirLaFiche(page);
+  await ouvrirContacts(page);
   if (options.confirmerLeContact) {
     await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
     await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
@@ -39,7 +42,7 @@ async function accepter(page: Page, options: { confirmerLeContact: boolean }) {
 async function confier(page: Page, genre: 'verify' | 'locate' | 'complete', consigne: string) {
   await page.getByRole('link', { name: 'Écoles' }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-  await ligne.getByRole('button', { name: 'Confier à un relais' }).click();
+  await ouvrirGestion(ligne, 'Mission');
   await ligne.getByLabel('Ce que le relais doit faire').selectOption(genre);
   await ligne.getByLabel('À vérifier').fill(consigne);
   await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
@@ -49,6 +52,7 @@ async function confier(page: Page, genre: 'verify' | 'locate' | 'complete', cons
 /** L'administration renvoie la fiche « [École 1] » au relais, pour ce motif. */
 async function renvoyer(page: Page, motif: string, message: string) {
   await ouvrirLaFiche(page);
+  await ouvrirContacts(page);
   await page.getByRole('button', { name: 'Demander une correction' }).click();
   await page.getByLabel('Motif').selectOption(motif);
   await page.getByLabel(/Message au relais/).fill(message);
@@ -134,7 +138,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Écoles' }).click();
     const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
-    await ligne.getByRole('button', { name: 'Confier à un relais' }).click();
+    await ouvrirGestion(ligne, 'Mission');
     await ligne.getByLabel('Ce que le relais doit faire').selectOption('complete');
     await ligne.getByLabel('À vérifier').fill('Tout reprendre.');
     await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
