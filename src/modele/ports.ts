@@ -733,6 +733,11 @@ export interface PortAdministration {
   erreursRecentes(depuis: string | null, relaisId?: string): Promise<LigneJournal[]>;
   /** `GET /admin/vue-ensemble?jours=` : où en est le relevé, en nombres (ticket #76). 14 jours par défaut, 90 au plus. */
   vueEnsemble(jours?: number): Promise<VueEnsemble>;
+  /**
+   * Combien d'écoles sont prêtes (acceptées, pas encore publiées) : le compteur de l'onglet « Écoles ». Un seul nombre, lu
+   * sans charger la liste : il se rafraîchit toutes les minutes (audit du 06/11/2026).
+   */
+  ecolesPretes(): Promise<number>;
   /** `GET /admin/lots` */
   lots(): Promise<LotVu[]>;
   /** Un lot sur n'importe quelle ville, arrondissement ou quartier. `POST /admin/lots` */

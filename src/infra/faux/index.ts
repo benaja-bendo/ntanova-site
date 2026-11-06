@@ -1301,6 +1301,11 @@ const admin: PortAdministration = {
       }));
   },
 
+  async ecolesPretes() {
+    await reseau();
+    const e = lireEtat();
+    return Object.values(e.campus).filter((c) => vueDeCampus(c, e).publication === 'prete').length;
+  },
   async vueEnsemble(jours = 14) {
     await reseau();
     const e = lireEtat();

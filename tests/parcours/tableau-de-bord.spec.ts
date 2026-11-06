@@ -61,6 +61,34 @@ test.describe('tableau de bord : À valider', () => {
   });
 });
 
+test.describe('tableau de bord : compteurs', () => {
+  test('les nombres des onglets se lisent dès l’arrivée, sans ouvrir « À valider »', async ({
+    page,
+    context,
+  }) => {
+    await uneFicheEnvoyee(page, context);
+    // On arrive directement sur un autre onglet : le nombre d'envois à valider est déjà là.
+    await page.goto('/admin/#zones');
+    await page.reload();
+    const onglets = page.getByRole('navigation', { name: 'Administration' });
+    await expect(onglets.getByRole('link', { name: /À valider/ })).toContainText(
+      '1 envoi à valider',
+    );
+    await expect(onglets.getByRole('link', { name: /Écoles/ })).not.toContainText('prête');
+
+    // Acceptée, l'école est prête : l'onglet « Écoles » le dit, et « À valider » se vide.
+    await ouvrirLaFiche(page);
+    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+    await page.goto('/admin/#zones');
+    await page.reload();
+    await expect(onglets.getByRole('link', { name: /Écoles/ })).toContainText(
+      '1 école prête à publier',
+    );
+    await expect(onglets.getByRole('link', { name: /À valider/ })).not.toContainText('envoi');
+  });
+});
+
 test.describe('tableau de bord : Écoles', () => {
   test('une école retirée n’a plus de menu « ⋯ » vide', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);
