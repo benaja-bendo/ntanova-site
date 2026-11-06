@@ -214,23 +214,24 @@ function LigneEcole({
           >
             Gérer la fiche
           </button>
-          <ActionsSecondaires nom={e.nom}>
-            {etat !== 'retiree' && (
+          {/* Une école retirée n'a aucune autre action : le menu « ⋯ » s'ouvrait vide (audit du 06/11/2026). */}
+          {etat !== 'retiree' && (
+            <ActionsSecondaires nom={e.nom}>
               <Bouton variante="discret" onClick={(ev) => ouvrir('mission', ev.currentTarget)}>
                 {e.confiee ? 'Mission en cours…' : 'Confier à un relais'}
               </Bouton>
-            )}
-            {(etat === 'prete' || etat === 'publiee') && (
-              <div className="actions-danger">
-                <Bouton variante="danger" onClick={(ev) => ouvrir('retirer', ev.currentTarget)}>
-                  Retirer du site
-                </Bouton>
-                <Bouton variante="danger" onClick={(ev) => ouvrir('fusionner', ev.currentTarget)}>
-                  Fusionner…
-                </Bouton>
-              </div>
-            )}
-          </ActionsSecondaires>
+              {(etat === 'prete' || etat === 'publiee') && (
+                <div className="actions-danger">
+                  <Bouton variante="danger" onClick={(ev) => ouvrir('retirer', ev.currentTarget)}>
+                    Retirer du site
+                  </Bouton>
+                  <Bouton variante="danger" onClick={(ev) => ouvrir('fusionner', ev.currentTarget)}>
+                    Fusionner…
+                  </Bouton>
+                </div>
+              )}
+            </ActionsSecondaires>
+          )}
         </div>
         {mode && (
           <Dialogue

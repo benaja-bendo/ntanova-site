@@ -618,3 +618,102 @@
 .admin-motif.formulaire-occupe {
   padding: var(--espace-4);
 }
+
+/*
+ * Garder ses repères pendant le défilement (audit de l'administration, 06/11/2026). Une fiche à valider fait plus de
+ * 2 000 px : le côté, la file et les boutons de décision restaient tout en haut ou tout en bas de la page.
+ */
+.admin-affiner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3) var(--ecart-cibles);
+}
+
+.admin-affiner-relais {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+.admin-affiner-relais .champ {
+  width: auto;
+  min-width: 12rem;
+}
+
+/* Une photo s'ouvre dans la page (fenêtre native), pas dans un nouvel onglet. */
+.admin-photo-ouvrir {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.admin-photo-grande {
+  display: block;
+  width: 100%;
+  max-height: 78dvh;
+  border-radius: var(--rayon-m);
+  object-fit: contain;
+  background: var(--encre-10);
+}
+
+/*
+ * Les boutons de décision. Sur un téléphone, ils restent à leur place (trois boutons empilés prendraient la moitié de
+ * l'écran et recouvriraient ce qu'on touche). Sur un grand écran, ils restent visibles en bas tant que leur place
+ * naturelle est plus bas : un élément collant ne reste que dans son parent, donc la barre est un enfant direct de la
+ * fiche. La demande de correction ou de refus s'ouvre dans la même barre, qui défile seule si la fenêtre est basse.
+ */
+.admin-decision-barre {
+  min-inline-size: 0;
+  margin: 0;
+  padding: var(--espace-4) 0 0;
+  border: 0;
+  border-top: 1px solid var(--trait);
+}
+
+/* Sur ordinateur : le côté reste en place. */
+@media (min-width: 64.0625rem) {
+  .admin-cote {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100dvh;
+    overflow-y: auto;
+  }
+
+  .admin-decision-barre {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    max-height: 75dvh;
+    margin: 0 calc(-1 * var(--espace-5));
+    padding: var(--espace-3) var(--espace-5);
+    overflow-y: auto;
+    background: var(--fond-releve);
+    box-shadow: var(--ombre-tiroir);
+  }
+
+  /* Un champ ou un bouton qui prend le focus ne reste pas caché sous la barre. */
+  html:has(.admin-decision-barre) {
+    scroll-padding-bottom: 7rem;
+  }
+}
+
+/* À valider sur un grand écran : la file garde sa place et défile seule, le détail défile à côté. */
+@media (min-width: 72rem) {
+  .admin-file.avec-selection {
+    display: grid;
+    grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .admin-file.avec-selection .admin-liste {
+    position: sticky;
+    top: var(--espace-5);
+    max-height: calc(100dvh - 2 * var(--espace-5));
+    overflow-y: auto;
+  }
+}
