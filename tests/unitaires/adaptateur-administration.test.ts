@@ -996,6 +996,23 @@ describe('la vue d’ensemble, côté Supabase (ticket n° 76)', () => {
   });
 });
 
+describe('le compteur des écoles prêtes (audit du 06/11/2026)', () => {
+  it('compte les écoles prêtes sans charger la liste', async () => {
+    const { port, appels } = fausseApi({}, { campuses: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] });
+    expect(await port.ecolesPretes()).toBe(3);
+    expect(appels).toContainEqual({ nom: 'eq campuses', arguments: ['publication', 'prete'] });
+  });
+
+  it('une lecture qui échoue le dit : l’écran garde alors l’ancien nombre', async () => {
+    const { port } = fausseApi(
+      {},
+      {},
+      { campuses: { code: '42501', message: 'permission denied' } },
+    );
+    await expect(port.ecolesPretes()).rejects.toBeTruthy();
+  });
+});
+
 describe('les corrections préparées à l’acceptation', () => {
   it('envoie les valeurs explicites dans un seul appel, y compris les effacements', async () => {
     const { port, appels } = fausseApi({

@@ -792,6 +792,15 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       }));
     },
 
+    async ecolesPretes() {
+      const { count, error } = await supabase()
+        .from('campuses')
+        .select('id', { count: 'exact', head: true })
+        .eq('publication', 'prete');
+      traduire(error);
+      return count ?? 0;
+    },
+
     async vueEnsemble(jours = 14): Promise<VueEnsemble> {
       const reponse = await supabase().rpc('admin_overview', { p_days: jours });
       // Le code arrive avant `supabase db push` : la page d'arrivée de l'administration le dit, au lieu d'une erreur muette.

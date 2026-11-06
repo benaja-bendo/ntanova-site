@@ -40,6 +40,7 @@ export default function App() {
   const [acces, setAcces] = useState<Acces>('verification');
   const [aValider, setAValider] = useState<number | null>(null);
   const [relaisAActiver, setRelaisAActiver] = useState<number | null>(null);
+  const [ecolesPretes, setEcolesPretes] = useState<number | null>(null);
   const [ecran = 'accueil'] = useAdresse();
 
   useEffect(() => {
@@ -59,6 +60,37 @@ export default function App() {
 
   const compter = useCallback((n: number) => setAValider(n), []);
   const compterLesRelais = useCallback((n: number) => setRelaisAActiver(n), []);
+
+  // Les compteurs des onglets se lisent dès l'arrivée, quel que soit l'onglet ouvert (audit du 06/11/2026 : il fallait
+  // ouvrir « À valider » pour voir son nombre), puis chaque minute et au retour sur la page. Un compteur qui ne se lit
+  // pas garde sa dernière valeur : ce n'est jamais une erreur à montrer.
+  const lireLesCompteurs = useCallback(() => {
+    if (!adaptateurs) return;
+    void Promise.allSettled([
+      adaptateurs.admin.vueEnsemble(1),
+      adaptateurs.admin.ecolesPretes(),
+    ]).then(([vue, pretes]) => {
+      if (vue.status === 'fulfilled') {
+        setAValider(vue.value.aValider.nombre);
+        setRelaisAActiver(vue.value.relais.enAttente);
+      }
+      if (pretes.status === 'fulfilled') setEcolesPretes(pretes.value);
+    });
+  }, [adaptateurs]);
+
+  useEffect(() => {
+    if (acces !== 'admin') return;
+    lireLesCompteurs();
+    const actualiser = () => {
+      if (document.visibilityState === 'visible') lireLesCompteurs();
+    };
+    const minuteur = setInterval(actualiser, 60_000);
+    document.addEventListener('visibilitychange', actualiser);
+    return () => {
+      clearInterval(minuteur);
+      document.removeEventListener('visibilitychange', actualiser);
+    };
+  }, [acces, lireLesCompteurs]);
 
   const changerDeCompte = async () => {
     await adaptateurs?.session.deconnecter();
@@ -111,12 +143,33 @@ export default function App() {
     );
   }
 
-  const onglets = [
+  // Chaque compteur dit ce qu'il compte, pour le lecteur d'écran et l'info-bulle.
+  const onglets: {
+    chemin: string;
+    libelle: string;
+    compte: number | null;
+    legende?: [singulier: string, pluriel: string];
+  }[] = [
     { chemin: 'accueil', libelle: 'Accueil', compte: null },
-    { chemin: 'valider', libelle: 'À valider', compte: aValider },
-    { chemin: 'ecoles', libelle: 'Écoles', compte: null },
+    {
+      chemin: 'valider',
+      libelle: 'À valider',
+      compte: aValider,
+      legende: ['envoi à valider', 'envois à valider'],
+    },
+    {
+      chemin: 'ecoles',
+      libelle: 'Écoles',
+      compte: ecolesPretes,
+      legende: ['école prête à publier', 'écoles prêtes à publier'],
+    },
     { chemin: 'zones', libelle: 'Zones', compte: null },
-    { chemin: 'relais', libelle: 'Relais', compte: relaisAActiver },
+    {
+      chemin: 'relais',
+      libelle: 'Relais',
+      compte: relaisAActiver,
+      legende: ['relais à activer', 'relais à activer'],
+    },
     { chemin: 'sante', libelle: 'Santé', compte: null },
     { chemin: 'paie', libelle: 'Paie', compte: null },
   ];
@@ -141,7 +194,17 @@ export default function App() {
               }}
             >
               {o.libelle}
-              {o.compte !== null && o.compte > 0 && <span className="admin-badge">{o.compte}</span>}
+              {o.compte !== null && o.compte > 0 && (
+                <span
+                  className="admin-badge"
+                  title={`${o.compte} ${o.legende?.[o.compte > 1 ? 1 : 0] ?? ''}`.trim()}
+                >
+                  {o.compte}
+                  <span className="visuellement-cache">
+                    {` ${o.legende?.[o.compte > 1 ? 1 : 0] ?? ''}`}
+                  </span>
+                </span>
+              )}
             </a>
           ))}
         </nav>
