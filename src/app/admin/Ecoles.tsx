@@ -31,6 +31,7 @@ import {
 import { listes, type Valeur } from '../../modele/listes';
 import type {
   DivisionVue,
+  ApercuSuppression,
   EcoleVue,
   LotVu,
   PortAdministration,
@@ -48,14 +49,24 @@ export const libelleMotifRetrait: Record<Valeur<'motif_retrait'>, string> = {
   autre: 'Autre',
 };
 
-type Etat = 'a_situer' | 'prete' | 'publiee' | 'retiree' | 'brouillon';
+type Etat = 'a_situer' | 'prete' | 'publiee' | 'retiree' | 'corbeille' | 'brouillon';
 
 function etatDe(e: EcoleVue): Etat {
+  if (e.corbeille) return 'corbeille';
   if (e.publication === 'publiee') return 'publiee';
   if (e.publication === 'retiree') return 'retiree';
   if (e.publication === 'prete') return 'prete';
   return e.aSituer ? 'a_situer' : 'brouillon';
 }
+
+/** Pour comparer un nom saisi à celui de l'école : sans accent, sans majuscule, sans espace en trop. */
+const comparable = (texte: string) =>
+  texte
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLocaleLowerCase('fr');
 
 const EN_LIGNE = 'Elle paraît sur ntanova.com après la prochaine mise à jour du site.';
 
@@ -85,6 +96,8 @@ function LigneEcole({
   );
   const [mode, setMode] = useState<
     | 'retirer'
+    | 'corbeille'
+    | 'supprimer'
     | 'fusionner'
     | 'modifier'
     | 'situer'
@@ -98,6 +111,8 @@ function LigneEcole({
   const [motif, setMotif] = useState<Valeur<'motif_retrait'>>('demande_ecole');
   const [noteRetrait, setNoteRetrait] = useState('');
   const [gardee, setGardee] = useState('');
+  const [apercu, setApercu] = useState<ApercuSuppression | null>(null);
+  const [nomSaisi, setNomSaisi] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
 
@@ -134,7 +149,9 @@ function LigneEcole({
     ['photo-publique', 'Photo publique'],
     ['mission', 'Mission'],
   ] as const;
-  const confirmation = mode === 'retirer' || mode === 'fusionner';
+  const confirmation =
+    mode === 'retirer' || mode === 'fusionner' || mode === 'corbeille' || mode === 'supprimer';
+  const nomCorrespond = comparable(nomSaisi) === comparable(e.nom);
 
   return (
     <tr>
@@ -161,6 +178,11 @@ function LigneEcole({
             <a href={lienGoogleMaps(e.position)} target="_blank" rel="noopener noreferrer">
               {ecrirePosition(e.position)}
             </a>
+          </span>
+        )}
+        {e.corbeille && (
+          <span className="mention admin-sous-ligne">
+            À la corbeille depuis le {jour(e.corbeille.le)}
           </span>
         )}
         {e.retrait && (
@@ -200,36 +222,79 @@ function LigneEcole({
               {etat === 'retiree' ? 'Republier' : 'Publier'}
             </Bouton>
           )}
-          {etat !== 'retiree' && e.aSituer && (
+          {etat !== 'retiree' && etat !== 'corbeille' && e.aSituer && (
             <Bouton onClick={(ev) => ouvrir('situer', ev.currentTarget)}>Situer</Bouton>
           )}
-          <button
-            ref={gestion}
-            disabled={enCours}
-            type="button"
-            className="bouton bouton-secondaire"
-            onClick={(ev) =>
-              ouvrir(etat === 'retiree' ? 'contact-public' : 'modifier', ev.currentTarget)
-            }
-          >
-            Gérer la fiche
-          </button>
-          {/* Une école retirée n'a aucune autre action : le menu « ⋯ » s'ouvrait vide (audit du 06/11/2026). */}
-          {etat !== 'retiree' && (
-            <ActionsSecondaires nom={e.nom}>
-              <Bouton variante="discret" onClick={(ev) => ouvrir('mission', ev.currentTarget)}>
-                {e.confiee ? 'Mission en cours…' : 'Confier à un relais'}
+          {etat === 'corbeille' && (
+            <>
+              <Bouton
+                enCours={enCours}
+                texteEnCours="Restauration…"
+                onClick={() =>
+                  void agir(
+                    () => admin.restaurerEcole(e.id),
+                    `${e.nom} est restaurée. Elle est de nouveau dans les listes ; si elle était publiée, republie-la.`,
+                  )
+                }
+              >
+                Restaurer
               </Bouton>
-              {(etat === 'prete' || etat === 'publiee') && (
-                <div className="actions-danger">
-                  <Bouton variante="danger" onClick={(ev) => ouvrir('retirer', ev.currentTarget)}>
-                    Retirer du site
-                  </Bouton>
-                  <Bouton variante="danger" onClick={(ev) => ouvrir('fusionner', ev.currentTarget)}>
-                    Fusionner…
-                  </Bouton>
-                </div>
+              <Bouton
+                variante="danger"
+                onClick={(ev) => {
+                  setApercu(null);
+                  setNomSaisi('');
+                  ouvrir('supprimer', ev.currentTarget);
+                  // Ce que la suppression emporterait, lu avant de demander la confirmation.
+                  admin
+                    .apercuSuppression(e.id)
+                    .then(setApercu)
+                    .catch((err: unknown) => setErreur(message(err)));
+                }}
+              >
+                Supprimer définitivement…
+              </Bouton>
+            </>
+          )}
+          {etat !== 'corbeille' && (
+            <button
+              ref={gestion}
+              disabled={enCours}
+              type="button"
+              className="bouton bouton-secondaire"
+              onClick={(ev) =>
+                ouvrir(etat === 'retiree' ? 'contact-public' : 'modifier', ev.currentTarget)
+              }
+            >
+              Gérer la fiche
+            </button>
+          )}
+          {/* Le menu « ⋯ » : la mission, le retrait et la fusion quand elles ont un sens, et la corbeille pour toutes les écoles. */}
+          {etat !== 'corbeille' && (
+            <ActionsSecondaires nom={e.nom}>
+              {etat !== 'retiree' && (
+                <Bouton variante="discret" onClick={(ev) => ouvrir('mission', ev.currentTarget)}>
+                  {e.confiee ? 'Mission en cours…' : 'Confier à un relais'}
+                </Bouton>
               )}
+              <div className="actions-danger">
+                {(etat === 'prete' || etat === 'publiee') && (
+                  <>
+                    <Bouton variante="danger" onClick={(ev) => ouvrir('retirer', ev.currentTarget)}>
+                      Retirer du site
+                    </Bouton>
+                    <Bouton
+                      variante="danger"
+                      onClick={(ev) => ouvrir('fusionner', ev.currentTarget)}
+                    >
+                      Fusionner…
+                    </Bouton>
+                  </>
+                )}
+                <Bouton variante="danger" onClick={(ev) => ouvrir('corbeille', ev.currentTarget)}>
+                  Mettre à la corbeille…
+                </Bouton>
+              </div>
             </ActionsSecondaires>
           )}
         </div>
@@ -237,16 +302,20 @@ function LigneEcole({
           <Dialogue
             titre={
               confirmation
-                ? `${mode === 'retirer' ? 'Retirer' : 'Fusionner'} ${e.nom}`
+                ? `${{ retirer: 'Retirer', fusionner: 'Fusionner', corbeille: 'Mettre à la corbeille', supprimer: 'Supprimer définitivement' }[mode as 'retirer' | 'fusionner' | 'corbeille' | 'supprimer']} ${e.nom}`
                 : `Gérer ${e.nom}`
             }
             variante={confirmation ? 'confirmation' : 'tiroir'}
             description={
-              mode === 'retirer'
-                ? 'Cette école sera retirée du catalogue après la prochaine mise à jour du site. Son historique est conservé.'
-                : mode === 'fusionner'
-                  ? 'Cette fiche sera retirée et son ancienne adresse renverra vers l’école choisie. Vérifie qu’il s’agit de la même école.'
-                  : undefined
+              mode === 'corbeille'
+                ? 'L’école disparaît des listes, du site (après la prochaine mise à jour), des statistiques et des missions. Ses fiches, photos et contacts sont gardés : tu peux la restaurer depuis « Corbeille ».'
+                : mode === 'supprimer'
+                  ? 'Définitif : on ne revient pas en arrière.'
+                  : mode === 'retirer'
+                    ? 'Cette école sera retirée du catalogue après la prochaine mise à jour du site. Son historique est conservé.'
+                    : mode === 'fusionner'
+                      ? 'Cette fiche sera retirée et son ancienne adresse renverra vers l’école choisie. Vérifie qu’il s’agit de la même école.'
+                      : undefined
             }
             retourFocus={declencheur}
             occupe={enCours || operation}
@@ -373,6 +442,103 @@ function LigneEcole({
                 <Bouton type="submit" variante="danger" enCours={enCours} texteEnCours="Retrait…">
                   Retirer {e.nom} du site
                 </Bouton>
+              </form>
+            )}
+
+            {mode === 'corbeille' && (
+              <form
+                className="admin-motif"
+                onSubmit={(ev) => {
+                  ev.preventDefault();
+                  void agir(
+                    () => admin.mettreALaCorbeille(e.id, motif, noteRetrait.trim() || null),
+                    `${e.nom} est à la corbeille : elle a quitté les listes et, après la prochaine mise à jour, le site. Tu peux la restaurer depuis « Corbeille ».`,
+                  );
+                }}
+              >
+                <label className="champ-groupe">
+                  Motif
+                  <select
+                    className="champ"
+                    value={motif}
+                    onChange={(ev) => setMotif(ev.target.value as Valeur<'motif_retrait'>)}
+                  >
+                    {listes.motif_retrait
+                      .filter((m) => m !== 'doublon')
+                      .map((m) => (
+                        <option key={m} value={m}>
+                          {libelleMotifRetrait[m]}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className="champ-groupe">
+                  Note (facultatif)
+                  <input
+                    className="champ"
+                    maxLength={500}
+                    value={noteRetrait}
+                    onChange={(ev) => setNoteRetrait(ev.target.value)}
+                  />
+                </label>
+                <Bouton
+                  type="submit"
+                  variante="danger"
+                  enCours={enCours}
+                  texteEnCours="Mise à la corbeille…"
+                >
+                  Mettre {e.nom} à la corbeille
+                </Bouton>
+              </form>
+            )}
+
+            {mode === 'supprimer' && (
+              <form
+                className="admin-motif"
+                onSubmit={(ev) => {
+                  ev.preventDefault();
+                  if (!apercu || apercu.bloque || !nomCorrespond) return;
+                  void agir(
+                    () => admin.supprimerDefinitivement(e.id),
+                    `${e.nom} est supprimée définitivement, avec ses fiches, ses photos et ses contacts.`,
+                  );
+                }}
+              >
+                {apercu === null ? (
+                  <p aria-busy="true">Lecture de ce que la suppression emporterait…</p>
+                ) : apercu.bloque ? (
+                  <p className="message-attention" role="status">
+                    {apercu.bloque}
+                  </p>
+                ) : (
+                  <>
+                    <p>
+                      La suppression emporte <b>{apercu.fiches}</b> fiche
+                      {apercu.fiches > 1 ? 's' : ''}, <b>{apercu.photos}</b> photo
+                      {apercu.photos > 1 ? 's' : ''} (fichiers compris), <b>{apercu.contacts}</b>{' '}
+                      contact{apercu.contacts > 1 ? 's' : ''}, ses frais, ses équipements et son
+                      historique. Seule une trace garde son nom et ces nombres.
+                    </p>
+                    <label className="champ-groupe">
+                      Pour confirmer, écris le nom de l’école : <b>{e.nom}</b>
+                      <input
+                        className="champ"
+                        autoComplete="off"
+                        value={nomSaisi}
+                        onChange={(ev) => setNomSaisi(ev.target.value)}
+                      />
+                    </label>
+                    <Bouton
+                      type="submit"
+                      variante="danger"
+                      enCours={enCours}
+                      disabled={!nomCorrespond}
+                      texteEnCours="Suppression…"
+                    >
+                      Supprimer définitivement {e.nom}
+                    </Bouton>
+                  </>
+                )}
               </form>
             )}
 
@@ -801,7 +967,8 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   const compte = (etat: Etat) => ecoles?.filter((e) => etatDe(e) === etat).length ?? 0;
   const visibles = (ecoles ?? []).filter(
     (e) =>
-      (filtre === 'toutes' || etatDe(e) === filtre) &&
+      // « Toutes » ne montre pas la corbeille : elle a son propre filtre.
+      (filtre === 'toutes' ? etatDe(e) !== 'corbeille' : etatDe(e) === filtre) &&
       (origine === 'toutes' || e.origine === origine) &&
       e.nom
         .normalize('NFD')
@@ -826,6 +993,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
     { valeur: 'publiee', libelle: `Publiées · ${compte('publiee')}` },
     { valeur: 'a_situer', libelle: `À situer · ${compte('a_situer')}` },
     { valeur: 'retiree', libelle: `Retirées · ${compte('retiree')}` },
+    { valeur: 'corbeille', libelle: `Corbeille · ${compte('corbeille')}` },
   ];
   // Les zones qui ont des écoles prêtes : une zone se publie avec tout ce qu'elle contient.
   const zonesAvecPretes = divisions

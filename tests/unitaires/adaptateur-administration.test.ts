@@ -1013,6 +1013,98 @@ describe('le compteur des écoles prêtes (audit du 06/11/2026)', () => {
   });
 });
 
+describe('la corbeille et la suppression d’une école (audit du 06/11/2026)', () => {
+  const apercu = (bloque: string | null, chemins: string[] = []) => ({
+    data: {
+      name: 'Complexe [Étoile]',
+      trashed: true,
+      blocked: bloque,
+      submissions: 2,
+      photos: chemins.length,
+      contacts: 1,
+      paths: chemins,
+    },
+    error: null,
+  });
+
+  it('met à la corbeille avec le motif et la note, et restaure', async () => {
+    const { port, appels } = fausseApi({
+      trash_campus: { data: null, error: null },
+      restore_campus: { data: null, error: null },
+    });
+    await port.mettreALaCorbeille('e1', 'erreur', 'Fiche de test');
+    await port.restaurerEcole('e1');
+    expect(appels.filter((a) => /_campus$/.test(a.nom))).toEqual([
+      {
+        nom: 'trash_campus',
+        arguments: { p_campus: 'e1', p_reason: 'erreur', p_note: 'Fiche de test' },
+      },
+      { nom: 'restore_campus', arguments: { p_campus: 'e1' } },
+    ]);
+  });
+
+  it('l’aperçu dit ce que la suppression emporterait, sans les chemins des fichiers', async () => {
+    const { port } = fausseApi({ campus_purge_preview: apercu(null, ['releves/a.jpg']) });
+    expect(await port.apercuSuppression('e1')).toEqual({
+      nom: 'Complexe [Étoile]',
+      bloque: null,
+      fiches: 2,
+      photos: 1,
+      contacts: 1,
+    });
+  });
+
+  it('un aperçu incomplet se lit sans casser : les nombres manquants valent zéro', async () => {
+    const { port } = fausseApi({ campus_purge_preview: { data: {}, error: null } });
+    expect(await port.apercuSuppression('e1')).toEqual({
+      nom: '',
+      bloque: null,
+      fiches: 0,
+      photos: 0,
+      contacts: 0,
+    });
+  });
+
+  it('supprime les fichiers du stockage, puis l’école', async () => {
+    const { port, appels } = fausseApi({
+      campus_purge_preview: apercu(null, ['releves/a.jpg', 'releves/b.jpg']),
+      purge_campus: { data: {}, error: null },
+    });
+    await port.supprimerDefinitivement('e1');
+    const ordre = appels
+      .filter((a) => a.nom === 'purge_campus' || a.nom.startsWith('stockage'))
+      .map((a) => a.nom);
+    expect(ordre).toEqual([expect.stringMatching(/^stockage /), 'purge_campus']);
+    expect(appels.find((a) => a.nom.startsWith('stockage'))?.arguments).toEqual([
+      'releves/a.jpg',
+      'releves/b.jpg',
+    ]);
+  });
+
+  it('ce qui bloque s’arrête avant de toucher à un fichier ou à la base', async () => {
+    const { port, appels } = fausseApi({
+      campus_purge_preview: apercu('Une fiche de cette école figure dans la paie d’un relais.', [
+        'releves/a.jpg',
+      ]),
+      purge_campus: { data: {}, error: null },
+    });
+    await expect(port.supprimerDefinitivement('e1')).rejects.toThrow(/paie/);
+    expect(appels.some((a) => a.nom.startsWith('stockage') || a.nom === 'purge_campus')).toBe(
+      false,
+    );
+  });
+
+  it('un refus de la base se dit en français', async () => {
+    const { port } = fausseApi({
+      trash_campus: {
+        data: null,
+        error: { code: 'P0002', message: 'Cette école est introuvable ou déjà à la corbeille.' },
+      },
+    });
+    await expect(port.mettreALaCorbeille('e1', 'erreur', null)).rejects.toThrow(/corbeille/);
+  });
+});
+
 describe('les corrections préparées à l’acceptation', () => {
   it('envoie les valeurs explicites dans un seul appel, y compris les effacements', async () => {
     const { port, appels } = fausseApi({

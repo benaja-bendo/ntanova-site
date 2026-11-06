@@ -93,6 +93,8 @@ interface CampusFaux {
     note: string | null;
     remplaceePar: string | null;
   } | null;
+  /** À la corbeille : depuis quand, et l'état d'avant (pour restaurer). */
+  corbeille?: { le: string; avant: Valeur<'publication'> } | null;
   /** Le lot du relevé qui a fait l'école (pour « Publier un lot »). */
   lotId?: string | null;
   /** Tels que la base les dit ; un parcours y met une valeur qu'un téléphone ne connaît pas encore. */
@@ -746,6 +748,7 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     origine: c.origine,
     declareeLe: c.declareeLe ?? null,
     retrait: c.retrait ?? null,
+    corbeille: c.corbeille ? { le: c.corbeille.le } : null,
     aSituer: c.position === null,
     position: c.position,
     confiee: c.confieeA
@@ -1708,6 +1711,67 @@ const admin: PortAdministration = {
       }
     });
     return n;
+  },
+  async mettreALaCorbeille(ecoleId, motif, note) {
+    await reseau();
+    const ecole = lireEtat().campus[ecoleId];
+    if (!ecole || ecole.corbeille) {
+      throw new ErreurDecision('Cette école est introuvable ou déjà à la corbeille.');
+    }
+    ecrire((e) =>
+      Object.assign(e.campus[ecoleId] ?? {}, {
+        corbeille: { le: new Date().toISOString(), avant: ecole.publication },
+        publication: 'retiree',
+        retrait: ecole.retrait ?? { motif, le: new Date().toISOString(), note, remplaceePar: null },
+        confieeA: null,
+      }),
+    );
+  },
+  async restaurerEcole(ecoleId) {
+    await reseau();
+    const ecole = lireEtat().campus[ecoleId];
+    if (!ecole?.corbeille) {
+      throw new ErreurDecision('Cette école est introuvable ou n’est pas à la corbeille.');
+    }
+    const avant = ecole.corbeille.avant;
+    ecrire((e) =>
+      Object.assign(e.campus[ecoleId] ?? {}, {
+        corbeille: null,
+        publication: avant === 'publiee' ? 'prete' : avant,
+        retrait: avant === 'retiree' ? ecole.retrait : null,
+      }),
+    );
+  },
+  async apercuSuppression(ecoleId) {
+    await reseau();
+    const e = lireEtat();
+    const ecole = e.campus[ecoleId];
+    if (!ecole) throw new ErreurDecision('Cette école est introuvable.');
+    const fiches = Object.entries(e.decisions).filter(([, d]) => d.ecoleId === ecoleId);
+    return {
+      nom: ecole.nom,
+      bloque: ecole.corbeille ? null : 'Mets l’école à la corbeille d’abord.',
+      fiches: fiches.length,
+      photos: fiches.length,
+      contacts: fiches.length,
+    };
+  },
+  async supprimerDefinitivement(ecoleId) {
+    await reseau();
+    const e = lireEtat();
+    const ecole = e.campus[ecoleId];
+    if (!ecole) throw new ErreurDecision('Cette école est introuvable.');
+    if (!ecole.corbeille) throw new ErreurDecision('Mets l’école à la corbeille d’abord.');
+    ecrire((s) => {
+      const ids = Object.entries(s.decisions)
+        .filter(([, d]) => d.ecoleId === ecoleId)
+        .map(([id]) => id);
+      for (const id of ids) {
+        delete s.decisions[id];
+        delete s.releves[id];
+      }
+      delete s.campus[ecoleId];
+    });
   },
   async retirerEcole(ecoleId, motif, note) {
     await reseau();

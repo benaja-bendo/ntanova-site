@@ -548,6 +548,16 @@ export interface InstitutionVue {
   }[];
 }
 
+/** Ce que la suppression définitive d'une école emporterait : lu avant de demander la confirmation. */
+export interface ApercuSuppression {
+  nom: string;
+  /** Pourquoi on ne peut pas supprimer maintenant ; nul quand rien ne bloque. */
+  bloque: string | null;
+  fiches: number;
+  photos: number;
+  contacts: number;
+}
+
 export interface EcoleVue {
   equipements?: Equipement[];
   frais?: FraisEcole[];
@@ -571,6 +581,8 @@ export interface EcoleVue {
     note: string | null;
     remplaceePar: string | null;
   } | null;
+  /** À la corbeille depuis quand : l'école a disparu des listes, du site et des statistiques, mais se restaure. */
+  corbeille: { le: string } | null;
   /** Sans position : l'école attend sa position (d'un relais, ou de l'administration). */
   aSituer: boolean;
   /** Sa position, quand elle en a une. */
@@ -807,6 +819,24 @@ export interface PortAdministration {
   publierLot(lotId: string): Promise<number>;
   /** Retirer du site, avec un motif. `POST /admin/ecoles/{id}/retrait` */
   retirerEcole(ecoleId: string, motif: Valeur<'motif_retrait'>, note: string | null): Promise<void>;
+  /**
+   * L'école quitte les listes, le site, les statistiques et les missions, mais se restaure (audit du 06/11/2026). Un
+   * retrait ne cache rien aux listes de l'administration : la corbeille, si.
+   */
+  mettreALaCorbeille(
+    ecoleId: string,
+    motif: Valeur<'motif_retrait'>,
+    note: string | null,
+  ): Promise<void>;
+  /** Une école de la corbeille revient : « retirée » si elle l'était, sinon « prête » (jamais « publiée » toute seule). */
+  restaurerEcole(ecoleId: string): Promise<void>;
+  /** Ce que la suppression définitive emporterait, et ce qui la bloque. Ne supprime rien. */
+  apercuSuppression(ecoleId: string): Promise<ApercuSuppression>;
+  /**
+   * Efface l'école, ses fiches, ses photos (fichiers compris), ses contacts, ses frais et ses faits ; laisse une trace.
+   * Exige la corbeille d'abord ; refuse si une fiche est payée, si un envoi attend ou si une fusion y renvoie.
+   */
+  supprimerDefinitivement(ecoleId: string): Promise<void>;
   /** Le premier campus est retiré et renvoie vers le second. */
   fusionnerEcoles(doublonId: string, gardeeId: string): Promise<void>;
 

@@ -33,12 +33,14 @@ export function Bouton({
   );
 }
 
-export type EtatPublication = 'a_situer' | 'prete' | 'publiee' | 'retiree' | 'brouillon';
+export type EtatPublication =
+  'a_situer' | 'prete' | 'publiee' | 'retiree' | 'corbeille' | 'brouillon';
 const publications: Record<EtatPublication, string> = {
   a_situer: 'À situer',
   prete: 'Prête',
   publiee: 'Publiée',
   retiree: 'Retirée',
+  corbeille: 'À la corbeille',
   brouillon: 'Brouillon',
 };
 export function Badge({
