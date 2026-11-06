@@ -3,8 +3,16 @@
 // une école publiée, jamais une page vide. Construite à partir de la base ; aucun JavaScript.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../../infra/index';
+import '../../ui/carte-pieces.css';
+import { lettresDesCycles } from '../../modele/carte/cycles';
 import { compterEcoles } from '../../modele/geo-divisions';
-import { lienFacette, NOM_FACETTE, type Facette } from '../../modele/recherche';
+import type { Valeur } from '../../modele/listes';
+import {
+  enumererLesFacettes,
+  lienFacette,
+  NOM_FACETTE,
+  type Facette,
+} from '../../modele/recherche';
 import { lienWhatsApp } from '../../modele/whatsapp';
 import PagePublique from '../../ui/PagePublique.astro';
 
@@ -14,6 +22,11 @@ const ordre: Facette[] = ['niveau', 'serie', 'diplome', 'domaine', 'rythme'];
 const groupes = ordre
   .map((facette) => ({ facette, valeurs: facettes.filter((f) => f.facette === facette) }))
   .filter((g) => g.valeurs.length > 0);
+// Le sous-titre ne promet que ce que la page montre : « séries du bac, diplômes, domaines » n'existent que lorsqu'une école les
+// affiche (audit du 05/11/2026, D15).
+const enumeration = enumererLesFacettes(groupes.map((g) => g.facette));
+// La lettre et la couleur du cycle (celles de la carte) sur chaque carte de niveau.
+const lettreDuNiveau = (valeur: string) => lettresDesCycles([valeur as Valeur<'niveau'>]);
 ---
 
 <PagePublique
@@ -28,8 +41,9 @@ const groupes = ordre
     <div>
       <h1>Les écoles par formation</h1>
       <p class="texte-doux">
-        Ce que les écoles affichent sur leurs panneaux et leurs prospectus : séries du bac,
-        diplômes, domaines.
+        {groupes.length > 0
+          ? `Les écoles publiées, rangées par ${enumeration}.`
+          : 'Les formations se lisent sur les panneaux et les prospectus relevés par les jeunes du quartier.'}
       </p>
     </div>
     <p>
@@ -51,9 +65,16 @@ const groupes = ordre
         <ul class="valeurs">
           {g.valeurs.map((v) => (
             <li>
-              <a href={lienFacette(v)}>
-                <span>{v.libelle}</span>
-                <span class="texte-doux">{compterEcoles(v.ecoles.length)}</span>
+              <a href={lienFacette(v)} class:list={{ 'avec-disque': g.facette === 'niveau' }}>
+                {g.facette === 'niveau' && (
+                  <span class={`disque disque-l c-${lettreDuNiveau(v.valeur)}`} aria-hidden="true">
+                    {lettreDuNiveau(v.valeur)}
+                  </span>
+                )}
+                <span class="valeur-texte">
+                  <span>{v.libelle}</span>
+                  <span class="texte-doux">{compterEcoles(v.ecoles.length)}</span>
+                </span>
               </a>
             </li>
           ))}
@@ -100,8 +121,8 @@ const groupes = ordre
   }
   .valeurs a {
     display: inline-flex;
-    flex-direction: column;
-    justify-content: center;
+    align-items: center;
+    gap: var(--espace-3);
     min-height: var(--cible-principale);
     padding: var(--espace-2) var(--espace-4);
     border: 1px solid var(--trait);
@@ -110,6 +131,14 @@ const groupes = ordre
     color: var(--texte);
     font-weight: 700;
     text-decoration: none;
+  }
+  .valeur-texte {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .valeurs a.avec-disque {
+    padding-left: var(--espace-2);
   }
   .valeurs a:hover {
     border-color: var(--marque);

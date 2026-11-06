@@ -304,7 +304,7 @@ test.describe('site public', () => {
   }) => {
     await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
     const largeur = largeurDe(page);
-    const ecole = await page.locator('a.ecole').first().boundingBox();
+    const ecole = await page.locator('a.ligne-ecole').first().boundingBox();
     if (largeur >= TABLETTE) {
       expect(ecole?.width ?? 0).toBeLessThanOrEqual(480);
     } else {

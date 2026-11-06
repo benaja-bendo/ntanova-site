@@ -1,0 +1,46 @@
+---
+// La ligne d'une école, écrite à la construction (une zone, un coin de la carte, une formation). Son jumeau écrit dans le
+// navigateur, `creerLigneEcole` de `dom-pieces.ts`, donne exactement le même balisage : un parcours les compare. Les mots
+// viennent de `modele/ligne-ecole.ts`. Les styles (`.ligne-ecole`, …) sont ceux de `carte-pieces.css`.
+import {
+  iconeDeProvenance,
+  lieuEtRepere,
+  niveauxEtType,
+  type LigneAffichee,
+} from '../modele/ligne-ecole';
+import { libelleProvenance } from '../modele/libelles';
+import Icone from './Icone.astro';
+
+interface Props {
+  d: LigneAffichee;
+}
+const { d } = Astro.props;
+const sousNiveaux = niveauxEtType(d);
+const sousLieu = lieuEtRepere(d);
+---
+
+<li>
+  <a class="ligne-ecole" href={d.url}>
+    {d.lettre ? (
+      <span class={`disque disque-l c-${d.lettre}`} aria-hidden="true">
+        {d.lettre}
+      </span>
+    ) : (
+      <span class="disque disque-l disque-vide" aria-hidden="true">
+        –
+      </span>
+    )}
+    <span class="ligne-corps">
+      <span class="ligne-nom">{d.nom}</span>
+      {d.etiquette && <span class="ligne-sous">{d.etiquette}</span>}
+      {sousNiveaux && <span class="ligne-sous">{sousNiveaux}</span>}
+      {sousLieu && <span class="ligne-sous">{sousLieu}</span>}
+      {d.distance && <span class="ligne-distance">{d.distance}</span>}
+      <span class={`ligne-preuve ligne-preuve-${d.preuve}`}>
+        <Icone nom={iconeDeProvenance[d.preuve]} />
+        {libelleProvenance[d.preuve]}
+      </span>
+    </span>
+    <Icone nom="suite" petite={false} />
+  </a>
+</li>

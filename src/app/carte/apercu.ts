@@ -8,8 +8,8 @@
 import type { FeatureEcole } from '../../modele/carte/donnees';
 import { adresseVue } from '../../modele/carte/navigation';
 import { zoomMaxEn } from '../../modele/carte/fond';
-import { ICONES, type NomIcone } from '../../modele/carte/icones';
-import { estUneLettreDeCycle } from '../../modele/carte/marqueurs';
+import type { NomIcone } from '../../modele/carte/icones';
+import { disque, element, icone } from '../../ui/dom-pieces';
 
 export const dateCarte = (s: string) =>
   new Intl.DateTimeFormat('fr', {
@@ -19,42 +19,8 @@ export const dateCarte = (s: string) =>
     timeZone: 'Africa/Brazzaville',
   }).format(new Date(s));
 
-const SVG = 'http://www.w3.org/2000/svg';
-export function icone(nom: NomIcone, petite = true): SVGSVGElement {
-  const svg = document.createElementNS(SVG, 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-  svg.setAttribute('class', petite ? 'ico ico-s' : 'ico');
-  for (const d of ICONES[nom]) {
-    const trace = document.createElementNS(SVG, 'path');
-    trace.setAttribute('d', d);
-    svg.append(trace);
-  }
-  return svg;
-}
-
-export function element<K extends keyof HTMLElementTagNameMap>(
-  balise: K,
-  classe?: string,
-  texte?: string,
-): HTMLElementTagNameMap[K] {
-  const e = document.createElement(balise);
-  if (classe) e.className = classe;
-  if (texte !== undefined) e.textContent = texte;
-  return e;
-}
-
-/** Le disque d'un cycle : sa lettre et sa couleur ; gris et sans lettre quand le niveau n'est pas noté. */
-export function disque(lettre: string | null | undefined, taille = ''): HTMLElement {
-  const classes = ['disque'];
-  if (taille) classes.push(taille);
-  if (estUneLettreDeCycle(lettre)) classes.push(`c-${lettre}`);
-  const d = element('span', classes.join(' '));
-  d.setAttribute('aria-hidden', 'true');
-  if (estUneLettreDeCycle(lettre)) d.textContent = lettre;
-  return d;
-}
+// Les pièces (icône, élément, disque) sont écrites une fois, dans `ui/dom-pieces.ts` : la recherche et les listes les partagent.
+export { disque, element, icone };
 
 /** Un bloc de preuve : un titre en gras avec sa date, et ce que cette preuve veut dire. */
 function preuve(classe: string, icon: NomIcone, titre: string, suite?: string) {

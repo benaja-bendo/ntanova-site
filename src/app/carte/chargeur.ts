@@ -90,6 +90,8 @@ export function initialiserCartes(): void {
   const apresLaPage = () => {
     const connexion = (navigator as Navigator & { connection?: Connexion }).connection;
     if (modeDeChargement(application ? 'carte' : 'accueil', connexion) === 'sur-appui') {
+      // La carte attend un appui : le cadre n'a pas à réserver la hauteur d'une carte qui ne viendra peut-être pas.
+      conteneur!.dataset.attente = 'appui';
       if (bouton) bouton.hidden = false;
       return;
     }

@@ -261,13 +261,14 @@ test.describe('site public', () => {
   test.describe('rechercher une école', () => {
     test('par nom, puis par série du bac : les critères se combinent', async ({ page }) => {
       await page.goto('/recherche/');
-      const resultats = page.locator('ul.ecoles');
+      const resultats = page.locator('ul.liste-lignes');
       await expect(page.getByText(/^9 écoles/)).toBeVisible();
       // Le nom, sans accent ni tiret : « tie tie » trouve Tié-Tié.
       await page.getByLabel('Nom, quartier, repère ou formation').fill('tie tie');
       await expect(page.getByText(/^4 écoles/)).toBeVisible();
       await page.getByLabel('Nom, quartier, repère ou formation').fill('');
-      // La série C : une seule école, qui l'enseigne dans une formation du jour.
+      // La série C : une seule école, qui l'enseigne dans une formation du jour. Les filtres de formation sont repliés.
+      await page.getByText('Plus de filtres').click();
       await page.getByLabel('Série du bac').selectOption('c');
       await expect(page.getByText(/^1 école/)).toBeVisible();
       await expect(
@@ -288,10 +289,12 @@ test.describe('site public', () => {
       await expect(page.getByLabel('Diplôme')).toHaveValue('bts');
       await expect(page.getByText(/^1 école/)).toBeVisible();
       await expect(
-        page.locator('ul.ecoles').getByRole('link', { name: /\[Institut supérieur Exemple\]/ }),
+        page
+          .locator('ul.liste-lignes')
+          .getByRole('link', { name: /\[Institut supérieur Exemple\]/ }),
       ).toBeVisible();
-      await page.getByLabel('Niveau').selectOption('lycee');
-      await expect(page).toHaveURL(/niveau=lycee/);
+      await page.getByRole('button', { name: 'Lycée' }).click();
+      await expect(page).toHaveURL(/niveau=L/);
       await expect(page.getByText('Aucune école ne correspond.')).toBeVisible();
     });
 
@@ -305,7 +308,7 @@ test.describe('site public', () => {
     test('chaque résultat mène à la fiche de son campus', async ({ page }) => {
       await page.goto('/recherche/?q=mongo');
       await page
-        .locator('ul.ecoles')
+        .locator('ul.liste-lignes')
         .getByRole('link', { name: /Groupe scolaire/ })
         .click();
       await expect(page).toHaveURL(/\/mongo-mpoukou\/groupe-scolaire-exemple\/$/);
@@ -325,7 +328,7 @@ test.describe('site public', () => {
       });
       await page.goto('/autour-de-moi/');
       await page.getByRole('button', { name: 'Trouver les écoles près de moi' }).click();
-      const resultats = page.locator('ul.ecoles li');
+      const resultats = page.locator('ul.liste-lignes li');
       await expect(resultats.first()).toContainText('[Complexe scolaire Exemple]');
       await expect(resultats.first()).toContainText(/À \d+\s?m/);
       await expect(
@@ -342,7 +345,7 @@ test.describe('site public', () => {
       await expect(
         page.getByText(/Aucune école relevée à moins de 3\skm d’ici pour l’instant/),
       ).toBeVisible();
-      await page.getByLabel('Jusqu’à').selectOption('30000');
+      await page.getByRole('button', { name: '30 km' }).click();
       await expect(page.getByText(/Aucune école relevée à moins de 30\skm/)).toBeVisible();
     });
 
@@ -412,20 +415,20 @@ test.describe('site public', () => {
       );
     });
 
-    test('la liste écrit niveaux, type et repère, sans jamais écrire « Pas indiqué »', async ({
+    test('la liste écrit niveaux, type, repère et preuve, sans jamais écrire « Pas indiqué »', async ({
       page,
     }) => {
       await page.goto(TIE_TIE);
-      const liste = page.locator('ul.ecoles');
+      const liste = page.locator('ul.liste-lignes');
       await expect(liste.getByRole('link', { name: /Complexe scolaire Exemple/ })).toContainText(
         'Maternelle · Primaire · Privée',
       );
-      // Le nom, puis le niveau et les formations (le type « Autre » ne s'écrit pas), puis l'état : rien d'autre.
+      // Le nom, le niveau (le type « Autre » ne s'écrit pas), le lieu, puis la preuve : rien d'autre.
       await expect(liste.getByRole('link', { name: /Centre de formation Exemple/ })).toHaveText(
-        /^\[Centre de formation Exemple\]\s*Autre formation · 1 formation\s*Vue sur place$/,
+        /^S\s*\[Centre de formation Exemple\]\s*Autre formation\s*Tié-Tié · Pointe-Noire\s*Vue sur place$/,
       );
       await expect(liste.getByRole('link', { name: /École sans détail/ })).toHaveText(
-        /^\[École sans détail Exemple\]\s*Ajoutée par NTanova, pas encore vue sur place$/,
+        /^–\s*\[École sans détail Exemple\]\s*Tié-Tié · Pointe-Noire\s*Ajoutée par NTanova, pas encore vue sur place$/,
       );
       await expect(liste).not.toContainText('Pas indiqué');
     });

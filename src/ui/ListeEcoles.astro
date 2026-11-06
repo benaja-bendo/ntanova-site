@@ -1,94 +1,21 @@
 ---
-// Les écoles en cartes cliquables : la liste d'un arrondissement, ou celle d'un coin vu de près.
-import {
-  libelleNiveau,
-  libelleProvenance,
-  libelleTypeEcole,
-  provenanceDe,
-  typeInformatif,
-} from '../modele/libelles';
-import { lienEcole } from '../modele/geo-divisions';
+// Les écoles en lignes cliquables : la liste d'une zone, d'un coin vu de près, d'une formation. Chaque ligne est celle de
+// toutes les listes d'écoles du site (`LigneEcole.astro`, audit du 05/11/2026, D6) : disque du cycle, nom, niveaux et type,
+// lieu et repère, preuve.
+import './carte-pieces.css';
+import { ligneDeEcole } from '../modele/ligne-ecole';
 import type { EcolePubliee } from '../modele/ports';
+import LigneEcole from './LigneEcole.astro';
 
 interface Props {
   ecoles: EcolePubliee[];
   id?: string;
 }
 const { ecoles, id } = Astro.props;
-const resume = (e: EcolePubliee) =>
-  [
-    e.niveaux.map((n) => libelleNiveau[n]).join(' · '),
-    typeInformatif(e.typeEcole) ? libelleTypeEcole[e.typeEcole] : null,
-    e.formations.length > 0
-      ? `${e.formations.length} formation${e.formations.length > 1 ? 's' : ''}`
-      : null,
-    e.repere,
-  ]
-    .filter(Boolean)
-    .join(' · ');
 ---
 
-<ul class="ecoles" id={id}>
+<ul class="liste-lignes" id={id}>
   {ecoles.map((e) => (
-    <li>
-      <a class="ecole" href={lienEcole(e)}>
-        <span class="ecole-nom">{e.nom}</span>
-        {e.etiquette && <span class="ecole-etiquette">{e.etiquette}</span>}
-        {resume(e) && <span class="ecole-detail">{resume(e)}</span>}
-        <span class="ecole-etat">{libelleProvenance[provenanceDe(e)]}</span>
-      </a>
-    </li>
+    <LigneEcole d={ligneDeEcole(e)} />
   ))}
 </ul>
-
-<style>
-  .ecoles {
-    display: grid;
-    gap: var(--espace-3);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .ecole {
-    display: grid;
-    gap: var(--espace-1);
-    padding: var(--espace-4);
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-m);
-    background: var(--fond-releve);
-    color: var(--texte);
-    text-decoration: none;
-  }
-  .ecole-nom {
-    font-family: var(--police-titre);
-    font-weight: 700;
-  }
-  .ecole-etiquette,
-  .ecole-detail,
-  .ecole-etat {
-    color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
-  }
-  .ecole-etat {
-    font-weight: 700;
-  }
-
-  /* À partir de 48 rem : les écoles en grille. */
-  @media (min-width: 48rem) {
-    .ecoles {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
-      gap: var(--espace-4);
-    }
-    .ecole {
-      align-content: start;
-      padding: var(--espace-5);
-      border-radius: var(--rayon-l);
-    }
-    .ecole:hover {
-      border-color: var(--marque);
-    }
-    .ecole-nom {
-      font-size: var(--taille-intertitre);
-    }
-  }
-</style>

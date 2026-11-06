@@ -45,7 +45,9 @@ test('Brazzaville a sa page, qui dit « Déploiement programmé » et propose d�
   await expect(page.getByRole('link', { name: '← Congo-Brazzaville' })).toBeVisible();
 });
 
-test('une zone programmée sans école : son état, et un seul encart WhatsApp', async ({ page }) => {
+test('une zone programmée sans école : son état, et un seul état vide avec la porte WhatsApp', async ({
+  page,
+}) => {
   await page.goto('/ecoles/congo/pointe-noire/mvou-mvou/');
   await expect(page.getByRole('heading', { name: 'Mvou-Mvou', level: 1 })).toBeVisible();
   await expect(page.locator('.etat-zone')).toHaveText('Déploiement programmé');
@@ -55,21 +57,18 @@ test('une zone programmée sans école : son état, et un seul encart WhatsApp',
   // Jamais « relevé en cours » pour une zone qui ne l'est pas, et jamais la contradiction d'avant.
   await expect(page.locator('main')).not.toContainText('relevé en cours');
   await expect(page.locator('main')).not.toContainText('Référencez');
-  // Un seul encart, un seul lien WhatsApp, qui dit où et que la personne connaît ou dirige l'école.
+  // Un seul bloc, au lieu de trois messages empilés (audit du 05/11/2026, D10) : l'état, de quoi continuer, WhatsApp.
+  await expect(page.locator('.etat-vide')).toHaveCount(1);
+  await expect(page.locator('.etat-vide-titre')).toHaveCount(1);
+  await expect(page.locator('.etat-vide .bouton')).toHaveText('Voir les écoles déjà publiées');
   const whatsapp = page.locator('main a[href*="wa.me"]');
   await expect(whatsapp).toHaveCount(1);
-  await expect(whatsapp).toHaveText('Écrire sur WhatsApp');
+  await expect(whatsapp).toHaveText(/Une école manque\s?\? Écrire sur WhatsApp/);
   const message = decodeURIComponent((await whatsapp.getAttribute('href')) ?? '');
   expect(message).toContain('je connais ou je dirige une école à Mvou-Mvou');
   await expect(
-    page.getByText('Vous connaissez ou vous dirigez une école à Mvou-Mvou ?'),
+    page.getByText(/Vous connaissez ou vous dirigez une école à Mvou-Mvou\s?\?/),
   ).toBeVisible();
-  // Le bouton se lit : texte clair sur fond vert (le style des liens de l'encart ne le recolore pas).
-  const couleurs = await whatsapp.evaluate((e) => {
-    const css = getComputedStyle(e);
-    return { fond: css.backgroundColor, texte: css.color };
-  });
-  expect(couleurs.fond).not.toBe(couleurs.texte);
 });
 
 test('la ville liste ses zones avec l’état de la carte, jamais « relevé en cours » par défaut', async ({

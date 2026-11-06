@@ -29,6 +29,7 @@ import {
 import type { DivisionPublique } from '../modele/ports';
 import Carte from './Carte.astro';
 import BasculeVue from './BasculeVue.astro';
+import EtatVide from './EtatVide.astro';
 import ListeEcoles from './ListeEcoles.astro';
 
 interface Props {
@@ -87,7 +88,7 @@ const surLaCarte: ArrondissementSurCarte[] = estPointeNoire
           arrondissement: a,
           role: 'en-cours',
           ...(lien ? { lien } : {}),
-          etiquette: n > 0 ? compterEcoles(n) : 'relevé en cours',
+          etiquette: n > 0 ? compterEcoles(n) : libelleDeploiement.actif,
         };
       if (sonEtat === 'programme')
         return {
@@ -95,7 +96,7 @@ const surLaCarte: ArrondissementSurCarte[] = estPointeNoire
           role: 'programme',
           // Une zone programmée sans école n'a rien à ouvrir : pas de lien (sa page est dans la liste, plus bas).
           ...(lien && n > 0 ? { lien } : {}),
-          etiquette: n > 0 ? compterEcoles(n) : 'programmé',
+          etiquette: n > 0 ? compterEcoles(n) : libelleDeploiement.programme,
         };
       return { arrondissement: a, role: 'pas-encore', etiquette: 'pas encore' };
     })
@@ -137,22 +138,7 @@ const lienListe = lienDivision(page.adresse);
     {dessin && <BasculeVue carte={lienCarte(page.adresse)} liste={lienListe} actuelle="liste" />}
   </div>
 
-  {sous.length === 0 ? (
-    <p class="carte">{phraseSansEcole(etat)}</p>
-  ) : (
-    <p class="compte">{phraseDeCompte(sous.length, vues, verifiees)}</p>
-  )}
-
-  {sous.length > 0 && (
-    <p class="carte">
-      <a class="chercher" href="/pour-les-ecoles/#referencer">
-        Ajouter mon école
-      </a>
-      <br />
-      La demande est ouverte partout au Congo-Brazzaville ; la publication reste une décision de
-      NTanova.
-    </p>
-  )}
+  {sous.length > 0 && <p class="compte">{phraseDeCompte(sous.length, vues, verifiees)}</p>}
 
   {estPointeNoire && surLaCarte.length > 0 && (
     <div class="disposition">
@@ -201,6 +187,7 @@ const lienListe = lienDivision(page.adresse);
     </section>
   )}
 
+  {/* Les écoles et le découpage d'abord ; ce qu'on demande aux directions vient après (audit du 05/11/2026, D10). */}
   {sous.length > 0 ? (
     <>
       <p>
@@ -212,23 +199,23 @@ const lienListe = lienDivision(page.adresse);
       <div class="encadre-pointille">
         <p>{phraseDeLaSuite(etat)}</p>
         {manque && <a href={manque}>Une école manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
+        <a class="chercher" href="/pour-les-ecoles/#referencer">
+          Ajouter mon école
+        </a>
+        <p>
+          La demande est ouverte partout au Congo-Brazzaville&nbsp;; la publication reste une
+          décision de NTanova.
+        </p>
       </div>
     </>
   ) : (
-    <aside class="encadre-pointille encart-unique" aria-label="Une école à ajouter">
-      <p>
-        <b>Vous connaissez ou vous dirigez une école {lieu}&nbsp;?</b>
-      </p>
-      <p>Écrivez-nous sur WhatsApp&nbsp;: nous la noterons pour le prochain passage.</p>
-      {manque && (
-        <a class="bouton" href={manque}>
-          Écrire sur WhatsApp
-        </a>
-      )}
-      <a class="chercher" href="/ecoles/">
-        Voir les écoles déjà publiées
-      </a>
-    </aside>
+    <EtatVide
+      titre={phraseSansEcole(etat)}
+      detail={`Vous connaissez ou vous dirigez une école ${lieu}\u00a0? Écrivez-nous : nous la noterons pour le prochain passage.`}
+      actions={[{ texte: 'Voir les écoles déjà publiées', url: '/ecoles/' }]}
+      manque={manque ? { texte: 'Une école manque\u00a0? Écrire sur WhatsApp', url: manque } : null}
+      etiquette="Aucune école publiée"
+    />
   )}
 </section>
 
@@ -343,13 +330,6 @@ const lienListe = lienDivision(page.adresse);
     border: 2px dashed var(--trait-fort);
     color: var(--texte-doux);
   }
-  /* Une zone sans école : un seul encart, qui dit comment la faire connaître. */
-  .encart-unique {
-    display: grid;
-    gap: var(--espace-3);
-    justify-items: start;
-  }
-
   /* À partir de 48 rem : les zones en grille, les titres plus grands. */
   @media (min-width: 48rem) {
     .hub {

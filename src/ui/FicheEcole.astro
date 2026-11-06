@@ -6,7 +6,8 @@
 // Aucun JavaScript, sauf un script de moins de 2 Ko pour « Partager » (partage du téléphone, ou copie du lien) :
 // sans lui, le bouton est un lien WhatsApp.
 // Une institution à plusieurs campus a une fiche par campus, qui renvoient l'une vers l'autre.
-import { cycleLePlusEleve, lettresDesCycles } from '../modele/carte/donnees';
+import './carte-pieces.css';
+import { cycleLePlusEleve, lettresDesCycles } from '../modele/carte/cycles';
 import { zoomMaxEn } from '../modele/carte/fond';
 import { adresseVue } from '../modele/carte/navigation';
 import {
@@ -424,10 +425,6 @@ const nomZone = zone.division.nom;
     });
   })();
 </script>
-
-<style is:global>
-  @import './carte-pieces.css';
-</style>
 
 <style>
   .fiche {

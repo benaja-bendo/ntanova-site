@@ -4,15 +4,29 @@
 // script filtre `/recherche.json`, construit avec le site. Sans JavaScript, la page renvoie vers les listes.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../infra/index';
-import { libelleNiveau } from '../modele/libelles';
-import { listes } from '../modele/listes';
 import { ecolesSous, lienDivision, type PageDivision } from '../modele/geo-divisions';
-import { lienWhatsApp } from '../modele/whatsapp';
+import { filtresAvances } from '../modele/recherche';
+import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
+import '../ui/carte-pieces.css';
 import PagePublique from '../ui/PagePublique.astro';
 
 const { facettes, arbre } = await obtenirSite();
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
 const valeursDe = (facette: string) => facettes.filter((f) => f.facette === facette);
+// La valeur est la lettre du cycle (celle de l'épingle), puis le mot de la puce, puis les mots complets en infobulle : les mêmes
+// puces que la carte (audit du 05/11/2026, D8).
+const cycles = [
+  ['M', 'Maternelle', 'Crèche et maternelle'],
+  ['P', 'Primaire', 'Primaire'],
+  ['C', 'Collège', 'Collège'],
+  ['L', 'Lycée', 'Lycée'],
+  ['T', 'Technique', 'Technique et professionnel'],
+  ['S', 'Supérieur', 'Supérieur et formation'],
+] as const;
+// Les filtres de formation : seulement ceux qui ont au moins une valeur dans les données construites (`filtresAvances`) ; ils se
+// rangent dans un volet replié.
+const avances = filtresAvances(facettes);
 // Les zones où l'on peut chercher : les pays, départements, villes et arrondissements qui ont des écoles (une zone qui n'a que
 // son état public, comme Brazzaville aujourd'hui, a sa page mais rien à chercher).
 const zones: PageDivision[] = [];
@@ -28,7 +42,7 @@ arbre.racines.forEach(parcourir);
   description="Rechercher une école du Congo-Brazzaville par nom, quartier, repère, niveau, série du bac, diplôme, domaine ou rythme."
   whatsapp={whatsapp}
 >
-  <section class="cadre page recherche" data-recherche>
+  <section class="cadre page recherche" data-recherche data-manque={manque ?? undefined}>
     <a class="retour" href="/ecoles/">
       ← Les écoles
     </a>
@@ -63,6 +77,30 @@ arbre.racines.forEach(parcourir);
           placeholder="Ex. : lycée, Mvoumvou, BTS informatique"
         />
       </label>
+      <div class="champ-groupe pleine" role="group" aria-labelledby="titre-niveau">
+        <span id="titre-niveau" class="titre-champ">
+          Niveau
+        </span>
+        <div class="groupe-puces groupe-puces-defile" data-niveaux>
+          <button type="button" class="pastille-choix" data-cycle="" aria-pressed="true">
+            Tous
+          </button>
+          {cycles.map(([lettre, mot, complet]) => (
+            <button
+              type="button"
+              class="pastille-choix avec-disque"
+              data-cycle={lettre}
+              aria-pressed="false"
+              title={complet}
+            >
+              <span class={`disque c-${lettre}`} aria-hidden="true">
+                {lettre}
+              </span>
+              {mot}
+            </button>
+          ))}
+        </div>
+      </div>
       <label class="champ-groupe">
         Zone
         <select class="champ" name="zone">
@@ -72,58 +110,32 @@ arbre.racines.forEach(parcourir);
           ))}
         </select>
       </label>
-      <label class="champ-groupe">
-        Niveau
-        <select class="champ" name="niveau">
-          <option value="">Tous</option>
-          {listes.niveau.map((n) => (
-            <option value={n}>{libelleNiveau[n]}</option>
-          ))}
-        </select>
-      </label>
-      <label class="champ-groupe">
-        Série du bac
-        <select class="champ" name="serie">
-          <option value="">Toutes</option>
-          {valeursDe('serie').map((v) => (
-            <option value={v.valeur}>{v.libelle}</option>
-          ))}
-        </select>
-      </label>
-      <label class="champ-groupe">
-        Diplôme
-        <select class="champ" name="diplome">
-          <option value="">Tous</option>
-          {valeursDe('diplome').map((v) => (
-            <option value={v.valeur}>{v.libelle}</option>
-          ))}
-        </select>
-      </label>
-      <label class="champ-groupe">
-        Domaine
-        <select class="champ" name="domaine">
-          <option value="">Tous</option>
-          {valeursDe('domaine').map((v) => (
-            <option value={v.valeur}>{v.libelle}</option>
-          ))}
-        </select>
-      </label>
-      <label class="champ-groupe">
-        Rythme
-        <select class="champ" name="rythme">
-          <option value="">Tous</option>
-          {valeursDe('rythme').map((v) => (
-            <option value={v.valeur}>{v.libelle}</option>
-          ))}
-        </select>
-      </label>
+      {avances.length > 0 && (
+        <details class="plus-de-filtres pleine">
+          <summary>Plus de filtres</summary>
+          <div class="filtres-avances">
+            {avances.map(({ facette, titre, tous }) => (
+              <label class="champ-groupe">
+                {titre}
+                <select class="champ" name={facette}>
+                  <option value="">{tous}</option>
+                  {valeursDe(facette).map((v) => (
+                    <option value={v.valeur}>{v.libelle}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        </details>
+      )}
     </form>
 
     <section data-resultats aria-live="polite" class="resultats">
       <p class="compte" data-compte>
         Chargement des écoles…
       </p>
-      <ul class="ecoles"></ul>
+      <ul class="liste-lignes"></ul>
+      <div data-vide></div>
     </section>
   </section>
 </PagePublique>
@@ -151,11 +163,21 @@ arbre.racines.forEach(parcourir);
   }
   .recherche .criteres {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--espace-3);
     padding: var(--espace-4);
   }
+  /* Une rangée de puces qui défile ne doit pas élargir la page : ses parents se rétrécissent jusqu'à la largeur de l'écran. */
+  .recherche .criteres > * {
+    min-width: 0;
+  }
   .recherche .pleine {
     grid-column: 1 / -1;
+  }
+  .recherche .titre-champ {
+    font-family: var(--police-titre);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
   }
   .recherche .compte {
     font-family: var(--police-titre);
@@ -165,35 +187,34 @@ arbre.racines.forEach(parcourir);
     display: grid;
     gap: var(--espace-3);
   }
-  .recherche .ecoles {
-    display: grid;
+  /* « Plus de filtres » : replié, avec le « + » qui dit qu'on peut l'ouvrir et le « − » qui dit qu'on peut le refermer. */
+  .recherche .plus-de-filtres summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: var(--espace-3);
-    margin: 0;
-    padding: 0;
+    min-height: var(--cible-min);
     list-style: none;
-  }
-  .recherche .ecole {
-    display: grid;
-    gap: var(--espace-1);
-    padding: var(--espace-4);
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-m);
-    background: var(--fond-releve);
-    color: var(--texte);
-    text-decoration: none;
-  }
-  .recherche .ecole-nom {
+    color: var(--marque);
     font-family: var(--police-titre);
     font-weight: 700;
+    cursor: pointer;
   }
-  .recherche .ecole-etiquette,
-  .recherche .ecole-detail,
-  .recherche .ecole-etat {
-    color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
+  .recherche .plus-de-filtres summary::-webkit-details-marker {
+    display: none;
   }
-  .recherche .ecole-etat {
-    font-weight: 700;
+  .recherche .plus-de-filtres summary::after {
+    content: '+';
+    font-size: var(--taille-titre-fiche);
+    line-height: 1;
+  }
+  .recherche .plus-de-filtres[open] summary::after {
+    content: '−';
+  }
+  .recherche .filtres-avances {
+    display: grid;
+    gap: var(--espace-3);
+    padding-top: var(--espace-3);
   }
 
   @media (min-width: 48rem) {
@@ -207,12 +228,8 @@ arbre.racines.forEach(parcourir);
     .recherche .criteres {
       grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
     }
-    .recherche .ecoles {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
-      gap: var(--espace-4);
-    }
-    .recherche .ecole:hover {
-      border-color: var(--marque);
+    .recherche .filtres-avances {
+      grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
     }
   }
 </style>
