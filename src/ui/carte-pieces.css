@@ -4,8 +4,8 @@
  * est dans `ExplorateurCarte.astro`. Le catalogue `/dev/catalogue/` les montre dans chacun de leurs états.
  * Seuls les jetons de `jetons.css` donnent des valeurs.
  */
-/* --- Les pièces communes de la page carte : icône, disque de cycle, puce, fiche --- */
-.explorateur .ico {
+/* --- Les pièces communes (carte et fiches d'école) : icône, disque de cycle, puce, fiche --- */
+.ico {
   width: 24px;
   height: 24px;
   flex: none;
@@ -15,12 +15,12 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.explorateur .ico-s {
+.ico-s {
   width: 20px;
   height: 20px;
 }
 /* Le disque d'un cycle : la lettre et la couleur de l'épingle, partout où le cycle s'écrit. */
-.explorateur .disque {
+.disque {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -35,48 +35,72 @@
   font-weight: 700;
   line-height: 1;
 }
-.explorateur .disque-xl {
+.disque-xl {
   width: 52px;
   height: 52px;
   font-size: var(--taille-titre-fiche);
 }
-.explorateur .disque-l {
+.disque-l {
   width: 40px;
   height: 40px;
   font-size: var(--taille-intertitre);
 }
-.explorateur .disque-vide {
+.disque-vide {
   border: 2px dashed var(--trait-fort);
   background: transparent;
   color: var(--preuve-vide);
 }
-.explorateur .c-M {
+.c-M {
   --cycle: var(--cycle-maternelle);
 }
-.explorateur .c-P {
+.c-P {
   --cycle: var(--cycle-primaire);
 }
-.explorateur .c-C {
+.c-C {
   --cycle: var(--cycle-college);
 }
-.explorateur .c-L {
+.c-L {
   --cycle: var(--cycle-lycee);
 }
-.explorateur .c-T {
+.c-T {
   --cycle: var(--cycle-technique);
 }
-.explorateur .c-S {
+.c-S {
   --cycle: var(--cycle-superieur);
 }
-.explorateur .pastille-choix.avec-disque {
+.pastille-choix.avec-disque {
   padding-left: var(--espace-2);
 }
-.explorateur .pastille-choix:focus-visible,
+.pastille-choix:focus-visible,
 .explorateur .poignee-tiroir:focus-visible,
 .explorateur .rond:focus-visible,
-.explorateur .ligne-ecole:focus-visible {
+.ligne-ecole:focus-visible {
   outline: var(--epaisseur-focus) solid var(--focus);
   outline-offset: 2px;
+}
+/* Un groupe de puces à choisir (le niveau, le rayon) : elles passent à la ligne au lieu de défiler. */
+.groupe-puces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+}
+/* Sur téléphone, une seule rangée qui défile du doigt (comme sur la carte) : les résultats n'attendent pas quatre lignes de puces. */
+@media (max-width: 47.99rem) {
+  .groupe-puces-defile {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    margin-inline: calc(var(--espace-4) * -1);
+    padding-inline: var(--espace-4);
+  }
+  .groupe-puces-defile::-webkit-scrollbar {
+    display: none;
+  }
+  .groupe-puces-defile .pastille-choix {
+    flex: none;
+  }
 }
 /* La fiche d'aperçu d'une école (src/app/carte/apercu.ts) */
 .carte-apercu {
@@ -301,6 +325,85 @@
 }
 .ligne-ecole .ico {
   color: var(--texte-doux);
+}
+/* La distance (« À 350 m »), quand la liste est classée. */
+.ligne-distance {
+  color: var(--marque-appuyee);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+  line-height: 1.35;
+}
+/* La preuve d'une ligne : une seule, dite en quelques mots, avec la même icône que le bloc de la fiche. */
+.ligne-preuve {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--espace-1);
+  margin-top: var(--espace-1);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+  line-height: 1.35;
+}
+.ligne-ecole .ligne-preuve .ico {
+  flex: none;
+  margin-top: 0.15em;
+  color: currentColor;
+}
+.ligne-preuve-verifiee {
+  color: var(--preuve-direction);
+}
+.ligne-preuve-relevee {
+  color: var(--preuve-terrain);
+}
+.ligne-preuve-declaree,
+.ligne-preuve-ajoutee {
+  color: var(--preuve-vide);
+}
+/* Une liste d'écoles : une colonne sur téléphone, une grille à partir de 48 rem. */
+.liste-lignes {
+  display: grid;
+  gap: var(--espace-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 48rem) {
+  .liste-lignes {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+    gap: var(--espace-4);
+  }
+}
+/* L'état vide, le même partout : un état clair, de quoi continuer, et la porte « Une école manque ? ». */
+.etat-vide {
+  display: grid;
+  justify-items: start;
+  gap: var(--espace-3);
+  padding: var(--espace-4);
+  border: 2px dashed var(--trait-fort);
+  border-radius: var(--rayon-m);
+}
+.etat-vide p {
+  margin: 0;
+}
+.etat-vide-titre {
+  font-family: var(--police-titre);
+  font-size: var(--taille-intertitre);
+  font-weight: 700;
+  line-height: var(--interligne-titre);
+}
+.etat-vide-detail {
+  color: var(--texte-doux);
+}
+.etat-vide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+}
+.etat-vide-manque a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cible-min);
+  color: var(--marque);
+  font-weight: 700;
 }
 .rond {
   display: flex;

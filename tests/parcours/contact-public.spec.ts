@@ -47,12 +47,21 @@ test('fiche publique : accord daté et numéro d’enseigne gardent leur provena
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
   await expect(page.getByText('Contact communiqué par l’école', { exact: true })).toBeVisible();
   await expect(page.getByText('Publication autorisée le 3 novembre 2026.')).toBeVisible();
-  await expect(page.locator('a[href="tel:+242060000009"]')).toHaveCount(1);
+  // Une ligne dans la fiche, plus le bouton « Appeler » de la barre d'actions : le même numéro, le contact communiqué d'abord.
+  await expect(page.locator('dl.proprietes a[href="tel:+242060000009"]')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Appeler' })).toHaveAttribute(
+    'href',
+    'tel:+242060000009',
+  );
   await expect(page.getByText('Confirmée par la direction', { exact: true })).toHaveCount(0);
 });
 test('même numéro sur l’enseigne et communiqué : un appel, deux provenances', async ({ page }) => {
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-sans-detail-exemple/');
-  await expect(page.locator('a[href="tel:+242060000002"]')).toHaveCount(1);
+  await expect(page.locator('dl.proprietes a[href="tel:+242060000002"]')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Appeler' })).toHaveAttribute(
+    'href',
+    'tel:+242060000002',
+  );
   await expect(page.getByText('Également lu sur l’enseigne.')).toBeVisible();
   await expect(page.getByText("Contact de l'école", { exact: true })).toHaveCount(0);
 });

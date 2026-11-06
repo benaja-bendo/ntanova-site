@@ -1,0 +1,17 @@
+---
+// Une icône du site, écrite en HTML (les tracés sont ceux de `modele/carte/icones.ts`, que la fiche d'aperçu de la carte dessine
+// aussi). Décorative : le texte à côté dit la même chose.
+import { ICONES, type NomIcone } from '../modele/carte/icones';
+interface Props {
+  nom: NomIcone;
+  /** 20 px au lieu de 24 px. */
+  petite?: boolean;
+}
+const { nom, petite = true } = Astro.props;
+---
+
+<svg class={petite ? 'ico ico-s' : 'ico'} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+  {ICONES[nom].map((d) => (
+    <path d={d} />
+  ))}
+</svg>

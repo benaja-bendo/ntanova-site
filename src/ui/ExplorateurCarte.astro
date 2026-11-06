@@ -51,11 +51,6 @@ const cycles = [
     </div>
     <div id="carte-toile" class="carte-toile"></div>
   </div>
-  {!application && (
-    <a class="plein-ecran bouton" href="/carte/">
-      Explorer la carte en plein écran
-    </a>
-  )}
   <button type="button" class="bouton activer-carte" hidden>
     Explorer la carte interactive
   </button>
@@ -246,12 +241,25 @@ const cycles = [
   [data-etat='prete'] .carte-repli {
     display: none;
   }
+  /* Sur l'accueil, tant que la carte n'est pas chargée (économiseur de données, connexion lente, pas de WebGL2, échec), le cadre
+     a la hauteur de son dessin, pas celle d'une carte qui n'est pas là : plus de grand vide au-dessus du dessin. */
+  .explorateur:not(.explorateur-app) .carte-interactive[data-attente='appui'][data-etat='repli'],
+  .explorateur:not(.explorateur-app) .carte-interactive[data-etat='repli-sans-webgl2'],
+  .explorateur:not(.explorateur-app) .carte-interactive[data-etat='echec'] {
+    height: auto;
+    min-height: 0;
+  }
+  .explorateur:not(.explorateur-app)
+    .carte-interactive[data-attente='appui'][data-etat='repli']
+    .carte-repli,
+  .explorateur:not(.explorateur-app) .carte-interactive[data-etat='repli-sans-webgl2'] .carte-repli,
+  .explorateur:not(.explorateur-app) .carte-interactive[data-etat='echec'] .carte-repli {
+    position: static;
+    overflow: visible;
+  }
   .carte-note {
     color: var(--texte-doux);
     margin: var(--espace-2) 0;
-  }
-  .plein-ecran {
-    margin-block: var(--espace-3);
   }
   .explorateur [hidden] {
     display: none !important;
@@ -404,6 +412,11 @@ const cycles = [
   .explorateur-app .maplibregl-ctrl-group {
     border-radius: 12px;
     box-shadow: var(--ombre-flottante);
+  }
+  /* Le zoom de MapLibre se dessine à 29 px : c'est une cible de doigt, elle en mesure 44 (accueil et /carte/). */
+  .explorateur .maplibregl-ctrl-group button {
+    width: var(--cible-min);
+    height: var(--cible-min);
   }
   /* --- La page carte active : tiroir sur téléphone, panneau sur ordinateur ---
      Tout tient dans l'écran : seuls la carte, les puces et le tiroir bougent. Sur iPhone, `100vh` est la hauteur SANS les

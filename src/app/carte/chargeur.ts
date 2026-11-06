@@ -65,11 +65,12 @@ export function initialiserCartes(): void {
         },
       });
       if (!application) {
-        const pleinEcran = racine!.querySelector<HTMLAnchorElement>('.plein-ecran');
+        // Le bouton principal de l'accueil (« Explorer la carte ») ouvre la carte sur la vue choisie dans l'aperçu.
+        const versLaCarte = document.querySelector<HTMLAnchorElement>('[data-vers-carte]');
         const partagerVue = () => {
           const c = carte.getCenter();
-          if (pleinEcran)
-            pleinEcran.href =
+          if (versLaCarte)
+            versLaCarte.href =
               '/carte/' + adresseVue({ zoom: carte.getZoom(), latitude: c.lat, longitude: c.lng });
         };
         carte.on('moveend', partagerVue);
@@ -89,6 +90,8 @@ export function initialiserCartes(): void {
   const apresLaPage = () => {
     const connexion = (navigator as Navigator & { connection?: Connexion }).connection;
     if (modeDeChargement(application ? 'carte' : 'accueil', connexion) === 'sur-appui') {
+      // La carte attend un appui : le cadre n'a pas à réserver la hauteur d'une carte qui ne viendra peut-être pas.
+      conteneur!.dataset.attente = 'appui';
       if (bouton) bouton.hidden = false;
       return;
     }

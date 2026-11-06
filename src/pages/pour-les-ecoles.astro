@@ -1,23 +1,22 @@
 ---
-// Pour les directions d'école : confirmer la fiche avec NTanova, sur WhatsApp.
-// Le code de la fiche de liaison part dans le message, sans JavaScript : le
-// formulaire ouvre wa.me avec le code comme texte.
+// Pour les directions d'école : confirmer la fiche avec NTanova, ou ajouter son école, sur WhatsApp.
+// Un seul bouton plein (WhatsApp) ; le code de la fiche de liaison est replié dans un <details> et part dans le message,
+// sans JavaScript : le formulaire ouvre wa.me avec le code comme texte.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { lienWhatsApp } from '../modele/whatsapp';
 import PagePublique from '../ui/PagePublique.astro';
 
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
-const sansFiche = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, je dirige l’école ');
-const referencer = lienWhatsApp(
+const ecrire = lienWhatsApp(
   PUBLIC_WHATSAPP,
-  'Bonjour NTanova, je souhaite référencer mon établissement au Congo-Brazzaville. Nom : … Ville ou localité : …',
+  'Bonjour NTanova, je dirige un établissement au Congo-Brazzaville et je souhaite confirmer sa fiche ou l’ajouter. Nom : … Ville ou localité : …',
 );
 const formulaire = lienWhatsApp(PUBLIC_WHATSAPP);
 ---
 
 <PagePublique
   titre="Pour les écoles · NTanova"
-  description="Vous dirigez un établissement au Congo-Brazzaville ? Demandez son référencement ou complétez sa fiche avec nous."
+  description="Vous dirigez un établissement au Congo-Brazzaville ? Confirmez sa fiche ou ajoutez-le avec nous, sur WhatsApp."
   whatsapp={whatsapp}
 >
   <section class="cadre page ecoles-page">
@@ -31,58 +30,8 @@ const formulaire = lienWhatsApp(PUBLIC_WHATSAPP);
         </p>
       </div>
 
-      <section class="carte bloc" id="referencer" aria-labelledby="titre-referencer">
-        <h2 id="titre-referencer">Référencez votre établissement</h2>
-        <p class="texte-doux">
-          Partout au Congo-Brazzaville, même si aucun relais n’est encore passé dans votre localité.
-          Transmettez-nous le nom et la localité de l’établissement ; nous relirons les informations
-          avec vous.
-        </p>
-        {referencer && (
-          <a class="bouton" href={referencer}>
-            Demander le référencement sur WhatsApp
-          </a>
-        )}
-        <p class="mention-public">
-          La demande ne publie pas automatiquement votre établissement. Avant un passage sur place,
-          sa fiche porte la mention « Déclarée par l’école ». La confirmation par la direction reste
-          une démarche distincte.
-        </p>
-      </section>
-      {formulaire && (
-        <form class="carte liaison" action={formulaire} method="get">
-          <h2>Vous avez reçu une fiche de liaison&nbsp;?</h2>
-          <label for="code">Le code à 4 chiffres écrit dessus</label>
-          <input
-            id="code"
-            class="champ code"
-            name="text"
-            inputmode="numeric"
-            pattern="[0-9]{4}"
-            maxlength="4"
-            autocomplete="off"
-            required
-            placeholder="_ _ _ _"
-          />
-          <button class="bouton" type="submit">
-            Continuer sur WhatsApp
-          </button>
-          <p class="mention-public">
-            Le message part avec votre code. NTanova vous répond pour relire la fiche avec vous.
-          </p>
-        </form>
-      )}
-
-      {sansFiche && (
-        <a class="lien-fort" href={sansFiche}>
-          Pas de fiche de liaison&nbsp;? Écrivez-nous sur WhatsApp
-        </a>
-      )}
-    </div>
-
-    <div class="ecoles-droite">
-      <section class="carte bloc">
-        <h2>Ce que votre école y gagne</h2>
+      <section class="carte bloc" aria-labelledby="titre-gains">
+        <h2 id="titre-gains">Ce que votre école y gagne</h2>
         <ul class="avantages">
           <li>Une fiche juste, que vous relisez et corrigez avec nous.</li>
           <li>
@@ -92,6 +41,53 @@ const formulaire = lienWhatsApp(PUBLIC_WHATSAPP);
         </ul>
       </section>
 
+      <section class="carte bloc" id="referencer" aria-labelledby="titre-referencer">
+        <h2 id="titre-referencer">Confirmez ou ajoutez votre école</h2>
+        <p class="texte-doux">
+          Partout au Congo-Brazzaville, même si aucun relais n’est encore passé dans votre localité.
+          Écrivez-nous le nom et la localité de l’établissement ; nous relirons les informations
+          avec vous.
+        </p>
+        {ecrire && (
+          <a class="bouton" href={ecrire}>
+            Écrire sur WhatsApp
+          </a>
+        )}
+        <p class="mention-public">
+          La demande ne publie pas automatiquement votre établissement. Avant un passage sur place,
+          sa fiche porte la mention « Déclarée par l’école ». La confirmation par la direction reste
+          une démarche distincte.
+        </p>
+      </section>
+
+      {formulaire && (
+        <details class="carte liaison">
+          <summary>Vous avez reçu une fiche de liaison&nbsp;?</summary>
+          <form class="liaison-corps" action={formulaire} method="get">
+            <label for="code">Le code à 4 chiffres écrit dessus</label>
+            <input
+              id="code"
+              class="champ code"
+              name="text"
+              inputmode="numeric"
+              pattern="[0-9]{4}"
+              maxlength="4"
+              autocomplete="off"
+              required
+              placeholder="_ _ _ _"
+            />
+            <button class="bouton bouton-secondaire" type="submit">
+              Continuer sur WhatsApp
+            </button>
+            <p class="mention-public">
+              Le message part avec votre code. NTanova vous répond pour relire la fiche avec vous.
+            </p>
+          </form>
+        </details>
+      )}
+    </div>
+
+    <div class="ecoles-droite">
       <section class="bloc">
         <h2>Ce que nous vous demanderons</h2>
         <ol class="etapes">
@@ -141,7 +137,6 @@ const formulaire = lienWhatsApp(PUBLIC_WHATSAPP);
     margin: 0;
   }
   .pile-titre,
-  .liaison,
   .bloc,
   .fin {
     display: grid;
@@ -153,6 +148,36 @@ const formulaire = lienWhatsApp(PUBLIC_WHATSAPP);
     display: grid;
     align-content: start;
     gap: var(--espace-5);
+  }
+  .liaison summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-3);
+    min-height: var(--cible-min);
+    list-style: none;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .liaison summary::-webkit-details-marker {
+    display: none;
+  }
+  /* Le « + » dit qu'on peut ouvrir ; le « − », qu'on peut refermer. */
+  .liaison summary::after {
+    content: '+';
+    color: var(--marque);
+    font-size: var(--taille-titre-fiche);
+    line-height: 1;
+  }
+  .liaison[open] summary::after {
+    content: '−';
+  }
+  .liaison-corps {
+    display: grid;
+    gap: var(--espace-3);
+    padding-top: var(--espace-3);
   }
   .liaison label {
     font-weight: 700;

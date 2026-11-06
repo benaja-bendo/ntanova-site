@@ -60,8 +60,15 @@ const {
 } = Astro.props;
 
 const contour = (a: ArrondissementDessine) => cheminContour(a.contour, p);
+/** Une étiquette de plus de 12 signes se coupe à son dernier espace : « Déploiement » puis « programmé ». */
+const lignesDeLEtiquette = (texte: string): string[] => {
+  const coupe = texte.lastIndexOf(' ');
+  return texte.length > 12 && coupe > 0 ? [texte.slice(0, coupe), texte.slice(coupe + 1)] : [texte];
+};
 const focus = arrondissements.find((a) => a.role === 'focus')?.arrondissement;
-const ville = arrondissements.filter((a) => a.role === 'en-cours' || a.role === 'pas-encore');
+const ville = arrondissements.filter(
+  (a) => a.role === 'en-cours' || a.role === 'programme' || a.role === 'pas-encore',
+);
 const decoupe = `decoupe-${id}`;
 
 const dedans = ([x, y]: [number, number]) =>
@@ -194,9 +201,12 @@ const epaisseurs = `--rue: ${largeurRue}px; --avenue: ${largeurAvenue}px; --aven
                   </text>
                 </g>
               ) : (
-                <text class="nom-detail" x={x} y={y + 16}>
-                  {a.etiquette}
-                </text>
+                // Une étiquette longue (« Déploiement programmé ») se coupe en deux lignes : un petit arrondissement ne la contiendrait pas.
+                lignesDeLEtiquette(a.etiquette).map((ligne, i) => (
+                  <text class="nom-detail" x={x} y={y + 16 + i * 12}>
+                    {ligne}
+                  </text>
+                ))
               ))}
           </g>
         );
@@ -316,6 +326,12 @@ const epaisseurs = `--rue: ${largeurRue}px; --avenue: ${largeurAvenue}px; --aven
   }
   .quartier.pas-encore {
     fill: var(--carte-pas-encore);
+  }
+  .quartier.programme {
+    fill: var(--carte-pas-encore);
+    stroke: var(--carte-zone-programme);
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
   }
   .quartier.en-cours {
     fill: var(--carte-releve-en-cours);

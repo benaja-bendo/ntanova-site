@@ -205,6 +205,7 @@ const autour = arrondissementsDessines.map((a) => ({
             <span class="ligne-nom">[Nom de l'école]</span>
             <span class="ligne-sous">Collège · Privée</span>
             <span class="ligne-sous">[Quartier] · [Ville]</span>
+            <span class="ligne-preuve ligne-preuve-relevee">Vue sur place</span>
           </span>
         </a>
         <a class="ligne-ecole" href="#carte-interactive">
@@ -217,6 +218,20 @@ const autour = arrondissementsDessines.map((a) => ({
             <span class="etiquette-vide">Pas encore sur la carte</span>
           </span>
         </a>
+      </div>
+
+      <h3>État vide : un état clair, de quoi continuer, « Une école manque ? »</h3>
+      <div class="etat-vide">
+        <p class="etat-vide-titre">Aucune école ne correspond.</p>
+        <p class="etat-vide-detail">Essayez avec moins de critères.</p>
+        <div class="etat-vide-actions">
+          <a class="bouton bouton-secondaire" href="#carte-interactive">
+            Effacer les critères
+          </a>
+        </div>
+        <p class="etat-vide-manque">
+          <a href="#carte-interactive">Une école manque ? Dites-le-nous sur WhatsApp</a>
+        </p>
       </div>
 
       <h3>Zones : étiquettes et légende</h3>

@@ -7,8 +7,15 @@
  * sur UNE MÊME formation. « Série C » et « soir » = une formation du soir en série C. « f » et « g » trouvent aussi
  * F1 à F4 et G1 à G3. Pur : ni base, ni DOM.
  */
+import { lettresDesCycles } from './carte/cycles';
 import { distanceMetres, type Point } from './geo';
-import { libelleDiplome, libelleNiveau, libelleRythme, libelleSerie } from './libelles';
+import {
+  libelleDiplome,
+  libelleNiveau,
+  libelleRythme,
+  libelleSerie,
+  typeInformatif,
+} from './libelles';
 import { listes, type Valeur } from './listes';
 import type { DomainePublic, EcolePubliee } from './ports';
 import { lienEcole } from './geo-divisions';
@@ -108,6 +115,36 @@ export function facettesPubliques(
   return resultat;
 }
 
+/** Les filtres de formation de « Rechercher » : ce qui sert à croiser plusieurs critères, replié sous « Plus de filtres ». */
+export interface FiltreAvance {
+  facette: Exclude<Facette, 'niveau'>;
+  titre: string;
+  /** Le mot de l'option qui ne filtre rien. */
+  tous: string;
+}
+
+const FILTRES_DE_FORMATION: readonly FiltreAvance[] = [
+  { facette: 'serie', titre: NOM_FACETTE.serie, tous: 'Toutes' },
+  { facette: 'diplome', titre: NOM_FACETTE.diplome, tous: 'Tous' },
+  { facette: 'domaine', titre: NOM_FACETTE.domaine, tous: 'Tous' },
+  { facette: 'rythme', titre: NOM_FACETTE.rythme, tous: 'Tous' },
+];
+
+/** Seulement les filtres qui ont au moins une valeur dans les données construites : un menu vide ne mène nulle part. */
+export function filtresAvances(
+  facettes: readonly Pick<ValeurFacette, 'facette'>[],
+): FiltreAvance[] {
+  return FILTRES_DE_FORMATION.filter((f) => facettes.some((v) => v.facette === f.facette));
+}
+
+/** Ce que la page « par formation » dit de son contenu, sans rien promettre d'absent : « niveau, série du bac et diplôme ». */
+export function enumererLesFacettes(facettes: readonly Facette[]): string {
+  const noms = facettes.map((f) => NOM_FACETTE[f].toLowerCase());
+  return noms.length > 1
+    ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}`
+    : (noms[0] ?? '');
+}
+
 // Le fichier de recherche ------------------------------------------------------------------------------
 
 /** Une formation, en abrégé, dans le fichier de recherche. */
@@ -149,6 +186,12 @@ export interface LigneRecherche {
   lo?: number;
   /** « Fiche vérifiée par la direction ». */
   v?: 1;
+  /** Vue sur place par un relais (la fiche porte alors une date de passage). */
+  o?: 1;
+  /** Déclarée par l'école elle-même. */
+  g?: 1;
+  /** Le type de l'école, quand il est connu (la ligne d'une école l'écrit). */
+  k?: Valeur<'type_ecole'>;
 }
 
 export function ligneDe(e: EcolePubliee): LigneRecherche {
@@ -172,6 +215,9 @@ export function ligneDe(e: EcolePubliee): LigneRecherche {
     })),
     ...(e.latitude !== null && e.longitude !== null ? { la: e.latitude, lo: e.longitude } : {}),
     ...(e.etat === 'verifiee' ? { v: 1 as const } : {}),
+    ...(e.releveeLe !== null ? { o: 1 as const } : {}),
+    ...(e.origine === 'school' ? { g: 1 as const } : {}),
+    ...(typeInformatif(e.typeEcole) ? { k: e.typeEcole } : {}),
   };
 }
 
@@ -180,6 +226,8 @@ export interface Criteres {
   /** Une zone (`congo/pointe-noire`) : ses écoles et celles de tout ce qu'elle contient. */
   zone?: string | undefined;
   niveau?: Valeur<'niveau'> | undefined;
+  /** La lettre d'un cycle (M, P, C, L, T, S : celle de l'épingle et des puces) : toutes les écoles qui l'enseignent. */
+  cycle?: string | undefined;
   serie?: Valeur<'bac_track'> | undefined;
   diplome?: Valeur<'diploma_kind'> | undefined;
   domaine?: string | undefined;
@@ -213,12 +261,14 @@ export function chercher(lignes: readonly LigneRecherche[], criteres: Criteres):
   const retenues: Resultat[] = [];
   for (const ligne of lignes) {
     if (criteres.niveau && !ligne.c.includes(criteres.niveau)) continue;
+    if (criteres.cycle && !lettresDesCycles(ligne.c).includes(criteres.cycle)) continue;
     if (criteres.zone && ligne.z !== criteres.zone && !ligne.z.startsWith(`${criteres.zone}/`))
       continue;
     if (avecFormation) {
       const bonne = ligne.f.some(
         (f) =>
           (criteres.niveau === undefined || f.c === criteres.niveau) &&
+          (criteres.cycle === undefined || lettresDesCycles([f.c]) === criteres.cycle) &&
           (criteres.serie === undefined || serieCorrespond(criteres.serie, f)) &&
           (criteres.diplome === undefined || f.d === criteres.diplome) &&
           (criteres.domaine === undefined || f.m === criteres.domaine) &&

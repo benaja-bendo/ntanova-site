@@ -11,6 +11,7 @@
  * Des fonctions pures : les fichiers sont écrits par `src/pages/carte/`.
  */
 import { lienDivision, lienEcole, ligneDeLieu, sansRepetition } from '../geo-divisions';
+import { etatPublicDe, libelleDeploiement, type EtatDeploiement } from '../etat-zone';
 import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../libelles';
 import { listes } from '../listes';
 import type { MultiPolygone } from '../geo';
@@ -21,39 +22,11 @@ import { vuesSurPlace } from './plan';
 import { simplifierContour } from './simplification';
 
 type Niveau = Valeur<'niveau'>;
-export type EtatDeploiement = NonNullable<DivisionPublique['deploiement']>;
+// L'état d'une zone et ses mots vivent dans `modele/etat-zone.ts` : la carte et les pages de zone lisent la même vérité.
+export { libelleDeploiement, type EtatDeploiement } from '../etat-zone';
 
-/** Les mots de l'état public d'une zone : jamais « complet », rien ne le mesure. */
-export const libelleDeploiement: Record<EtatDeploiement, string> = {
-  actif: 'Relevé en cours',
-  programme: 'Déploiement programmé',
-};
-
-/** La lettre d'un cycle sur son marqueur. Du plus bas au plus haut : M, P, C, L, T, S. */
-const CYCLES: readonly { cycle: Niveau; lettre: 'M' | 'P' | 'C' | 'L' | 'T' | 'S' }[] = [
-  { cycle: 'creche', lettre: 'M' },
-  { cycle: 'maternelle', lettre: 'M' },
-  { cycle: 'primaire', lettre: 'P' },
-  { cycle: 'college', lettre: 'C' },
-  { cycle: 'lycee', lettre: 'L' },
-  { cycle: 'technique', lettre: 'T' },
-  { cycle: 'superieur', lettre: 'S' },
-  { cycle: 'autre_formation', lettre: 'S' },
-];
-
-/** Les lettres des cycles, du plus bas au plus haut : le rang d'un cycle est sa place ici, à partir de 1. */
-const ORDRE_LETTRES = ['M', 'P', 'C', 'L', 'T', 'S'] as const;
-
-/**
- * Les lettres de TOUS les cycles d'une école (« MPC »), du plus bas au plus haut, une fois chacune. C'est ce que lit le
- * filtre de cycle : le marqueur suit le cycle choisi (D9), pas seulement le plus élevé. Vide quand aucun niveau n'est noté.
- */
-export function lettresDesCycles(niveaux: readonly Niveau[]): string {
-  const presentes = new Set(
-    niveaux.flatMap((n) => CYCLES.filter((c) => c.cycle === n).map((c) => c.lettre)),
-  );
-  return ORDRE_LETTRES.filter((l) => presentes.has(l)).join('');
-}
+import { ORDRE_LETTRES, cycleLePlusEleve, lettresDesCycles } from './cycles';
+export { cycleLePlusEleve, lettresDesCycles };
 
 /** La place d'un repère dans l'aperçu : une ligne. La fiche, elle, garde le texte entier. */
 export const REPERE_MAX = 80;
@@ -70,20 +43,6 @@ export function repereCourt(texte: string | null): string | null {
     '',
   );
   return `${net}…`;
-}
-
-/** Le cycle le plus élevé d'une école, pour son marqueur ; rien quand aucun niveau n'est noté. */
-export function cycleLePlusEleve(
-  niveaux: readonly Niveau[],
-): { cycle: Niveau; lettre: (typeof CYCLES)[number]['lettre'] } | null {
-  let meilleur = -1;
-  for (const n of niveaux)
-    meilleur = Math.max(
-      meilleur,
-      CYCLES.findIndex((c) => c.cycle === n),
-    );
-  const trouve = CYCLES[meilleur];
-  return trouve ? { cycle: trouve.cycle, lettre: trouve.lettre } : null;
 }
 
 export interface FeatureEcole {
@@ -251,16 +210,7 @@ export function zonesGeoJSON({
 
   for (const d of divisions) {
     if (d.genre === 'city') {
-      let etat: EtatDeploiement | null = d.deploiement;
-      if (!etat) {
-        const prefixe = adresseDe(d);
-        const dessous = divisions.filter((x) => adresseDe(x).startsWith(`${prefixe}/`));
-        etat = dessous.some((x) => x.deploiement === 'actif')
-          ? 'actif'
-          : dessous.some((x) => x.deploiement === 'programme')
-            ? 'programme'
-            : null;
-      }
+      const etat: EtatDeploiement | null = etatPublicDe(d, divisions);
       const lePoint = point(d);
       if (etat && lePoint) ajouter(d, 'ville', etat, lePoint);
       const contour = d.deploiement ? contourDeLaZone(d) : null;

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   chercher,
   ecrireDistance,
+  enumererLesFacettes,
+  filtresAvances,
   facettesPubliques,
   lienFacette,
   ligneDe,
@@ -186,11 +188,49 @@ describe('une école, en abrégé, dans le fichier de recherche', () => {
   it('ne publie ni numéro de téléphone, ni date de relevé, ni état interne', () => {
     const avecNumero = ligneDe(ecole('x', 'X', { numeroEnseigne: '242060000001' }));
     expect(JSON.stringify(avecNumero)).not.toContain('242060000001');
-    expect(Object.keys(avecNumero).sort()).toEqual(['c', 'd', 'f', 'i', 'n', 'u', 'z']);
+    // Le type (« privée ») se lit sur la fiche : la ligne d'une école l'écrit. Rien d'autre.
+    expect(Object.keys(avecNumero).sort()).toEqual(['c', 'd', 'f', 'i', 'k', 'n', 'u', 'z']);
+  });
+
+  it('dit si l’école a été vue sur place ou déclarée par elle-même, jamais le jour', () => {
+    const vue = ligneDe(ecole('v', 'V', { releveeLe: '2026-11-02T10:00:00Z' }));
+    expect(vue.o).toBe(1);
+    expect(JSON.stringify(vue)).not.toMatch(/2026|T10:00/);
+    const declaree = ligneDe(ecole('g', 'G', { origine: 'school', declareeLe: '2026-11-01' }));
+    expect(declaree.g).toBe(1);
+    expect(JSON.stringify(declaree)).not.toMatch(/2026/);
+    const ajoutee = ligneDe(ecole('a', 'A'));
+    expect(ajoutee).not.toHaveProperty('o');
+    expect(ajoutee).not.toHaveProperty('g');
+  });
+
+  it('un type « Pas indiqué » ou « Autre » n’est pas écrit', () => {
+    expect(ligneDe(ecole('n', 'N', { typeEcole: 'non_indique' }))).not.toHaveProperty('k');
+    expect(ligneDe(ecole('o', 'O', { typeEcole: 'autre' }))).not.toHaveProperty('k');
+    expect(ligneDe(ecole('p', 'P', { typeEcole: 'publique' })).k).toBe('publique');
   });
 });
 
 describe('chercher', () => {
+  it('un cycle choisi par sa lettre (M, P, C, L, T, S) trouve toutes les écoles qui l’enseignent', () => {
+    expect(noms(chercher(LIGNES, { cycle: 'L' }))).toEqual(['mix', 'lyc']);
+    expect(noms(chercher(LIGNES, { cycle: 'C' }))).toEqual(['lyc']);
+    expect(noms(chercher(LIGNES, { cycle: 'S' }))).toEqual(['mix', 'ins']);
+    expect(noms(chercher(LIGNES, { cycle: 'T' }))).toEqual([]);
+  });
+
+  it('la lettre S rassemble le supérieur et les autres formations ; M, la crèche et la maternelle', () => {
+    const creche = ligneDe(ecole('cr', 'Crèche', { niveaux: ['creche'] }));
+    const autre = ligneDe(ecole('af', 'Atelier', { niveaux: ['autre_formation'] }));
+    expect(noms(chercher([creche, autre], { cycle: 'M' }))).toEqual(['cr']);
+    expect(noms(chercher([creche, autre], { cycle: 'S' }))).toEqual(['af']);
+  });
+
+  it('un cycle et une série portent sur la même formation : « L » et série C, oui ; « S » et série C, non', () => {
+    expect(noms(chercher(LIGNES, { cycle: 'L', serie: 'c' }))).toEqual(['mix', 'lyc']);
+    expect(noms(chercher(LIGNES, { cycle: 'S', serie: 'c' }))).toEqual([]);
+  });
+
   it('par le nom, sans tenir compte des accents ni des majuscules', () => {
     expect(noms(chercher(LIGNES, { texte: 'etoile' }))).toEqual(['mat']);
     expect(noms(chercher(LIGNES, { texte: 'LYCÉE' }))).toEqual(['lyc']);
@@ -315,5 +355,40 @@ describe('ecrireDistance', () => {
     expect(ecrireDistance(1234)).toBe('1,2\u00a0km');
     expect(ecrireDistance(3000)).toBe('3\u00a0km');
     expect(ecrireDistance(12_000)).toBe('12\u00a0km');
+  });
+});
+
+describe('les filtres avancés de la recherche (audit du 05/11/2026, D8)', () => {
+  const facettes = facettesPubliques(ECOLES, DOMAINES);
+
+  it('ne montrent que les facettes qui ont au moins une valeur dans les données construites', () => {
+    expect(filtresAvances(facettes).map((f) => f.facette)).toEqual([
+      'serie',
+      'diplome',
+      'domaine',
+      'rythme',
+    ]);
+    // Deux écoles sans aucune formation : seuls les niveaux existent, aucun menu avancé n'est proposé.
+    const sansFormation = facettesPubliques([ecole('a', 'A'), ecole('b', 'B')], DOMAINES);
+    expect(sansFormation.map((f) => f.facette)).toEqual(['niveau']);
+    expect(filtresAvances(sansFormation)).toEqual([]);
+  });
+
+  it('une seule facette présente : un seul filtre', () => {
+    const rythme = facettesPubliques(
+      [ecole('r', 'R', { formations: [formation({ titre: 'X', rythmes: ['soir'] })] })],
+      DOMAINES,
+    );
+    expect(filtresAvances(rythme).map((f) => f.facette)).toEqual(['rythme']);
+    expect(filtresAvances(rythme)[0]).toMatchObject({ titre: 'Rythme', tous: 'Tous' });
+  });
+
+  it('la page « par formation » ne promet que ce qu’elle montre', () => {
+    expect(enumererLesFacettes(['niveau'])).toBe('niveau');
+    expect(enumererLesFacettes(['niveau', 'serie'])).toBe('niveau et série du bac');
+    expect(enumererLesFacettes(['niveau', 'serie', 'diplome', 'domaine', 'rythme'])).toBe(
+      'niveau, série du bac, diplôme, domaine et rythme',
+    );
+    expect(enumererLesFacettes([])).toBe('');
   });
 });

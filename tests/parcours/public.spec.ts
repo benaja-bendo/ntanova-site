@@ -52,6 +52,18 @@ const pagesSansJavaScript = [
 
 const pagesAvecJavaScript = ['/recherche/', '/autour-de-moi/'];
 
+// Les fiches d'école : sans JavaScript, sauf le petit script inline du bouton « Partager » (quatrième exception de poids).
+const fichesDEcole = [
+  `${TIE_TIE}complexe-scolaire-exemple/`,
+  `${TIE_TIE}centre-de-formation-exemple/`,
+  `${TIE_TIE}ecole-sans-detail-exemple/`,
+  `${TIE_TIE}ecole-ajoutee-exemple/`,
+  '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/groupe-scolaire-exemple/',
+  '/ecoles/congo/pointe-noire/mongo-mpoukou/groupe-scolaire-exemple/',
+  '/ecoles/congo/pointe-noire/loandjili/institut-superieur-exemple/',
+  '/ecoles/congo/brazzaville/moungali/ecole-de-brazzaville-exemple/',
+];
+
 /** Ce que toute page publique respecte : en français, aucune ressource extérieure, 360 px, des cibles de 44 px. */
 async function pageLisible(page: Page, baseURL: string | undefined, adresse: string) {
   const exterieures: string[] = [];
@@ -77,8 +89,15 @@ test.describe('site public', () => {
     test(`${adresse} : HTML lisible, 360 px, cibles de 44 px`, async ({ page, baseURL }) => {
       await pageLisible(page, baseURL, adresse);
       expect(await page.locator('script:not([type="application/ld+json"])').count()).toBe(
-        adresse === '/' ? 1 : 0,
+        adresse === '/' || fichesDEcole.includes(adresse) ? 1 : 0,
       );
+      // Sur une fiche, ce seul script est écrit dans la page (rien à télécharger) et sert « Partager ».
+      if (fichesDEcole.includes(adresse)) {
+        await expect(page.locator('script[src]')).toHaveCount(0);
+        expect(
+          await page.locator('script:not([type="application/ld+json"])').innerHTML(),
+        ).toContain('data-partager');
+      }
     });
   }
 
@@ -117,7 +136,9 @@ test.describe('site public', () => {
     await expect(page.getByRole('heading', { name: '[Complexe scolaire Exemple]' })).toBeVisible();
     await expect(page.getByText(/Vue sur place le 2 novembre 2026/)).toBeVisible();
     await expect(page.getByText(/Confirmée par la direction/)).toHaveCount(0);
-    await expect(page.getByText('Maternelle, Primaire')).toBeVisible();
+    const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
+    await expect(puces.getByRole('listitem').filter({ hasText: 'Maternelle' })).toBeVisible();
+    await expect(puces.getByRole('listitem').filter({ hasText: 'Primaire' })).toBeVisible();
     await expect(page.getByRole('link', { name: '+242 06 000 00 01' })).toHaveAttribute(
       'href',
       'tel:+242060000001',
@@ -126,7 +147,15 @@ test.describe('site public', () => {
       'href',
       'https://www.google.com/maps/dir/?api=1&destination=-4.79105,11.925',
     );
-    await page.getByRole('link', { name: 'Compléter cette fiche' }).click();
+    // « Confirmer cette fiche » ouvre WhatsApp avec le nom de l'école, son lieu et l'adresse de sa fiche : NTanova sait de
+    // quelle fiche il s'agit sans rien redemander.
+    const confirmer = page.getByRole('link', { name: 'Confirmer cette fiche' });
+    const message = decodeURIComponent((await confirmer.getAttribute('href')) ?? '');
+    expect(message).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+    expect(message).toContain('je dirige [Complexe scolaire Exemple]');
+    expect(message).toContain('/ecoles/congo/pointe-noire/tie-tie/');
+    // Ce que NTanova demande se lit sur « Pour les écoles », un lien plus bas.
+    await page.getByRole('link', { name: 'Ce que nous vous demanderons' }).click();
     await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
   });
 
@@ -135,7 +164,7 @@ test.describe('site public', () => {
       page,
     }) => {
       await page.goto('/ecoles/');
-      await page.getByRole('link', { name: 'Congo', exact: true }).click();
+      await page.getByRole('link', { name: 'Congo-Brazzaville', exact: true }).click();
       await expect(page).toHaveURL(/\/ecoles\/congo\/$/);
       // Trois zones du pays ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
       await expect(page.locator('a.zone')).toHaveCount(3);
@@ -232,13 +261,14 @@ test.describe('site public', () => {
   test.describe('rechercher une école', () => {
     test('par nom, puis par série du bac : les critères se combinent', async ({ page }) => {
       await page.goto('/recherche/');
-      const resultats = page.locator('ul.ecoles');
+      const resultats = page.locator('ul.liste-lignes');
       await expect(page.getByText(/^9 écoles/)).toBeVisible();
       // Le nom, sans accent ni tiret : « tie tie » trouve Tié-Tié.
       await page.getByLabel('Nom, quartier, repère ou formation').fill('tie tie');
       await expect(page.getByText(/^4 écoles/)).toBeVisible();
       await page.getByLabel('Nom, quartier, repère ou formation').fill('');
-      // La série C : une seule école, qui l'enseigne dans une formation du jour.
+      // La série C : une seule école, qui l'enseigne dans une formation du jour. Les filtres de formation sont repliés.
+      await page.getByText('Plus de filtres').click();
       await page.getByLabel('Série du bac').selectOption('c');
       await expect(page.getByText(/^1 école/)).toBeVisible();
       await expect(
@@ -259,10 +289,12 @@ test.describe('site public', () => {
       await expect(page.getByLabel('Diplôme')).toHaveValue('bts');
       await expect(page.getByText(/^1 école/)).toBeVisible();
       await expect(
-        page.locator('ul.ecoles').getByRole('link', { name: /\[Institut supérieur Exemple\]/ }),
+        page
+          .locator('ul.liste-lignes')
+          .getByRole('link', { name: /\[Institut supérieur Exemple\]/ }),
       ).toBeVisible();
-      await page.getByLabel('Niveau').selectOption('lycee');
-      await expect(page).toHaveURL(/niveau=lycee/);
+      await page.getByRole('button', { name: 'Lycée' }).click();
+      await expect(page).toHaveURL(/niveau=L/);
       await expect(page.getByText('Aucune école ne correspond.')).toBeVisible();
     });
 
@@ -276,7 +308,7 @@ test.describe('site public', () => {
     test('chaque résultat mène à la fiche de son campus', async ({ page }) => {
       await page.goto('/recherche/?q=mongo');
       await page
-        .locator('ul.ecoles')
+        .locator('ul.liste-lignes')
         .getByRole('link', { name: /Groupe scolaire/ })
         .click();
       await expect(page).toHaveURL(/\/mongo-mpoukou\/groupe-scolaire-exemple\/$/);
@@ -296,7 +328,7 @@ test.describe('site public', () => {
       });
       await page.goto('/autour-de-moi/');
       await page.getByRole('button', { name: 'Trouver les écoles près de moi' }).click();
-      const resultats = page.locator('ul.ecoles li');
+      const resultats = page.locator('ul.liste-lignes li');
       await expect(resultats.first()).toContainText('[Complexe scolaire Exemple]');
       await expect(resultats.first()).toContainText(/À \d+\s?m/);
       await expect(
@@ -313,7 +345,7 @@ test.describe('site public', () => {
       await expect(
         page.getByText(/Aucune école relevée à moins de 3\skm d’ici pour l’instant/),
       ).toBeVisible();
-      await page.getByLabel('Jusqu’à').selectOption('30000');
+      await page.getByRole('button', { name: '30 km' }).click();
       await expect(page.getByText(/Aucune école relevée à moins de 30\skm/)).toBeVisible();
     });
 
@@ -335,8 +367,11 @@ test.describe('site public', () => {
     test('la fiche dit le type, les niveaux et le programme de l’école', async ({ page }) => {
       await page.goto(`${TIE_TIE}complexe-scolaire-exemple/`);
       const proprietes = page.locator('dl.proprietes');
-      await expect(proprietes.getByText('Privée', { exact: true })).toBeVisible();
-      await expect(proprietes.getByText('Maternelle, Primaire')).toBeVisible();
+      // Le type et les niveaux sont des puces sous le nom (audit du 05/11, chantier 2), plus des lignes de tableau.
+      const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
+      await expect(puces.getByRole('listitem').filter({ hasText: 'Privée' })).toBeVisible();
+      await expect(puces.getByRole('listitem').filter({ hasText: 'Maternelle' })).toBeVisible();
+      await expect(puces.getByRole('listitem').filter({ hasText: 'Primaire' })).toBeVisible();
       await expect(proprietes.getByText('Programme et langues', { exact: true })).toBeVisible();
       await expect(proprietes.getByText('Programme français-congolais, bilingue')).toBeVisible();
       // Tout est renseigné : rien à ranger parmi ce qui manque.
@@ -364,9 +399,10 @@ test.describe('site public', () => {
       page,
     }) => {
       await page.goto(`${TIE_TIE}centre-de-formation-exemple/`);
-      const proprietes = page.locator('dl.proprietes');
-      await expect(proprietes.getByText('Autre formation', { exact: true })).toBeVisible();
-      await expect(proprietes.getByText('Type', { exact: true })).toHaveCount(0);
+      const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
+      // La puce porte la lettre du cycle (aria-hidden) puis son nom : « S Autre formation ».
+      await expect(puces.getByRole('listitem')).toHaveText([/^S\s*Autre formation$/]);
+      await expect(puces).not.toContainText('Autre,');
       await expect(page.locator('.fiche-cote')).toContainText("Type d'école");
     });
 
@@ -379,20 +415,20 @@ test.describe('site public', () => {
       );
     });
 
-    test('la liste écrit niveaux, type et repère, sans jamais écrire « Pas indiqué »', async ({
+    test('la liste écrit niveaux, type, repère et preuve, sans jamais écrire « Pas indiqué »', async ({
       page,
     }) => {
       await page.goto(TIE_TIE);
-      const liste = page.locator('ul.ecoles');
+      const liste = page.locator('ul.liste-lignes');
       await expect(liste.getByRole('link', { name: /Complexe scolaire Exemple/ })).toContainText(
         'Maternelle · Primaire · Privée',
       );
-      // Le nom, puis le niveau et les formations (le type « Autre » ne s'écrit pas), puis l'état : rien d'autre.
+      // Le nom, le niveau (le type « Autre » ne s'écrit pas), le lieu, puis la preuve : rien d'autre.
       await expect(liste.getByRole('link', { name: /Centre de formation Exemple/ })).toHaveText(
-        /^\[Centre de formation Exemple\]\s*Autre formation · 1 formation\s*Vue sur place$/,
+        /^S\s*\[Centre de formation Exemple\]\s*Autre formation\s*Tié-Tié · Pointe-Noire\s*Vue sur place$/,
       );
       await expect(liste.getByRole('link', { name: /École sans détail/ })).toHaveText(
-        /^\[École sans détail Exemple\]\s*Ajoutée par NTanova, pas encore vue sur place$/,
+        /^–\s*\[École sans détail Exemple\]\s*Tié-Tié · Pointe-Noire\s*Ajoutée par NTanova, pas encore vue sur place$/,
       );
       await expect(liste).not.toContainText('Pas indiqué');
     });
@@ -426,6 +462,12 @@ test.describe('site public', () => {
 
   test('le code de la fiche de liaison part sur WhatsApp, sans JavaScript', async ({ page }) => {
     await page.goto('/pour-les-ecoles/');
+    // Replié : un seul bouton plein sur la page, celui qui écrit sur WhatsApp ; le code s'ouvre d'un toucher.
+    const liaison = page.locator('details.liaison');
+    await expect(liaison).not.toHaveAttribute('open', '');
+    await expect(page.getByLabel('Le code à 4 chiffres écrit dessus')).toBeHidden();
+    await liaison.getByText('Vous avez reçu une fiche de liaison ?').click();
+    await expect(page.getByLabel('Le code à 4 chiffres écrit dessus')).toBeVisible();
     const formulaire = page.locator('form');
     await expect(formulaire).toHaveAttribute('action', /^https:\/\/wa\.me\/\d+$/);
     await expect(formulaire).toHaveAttribute('method', 'get');

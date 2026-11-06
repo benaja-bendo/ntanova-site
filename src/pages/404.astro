@@ -1,14 +1,30 @@
 ---
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { lienWhatsApp } from '../modele/whatsapp';
 import PagePublique from '../ui/PagePublique.astro';
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 ---
 
-<PagePublique titre="Page introuvable · NTanova" description="Cette page n'existe pas.">
+<PagePublique
+  titre="Page introuvable · NTanova"
+  description="Cette page n'existe pas."
+  whatsapp={whatsapp}
+>
   <section class="cadre page introuvable">
     <h1>Page introuvable</h1>
     <p>
       Cette page n'existe pas, ou la fiche n'est plus publiée. L'adresse est peut-être incomplète.
     </p>
-    <a class="bouton bouton-secondaire" href="/">
+    <p>Cherchez l'école par son nom, ou parcourez les écoles publiées.</p>
+    <div class="actions">
+      <a class="bouton" href="/recherche/">
+        Rechercher une école
+      </a>
+      <a class="bouton bouton-secondaire" href="/ecoles/">
+        Voir les écoles
+      </a>
+    </div>
+    <a class="lien-accueil" href="/">
       Revenir à l'accueil
     </a>
   </section>
@@ -19,6 +35,21 @@ import PagePublique from '../ui/PagePublique.astro';
     display: grid;
     gap: var(--espace-4);
     justify-items: start;
+  }
+  .introuvable p {
+    margin: 0;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ecart-cibles);
+  }
+  .lien-accueil {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
   }
 
   @media (min-width: 48rem) {

@@ -10,20 +10,25 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 
 // Le délai que nous nous donnons pour corriger, retirer ou effacer (décision du fondateur, 01/11).
 const DELAI_DROITS_JOURS = 7;
+// Où en est le relevé, daté : à relire quand une première école est publiée hors de Pointe-Noire (audit du 05/11/2026, D4).
+const PERIMETRE_AU = '5 novembre 2026';
 ---
 
 <PagePublique
   titre="À propos et données personnelles · NTanova"
-  description="Qui est NTanova, ce que nous publions sur les écoles de Pointe-Noire, ce que nous gardons pour nous, et vos droits."
+  description="Comment les fiches sont tenues : qui est NTanova, ce que nous publions sur les écoles du Congo-Brazzaville, ce que nous gardons pour nous, et vos droits."
   whatsapp={whatsapp}
 >
   <section class="cadre page propos">
     <div class="bloc tete">
+      <p class="surtitre-public">Comment les fiches sont tenues</p>
       <h1>Qui sommes-nous&nbsp;?</h1>
       <p class="texte-doux">
-        NTanova recense les écoles de <span class="insecable">Pointe-Noire</span>, quartier par
-        quartier, pour aider les familles à les trouver et les écoles à se faire connaître. Le
-        relevé commence à <span class="insecable">Tié-Tié</span> et à Ngoyo.
+        NTanova recense les écoles du <span class="insecable">Congo-Brazzaville</span>, quartier par
+        quartier, pour aider les familles à les trouver et les écoles à se faire connaître. Au{' '}
+        {PERIMETRE_AU}, les premières écoles publiées sont à{' '}
+        <span class="insecable">Pointe-Noire</span>&nbsp;; le relevé s’étend progressivement au
+        Congo-Brazzaville.
       </p>
       {(PUBLIC_RESPONSABLE || PUBLIC_CONTACT_EMAIL) && (
         <p>

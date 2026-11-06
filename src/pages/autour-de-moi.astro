@@ -3,10 +3,19 @@
 // bouton, sert à classer des écoles déjà dans la page, et n'est envoyée à personne. Avec « Rechercher », la
 // seule page publique qui exécute du JavaScript.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
-import { lienWhatsApp } from '../modele/whatsapp';
+import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
+import '../ui/carte-pieces.css';
 import PagePublique from '../ui/PagePublique.astro';
 
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
+// Le rayon se choisit AVANT d'appuyer : le bouton est le dernier geste, pas le premier (audit du 05/11/2026, D12).
+const rayons = [
+  [1000, '1 km'],
+  [3000, '3 km'],
+  [10000, '10 km'],
+  [30000, '30 km'],
+] as const;
 ---
 
 <PagePublique
@@ -14,7 +23,7 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
   description="Les écoles les plus proches de vous, classées par distance. Votre position reste sur votre téléphone."
   whatsapp={whatsapp}
 >
-  <section class="cadre page autour" data-autour>
+  <section class="cadre page autour" data-autour data-manque={manque ?? undefined}>
     <a class="retour" href="/ecoles/">
       ← Les écoles
     </a>
@@ -32,34 +41,40 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
       </p>
     </noscript>
 
+    <div class="champ-groupe" role="group" aria-labelledby="titre-rayon">
+      <span id="titre-rayon" class="titre-champ">
+        Jusqu’à
+      </span>
+      <div class="groupe-puces" data-rayons>
+        {rayons.map(([metres, mot]) => (
+          <button
+            type="button"
+            class="pastille-choix"
+            data-rayon={metres}
+            aria-pressed={metres === 3000 ? 'true' : 'false'}
+          >
+            {mot}
+          </button>
+        ))}
+      </div>
+    </div>
     <div class="actions">
       <button type="button" class="bouton" data-position>
         Trouver les écoles près de moi
       </button>
-      <label class="champ-groupe">
-        Jusqu’à
-        <select class="champ" data-rayon>
-          <option value="1000">1 km</option>
-          <option value="3000" selected>
-            3 km
-          </option>
-          <option value="10000">10 km</option>
-          <option value="30000">30 km</option>
-        </select>
-      </label>
     </div>
     <p class="texte-doux" role="status" data-message></p>
 
     <section data-resultats aria-live="polite" class="resultats" hidden>
       <p class="compte" data-compte></p>
-      <ul class="ecoles"></ul>
+      <ul class="liste-lignes"></ul>
+      <div data-vide></div>
     </section>
 
-    <p>
+    <p class="autres-chemins">
       <a class="chercher" href="/ecoles/">
         Ou parcourez les villes
       </a>
-      ·{' '}
       <a class="chercher" href="/recherche/">
         Ou cherchez par nom
       </a>
@@ -88,11 +103,10 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
   .autour p {
     margin: 0;
   }
-  .autour .actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: end;
-    gap: var(--espace-4);
+  .autour .titre-champ {
+    font-family: var(--police-titre);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
   }
   .autour .compte {
     font-family: var(--police-titre);
@@ -105,35 +119,11 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
   .autour .resultats[hidden] {
     display: none;
   }
-  .autour .ecoles {
-    display: grid;
-    gap: var(--espace-3);
+  .autour .autres-chemins {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--espace-5);
     margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .autour .ecole {
-    display: grid;
-    gap: var(--espace-1);
-    padding: var(--espace-4);
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-m);
-    background: var(--fond-releve);
-    color: var(--texte);
-    text-decoration: none;
-  }
-  .autour .ecole-nom {
-    font-family: var(--police-titre);
-    font-weight: 700;
-  }
-  .autour .ecole-etiquette,
-  .autour .ecole-detail,
-  .autour .ecole-etat {
-    color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
-  }
-  .autour .ecole-etat {
-    font-weight: 700;
   }
   .autour .chercher {
     display: inline-flex;
@@ -150,10 +140,6 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
     }
     .autour h1 {
       font-size: var(--taille-titre-public);
-    }
-    .autour .ecoles {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
-      gap: var(--espace-4);
     }
   }
 </style>

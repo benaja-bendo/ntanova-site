@@ -92,7 +92,11 @@ const titre = `Carte de ${arrondissement.nom}`;
           Arrondissement {arrondissement.numero} · {compteApercu(ecoles.length, sur.length)}
         </span>
       </p>
-      <a class="bouton" href={adresse} aria-label={`Voir la carte de ${arrondissement.nom}`}>
+      <a
+        class="bouton bouton-secondaire"
+        href={adresse}
+        aria-label={`Voir la carte de ${arrondissement.nom}`}
+      >
         Voir la carte
       </a>
     </div>

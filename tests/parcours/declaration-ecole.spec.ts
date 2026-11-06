@@ -39,10 +39,11 @@ test('public : origine déclarée datée, sans preuve terrain et porte ouverte a
   await expect(page.getByText(/Pas encore vue sur place/)).toBeVisible();
   await expect(page.getByText('Confirmée par la direction', { exact: true })).toHaveCount(0);
   await page.goto('/pour-les-ecoles/#referencer');
-  const section = page.getByRole('region', { name: 'Référencez votre établissement' });
+  const section = page.getByRole('region', { name: 'Confirmez ou ajoutez votre école' });
   await expect(section).toContainText('Partout au Congo-Brazzaville');
   await expect(section).toContainText('ne publie pas automatiquement');
-  await expect(
-    section.getByRole('link', { name: 'Demander le référencement sur WhatsApp' }),
-  ).toHaveAttribute('href', /wa.me/);
+  await expect(section.getByRole('link', { name: 'Écrire sur WhatsApp' })).toHaveAttribute(
+    'href',
+    /wa.me/,
+  );
 });

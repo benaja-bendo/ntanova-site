@@ -1,14 +1,28 @@
 ---
-// L'entrée des écoles : le pays, ses villes et départements avec ce que chacun compte d'écoles publiées, et les
-// trois autres façons de chercher (par nom ou par formation, par ce qu'on enseigne, autour de soi).
+// L'entrée des écoles : le pays, ses villes et départements avec ce que chacun compte d'écoles publiées et l'état de son
+// relevé (celui de la carte), puis, tant qu'il y en a peu, les écoles elles-mêmes. Les autres façons de chercher (le menu du
+// haut les porte déjà) tiennent en une ligne, sous le contenu (audit du 05/11/2026, D15).
 // Construite à partir de la base ; aucun JavaScript.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../../infra/index';
-import { compterEcoles, ecolesSous, lienDivision } from '../../modele/geo-divisions';
+import { etatPublicDe, libelleDeploiement } from '../../modele/etat-zone';
+import { compterEcoles, ecolesSous, lienDivision, nomAffiche } from '../../modele/geo-divisions';
 import { lienWhatsApp } from '../../modele/whatsapp';
+import ListeEcoles from '../../ui/ListeEcoles.astro';
 import PagePublique from '../../ui/PagePublique.astro';
 
-const { arbre, ecoles } = await obtenirSite();
+const { arbre, ecoles, divisions } = await obtenirSite();
+// Une ville sans école dit son état public (le même que la carte), jamais « 0 écoles » ni « relevé en cours » par défaut.
+const detailDe = (enfant: (typeof arbre.racines)[number]) => {
+  const n = ecolesSous(enfant).length;
+  const etat = etatPublicDe(enfant.division, divisions);
+  return {
+    compte: n > 0 ? compterEcoles(n) : etat ? null : 'aucune école publiée',
+    etat,
+  };
+};
+// Tant que la liste reste courte, les écoles sont là, sans passer par une ville ; au-delà, c'est la ville qui les range.
+const SEUIL_DE_LA_LISTE = 12;
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque : ');
 ---
@@ -31,22 +45,12 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
       </p>
     </div>
 
-    <nav class="chercher" aria-label="Chercher une école">
-      <a class="bouton" href="/recherche/">
-        Rechercher par nom ou par formation
-      </a>
-      <a class="bouton bouton-secondaire" href="/autour-de-moi/">
-        Autour de moi
-      </a>
-      <a class="bouton bouton-secondaire" href="/formations/">
-        Séries, diplômes, domaines
-      </a>
-    </nav>
-
     {arbre.racines.map((racine) => (
       <section aria-label={racine.division.nom} class="pays">
         <h2>
-          <a href={lienDivision(racine.adresse)}>{racine.division.nom}</a>
+          <a href={lienDivision(racine.adresse)}>
+            {nomAffiche(racine.division.nom, racine.division.niveau)}
+          </a>
           <span class="texte-doux"> · {compterEcoles(ecolesSous(racine).length)}</span>
         </h2>
         <ul class="zones">
@@ -55,9 +59,12 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
               <a class="zone" href={lienDivision(enfant.adresse)}>
                 <span class="zone-nom">{enfant.division.nom}</span>
                 <span class="zone-detail">
-                  {ecolesSous(enfant).length === 0
-                    ? 'relevé en cours'
-                    : compterEcoles(ecolesSous(enfant).length)}
+                  {detailDe(enfant).compte}
+                  {detailDe(enfant).etat && (
+                    <span class={`etiquette-zone etiquette-zone-${detailDe(enfant).etat}`}>
+                      {libelleDeploiement[detailDe(enfant).etat!]}
+                    </span>
+                  )}
                 </span>
               </a>
             </li>
@@ -66,10 +73,25 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
       </section>
     ))}
 
+    {ecoles.length > 0 && ecoles.length <= SEUIL_DE_LA_LISTE && (
+      <section aria-label="Les écoles publiées" class="pays">
+        <h2>Les écoles publiées</h2>
+        <ListeEcoles ecoles={ecoles} />
+      </section>
+    )}
+
+    <p class="aussi">
+      Aussi&nbsp;: <a href="/recherche/">rechercher par nom</a>
+      {', '}
+      <a href="/autour-de-moi/">autour de moi</a>
+      {', '}
+      <a href="/formations/">par formation</a>.
+    </p>
+
     <div class="encadre-pointille">
       <p>
-        Le relevé continue ville après ville&nbsp;: une zone n'apparaît ici qu'avec sa première
-        école publiée.
+        Le relevé continue ville après ville&nbsp;: une ville apparaît ici dès que son déploiement
+        est programmé ou qu'une première école est publiée.
       </p>
       {manque && <a href={manque}>Une ville manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
     </div>
@@ -102,10 +124,15 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
   .entree p {
     margin: 0;
   }
-  .chercher {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--ecart-cibles);
+  .aussi {
+    color: var(--texte-doux);
+  }
+  .aussi a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
   }
   .pays {
     display: grid;
@@ -136,6 +163,10 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
     font-weight: 700;
   }
   .zone-detail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-1) var(--espace-2);
     color: var(--marque-appuyee);
     font-size: var(--taille-secondaire);
   }

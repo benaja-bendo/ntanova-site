@@ -212,7 +212,7 @@ test.describe('site public', () => {
     });
   }
 
-  test('accueil : navigation du haut, villes côte à côte, étapes : seulement à partir de la tablette', async ({
+  test('accueil : navigation du haut à partir de la tablette (le menu avant), villes côte à côte, étapes visibles partout', async ({
     page,
   }) => {
     await page.goto('/');
@@ -230,7 +230,8 @@ test.describe('site public', () => {
       expect(a?.y, 'les deux villes sont sur la même ligne').toBe(b?.y);
     } else {
       await expect(navigation).toBeHidden();
-      await expect(etapes).toBeHidden();
+      // D14 : la preuve de la page, « Comment les fiches sont tenues », se lit aussi sur téléphone.
+      await expect(etapes).toBeVisible();
       expect(b?.y ?? 0, 'au téléphone, les villes se suivent').toBeGreaterThan(
         (a?.y ?? 0) + (a?.height ?? 0) - 1,
       );
@@ -238,7 +239,9 @@ test.describe('site public', () => {
     // Pas de mise à jour automatique : tant que ce n'est pas vrai, on ne le dit pas. La carte,
     // elle, existe (ticket 15) : l'accueil y mène.
     await expect(page.getByText(/mettent la fiche à jour/)).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' })).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' }),
+    ).toBeVisible();
   });
 
   test('accueil : la ville qui a le plus de fiches passe avant les autres', async ({ page }) => {
@@ -301,7 +304,7 @@ test.describe('site public', () => {
   }) => {
     await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
     const largeur = largeurDe(page);
-    const ecole = await page.locator('a.ecole').first().boundingBox();
+    const ecole = await page.locator('a.ligne-ecole').first().boundingBox();
     if (largeur >= TABLETTE) {
       expect(ecole?.width ?? 0).toBeLessThanOrEqual(480);
     } else {
@@ -354,16 +357,19 @@ test.describe('site public', () => {
     }
   });
 
-  test('« Pour les écoles » : à partir de 1 024 px, le formulaire et les explications sont côte à côte', async ({
+  test('« Pour les écoles » : les gains viennent avant l’action ; à partir de 1 024 px, ce qu’on demande est à côté', async ({
     page,
   }) => {
     await page.goto('/pour-les-ecoles/');
-    const formulaire = await position(page, /fiche de liaison/);
     const gains = await position(page, 'Ce que votre école y gagne');
+    const action = await position(page, 'Confirmez ou ajoutez votre école');
+    const demandes = await position(page, 'Ce que nous vous demanderons');
+    // Partout : ce que l'école y gagne se lit avant le bouton qui écrit sur WhatsApp.
+    expect(gains.y).toBeLessThan(action.y);
     if (largeurDe(page) >= ORDINATEUR) {
-      expect(gains.x).toBeGreaterThan(formulaire.x + formulaire.width / 2);
+      expect(demandes.x).toBeGreaterThan(action.x + action.width / 2);
     } else {
-      expect(gains.y).toBeGreaterThan(formulaire.y);
+      expect(demandes.y).toBeGreaterThan(action.y);
     }
   });
 

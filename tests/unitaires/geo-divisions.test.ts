@@ -7,6 +7,9 @@ import {
   lienCarte,
   lienDivision,
   lienEcole,
+  lieuAvecPreposition,
+  nomAffiche,
+  phraseDeCompte,
   sansRepetition,
 } from '../../src/modele/geo-divisions';
 import type { DivisionPublique, EcolePubliee } from '../../src/modele/ports';
@@ -183,6 +186,36 @@ describe('l’arbre des zones du site public', () => {
     expect(vide.parAdresse.has('congo/niari')).toBe(false);
   });
 
+  it('une zone qui a son état public a sa page, même sans école ni relevé ouvert (Brazzaville, déploiement programmé)', () => {
+    const avecBrazzaville: DivisionPublique[] = [
+      ...DIVISIONS,
+      division('bz-dep', 'cg', 1, 'department', 'Brazzaville', 'brazzaville'),
+      division('bz', 'bz-dep', 2, 'city', 'Brazzaville', 'brazzaville', {
+        deploiement: 'programme',
+      }),
+    ];
+    const a = construireArbre(avecBrazzaville, []);
+    const page = a.parAdresse.get('congo/brazzaville');
+    // Le lien de la carte (`/ecoles/congo/brazzaville/`) mène à une vraie page, portée par la ville.
+    expect(page?.division.id).toBe('bz');
+    expect(page?.ecoles).toEqual([]);
+    expect(lienDivision(page!.adresse)).toBe('/ecoles/congo/brazzaville/');
+    expect(a.parAdresse.get('congo')?.enfants.map((p) => p.division.slug)).toContain('brazzaville');
+    // Sans état, sans école et sans relevé ouvert, la ville voisine n'en a toujours pas.
+    expect(a.parAdresse.has('congo/niari/dolisie')).toBe(false);
+  });
+
+  it('l’état du département de même nom compte aussi pour la page de la ville', () => {
+    const dep: DivisionPublique[] = [
+      division('cg', null, 0, 'country', 'Congo', 'congo'),
+      division('bz-dep', 'cg', 1, 'department', 'Brazzaville', 'brazzaville', {
+        deploiement: 'programme',
+      }),
+      division('bz', 'bz-dep', 2, 'city', 'Brazzaville', 'brazzaville'),
+    ];
+    expect(construireArbre(dep, []).parAdresse.has('congo/brazzaville')).toBe(true);
+  });
+
   it('ouvrir un pays entier ne crée pas la page de chacune de ses villes', () => {
     const paysOuvert = DIVISIONS.map((d) => (d.id === 'cg' ? { ...d, ouverte: true } : d));
     const a = construireArbre(paysOuvert, []);
@@ -220,5 +253,24 @@ describe('l’arbre des zones du site public', () => {
         page.ecoles.length > 0 || page.division.ouverte || page.enfants.length > 0 || page.releve;
       expect(sens, page.adresse.join('/')).toBe(true);
     }
+  });
+});
+
+describe('les mots d’une zone', () => {
+  it('le compteur se dit comme celui de l’accueil : « 2 écoles, dont 2 vues sur place et 1 confirmée par la direction »', () => {
+    expect(phraseDeCompte(2, 0, 0)).toBe('2 écoles');
+    expect(phraseDeCompte(1, 1, 0)).toBe('1 école, dont 1 vue sur place');
+    expect(phraseDeCompte(2, 2, 0)).toBe('2 écoles, dont 2 vues sur place');
+    expect(phraseDeCompte(3, 0, 1)).toBe('3 écoles, dont 1 confirmée par la direction');
+    expect(phraseDeCompte(3, 2, 2)).toBe(
+      '3 écoles, dont 2 vues sur place et 2 confirmées par la direction',
+    );
+  });
+  it('le pays s’appelle « Congo-Brazzaville », jamais « à Congo »', () => {
+    expect(nomAffiche('Congo', 0)).toBe('Congo-Brazzaville');
+    expect(nomAffiche('Pointe-Noire', 2)).toBe('Pointe-Noire');
+    expect(lieuAvecPreposition('Congo', 0)).toBe('au Congo-Brazzaville');
+    expect(lieuAvecPreposition('Pointe-Noire', 2)).toBe('à Pointe-Noire');
+    expect(lieuAvecPreposition('Ngoyo', 3)).toBe('à Ngoyo');
   });
 });

@@ -20,6 +20,28 @@ const budgetFichierRecherche = 300 * 1024;
 const pageGuide = /^(guide-relais|relais\/guide)\//;
 const budgetGuide = 400 * 1024;
 
+// Le bouton « Partager » des fiches d'école (audit du 05/11/2026, chantier 2) : la quatrième exception. Un seul script écrit dans la
+// page, repéré par `data-partager`, de 2 Ko au plus (non compressé, lisible), sans fichier ni réseau : il ouvre le partage du téléphone ou
+// copie le lien. Sans lui, le bouton reste un lien WhatsApp. Toute autre page de `ecoles/` reste sans JavaScript.
+const pageEcoles = /^ecoles\//;
+const budgetScriptPartage = 2 * 1024;
+/** Les scripts écrits dans la page (hors données structurées) : leur attribut `src` s'il y en a un, et leur texte. */
+const scriptsDeLaPage = (html) =>
+  [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
+    .filter(([, attributs]) => !/application\/ld\+json/.test(attributs))
+    .map(([, attributs, texte]) => ({ externe: /\ssrc=/.test(attributs), texte }));
+const seulementLePartage = (html) => {
+  const scripts = scriptsDeLaPage(html);
+  return (
+    scripts.length === 1 &&
+    !scripts[0].externe &&
+    scripts[0].texte.includes('data-partager') &&
+    // La page porte le bouton que ce script sert : une page de zone avec le même script serait refusée.
+    /<a\b[^>]*\sdata-partager\b/.test(html) &&
+    Buffer.byteLength(scripts[0].texte) <= budgetScriptPartage
+  );
+};
+
 // La carte interactive (ticket #103) : la troisième exception. La page /carte/ reste dans son budget de page ; elle porte
 // un petit chargeur (le seul JavaScript de la page), qui décide puis charge l'îlot (MapLibre, les tuiles) par `import()`.
 // L'îlot n'est lié à aucune page : on le trouve en suivant les `import()` du chargeur (voir `ilotDeLaCarte`).
@@ -57,7 +79,8 @@ for (const page of pages(dist)) {
   const html = readFileSync(page, 'utf8');
   const vus = new Set();
   let total = compresse(html);
-  let javascript = /<script(?![^>]*application\/ld\+json)/i.test(html);
+  const partageSeul = pageEcoles.test(nom) && seulementLePartage(html);
+  let javascript = !partageSeul && /<script(?![^>]*application\/ld\+json)/i.test(html);
   let octetsJavaScript = 0;
 
   const compter = (url) => {

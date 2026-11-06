@@ -20,14 +20,13 @@ test('de la ville à la fiche : arrondissement, pastille, coin vu de près, éco
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' }).click();
+  await page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' }).click();
 
-  // La ville : Tié-Tié et Ngoyo ouverts, Loandjili et Mongo-Mpoukou ont déjà des fiches, les deux autres pas encore.
+  // La ville : Tié-Tié et Ngoyo « relevé en cours », Loandjili, Mongo-Mpoukou et Mvou-Mvou « déploiement programmé » (l'état
+  // de la carte), et le dernier arrondissement sans état : « pas encore relevé ».
   await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pointe-Noire');
-  await expect(
-    page.getByText('Les deux autres arrondissements : pas encore relevés.'),
-  ).toBeVisible();
+  await expect(page.getByText('L’autre arrondissement : pas encore relevé.')).toBeVisible();
   await page.getByRole('link', { name: 'Tié-Tié : 4 écoles' }).click();
 
   // L'arrondissement : la pastille regroupe les deux écoles situées.
@@ -182,11 +181,11 @@ test('le dessin de l’aperçu est lui-même un lien vers la carte, sans entrer 
   await expect(page).toHaveURL(/\/carte\/$/);
 });
 
-test('« Voir la carte de Pointe-Noire » garde son espace à l’écran', async ({ page }) => {
+test('« Les arrondissements de Pointe-Noire » garde son espace à l’écran', async ({ page }) => {
   await page.goto('/');
-  const lien = page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' });
+  const lien = page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' });
   // Le nom accessible garde l'espace même quand l'écran le perd (un lien en `inline-flex` ne
   // compte pas l'espace qui précède un `span`) : on lit le texte tel qu'il s'affiche.
   const affiche = await lien.evaluate((a) => (a as HTMLElement).innerText);
-  expect(affiche).toBe('Voir la carte de Pointe-Noire');
+  expect(affiche).toBe('Les arrondissements de Pointe-Noire');
 });
