@@ -18,6 +18,7 @@ const ecole: EcoleVue = {
   publication: 'publiee',
   origine: 'field',
   retrait: null,
+  corbeille: null,
   aSituer: false,
   position: { latitude: -4.79105, longitude: 11.925 },
   confiee: null,

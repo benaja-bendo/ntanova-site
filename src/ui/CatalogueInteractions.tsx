@@ -96,9 +96,11 @@ export default function CatalogueInteractions() {
       </SectionRepliable>
       <h2>Publication et preuves</h2>
       <div className="choix-ligne">
-        {(['brouillon', 'a_situer', 'prete', 'publiee', 'retiree'] as const).map((etat) => (
-          <BadgePublication key={etat} etat={etat} />
-        ))}
+        {(['brouillon', 'a_situer', 'prete', 'publiee', 'retiree', 'corbeille'] as const).map(
+          (etat) => (
+            <BadgePublication key={etat} etat={etat} />
+          ),
+        )}
       </div>
       <div className="choix-ligne">
         <Badge role="terrain">Relevée sur place</Badge>

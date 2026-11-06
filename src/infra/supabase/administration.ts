@@ -14,6 +14,7 @@ import {
   type DecisionAcceptation,
   type DetailReleve,
   type DivisionVue,
+  type ApercuSuppression,
   type EcoleVue,
   type EntreeCatalogue,
   type FormationSaisie,
@@ -204,6 +205,7 @@ interface LigneCampus {
   school_declared_on: string | null;
   curriculum_note: string | null;
   retired_at: string | null;
+  trashed_at: string | null;
   retirement_reason: Valeur<'motif_retrait'> | null;
   retirement_note: string | null;
   replaced_by_campus_id: string | null;
@@ -221,9 +223,27 @@ interface LigneCampus {
 
 const COLONNES_CAMPUS =
   'id, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
-  'publication, origin, school_declared_on, curriculum_note, retired_at, retirement_reason, retirement_note, replaced_by_campus_id, ' +
+  'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, ' +
   'institutions(name, kind), geo_divisions(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
   'campus_cycles(cycle, campus_programs(id)), campus_fees(*), campus_facts(*)';
+
+/** La réponse de `campus_purge_preview`, lue avec tolérance : un champ qui manque vaut zéro, jamais une erreur. */
+const lireApercuSuppression = (donnees: unknown): ApercuSuppression => {
+  const d = (donnees ?? {}) as Record<string, unknown>;
+  const nombre = (v: unknown) => (typeof v === 'number' ? v : 0);
+  return {
+    nom: typeof d['name'] === 'string' ? d['name'] : '',
+    bloque: typeof d['blocked'] === 'string' ? d['blocked'] : null,
+    fiches: nombre(d['submissions']),
+    photos: nombre(d['photos']),
+    contacts: nombre(d['contacts']),
+  };
+};
+
+const lireChemins = (donnees: unknown): string[] => {
+  const chemins = (donnees as { paths?: unknown } | null)?.paths;
+  return Array.isArray(chemins) ? chemins.filter((c): c is string => typeof c === 'string') : [];
+};
 
 const versEcole = (e: LigneCampus): EcoleVue => {
   const mission = e.missions.find((m) => m.status === 'open');
@@ -248,6 +268,7 @@ const versEcole = (e: LigneCampus): EcoleVue => {
             remplaceePar: e.replaced_by_campus_id,
           }
         : null,
+    corbeille: e.trashed_at ? { le: e.trashed_at } : null,
     aSituer: position === null,
     position,
     confiee: mission
@@ -1166,6 +1187,40 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       return Number(data ?? 0);
     },
 
+    async mettreALaCorbeille(ecoleId, motif, note) {
+      const { error } = await supabase().rpc('trash_campus', {
+        p_campus: ecoleId,
+        p_reason: motif,
+        p_note: note,
+      });
+      decider(error);
+    },
+    async restaurerEcole(ecoleId) {
+      const { error } = await supabase().rpc('restore_campus', { p_campus: ecoleId });
+      decider(error);
+    },
+    async apercuSuppression(ecoleId) {
+      const { data, error } = await supabase().rpc('campus_purge_preview', { p_campus: ecoleId });
+      decider(error);
+      return lireApercuSuppression(data);
+    },
+    async supprimerDefinitivement(ecoleId) {
+      const { data, error: erreurApercu } = await supabase().rpc('campus_purge_preview', {
+        p_campus: ecoleId,
+      });
+      decider(erreurApercu);
+      const apercu = lireApercuSuppression(data);
+      // Ce qui bloque, la base le dit avant qu'on touche à un seul fichier (photo effacée, école gardée).
+      if (apercu.bloque) throw new ErreurDecision(apercu.bloque);
+      // Les fichiers d'abord, puis les lignes : comme pour une photo seule (voir `effacerPhoto`).
+      const chemins = lireChemins(data);
+      if (chemins.length > 0) {
+        const { error: erreurFichiers } = await supabase().storage.from(SEAU_PHOTOS).remove(chemins);
+        decider(erreurFichiers ? { message: erreurFichiers.message, statusCode: '500' } : null);
+      }
+      const { error } = await supabase().rpc('purge_campus', { p_campus: ecoleId });
+      decider(error);
+    },
     async retirerEcole(ecoleId, motif, note) {
       const { error } = await supabase().rpc('retire_campus', {
         p_campus: ecoleId,

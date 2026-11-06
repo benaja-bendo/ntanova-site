@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ouvrirGestion, ouvrirLaFiche, publierLaZoneTieTie, uneFicheEnvoyee } from './aides';
 
 // Audit de l'administration du 06/11/2026 : garder ses repères pendant le défilement, contrôler une photo sans quitter
@@ -90,7 +90,9 @@ test.describe('tableau de bord : compteurs', () => {
 });
 
 test.describe('tableau de bord : Écoles', () => {
-  test('une école retirée n’a plus de menu « ⋯ » vide', async ({ page, context }) => {
+  const MENU = 'summary[aria-label^="Autres actions pour"]';
+
+  async function uneEcolePubliee(page: Page, context: BrowserContext) {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
     await page.getByRole('button', { name: 'Accepter la fiche' }).click();
@@ -98,21 +100,89 @@ test.describe('tableau de bord : Écoles', () => {
     await page.getByRole('link', { name: 'Écoles' }).click();
     await publierLaZoneTieTie(page);
     await expect(page.getByRole('status')).toHaveText(/1 école de Tié-Tié publiée/);
+    await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
+  }
+  const ligne = (page: Page) => page.getByRole('row', { name: /\[École 1\]/ });
 
-    const ligne = () => page.getByRole('row', { name: /\[École 1\]/ });
-    await expect(ligne().getByText('Publiée', { exact: true })).toBeVisible();
-    // Publiée : le menu existe (retirer, fusionner, mission).
-    await expect(ligne().locator('summary[aria-label^="Autres actions pour"]')).toHaveCount(1);
+  test('le menu « ⋯ » d’une école retirée ne s’ouvre plus vide : il propose la corbeille', async ({
+    page,
+    context,
+  }) => {
+    await uneEcolePubliee(page, context);
+    // Publiée : retirer, fusionner, corbeille, mission.
+    await expect(ligne(page).locator(MENU)).toHaveCount(1);
 
-    await ouvrirGestion(ligne(), 'retirer');
-    await ligne().getByLabel('Motif').selectOption('demande_ecole');
-    await ligne()
+    await ouvrirGestion(ligne(page), 'retirer');
+    await ligne(page).getByLabel('Motif').selectOption('demande_ecole');
+    await ligne(page)
       .getByRole('button', { name: /Retirer \[École 1\] du site/ })
       .click();
-    await expect(ligne().getByText('Retirée', { exact: true })).toBeVisible();
+    await expect(ligne(page).getByText('Retirée', { exact: true })).toBeVisible();
 
-    // Retirée : plus aucune autre action que « Republier » et « Gérer la fiche ».
-    await expect(ligne().locator('summary[aria-label^="Autres actions pour"]')).toHaveCount(0);
-    await expect(ligne().getByRole('button', { name: 'Republier' })).toBeVisible();
+    // Retirée : plus de « Retirer » ni de « Fusionner », mais la corbeille (avant : un menu vide).
+    await ligne(page).locator(MENU).click();
+    await expect(ligne(page).getByRole('button', { name: 'Retirer du site' })).toHaveCount(0);
+    await expect(ligne(page).getByRole('button', { name: 'Mettre à la corbeille…' })).toBeVisible();
+    await expect(ligne(page).getByRole('button', { name: 'Republier' })).toBeVisible();
+  });
+
+  test('la corbeille : l’école quitte les listes, se restaure, puis se supprime pour de bon', async ({
+    page,
+    context,
+  }) => {
+    await uneEcolePubliee(page, context);
+
+    // Mettre à la corbeille : elle disparaît de « Toutes » et paraît dans « Corbeille ».
+    await ligne(page).locator(MENU).click();
+    await ligne(page).getByRole('button', { name: 'Mettre à la corbeille…' }).click();
+    await ligne(page).getByLabel('Motif').selectOption('erreur');
+    await ligne(page)
+      .getByRole('button', { name: /Mettre \[École 1\] à la corbeille/ })
+      .click();
+    await expect(page.getByRole('status')).toHaveText(/est à la corbeille.*restaurer/);
+    await expect(ligne(page)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Corbeille · 1' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Corbeille · 1' }).click();
+    await expect(ligne(page).getByText('À la corbeille', { exact: true })).toBeVisible();
+    await expect(ligne(page).getByText(/À la corbeille depuis le/)).toBeVisible();
+    // À la corbeille : ni « Publier », ni « Gérer la fiche ».
+    await expect(ligne(page).getByRole('button', { name: 'Publier', exact: true })).toHaveCount(0);
+    await expect(ligne(page).getByRole('button', { name: 'Gérer la fiche' })).toHaveCount(0);
+
+    // Restaurer : une école publiée revient « prête », jamais « publiée » toute seule.
+    await ligne(page).getByRole('button', { name: 'Restaurer' }).click();
+    await expect(page.getByRole('status')).toHaveText(/est restaurée/);
+    await page.getByRole('button', { name: 'Toutes' }).click();
+    await expect(ligne(page).getByText('Prête', { exact: true })).toBeVisible();
+
+    // La suppression définitive demande d'abord la corbeille, puis le nom de l'école.
+    await ligne(page).locator(MENU).click();
+    await ligne(page).getByRole('button', { name: 'Mettre à la corbeille…' }).click();
+    await ligne(page)
+      .getByRole('button', { name: /Mettre \[École 1\] à la corbeille/ })
+      .click();
+    await page.getByRole('button', { name: 'Corbeille · 1' }).click();
+    await ligne(page).getByRole('button', { name: 'Supprimer définitivement…' }).click();
+
+    await expect(ligne(page).getByText(/La suppression emporte/)).toBeVisible();
+    const supprimer = ligne(page).getByRole('button', {
+      name: /^Supprimer définitivement \[École 1\]/,
+    });
+    await expect(supprimer).toBeDisabled();
+    await ligne(page)
+      .getByLabel(/écris le nom de l’école/)
+      .fill('[Autre école]');
+    await expect(supprimer).toBeDisabled();
+    // Sans accent ni majuscule ni espace en trop : le nom se reconnaît.
+    await ligne(page)
+      .getByLabel(/écris le nom de l’école/)
+      .fill('  [école 1] ');
+    await expect(supprimer).toBeEnabled();
+    await supprimer.click();
+
+    await expect(page.getByRole('status')).toHaveText(/supprimée définitivement/);
+    await expect(ligne(page)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Corbeille · 0' })).toBeVisible();
   });
 });

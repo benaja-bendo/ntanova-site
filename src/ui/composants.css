@@ -520,6 +520,10 @@ textarea.champ {
   background: var(--etat-refusee-fond);
   color: var(--erreur);
 }
+.publication-corbeille {
+  background: var(--encre-10);
+  color: var(--texte-doux);
+}
 .badge-terrain {
   background: var(--fond-releve);
   border: 1px solid var(--preuve-terrain);
