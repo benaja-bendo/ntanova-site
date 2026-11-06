@@ -72,10 +72,10 @@ describe('la ligne d’une école, écrite à la construction et dans le navigat
     expect(ligneDeEcole(ecole({ releveeLe: null })).preuve).toBe('ajoutee');
     // Les mots de la ligne sont ceux de la fiche et du ticket #99 : « Ajoutée par NTanova » dit qui a ajouté l'école.
     expect(libelleProvenance).toEqual({
-      verifiee: 'Confirmée par la direction',
-      relevee: 'Vue sur place',
+      verifiee: 'Confirmée par l’école',
+      relevee: 'Relevé terrain',
       declaree: 'Déclarée par l’école',
-      ajoutee: 'Ajoutée par NTanova, pas encore vue sur place',
+      ajoutee: 'Ajoutée par NTanova',
     });
   });
 

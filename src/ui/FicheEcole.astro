@@ -37,7 +37,8 @@ import {
 } from '../modele/libelles';
 import { listes } from '../modele/listes';
 import type { EcolePubliee, FormationPublique } from '../modele/ports';
-import { dateLongue } from '../modele/pointe-noire';
+import { libelleProgramme } from '../modele/presentation-fiche';
+import { dateCourte } from '../modele/pointe-noire';
 import { lienFacette } from '../modele/recherche';
 import PhotoEcole from './PhotoEcole.astro';
 import ContactEcole from './ContactEcole.astro';
@@ -59,7 +60,6 @@ interface Props {
 }
 const { e, zone, autres, erreur, confirmer = null } = Astro.props;
 
-const niveaux = e.niveaux.map((n) => libelleNiveau[n]).join(', ');
 const typeSeLit = typeInformatif(e.typeEcole);
 const lieu = ligneDeLieu(e.quartier, zone.noms);
 const itineraire =
@@ -82,23 +82,8 @@ const cyclesSansFormation = e.niveaux.filter(
     ['lycee', 'technique', 'superieur', 'autre_formation'].includes(n) &&
     !e.formations.some((f) => f.cycle === n),
 );
-// Ce que le relais n'a pas encore noté ; ce que seule la direction peut donner est à part.
-const pasReleve = [
-  !niveaux && 'Niveaux',
-  !typeSeLit && "Type d'école",
-  cyclesSansFormation.length > 0 && 'Séries ou filières',
-].filter((x): x is string => !!x);
 const rythmes = (f: FormationPublique) => f.rythmes.map((r) => libelleRythme[r]).join(', ');
-
-// Ce que seule la direction peut compléter. Tant que l'école n'est pas confirmée, on dit qu'il reste à compléter avec elle ;
-// confirmée, ce qui manque encore est ce qu'elle n'a pas communiqué.
 const confirmee = e.etat === 'verifiee';
-const aCompleter = [
-  !e.frais?.length && 'Frais',
-  !e.photo && 'Photos de l’école',
-  !e.equipements?.length && 'Équipements',
-  !e.contactPublic && "Contact de l'école",
-].filter((x): x is string => !!x);
 
 // La barre d'actions : l'adresse de la fiche (celle que WhatsApp montre avec son image), le numéro à appeler (le contact
 // publié avec l'accord de la direction, sinon celui de l'enseigne).
@@ -170,55 +155,36 @@ const nomZone = zone.division.nom;
         </ul>
       )}
 
-      {/* Deux preuves, jamais fusionnées (décision du fondateur du 03/11) : l'accord daté de la direction,
-          et le passage d'un relais. Sans passage, la fiche le dit. */}
-      <div class="preuves">
+      <div class="preuves" aria-label="Sources de la fiche">
         {confirmee && (
-          <div class="preuve preuve-direction">
-            <Icone nom="bouclier" petite={false} />
-            <div>
-              <strong>
-                Confirmée par la direction{e.verifieeLe ? ` le ${dateLongue(e.verifieeLe)}` : ''}
-              </strong>
-            </div>
-          </div>
+          <p class="preuve preuve-direction">
+            <Icone nom="bouclier" />
+            Confirmée par l’école{e.verifieeLe ? ` · ${dateCourte(e.verifieeLe)}` : ''}
+          </p>
         )}
         {e.origine === 'school' && (
-          <div class="preuve preuve-vide">
-            <Icone nom="repere" petite={false} />
-            <div>
-              <strong>
-                Déclarée par l’école{e.declareeLe ? ` le ${dateLongue(e.declareeLe)}` : ''}
-              </strong>
-              Informations transmises par l’école ; cette déclaration ne confirme pas toute la
-              fiche.
-            </div>
-          </div>
+          <p class="preuve">
+            <Icone nom="repere" />
+            Déclarée par l’école{e.declareeLe ? ` · ${dateCourte(e.declareeLe)}` : ''}
+          </p>
         )}
         {e.releveeLe ? (
-          <div class="preuve">
-            <Icone nom="oeil" petite={false} />
-            <div>
-              <strong>Vue sur place le {dateLongue(e.releveeLe)}</strong>
-              Par un jeune du quartier&nbsp;: seulement ce qui se voit de la rue.
-            </div>
-          </div>
+          <p class="preuve">
+            <Icone nom="oeil" />
+            Relevé terrain · {dateCourte(e.releveeLe)}
+          </p>
         ) : (
-          <div class="preuve preuve-vide">
-            <Icone nom="oeil" petite={false} />
-            <div>
-              {e.origine !== 'school' && (
-                <strong>
-                  Ajoutée par NTanova{e.situeeLe ? ` le ${dateLongue(e.situeeLe)}` : ''}
-                </strong>
-              )}
-              Pas encore vue sur place par un jeune du quartier.
-            </div>
-          </div>
+          e.origine !== 'school' && (
+            <p class="preuve preuve-vide">
+              Ajoutée par NTanova{e.situeeLe ? ` · ${dateCourte(e.situeeLe)}` : ''}
+            </p>
+          )
         )}
       </div>
 
-      {/* Les trois gestes d'une famille. Le premier est plein : « Y aller » quand l'école est située, sinon « Appeler ». */}
+      {e.photo && <PhotoEcole photo={e.photo} nom={e.nom} />}
+
+      {/* Les trois gestes d'une famille. Trois actions équilibrées, sans lien vide. */}
       <div class="apercu-actions fiche-actions">
         {itineraire && (
           <a class="bouton bouton-large" href={itineraire}>
@@ -226,16 +192,13 @@ const nomZone = zone.division.nom;
           </a>
         )}
         {numeroAppel && (
-          <a
-            class:list={['bouton', itineraire ? 'bouton-secondaire' : 'bouton-large']}
-            href={`tel:+${numeroAppel}`}
-          >
+          <a class:list={['bouton', 'bouton-secondaire']} href={`tel:+${numeroAppel}`}>
             <Icone nom="appeler" />
             Appeler
           </a>
         )}
         <a
-          class:list={['bouton', itineraire || numeroAppel ? 'bouton-secondaire' : 'bouton-large']}
+          class:list={['bouton', 'bouton-secondaire']}
           href={lienPartage}
           data-partager
           data-url={urlFiche}
@@ -247,13 +210,11 @@ const nomZone = zone.division.nom;
       </div>
       <p class="visuellement-cache" role="status" data-partager-etat></p>
 
-      {e.photo && <PhotoEcole photo={e.photo} nom={e.nom} />}
-
       {(e.programme || e.contactPublic || e.numeroEnseigne) && (
         <dl class="carte proprietes">
           {e.programme && (
             <>
-              <dt>Programme et langues</dt>
+              <dt>{libelleProgramme(e.programme)}</dt>
               <dd>{e.programme}</dd>
             </>
           )}
@@ -297,6 +258,16 @@ const nomZone = zone.division.nom;
         </section>
       )}
 
+      {cyclesSansFormation.length > 0 && (
+        <section class="carte formations" aria-label="Formations à renseigner">
+          <h2>Formations</h2>
+          <p class="texte-doux">
+            Les filières {parCycle.length > 0 ? 'de certains niveaux ne sont' : 'ne sont'} pas
+            encore renseignées.
+          </p>
+        </section>
+      )}
+
       {autres.length > 0 && (
         <section class="carte autres" aria-label="Autres implantations">
           <h2>Les autres implantations de {e.nom}</h2>
@@ -317,8 +288,11 @@ const nomZone = zone.division.nom;
           </ul>
         </section>
       )}
+    </div>
 
+    <div class="fiche-cote">
       <section class="carte ou" aria-label="Où est l'école">
+        <h2>Localisation</h2>
         {plan && dessin && situee && (
           <Carte
             id="fiche"
@@ -347,40 +321,19 @@ const nomZone = zone.division.nom;
           </a>
         )}
       </section>
-    </div>
-
-    <div class="fiche-cote">
       <FraisEcole frais={e.frais ?? []} />
       <EquipementsEcole equipements={e.equipements ?? []} />
-      {pasReleve.length > 0 && (
-        <section class="manque">
-          <p class="surtitre-doux-public">Pas encore relevé</p>
-          <ul class="pastilles-vides">
-            {pasReleve.map((x) => (
-              <li>{x}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {aCompleter.length > 0 && (
-        <section class="manque">
-          <p class="surtitre-doux-public">
-            {confirmee ? 'Non communiqué par la direction' : 'À compléter avec la direction'}
-          </p>
-          <ul class="pastilles-vides">
-            {aCompleter.map((x) => (
-              <li>{x}</li>
-            ))}
-          </ul>
-        </section>
-      )}
       <aside class="ecoles-appel">
         <p>
-          <b>Vous gérez cet établissement&nbsp;?</b>
+          <b>Vous dirigez cet établissement&nbsp;?</b>
         </p>
-        <p>Confirmez cette fiche avec nous. Rien n'est publié sans votre accord daté.</p>
-        <a class="bouton bouton-accent" href={confirmer ?? '/pour-les-ecoles/'}>
-          Confirmer cette fiche
+        <p>
+          {confirmee
+            ? 'Signalez un changement de filières, de tarifs ou de coordonnées.'
+            : 'Confirmez cette fiche pour publier vos filières, vos tarifs et vos coordonnées officielles.'}
+        </p>
+        <a class="bouton bouton-secondaire" href={confirmer ?? '/pour-les-ecoles/'}>
+          {confirmee ? 'Mettre à jour cette fiche' : 'Confirmer cette fiche'}
         </a>
         {confirmer && <a href="/pour-les-ecoles/">Ce que nous vous demanderons</a>}
         {erreur && <a href={erreur}>Signaler une erreur</a>}
@@ -462,7 +415,8 @@ const nomZone = zone.division.nom;
     list-style: none;
   }
   .preuves {
-    display: grid;
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--espace-2);
   }
   /* Le bouton « Partager » dit qu'il a copié le lien. */
@@ -471,9 +425,44 @@ const nomZone = zone.division.nom;
     background: var(--vert-pale);
     color: var(--marque-appuyee);
   }
-  /* Deux actions seulement : la seconde prend toute la largeur au lieu de la moitié. */
-  .fiche-actions .bouton:last-child:nth-child(even) {
-    grid-column: 1 / -1;
+  .preuve {
+    padding: var(--espace-2) var(--espace-3);
+    font-size: var(--taille-secondaire);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond);
+    color: var(--texte);
+    gap: var(--espace-2);
+  }
+  .preuve-direction :global(.ico) {
+    color: var(--marque);
+  }
+  @media (max-width: 24rem) {
+    .fiche-actions :global(.ico) {
+      display: none;
+    }
+  }
+  .fiche-actions {
+    display: flex;
+  }
+  .fiche-actions .bouton {
+    flex: 1;
+    min-width: 0;
+  }
+  .fiche-actions .bouton-large {
+    grid-column: auto;
+  }
+  .ecoles-appel {
+    background: var(--fond);
+    color: var(--texte);
+    border: 1px solid var(--trait);
+    padding: var(--espace-4);
+    border-radius: var(--rayon-m);
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .ecoles-appel a {
+    color: var(--marque);
   }
   .proprietes {
     display: grid;
@@ -552,19 +541,7 @@ const nomZone = zone.division.nom;
     color: var(--marque);
     font-weight: 700;
   }
-  .manque {
-    display: grid;
-    gap: var(--espace-2);
-  }
-  .surtitre-doux-public {
-    color: var(--texte-doux);
-    font-family: var(--police-titre);
-    font-size: var(--taille-mention);
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-  /* Sur téléphone, les blocs se suivent : la fiche, puis ce qui manque, puis l'appel aux directions. */
+  /* Sur téléphone, les blocs se suivent : les informations de la fiche, puis l’appel aux directions. */
   .fiche-corps,
   .fiche-principale,
   .fiche-cote {
@@ -581,7 +558,7 @@ const nomZone = zone.division.nom;
     .fiche h1 {
       font-size: var(--taille-titre-public);
     }
-    /* La colonne de la fiche garde la largeur d'une ligne de texte : cadre pointillé, cartes et texte alignés. */
+    /* La colonne de la fiche garde la largeur d'une ligne de texte : cartes et texte alignés. */
     .fiche-corps {
       gap: var(--espace-5);
       max-width: var(--largeur-texte);

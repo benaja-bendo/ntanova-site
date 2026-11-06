@@ -134,8 +134,8 @@ test.describe('site public', () => {
     await page.getByRole('link', { name: /\[Complexe scolaire Exemple\]/ }).click();
 
     await expect(page.getByRole('heading', { name: '[Complexe scolaire Exemple]' })).toBeVisible();
-    await expect(page.getByText(/Vue sur place le 2 novembre 2026/)).toBeVisible();
-    await expect(page.getByText(/Confirmée par la direction/)).toHaveCount(0);
+    await expect(page.getByText(/Relevé terrain · 2 nov. 2026/)).toBeVisible();
+    await expect(page.getByText(/Confirmée par l’école/)).toHaveCount(0);
     const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
     await expect(puces.getByRole('listitem').filter({ hasText: 'Maternelle' })).toBeVisible();
     await expect(puces.getByRole('listitem').filter({ hasText: 'Primaire' })).toBeVisible();
@@ -199,13 +199,13 @@ test.describe('site public', () => {
         page.getByRole('heading', { name: '[Groupe scolaire Exemple]', level: 1 }),
       ).toBeVisible();
       await expect(page.getByText('Campus du quartier', { exact: true })).toBeVisible();
-      await expect(page.getByText(/Confirmée par la direction le 4 novembre 2026/)).toBeVisible();
+      await expect(page.getByText(/Confirmée par l’école · 4 nov. 2026/)).toBeVisible();
       // Le lieu, du plus fin au plus large, sans répéter Pointe-Noire (ville et département).
       await expect(
         page.getByText('[Quartier Exemple] · Loandjili · Pointe-Noire', { exact: true }),
       ).toBeVisible();
       // Les deux preuves, l'une après l'autre, jamais fusionnées.
-      await expect(page.getByText(/Vue sur place le 2 novembre 2026/)).toBeVisible();
+      await expect(page.getByText(/Relevé terrain · 2 nov. 2026/)).toBeVisible();
       // Les formations du lycée, rangées par cycle, avec leurs liens vers les pages par série.
       const formations = page.getByRole('region', { name: 'Formations' });
       await expect(formations.getByRole('heading', { name: 'Lycée' })).toBeVisible();
@@ -380,7 +380,7 @@ test.describe('site public', () => {
       await expect(manque).not.toContainText('Niveaux');
     });
 
-    test('un type « Pas indiqué » ou l’absence de niveaux ne s’écrit pas : ils rejoignent « Pas encore sur la fiche »', async ({
+    test('un type inconnu et des niveaux absents ne créent pas de contenu vide', async ({
       page,
     }) => {
       await page.goto(`${TIE_TIE}ecole-sans-detail-exemple/`);
@@ -391,8 +391,8 @@ test.describe('site public', () => {
       await expect(proprietes.getByText('Niveaux', { exact: true })).toHaveCount(0);
       await expect(proprietes.getByText('Programme et langues')).toHaveCount(0);
       const manque = page.locator('.fiche-cote');
-      await expect(manque).toContainText("Type d'école");
-      await expect(manque).toContainText('Niveaux');
+      await expect(manque).not.toContainText("Type d'école");
+      await expect(manque).not.toContainText('Niveaux');
     });
 
     test('un type « Autre » ne s’écrit pas non plus, et « Autre formation » est un niveau comme un autre', async ({
@@ -403,7 +403,7 @@ test.describe('site public', () => {
       // La puce porte la lettre du cycle (aria-hidden) puis son nom : « S Autre formation ».
       await expect(puces.getByRole('listitem')).toHaveText([/^S\s*Autre formation$/]);
       await expect(puces).not.toContainText('Autre,');
-      await expect(page.locator('.fiche-cote')).toContainText("Type d'école");
+      await expect(page.locator('.fiche-cote')).not.toContainText("Type d'école");
     });
 
     test('un cycle à filières dit ce qui manque, ou ce qui est noté', async ({ page }) => {
@@ -425,10 +425,10 @@ test.describe('site public', () => {
       );
       // Le nom, le niveau (le type « Autre » ne s'écrit pas), le lieu, puis la preuve : rien d'autre.
       await expect(liste.getByRole('link', { name: /Centre de formation Exemple/ })).toHaveText(
-        /^S\s*\[Centre de formation Exemple\]\s*Autre formation\s*Tié-Tié · Pointe-Noire\s*Vue sur place$/,
+        /^S\s*\[Centre de formation Exemple\]\s*Autre formation\s*Tié-Tié · Pointe-Noire\s*Relevé terrain$/,
       );
       await expect(liste.getByRole('link', { name: /École sans détail/ })).toHaveText(
-        /^–\s*\[École sans détail Exemple\]\s*Tié-Tié · Pointe-Noire\s*Ajoutée par NTanova, pas encore vue sur place$/,
+        /^–\s*\[École sans détail Exemple\]\s*Tié-Tié · Pointe-Noire\s*Ajoutée par NTanova$/,
       );
       await expect(liste).not.toContainText('Pas indiqué');
     });
@@ -438,7 +438,7 @@ test.describe('site public', () => {
     }) => {
       // Vue le 2 novembre, modifiée depuis le 20 : elle dit toujours « vue sur place le 2 novembre ».
       await page.goto(`${TIE_TIE}centre-de-formation-exemple/`);
-      await expect(page.getByText(/Vue sur place le 2 novembre 2026/)).toBeVisible();
+      await expect(page.getByText(/Relevé terrain · 2 nov. 2026/)).toBeVisible();
       await expect(page.getByText(/20 novembre/)).toHaveCount(0);
     });
 
@@ -447,7 +447,7 @@ test.describe('site public', () => {
     }) => {
       await page.goto(`${TIE_TIE}ecole-sans-detail-exemple/`);
       await expect(page.getByText(/Ajoutée par NTanova/)).toBeVisible();
-      await expect(page.getByText(/Vue sur place le/)).toHaveCount(0);
+      await expect(page.getByText(/Relevé terrain ·/)).toHaveCount(0);
       await expect(page.getByText(/5 novembre/)).toHaveCount(0);
     });
 
@@ -563,7 +563,7 @@ test.describe('le partage d’un lien', () => {
     expect(await meta(page, 'og:image')).toBe(
       'https://ntanova.com/partage/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple.png',
     );
-    expect(await meta(page, 'og:description')).toContain('Vue sur place le 2 novembre 2026');
+    expect(await meta(page, 'og:description')).toContain('Relevé terrain · 2 nov. 2026');
     expect(await page.locator('link[rel="canonical"]').getAttribute('href')).toBe(
       'https://ntanova.com/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/',
     );

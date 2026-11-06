@@ -36,6 +36,20 @@ test.describe('la fiche d’une école', () => {
     expect(maternelle).not.toBe(primaire);
   });
 
+  test('une fiche déjà confirmée invite à une mise à jour, avec le bon message', async ({
+    page,
+  }) => {
+    await page.goto(CONFIRMEE);
+    const action = page.getByRole('link', { name: 'Mettre à jour cette fiche', exact: true });
+    await expect(action).toBeVisible();
+    expect(decodeURIComponent((await action.getAttribute('href'))!)).toContain(
+      'je souhaite mettre à jour sa fiche',
+    );
+    await expect(
+      page.getByRole('link', { name: 'Confirmer cette fiche', exact: true }),
+    ).toHaveCount(0);
+  });
+
   test('une école sans niveau noté a un disque gris, sans lettre ni puce', async ({ page }) => {
     await page.goto(SANS_DETAIL);
     await expect(page.locator('.apercu-tete .disque-xl')).toHaveText('');
@@ -53,19 +67,11 @@ test.describe('la fiche d’une école', () => {
       tete!.y + tete!.height,
     );
     await expect(page.locator('.preuve-direction')).toContainText(
-      'Confirmée par la direction le 4 novembre 2026',
+      'Confirmée par l’école · 4 nov. 2026',
     );
     await expect(page.locator('.preuve:not(.preuve-direction)')).toContainText(
-      'Vue sur place le 2 novembre 2026',
+      'Relevé terrain · 2 nov. 2026',
     );
-    // Pleine pour la direction, bordée pour le relevé : deux fonds différents.
-    const [direction, terrain] = await Promise.all([
-      page.locator('.preuve-direction').evaluate((b) => getComputedStyle(b).backgroundColor),
-      page
-        .locator('.preuve:not(.preuve-direction)')
-        .evaluate((b) => getComputedStyle(b).backgroundColor),
-    ]);
-    expect(direction).not.toBe(terrain);
   });
 
   test('sans accord de la direction, pas de bloc « Confirmée » ; sans passage, un bloc en pointillés', async ({
@@ -75,9 +81,8 @@ test.describe('la fiche d’une école', () => {
     await expect(page.locator('.preuve-direction')).toHaveCount(0);
     const vide = page.locator('.preuve-vide');
     await expect(vide).toHaveCount(1);
-    await expect(vide).toContainText('Ajoutée par NTanova le 3 novembre 2026');
-    await expect(vide).toContainText('Pas encore vue sur place par un jeune du quartier.');
-    await expect(vide).toHaveCSS('border-top-style', 'dashed');
+    await expect(vide).toContainText('Ajoutée par NTanova · 3 nov. 2026');
+    await expect(vide).not.toContainText('Relevé terrain');
   });
 
   test('une école déclarée par l’école : sa déclaration en pointillés, sans « Confirmée »', async ({
@@ -85,8 +90,8 @@ test.describe('la fiche d’une école', () => {
   }) => {
     await page.goto(BRAZZAVILLE);
     await expect(page.locator('.preuve-direction')).toHaveCount(0);
-    await expect(page.locator('.preuve-vide').first()).toContainText(
-      'Déclarée par l’école le 1 novembre 2026',
+    await expect(page.locator('.preuves .preuve').first()).toContainText(
+      'Déclarée par l’école · 1 nov. 2026',
     );
   });
 });
@@ -109,8 +114,8 @@ test.describe('la barre « Y aller · Appeler · Partager »', () => {
     expect(partage).toContain('[Complexe scolaire Exemple] · https://ntanova.com' + COMPLEXE);
     // Y aller est le bouton plein, sur toute la largeur ; les deux autres se partagent la ligne dessous.
     const [y, a, p] = await Promise.all([0, 1, 2].map((i) => actions(page).nth(i).boundingBox()));
-    expect(y!.width).toBeGreaterThan(a!.width * 1.8);
-    expect(a!.y).toBeGreaterThan(y!.y);
+    expect(Math.abs(y!.width - a!.width)).toBeLessThan(2);
+    expect(Math.abs(a!.y - y!.y)).toBeLessThan(2);
     expect(Math.abs(a!.y - p!.y)).toBeLessThan(2);
     for (const b of [y, a, p]) expect(b!.height).toBeGreaterThanOrEqual(44);
   });
@@ -242,40 +247,13 @@ test.describe('« Où est l’école »', () => {
   });
 });
 
-test.describe('ce qui manque encore', () => {
-  test('tant que l’école n’est pas confirmée : « À compléter avec la direction »', async ({
-    page,
-  }) => {
-    await page.goto(AJOUTEE);
-    const manque = page.locator('.fiche-cote .manque').filter({ hasText: 'À compléter' });
-    await expect(manque).toBeVisible();
-    await expect(manque.locator('li')).toHaveText([
-      'Frais',
-      'Photos de l’école',
-      'Équipements',
-      "Contact de l'école",
-    ]);
-    await expect(page.locator('main')).not.toContainText('Non communiqué par la direction');
-  });
-
-  test('confirmée par la direction : ce qui manque est « Non communiqué par la direction »', async ({
-    page,
-  }) => {
-    await page.goto(CONFIRMEE);
-    await expect(
-      page.locator('.fiche-cote .manque').filter({ hasText: 'Non communiqué par la direction' }),
-    ).toBeVisible();
-    await expect(page.locator('main')).not.toContainText('À compléter avec la direction');
-  });
-
-  test('la pastille « Photos » n’existe que sans photo, et rien à compléter n’affiche pas de cadre vide', async ({
-    page,
-  }) => {
-    // Cette fiche a sa photo, ses frais, ses équipements et son contact : aucun cadre « à compléter ».
-    await page.goto(COMPLEXE);
-    await expect(page.getByAltText(/enseigne/i).first()).toBeVisible();
-    await expect(page.getByText('Photos de l’école', { exact: true })).toHaveCount(0);
-    await expect(page.locator('.fiche-cote .manque')).toHaveCount(0);
+test.describe('les informations absentes', () => {
+  test('aucune colonne ne met en scène le vide', async ({ page }) => {
+    await page.goto(INSTITUT);
+    await expect(page.locator('.manque, .pastilles-vides')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Formations' })).toContainText(
+      'BTS Informatique de gestion',
+    );
   });
 });
 
@@ -292,7 +270,7 @@ test.describe('sur ordinateur', () => {
     await expect(termes).toHaveText([
       'Programme et langues',
       'Contact communiqué par l’école',
-      'Numéro sur l’enseigne',
+      'Téléphone',
     ]);
     const xTermes = await termes.evaluateAll((l) => l.map((e) => e.getBoundingClientRect().x));
     const xValeurs = await valeurs.evaluateAll((l) => l.map((e) => e.getBoundingClientRect().x));

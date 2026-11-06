@@ -26,18 +26,18 @@ const fiche = (
 describe('la provenance d’une fiche', () => {
   it('une fiche relevée par un relais est « vue sur place »', () => {
     expect(provenanceDe(fiche('2026-11-02T10:00:00Z', null))).toBe('relevee');
-    expect(libelleProvenance.relevee).toBe('Vue sur place');
+    expect(libelleProvenance.relevee).toBe('Relevé terrain');
   });
 
   it('l’accord daté de la direction donne « Confirmée par la direction »', () => {
     expect(provenanceDe(fiche('2026-11-02T10:00:00Z', null, 'verifiee'))).toBe('verifiee');
-    expect(libelleProvenance.verifiee).toBe('Confirmée par la direction');
+    expect(libelleProvenance.verifiee).toBe('Confirmée par l’école');
   });
 
   it('une fiche sans passage de relais n’est jamais « vue sur place », même sans date de situation', () => {
     expect(provenanceDe(fiche(null, '2026-11-03T10:00:00Z'))).toBe('ajoutee');
     expect(provenanceDe(fiche(null, null))).toBe('ajoutee');
-    expect(libelleProvenance.ajoutee).toBe('Ajoutée par NTanova, pas encore vue sur place');
+    expect(libelleProvenance.ajoutee).toBe('Ajoutée par NTanova');
   });
 
   it('aucun libellé ne dit « vérifiée » ni « relevée »', () => {

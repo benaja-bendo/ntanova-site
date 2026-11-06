@@ -49,7 +49,7 @@ test('fiche publique : image locale légère, provenance et partage sans URL pri
 }) => {
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
   const image = page.getByRole('img', {
-    name: 'Enseigne de [Complexe scolaire Exemple]',
+    name: 'Vue de [Complexe scolaire Exemple]',
     exact: true,
   });
   await expect(image).toBeVisible();
@@ -58,7 +58,7 @@ test('fiche publique : image locale légère, provenance et partage sans URL pri
   const r = await request.get(src!);
   expect(r.ok()).toBe(true);
   expect((await r.body()).length).toBeLessThanOrEqual(32768);
-  await expect(page.getByText(/Photo d’enseigne prise sur place le 3 novembre 2026/)).toBeVisible();
+  await expect(page.getByText(/Photo relevée sur place/)).toBeVisible();
   const html = await page.content();
   expect(html).not.toContain('/storage/v1/');
   const og = await request.get(

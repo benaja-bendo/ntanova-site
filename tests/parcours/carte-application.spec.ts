@@ -79,8 +79,7 @@ test('une école absente de la carte : une phrase et un bouton WhatsApp, jamais 
   await expect(manque).toBeVisible();
   await expect(manque).toContainText('Une école manque ?');
   // Les familles aussi osent écrire : la phrase s'adresse à qui connaît l'école, pas seulement à sa direction.
-  await expect(manque).toContainText('Vous la connaissez ou vous la dirigez ?');
-  await expect(manque).toContainText('nous la noterons pour le prochain passage');
+  await expect(manque).toContainText('Signalez-nous un établissement à ajouter.');
   // Le numéro vient de la configuration : le parcours ne l'attend jamais en dur.
   const whatsapp = manque.getByRole('link', { name: 'Écrire sur WhatsApp' });
   await expect(whatsapp).toHaveAttribute('href', /^https:\/\/wa\.me\/\d+\?text=/);
@@ -96,14 +95,14 @@ test('sélection, deux preuves datées, partage puis retour sans quitter la cart
   await page.getByRole('button', { name: 'Chercher', exact: true }).click();
   await page.locator('[data-resultats]').getByRole('button').first().click();
   const apercu = page.locator('.carte-apercu');
-  await expect(apercu).toContainText('Vue sur place le');
-  await expect(apercu).toContainText('Confirmée par la direction le');
+  await expect(apercu).toContainText('Relevé terrain ·');
+  await expect(apercu).toContainText('Confirmée par l’école ·');
   // La fiche dit le niveau comme l'épingle : un disque à la lettre du cycle, puis le mot.
   await expect(apercu.locator('.etiquette-niveau .disque').first()).toHaveText(/^[MPCLTS]$/);
   await expect(apercu.locator('.apercu-tete .disque')).toHaveText(/^[MPCLTS]$/);
   // Deux preuves, deux blocs : jamais fusionnées.
   await expect(apercu.locator('.preuve')).toHaveCount(2);
-  await expect(apercu.locator('.preuve-direction')).toContainText('Confirmée par la direction le');
+  await expect(apercu.locator('.preuve-direction')).toContainText('Confirmée par l’école ·');
   // Une action principale (la fiche), puis deux secondaires, toutes de vraies cibles de doigt.
   await expect(apercu.getByRole('link', { name: 'Voir la fiche' })).toHaveClass(/bouton-large/);
   for (const nom of ['Voir la fiche', 'Y aller', 'Partager sur WhatsApp'])
@@ -300,4 +299,22 @@ test.describe('plein écran sans JavaScript', () => {
     await expect(page.locator('.listes-repli')).toBeVisible();
     await expect(page.locator('.carte-attente')).toBeHidden();
   });
+});
+
+test('l’aperçu utilise la même photo publique locale que la fiche, sans justification longue', async ({
+  page,
+}) => {
+  await page.goto(
+    '/carte/?ecole=%2Fecoles%2Fcongo%2Fpointe-noire%2Ftie-tie%2Fcomplexe-scolaire-exemple%2F#15/-4.79105/11.925',
+  );
+  const apercu = page.locator('.carte-apercu');
+  const image = apercu.getByRole('img');
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute('src', '/photos/93000000-0000-4000-8000-000000000001.webp');
+  await expect
+    .poll(() => image.evaluate((e: HTMLImageElement) => e.complete && e.naturalWidth > 0))
+    .toBe(true);
+  await expect(apercu).toContainText('Relevé terrain');
+  await expect(apercu).not.toContainText('jeune');
+  await expect(apercu).not.toContainText('seulement ce qui');
 });

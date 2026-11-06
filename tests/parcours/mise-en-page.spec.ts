@@ -899,3 +899,57 @@ test('nouvelle école : annuler une saisie ou reprendre le relevé ne conserve a
   await page.getByRole('button', { name: 'Accepter la fiche', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('prête');
 });
+
+for (const [cas, chemin] of [
+  ['terrain partiel', '/ecoles/congo/pointe-noire/mongo-mpoukou/groupe-scolaire-exemple/'],
+  ['fiche complète', '/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/'],
+  [
+    'plusieurs sites',
+    '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/groupe-scolaire-exemple/',
+  ],
+]) {
+  test(`fiche refondue : ${cas}, lecture et actions sans débordement`, async ({ page }) => {
+    await page.goto(chemin!);
+    await expect(page.locator('.manque, .pastilles-vides')).toHaveCount(0);
+    await expect(page.locator('.preuves')).not.toContainText('jeune');
+    await expect(page.locator('.ecoles-appel')).toContainText('Vous dirigez cet établissement');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()!.width,
+    );
+    for (const a of await page.locator('.fiche-actions a').all()) {
+      const b = await a.boundingBox();
+      expect(b!.height).toBeGreaterThanOrEqual(44);
+      expect(await a.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+    }
+    await page.screenshot({
+      path: `captures/fiches/${cas}-${page.viewportSize()!.width}.png`,
+      fullPage: true,
+    });
+    const cote = await page.locator('.fiche-cote').boundingBox();
+    const principal = await page.locator('.fiche-principale').boundingBox();
+    const b2b = await page.locator('.ecoles-appel').boundingBox();
+    if (page.viewportSize()!.width < 1024)
+      expect(b2b!.y).toBeGreaterThan(principal!.y + principal!.height);
+    else expect(cote!.x).toBeGreaterThan(principal!.x + principal!.width);
+    if (cas === 'terrain partiel') {
+      await expect(page.locator('.proprietes dt')).toContainText(['Langue d’enseignement']);
+      await expect(page.locator('.proprietes dd')).toContainText(['Français']);
+      await expect(page.locator('.photo-ecole img')).toBeVisible();
+      await expect(page.locator('.preuve-direction')).toHaveCount(0);
+      await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toHaveCount(0);
+    }
+    if (cas === 'plusieurs sites') {
+      const autres = page.getByRole('region', { name: 'Autres implantations' });
+      await expect(autres.getByRole('link')).toContainText('Campus de Mongo-Mpoukou');
+      await autres.getByRole('link').click();
+      await expect(page.locator('.etiquette-campus')).toHaveText('Campus de Mongo-Mpoukou');
+    }
+    if (cas === 'fiche complète') {
+      await expect(page.locator('.photo-ecole img')).toBeVisible();
+      const image = await page.locator('.photo-ecole').boundingBox();
+      const actions = await page.locator('.fiche-actions').boundingBox();
+      expect(image!.y).toBeLessThan(actions!.y);
+      await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toBeVisible();
+    }
+  });
+}

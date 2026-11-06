@@ -101,7 +101,7 @@ const confirmer =
   e && zone
     ? lienWhatsApp(
         PUBLIC_WHATSAPP,
-        `Bonjour NTanova, je dirige ${e.nom}${e.etiquette ? ` (${e.etiquette})` : ''}, à ${zone.noms.join(', ')}, et je souhaite confirmer sa fiche : ${new URL(lienEcole(e), Astro.site ?? Astro.url).href}`,
+        `Bonjour NTanova, je dirige ${e.nom}${e.etiquette ? ` (${e.etiquette})` : ''}, à ${zone.noms.join(', ')}, et je souhaite ${e.etat === 'verifiee' ? 'mettre à jour' : 'confirmer'} sa fiche : ${new URL(lienEcole(e), Astro.site ?? Astro.url).href}`,
       )
     : null;
 ---

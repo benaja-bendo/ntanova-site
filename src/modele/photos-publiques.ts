@@ -1,4 +1,4 @@
-/** Une photo d’enseigne expressément choisie pour une fiche publique. */
+/** Une photo contrôlée retenue pour une fiche publique (choix explicite ou repli). */
 export interface PhotoPublique {
   id: string;
   prisLe: string | null;

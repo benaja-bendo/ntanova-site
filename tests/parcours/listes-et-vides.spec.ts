@@ -60,13 +60,11 @@ test.describe('la ligne d’une école est la même à la construction et dans l
     const complexe = page.locator('ul.liste-lignes li').filter({ hasText: 'Complexe scolaire' });
     await expect(complexe.locator('.disque')).toHaveText('P');
     await expect(complexe.locator('.disque')).toHaveClass(/c-P/);
-    await expect(complexe.locator('.ligne-preuve')).toHaveText('Vue sur place');
+    await expect(complexe.locator('.ligne-preuve')).toHaveText('Relevé terrain');
     await expect(complexe.locator('.ligne-preuve svg')).toHaveCount(1);
     const sans = page.locator('ul.liste-lignes li').filter({ hasText: 'École sans détail' });
     await expect(sans.locator('.disque')).toHaveClass(/disque-vide/);
-    await expect(sans.locator('.ligne-preuve')).toHaveText(
-      'Ajoutée par NTanova, pas encore vue sur place',
-    );
+    await expect(sans.locator('.ligne-preuve')).toHaveText('Ajoutée par NTanova');
   });
 });
 
@@ -256,7 +254,7 @@ test.describe('« Autour de moi »', () => {
     const lignes = page.locator('ul.liste-lignes li');
     await expect(lignes.first()).toContainText('[Complexe scolaire Exemple]');
     await expect(lignes.first().locator('.ligne-distance')).toHaveText(/^À \d+\s?m$/);
-    await expect(lignes.first().locator('.ligne-preuve')).toHaveText('Vue sur place');
+    await expect(lignes.first().locator('.ligne-preuve')).toHaveText('Relevé terrain');
     await expect(lignes.first().locator('.disque')).toHaveText('P');
     await expect(page.getByText('4 écoles')).toBeVisible();
     // 10 km : deux écoles de plus (la campus de Mongo-Mpoukou, l'école ajoutée à plus de 3 km) ; la puce suit.
