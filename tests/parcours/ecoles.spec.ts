@@ -57,7 +57,7 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.goto('/admin/#valider');
   await page.getByRole('link', { name: /\[École à situer, nom exact\]/ }).click();
   await expect(page.getByText('Contre-visite', { exact: true }).first()).toBeVisible();
-  await page.getByRole('button', { name: /^Situer/ }).click();
+  await page.getByRole('button', { name: 'Accepter et situer l’école' }).click();
   await expect(page.getByRole('status')).toHaveText(/est mise à jour/);
   await page.getByRole('link', { name: 'Écoles' }).click();
   const situee = page.getByRole('row', { name: /\[École à situer, nom exact\]/ });

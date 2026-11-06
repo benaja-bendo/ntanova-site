@@ -10,6 +10,12 @@ import {
 } from '../../modele/acceptation';
 import { ageDe, trierParAnciennete } from '../../modele/age';
 import { messageManquant } from '../../modele/decision';
+import {
+  compterIndices,
+  filtrerFile,
+  relaisDeLaFile,
+  type IndiceDeFiche,
+} from '../../modele/file-validation';
 import { cheminLisible } from '../../modele/geo-divisions';
 import type { Valeur } from '../../modele/listes';
 import {
@@ -36,6 +42,7 @@ import type {
   ReleveDecide,
 } from '../../modele/ports';
 import { Bouton } from '../../ui/actions';
+import { Dialogue } from '../../ui/Dialogue';
 import { SectionRepliable } from '../../ui/SectionRepliable';
 import { afficherTelephone } from '../../modele/telephone';
 import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
@@ -114,6 +121,8 @@ export function AValider({
   const [decides, setDecides] = useState<ReleveDecide[] | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [filtre, setFiltre] = useState<Filtre>('tout');
+  const [relaisChoisi, setRelaisChoisi] = useState<string | null>(null);
+  const [indice, setIndice] = useState<IndiceDeFiche | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
 
   const charger = useCallback(() => {
@@ -132,9 +141,16 @@ export function AValider({
   }, [charger]);
 
   // La plus ancienne d'abord : la promesse faite aux relais est une validation sous 24 à 48 heures (ticket #76).
+  const typeFiltre =
+    filtre === 'releve' || filtre === 'correction' || filtre === 'contre_visite' ? filtre : 'tout';
+  // Les relais et les indices se comptent sur la file entière : choisir un relais ne vide pas la liste des relais.
+  const relaisProposes = relaisDeLaFile(releves ?? []);
+  // Un relais dont toutes les fiches viennent d'être décidées n'est plus un choix : on retombe sur « Tous les relais ».
+  const relaisActif = relaisProposes.some((r) => r.relais === relaisChoisi) ? relaisChoisi : null;
   const visibles = trierParAnciennete(
-    (releves ?? []).filter((r) => filtre === 'tout' || r.type === filtre),
+    filtrerFile(releves ?? [], { type: typeFiltre, relais: relaisActif, indice }),
   );
+  const indices = compterIndices(releves ?? []);
   const maintenant = new Date();
   // « Renvoyées » : les fiches qui attendent leur relais, sorties de la file (ticket #92). Comme « Décidées », en lecture seule.
   const surLesDecidees = filtre === 'decidees' || filtre === 'renvoyees';
@@ -190,6 +206,49 @@ export function AValider({
           ))}
         </div>
       </div>
+
+      {!surLesDecidees &&
+        releves !== null &&
+        (relaisProposes.length > 1 || indices.sansPosition > 0 || indices.doublonPossible > 0) && (
+          <div className="admin-affiner" role="group" aria-label="Affiner la file">
+            {relaisProposes.length > 1 && (
+              <label className="admin-affiner-relais">
+                <span className="mention">Relais</span>
+                <select
+                  className="champ"
+                  value={relaisActif ?? ''}
+                  onChange={(e) => setRelaisChoisi(e.target.value || null)}
+                >
+                  <option value="">Tous les relais</option>
+                  {relaisProposes.map((r) => (
+                    <option key={r.relais} value={r.relais}>
+                      {r.relais} · {r.fiches}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {(
+              [
+                ['sans_position', 'Sans position', indices.sansPosition],
+                ['doublon_possible', 'Doublon possible', indices.doublonPossible],
+              ] as const
+            ).map(
+              ([valeur, libelle, n]) =>
+                (n > 0 || indice === valeur) && (
+                  <button
+                    key={valeur}
+                    type="button"
+                    className="pastille-choix"
+                    aria-pressed={indice === valeur}
+                    onClick={() => setIndice(indice === valeur ? null : valeur)}
+                  >
+                    {libelle} · {n}
+                  </button>
+                ),
+            )}
+          </div>
+        )}
 
       {erreur && (
         <Bandeau ton="erreur" icone="alerte">
@@ -251,7 +310,11 @@ export function AValider({
         ) : (
           <ul className="admin-liste" aria-label="Envois à valider">
             {releves !== null && visibles.length === 0 && (
-              <li className="texte-doux">Rien à valider pour le moment.</li>
+              <li className="texte-doux">
+                {releves.length > 0
+                  ? 'Aucune fiche ne correspond à ces filtres.'
+                  : 'Rien à valider pour le moment.'}
+              </li>
             )}
             {visibles.map((r) => (
               <li key={r.id}>
@@ -286,6 +349,7 @@ export function AValider({
             admin={admin}
             id={selection.id}
             lectureSeule={surLesDecidees}
+            refusee={(decides ?? []).find((d) => d.id === selection.id)?.statut === 'refuse'}
             surDecision={apresDecision}
             surAnnonce={setAnnonce}
           />
@@ -302,14 +366,20 @@ function Photos({
   photos,
   nom,
   surChangement,
+  peutMarquer = true,
 }: {
   admin: PortAdministration;
   photos: PhotoVue[];
   nom: string;
   surChangement: () => void;
+  /** Faux sur une fiche refusée : ses photos ne paraîtront jamais, on ne les déclare pas publiables. */
+  peutMarquer?: boolean;
 }) {
   const [aEffacer, setAEffacer] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [ouverte, setOuverte] = useState<PhotoVue | null>(null);
+  // Plusieurs photos à contrôler : un seul geste, après les avoir regardées (audit du 06/11 : 32 photos = 32 clics).
+  const aMarquer = peutMarquer ? photos.filter((p) => p.adresse && !p.publiable) : [];
 
   const agir = async (action: () => Promise<void>) => {
     setErreur(null);
@@ -336,18 +406,36 @@ function Photos({
         Effacer l’original ne retire pas les copies déjà publiées sur le site : reconstruis le site
         après un retrait. Les copies partagées peuvent subsister.
       </p>
+      {aMarquer.length > 1 && (
+        <div className="admin-actions">
+          <button
+            type="button"
+            className="bouton bouton-secondaire bouton-petit"
+            onClick={() =>
+              void agir(async () => {
+                for (const p of aMarquer) await admin.marquerPhotoPubliable(p.id, true);
+              })
+            }
+          >
+            Marquer les {aMarquer.length} photos publiables
+          </button>
+          <span className="mention">
+            Seulement si aucune ne montre d’enfant ni de numéro lisible.
+          </span>
+        </div>
+      )}
       <div className="admin-photos" role="list" aria-label="Photos de l'envoi">
         {photos.map((p) => (
           <figure className="admin-figure" key={p.id} role="listitem">
             {p.adresse ? (
-              <a
-                href={p.adresse}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Ouvrir en grand : ${libelleRolePhoto[p.role]}`}
+              <button
+                type="button"
+                className="admin-photo-ouvrir"
+                aria-label={`Agrandir : ${libelleRolePhoto[p.role]}`}
+                onClick={() => setOuverte(p)}
               >
                 <img src={p.adresse} alt={`${libelleRolePhoto[p.role]} — ${nom}`} />
-              </a>
+              </button>
             ) : (
               <div className="apercu-vide">Photo illisible</div>
             )}
@@ -363,7 +451,7 @@ function Photos({
             <div className="admin-actions">
               {p.publiable ? (
                 <span className="etiquette etat-verifiee">Vérifiée : publiable</span>
-              ) : (
+              ) : !peutMarquer ? null : (
                 <button
                   type="button"
                   className="bouton bouton-secondaire bouton-petit"
@@ -400,6 +488,24 @@ function Photos({
         ))}
       </div>
       {erreur && <p className="message-erreur">{erreur}</p>}
+      {ouverte?.adresse && (
+        <Dialogue
+          titre={`${libelleRolePhoto[ouverte.role]} — ${nom}`}
+          fermer={() => setOuverte(null)}
+          entete={<h2>{libelleRolePhoto[ouverte.role]}</h2>}
+        >
+          <img
+            className="admin-photo-grande"
+            src={ouverte.adresse}
+            alt={`${libelleRolePhoto[ouverte.role]} — ${nom}`}
+          />
+          <p className="mention">
+            <a href={ouverte.adresse} target="_blank" rel="noopener noreferrer">
+              Ouvrir l’original dans un nouvel onglet
+            </a>
+          </p>
+        </Dialogue>
+      )}
     </div>
   );
 }
@@ -410,6 +516,7 @@ function Detail({
   admin,
   id,
   lectureSeule,
+  refusee = false,
   surDecision,
   surAnnonce,
 }: {
@@ -417,6 +524,8 @@ function Detail({
   id: string;
   /** Une décision déjà prise : on la relit, on peut encore effacer, on ne décide plus. */
   lectureSeule: boolean;
+  /** La décision prise est un refus : ses photos ne se marquent plus publiables. */
+  refusee?: boolean;
   surDecision: (texte: string) => void;
   surAnnonce: (texte: string) => void;
 }) {
@@ -609,7 +718,7 @@ function Detail({
           ? 'Accepter comme nouvelle implantation'
           : cible.mode === 'update_campus'
             ? detail.type === 'contre_visite'
-              ? 'Situer l’école'
+              ? 'Accepter et situer l’école'
               : 'Mettre à jour la fiche'
             : 'Ajouter les niveaux à la fiche';
 
@@ -641,6 +750,7 @@ function Detail({
         photos={photos}
         nom={detail.nomEnseigne}
         surChangement={chargerPhotos}
+        peutMarquer={!refusee}
       />
 
       <SignauxDuRelais admin={admin} relaisId={detail.relaisId} prenom={detail.relais} />
@@ -782,321 +892,329 @@ function Detail({
           définitif), ou agir sur l'école dans l'onglet « Écoles ».
         </p>
       ) : (
-        <fieldset
-          className="admin-decision pile"
-          disabled={enCours}
-          aria-label="Décision de NTanova"
-        >
-          {nouvelleEcole && (
-            <CorrectionAvantAcceptation
-              fiche={detail}
-              correction={corrections}
-              surChangement={setCorrections}
-              surEdition={setEditionInformations}
-            />
-          )}
-          {editionInformations && (
-            <p className="mention">
-              Utilise les valeurs corrigées ou annule leur saisie avant de décider.
-            </p>
-          )}
-          {detail.essai && (
-            <Bandeau ton="attente" icone="alerte">
-              <p>
-                <b>Lot d'entraînement</b> : cette fiche ne sera jamais publiée. Valide-la avec le
-                relais (elle compte pour son essai), demande une correction, ou refuse-la.
-              </p>
-            </Bandeau>
-          )}
-
-          {detail.type === 'correction' && detail.corrigeUneFicheEnAttente && (
-            <Bandeau ton="attente" icone="alerte">
-              <p>
-                <b>Cette correction remplace la fiche que tu as renvoyée</b> : l’école n’est pas
-                encore créée.
-                {detail.positionDeLaFicheDOrigine
-                  ? ' Elle reprend la position de la fiche d’origine.'
-                  : ''}
-              </p>
-            </Bandeau>
-          )}
-
-          {!detail.essai && (detail.type !== 'correction' || detail.corrigeUneFicheEnAttente) && (
-            <fieldset
-              className="pile-serree formulaire-occupe"
-              disabled={editionInformations}
-              aria-label="Que faire de cette fiche"
-            >
-              <Choix
-                legende="Que faire de cette fiche ?"
-                options={options}
-                valeurs={[modeActuel]}
-                surChoix={choisirMode}
+        <>
+          <fieldset
+            className="admin-decision pile"
+            disabled={enCours}
+            aria-label="Décision de NTanova"
+          >
+            {nouvelleEcole && (
+              <CorrectionAvantAcceptation
+                fiche={detail}
+                correction={corrections}
+                surChangement={setCorrections}
+                surEdition={setEditionInformations}
               />
-              {cible.mode === 'new_campus' && (
-                <Champ libelle="Institution connue">
+            )}
+            {editionInformations && (
+              <p className="mention">
+                Utilise les valeurs corrigées ou annule leur saisie avant de décider.
+              </p>
+            )}
+            {detail.essai && (
+              <Bandeau ton="attente" icone="alerte">
+                <p>
+                  <b>Lot d'entraînement</b> : cette fiche ne sera jamais publiée. Valide-la avec le
+                  relais (elle compte pour son essai), demande une correction, ou refuse-la.
+                </p>
+              </Bandeau>
+            )}
+
+            {detail.type === 'correction' && detail.corrigeUneFicheEnAttente && (
+              <Bandeau ton="attente" icone="alerte">
+                <p>
+                  <b>Cette correction remplace la fiche que tu as renvoyée</b> : l’école n’est pas
+                  encore créée.
+                  {detail.positionDeLaFicheDOrigine
+                    ? ' Elle reprend la position de la fiche d’origine.'
+                    : ''}
+                </p>
+              </Bandeau>
+            )}
+
+            {!detail.essai && (detail.type !== 'correction' || detail.corrigeUneFicheEnAttente) && (
+              <fieldset
+                className="pile-serree formulaire-occupe"
+                disabled={editionInformations}
+                aria-label="Que faire de cette fiche"
+              >
+                <Choix
+                  legende="Que faire de cette fiche ?"
+                  options={options}
+                  valeurs={[modeActuel]}
+                  surChoix={choisirMode}
+                />
+                {cible.mode === 'new_campus' && (
+                  <Champ libelle="Institution connue">
+                    {(a) => (
+                      <select
+                        {...a}
+                        className="champ"
+                        value={cible.institutionId}
+                        onChange={(ev) =>
+                          setCible({ mode: 'new_campus', institutionId: ev.target.value })
+                        }
+                      >
+                        {institutions.map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {i.nom} ({i.campus.length} implantation{i.campus.length > 1 ? 's' : ''})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Champ>
+                )}
+                {(cible.mode === 'update_campus' || cible.mode === 'add_cycle') && (
+                  <Champ libelle="Implantation connue">
+                    {(a) => (
+                      <select
+                        {...a}
+                        className="champ"
+                        value={cible.campusId}
+                        onChange={(ev) => setCible({ mode: cible.mode, campusId: ev.target.value })}
+                      >
+                        {campusConnus.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.libelle}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Champ>
+                )}
+                {divisionRequise && (
+                  <Champ
+                    libelle="Division de l’école"
+                    aide={
+                      detail.position !== null
+                        ? 'Aucun contour connu ne contient cette position. Choisissez la division de l’école : elle n’est pas déduite du lot du relais.'
+                        : 'Cette fiche n’a pas de position et le relais n’a pas de lot. Choisissez la division de l’école.'
+                    }
+                  >
+                    {(a) => (
+                      <select
+                        {...a}
+                        className="champ"
+                        value={divisionId}
+                        onChange={(ev) => setDivisionId(ev.target.value)}
+                      >
+                        <option value="">Choisir une division…</option>
+                        {divisionsChoisissables.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.chemin}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Champ>
+                )}
+                {(cible.mode === 'nouvelle' || cible.mode === 'new_campus') && (
+                  <Champ
+                    libelle="Nom de l’implantation"
+                    facultatif
+                    aide="« Campus de Loandjili » : seulement quand l’école a plusieurs implantations."
+                  >
+                    {(a) => (
+                      <input
+                        {...a}
+                        className="champ"
+                        type="text"
+                        maxLength={120}
+                        autoComplete="off"
+                        value={etiquette}
+                        onChange={(ev) => setEtiquette(ev.target.value)}
+                      />
+                    )}
+                  </Champ>
+                )}
+                {avecFormations && (
+                  <>
+                    <p className="mention">
+                      Lis les photos du panneau ou du prospectus : les séries et les formations
+                      notées ici rendent l’école cherchable (série C, BTS, licence…).
+                    </p>
+                    <Formations
+                      cycles={valeurs.niveaux}
+                      formations={formationsRetenues}
+                      domaines={domaines}
+                      surChangement={setFormations}
+                    />
+                  </>
+                )}
+              </fieldset>
+            )}
+
+            {bilanAvant && (
+              <section className="admin-avant pile-serree" aria-label="Avant d’accepter">
+                <h3 className="rang">
+                  <Icone nom="coche" />
+                  Avant d’accepter
+                </h3>
+                <p>
+                  {bilanAvant.bloque
+                    ? 'Il reste un choix à faire avant de pouvoir accepter.'
+                    : 'Rien ne bloque : tu peux accepter.'}
+                </p>
+                <ul className="admin-avant-liste">
+                  {bilanAvant.lignes.map((l) => (
+                    <li key={l.cle} className="rang">
+                      <Icone nom={iconeDeLaLigne[l.etat]} taille={16} />
+                      <span>
+                        <b>{l.titre}</b> · {l.texte}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mention">{bilanAvant.phrase}</p>
+              </section>
+            )}
+
+            {manque && !detail.essai && (
+              <p className="message-attention" role="status">
+                {manque}
+              </p>
+            )}
+          </fieldset>
+          {/* Les boutons sont un enfant direct de la fiche : « collants », ils restent à l'écran pendant tout son défilement. */}
+          <fieldset
+            className="admin-decision-barre pile-serree"
+            disabled={enCours}
+            aria-label="Accepter, corriger ou refuser"
+          >
+            <div className="admin-actions">
+              {!detail.essai && (
+                <Bouton
+                  type="button"
+                  enCours={operation === 'acceptation'}
+                  texteEnCours="Acceptation…"
+                  disabled={enCours || cibleIncomplete || editionInformations}
+                  onClick={() =>
+                    void agir(
+                      'acceptation',
+                      () => admin.accepter(id, decision()),
+                      cible.mode === 'update_campus' || cible.mode === 'add_cycle'
+                        ? 'La fiche de l’école est mise à jour. Si elle était déjà en ligne, la correction paraît après la prochaine mise à jour du site ; sinon, publie-la depuis « Écoles ».'
+                        : ACCEPTEE,
+                    )
+                  }
+                >
+                  {texteAccepter}
+                </Bouton>
+              )}
+              {detail.essai && !detail.essaiValideLe && (
+                <Bouton
+                  type="button"
+                  enCours={operation === 'essai'}
+                  texteEnCours="Validation…"
+                  disabled={enCours}
+                  onClick={() =>
+                    void agir(
+                      'essai',
+                      () => admin.validerEssai(id),
+                      'Validée avec le relais : elle compte pour son essai et ne sera jamais publiée.',
+                    )
+                  }
+                >
+                  Valider pour l’essai
+                </Bouton>
+              )}
+              <button
+                type="button"
+                className="bouton bouton-secondaire"
+                disabled={editionInformations}
+                aria-expanded={mode === 'correction'}
+                onClick={() => setMode(mode === 'correction' ? null : 'correction')}
+              >
+                Demander une correction
+              </button>
+              <button
+                type="button"
+                className="bouton bouton-secondaire admin-bouton-refus"
+                disabled={editionInformations}
+                aria-expanded={mode === 'refus'}
+                onClick={() => {
+                  setMode(mode === 'refus' ? null : 'refus');
+                  setMotif('autre');
+                }}
+              >
+                Refuser
+              </button>
+            </div>
+
+            {mode && (
+              <form
+                className="admin-motif"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const texte = message.trim() || null;
+                  // « autre » ne dit rien tout seul : sans message, rien ne part (la base refuse aussi).
+                  const manque = messageManquant(motif, texte);
+                  if (manque) {
+                    setErreur(manque);
+                    return;
+                  }
+                  void agir(
+                    mode,
+                    () =>
+                      mode === 'correction'
+                        ? admin.demanderCorrection(id, motif, texte)
+                        : admin.refuser(id, motif, texte),
+                    mode === 'correction'
+                      ? 'La demande de correction part au relais.'
+                      : 'La fiche est refusée.',
+                  );
+                }}
+              >
+                <Champ libelle="Motif">
                   {(a) => (
                     <select
                       {...a}
                       className="champ"
-                      value={cible.institutionId}
-                      onChange={(ev) =>
-                        setCible({ mode: 'new_campus', institutionId: ev.target.value })
-                      }
+                      value={motif}
+                      onChange={(e) => setMotif(e.target.value as Valeur<'motif_decision'>)}
                     >
-                      {institutions.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.nom} ({i.campus.length} implantation{i.campus.length > 1 ? 's' : ''})
+                      {motifsProposes.map((m) => (
+                        <option key={m} value={m}>
+                          {libelleMotif[m]}
                         </option>
                       ))}
                     </select>
                   )}
                 </Champ>
-              )}
-              {(cible.mode === 'update_campus' || cible.mode === 'add_cycle') && (
-                <Champ libelle="Implantation connue">
-                  {(a) => (
-                    <select
-                      {...a}
-                      className="champ"
-                      value={cible.campusId}
-                      onChange={(ev) => setCible({ mode: cible.mode, campusId: ev.target.value })}
-                    >
-                      {campusConnus.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.libelle}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Champ>
-              )}
-              {divisionRequise && (
                 <Champ
-                  libelle="Division de l’école"
+                  libelle="Message au relais"
+                  facultatif={motif !== 'autre'}
                   aide={
-                    detail.position !== null
-                      ? 'Aucun contour connu ne contient cette position. Choisissez la division de l’école : elle n’est pas déduite du lot du relais.'
-                      : 'Cette fiche n’a pas de position et le relais n’a pas de lot. Choisissez la division de l’école.'
+                    motif === 'autre'
+                      ? 'Obligatoire avec « Autre » : dis au relais ce qu’il doit faire. Il le lit dans « Mes fiches ». Vouvoie-le.'
+                      : 'Le relais le lit dans « Mes fiches ». Vouvoie-le.'
                   }
                 >
                   {(a) => (
-                    <select
+                    <textarea
                       {...a}
                       className="champ"
-                      value={divisionId}
-                      onChange={(ev) => setDivisionId(ev.target.value)}
-                    >
-                      <option value="">Choisir une division…</option>
-                      {divisionsChoisissables.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.chemin}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Champ>
-              )}
-              {(cible.mode === 'nouvelle' || cible.mode === 'new_campus') && (
-                <Champ
-                  libelle="Nom de l’implantation"
-                  facultatif
-                  aide="« Campus de Loandjili » : seulement quand l’école a plusieurs implantations."
-                >
-                  {(a) => (
-                    <input
-                      {...a}
-                      className="champ"
-                      type="text"
-                      maxLength={120}
-                      autoComplete="off"
-                      value={etiquette}
-                      onChange={(ev) => setEtiquette(ev.target.value)}
+                      rows={2}
+                      maxLength={500}
+                      placeholder="Ex. : la photo est floue, reprenez-la de face."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
                     />
                   )}
                 </Champ>
-              )}
-              {avecFormations && (
-                <>
-                  <p className="mention">
-                    Lis les photos du panneau ou du prospectus : les séries et les formations notées
-                    ici rendent l’école cherchable (série C, BTS, licence…).
-                  </p>
-                  <Formations
-                    cycles={valeurs.niveaux}
-                    formations={formationsRetenues}
-                    domaines={domaines}
-                    surChangement={setFormations}
-                  />
-                </>
-              )}
-            </fieldset>
-          )}
-
-          {bilanAvant && (
-            <section className="admin-avant pile-serree" aria-label="Avant d’accepter">
-              <h3 className="rang">
-                <Icone nom="coche" />
-                Avant d’accepter
-              </h3>
-              <p>
-                {bilanAvant.bloque
-                  ? 'Il reste un choix à faire avant de pouvoir accepter.'
-                  : 'Rien ne bloque : tu peux accepter.'}
-              </p>
-              <ul className="admin-avant-liste">
-                {bilanAvant.lignes.map((l) => (
-                  <li key={l.cle} className="rang">
-                    <Icone nom={iconeDeLaLigne[l.etat]} taille={16} />
-                    <span>
-                      <b>{l.titre}</b> · {l.texte}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mention">{bilanAvant.phrase}</p>
-            </section>
-          )}
-
-          {manque && !detail.essai && (
-            <p className="message-attention" role="status">
-              {manque}
-            </p>
-          )}
-
-          <div className="admin-actions">
-            {!detail.essai && (
-              <Bouton
-                type="button"
-                enCours={operation === 'acceptation'}
-                texteEnCours="Acceptation…"
-                disabled={enCours || cibleIncomplete || editionInformations}
-                onClick={() =>
-                  void agir(
-                    'acceptation',
-                    () => admin.accepter(id, decision()),
-                    cible.mode === 'update_campus' || cible.mode === 'add_cycle'
-                      ? 'La fiche de l’école est mise à jour. Si elle était déjà en ligne, la correction paraît après la prochaine mise à jour du site ; sinon, publie-la depuis « Écoles ».'
-                      : ACCEPTEE,
-                  )
-                }
-              >
-                {texteAccepter}
-              </Bouton>
+                <Bouton
+                  type="submit"
+                  variante={mode === 'refus' ? 'danger' : 'principal'}
+                  enCours={operation === mode}
+                  texteEnCours={mode === 'correction' ? 'Envoi de la demande…' : 'Refus…'}
+                  disabled={enCours}
+                >
+                  {mode === 'correction' ? 'Envoyer la demande' : 'Refuser la fiche'}
+                </Bouton>
+              </form>
             )}
-            {detail.essai && !detail.essaiValideLe && (
-              <Bouton
-                type="button"
-                enCours={operation === 'essai'}
-                texteEnCours="Validation…"
-                disabled={enCours}
-                onClick={() =>
-                  void agir(
-                    'essai',
-                    () => admin.validerEssai(id),
-                    'Validée avec le relais : elle compte pour son essai et ne sera jamais publiée.',
-                  )
-                }
-              >
-                Valider pour l’essai
-              </Bouton>
-            )}
-            <button
-              type="button"
-              className="bouton bouton-secondaire"
-              disabled={editionInformations}
-              aria-expanded={mode === 'correction'}
-              onClick={() => setMode(mode === 'correction' ? null : 'correction')}
-            >
-              Demander une correction
-            </button>
-            <button
-              type="button"
-              className="bouton bouton-secondaire admin-bouton-refus"
-              disabled={editionInformations}
-              aria-expanded={mode === 'refus'}
-              onClick={() => {
-                setMode(mode === 'refus' ? null : 'refus');
-                setMotif('autre');
-              }}
-            >
-              Refuser
-            </button>
-          </div>
-
-          {mode && (
-            <form
-              className="admin-motif"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const texte = message.trim() || null;
-                // « autre » ne dit rien tout seul : sans message, rien ne part (la base refuse aussi).
-                const manque = messageManquant(motif, texte);
-                if (manque) {
-                  setErreur(manque);
-                  return;
-                }
-                void agir(
-                  mode,
-                  () =>
-                    mode === 'correction'
-                      ? admin.demanderCorrection(id, motif, texte)
-                      : admin.refuser(id, motif, texte),
-                  mode === 'correction'
-                    ? 'La demande de correction part au relais.'
-                    : 'La fiche est refusée.',
-                );
-              }}
-            >
-              <Champ libelle="Motif">
-                {(a) => (
-                  <select
-                    {...a}
-                    className="champ"
-                    value={motif}
-                    onChange={(e) => setMotif(e.target.value as Valeur<'motif_decision'>)}
-                  >
-                    {motifsProposes.map((m) => (
-                      <option key={m} value={m}>
-                        {libelleMotif[m]}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </Champ>
-              <Champ
-                libelle="Message au relais"
-                facultatif={motif !== 'autre'}
-                aide={
-                  motif === 'autre'
-                    ? 'Obligatoire avec « Autre » : dis au relais ce qu’il doit faire. Il le lit dans « Mes fiches ». Vouvoie-le.'
-                    : 'Le relais le lit dans « Mes fiches ». Vouvoie-le.'
-                }
-              >
-                {(a) => (
-                  <textarea
-                    {...a}
-                    className="champ"
-                    rows={2}
-                    maxLength={500}
-                    placeholder="Ex. : la photo est floue, reprenez-la de face."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                  />
-                )}
-              </Champ>
-              <Bouton
-                type="submit"
-                variante={mode === 'refus' ? 'danger' : 'principal'}
-                enCours={operation === mode}
-                texteEnCours={mode === 'correction' ? 'Envoi de la demande…' : 'Refus…'}
-                disabled={enCours}
-              >
-                {mode === 'correction' ? 'Envoyer la demande' : 'Refuser la fiche'}
-              </Bouton>
-            </form>
-          )}
-        </fieldset>
+          </fieldset>
+        </>
       )}
       <SectionRepliable
         titre="Contact et échanges avec la direction"
