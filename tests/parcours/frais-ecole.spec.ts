@@ -73,5 +73,8 @@ test('fiche publique : fourchette, période, date et inconnues, sans total annue
 test('sans déclaration de frais : état vide honnête', async ({ page }) => {
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/centre-de-formation-exemple/');
   await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toHaveCount(0);
-  await expect(page.getByText('Frais', { exact: true })).toBeVisible();
+  // Depuis la refonte de la fiche, une donnée absente n'a plus de libellé « à compléter » (comme le contact et les
+  // équipements) : la page ne dit rien des frais, et n'en invente aucun (ni montant, ni « gratuit »).
+  await expect(page.getByText('Frais', { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/gratuit|FCFA/i)).toHaveCount(0);
 });
