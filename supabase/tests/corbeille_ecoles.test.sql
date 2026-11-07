@@ -90,7 +90,8 @@ select throws_ok($$select public.purge_campus((select a from ecoles))$$, '22023'
 
 select public.trash_campus((select a from ecoles), 'erreur', 'Test');
 
-insert into public.payout_batches (id, friday) values ('73000000-0000-4000-8000-000000000001', current_date);
+-- Un vendredi fixe : `friday` doit tomber un vendredi, et `current_date` ne le fait qu'un vendredi (échec en CI le samedi 07/11).
+insert into public.payout_batches (id, friday) values ('73000000-0000-4000-8000-000000000001', date '2026-11-06');
 insert into public.payout_lines (id, batch_id, relay_id, kind, submission_id, amount_xaf)
 values ('74000000-0000-4000-8000-000000000001', '73000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-0000000000a7', 'submission',
         '71000000-0000-4000-8000-000000000001', 500);
