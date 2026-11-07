@@ -3,7 +3,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { cycleAvecFormations } from '../../modele/formations';
 import {
   avantDAccepter,
+  ceQuiManqueDuNumero,
   ceQuiManquePourAccepter,
+  numeroAConfirmer,
+  numeroPeutEtreRetire,
+  type ChoixNumero,
   divisionRequise as divisionRequisePour,
   type Cible,
   type EtatDeLaLigne,
@@ -42,6 +46,7 @@ import type {
   ReleveAValider,
   ReleveDecide,
 } from '../../modele/ports';
+import { ErreurDecision } from '../../modele/ports';
 import { Bouton } from '../../ui/actions';
 import { Dialogue } from '../../ui/Dialogue';
 import { SectionRepliable } from '../../ui/SectionRepliable';
@@ -366,12 +371,15 @@ function Photos({
   admin,
   photos,
   nom,
+  numeroSaisi = null,
   surChangement,
   peutMarquer = true,
 }: {
   admin: PortAdministration;
   photos: PhotoVue[];
   nom: string;
+  /** Le numéro écrit sur l'enseigne que le relais a saisi : il se lit à côté de la photo, pour le comparer. */
+  numeroSaisi?: string | null;
   surChangement: () => void;
   /** Faux sur une fiche refusée : ses photos ne paraîtront jamais, on ne les déclare pas publiables. */
   peutMarquer?: boolean;
@@ -454,6 +462,16 @@ function Photos({
             )}
             <figcaption className="mention">
               <b>{libelleRolePhoto[p.role]}</b>
+              {p.role === 'signboard' && (
+                <>
+                  <br />
+                  <span className="admin-numero-saisi">
+                    {numeroSaisi
+                      ? `Numéro saisi par le relais : ${afficherTelephone(numeroSaisi)}`
+                      : 'Aucun numéro saisi par le relais'}
+                  </span>
+                </>
+              )}
               <br />
               {peutParaitreSurLeSite(p.role)
                 ? 'Nette, cadrée, sans enfant ?'
@@ -568,6 +586,8 @@ function Detail({
   const [cible, setCible] = useState<Cible>({ mode: 'nouvelle' });
   const [etiquette, setEtiquette] = useState('');
   const [corrections, setCorrections] = useState<CorrectionEcole>({});
+  // Le numéro de l'enseigne que le relais a saisi : il est public, l'administration dit s'il est sur la photo.
+  const [choixNumero, setChoixNumero] = useState<ChoixNumero | null>(null);
   const [editionInformations, setEditionInformations] = useState(false);
   const [formations, setFormations] = useState<FormationSaisie[]>([]);
 
@@ -675,7 +695,7 @@ function Detail({
       case 'nouvelle':
         return {
           ...base,
-          corrections: retenues,
+          corrections: choixNumero === 'retire' ? { ...retenues, numeroEnseigne: null } : retenues,
           mode: 'new_institution',
           etiquette: etiquette.trim() || null,
         };
@@ -709,7 +729,11 @@ function Detail({
     else setCible({ mode: 'nouvelle' });
   };
   // Ce qui manque pour accepter : l'écran le dit, le bouton ne se grise jamais sans un mot (ticket #89).
-  const manque = ceQuiManquePourAccepter(detail, cible, divisionId);
+  const numeroCorrige = retenues.numeroEnseigne !== undefined;
+  const aConfirmer = numeroAConfirmer(valeurs, numeroCorrige);
+  const manque =
+    ceQuiManquePourAccepter(detail, cible, divisionId) ??
+    ceQuiManqueDuNumero(aConfirmer, choixNumero);
   const cibleIncomplete = manque !== null;
   // Avant d'accepter : ce qui est prêt, ce qui manque sans bloquer, ce que fait « Accepter » (ticket #95).
   const bilanAvant = detail.essai
@@ -725,7 +749,31 @@ function Detail({
         cible,
         divisionChoisie: divisionId,
         divisionNom: divisions.find((d) => d.id === (divisionId || detail.divisionId))?.nom ?? null,
+        choixNumero,
+        numeroCorrige,
       });
+  // « Pas sur la photo » : une nouvelle école naît sans numéro (la décision le dit à la base). Pour une implantation ou une
+  // mise à jour, le numéro du relais remplace celui de l'école : on remet aussitôt après l'acceptation celui qu'elle avait
+  // (aucun pour une nouvelle implantation).
+  const accepterLaFiche = async () => {
+    const retirerApres =
+      aConfirmer !== null && choixNumero === 'retire' && cible.mode !== 'nouvelle';
+    const ecoleConnue =
+      cible.mode === 'update_campus' || cible.mode === 'add_cycle' ? cible.campusId : null;
+    const ancien =
+      retirerApres && ecoleConnue !== null
+        ? ((await admin.ecoles()).find((e) => e.id === ecoleConnue)?.numeroEnseigne ?? null)
+        : null;
+    const campusId = await admin.accepter(id, decision());
+    if (!retirerApres) return;
+    try {
+      await admin.modifierEcole(campusId, { numeroEnseigne: ancien });
+    } catch {
+      throw new ErreurDecision(
+        'La fiche est acceptée, mais son numéro n’a pas pu être retiré : retire-le dans « Écoles › Gérer la fiche ».',
+      );
+    }
+  };
   const texteAccepter =
     detail.type === 'correction' && !detail.corrigeUneFicheEnAttente
       ? 'Accepter la correction'
@@ -768,6 +816,7 @@ function Detail({
         admin={admin}
         photos={photos}
         nom={detail.nomEnseigne}
+        numeroSaisi={valeurs.numeroEnseigne}
         surChangement={chargerPhotos}
         peutMarquer={!refusee}
       />
@@ -1063,6 +1112,42 @@ function Detail({
               </fieldset>
             )}
 
+            {aConfirmer !== null && (
+              <fieldset className="admin-numero pile-serree">
+                <legend>
+                  Numéro écrit sur l’enseigne : <b>{afficherTelephone(aConfirmer)}</b>
+                </legend>
+                <p className="mention">
+                  Saisi par le relais : compare-le à la photo de l’enseigne ci-dessus. Il sera
+                  publié tel quel, avec un bouton « Appeler », dès que l’école le sera.
+                </p>
+                <label className="rang">
+                  <input
+                    type="radio"
+                    name="numero-enseigne"
+                    checked={choixNumero === 'verifie'}
+                    onChange={() => setChoixNumero('verifie')}
+                  />
+                  <span>Je l’ai vérifié sur la photo de l’enseigne</span>
+                </label>
+                {numeroPeutEtreRetire(detail) ? (
+                  <label className="rang">
+                    <input
+                      type="radio"
+                      name="numero-enseigne"
+                      checked={choixNumero === 'retire'}
+                      onChange={() => setChoixNumero('retire')}
+                    />
+                    <span>Il n’est pas sur la photo : ne pas le publier</span>
+                  </label>
+                ) : (
+                  <p className="mention">
+                    Pour ne pas le publier, accepte puis retire-le dans « Écoles › Gérer la fiche ».
+                  </p>
+                )}
+              </fieldset>
+            )}
+
             {bilanAvant && (
               <section className="admin-avant pile-serree" aria-label="Avant d’accepter">
                 <h3 className="rang">
@@ -1110,7 +1195,7 @@ function Detail({
                   onClick={() =>
                     void agir(
                       'acceptation',
-                      () => admin.accepter(id, decision()),
+                      accepterLaFiche,
                       cible.mode === 'update_campus' || cible.mode === 'add_cycle'
                         ? 'La fiche de l’école est mise à jour. Si elle était déjà en ligne, la correction paraît après la prochaine mise à jour du site ; sinon, publie-la depuis « Écoles ».'
                         : ACCEPTEE,

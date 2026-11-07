@@ -1468,3 +1468,40 @@
     display: block;
   }
 }
+
+/* Le numéro de l'enseigne : à comparer avec la photo avant d'accepter (07/11/2026, trois numéros non vérifiés parus). */
+.admin-numero {
+  min-inline-size: 0;
+  margin: 0;
+  padding: var(--espace-4);
+  border: 2px solid var(--trait-fort);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+}
+
+.admin-numero legend {
+  padding: 0 var(--espace-2);
+  font-family: var(--police-titre);
+  font-weight: 600;
+}
+
+.admin-numero .mention {
+  margin: 0;
+}
+
+.admin-numero .rang {
+  align-items: center;
+  min-height: var(--cible-min);
+}
+
+.admin-numero input[type='radio'] {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  accent-color: var(--marque);
+}
+
+.admin-numero-saisi {
+  color: var(--texte);
+  font-weight: 700;
+}
