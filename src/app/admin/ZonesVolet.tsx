@@ -12,6 +12,7 @@ import {
   libelleEtat,
   origineDesFiches,
   phraseDesEcoles,
+  raisonsDeNePasSupprimer,
   surLaCarte,
   zonesDessous,
   type EtatCarte,
@@ -19,9 +20,10 @@ import {
 import { cheminLisible } from '../../modele/geo-divisions';
 import { libelleGenreDivision } from '../../modele/libelles';
 import type { DivisionVue, LotVu, PortAdministration } from '../../modele/ports';
+import { Bouton } from '../../ui/actions';
 import { Icone } from '../../ui/composants';
 import { aller } from '../commun/adresse';
-import { AjouterDivision, NouveauLot } from './ZonesFormulaires';
+import { AjouterDivision, NouveauLot, RenommerZone } from './ZonesFormulaires';
 
 const ADRESSE_DE_LA_MISE_A_JOUR =
   'https://github.com/benaja-bendo/ntanova-site/actions/workflows/mise-en-ligne.yml';
@@ -74,6 +76,7 @@ export function VoletDeZone({
   surEtat,
   surOuverture,
   surFait,
+  surSuppression,
 }: {
   zone: DivisionVue;
   divisions: DivisionVue[];
@@ -86,6 +89,8 @@ export function VoletDeZone({
   surEtat: (etat: EtatCarte) => void;
   surOuverture: (ouverte: boolean) => void;
   surFait: (texte: string, zoneId?: string) => void;
+  /** Demande de supprimer la zone : l'écran de l'onglet montre la confirmation. */
+  surSuppression: (zone: DivisionVue) => void;
 }) {
   const parent = divisions.find((d) => d.id === zone.parentId);
   const par = ouvertePar.get(zone.id) ?? null;
@@ -100,6 +105,7 @@ export function VoletDeZone({
     (l) => l.divisionId === zone.id || dessous.some((z) => z.id === l.divisionId),
   );
   const estOuverte = (id: string) => ouvertePar.get(id) != null;
+  const raisons = raisonsDeNePasSupprimer(zone, divisions, lots);
 
   return (
     <div className="admin-volet">
@@ -320,6 +326,41 @@ export function VoletDeZone({
             />
           </details>
         )}
+      </section>
+
+      <section className="admin-volet-carte" aria-label="Nom et suppression de la zone">
+        <h3>Corriger la zone</h3>
+        <details key={`nom-${zone.id}`} className="admin-plie">
+          <summary>Renommer · autres écritures</summary>
+          <RenommerZone
+            key={`${zone.id}|${zone.nom}|${zone.aliases.join('|')}`}
+            zone={zone}
+            divisions={divisions}
+            admin={admin}
+            surFait={surFait}
+          />
+        </details>
+        <details key={`suppression-${zone.id}`} className="admin-plie">
+          <summary>Supprimer cette zone</summary>
+          {raisons.length > 0 ? (
+            <p className="mention">
+              Cette zone ne se supprime pas : {raisons.join(' ; ')}. Supprimer sert à corriger une
+              zone saisie par erreur, quand elle ne contient plus rien.
+            </p>
+          ) : (
+            <div className="pile-serree">
+              <p className="mention">
+                La zone est vide : ni sous-zone, ni école, ni lot, ni état sur la carte. La
+                suppression est définitive ; son adresse ({zone.slug}) pourra être réutilisée.
+              </p>
+              <div className="admin-actions">
+                <Bouton variante="danger" disabled={occupee} onClick={() => surSuppression(zone)}>
+                  Supprimer {zone.nom}…
+                </Bouton>
+              </div>
+            </div>
+          )}
+        </details>
       </section>
     </div>
   );

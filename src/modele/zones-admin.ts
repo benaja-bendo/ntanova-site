@@ -9,7 +9,7 @@
  */
 import { libelleDeploiement, type EtatDeploiement } from './etat-zone';
 import type { Valeur } from './listes';
-import type { DivisionVue } from './ports';
+import type { DivisionVue, LotVu } from './ports';
 
 export type EtatCarte = EtatDeploiement | null;
 
@@ -91,12 +91,14 @@ const normaliser = (texte: string): string =>
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
+    .replace(/\s+/g, ' ')
     .trim();
 
 /**
  * Les lignes de l'arbre. Les zones qui comptent (écoles, état, relais) restent visibles ; les autres se replient sous leur
  * parent en une seule ligne « N autres zones ». Une zone `repliee` cache tout ce qu'elle contient. Une recherche remet à
- * plat les zones dont le nom correspond. La zone choisie n'est jamais cachée dans un groupe fermé.
+ * plat les zones dont le nom, ou une autre écriture du nom, correspond. La zone choisie n'est jamais cachée dans un groupe
+ * fermé.
  */
 export function lignesDeLArbre(
   divisions: readonly DivisionVue[],
@@ -111,7 +113,11 @@ export function lignesDeLArbre(
   const requete = normaliser(options.requete ?? '');
   if (requete !== '') {
     return divisions
-      .filter((d) => normaliser(d.nom).includes(requete))
+      .filter(
+        (d) =>
+          normaliser(d.nom).includes(requete) ||
+          d.aliases.some((alias) => normaliser(alias).includes(requete)),
+      )
       .map((zone) => ({
         type: 'zone',
         zone,
@@ -265,4 +271,81 @@ export function phraseDesEcoles(zone: Pick<DivisionVue, 'ecoles' | 'publiees'>):
   const ecoles = `${zone.ecoles} ${zone.ecoles > 1 ? 'écoles' : 'école'}`;
   const publiees = `${zone.publiees} ${zone.publiees > 1 ? 'publiées' : 'publiée'}`;
   return `${ecoles} · ${publiees}`;
+}
+
+/** Les mêmes limites que `rename_division` dans la base : la base a le dernier mot. */
+export const MAX_AUTRES_ECRITURES = 20;
+export const LONGUEUR_MAX_ECRITURE = 80;
+export const LONGUEUR_MAX_NOM = 120;
+
+/**
+ * Les autres écritures d'une zone (« Mvoumvou » pour « Mvou-Mvou ») saisies une par ligne : sans blanc autour, sans ligne
+ * vide, sans doublon (les accents et les majuscules ne comptent pas) et sans le nom lui-même, dans l'ordre où elles sont
+ * écrites. Comme `rename_division` le fait dans la base.
+ */
+export function nettoyerAutresEcritures(nom: string, saisie: string): string[] {
+  const vues = new Set([normaliser(nom)]);
+  const propres: string[] = [];
+  for (const brute of saisie.split(/\r?\n/)) {
+    const ecriture = brute.trim();
+    const cle = normaliser(ecriture);
+    if (ecriture === '' || vues.has(cle)) continue;
+    vues.add(cle);
+    propres.push(ecriture);
+  }
+  return propres;
+}
+
+/** Ce qui empêche, ou non, d'enregistrer ce nom et ces écritures ; rien quand tout va bien. */
+export function problemeDeNom(nom: string, ecritures: readonly string[]): string | null {
+  const propre = nom.trim();
+  if (propre === '') return 'Le nom ne peut pas rester vide.';
+  if (propre.length > LONGUEUR_MAX_NOM)
+    return `Le nom fait ${LONGUEUR_MAX_NOM} caractères au plus.`;
+  if (ecritures.length > MAX_AUTRES_ECRITURES) {
+    return `${MAX_AUTRES_ECRITURES} autres écritures au plus.`;
+  }
+  if (ecritures.some((e) => e.length > LONGUEUR_MAX_ECRITURE)) {
+    return `Une autre écriture fait ${LONGUEUR_MAX_ECRITURE} caractères au plus.`;
+  }
+  return null;
+}
+
+/** Une autre zone du même parent porte-t-elle déjà ce nom ? (accents et majuscules ne comptent pas) */
+export function nomDejaPris(
+  zone: Pick<DivisionVue, 'id' | 'parentId'>,
+  nom: string,
+  divisions: readonly DivisionVue[],
+): DivisionVue | null {
+  const cle = normaliser(nom);
+  return (
+    divisions.find(
+      (d) => d.id !== zone.id && d.parentId === zone.parentId && normaliser(d.nom) === cle,
+    ) ?? null
+  );
+}
+
+const pluriel = (n: number, un: string, plusieurs: string) => `${n} ${n > 1 ? plusieurs : un}`;
+
+/**
+ * Pourquoi une zone ne se supprime pas, d'après ce que l'écran sait : des phrases courtes, vides quand rien ne s'y oppose.
+ * La base refuse aussi ce que l'écran ne voit pas (une école à la corbeille, un relevé de relais, un contour).
+ */
+export function raisonsDeNePasSupprimer(
+  zone: DivisionVue,
+  divisions: readonly DivisionVue[],
+  lots: readonly LotVu[],
+): string[] {
+  if (zone.niveau === 0) return ['un pays ne se supprime pas'];
+  const raisons: string[] = [];
+  const sousZones = zonesDessous(zone, divisions).length;
+  if (sousZones > 0) raisons.push(`elle contient ${pluriel(sousZones, 'zone', 'zones')}`);
+  if (zone.ecoles > 0) raisons.push(`elle compte ${pluriel(zone.ecoles, 'école', 'écoles')}`);
+  const sesLots = lots.filter((l) => l.divisionId === zone.id).length;
+  if (sesLots > 0) raisons.push(`elle a ${pluriel(sesLots, 'lot', 'lots')}`);
+  if (zone.deploiement !== null) {
+    raisons.push('elle est sur la carte du site (retire-la d’abord : « Aucun »)');
+  }
+  if (zone.ouverte) raisons.push('elle est ouverte aux relais (ferme-la d’abord)');
+  return raisons;
 }

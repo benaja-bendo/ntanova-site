@@ -9,9 +9,13 @@ import {
   etatHerite,
   libelleEtat,
   lignesDeLArbre,
+  nettoyerAutresEcritures,
+  nomDejaPris,
   origineDesFiches,
   phraseDesEcoles,
   phraseDuResume,
+  problemeDeNom,
+  raisonsDeNePasSupprimer,
   resumeDesZones,
   surLaCarte,
   zonesDessous,
@@ -21,6 +25,7 @@ const zone = (
   o: Pick<DivisionVue, 'id' | 'nom' | 'genre' | 'niveau' | 'chemin'> & Partial<DivisionVue>,
 ): DivisionVue => ({
   parentId: null,
+  aliases: [],
   slug: o.id,
   ouverte: false,
   deploiement: null,
@@ -398,5 +403,112 @@ describe('les écoles d’une zone, en une phrase', () => {
     expect(phraseDesEcoles({ ecoles: 1, publiees: 0 })).toBe('1 école · 0 publiée');
     expect(phraseDesEcoles({ ecoles: 3, publiees: 1 })).toBe('3 écoles · 1 publiée');
     expect(phraseDesEcoles({ ecoles: 0, publiees: 0 })).toBe('Aucune école');
+  });
+});
+
+describe('renommer une zone et dire ses autres écritures (audit du 07/11/2026)', () => {
+  it('nettoie les écritures comme la base : sans blanc, sans doublon, sans le nom lui-même, dans l’ordre', () => {
+    expect(
+      nettoyerAutresEcritures(
+        'Mvou-Mvou',
+        '  Mvoumvou \n\nMVOUMVOU\nmvou mvou\n  Mvou   Mvou  \nMvou-Mvou\nMvou Mvou 2\r\nÉcriture\necriture',
+      ),
+    ).toEqual(['Mvoumvou', 'mvou mvou', 'Mvou Mvou 2', 'Écriture']);
+  });
+
+  it('une saisie vide ne donne aucune écriture', () => {
+    expect(nettoyerAutresEcritures('Ngoyo', '')).toEqual([]);
+    expect(nettoyerAutresEcritures('Ngoyo', ' \n \n')).toEqual([]);
+  });
+
+  it('refuse un nom vide ou trop long, trop d’écritures, une écriture trop longue', () => {
+    expect(problemeDeNom('Ngoyo', ['Ngoyo 2'])).toBeNull();
+    expect(problemeDeNom('   ', [])).toMatch(/vide/);
+    expect(problemeDeNom('x'.repeat(121), [])).toMatch(/120/);
+    expect(
+      problemeDeNom(
+        'Ngoyo',
+        Array.from({ length: 21 }, (_, i) => `e${i}`),
+      ),
+    ).toMatch(/20/);
+    expect(problemeDeNom('Ngoyo', ['x'.repeat(81)])).toMatch(/80/);
+    expect(
+      problemeDeNom(
+        'Ngoyo',
+        Array.from({ length: 20 }, (_, i) => `e${i}`),
+      ),
+    ).toBeNull();
+  });
+
+  it('repère un nom déjà pris sous le même parent, accents et majuscules ne comptant pas', () => {
+    const loa = PAYS.find((z) => z.id === 'loa')!;
+    const mongo = PAYS.find((z) => z.nom === 'Mongo-Mpoukou')!;
+    expect(nomDejaPris(loa, ' mongo-MPOUKOU ', PAYS)?.id).toBe(mongo.id);
+    expect(nomDejaPris(loa, 'Loandjili', PAYS)).toBeNull();
+    expect(nomDejaPris(loa, 'Autre nom', PAYS)).toBeNull();
+  });
+
+  it('un nom pris par une zone d’un autre parent ne gêne pas', () => {
+    const pn = PAYS.find((z) => z.id === 'pn')!;
+    expect(nomDejaPris(pn, 'Pointe-Noire', PAYS)).toBeNull();
+  });
+
+  it('la recherche de l’arbre trouve aussi une autre écriture', () => {
+    const avec = PAYS.map((z) => (z.id === 'loa' ? { ...z, aliases: ['Loandjilie'] } : z));
+    const trouvees = lignesDeLArbre(avec, { requete: 'loandjilie' }).flatMap((l) =>
+      l.type === 'zone' ? [l.zone.id] : [],
+    );
+    expect(trouvees).toEqual(['loa']);
+    expect(lignesDeLArbre(PAYS, { requete: 'loandjilie' })).toEqual([]);
+  });
+});
+
+describe('supprimer une zone vide : ce que l’écran sait (audit du 07/11/2026)', () => {
+  const lot = (divisionId: string) => ({
+    id: 'l1',
+    nom: 'Lot',
+    essai: false,
+    aRendreLe: null,
+    renduLe: null,
+    divisionId,
+    divisionNom: 'x',
+    divisionChemin: 'x',
+  });
+  const vide = zone({
+    id: 'vide',
+    parentId: 'pn',
+    nom: 'Zone vide',
+    genre: 'arrondissement',
+    niveau: 3,
+    chemin: 'congo.pn.pn.vide',
+  });
+
+  it('une zone sans rien dessous, sans école, sans lot, hors carte et fermée se supprime', () => {
+    expect(raisonsDeNePasSupprimer(vide, [...PAYS, vide], [])).toEqual([]);
+  });
+
+  it('dit chaque raison, au singulier et au pluriel', () => {
+    const toutes = [...PAYS, vide];
+    const pn = PAYS.find((z) => z.id === 'pn')!;
+    const raisons = raisonsDeNePasSupprimer(
+      { ...pn, deploiement: 'actif', ouverte: true },
+      toutes,
+      [lot('pn'), lot('pn')],
+    );
+    expect(raisons.join(' | ')).toMatch(/contient \d+ zones/);
+    expect(raisons.join(' | ')).toMatch(/compte 3 écoles/);
+    expect(raisons.join(' | ')).toMatch(/a 2 lots/);
+    expect(raisons.join(' | ')).toMatch(/sur la carte/);
+    expect(raisons.join(' | ')).toMatch(/ouverte aux relais/);
+    const unSeul = raisonsDeNePasSupprimer({ ...vide, ecoles: 1 }, [...toutes], [lot('vide')]);
+    expect(unSeul).toEqual(['elle compte 1 école', 'elle a 1 lot']);
+  });
+
+  it('un lot posé ailleurs ne compte pas', () => {
+    expect(raisonsDeNePasSupprimer(vide, [...PAYS, vide], [lot('pn')])).toEqual([]);
+  });
+
+  it('un pays ne se supprime jamais', () => {
+    expect(raisonsDeNePasSupprimer(PAYS[0]!, PAYS, [])).toEqual(['un pays ne se supprime pas']);
   });
 });

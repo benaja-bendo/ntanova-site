@@ -164,8 +164,9 @@ export const TOLERANCE_CONTOUR_M = 10;
 
 /**
  * Les zones de la carte (ticket 102, puis 113) : chaque arrondissement qui a un état public (en polygone quand son
- * contour est connu, sinon en point), et chaque ville qui a un point (état propre, sinon celui de ce qu'elle contient :
- * « relevé en cours » dès qu'un arrondissement l'est). Une zone sans état public n'est pas sur la carte, contour ou non.
+ * contour est connu, sinon en point), et chaque ville, commune ou district qui a un point (état propre, sinon celui de ce
+ * qu'elle contient : « relevé en cours » dès qu'un arrondissement l'est). Une zone sans état public n'est pas sur la
+ * carte, contour ou non.
  *
  * - **Le contour vient de la base** (`division.contour` : la base est l'unique source) ; `contourDe` n'est que le repli du
  *   dessin embarqué, pour ce que la base n'a pas (le faux serveur des parcours). Il est simplifié à 10 m et arrondi au
@@ -212,7 +213,10 @@ export function zonesGeoJSON({
     d.position ? { type: 'Point', coordinates: [d.position.longitude, d.position.latitude] } : null;
 
   for (const d of divisions) {
-    if (d.genre === 'city') {
+    // Le niveau 2 est « une ville » pour la carte, quel que soit son statut : ville, commune ou district. La base les met
+    // au même niveau (`geo_divisions_genre_du_niveau`), l'administration règle leur état « Sur la carte » de la même façon,
+    // et Ouesso ou Dolisie (des communes) n'apparaissaient pas alors que leur réglage se sauvegardait (audit du 07/11/2026).
+    if (d.niveau === 2) {
       const etat: EtatDeploiement | null = etatPublicDe(d, divisions);
       const lePoint = point(d);
       if (etat && lePoint) ajouter(d, 'ville', etat, lePoint);

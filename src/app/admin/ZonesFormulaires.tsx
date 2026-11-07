@@ -7,6 +7,13 @@ import { cheminLisible } from '../../modele/geo-divisions';
 import { libelleGenreDivision } from '../../modele/libelles';
 import type { Valeur } from '../../modele/listes';
 import type { DivisionVue, PortAdministration } from '../../modele/ports';
+import {
+  LONGUEUR_MAX_ECRITURE,
+  LONGUEUR_MAX_NOM,
+  nettoyerAutresEcritures,
+  nomDejaPris,
+  problemeDeNom,
+} from '../../modele/zones-admin';
 import { Champ } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
 
@@ -177,6 +184,108 @@ export function AjouterDivision({
       <div className="admin-actions admin-pleine-largeur">
         <button type="submit" className="bouton" disabled={enCours || !parent || nom.trim() === ''}>
           Ajouter la zone
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Renommer une zone et dire ses autres écritures. L'adresse, elle, ne change pas : elle est dans des liens publics, donc
+ * les liens déjà partagés restent bons. Le nouveau nom paraît sur le site à la prochaine mise à jour.
+ */
+export function RenommerZone({
+  zone,
+  divisions,
+  admin,
+  surFait,
+}: {
+  zone: DivisionVue;
+  divisions: DivisionVue[];
+  admin: PortAdministration;
+  surFait: (texte: string, zoneId?: string) => void;
+}) {
+  const [nom, setNom] = useState(zone.nom);
+  const [ecritures, setEcritures] = useState(zone.aliases.join('\n'));
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+
+  const propres = nettoyerAutresEcritures(nom, ecritures);
+  const probleme = problemeDeNom(nom, propres);
+  const doublon = nomDejaPris(zone, nom, divisions);
+  const inchange =
+    nom.trim() === zone.nom &&
+    propres.length === zone.aliases.length &&
+    propres.every((e, i) => e === zone.aliases[i]);
+  const empeche = probleme ?? (doublon ? `${doublon.nom} existe déjà sous le même parent.` : null);
+
+  const valider = async (ev: { preventDefault: () => void }) => {
+    ev.preventDefault();
+    if (empeche || inchange) return;
+    setEnCours(true);
+    setErreur(null);
+    try {
+      await admin.renommerDivision(zone.id, nom.trim(), propres);
+      surFait(
+        nom.trim() === zone.nom
+          ? `Les autres écritures de ${zone.nom} sont enregistrées.`
+          : `${zone.nom} s’appelle maintenant ${nom.trim()}. Son adresse ne change pas.`,
+        zone.id,
+      );
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <form
+      className="admin-motif"
+      aria-label={`Renommer ${zone.nom}`}
+      onSubmit={(ev) => void valider(ev)}
+    >
+      <Champ libelle="Nom" erreur={empeche ?? undefined}>
+        {(a) => (
+          <input
+            {...a}
+            className="champ"
+            type="text"
+            autoComplete="off"
+            maxLength={LONGUEUR_MAX_NOM}
+            value={nom}
+            onChange={(ev) => setNom(ev.target.value)}
+          />
+        )}
+      </Champ>
+      <Champ
+        libelle="Autres écritures, pour la recherche"
+        facultatif
+        aide="Une par ligne. « Mvoumvou » trouve « Mvou-Mvou » dans la recherche du site ; elles ne s’affichent jamais."
+      >
+        {(a) => (
+          <textarea
+            {...a}
+            className="champ"
+            rows={3}
+            maxLength={(LONGUEUR_MAX_ECRITURE + 1) * 20}
+            value={ecritures}
+            onChange={(ev) => setEcritures(ev.target.value)}
+          />
+        )}
+      </Champ>
+      <p className="mention admin-pleine-largeur">
+        L’adresse ({zone.slug}) ne change pas : les liens déjà partagés restent bons. Le nouveau nom
+        paraît sur ntanova.com après la prochaine mise à jour du site.
+      </p>
+      {erreur && (
+        <p className="message-erreur admin-pleine-largeur" role="alert">
+          {erreur}
+        </p>
+      )}
+      <div className="admin-actions admin-pleine-largeur">
+        <button type="submit" className="bouton" disabled={enCours || inchange || empeche !== null}>
+          Enregistrer
         </button>
       </div>
     </form>

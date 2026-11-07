@@ -120,6 +120,8 @@ interface DivisionFausse {
   ouverte: boolean;
   /** L'état public sur la carte ; absent des états gardés avant ce réglage (= non couverte). */
   deploiement?: 'actif' | 'programme' | null;
+  /** Les autres écritures du nom ; absent des états gardés avant ce réglage. */
+  aliases?: string[];
 }
 
 interface LotFaux {
@@ -1530,6 +1532,7 @@ const admin: PortAdministration = {
         niveau: d.niveau,
         genre: d.genre,
         nom: d.nom,
+        aliases: d.aliases ?? [],
         slug: d.slug,
         chemin: d.chemin,
         ouverte: d.ouverte,
@@ -1585,6 +1588,77 @@ const admin: PortAdministration = {
       (e) => (e.divisions[id] = div(id, parentId, niveau, genre, nom.trim(), slug, chemin, false)),
     );
     return id;
+  },
+  async renommerDivision(divisionId, nom, aliases) {
+    await reseau();
+    const zone = lireEtat().divisions[divisionId];
+    if (!zone) throw new ErreurDecision('Zone introuvable.');
+    const propre = nom.trim();
+    if (propre === '' || propre.length > 120) {
+      throw new ErreurDecision('Le nom d’une zone fait de 1 à 120 caractères.');
+    }
+    const cle = (texte: string) =>
+      texte
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+    const pris = Object.values(lireEtat().divisions).some(
+      (d) => d.id !== zone.id && d.parentId === zone.parentId && cle(d.nom) === cle(propre),
+    );
+    if (pris) throw new ErreurDecision(`Une autre zone de ce parent s’appelle déjà « ${propre} ».`);
+    const vues = new Set([cle(propre)]);
+    const propres = aliases
+      .map((a) => a.trim())
+      .filter((a) => a !== '' && !vues.has(cle(a)) && vues.add(cle(a)));
+    if (propres.length > 20) throw new ErreurDecision('Vingt autres écritures au plus par zone.');
+    if (propres.some((a) => a.length > 80)) {
+      throw new ErreurDecision('Une autre écriture fait 80 caractères au plus.');
+    }
+    ecrire((e) => {
+      const d = e.divisions[divisionId];
+      if (d) {
+        d.nom = propre;
+        d.aliases = propres;
+      }
+    });
+  },
+  async supprimerDivision(divisionId) {
+    await reseau();
+    const e = lireEtat();
+    const zone = e.divisions[divisionId];
+    if (!zone) throw new ErreurDecision('Zone introuvable.');
+    if (zone.niveau === 0) throw new ErreurDecision('Un pays ne se supprime pas.');
+    const sous = Object.values(e.divisions).filter((d) => d.parentId === divisionId).length;
+    if (sous > 0) {
+      throw new ErreurDecision(
+        `« ${zone.nom} » contient encore ${sous} zone(s) : supprime ou garde-les d’abord.`,
+      );
+    }
+    const ecoles = Object.values(e.campus).filter((c) => c.divisionId === divisionId).length;
+    if (ecoles > 0) {
+      throw new ErreurDecision(
+        `« ${zone.nom} » contient ${ecoles} école(s), à la corbeille comprise : une zone qui a des écoles ne se supprime pas.`,
+      );
+    }
+    const lots = e.lots.filter((l) => l.divisionId === divisionId).length;
+    if (lots > 0) {
+      throw new ErreurDecision(
+        `« ${zone.nom} » a ${lots} lot(s) : une zone qui a un lot ne se supprime pas.`,
+      );
+    }
+    if (zone.deploiement) {
+      throw new ErreurDecision(
+        `« ${zone.nom} » est sur la carte du site : retire-la de la carte d’abord (« Aucun »).`,
+      );
+    }
+    if (zone.ouverte) {
+      throw new ErreurDecision(`« ${zone.nom} » est ouverte aux relais : ferme-la d’abord.`);
+    }
+    ecrire((etat) => {
+      delete etat.divisions[divisionId];
+    });
   },
 
   async ecoles() {

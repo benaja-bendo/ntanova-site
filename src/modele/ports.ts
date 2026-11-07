@@ -518,6 +518,8 @@ export interface DivisionVue {
   niveau: number;
   genre: Valeur<'geo_kind'>;
   nom: string;
+  /** Les autres écritures du nom (« Mvoumvou »), pour la recherche ; jamais affichées comme nom. */
+  aliases: string[];
   slug: string;
   chemin: string;
   /** Les relais peuvent-ils relever ici ? */
@@ -792,6 +794,16 @@ export interface PortAdministration {
     nom: string,
     adresse: string,
   ): Promise<string>;
+  /**
+   * Change le nom d'une zone et la liste de ses autres écritures. Son adresse, son parent et son niveau ne changent jamais
+   * (ils sont dans des liens publics). Refuse un nom déjà pris sous le même parent. `rename_division`
+   */
+  renommerDivision(divisionId: string, nom: string, aliases: string[]): Promise<void>;
+  /**
+   * Supprime une zone qui ne contient plus rien : ni sous-zone, ni école (corbeille comprise), ni relevé, ni lot, et qui n'a
+   * ni contour, ni état sur la carte, ni ouverture aux relais. Définitif. `delete_division`
+   */
+  supprimerDivision(divisionId: string): Promise<void>;
 
   // Écoles
   /** Les domaines de formation, pour saisir ce que les photos montrent. `GET /admin/domaines` */

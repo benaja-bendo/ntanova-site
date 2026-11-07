@@ -134,6 +134,10 @@ test('une capture de chaque écran', async ({ page, context }) => {
   await choisirLaZone(page, /^Tié-Tié/);
   await page.getByRole('heading', { name: 'Tié-Tié', level: 2 }).waitFor();
   await prendre('admin-zone-choisie');
+  await page.getByText('Renommer · autres écritures', { exact: true }).click();
+  await prendre('admin-zone-renommer');
+  await page.getByText('Supprimer cette zone', { exact: true }).click();
+  await prendre('admin-zone-supprimer');
   await page.getByRole('link', { name: 'Par étape' }).click();
   await page.getByRole('heading', { name: 'Relevé en cours', level: 3 }).waitFor();
   await prendre('admin-zones-par-etape');
