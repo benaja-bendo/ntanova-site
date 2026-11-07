@@ -1235,6 +1235,43 @@ describe('les corrections préparées à l’acceptation', () => {
       },
     ]);
   });
+  it('envoie la position saisie par l’administration avec la décision, sans corrections (ticket 144)', async () => {
+    const { port, appels } = fausseApi({
+      accept_reviewed_submission: { data: 'campus-situe', error: null },
+    });
+    await expect(
+      port.accepter('releve-sans-position', {
+        mode: 'new_institution',
+        divisionId: 'd-ngoyo',
+        position: { latitude: -4.84841, longitude: 11.90712 },
+      }),
+    ).resolves.toBe('campus-situe');
+    expect(appels).toEqual([
+      {
+        nom: 'accept_reviewed_submission',
+        arguments: {
+          p_submission: 'releve-sans-position',
+          p_mode: 'new_institution',
+          p_campus: null,
+          p_institution: null,
+          p_label: null,
+          p_programs: [],
+          p_division: 'd-ngoyo',
+          p_changes: {},
+          p_latitude: -4.84841,
+          p_longitude: 11.90712,
+        },
+      },
+    ]);
+  });
+  it('sans position saisie, la décision ne parle ni de latitude ni de longitude', async () => {
+    const { port, appels } = fausseApi({
+      accept_reviewed_submission: { data: 'campus', error: null },
+    });
+    await port.accepter('releve', { corrections: { nom: 'Corrigée' }, position: null });
+    expect(Object.keys(appels[0]?.arguments ?? {})).not.toContain('p_latitude');
+    expect(Object.keys(appels[0]?.arguments ?? {})).not.toContain('p_longitude');
+  });
   it('garde l’appel historique quand aucune information n’a changé', async () => {
     const { port, appels } = fausseApi({ accept_submission: { data: 'campus', error: null } });
     await port.accepter('releve', { corrections: {} });

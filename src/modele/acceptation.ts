@@ -9,7 +9,11 @@
  *    fiche. Une correction d'une école déjà créée, elle, met l'école à jour : aucune division à choisir.
  * 3. **L'écran dit ce que fait « Accepter », ce qui manque sans bloquer, et ce qui bloque** (`avantDAccepter`) : le
  *    fondateur ne savait pas « pourquoi il ne pouvait pas publier » la correction d'ESTAM, alors que rien ne bloquait.
+ * 4. **L'administration peut saisir la position d'une fiche qui n'en a pas** (`peutSaisirLaPosition`, ticket 144) : quand
+ *    le téléphone du relais n'a pas pu la mesurer, elle la lit sur une carte et la colle ici, dans la même décision que
+ *    l'acceptation. La position mesurée par le relais fait foi : elle n'est jamais remplacée.
  */
+import { ecrirePosition } from './coordonnees';
 import type { Point } from './geo';
 import { cycleAvecFormations } from './formations';
 import { libelleNiveau } from './libelles';
@@ -75,22 +79,57 @@ export function heriterDeLOrigine(
   };
 }
 
+/**
+ * Ce que l'administration a saisi dans le champ « Position » de la fiche (ticket 144) : rien, un texte illisible, ou une
+ * position lue. `contour` est le nom du contour que le navigateur connaît à cet endroit (Pointe-Noire) ; sans contour connu,
+ * la base cherche la division, ou l'administration la choisit.
+ */
+export interface PositionSaisie {
+  /** Le champ contient du texte que l'on ne sait pas lire. */
+  illisible: boolean;
+  /** La position lue ; nulle quand le champ est vide ou illisible. */
+  position: Point | null;
+  contour: string | null;
+}
+
 type FichePourAccepter = Pick<
   DetailReleve,
   'essai' | 'type' | 'corrigeUneFicheEnAttente' | 'divisionId' | 'position' | 'lot'
 >;
 
 /**
+ * Peut-on saisir la position sur la fiche ? Seulement quand elle n'en a pas : celle que le relais a mesurée fait foi (pour la
+ * changer, « Écoles › Position » après l'acceptation). Ni sur le lot d'entraînement, qui ne se publie jamais, ni pour une
+ * correction d'une école déjà créée (elle la met à jour), ni pour de simples niveaux ajoutés (`add_cycle`).
+ */
+export function peutSaisirLaPosition(
+  fiche: Pick<DetailReleve, 'essai' | 'type' | 'corrigeUneFicheEnAttente' | 'position'>,
+  cible: Cible,
+): boolean {
+  if (fiche.essai) return false;
+  if (fiche.type === 'correction' && !fiche.corrigeUneFicheEnAttente) return false;
+  if (cible.mode === 'add_cycle') return false;
+  return fiche.position === null;
+}
+
+/**
  * L'administration doit-elle choisir la division de l'école ? Seulement quand une école va être créée : la division est
  * celle de la position quand un contour la contient ; sinon (aucun contour connu, ou ni position ni secteur), c'est
- * l'administration qui la choisit : la fiche ne retombe plus sur le secteur du relais (ticket n° 67).
+ * l'administration qui la choisit : la fiche ne retombe plus sur le secteur du relais (ticket n° 67). Une position saisie
+ * par l'administration suit la même règle : le secteur du relais ne la remplace pas (ticket 144).
  * **Une correction d'une école déjà créée n'en demande jamais** : l'école a déjà sa division.
  */
-export function divisionRequise(fiche: FichePourAccepter, cible: Cible): boolean {
+export function divisionRequise(
+  fiche: FichePourAccepter,
+  cible: Cible,
+  saisie: PositionSaisie | null = null,
+): boolean {
   if (fiche.essai) return false;
   if (fiche.type === 'correction' && !fiche.corrigeUneFicheEnAttente) return false;
   if (cible.mode !== 'nouvelle' && cible.mode !== 'new_campus') return false;
-  return fiche.divisionId === null && (fiche.position !== null || fiche.lot === null);
+  if (fiche.divisionId !== null) return false;
+  if (saisie?.position) return saisie.contour === null;
+  return fiche.position !== null || fiche.lot === null;
 }
 
 /** Ce qui manque pour accepter, dit en une phrase ; `null` quand le bouton peut être actif. */
@@ -98,8 +137,12 @@ export function ceQuiManquePourAccepter(
   fiche: FichePourAccepter,
   cible: Cible,
   divisionChoisie: string,
+  saisie: PositionSaisie | null = null,
 ): string | null {
-  if (divisionRequise(fiche, cible) && divisionChoisie === '') {
+  if (saisie?.illisible) {
+    return 'Corrige la position, ou vide le champ : elle est illisible.';
+  }
+  if (divisionRequise(fiche, cible, saisie) && divisionChoisie === '') {
     return 'Choisis la division de l’école pour pouvoir accepter.';
   }
   if (cible.mode === 'new_campus' && cible.institutionId === '') {
@@ -195,6 +238,8 @@ export interface EntreeAvantAccepter {
   divisionChoisie: string;
   /** Le nom de la division que dit la position, ou que l'administration a choisie. */
   divisionNom: string | null;
+  /** Ce que l'administration a saisi comme position, quand la fiche n'en a pas (`null` : le champ n'est pas offert). */
+  positionSaisie?: PositionSaisie | null;
   /** Ce que l'administration a dit du numéro de l'enseigne (`null` : pas encore). */
   choixNumero?: ChoixNumero | null;
   /** L'administration a corrigé elle-même le numéro : elle l'a lu sur la photo. */
@@ -218,6 +263,8 @@ export function avantDAccepter(entree: EntreeAvantAccepter): AvantDAccepter {
   const { fiche, photos, cible } = entree;
   const lignes: LigneAvantAccepter[] = [];
   const miseAJour = fiche.type === 'correction' && !fiche.corrigeUneFicheEnAttente;
+  const saisie = entree.positionSaisie ?? null;
+  const saisieLue = fiche.position === null && saisie?.position ? saisie : null;
 
   // Les photos : seules une enseigne et une vue du bâtiment, contrôlées, peuvent paraître (la première retenue par le
   // repli automatique, ou un choix prioritaire). Le panneau des formations et le prospectus restent privés.
@@ -259,25 +306,40 @@ export function avantDAccepter(entree: EntreeAvantAccepter): AvantDAccepter {
   // La position et la zone : seulement quand une école va être créée. Une correction d'une école déjà créée la met à jour.
   if (!miseAJour) {
     lignes.push(
-      fiche.position === null
+      fiche.position === null && saisie?.illisible
         ? {
             cle: 'position',
-            etat: 'a_faire',
+            etat: 'bloque',
             titre: 'Position',
-            texte: 'Sans position : l’école ne sera pas sur la carte.',
+            texte:
+              'Position illisible : corrige-la ci-dessus, ou vide le champ pour accepter sans position.',
           }
-        : {
-            cle: 'position',
-            etat: 'ok',
-            titre: 'Position',
-            texte: fiche.positionDeLaFicheDOrigine
-              ? 'Reprise de la fiche d’origine.'
-              : fiche.precisionM !== null
-                ? `Prise, précision ${Math.round(fiche.precisionM)} m.`
-                : 'Prise.',
-          },
+        : saisieLue?.position
+          ? {
+              cle: 'position',
+              etat: 'ok',
+              titre: 'Position',
+              texte: `Saisie par toi : ${ecrirePosition(saisieLue.position)}. L’école sera sur la carte quand elle sera publiée.`,
+            }
+          : fiche.position === null
+            ? {
+                cle: 'position',
+                etat: 'a_faire',
+                titre: 'Position',
+                texte: 'Sans position : l’école ne sera pas sur la carte.',
+              }
+            : {
+                cle: 'position',
+                etat: 'ok',
+                titre: 'Position',
+                texte: fiche.positionDeLaFicheDOrigine
+                  ? 'Reprise de la fiche d’origine.'
+                  : fiche.precisionM !== null
+                    ? `Prise, précision ${Math.round(fiche.precisionM)} m.`
+                    : 'Prise.',
+              },
     );
-    if (divisionRequise(fiche, cible)) {
+    if (divisionRequise(fiche, cible, saisie)) {
       lignes.push(
         entree.divisionChoisie === ''
           ? {
@@ -285,7 +347,7 @@ export function avantDAccepter(entree: EntreeAvantAccepter): AvantDAccepter {
               etat: 'bloque',
               titre: 'Zone',
               texte:
-                fiche.position !== null
+                fiche.position !== null || saisieLue !== null
                   ? 'À choisir ci-dessus : aucun contour connu ne contient cette position.'
                   : 'À choisir ci-dessus : la fiche n’a ni position ni secteur.',
             }
@@ -296,8 +358,13 @@ export function avantDAccepter(entree: EntreeAvantAccepter): AvantDAccepter {
               texte: `${entree.divisionNom ?? 'Division'}, choisie par toi.`,
             },
       );
-    } else if (entree.divisionNom !== null) {
-      lignes.push({ cle: 'zone', etat: 'ok', titre: 'Zone', texte: `${entree.divisionNom}.` });
+    } else if ((entree.divisionNom ?? saisieLue?.contour ?? null) !== null) {
+      lignes.push({
+        cle: 'zone',
+        etat: 'ok',
+        titre: 'Zone',
+        texte: `${entree.divisionNom ?? saisieLue?.contour}.`,
+      });
     }
   }
 
@@ -403,7 +470,7 @@ export function avantDAccepter(entree: EntreeAvantAccepter): AvantDAccepter {
 
   return {
     bloque:
-      ceQuiManquePourAccepter(fiche, cible, entree.divisionChoisie) !== null ||
+      ceQuiManquePourAccepter(fiche, cible, entree.divisionChoisie, saisie) !== null ||
       ceQuiManqueDuNumero(aConfirmer, choix) !== null,
     lignes,
     phrase,

@@ -434,6 +434,12 @@ export interface DecisionAcceptation {
    * ne retombe plus sur la division du lot du relais (ticket n° 67).
    */
   divisionId?: string | null;
+  /**
+   * La position de l'école, saisie par l'administration quand la fiche n'en a pas (le téléphone du relais n'a pas pu la
+   * mesurer, ticket 144). Jamais pour une fiche qui a déjà la sienne : celle du relais fait foi. La base garde qui l'a posée
+   * et quand ; la division est celle du contour qui la contient, sinon `divisionId`.
+   */
+  position?: Point | null;
 }
 
 /**

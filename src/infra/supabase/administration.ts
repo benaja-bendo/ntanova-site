@@ -585,7 +585,9 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
     async accepter(id, decision: DecisionAcceptation = {}) {
       const corrections = versCorrections(decision.corrections ?? {});
       const avecCorrections = Object.keys(corrections).length > 0;
-      const { data, error } = avecCorrections
+      const position = decision.position ?? null;
+      const { data, error } =
+        avecCorrections || position !== null
         ? await supabase().rpc('accept_reviewed_submission', {
             p_submission: id,
             p_mode: decision.mode ?? null,
@@ -595,6 +597,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
             p_programs: (decision.formations ?? []).map((f) => versProgramme(f)),
             p_division: decision.divisionId ?? null,
             p_changes: corrections,
+            // Les deux valeurs ne partent que pour une position saisie : l'appel sans position reste celui d'avant.
+            ...(position ? { p_latitude: position.latitude, p_longitude: position.longitude } : {}),
           })
         : await supabase().rpc('accept_submission', {
             p_submission: id,

@@ -7,8 +7,10 @@ import {
   heriterDeLOrigine,
   numeroAConfirmer,
   numeroPeutEtreRetire,
+  peutSaisirLaPosition,
   type Cible,
   type EntreeAvantAccepter,
+  type PositionSaisie,
 } from '../../src/modele/acceptation';
 import { afficherTelephone } from '../../src/modele/telephone';
 
@@ -498,5 +500,163 @@ describe('le numéro de l’enseigne, avant d’accepter', () => {
     expect(numeroPeutEtreRetire({ type: 'correction', corrigeUneFicheEnAttente: false })).toBe(
       false,
     );
+  });
+});
+
+// La position saisie par l'administration sur la fiche (ticket 144) : le téléphone du relais n'a pas pu la mesurer, et
+// l'administration la lit sur une capture de Google Maps. Elle entre dans la même décision que l'acceptation.
+
+describe('la position saisie sur la fiche (ticket 144)', () => {
+  const lue = (contour: string | null = 'Ngoyo'): PositionSaisie => ({
+    illisible: false,
+    position: { latitude: -4.84841, longitude: 11.90712 },
+    contour,
+  });
+  const illisible: PositionSaisie = { illisible: true, position: null, contour: null };
+  const sansSaisie: PositionSaisie = { illisible: false, position: null, contour: null };
+
+  describe('peutSaisirLaPosition', () => {
+    it('une fiche sans position : oui, pour une nouvelle école, une implantation ou une mise à jour', () => {
+      expect(peutSaisirLaPosition(fiche(), nouvelle)).toBe(true);
+      expect(peutSaisirLaPosition(fiche(), { mode: 'new_campus', institutionId: 'i' })).toBe(true);
+      expect(peutSaisirLaPosition(fiche(), { mode: 'update_campus', campusId: 'c' })).toBe(true);
+    });
+
+    it('la position mesurée par le relais fait foi : pas de champ', () => {
+      expect(peutSaisirLaPosition(fiche({ position: POSITION }), nouvelle)).toBe(false);
+    });
+
+    it('ajouter des niveaux ne change pas la position de l’école', () => {
+      expect(peutSaisirLaPosition(fiche(), { mode: 'add_cycle', campusId: 'c' })).toBe(false);
+    });
+
+    it('le lot d’entraînement ne se publie jamais : pas de champ', () => {
+      expect(peutSaisirLaPosition(fiche({ essai: true }), nouvelle)).toBe(false);
+    });
+
+    it('une correction d’une école déjà créée met l’école à jour : pas de champ', () => {
+      expect(peutSaisirLaPosition(fiche({ type: 'correction' }), nouvelle)).toBe(false);
+    });
+
+    it('une correction d’une fiche pas encore acceptée, sans position nulle part : oui', () => {
+      const enAttente = { type: 'correction' as const, corrigeUneFicheEnAttente: true };
+      expect(peutSaisirLaPosition(fiche(enAttente), nouvelle)).toBe(true);
+      // Elle a hérité de la position de la fiche d'origine : celle-ci fait foi.
+      expect(peutSaisirLaPosition(fiche({ ...enAttente, position: POSITION }), nouvelle)).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('divisionRequise', () => {
+    it('une position lue dans un contour connu : la division se déduit, rien à choisir', () => {
+      expect(divisionRequise(fiche(), nouvelle, lue('Ngoyo'))).toBe(false);
+    });
+
+    it('une position qu’aucun contour connu ne contient : à choisir, comme pour une position du relais', () => {
+      expect(divisionRequise(fiche(), nouvelle, lue(null))).toBe(true);
+    });
+
+    it('le secteur du relais ne remplace plus la position saisie : hors contour, la division se choisit', () => {
+      expect(divisionRequise(fiche({ lot: 'Tié-Tié' }), nouvelle, lue(null))).toBe(true);
+    });
+
+    it('sans position saisie, rien ne change : le secteur du relais suffit encore', () => {
+      expect(divisionRequise(fiche({ lot: 'Tié-Tié' }), nouvelle, sansSaisie)).toBe(false);
+      expect(divisionRequise(fiche(), nouvelle, sansSaisie)).toBe(true);
+    });
+
+    it('une mise à jour ne demande jamais de division, même avec une position saisie', () => {
+      expect(divisionRequise(fiche(), { mode: 'update_campus', campusId: 'c' }, lue(null))).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('ceQuiManquePourAccepter', () => {
+    it('une position illisible : l’écran le dit, même quand tout le reste est prêt', () => {
+      expect(ceQuiManquePourAccepter(fiche({ divisionId: 'd' }), nouvelle, '', illisible)).toMatch(
+        /position/i,
+      );
+    });
+
+    it('une position lue dans un contour connu : plus rien ne manque', () => {
+      expect(ceQuiManquePourAccepter(fiche(), nouvelle, '', lue('Ngoyo'))).toBeNull();
+    });
+
+    it('une position lue hors de tout contour connu : la division manque, puis plus rien', () => {
+      expect(ceQuiManquePourAccepter(fiche(), nouvelle, '', lue(null))).toMatch(/division/);
+      expect(ceQuiManquePourAccepter(fiche(), nouvelle, 'd-1', lue(null))).toBeNull();
+    });
+  });
+
+  describe('avantDAccepter', () => {
+    const base = (champs: Partial<EntreeAvantAccepter> = {}): EntreeAvantAccepter => ({
+      fiche: {
+        essai: false,
+        type: 'releve',
+        corrigeUneFicheEnAttente: false,
+        divisionId: null,
+        position: null,
+        positionDeLaFicheDOrigine: false,
+        precisionM: null,
+        lot: null,
+        lotDeLaFicheDOrigine: false,
+        niveaux: ['primaire'],
+        numeroEnseigne: null,
+        direction: 'vue',
+      },
+      photos: [{ role: 'signboard', publiable: true }],
+      contact: true,
+      contactDeLaFicheDOrigine: false,
+      nombreDeFormations: 0,
+      formationsAttendues: false,
+      cible: nouvelle,
+      divisionChoisie: '',
+      divisionNom: null,
+      ...champs,
+    });
+    const ligne = (e: EntreeAvantAccepter, cle: string) =>
+      avantDAccepter(e).lignes.find((l) => l.cle === cle);
+
+    it('sans position saisie : « Sans position », comme avant', () => {
+      expect(ligne(base({ positionSaisie: sansSaisie }), 'position')?.texte).toMatch(
+        /Sans position/,
+      );
+      expect(ligne(base(), 'position')?.texte).toMatch(/Sans position/);
+    });
+
+    it('une position saisie dans un contour connu : dite, avec sa zone, sans bloquer', () => {
+      const entree = base({ positionSaisie: lue('Ngoyo') });
+      expect(ligne(entree, 'position')).toMatchObject({ etat: 'ok' });
+      expect(ligne(entree, 'position')?.texte).toMatch(/Saisie par toi/);
+      expect(ligne(entree, 'position')?.texte).toMatch(/-4\.84841, 11\.90712/);
+      expect(ligne(entree, 'zone')).toMatchObject({ etat: 'ok' });
+      expect(ligne(entree, 'zone')?.texte).toMatch(/Ngoyo/);
+      expect(avantDAccepter(entree).bloque).toBe(false);
+    });
+
+    it('une position saisie hors de tout contour : la zone bloque jusqu’au choix de la division', () => {
+      const entree = base({ positionSaisie: lue(null) });
+      expect(ligne(entree, 'zone')).toMatchObject({ etat: 'bloque' });
+      expect(ligne(entree, 'zone')?.texte).toMatch(
+        /aucun contour connu ne contient cette position/,
+      );
+      expect(avantDAccepter(entree).bloque).toBe(true);
+      const choisie = base({
+        positionSaisie: lue(null),
+        divisionChoisie: 'd-1',
+        divisionNom: 'Ngoyo',
+      });
+      expect(ligne(choisie, 'zone')).toMatchObject({ etat: 'ok' });
+      expect(avantDAccepter(choisie).bloque).toBe(false);
+    });
+
+    it('une position illisible bloque, et le dit sur la ligne « Position »', () => {
+      const entree = base({ positionSaisie: illisible });
+      expect(ligne(entree, 'position')).toMatchObject({ etat: 'bloque' });
+      expect(ligne(entree, 'position')?.texte).toMatch(/illisible/);
+      expect(avantDAccepter(entree).bloque).toBe(true);
+    });
   });
 });

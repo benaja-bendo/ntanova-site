@@ -21,11 +21,14 @@ export function ChampPosition({
   surChange,
   erreur,
   facultatif = false,
+  aide = 'Sur Google Maps : un appui long (ou un clic droit) sur l’entrée de l’école, puis copie les chiffres qui s’affichent, par exemple -4.79105, 11.92500. Un lien de partage marche aussi.',
 }: {
   valeur: string;
   surChange: (texte: string) => void;
   erreur?: string | undefined;
   facultatif?: boolean;
+  /** Ce que le champ explique sous lui ; la phrase de Google Maps par défaut. */
+  aide?: string;
 }) {
   const { position } = lireChampPosition(valeur);
   const dessine = position ? arrondissementDeLaPosition(position) : null;
@@ -36,12 +39,7 @@ export function ChampPosition({
       : 'Aucun contour connu ici : la base cherchera la division, ou choisis-la dans la liste.';
   return (
     <div className="admin-pleine-largeur champ-position">
-      <Champ
-        libelle="Position"
-        facultatif={facultatif}
-        erreur={erreur}
-        aide="Sur Google Maps : un appui long (ou un clic droit) sur l’entrée de l’école, puis copie les chiffres qui s’affichent, par exemple -4.79105, 11.92500. Un lien de partage marche aussi."
-      >
+      <Champ libelle="Position" facultatif={facultatif} erreur={erreur} aide={aide}>
         {(a) => (
           <input
             {...a}

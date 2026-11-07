@@ -7,11 +7,15 @@ import {
   ceQuiManquePourAccepter,
   numeroAConfirmer,
   numeroPeutEtreRetire,
+  peutSaisirLaPosition,
   type ChoixNumero,
   divisionRequise as divisionRequisePour,
   type Cible,
   type EtatDeLaLigne,
+  type PositionSaisie,
 } from '../../modele/acceptation';
+import { arrondissementDeLaPosition } from '../../modele/carte/plan';
+import { lireChampPosition } from '../../modele/correction-ecole';
 import { ageDe, trierParAnciennete } from '../../modele/age';
 import { peutParaitreSurLeSite } from '../../modele/photos-publiques';
 import { messageManquant } from '../../modele/decision';
@@ -54,7 +58,7 @@ import { afficherTelephone } from '../../modele/telephone';
 import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
 import { SignauxDuRelais } from './Sante';
-import { messageErreur } from './ChampPosition';
+import { ChampPosition, messageErreur } from './ChampPosition';
 import { Formations } from './Formations';
 import { Personnes } from './Personnes';
 import { Pont } from './Pont';
@@ -573,6 +577,8 @@ function Detail({
   const [domaines, setDomaines] = useState<DomainePublic[]>([]);
   const [divisions, setDivisions] = useState<DivisionVue[]>([]);
   const [divisionId, setDivisionId] = useState('');
+  // La position que l'administration lit sur une carte quand le téléphone du relais n'a pas pu la mesurer (ticket 144).
+  const [positionTexte, setPositionTexte] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [mode, setMode] = useState<'correction' | 'refus' | null>(null);
   const [motif, setMotif] = useState<Valeur<'motif_decision'>>('photo_floue');
@@ -678,7 +684,21 @@ function Detail({
 
   // La division de l'école : celle de la position quand un contour la contient. Sinon (aucun contour connu, ou ni position
   // ni lot), l'administration la choisit : la fiche ne retombe plus sur la division du lot du relais (ticket n° 67).
-  const divisionRequise = divisionRequisePour(detail, cible);
+  const saisiePossible = peutSaisirLaPosition(detail, cible);
+  const lecturePosition = saisiePossible ? lireChampPosition(positionTexte) : null;
+  const saisie: PositionSaisie | null =
+    saisiePossible && positionTexte.trim() !== '' && lecturePosition
+      ? {
+          illisible: lecturePosition.position === null,
+          position: lecturePosition.position,
+          contour: lecturePosition.position
+            ? (arrondissementDeLaPosition(lecturePosition.position)?.nom ?? null)
+            : null,
+        }
+      : null;
+  const divisionRequise = divisionRequisePour(detail, cible, saisie);
+  // Une position saisie dans un contour connu se passe de choix ; la division reste modifiable, comme dans « Situer ».
+  const divisionFacultative = !divisionRequise && saisie?.position != null;
   const divisionsChoisissables = divisions
     .filter((d) => d.niveau >= 2)
     .map((d) => ({ id: d.id, chemin: cheminLisible(d.id, divisions) }))
@@ -686,7 +706,8 @@ function Detail({
   const decision = (): DecisionAcceptation => {
     const base: DecisionAcceptation = {
       formations: formationsRetenues,
-      ...(divisionRequise && divisionId !== '' ? { divisionId } : {}),
+      ...((divisionRequise || divisionFacultative) && divisionId !== '' ? { divisionId } : {}),
+      ...(saisie?.position ? { position: saisie.position } : {}),
     };
     // Une correction d'une école déjà créée met l'école à jour : la base sait laquelle. Celle d'une fiche pas encore
     // acceptée se traite comme une nouvelle fiche (ticket #89).
@@ -732,7 +753,7 @@ function Detail({
   const numeroCorrige = retenues.numeroEnseigne !== undefined;
   const aConfirmer = numeroAConfirmer(valeurs, numeroCorrige);
   const manque =
-    ceQuiManquePourAccepter(detail, cible, divisionId) ??
+    ceQuiManquePourAccepter(detail, cible, divisionId, saisie) ??
     ceQuiManqueDuNumero(aConfirmer, choixNumero);
   const cibleIncomplete = manque !== null;
   // Avant d'accepter : ce qui est prêt, ce qui manque sans bloquer, ce que fait « Accepter » (ticket #95).
@@ -747,6 +768,7 @@ function Detail({
         nombreDeFormations: formationsRetenues.length,
         formationsAttendues: avecFormations,
         cible,
+        positionSaisie: saisie,
         divisionChoisie: divisionId,
         divisionNom: divisions.find((d) => d.id === (divisionId || detail.divisionId))?.nom ?? null,
         choixNumero,
@@ -1050,13 +1072,28 @@ function Detail({
                     )}
                   </Champ>
                 )}
-                {divisionRequise && (
+                {saisiePossible && (
+                  <ChampPosition
+                    valeur={positionTexte}
+                    surChange={setPositionTexte}
+                    erreur={
+                      saisie?.illisible === true
+                        ? lireChampPosition(positionTexte).erreur
+                        : undefined
+                    }
+                    facultatif
+                    aide="Le téléphone du relais n’a pas donné la position. Lis-la sur la capture de Google Maps qu’il a envoyée, ou sur Google Maps : un clic droit sur l’entrée de l’école, puis copie les chiffres, par exemple -4.79105, 11.92500. Elle est gardée avec ton nom et la date."
+                  />
+                )}
+                {(divisionRequise || divisionFacultative) && (
                   <Champ
                     libelle="Division de l’école"
                     aide={
-                      detail.position !== null
-                        ? 'Aucun contour connu ne contient cette position. Choisissez la division de l’école : elle n’est pas déduite du lot du relais.'
-                        : 'Cette fiche n’a pas de position et le relais n’a pas de lot. Choisissez la division de l’école.'
+                      divisionFacultative
+                        ? 'Laisse « Détectée d’après la position » : la base cherche l’arrondissement ou la ville. Choisis-la seulement quand aucun contour n’est connu à cet endroit.'
+                        : detail.position !== null || saisie?.position
+                          ? 'Aucun contour connu ne contient cette position. Choisissez la division de l’école : elle n’est pas déduite du lot du relais.'
+                          : 'Cette fiche n’a pas de position et le relais n’a pas de lot. Choisissez la division de l’école.'
                     }
                   >
                     {(a) => (
@@ -1066,7 +1103,11 @@ function Detail({
                         value={divisionId}
                         onChange={(ev) => setDivisionId(ev.target.value)}
                       >
-                        <option value="">Choisir une division…</option>
+                        <option value="">
+                          {divisionFacultative
+                            ? 'Détectée d’après la position'
+                            : 'Choisir une division…'}
+                        </option>
                         {divisionsChoisissables.map((d) => (
                           <option key={d.id} value={d.id}>
                             {d.chemin}
