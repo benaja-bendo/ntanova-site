@@ -318,7 +318,7 @@ Tests dédiés : `supabase/tests/equipements_ecole.test.sql` (36 contrôles), va
 
 ### Repli automatique de la photo publique — 06/11/2026
 
-La migration `20261106100000_photo_publique_automatique.sql` étend la vue sans exposer les tables terrain. Sans ligne dans `prive.campus_photo_choices`, elle retient une seule photo `signboard` ou `building` dont `child_free_checked_at` est renseigné, issue d’un relevé accepté du campus publié. L’ordre est la date de prise de vue croissante (dates absentes après les dates connues), puis l’identifiant pour départager. Prospectus et panneaux de formations restent privés.
+La migration `20261107010000_photo_publique_automatique.sql` étend la vue sans exposer les tables terrain. Sans ligne dans `prive.campus_photo_choices`, elle retient une seule photo `signboard` ou `building` dont `child_free_checked_at` est renseigné, issue d’un relevé accepté du campus publié. L’ordre est la date de prise de vue croissante (dates absentes après les dates connues), puis l’identifiant pour départager. Prospectus et panneaux de formations restent privés.
 
 Une sélection explicite reste prioritaire. Une ligne avec `photo_id` nul représente un retrait explicite et bloque le repli, même si d’autres photos sont contrôlées. Une sélection devenue invalide ne bascule pas vers une autre image. La règle du seau utilise cette même vue : elle autorise uniquement le fichier effectivement retenu. Aucun campus, relevé, badge ou choix existant n’est modifié. Les fichiers du site statique changent après reconstruction et mise en ligne.
 

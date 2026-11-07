@@ -214,12 +214,14 @@ test.describe('site public', () => {
         '/formations/serie/c/',
       );
       // L'autre implantation de la même école.
+      await page.locator('.sites-ecole summary').click();
       const autres = page.getByRole('region', { name: 'Autres implantations' });
       await autres.getByRole('link', { name: /Campus de Mongo-Mpoukou/ }).click();
       await expect(page).toHaveURL(/\/mongo-mpoukou\/groupe-scolaire-exemple\/$/);
       await expect(
         page.getByText('Campus de Mongo-Mpoukou', { exact: true }).first(),
       ).toBeVisible();
+      await page.locator('.sites-ecole summary').click();
       await expect(
         page
           .getByRole('region', { name: 'Autres implantations' })

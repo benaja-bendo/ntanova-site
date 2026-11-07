@@ -96,6 +96,50 @@ test.describe('la fiche d’une école', () => {
   });
 });
 
+test.describe('les informations utiles au premier écran', () => {
+  test('les autres sites se choisissent près de l’identité, sans JavaScript', async ({
+    browser,
+    baseURL,
+  }) => {
+    const contexte = await browser.newContext({
+      javaScriptEnabled: false,
+      baseURL: baseURL ?? '',
+      viewport: { width: 360, height: 800 },
+    });
+    const page = await contexte.newPage();
+    await page.goto(CONFIRMEE);
+    const choix = page.locator('details.sites-ecole');
+    await expect(choix.locator('summary')).toHaveText('Changer de site');
+    const nom = await page.locator('h1').boundingBox();
+    const position = await choix.boundingBox();
+    const actions = await page.locator('.fiche-actions').boundingBox();
+    expect(position!.y).toBeGreaterThan(nom!.y);
+    expect(position!.y).toBeLessThan(actions!.y);
+    await choix.locator('summary').click();
+    await expect(choix).toContainText('Sites publiés dans l’annuaire');
+    await choix.getByRole('link', { name: /Campus de Mongo-Mpoukou/ }).click();
+    await expect(page.locator('.etiquette-campus')).toHaveText('Campus de Mongo-Mpoukou');
+    await contexte.close();
+  });
+
+  test('sans autre site connu, aucun sélecteur ; une série ne se répète pas dans sa formation', async ({
+    page,
+  }) => {
+    await page.goto(COMPLEXE);
+    await expect(page.locator('.sites-ecole')).toHaveCount(0);
+    await page.goto(CONFIRMEE);
+    const formations = page.getByRole('region', { name: 'Formations', exact: true });
+    const serie = formations.getByRole('listitem').filter({ hasText: 'Série A' });
+    await expect(serie.getByText('Série A', { exact: true })).toHaveCount(1);
+    await expect(serie.getByRole('link', { name: 'Série A', exact: true })).toHaveAttribute(
+      'href',
+      '/formations/serie/a/',
+    );
+    await expect(serie).toContainText('Baccalauréat');
+    await expect(serie).toContainText('Cours du jour');
+  });
+});
+
 test.describe('la barre « Y aller · Appeler · Partager »', () => {
   const actions = (page: Page) => page.locator('.fiche-actions').getByRole('link');
 
@@ -240,9 +284,9 @@ test.describe('« Où est l’école »', () => {
     );
   });
 
-  test('sans position, ni plan ni lien : seulement le repère', async ({ page }) => {
+  test('sans position ni repère : aucun bloc de localisation vide', async ({ page }) => {
     await page.goto(SANS_DETAIL);
-    await expect(page.locator('.ou')).toContainText('pas encore relevé');
+    await expect(page.locator('.ou')).toHaveCount(0);
     await expect(page.locator('.ou a')).toHaveCount(0);
   });
 });

@@ -83,6 +83,12 @@ const cyclesSansFormation = e.niveaux.filter(
     !e.formations.some((f) => f.cycle === n),
 );
 const rythmes = (f: FormationPublique) => f.rythmes.map((r) => libelleRythme[r]).join(', ');
+function serieDejaDansLeTitre(f: FormationPublique): boolean {
+  return (
+    f.serie !== null &&
+    f.titre.trim().toLocaleLowerCase('fr') === libelleSerie[f.serie].toLocaleLowerCase('fr')
+  );
+}
 const confirmee = e.etat === 'verifiee';
 
 // La barre d'actions : l'adresse de la fiche (celle que WhatsApp montre avec son image), le numéro à appeler (le contact
@@ -153,6 +159,31 @@ const nomZone = zone.division.nom;
           ))}
           {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
         </ul>
+      )}
+
+      {autres.length > 0 && (
+        <details class="sites-ecole">
+          <summary>Changer de site</summary>
+          <section class="autres" aria-label="Autres implantations">
+            <h2>Autres sites</h2>
+            <p class="texte-doux">Sites publiés dans l’annuaire</p>
+            <ul>
+              {autres.map((a) => (
+                <li>
+                  <a href={lienEcole(a)}>
+                    <b>{a.etiquette ?? a.nom}</b>
+                    <span class="texte-doux">
+                      {ligneDeLieu(a.quartier, a.divisionNoms)}
+                      {a.niveaux.length > 0
+                        ? ` · ${a.niveaux.map((n) => libelleNiveau[n]).join(', ')}`
+                        : ''}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </details>
       )}
 
       <div class="preuves" aria-label="Sources de la fiche">
@@ -231,9 +262,18 @@ const nomZone = zone.division.nom;
               <ul>
                 {c.formations.map((f) => (
                   <li>
-                    <b>{f.titre}</b>
+                    {f.serie && serieDejaDansLeTitre(f) ? (
+                      <a
+                        class="titre-formation"
+                        href={lienFacette({ facette: 'serie', valeur: f.serie })}
+                      >
+                        <b>{f.titre}</b>
+                      </a>
+                    ) : (
+                      <b>{f.titre}</b>
+                    )}
                     <span class="liens-formation">
-                      {f.serie && (
+                      {f.serie && !serieDejaDansLeTitre(f) && (
                         <a href={lienFacette({ facette: 'serie', valeur: f.serie })}>
                           {libelleSerie[f.serie]}
                         </a>
@@ -267,60 +307,44 @@ const nomZone = zone.division.nom;
           </p>
         </section>
       )}
-
-      {autres.length > 0 && (
-        <section class="carte autres" aria-label="Autres implantations">
-          <h2>Les autres implantations de {e.nom}</h2>
-          <ul>
-            {autres.map((a) => (
-              <li>
-                <a href={lienEcole(a)}>
-                  <b>{a.etiquette ?? a.nom}</b>
-                  <span class="texte-doux">
-                    {a.divisionNoms.slice(1).join(' · ')}
-                    {a.niveaux.length > 0
-                      ? ` · ${a.niveaux.map((n) => libelleNiveau[n]).join(', ')}`
-                      : ''}
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
 
     <div class="fiche-cote">
-      <section class="carte ou" aria-label="Où est l'école">
-        <h2>Localisation</h2>
-        {plan && dessin && situee && (
-          <Carte
-            id="fiche"
-            titre={`${e.nom} sur la carte de ${nomZone}`}
-            projection={plan.projection}
-            arrondissements={arrondissementsDessines.map((a) => ({
-              arrondissement: a,
-              role: a.slug === dessin.slug ? 'focus' : 'voisin',
-            }))}
-            rues={rues}
-            marques={plan.marques}
-            reperes={reperes}
-            halo={situee}
-          />
-        )}
-        <p class="apercu-repere">
-          <Icone nom="repere" petite={false} />
-          <span>
-            <b>Repère&nbsp;:</b> {e.repere ?? 'pas encore relevé'}
-          </span>
-        </p>
-        {plan && <a href={carteDuQuartier}>Voir sur la carte de {nomZone}</a>}
-        {lienSurLaCarte && (
-          <a href={lienSurLaCarte}>
-            {vueSurPlace ? 'Voir sur la carte' : 'Voir le quartier sur la carte'}
-          </a>
-        )}
-      </section>
+      {(e.repere || plan || lienSurLaCarte) && (
+        <section class="carte ou" aria-label="Où est l'école">
+          <h2>Localisation</h2>
+          {plan && dessin && situee && (
+            <Carte
+              id="fiche"
+              titre={`${e.nom} sur la carte de ${nomZone}`}
+              projection={plan.projection}
+              arrondissements={arrondissementsDessines.map((a) => ({
+                arrondissement: a,
+                role: a.slug === dessin.slug ? 'focus' : 'voisin',
+              }))}
+              rues={rues}
+              marques={plan.marques}
+              reperes={reperes}
+              halo={situee}
+            />
+          )}
+          {e.repere && (
+            <p class="apercu-repere">
+              <Icone nom="repere" petite={false} />
+              <span>
+                <b>Repère&nbsp;:</b> {e.repere}
+              </span>
+            </p>
+          )}
+          {!e.repere && !plan && <p class="texte-doux">{lieu || nomZone}</p>}
+          {plan && <a href={carteDuQuartier}>Voir sur la carte de {nomZone}</a>}
+          {lienSurLaCarte && (
+            <a href={lienSurLaCarte}>
+              {vueSurPlace ? 'Voir sur la carte' : 'Voir le quartier sur la carte'}
+            </a>
+          )}
+        </section>
+      )}
       <FraisEcole frais={e.frais ?? []} />
       <EquipementsEcole equipements={e.equipements ?? []} />
       <aside class="ecoles-appel">
@@ -501,10 +525,40 @@ const nomZone = zone.division.nom;
     list-style: none;
   }
   .formations li {
-    display: grid;
-    gap: var(--espace-1);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--espace-1) var(--espace-3);
   }
+  .titre-formation {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+  }
+  .sites-ecole {
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .sites-ecole summary {
+    min-height: var(--cible-min);
+    padding: var(--espace-3) var(--espace-4);
+    color: var(--marque);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .sites-ecole summary:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  .sites-ecole .autres {
+    padding-top: 0;
+  }
+
   .liens-formation {
+    flex: 1 1 12rem;
+    min-width: 0;
     display: flex;
     flex-wrap: wrap;
     align-items: center;

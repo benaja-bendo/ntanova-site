@@ -16,6 +16,6 @@ join lateral (
   order by ph.taken_at nulls last,ph.id
   limit 1
 ) p on true
-where c.publication='publiee';
+where c.publication='publiee' and c.trashed_at is null;
 revoke all on public.public_campus_photos from public,anon,authenticated,service_role;
 grant select on public.public_campus_photos to anon,authenticated;

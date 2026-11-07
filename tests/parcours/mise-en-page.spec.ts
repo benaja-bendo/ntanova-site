@@ -939,6 +939,7 @@ for (const [cas, chemin] of [
       await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toHaveCount(0);
     }
     if (cas === 'plusieurs sites') {
+      await page.locator('.sites-ecole summary').click();
       const autres = page.getByRole('region', { name: 'Autres implantations' });
       await expect(autres.getByRole('link')).toContainText('Campus de Mongo-Mpoukou');
       await autres.getByRole('link').click();

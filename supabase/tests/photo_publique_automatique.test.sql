@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(17);
 select public.register_relay('00000000-0000-4000-8000-0000000000d1','google-photo-admin','[Admin]');
 select public.register_relay('00000000-0000-4000-8000-0000000000a1','google-photo-relais','[Relais]');
 insert into prive.admins(id) values('00000000-0000-4000-8000-0000000000d1');
@@ -67,5 +67,25 @@ select is((select count(*)::int from public.public_campus_photos),0,'Retirer le 
 select throws_ok($$select * from public.field_submission_photos$$,'42501',null,'Photos terrain toujours privées');
 reset role;
 select ok((select surveyed_at is null and verified_on is null from public.campuses where id='b9000000-0000-4000-8000-000000000001'),'Fallback ne crée ni passage ni confirmation');
+
+update public.field_submission_photos set child_free_checked_at=now() where role='building';
+set local role anon;
+select is((select count(*)::int from public.public_campus_photos),1,'Fallback disponible avant la corbeille');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated"}',true);
+select public.trash_campus('b9000000-0000-4000-8000-000000000001');
+reset role;
+set local role anon;
+select is((select count(*)::int from public.public_campus_photos),0,'Corbeille : aucune photo exposée');
+select is((select count(*)::int from storage.objects where bucket_id='releves'),0,'Corbeille : aucun fichier accessible');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated"}',true);
+select public.restore_campus('b9000000-0000-4000-8000-000000000001');
+reset role;
+set local role anon;
+select is((select count(*)::int from public.public_campus_photos),0,'Restaurer ne republie pas la photo');
+reset role;
 select * from finish();
 rollback;
