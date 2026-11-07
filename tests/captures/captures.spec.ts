@@ -17,10 +17,12 @@ test('une capture de chaque écran', async ({ page, context }) => {
   const largeur = page.viewportSize()?.width ?? 0;
   const prendre = (ecran: string) =>
     page.screenshot({
+      animations: 'disabled',
       path: `${dossier}${ecran}-${largeur}.png`,
       fullPage: ![
         'admin-modifier-la-fiche',
         'admin-retirer-du-site',
+        'admin-zones-ajouter',
         'relais-confirmer-abandon',
       ].includes(ecran),
     });
@@ -121,6 +123,14 @@ test('une capture de chaque écran', async ({ page, context }) => {
   await page.getByRole('heading', { name: 'Zones', level: 1 }).waitFor();
   await page.getByRole('region', { name: 'Liste des zones' }).waitFor();
   await prendre('admin-zones');
+  await page.getByRole('button', { name: 'Ajouter une zone' }).click();
+  await page.getByRole('dialog', { name: 'Ajouter une zone' }).waitFor();
+  await prendre('admin-zones-ajouter');
+  await page.getByRole('dialog').getByRole('button', { name: 'Fermer' }).click();
+  await page.getByRole('button', { name: 'Tout replier' }).click();
+  await prendre('admin-zones-repliees');
+  await page.getByRole('button', { name: 'Tout déplier' }).click();
+  await prendre('admin-zones-depliees');
   await choisirLaZone(page, /^Tié-Tié/);
   await page.getByRole('heading', { name: 'Tié-Tié', level: 2 }).waitFor();
   await prendre('admin-zone-choisie');

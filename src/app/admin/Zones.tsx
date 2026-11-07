@@ -13,11 +13,14 @@ import { libelleGenreDivision } from '../../modele/libelles';
 import type { DivisionVue, LotVu, PortAdministration, RelaisVu } from '../../modele/ports';
 import {
   SEUIL_OUVERTURE_LARGE,
+  ancetresDe,
+  groupesDeLArbre,
   lignesDeLArbre,
   libelleEtat,
   phraseDuResume,
   resumeDesZones,
   surLaCarte,
+  zonesAReplierPourTout,
   zonesDessous,
   type EtatCarte,
 } from '../../modele/zones-admin';
@@ -28,6 +31,7 @@ import { Dialogue } from '../../ui/Dialogue';
 import { aller, useAdresse } from '../commun/adresse';
 import { messageErreur } from './ChampPosition';
 import { VueParEtape } from './ZonesEtapes';
+import { AjouterDivision } from './ZonesFormulaires';
 import { VoletDeZone } from './ZonesVolet';
 
 /** Le retour d'un geste : dit ce qui s'est passé, et le défait quand c'est possible. */
@@ -42,6 +46,8 @@ export function Zones({ admin }: { admin: PortAdministration }) {
   const [relais, setRelais] = useState<RelaisVu[]>([]);
   const [recherche, setRecherche] = useState('');
   const [groupesOuverts, setGroupesOuverts] = useState<ReadonlySet<string>>(new Set());
+  const [repliees, setRepliees] = useState<ReadonlySet<string>>(new Set());
+  const [ajout, setAjout] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [retour, setRetour] = useState<Retour | null>(null);
   const [occupee, setOccupee] = useState<string | null>(null);
@@ -92,6 +98,20 @@ export function Zones({ admin }: { admin: PortAdministration }) {
       .querySelector('.admin-arbre [aria-current="true"]')
       ?.scrollIntoView({ block: 'nearest' });
   }, [idChoisie, chargee]);
+
+  // Une zone choisie par son adresse, ou qu'on vient d'ajouter, se montre : on rouvre ce qui la contient. Seul le choix
+  // compte ici : un rechargement après un geste ne doit pas rouvrir ce qu'on vient de replier.
+  const [choixMontre, setChoixMontre] = useState<string | null>(null);
+  const choixAMontrer = chargee ? (idChoisie ?? null) : null;
+  if (choixAMontrer !== choixMontre) {
+    setChoixMontre(choixAMontrer);
+    if (choixAMontrer && divisions) {
+      const dessus = ancetresDe(choixAMontrer, divisions);
+      if (dessus.some((id) => repliees.has(id))) {
+        setRepliees(new Set([...repliees].filter((id) => !dessus.includes(id))));
+      }
+    }
+  }
 
   const choisir = (zone: DivisionVue) => {
     setRetour(null);
@@ -191,6 +211,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
 
   const lignes = lignesDeLArbre(divisions ?? [], {
     groupesOuverts,
+    repliees,
     choisie: choisie?.id ?? null,
     requete: recherche,
   });
@@ -203,6 +224,26 @@ export function Zones({ admin }: { admin: PortAdministration }) {
       else apres.add(id);
       return apres;
     });
+
+  const basculerZone = (id: string) =>
+    setRepliees((avant) => {
+      const apres = new Set(avant);
+      if (apres.has(id)) apres.delete(id);
+      else apres.add(id);
+      return apres;
+    });
+
+  const toutDeplier = () => {
+    setRepliees(new Set());
+    setGroupesOuverts(new Set(groupesDeLArbre(divisions ?? [])));
+  };
+
+  const toutReplier = () => {
+    setRepliees(zonesAReplierPourTout(divisions ?? []));
+    setGroupesOuverts(new Set());
+  };
+
+  const recherchee = recherche.trim() !== '';
 
   return (
     <div className="pile">
@@ -280,9 +321,39 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                 />
               )}
             </Champ>
-            <p className="mention admin-arbre-resume">
-              {phraseDuResume(resumeDesZones(divisions))}
-            </p>
+            <div className="admin-arbre-outils">
+              <button type="button" className="bouton bouton-petit" onClick={() => setAjout(true)}>
+                <Icone nom="plus" taille={16} />
+                Ajouter une zone
+              </button>
+            </div>
+            <div className="admin-arbre-entete">
+              <p className="mention admin-arbre-resume">
+                {phraseDuResume(resumeDesZones(divisions))}
+              </p>
+              {!recherchee && (
+                <div
+                  className="admin-arbre-plier"
+                  role="group"
+                  aria-label="Déplier ou replier l’arbre"
+                >
+                  <button
+                    type="button"
+                    className="bouton bouton-secondaire bouton-petit"
+                    onClick={toutDeplier}
+                  >
+                    Tout déplier
+                  </button>
+                  <button
+                    type="button"
+                    className="bouton bouton-secondaire bouton-petit"
+                    onClick={toutReplier}
+                  >
+                    Tout replier
+                  </button>
+                </div>
+              )}
+            </div>
             <ul className="admin-arbre-liste">
               {lignes.map((l) =>
                 l.type === 'groupe' ? (
@@ -307,11 +378,33 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                     </button>
                   </li>
                 ) : (
-                  <li key={l.zone.id}>
+                  <li
+                    key={l.zone.id}
+                    className="admin-zone-rang"
+                    style={{ '--retrait': l.indent } as CSSProperties}
+                  >
+                    {l.dessous > 0 ? (
+                      <button
+                        type="button"
+                        className="admin-zone-bascule"
+                        aria-expanded={l.deplie}
+                        aria-label={l.deplie ? 'Replier' : 'Déplier'}
+                        aria-describedby={`zone-nom-${l.zone.id}`}
+                        onClick={() => basculerZone(l.zone.id)}
+                      >
+                        <span
+                          className={`admin-chevron${l.deplie ? ' est-ouvert' : ''}`}
+                          aria-hidden="true"
+                        >
+                          <Icone nom="suivant" taille={14} />
+                        </span>
+                      </button>
+                    ) : (
+                      <span className="admin-zone-bascule est-vide" aria-hidden="true" />
+                    )}
                     <button
                       type="button"
                       className="admin-zone-ligne"
-                      style={{ '--retrait': l.indent } as CSSProperties}
                       aria-current={choisie?.id === l.zone.id ? 'true' : undefined}
                       onClick={() => choisir(l.zone)}
                     >
@@ -322,13 +415,16 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                         aria-hidden="true"
                       />
                       <span className="admin-zone-texte">
-                        <b>{l.zone.nom}</b>
+                        <b id={`zone-nom-${l.zone.id}`}>{l.zone.nom}</b>
                         <small>
                           {libelleGenreDivision[l.zone.genre]}
                           {l.dansGroupe && l.zone.parentId && parId.get(l.zone.parentId)
                             ? ` · ${parId.get(l.zone.parentId)?.nom}`
                             : ''}
                           {surLaCarte(l.zone) ? ` · ${libelleEtat(l.zone.deploiement)}` : ''}
+                          {l.dessous > 0 && !l.deplie
+                            ? ` · ${l.dessous} ${l.dessous > 1 ? 'zones cachées' : 'zone cachée'}`
+                            : ''}
                         </small>
                       </span>
                       <span className={`admin-nombre${l.zone.ecoles === 0 ? ' est-nul' : ''}`}>
@@ -453,6 +549,26 @@ export function Zones({ admin }: { admin: PortAdministration }) {
             </table>
           </div>
         </>
+      )}
+
+      {ajout && divisions !== null && (
+        <Dialogue
+          titre="Ajouter une zone"
+          variante="tiroir"
+          fermer={() => setAjout(false)}
+          entete={<h2>Ajouter une zone</h2>}
+        >
+          <AjouterDivision
+            divisions={divisions}
+            estOuverte={(id) => ouvertePar.get(id) != null}
+            admin={admin}
+            parentInitial={choisie && choisie.niveau <= 3 ? choisie.id : ''}
+            surFait={(texte, zoneId) => {
+              setAjout(false);
+              surFait(texte, zoneId);
+            }}
+          />
+        </Dialogue>
       )}
 
       {aConfirmer && (

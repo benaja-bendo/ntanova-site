@@ -74,7 +74,16 @@ function notable(zone: DivisionVue, toutes: readonly DivisionVue[]): boolean {
 }
 
 export type LigneArbre =
-  | { type: 'zone'; zone: DivisionVue; indent: number; dansGroupe: boolean }
+  | {
+      type: 'zone';
+      zone: DivisionVue;
+      indent: number;
+      dansGroupe: boolean;
+      /** Combien de zones elle contient, à tous les niveaux (0 : rien à déplier, ou zone d'un groupe ou d'une recherche). */
+      dessous: number;
+      /** Ses zones sont-elles montrées ? Sans objet quand `dessous` vaut 0. */
+      deplie: boolean;
+    }
   | { type: 'groupe'; id: string; indent: number; nombre: number; ouvert: boolean };
 
 const normaliser = (texte: string): string =>
@@ -86,13 +95,15 @@ const normaliser = (texte: string): string =>
 
 /**
  * Les lignes de l'arbre. Les zones qui comptent (écoles, état, relais) restent visibles ; les autres se replient sous leur
- * parent en une seule ligne « N autres zones ». Une recherche remet à plat les zones dont le nom correspond. La zone
- * choisie n'est jamais cachée dans un groupe fermé.
+ * parent en une seule ligne « N autres zones ». Une zone `repliee` cache tout ce qu'elle contient. Une recherche remet à
+ * plat les zones dont le nom correspond. La zone choisie n'est jamais cachée dans un groupe fermé.
  */
 export function lignesDeLArbre(
   divisions: readonly DivisionVue[],
   options: {
     groupesOuverts?: ReadonlySet<string>;
+    /** Les zones dont l'administration a replié le contenu. */
+    repliees?: ReadonlySet<string>;
     choisie?: string | null;
     requete?: string;
   } = {},
@@ -101,7 +112,14 @@ export function lignesDeLArbre(
   if (requete !== '') {
     return divisions
       .filter((d) => normaliser(d.nom).includes(requete))
-      .map((zone) => ({ type: 'zone', zone, indent: 0, dansGroupe: true }));
+      .map((zone) => ({
+        type: 'zone',
+        zone,
+        indent: 0,
+        dansGroupe: true,
+        dessous: 0,
+        deplie: true,
+      }));
   }
 
   const ids = new Set(divisions.map((d) => d.id));
@@ -113,8 +131,17 @@ export function lignesDeLArbre(
 
   const lignes: LigneArbre[] = [];
   const visiter = (zone: DivisionVue, indent: number): void => {
-    lignes.push({ type: 'zone', zone, indent, dansGroupe: false });
     const fils = enfants.get(zone.id) ?? [];
+    const deplie = !(options.repliees?.has(zone.id) ?? false);
+    lignes.push({
+      type: 'zone',
+      zone,
+      indent,
+      dansGroupe: false,
+      dessous: fils.length === 0 ? 0 : zonesDessous(zone, divisions).length,
+      deplie,
+    });
+    if (!deplie) return;
     const utiles = fils.filter((f) => notable(f, divisions));
     const autres = fils.filter((f) => !notable(f, divisions));
     for (const f of utiles) visiter(f, indent + 1);
@@ -131,12 +158,45 @@ export function lignesDeLArbre(
           zone: m,
           indent: indent + 1 + Math.max(1, m.niveau - zone.niveau),
           dansGroupe: true,
+          dessous: 0,
+          deplie: true,
         });
       }
     }
   };
   for (const racine of enfants.get(null) ?? []) visiter(racine, 0);
   return lignes;
+}
+
+/** Les groupes « N autres zones » que l'arbre montre quand rien n'est replié : de quoi « tout déplier ». */
+export function groupesDeLArbre(divisions: readonly DivisionVue[]): string[] {
+  return lignesDeLArbre(divisions).flatMap((l) => (l.type === 'groupe' ? [l.id] : []));
+}
+
+/**
+ * « Tout replier » : le pays et ses départements, rien en dessous. Le pays reste ouvert, sinon il ne resterait qu'une
+ * ligne.
+ */
+export function zonesAReplierPourTout(divisions: readonly DivisionVue[]): Set<string> {
+  return new Set(
+    divisions
+      .filter((d) => d.niveau >= 1 && divisions.some((f) => f.parentId === d.id))
+      .map((d) => d.id),
+  );
+}
+
+/** Les zones au-dessus d'une zone, de la plus proche à la racine : celles à rouvrir pour la montrer. */
+export function ancetresDe(zoneId: string, divisions: readonly DivisionVue[]): string[] {
+  const parId = new Map(divisions.map((d) => [d.id, d]));
+  const ids: string[] = [];
+  for (
+    let courante = parId.get(zoneId)?.parentId ?? null;
+    courante !== null && !ids.includes(courante);
+    courante = parId.get(courante)?.parentId ?? null
+  ) {
+    ids.push(courante);
+  }
+  return ids;
 }
 
 export interface EtapeDeLaCarte {

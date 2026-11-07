@@ -230,7 +230,7 @@ test.describe('tableau de bord : Zones', () => {
 
     // Une recherche remet à plat, sans accent ni majuscule.
     await arbre.getByLabel('Chercher une zone').fill('TIE');
-    await expect(arbre.getByRole('button')).toHaveCount(1);
+    await expect(arbre.getByRole('list').getByRole('button')).toHaveCount(1);
     await expect(arbre.getByRole('button', { name: /^Tié-Tié/ })).toBeVisible();
     await arbre.getByLabel('Chercher une zone').fill('zzz');
     await expect(arbre.getByText('Aucune zone ne s’appelle ainsi.')).toBeVisible();
@@ -337,6 +337,100 @@ test.describe('tableau de bord : Zones', () => {
     await programme.getByRole('button', { name: 'Régler Loandjili' }).click();
     await expect(page).toHaveURL(/#zones\/d-pn-loandjili$/);
     await expect(page.getByRole('heading', { name: 'Loandjili', level: 2 })).toBeVisible();
+  });
+
+  test('chaque zone qui en contient d’autres se déplie et se replie, et tout se déplie ou se replie d’un geste', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#zones');
+    const arbre = arbreDe(page);
+    const ligne = (...mots: string[]) =>
+      mots.reduce((l, m) => l.filter({ hasText: m }), arbre.getByRole('listitem'));
+    const ville = ligne('Pointe-Noire', 'Ville');
+    const loandjili = arbre.getByRole('button', { name: /^Loandjili/ });
+
+    // Pointe-Noire montre ses arrondissements : on la replie, elle dit combien de zones elle cache.
+    await expect(loandjili).toBeVisible();
+    const bascule = ville.getByRole('button', { name: 'Replier', exact: true });
+    await expect(bascule).toHaveAttribute('aria-expanded', 'true');
+    await bascule.click();
+    await expect(loandjili).toHaveCount(0);
+    await expect(ville).toContainText('6 zones cachées');
+    await expect(ville.getByRole('button', { name: 'Déplier', exact: true })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+
+    // Une zone sans rien dessous n'a rien à déplier.
+    await ville.getByRole('button', { name: 'Déplier', exact: true }).click();
+    await expect(loandjili).toBeVisible();
+    await expect(ligne('Loandjili').getByRole('button', { name: /(Dé|Re)plier/ })).toHaveCount(0);
+
+    // « Tout replier » : le pays et ses départements ; « Tout déplier » : les 12 zones, groupes ouverts compris.
+    await arbre.getByRole('button', { name: 'Tout replier' }).click();
+    await expect(loandjili).toHaveCount(0);
+    await expect(arbre.getByRole('button', { name: /^Brazzaville/ }).first()).toBeVisible();
+    await arbre.getByRole('button', { name: 'Tout déplier' }).click();
+    await expect(arbre.getByRole('button', { name: /^Moungali/ })).toBeVisible();
+    await expect(arbre.getByRole('button', { name: /^Dolisie/ })).toBeVisible();
+    await expect(loandjili).toBeVisible();
+
+    // Une zone choisie par son adresse rouvre ce qui la contient, même repliée.
+    await arbre.getByRole('button', { name: 'Tout replier' }).click();
+    await expect(loandjili).toHaveCount(0);
+    await page.evaluate(() => {
+      location.hash = '#zones/d-pn-ngoyo';
+    });
+    await expect(page.getByRole('heading', { name: 'Ngoyo', level: 2 })).toBeVisible();
+    // Sur un petit écran, la zone choisie remplace la liste : on y revient pour la retrouver dans l'arbre.
+    const retour = page.getByRole('link', { name: '← Toutes les zones' });
+    if (await retour.isVisible()) await retour.click();
+    await expect(arbre.getByRole('button', { name: /^Ngoyo/ })).toBeVisible();
+
+    // Une recherche remet à plat : plus rien à déplier ni à replier.
+    await page.evaluate(() => {
+      location.hash = '#zones';
+    });
+    await arbre.getByLabel('Chercher une zone').fill('moun');
+    await expect(arbre.getByRole('button', { name: 'Tout déplier' })).toHaveCount(0);
+    await expect(arbre.getByRole('button', { name: /^Moungali/ })).toBeVisible();
+  });
+
+  test('« Ajouter une zone » s’ouvre à côté de la recherche, demande sous quelle zone, et ouvre la zone créée', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#zones');
+    const arbre = arbreDe(page);
+    await arbre.getByRole('button', { name: 'Ajouter une zone' }).click();
+    const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
+    await expect(fenetre).toBeVisible();
+
+    // Rien n'est choisi d'avance quand aucune zone ne l'est : le bouton attend la zone et le nom.
+    const ajouter = fenetre.getByRole('button', { name: 'Ajouter la zone' });
+    await expect(ajouter).toBeDisabled();
+    await fenetre.getByLabel('Sous quelle zone ?').selectOption('d-pn-tie-tie');
+    await fenetre.getByLabel('Nom', { exact: true }).fill('Mpaka');
+    await expect(fenetre.getByLabel('Genre')).toHaveValue('quarter');
+    await ajouter.click();
+
+    // La fenêtre se ferme, la zone créée s'ouvre dans le volet, et le message dit où elle est.
+    await expect(fenetre).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Mpaka', level: 2 })).toBeVisible();
+    await expect(page.getByRole('status').first()).toContainText('Mpaka est ajouté sous Tié-Tié');
+    await expect(page).toHaveURL(/#zones\/[0-9a-f-]{36}$/);
+  });
+
+  test('sur un grand écran, « Ajouter une zone » part de la zone choisie', async ({ page }) => {
+    test.skip(
+      (page.viewportSize()?.width ?? 0) < 1280,
+      'Deux colonnes : la liste reste à côté de la zone',
+    );
+    await seConnecter(page, '/admin/#zones/d-pn-ngoyo');
+    await arbreDe(page).getByRole('button', { name: 'Ajouter une zone' }).click();
+    const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
+    await expect(fenetre.getByLabel('Sous quelle zone ?')).toHaveValue('d-pn-ngoyo');
+    await fenetre.getByRole('button', { name: 'Fermer' }).click();
+    await expect(fenetre).toBeHidden();
   });
 
   test('sur un grand écran, l’arbre garde sa place pendant que le volet défile', async ({
