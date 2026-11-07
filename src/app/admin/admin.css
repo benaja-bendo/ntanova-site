@@ -786,7 +786,6 @@
   width: 100%;
   min-height: var(--cible-principale);
   padding: var(--espace-2) var(--espace-3);
-  padding-left: calc(var(--espace-3) + var(--retrait, 0) * var(--espace-4));
   border: 0;
   border-radius: var(--rayon-s);
   background: none;
@@ -794,6 +793,71 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+/* Le retrait d'une zone est sur sa ligne entière : le chevron qui déplie, puis la zone. */
+.admin-zone-rang {
+  display: flex;
+  align-items: stretch;
+  padding-left: calc(var(--retrait, 0) * var(--espace-4));
+}
+
+.admin-zone-rang > .admin-zone-ligne {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  padding-left: var(--espace-1);
+}
+
+.admin-zone-groupe {
+  padding-left: calc(var(--espace-2) + var(--retrait, 0) * var(--espace-4));
+}
+
+.admin-zone-bascule {
+  display: inline-flex;
+  flex: 0 0 2.25rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--rayon-s);
+  background: none;
+  color: var(--texte-doux);
+  cursor: pointer;
+}
+
+.admin-zone-bascule.est-vide {
+  cursor: default;
+}
+
+button.admin-zone-bascule:hover {
+  background: var(--fond-bande);
+  color: var(--texte);
+}
+
+button.admin-zone-bascule:focus-visible {
+  outline: var(--epaisseur-focus) solid var(--focus);
+  outline-offset: 2px;
+}
+
+.admin-arbre-outils {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+.admin-arbre-entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2) var(--espace-3);
+}
+
+.admin-arbre-plier {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
 }
 
 .admin-zone-ligne:hover,

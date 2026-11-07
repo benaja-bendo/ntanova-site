@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { DivisionVue } from '../../src/modele/ports';
 import {
+  ancetresDe,
+  groupesDeLArbre,
+  zonesAReplierPourTout,
   SEUIL_OUVERTURE_LARGE,
   etapesDeLaCarte,
   etatHerite,
@@ -238,6 +241,67 @@ describe('l’arbre des zones', () => {
     const lignes = lignesDeLArbre(PAYS, { choisie: 'mou' });
     expect(resume(lignes)).toContain('mou@4');
     expect(resume(lignes)).not.toContain('tie@4');
+  });
+
+  it('une zone repliée cache tout ce qu’elle contient, et dit combien de zones elle cache', () => {
+    const lignes = lignesDeLArbre(PAYS, { repliees: new Set(['pn']) });
+    expect(resume(lignes)).toEqual(['cg@0', 'pn-dep@1', 'pn@2', 'groupe:cg#5@1']);
+    const pn = lignes.find((l) => l.type === 'zone' && l.zone.id === 'pn');
+    expect(pn).toMatchObject({ dessous: 4, deplie: false });
+  });
+
+  it('une zone dépliée dit combien elle contient ; une zone sans rien dessous n’a rien à déplier', () => {
+    const lignes = lignesDeLArbre(PAYS);
+    const de = (id: string) => lignes.find((l) => l.type === 'zone' && l.zone.id === id);
+    expect(de('cg')).toMatchObject({ dessous: 11, deplie: true });
+    expect(de('pn')).toMatchObject({ dessous: 4, deplie: true });
+    expect(de('loa')).toMatchObject({ dessous: 0 });
+  });
+
+  it('replier une zone replie aussi son groupe « autres zones »', () => {
+    expect(resume(lignesDeLArbre(PAYS, { repliees: new Set(['cg']) }))).toEqual(['cg@0']);
+  });
+
+  it('les zones d’un groupe ou d’une recherche n’ont rien à déplier', () => {
+    const ouvert = lignesDeLArbre(PAYS, { groupesOuverts: new Set(['groupe:cg']) });
+    expect(ouvert.find((l) => l.type === 'zone' && l.zone.id === 'bz-dep')).toMatchObject({
+      dessous: 0,
+      dansGroupe: true,
+    });
+    expect(lignesDeLArbre(PAYS, { requete: 'brazza' })[0]).toMatchObject({ dessous: 0 });
+  });
+
+  it('« tout déplier » : repliées vide, et tous les groupes que l’arbre montre', () => {
+    expect(groupesDeLArbre(PAYS)).toEqual(['groupe:pn', 'groupe:cg']);
+    const tout = lignesDeLArbre(PAYS, {
+      repliees: new Set(),
+      groupesOuverts: new Set(groupesDeLArbre(PAYS)),
+    });
+    expect(tout.filter((l) => l.type === 'zone')).toHaveLength(PAYS.length);
+    expect(
+      tout.filter((l) => l.type === 'groupe').every((l) => l.type === 'groupe' && l.ouvert),
+    ).toBe(true);
+  });
+
+  it('« tout replier » : le pays reste ouvert, chaque zone qui en contient d’autres se referme', () => {
+    expect([...zonesAReplierPourTout(PAYS)].sort()).toEqual([
+      'bz',
+      'bz-dep',
+      'ni-dep',
+      'pn',
+      'pn-dep',
+    ]);
+    expect(resume(lignesDeLArbre(PAYS, { repliees: zonesAReplierPourTout(PAYS) }))).toEqual([
+      'cg@0',
+      'pn-dep@1',
+      'groupe:cg#5@1',
+    ]);
+  });
+
+  it('les zones au-dessus d’une zone, de la plus proche à la racine', () => {
+    expect(ancetresDe('mou', PAYS)).toEqual(['bz', 'bz-dep', 'cg']);
+    expect(ancetresDe('cg', PAYS)).toEqual([]);
+    expect(ancetresDe('inconnue', PAYS)).toEqual([]);
   });
 
   it('une recherche remet à plat les zones dont le nom correspond, sans accent ni majuscule', () => {
