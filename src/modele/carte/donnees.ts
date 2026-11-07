@@ -10,6 +10,7 @@
  *
  * Des fonctions pures : les fichiers sont écrits par `src/pages/carte/`.
  */
+import { cheminPhotoPublique } from '../photos-publiques';
 import { lienDivision, lienEcole, ligneDeLieu, sansRepetition } from '../geo-divisions';
 import { etatPublicDe, libelleDeploiement, type EtatDeploiement } from '../etat-zone';
 import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../libelles';
@@ -69,6 +70,7 @@ export interface FeatureEcole {
     repere: string | null;
     preuve: 'direction' | 'terrain';
     preuveTexte: string;
+    photo?: string | null;
     passage?: string | null;
     confirmation?: string | null;
   };
@@ -103,6 +105,7 @@ export function ecolesGeoJSON(ecoles: readonly EcolePubliee[]): {
         repere: repereCourt(e.repere),
         preuve: preuve.genre === 'direction' ? 'direction' : 'terrain',
         preuveTexte: preuve.texte,
+        photo: e.photo ? cheminPhotoPublique(e.photo) : null,
         passage: e.releveeLe,
         confirmation: e.etat === 'verifiee' ? e.verifieeLe : null,
       },

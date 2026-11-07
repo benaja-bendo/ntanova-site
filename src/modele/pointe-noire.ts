@@ -17,3 +17,13 @@ export function dateLongue(iso: string): string {
     timeZone: 'Africa/Brazzaville',
   }).format(new Date(iso));
 }
+
+/** Date courte des preuves publiques, à l’heure du Congo. */
+export function dateCourte(iso: string): string {
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Africa/Brazzaville',
+  }).format(new Date(iso));
+}

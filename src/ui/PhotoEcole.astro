@@ -1,7 +1,6 @@
 ---
 import type { PhotoPublique } from '../modele/photos-publiques';
 import { cheminPhotoPublique } from '../modele/photos-publiques';
-import { dateLongue } from '../modele/pointe-noire';
 interface Props {
   photo: PhotoPublique;
   nom: string;
@@ -12,17 +11,13 @@ const { photo, nom } = Astro.props;
 <figure class="photo-ecole">
   <img
     src={cheminPhotoPublique(photo)}
-    alt={`Enseigne de ${nom}`}
+    alt={`Vue de ${nom}`}
     width="720"
     height="480"
     loading="lazy"
     decoding="async"
   />
-  <figcaption>
-    Photo d’enseigne prise sur place
-    {photo.prisLe ? ` le ${dateLongue(photo.prisLe)}` : ' — date non renseignée'}. Sélectionnée par
-    NTanova ; elle ne vaut pas confirmation par la direction.
-  </figcaption>
+  <figcaption>Photo relevée sur place</figcaption>
 </figure>
 <style>
   .photo-ecole {

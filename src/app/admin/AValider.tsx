@@ -9,6 +9,7 @@ import {
   type EtatDeLaLigne,
 } from '../../modele/acceptation';
 import { ageDe, trierParAnciennete } from '../../modele/age';
+import { peutParaitreSurLeSite } from '../../modele/photos-publiques';
 import { messageManquant } from '../../modele/decision';
 import {
   compterIndices,
@@ -380,6 +381,10 @@ function Photos({
   const [ouverte, setOuverte] = useState<PhotoVue | null>(null);
   // Plusieurs photos à contrôler : un seul geste, après les avoir regardées (audit du 06/11 : 32 photos = 32 clics).
   const aMarquer = peutMarquer ? photos.filter((p) => p.adresse && !p.publiable) : [];
+  // Seules une enseigne et une vue du bâtiment contrôlées peuvent paraître sur la fiche (repli automatique, ou choix
+  // prioritaire). Le panneau des formations et le prospectus se contrôlent aussi, mais restent privés.
+  const aDesPubliables = photos.some((p) => peutParaitreSurLeSite(p.role));
+  const aDesPrivees = photos.some((p) => !peutParaitreSurLeSite(p.role));
 
   const agir = async (action: () => Promise<void>) => {
     setErreur(null);
@@ -406,6 +411,14 @@ function Photos({
         Effacer l’original ne retire pas les copies déjà publiées sur le site : reconstruis le site
         après un retrait. Les copies partagées peuvent subsister.
       </p>
+      {peutMarquer && aDesPubliables && (
+        <p className="mention">
+          <b>Contrôler pour publication.</b> Photo nette, sans enfant ni donnée personnelle. Elle
+          pourra apparaître sur la fiche publiée après la prochaine mise à jour du site.
+          {aDesPrivees &&
+            ' Le panneau des formations et le prospectus restent privés, même contrôlés.'}
+        </p>
+      )}
       {aMarquer.length > 1 && (
         <div className="admin-actions">
           <button
@@ -417,7 +430,7 @@ function Photos({
               })
             }
           >
-            Marquer les {aMarquer.length} photos publiables
+            Contrôler les {aMarquer.length} photos
           </button>
           <span className="mention">
             Seulement si aucune ne montre d’enfant ni de numéro lisible.
@@ -442,22 +455,28 @@ function Photos({
             <figcaption className="mention">
               <b>{libelleRolePhoto[p.role]}</b>
               <br />
-              {p.role === 'signboard'
+              {peutParaitreSurLeSite(p.role)
                 ? 'Nette, cadrée, sans enfant ?'
-                : 'À lire pour saisir les formations, sans enfant ?'}
+                : 'À lire pour saisir les formations, sans enfant ? Reste privée.'}
               {' · '}
               {Math.round(p.octets / 1000)} Ko
             </figcaption>
             <div className="admin-actions">
               {p.publiable ? (
-                <span className="etiquette etat-verifiee">Vérifiée : publiable</span>
+                <span className="etiquette etat-verifiee">
+                  {peutParaitreSurLeSite(p.role)
+                    ? 'Contrôlée pour publication'
+                    : 'Contrôlée : reste privée'}
+                </span>
               ) : !peutMarquer ? null : (
                 <button
                   type="button"
                   className="bouton bouton-secondaire bouton-petit"
                   onClick={() => void agir(() => admin.marquerPhotoPubliable(p.id, true))}
                 >
-                  Marquer publiable
+                  {peutParaitreSurLeSite(p.role)
+                    ? 'Contrôler pour publication'
+                    : 'Marquer comme contrôlée (privée)'}
                 </button>
               )}
               {aEffacer === p.id ? (

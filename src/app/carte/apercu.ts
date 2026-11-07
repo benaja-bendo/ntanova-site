@@ -14,7 +14,7 @@ import { disque, element, icone } from '../../ui/dom-pieces';
 export const dateCarte = (s: string) =>
   new Intl.DateTimeFormat('fr', {
     day: 'numeric',
-    month: 'long',
+    month: 'short',
     year: 'numeric',
     timeZone: 'Africa/Brazzaville',
   }).format(new Date(s));
@@ -83,24 +83,26 @@ export function creerApercu(
     bloc.append(repere);
   }
 
-  if (f.passage)
-    bloc.append(
-      preuve(
-        '',
-        'oeil',
-        `Vue sur place le ${dateCarte(f.passage)}`,
-        'Par un jeune du quartier : seulement ce qui se voit de la rue.',
-      ),
-    );
+  if (f.passage) bloc.append(preuve('', 'oeil', `Relevé terrain · ${dateCarte(f.passage)}`));
   if (f.confirmation)
     bloc.append(
       preuve(
         'preuve-direction',
         'bouclier',
-        `Confirmée par la direction le ${dateCarte(f.confirmation)}`,
+        `Confirmée par l’école · ${dateCarte(f.confirmation)}`,
       ),
     );
   if (!f.passage && !f.confirmation) bloc.append(preuve('preuve-vide', 'oeil', f.preuveTexte));
+
+  if (f.photo) {
+    const image = element('img', 'apercu-photo');
+    image.src = f.photo;
+    image.alt = `Vue de ${f.nom}`;
+    image.width = 360;
+    image.height = 160;
+    image.loading = 'lazy';
+    bloc.append(image);
+  }
 
   const actions = element('div', 'apercu-actions');
   const lien = (

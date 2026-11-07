@@ -16,6 +16,7 @@ import { libelleNiveau } from './libelles';
 import type { Valeur } from './listes';
 import type { DetailReleve } from './ports';
 import { numeroCongolaisSuspect } from './telephone';
+import { peutParaitreSurLeSite } from './photos-publiques';
 
 /** Comment l'envoi entre dans le catalogue : la décision en un geste. */
 export type Cible =
@@ -139,7 +140,7 @@ export interface EntreeAvantAccepter {
     | 'numeroEnseigne'
     | 'direction'
   >;
-  /** Les photos reçues : leur rôle, et si l'administration les a vérifiées (sans enfant, sans nom ni numéro de personne). */
+  /** Les photos reçues : leur rôle, et si l'administration les a contrôlées (sans enfant, sans nom ni numéro de personne). */
   photos: readonly { role: Valeur<'photo_role'>; publiable: boolean }[];
   /** Un contact est lu pour cette fiche (la sienne, ou celle qu'elle corrige). */
   contact: boolean;
@@ -163,7 +164,7 @@ export interface AvantDAccepter {
 
 /**
  * Ce qui est prêt, ce qui manque sans bloquer, et ce que fait « Accepter » : le fondateur lit ce qui se passe avant de
- * cliquer. Un contact qui manque, des formations pas saisies, une photo pas encore vérifiée n'empêchent jamais d'accepter ;
+ * cliquer. Un contact qui manque, des formations pas saisies, une photo pas encore contrôlée n'empêchent jamais d'accepter ;
  * ils sont dits comme tels. Seule la division à choisir (ou l'institution, l'implantation) bloque.
  */
 export function avantDAccepter(entree: EntreeAvantAccepter): AvantDAccepter {
@@ -171,32 +172,41 @@ export function avantDAccepter(entree: EntreeAvantAccepter): AvantDAccepter {
   const lignes: LigneAvantAccepter[] = [];
   const miseAJour = fiche.type === 'correction' && !fiche.corrigeUneFicheEnAttente;
 
-  // Les photos : une photo ne paraît que vérifiée.
+  // Les photos : seules une enseigne et une vue du bâtiment, contrôlées, peuvent paraître (la première retenue par le
+  // repli automatique, ou un choix prioritaire). Le panneau des formations et le prospectus restent privés.
   const nombre = photos.length;
-  const verifiees = photos.filter((p) => p.publiable).length;
+  const publiables = photos.filter((p) => peutParaitreSurLeSite(p.role));
+  const controlees = publiables.filter((p) => p.publiable).length;
+  const APRES = 'après la prochaine mise à jour du site';
   const photosTexte =
     nombre === 0
       ? { etat: 'a_faire' as const, texte: 'Aucune photo reçue : l’école n’aura pas d’image.' }
-      : verifiees === nombre
+      : publiables.length === 0
         ? {
-            etat: 'ok' as const,
+            etat: 'a_faire' as const,
             texte:
-              nombre === 1
-                ? '1 reçue, vérifiée : elle pourra paraître.'
-                : `${nombre} reçues, toutes vérifiées : elles pourront paraître.`,
+              'Ni enseigne ni vue du bâtiment reçue : l’école n’aura pas d’image (les autres photos restent privées).',
           }
-        : verifiees === 0
+        : controlees === publiables.length
           ? {
-              etat: 'a_faire' as const,
+              etat: 'ok' as const,
               texte:
-                nombre === 1
-                  ? '1 reçue, pas encore vérifiée : sans « Marquer publiable », elle ne paraîtra pas.'
-                  : `${nombre} reçues, aucune vérifiée : sans « Marquer publiable », elles ne paraîtront pas.`,
+                publiables.length === 1
+                  ? `1 reçue, contrôlée pour publication : elle pourra paraître ${APRES}.`
+                  : `${publiables.length} reçues, toutes contrôlées pour publication : la première pourra paraître ${APRES}.`,
             }
-          : {
-              etat: 'a_faire' as const,
-              texte: `${nombre} reçues, ${verifiees} vérifiée${verifiees > 1 ? 's' : ''} : les autres ne paraîtront pas tant qu’elles ne sont pas marquées publiables.`,
-            };
+          : controlees === 0
+            ? {
+                etat: 'a_faire' as const,
+                texte:
+                  publiables.length === 1
+                    ? '1 reçue, pas encore contrôlée : sans « Contrôler pour publication », elle ne paraîtra pas.'
+                    : `${publiables.length} reçues, aucune contrôlée : sans « Contrôler pour publication », elles ne paraîtront pas.`,
+              }
+            : {
+                etat: 'a_faire' as const,
+                texte: `${publiables.length} reçues, ${controlees} contrôlée${controlees > 1 ? 's' : ''} pour publication : les autres ne paraîtront pas tant qu’elles ne sont pas contrôlées.`,
+              };
   lignes.push({ cle: 'photos', titre: 'Photos', ...photosTexte });
 
   // La position et la zone : seulement quand une école va être créée. Une correction d'une école déjà créée la met à jour.

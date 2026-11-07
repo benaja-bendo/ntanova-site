@@ -156,6 +156,16 @@ describe('les écoles de la carte', () => {
     expect(collection.features.map((f) => f.properties.id)).toEqual(['vue', 'conf']);
   });
 
+  it('partage uniquement le chemin local de la photo publique avec les aperçus', () => {
+    const avec = ecolesGeoJSON([
+      ecole('photo', { photo: { id: '93000000-0000-4000-8000-000000000001', prisLe: null } }),
+    ]);
+    expect(avec.features[0]?.properties.photo).toBe(
+      '/photos/93000000-0000-4000-8000-000000000001.webp',
+    );
+    expect(collection.features[0]?.properties.photo).toBeNull();
+  });
+
   it('place chaque école en [longitude, latitude]', () => {
     expect(collection.features[0]?.geometry).toEqual({
       type: 'Point',
@@ -171,11 +181,11 @@ describe('les écoles de la carte', () => {
       cycle: 'college',
       lettre: 'C',
       preuve: 'terrain',
-      preuveTexte: 'Vue sur place le 2 novembre 2026',
+      preuveTexte: 'Relevé terrain · 2 nov. 2026',
     });
     expect(collection.features[1]?.properties).toMatchObject({
       preuve: 'direction',
-      preuveTexte: 'Confirmée par la direction le 4 novembre 2026',
+      preuveTexte: 'Confirmée par l’école · 4 nov. 2026',
     });
   });
 
