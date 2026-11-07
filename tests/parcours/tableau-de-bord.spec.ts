@@ -55,16 +55,14 @@ test.describe('tableau de bord : À valider', () => {
     await expect(fenetre).toHaveCount(0);
   });
 
-  test('avec une seule photo, pas de bouton « Marquer les photos publiables » : le geste unitaire suffit', async ({
+  test('avec une seule photo, pas de bouton « Contrôler les photos » : le geste unitaire suffit', async ({
     page,
     context,
   }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
-    await expect(page.getByRole('button', { name: 'Marquer publiable' })).toHaveCount(1);
-    await expect(
-      page.getByRole('button', { name: /^Marquer les \d+ photos publiables$/ }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Contrôler pour publication' })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: /^Contrôler les \d+ photos$/ })).toHaveCount(0);
   });
 });
 

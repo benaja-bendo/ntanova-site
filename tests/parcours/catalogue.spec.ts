@@ -133,9 +133,15 @@ test.describe('valider un envoi : photos, formations, acceptation', () => {
     await expect(rangee).toContainText(/enseigne ou l.entrée/);
     await expect(rangee).toContainText(/panneau ou l.affiche des formations/);
     await expect(rangee).toContainText(/prospectus remis par l.école/);
-    // L'administration marque publiable ce qui l'est.
-    await photos.first().getByRole('button', { name: 'Marquer publiable' }).click();
-    await expect(photos.first().getByText('Vérifiée : publiable')).toBeVisible();
+    // L'administration contrôle pour publication ce qui peut l'être : l'enseigne seule. Le panneau et le prospectus
+    // se contrôlent aussi, mais restent privés, et ne promettent rien de public.
+    await photos.first().getByRole('button', { name: 'Contrôler pour publication' }).click();
+    await expect(photos.first().getByText('Contrôlée pour publication')).toBeVisible();
+    await expect(
+      photos.nth(1).getByRole('button', { name: /Marquer comme contrôlée \(privée\)/ }),
+    ).toBeVisible();
+    await expect(photos.nth(1)).not.toContainText('Contrôler pour publication');
+    await expect(photos.nth(2)).not.toContainText('Contrôler pour publication');
 
     // Ce que le relais a noté d'un coup d'œil.
     await expect(page.getByText('Séries ou filières vues')).toBeVisible();

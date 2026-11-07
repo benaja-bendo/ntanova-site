@@ -86,7 +86,7 @@ export const motifsProposes: Valeur<'motif_decision'>[] = [
 /**
  * D'où vient une fiche publiée (ticket #99, décisions du fondateur du 03/11) : confirmée par la
  * direction (l'accord daté), vue sur place par un relais, ou ajoutée par NTanova (aucun relais n'est
- * passé). « Vue sur place » se lit sur la date du relevé (`surveyed_at`), que seule l'acceptation d'un
+ * passé). « Relevé terrain » se lit sur la date du relevé (`surveyed_at`), que seule l'acceptation d'un
  * relevé pose : une fiche sans cette date n'est jamais dite vue sur place. Les deux preuves ne se
  * fusionnent pas : la fiche les écrit l'une après l'autre ; une liste n'en montre qu'une, la plus forte.
  */
@@ -104,9 +104,9 @@ export function provenanceDe(e: {
 }
 
 export const libelleProvenance: Record<Provenance, string> = {
-  verifiee: 'Confirmée par la direction',
-  relevee: 'Vue sur place',
-  ajoutee: 'Ajoutée par NTanova, pas encore vue sur place',
+  verifiee: 'Confirmée par l’école',
+  relevee: 'Relevé terrain',
+  ajoutee: 'Ajoutée par NTanova',
   declaree: 'Déclarée par l’école',
 };
 

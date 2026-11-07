@@ -1,7 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { PortAdministration, PhotoVue } from '../../modele/ports';
 import { Dialogue } from '../../ui/Dialogue';
 import { dateLongue } from '../../modele/pointe-noire';
+import { libelleRolePhotoCourt } from '../../modele/libelles';
+import { decrirePhotosPubliques, type EtatPhotoPublique } from '../../modele/photos-publiques';
+
+/**
+ * La photo publique d'une école : une enseigne ou une vue du bâtiment, d'un relevé accepté. Sans choix, la base retient
+ * la première photo contrôlée (repli automatique) ; un choix prioritaire passe avant ; un retrait explicite bloque tout
+ * repli. L'écran dit l'état que la base répond, jamais une règle recopiée.
+ */
 export function PhotoPublique({
   ecoleId,
   nom,
@@ -20,6 +28,7 @@ export function PhotoPublique({
   surChangement: (texte: string) => void;
 }) {
   const [photos, setPhotos] = useState<PhotoVue[] | null>(null),
+    [etat, setEtat] = useState<EtatPhotoPublique | null>(null),
     [erreur, setErreur] = useState<string | null>(null),
     [choix, setChoix] = useState(''),
     [confirme, setConfirme] = useState(false),
@@ -28,12 +37,17 @@ export function PhotoPublique({
     surOccupation?.(enCours);
     return () => surOccupation?.(false);
   }, [enCours, surOccupation]);
+  const lire = useCallback(
+    () => Promise.all([admin.photosEcole(ecoleId), admin.etatPhotoPublique(ecoleId)]),
+    [admin, ecoleId],
+  );
   useEffect(() => {
     let vivant = true;
-    void admin
-      .photosEcole(ecoleId)
-      .then((p) => {
-        if (vivant) setPhotos(p);
+    void lire()
+      .then(([p, e]) => {
+        if (!vivant) return;
+        setPhotos(p);
+        setEtat(e);
       })
       .catch(() => {
         if (vivant) setErreur('Les photos ne se chargent pas.');
@@ -41,7 +55,9 @@ export function PhotoPublique({
     return () => {
       vivant = false;
     };
-  }, [admin, ecoleId]);
+  }, [lire]);
+  // `id` nul = retrait explicite : la base écrit un choix nul qui bloque aussi le repli automatique. Jamais un simple
+  // retrait du contrôle d'une photo, qui ferait paraître une autre photo contrôlée.
   const agir = async (id: string | null) => {
     if (id && !confirme) {
       setErreur('Confirme le contrôle et la publication de cette photo.');
@@ -51,11 +67,15 @@ export function PhotoPublique({
     setErreur(null);
     try {
       await admin.choisirPhotoPublique(ecoleId, id, id !== null && confirme);
-      setPhotos(await admin.photosEcole(ecoleId));
+      const [p, e] = await lire();
+      setPhotos(p);
+      setEtat(e);
       setChoix('');
       setConfirme(false);
       surChangement(
-        'Sélection de photo mise à jour. Reconstruis le site pour l’afficher ou la retirer.',
+        id === null
+          ? 'Retrait enregistré : aucune autre photo ne prend sa place. Reconstruis le site pour la retirer de la fiche.'
+          : 'Choix prioritaire enregistré. Reconstruis le site pour l’afficher.',
       );
     } catch (e) {
       setErreur(e instanceof Error ? e.message : 'La sélection a échoué.');
@@ -63,52 +83,67 @@ export function PhotoPublique({
       setEnCours(false);
     }
   };
-  const enseignes = photos?.filter((p) => p.role === 'signboard') ?? [];
+  const description = photos && etat ? decrirePhotosPubliques(photos, etat) : null;
+  const parPhoto = new Map(description?.photos.map((d) => [d.id, d]) ?? []);
   return (
     <Dialogue titre={`Photo publique de ${nom}`} fermer={fermer} integre={integre}>
-      <h2>Photo d’enseigne publique</h2>
+      <h2>Photo publique de la fiche</h2>
       <p>
-        Une seule enseigne, choisie parmi les relevés acceptés de cette école. « Publiable » ne veut
-        pas dire « publiée ».
+        Une enseigne ou une vue du bâtiment, d’un relevé accepté de cette école. « Contrôlée » ne
+        veut pas dire « publique » : seule la photo retenue paraît.
       </p>
       <p className="mention">
-        La photo paraît seulement si la fiche est publiée, après reconstruction du site. Un retrait
+        Elle paraît seulement si la fiche est publiée, après reconstruction du site. Un retrait
         exige aussi cette mise à jour ; les copies déjà partagées peuvent subsister.
       </p>
-      {photos === null && !erreur && <p role="status">Chargement des photos…</p>}
-      {photos !== null && !enseignes.length && (
-        <p>Aucune photo d’enseigne issue d’un relevé accepté.</p>
+      {description === null && !erreur && <p role="status">Chargement des photos…</p>}
+      {description && (
+        <p>
+          <strong>État :</strong> {description.resume}
+        </p>
+      )}
+      {description?.retirable && (
+        <div className="pile-serree">
+          <button
+            type="button"
+            className="bouton bouton-secondaire"
+            disabled={enCours}
+            onClick={() => void agir(null)}
+          >
+            Retirer la photo publique
+          </button>
+          <p className="mention">
+            Le retrait bloque aussi le choix automatique : aucune autre photo, même contrôlée, ne
+            prend sa place. Tu pourras choisir une photo ensuite.
+          </p>
+        </div>
+      )}
+      {photos !== null && !photos.length && (
+        <p>Aucune enseigne ni vue du bâtiment issue d’un relevé accepté.</p>
       )}
       <div className="pile">
-        {enseignes.map((p) => (
-          <figure className="admin-figure" key={p.id}>
-            {p.adresse ? (
-              <a href={p.adresse} target="_blank" rel="noopener noreferrer">
-                <img src={p.adresse} alt={`Enseigne de ${nom}`} />
-              </a>
-            ) : (
-              <p>Photo illisible : elle ne peut pas être sélectionnée.</p>
-            )}
-            <figcaption>
-              {p.prisLe
-                ? `Photo prise sur place le ${dateLongue(p.prisLe)}`
-                : 'Date de prise de vue non renseignée.'}{' '}
-              {p.publique
-                ? 'Sélectionnée pour la publication.'
-                : p.publiable
-                  ? 'Contrôlée publiable, non sélectionnée.'
-                  : 'Privée, non contrôlée.'}
-            </figcaption>
-            {p.publique ? (
-              <button
-                className="bouton bouton-secondaire"
-                disabled={enCours}
-                onClick={() => void agir(null)}
-              >
-                Retirer la photo publique
-              </button>
-            ) : (
-              p.adresse && (
+        {(photos ?? []).map((p) => {
+          const d = parPhoto.get(p.id);
+          const dejaChoisie = d?.prioritaire === true && d.situation !== 'prioritaire_invalide';
+          return (
+            <figure className="admin-figure" key={p.id}>
+              {p.adresse ? (
+                <a href={p.adresse} target="_blank" rel="noopener noreferrer">
+                  <img src={p.adresse} alt={`${libelleRolePhotoCourt[p.role]} — ${nom}`} />
+                </a>
+              ) : (
+                <p>Photo illisible : elle ne peut pas être sélectionnée.</p>
+              )}
+              <figcaption>
+                <b>{libelleRolePhotoCourt[p.role]}</b>
+                <br />
+                {p.prisLe
+                  ? `Photo prise sur place le ${dateLongue(p.prisLe)}`
+                  : 'Date de prise de vue non renseignée.'}
+                <br />
+                {d?.phrase}
+              </figcaption>
+              {p.adresse && !dejaChoisie && (
                 <button
                   className="bouton bouton-secondaire"
                   aria-pressed={choix === p.id}
@@ -119,12 +154,14 @@ export function PhotoPublique({
                     setErreur(null);
                   }}
                 >
-                  Choisir cette enseigne
+                  {p.role === 'building'
+                    ? 'Choisir cette vue du bâtiment'
+                    : 'Choisir cette enseigne'}
                 </button>
-              )
-            )}
-          </figure>
-        ))}
+              )}
+            </figure>
+          );
+        })}
       </div>
       {choix && (
         <div className="pile">

@@ -47,7 +47,7 @@ test('de la ville à la fiche : arrondissement, pastille, coin vu de près, éco
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Un coin de Tié-Tié');
   const carte = page.getByRole('group', { name: /vues de près/ });
   await expect(
-    carte.getByRole('link', { name: /Complexe scolaire Exemple.*vue sur place/ }),
+    carte.getByRole('link', { name: /Complexe scolaire Exemple.*relevé terrain/ }),
   ).toBeVisible();
   await expect(carte.getByRole('link', { name: /Centre de formation Exemple/ })).toBeVisible();
   await expect(page.locator('#ecoles-du-coin').getByRole('link')).toHaveCount(2);
@@ -130,13 +130,13 @@ test('une école située par l’administration, sans relevé, est dans la liste
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
   await expect(
     page.getByRole('link', {
-      name: /\[École ajoutée Exemple\].*Ajoutée par NTanova, pas encore vue sur place/,
+      name: /\[École ajoutée Exemple\].*Ajoutée par NTanova/,
     }),
   ).toBeVisible();
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-ajoutee-exemple/');
-  await expect(page.getByText('Ajoutée par NTanova le 3 novembre 2026')).toBeVisible();
-  await expect(page.getByText(/Pas encore vue sur place par un jeune du quartier/)).toBeVisible();
-  await expect(page.getByText(/Vue sur place le/)).toHaveCount(0);
+  await expect(page.getByText('Ajoutée par NTanova · 3 nov. 2026')).toBeVisible();
+  await expect(page.locator('.preuves')).toContainText('Ajoutée par NTanova');
+  await expect(page.getByText(/Relevé terrain ·/)).toHaveCount(0);
   // Sa fiche garde son petit plan : il dit où est l'école.
   await expect(page.getByRole('group', { name: /sur la carte de Tié-Tié/ })).toBeVisible();
   await page.goto('/cartes/congo/pointe-noire/tie-tie/');

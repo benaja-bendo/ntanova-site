@@ -21,9 +21,10 @@ const { contact, enseigne } = Astro.props;
 )}
 {enseigne && enseigne !== contact?.numero && (
   <>
-    <dt>Numéro sur l’enseigne</dt>
+    <dt>Téléphone</dt>
     <dd>
       <a href={`tel:+${enseigne}`}>{afficherTelephone(enseigne)}</a>
+      <p class="mention">Relevé sur l’enseigne</p>
     </dd>
   </>
 )}

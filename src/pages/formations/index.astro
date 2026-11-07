@@ -43,7 +43,7 @@ const lettreDuNiveau = (valeur: string) => lettresDesCycles([valeur as Valeur<'n
       <p class="texte-doux">
         {groupes.length > 0
           ? `Les écoles publiées, rangées par ${enumeration}.`
-          : 'Les formations se lisent sur les panneaux et les prospectus relevés par les jeunes du quartier.'}
+          : 'Les formations renseignées dans l’annuaire.'}
       </p>
     </div>
     <p>
@@ -52,12 +52,7 @@ const lettreDuNiveau = (valeur: string) => lettresDesCycles([valeur as Valeur<'n
       </a>
     </p>
 
-    {groupes.length === 0 && (
-      <p class="carte">
-        Aucune formation n’est encore publiée : elles se lisent sur les panneaux et les prospectus
-        relevés par les jeunes du quartier.
-      </p>
-    )}
+    {groupes.length === 0 && <p class="carte">Aucune formation n’est encore publiée.</p>}
 
     {groupes.map((g) => (
       <section aria-label={NOM_FACETTE[g.facette]}>

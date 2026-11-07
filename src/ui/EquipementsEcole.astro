@@ -1,19 +1,10 @@
 ---
-import {
-  nomEquipement,
-  etatPublicEquipement,
-  libelleEquipement,
-  type Equipement,
-} from '../modele/equipements-ecole';
-import { listes } from '../modele/listes';
+import { nomEquipement, etatPublicEquipement, type Equipement } from '../modele/equipements-ecole';
 import { dateLongue } from '../modele/pointe-noire';
 interface Props {
   equipements: Equipement[];
 }
 const { equipements } = Astro.props;
-const manquants = listes.equipment_key.filter(
-  (c) => c !== 'autre' && !equipements.some((e) => e.cle === c),
-);
 ---
 
 {equipements.length > 0 && (
@@ -36,11 +27,6 @@ const manquants = listes.equipment_key.filter(
         </li>
       ))}
     </ul>
-    {manquants.length > 0 && (
-      <p class="date-equipement">
-        Non renseignés : {manquants.map((c) => libelleEquipement[c]).join(', ')}.
-      </p>
-    )}
   </section>
 )}
 <style>

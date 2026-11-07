@@ -18,7 +18,7 @@ const ecole = (id: string, lettres: string, x: number): FeatureEcole => ({
     type: null,
     repere: null,
     preuve: 'terrain',
-    preuveTexte: 'Vue sur place',
+    preuveTexte: 'Relevé terrain',
   },
 });
 describe('état partageable de la carte', () => {

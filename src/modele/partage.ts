@@ -10,7 +10,7 @@
 import type { EcolePubliee } from './ports';
 import { ligneDeLieu } from './geo-divisions';
 import { libelleProvenance, provenanceDe } from './libelles';
-import { dateLongue } from './pointe-noire';
+import { dateLongue, dateCourte } from './pointe-noire';
 
 export const LARGEUR_PARTAGE = 1200;
 export const HAUTEUR_PARTAGE = 630;
@@ -57,13 +57,13 @@ export function preuveDePartage(
   if (provenance === 'verifiee') {
     return {
       genre: 'direction',
-      texte: `${libelleProvenance.verifiee}${e.verifieeLe ? ` le ${dateLongue(e.verifieeLe)}` : ''}`,
+      texte: `${libelleProvenance.verifiee}${e.verifieeLe ? ` · ${dateCourte(e.verifieeLe)}` : ''}`,
     };
   }
   if (provenance === 'relevee' && e.releveeLe) {
     return {
       genre: 'terrain',
-      texte: `${libelleProvenance.relevee} le ${dateLongue(e.releveeLe)}`,
+      texte: `${libelleProvenance.relevee} · ${dateCourte(e.releveeLe)}`,
     };
   }
   if (provenance === 'declaree')

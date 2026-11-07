@@ -180,8 +180,8 @@ test('la popup de l’accueil partage le même aperçu et les deux preuves daté
     return { x: r.x + p.x, y: r.y + p.y };
   });
   await page.touchscreen.tap(point.x, point.y);
-  await expect(page.locator('.carte-apercu')).toContainText('Vue sur place le');
-  await expect(page.locator('.carte-apercu')).toContainText('Confirmée par la direction le');
+  await expect(page.locator('.carte-apercu')).toContainText('Relevé terrain ·');
+  await expect(page.locator('.carte-apercu')).toContainText('Confirmée par l’école ·');
   await expect(
     page.locator('.carte-apercu').getByRole('link', { name: 'Partager sur WhatsApp' }),
   ).toBeVisible();

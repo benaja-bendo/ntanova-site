@@ -62,11 +62,11 @@ test('fiche publique : observé, déclaré absent et non précisé restent disti
   await expect(b).toContainText('Absence déclarée par l’école');
   await expect(b).toContainText('Non précisé par l’école');
   await expect(b).toContainText('Déclaration du 3 novembre 2026.');
-  await expect(b).toContainText('Non renseignés :');
-  await expect(b).not.toContainText('Confirmée par la direction');
+  await expect(b).not.toContainText('Non renseignés :');
+  await expect(b).not.toContainText('Confirmée par l’école');
 });
 test('sans information : aucun équipement supposé absent', async ({ page }) => {
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/centre-de-formation-exemple/');
   await expect(page.getByRole('region', { name: 'Équipements et infrastructures' })).toHaveCount(0);
-  await expect(page.getByText('Équipements', { exact: true })).toBeVisible();
+  await expect(page.getByText('Équipements', { exact: true })).toHaveCount(0);
 });

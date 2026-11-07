@@ -60,16 +60,18 @@ test.describe('avant d’accepter, l’écran dit ce qui se passe et ce qui manq
     await expect(avant(page)).toContainText('Rien ne bloque');
     await expect(avant(page)).toContainText('Reçu.');
     await expect(avant(page)).toContainText('Tié-Tié');
-    // La photo reçue n'est pas encore vérifiée : sans cela, elle ne paraîtra pas.
-    await expect(avant(page)).toContainText('pas encore vérifiée');
+    // L'enseigne reçue n'est pas encore contrôlée : sans cela, elle ne paraîtra pas.
+    await expect(avant(page)).toContainText('pas encore contrôlée');
+    await expect(avant(page)).toContainText('Contrôler pour publication');
     // Ce que fait « Accepter », et où se publie l'école.
     await expect(avant(page)).toContainText('devient « prête »');
     await expect(avant(page)).toContainText('Écoles › Publier');
 
-    // Vérifiée : la ligne le dit.
-    await page.getByRole('button', { name: 'Marquer publiable' }).click();
-    await expect(avant(page)).toContainText('vérifiée : elle pourra paraître');
-    await expect(avant(page)).not.toContainText('pas encore vérifiée');
+    // Contrôlée : la ligne le dit, sans promettre autre chose que l'apparition après la mise à jour du site.
+    await page.getByRole('button', { name: 'Contrôler pour publication' }).click();
+    await expect(avant(page)).toContainText('contrôlée pour publication : elle pourra paraître');
+    await expect(avant(page)).toContainText('après la prochaine mise à jour du site');
+    await expect(avant(page)).not.toContainText('pas encore contrôlée');
   });
 
   test('ce qui manque sans bloquer est dit comme facultatif : contact, formations, numéro à 10 chiffres', async ({

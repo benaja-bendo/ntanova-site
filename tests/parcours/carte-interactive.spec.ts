@@ -162,7 +162,7 @@ test('un groupe se défait au toucher, une épingle ouvre son aperçu avec le li
   const apercu = page.locator('.carte-apercu');
   await expect(apercu).toBeVisible();
   await expect(apercu).toContainText(String(confirmee!.proprietes.nom));
-  await expect(apercu).toContainText('Confirmée par la direction le');
+  await expect(apercu).toContainText('Confirmée par l’école ·');
   const lien = apercu.getByRole('link', { name: 'Voir la fiche' });
   await expect(lien).toHaveAttribute('href', String(confirmee!.proprietes.lien));
   // Le lien est une vraie cible de doigt : 44 px au moins.
@@ -193,8 +193,8 @@ test('un groupe se défait au toucher, une épingle ouvre son aperçu avec le li
   )!;
   await page.touchscreen.tap(cibleVue.x, cibleVue.y);
   await expect(page.locator('.carte-apercu')).toContainText(String(vue!.proprietes.nom));
-  await expect(page.locator('.carte-apercu')).toContainText('Vue sur place le');
-  await expect(page.locator('.carte-apercu')).not.toContainText('Confirmée par la direction');
+  await expect(page.locator('.carte-apercu')).toContainText('Relevé terrain ·');
+  await expect(page.locator('.carte-apercu')).not.toContainText('Confirmée par l’école');
 });
 
 test('hors de Pointe-Noire et de Brazzaville, le zoom s’arrête à 10 : le fichier n’a pas de tuile plus fine', async ({

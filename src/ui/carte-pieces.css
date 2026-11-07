@@ -459,3 +459,24 @@
   background: var(--vert-pale);
 }
 /* Sur téléphone, la croix ferme la fiche ; sur ordinateur, le retour à la liste. */
+
+.carte-apercu .preuve {
+  padding: var(--espace-1) var(--espace-2);
+  font-size: var(--taille-secondaire);
+  border-width: 1px;
+  background: var(--fond);
+  color: var(--texte);
+}
+.apercu-photo {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+}
+
+.carte-apercu .preuve-direction strong,
+.carte-apercu .preuve-direction .ico {
+  color: var(--marque);
+}

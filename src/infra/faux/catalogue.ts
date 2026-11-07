@@ -423,7 +423,8 @@ const ECOLES: EcolePubliee[] = [
     quartier: null,
     typeEcole: 'privee',
     niveaux: ['maternelle', 'primaire'],
-    programme: null,
+    programme: 'Français',
+    photo: { id: '93000000-0000-4000-8000-000000000002', prisLe: '2026-11-03' },
     repere: '[près de la mairie]',
     numeroEnseigne: null,
     latitude: -4.8,
@@ -508,7 +509,10 @@ const ECOLES: EcolePubliee[] = [
 
 export const catalogueFaux: PortCatalogue = {
   async lirePhotoPublique(id) {
-    if (id !== '93000000-0000-4000-8000-000000000001') throw new Error('Photo inconnue.');
+    if (
+      !['93000000-0000-4000-8000-000000000001', '93000000-0000-4000-8000-000000000002'].includes(id)
+    )
+      throw new Error('Photo inconnue.');
     return photoExemple();
   },
   async divisions() {

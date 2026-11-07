@@ -53,7 +53,7 @@ test('fiche publique : accord daté et numéro d’enseigne gardent leur provena
     'href',
     'tel:+242060000009',
   );
-  await expect(page.getByText('Confirmée par la direction', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Confirmée par l’école', { exact: true })).toHaveCount(0);
 });
 test('même numéro sur l’enseigne et communiqué : un appel, deux provenances', async ({ page }) => {
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-sans-detail-exemple/');
@@ -68,7 +68,7 @@ test('même numéro sur l’enseigne et communiqué : un appel, deux provenances
 test('sans accord public : pas de nouveau contact ni de mention inventée', async ({ page }) => {
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/centre-de-formation-exemple/');
   await expect(page.getByText('Contact communiqué par l’école', { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Contact de l'école", { exact: true })).toBeVisible();
+  await expect(page.getByText("Contact de l'école", { exact: true })).toHaveCount(0);
 });
 
 test('sur téléphone : formulaire entier dans une fenêtre, Échap rend le focus', async ({
