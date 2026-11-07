@@ -40,6 +40,7 @@ import type {
 import { Bandeau, Champ, Choix, jour } from '../../ui/composants';
 import { ChampPosition, messageErreur as message } from './ChampPosition';
 import { Creation } from './Creation';
+import { useAdresse } from '../commun/adresse';
 
 export const libelleMotifRetrait: Record<Valeur<'motif_retrait'>, string> = {
   demande_ecole: "À la demande de l'école",
@@ -922,7 +923,11 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   const [zone, setZone] = useState('');
   const [filtre, setFiltre] = useState<Filtre>('toutes');
   const [recherche, setRecherche] = useState('');
-  const [divisionFiltre, setDivisionFiltre] = useState('');
+  // « Voir les écoles » depuis une zone arrive ici avec la zone déjà choisie (#ecoles/zone/<id>).
+  const [, sousAdresse, zoneDeLAdresse] = useAdresse();
+  const [divisionFiltre, setDivisionFiltre] = useState(
+    sousAdresse === 'zone' ? (zoneDeLAdresse ?? '') : '',
+  );
   const [origine, setOrigine] = useState<FiltreOrigine>('toutes');
   const [erreur, setErreur] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);

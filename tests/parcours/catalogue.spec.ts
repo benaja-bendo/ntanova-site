@@ -1,6 +1,6 @@
 import { ouvrirContacts } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { seConnecter } from './aides';
+import { choisirLaZone, seConnecter } from './aides';
 
 // Chantier 3 : l'administration comme poste de pilotage du catalogue. Les photos côte à côte, les formations
 // lues sur le panneau, quatre façons d'accepter un relevé, le pont WhatsApp avec la direction, l'amorçage par
@@ -458,20 +458,20 @@ test.describe('amorcer le catalogue sans relais', () => {
 });
 
 test.describe('zones et lots', () => {
-  test('on ouvre une zone, on y pose un lot ; une zone fermée n’en reçoit pas', async ({
+  test('on ouvre une zone aux relais, on y pose un lot ; une zone fermée n’en reçoit pas', async ({
     page,
   }) => {
     test.setTimeout(60_000);
     await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Zones' }).click();
-    await expect(page.getByRole('heading', { name: 'Zones et lots' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Zones', level: 1 })).toBeVisible();
 
-    // Loandjili est fermée : un lot ne s'y pose pas, sauf d'entraînement.
+    // Loandjili est fermée : un lot ne s'y pose pas, sauf d'entraînement. La zone du volet est déjà choisie.
+    await choisirLaZone(page, /^Loandjili/);
+    await page.getByText('Créer un lot ici').click();
     const lot = page.getByRole('form', { name: 'Créer un lot' });
+    await expect(lot.getByLabel('Zone', { exact: true })).toHaveValue('d-pn-loandjili');
     await lot.getByLabel('Nom du lot').fill('[Lot Loandjili]');
-    await lot
-      .getByLabel('Zone', { exact: true })
-      .selectOption({ label: 'Congo › Pointe-Noire › Loandjili (fermée)' });
     await expect(lot.getByRole('button', { name: 'Créer le lot' })).toBeDisabled();
     await expect(lot.getByText(/Cette zone est fermée/)).toBeVisible();
     await lot.getByLabel(/Lot d’entraînement/).check();
@@ -479,16 +479,14 @@ test.describe('zones et lots', () => {
     await lot.getByLabel(/Lot d’entraînement/).uncheck();
 
     // On l'ouvre : tout ce qu'elle contient s'ouvre avec elle.
-    await page.getByRole('button', { name: 'Ouvrir Loandjili au relevé' }).click();
+    const ouverture = page.getByRole('switch', { name: 'Ouverte aux relais : Loandjili' });
+    await expect(ouverture).toHaveAttribute('aria-checked', 'false');
+    await ouverture.click();
     await expect(page.getByRole('status')).toHaveText(
-      'Loandjili est ouverte au relevé (avec tout ce qu’elle contient).',
+      'Loandjili est ouverte aux relais, avec tout ce qu’elle contient.',
     );
-    await expect(page.getByRole('button', { name: 'Fermer Loandjili au relevé' })).toBeVisible();
+    await expect(ouverture).toHaveAttribute('aria-checked', 'true');
 
-    await lot.getByLabel('Nom du lot').fill('[Lot Loandjili]');
-    await lot
-      .getByLabel('Zone', { exact: true })
-      .selectOption({ label: 'Congo › Pointe-Noire › Loandjili' });
     await lot.getByRole('button', { name: 'Créer le lot' }).click();
     await expect(page.getByRole('status')).toHaveText(/Le lot \[Lot Loandjili\] est créé/);
     await expect(
@@ -501,34 +499,47 @@ test.describe('zones et lots', () => {
     ).toBeVisible();
   });
 
-  test('l’état sur la carte se règle zone par zone, sans toucher à l’ouverture aux relais', async ({
+  test('l’état sur la carte se règle zone par zone, sans toucher à l’ouverture aux relais, et se défait', async ({
     page,
   }) => {
     await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Zones' }).click();
-    await expect(page.getByRole('heading', { name: 'Zones et lots' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Zones', level: 1 })).toBeVisible();
     // Les relais peuvent relever partout : le texte ne dit plus que « seule une zone ouverte » le permet.
     await expect(
       page.getByText(/Les relais peuvent relever partout au Congo-Brazzaville/),
     ).toBeVisible();
     await expect(page.getByText(/ne relèvent que dans une zone ouverte/)).toHaveCount(0);
 
-    // Loandjili : « Déploiement programmé » au départ (grisée sur la carte), fermée aux relais.
-    const etat = page.getByRole('combobox', { name: 'État de Loandjili sur la carte' });
-    await expect(etat).toHaveValue('programme');
-    await etat.selectOption({ label: 'Relevé en cours' });
+    // Loandjili : « Déploiement programmé » au départ (en tirets sur la carte), fermée aux relais.
+    await choisirLaZone(page, /^Loandjili/);
+    const etat = page.getByRole('group', { name: 'État de Loandjili sur la carte' });
+    await expect(etat.getByRole('radio', { name: 'Déploiement programmé' })).toBeChecked();
+    await etat.getByRole('radio', { name: 'Relevé en cours' }).click();
     await expect(page.getByRole('status')).toHaveText(
       'Loandjili est « Relevé en cours » sur la carte. Les relais ne sont pas concernés.',
     );
-    await expect(etat).toHaveValue('actif');
+    await expect(etat.getByRole('radio', { name: 'Relevé en cours' })).toBeChecked();
     // L'ouverture aux relais n'a pas bougé.
-    await expect(page.getByRole('button', { name: 'Ouvrir Loandjili au relevé' })).toBeVisible();
+    await expect(
+      page.getByRole('switch', { name: 'Ouverte aux relais : Loandjili' }),
+    ).toHaveAttribute('aria-checked', 'false');
 
-    await etat.selectOption({ label: 'Pas encore couverte' });
+    // « Annuler » remet l'état d'avant.
+    await page.getByRole('button', { name: 'Annuler' }).click();
+    await expect(page.getByRole('status')).toHaveText(
+      'Loandjili redevient « Déploiement programmé » sur la carte.',
+    );
+    await expect(etat.getByRole('radio', { name: 'Déploiement programmé' })).toBeChecked();
+
+    await etat.getByRole('radio', { name: 'Pas encore couverte' }).click();
     await expect(page.getByRole('status')).toContainText('Pas encore couverte');
-    await expect(etat).toHaveValue('');
-    // Une zone qui n'est pas dessinée sur la carte (un quartier, un pays) n'a pas de réglage.
-    await expect(page.getByRole('combobox', { name: /État de Congo sur la carte/ })).toHaveCount(0);
+    await expect(etat.getByRole('radio', { name: 'Pas encore couverte' })).toBeChecked();
+
+    // Une zone qui n'est pas dessinée sur la carte (un département, un pays) n'a pas de réglage.
+    await choisirLaZone(page, /^Congo\s*Pays/);
+    await expect(page.getByRole('heading', { name: 'Congo', level: 2 })).toBeVisible();
+    await expect(page.getByRole('group', { name: /sur la carte/ })).toHaveCount(0);
   });
 
   test('une zone nouvelle s’ouvre avec la zone qui la contient, ou reste fermée avec elle', async ({
@@ -536,12 +547,12 @@ test.describe('zones et lots', () => {
   }) => {
     await seConnecter(page, '/admin/#valider');
     await page.getByRole('link', { name: 'Zones' }).click();
-    const ajout = page.getByRole('form', { name: 'Ajouter une zone' });
 
     // Sous Tié-Tié, ouverte : la nouvelle zone l'est par héritage, et son adresse vient de son nom.
-    await ajout
-      .getByLabel('Sous quelle zone ?')
-      .selectOption({ label: 'Congo › Pointe-Noire › Tié-Tié (arrondissement)' });
+    await choisirLaZone(page, /^Tié-Tié/);
+    await page.getByText('Ajouter une sous-zone').click();
+    const ajout = page.getByRole('form', { name: 'Ajouter une zone' });
+    await expect(ajout.getByLabel('Sous quelle zone ?')).toHaveValue('d-pn-tie-tie');
     await ajout.getByLabel('Genre').selectOption({ label: 'Quartier' });
     await ajout.getByLabel('Nom', { exact: true }).fill('Mpaka Centre');
     await expect(ajout.getByLabel('Adresse (dans le lien)')).toHaveValue('mpaka-centre');
@@ -549,22 +560,27 @@ test.describe('zones et lots', () => {
     await expect(page.getByRole('status')).toHaveText(
       'Mpaka Centre est ajouté sous Tié-Tié. Les relais peuvent y relever, comme dans tout ce que contient sa zone.',
     );
-    await expect(
-      page.getByRole('row', { name: /Mpaka Centre/ }).getByText('Ouverte par Tié-Tié'),
-    ).toBeVisible();
+    // On arrive sur la zone nouvelle, ouverte par Tié-Tié.
+    await expect(page.getByRole('heading', { name: 'Mpaka Centre', level: 2 })).toBeVisible();
+    await expect(page.getByText(/Ouverte par Tié-Tié/)).toBeVisible();
 
     // Sous Lumumba, fermée : elle naît fermée, et c'est dit.
-    await ajout
-      .getByLabel('Sous quelle zone ?')
-      .selectOption({ label: 'Congo › Pointe-Noire › Lumumba (arrondissement)' });
+    await choisirLaZone(page, /^Lumumba/);
+    await page.getByText('Ajouter une sous-zone').click();
+    await expect(ajout.getByLabel('Sous quelle zone ?')).toHaveValue('d-pn-lumumba');
     await ajout.getByLabel('Nom', { exact: true }).fill('Fond Tié-Tié');
     await ajout.getByRole('button', { name: 'Ajouter la zone' }).click();
     await expect(page.getByRole('status')).toHaveText(
       'Fond Tié-Tié est ajouté sous Lumumba. Fermé aux relais : ouvre-le quand tu veux.',
     );
-    await expect(page.getByRole('button', { name: 'Ouvrir Fond Tié-Tié au relevé' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fond Tié-Tié', level: 2 })).toBeVisible();
+    await expect(
+      page.getByRole('switch', { name: 'Ouverte aux relais : Fond Tié-Tié' }),
+    ).toHaveAttribute('aria-checked', 'false');
 
     // Une adresse déjà prise sous le même parent est refusée en français.
+    await choisirLaZone(page, /^Lumumba/);
+    await page.getByText('Ajouter une sous-zone').click();
     await ajout.getByLabel('Nom', { exact: true }).fill('Fond Tié-Tié');
     await ajout.getByRole('button', { name: 'Ajouter la zone' }).click();
     await expect(ajout.getByRole('alert')).toContainText(/même adresse/);
