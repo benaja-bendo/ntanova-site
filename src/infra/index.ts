@@ -21,7 +21,7 @@ import type {
 } from '../modele/ports';
 import {
   facettesPubliques,
-  ligneDe,
+  lignesDeRecherche,
   type LigneRecherche,
   type ValeurFacette,
 } from '../modele/recherche';
@@ -106,7 +106,7 @@ export function obtenirSite(): Promise<Site> {
       domaines,
       redirections,
       facettes: facettesPubliques(ecoles, domaines),
-      recherche: ecoles.map(ligneDe),
+      recherche: lignesDeRecherche(ecoles, divisions),
     };
   })();
   return site;

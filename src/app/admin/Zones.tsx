@@ -52,6 +52,9 @@ export function Zones({ admin }: { admin: PortAdministration }) {
   const [retour, setRetour] = useState<Retour | null>(null);
   const [occupee, setOccupee] = useState<string | null>(null);
   const [aConfirmer, setAConfirmer] = useState<DivisionVue | null>(null);
+  const [aSupprimer, setASupprimer] = useState<DivisionVue | null>(null);
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false);
+  const [erreurSuppression, setErreurSuppression] = useState<string | null>(null);
   const [enCoursLot, setEnCoursLot] = useState(false);
   const [, sous] = useAdresse();
   const vue = sous === 'etapes' ? 'etapes' : 'arbre';
@@ -190,6 +193,21 @@ export function Zones({ admin }: { admin: PortAdministration }) {
     setRetour({ texte });
     charger();
     if (zoneId) aller(`zones/${zoneId}`);
+  };
+
+  // Supprimer une zone vide (une erreur de saisie) : définitif, donc confirmé ; la base redit tout ce qui s'y oppose.
+  const supprimer = async (zone: DivisionVue) => {
+    setSuppressionEnCours(true);
+    setErreurSuppression(null);
+    try {
+      await admin.supprimerDivision(zone.id);
+      setASupprimer(null);
+      surFait(`${zone.nom} est supprimée.`, zone.parentId ?? undefined);
+    } catch (e) {
+      setErreurSuppression(messageErreur(e));
+    } finally {
+      setSuppressionEnCours(false);
+    }
   };
 
   const noeudRetour = retour && (
@@ -464,6 +482,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                 surEtat={(etat) => void regler(choisie, etat)}
                 surOuverture={(ouverte) => demanderOuverture(choisie, ouverte)}
                 surFait={surFait}
+                surSuppression={setASupprimer}
               />
             </div>
           ) : (
@@ -568,6 +587,43 @@ export function Zones({ admin }: { admin: PortAdministration }) {
               surFait(texte, zoneId);
             }}
           />
+        </Dialogue>
+      )}
+
+      {aSupprimer && divisions !== null && (
+        <Dialogue
+          titre={`Supprimer ${aSupprimer.nom} ?`}
+          variante="confirmation"
+          libelleFermeture="Annuler"
+          occupe={suppressionEnCours}
+          fermer={() => {
+            setASupprimer(null);
+            setErreurSuppression(null);
+          }}
+          description="La suppression est définitive."
+          entete={<h2>Supprimer {aSupprimer.nom} ?</h2>}
+        >
+          <div className="pile-serree">
+            <p>
+              <b>{cheminLisible(aSupprimer.id, divisions)}</b> est vide : elle disparaît de
+              l’administration et du site à la prochaine mise à jour. C’est définitif, mais tu peux
+              la rajouter avec la même adresse.
+            </p>
+            {erreurSuppression && (
+              <p className="message-erreur" role="alert">
+                {erreurSuppression}
+              </p>
+            )}
+            <div className="choix-ligne">
+              <Bouton
+                variante="danger"
+                disabled={suppressionEnCours}
+                onClick={() => void supprimer(aSupprimer)}
+              >
+                Supprimer définitivement
+              </Bouton>
+            </div>
+          </div>
         </Dialogue>
       )}
 

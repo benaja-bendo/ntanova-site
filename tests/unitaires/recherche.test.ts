@@ -7,6 +7,7 @@ import {
   facettesPubliques,
   lienFacette,
   ligneDe,
+  lignesDeRecherche,
   normaliser,
   type LigneRecherche,
 } from '../../src/modele/recherche';
@@ -390,5 +391,44 @@ describe('les filtres avancés de la recherche (audit du 05/11/2026, D8)', () =>
       'niveau, série du bac, diplôme, domaine et rythme',
     );
     expect(enumererLesFacettes([])).toBe('');
+  });
+});
+
+describe('les autres écritures des zones se cherchent (audit du 07/11/2026)', () => {
+  const TIE = ['congo', 'pointe-noire', 'pointe-noire', 'tie-tie'];
+  const zones = [
+    { adresse: ['congo', 'pointe-noire'], alias: ['Pointe Noire ville'] },
+    { adresse: ['congo', 'pointe-noire', 'pointe-noire'], alias: ['PN'] },
+    { adresse: TIE, alias: ['Tietie', 'Tié Tié'] },
+    { adresse: ['congo', 'pointe-noire', 'pointe-noire', 'ngoyo'], alias: [] },
+  ];
+  const dansTie = ecole('t', 'Collège Exemple');
+  const ailleurs = ecole('a', 'Autre école', {
+    adresse: ['congo', 'brazzaville', 'moungali'],
+    divisionNoms: ['Congo', 'Brazzaville', 'Moungali'],
+  });
+  const lignes = lignesDeRecherche([dansTie, ailleurs], zones);
+
+  it('l’école porte les écritures de toutes les zones où elle se trouve, sans les afficher', () => {
+    expect(lignes[0]?.a).toBe('Pointe Noire ville PN Tietie Tié Tié');
+    expect(lignes[0]?.d).toBe('Congo › Pointe-Noire › Tié-Tié');
+  });
+
+  it('le département et la ville de même nom partagent leur adresse : leurs écritures se rejoignent', () => {
+    expect(lignes[0]?.a).toMatch(/^Pointe Noire ville PN /);
+  });
+
+  it('sans écriture, la ligne ne porte rien de plus (le fichier de recherche ne grossit pas)', () => {
+    expect('a' in lignes[1]!).toBe(false);
+    expect(lignesDeRecherche([dansTie], [])[0]).toEqual(ligneDe(dansTie));
+  });
+
+  it('« tietie » trouve les écoles de Tié-Tié, et seulement elles', () => {
+    expect(chercher(lignes, { texte: 'tietie' }).map((r) => r.ligne.i)).toEqual(['t']);
+    expect(chercher(lignes, { texte: 'collège pn' }).map((r) => r.ligne.i)).toEqual(['t']);
+  });
+
+  it('sans les écritures, la même recherche ne trouve rien', () => {
+    expect(chercher([ligneDe(dansTie)], { texte: 'tietie' })).toEqual([]);
   });
 });

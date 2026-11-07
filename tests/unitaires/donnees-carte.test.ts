@@ -332,6 +332,62 @@ describe('les zones de la carte', () => {
   });
 });
 
+describe('les communes et les districts sont dessinés comme les villes (audit du 07/11/2026)', () => {
+  const carre = [
+    [
+      [
+        [16.0, 0.5],
+        [16.1, 0.5],
+        [16.1, 0.6],
+        [16.0, 0.5],
+      ],
+    ],
+  ];
+  const SANGHA = ['congo', 'sangha'];
+  const divisions = [
+    division('pays', null, 0, 'country', 'Congo', 'congo', ['congo']),
+    division('sangha', 'pays', 1, 'department', 'Sangha', 'sangha', SANGHA),
+    division('ouesso', 'sangha', 2, 'commune', 'Ouesso', 'ouesso', [...SANGHA, 'ouesso'], {
+      deploiement: 'actif',
+      position: { latitude: 1.6136, longitude: 16.0517 },
+    }),
+    division('mossaka', 'pays', 2, 'district', 'Mossaka', 'mossaka', ['congo', 'mossaka'], {
+      deploiement: 'programme',
+    }),
+    division('sans-etat', 'sangha', 2, 'commune', 'Sans état', 'sans-etat', [...SANGHA, 'x'], {
+      position: { latitude: 1.7, longitude: 16.1 },
+    }),
+  ];
+  const zones = zonesGeoJSON({
+    divisions,
+    ecoles: [],
+    contourDe: (d) => (d.slug === 'mossaka' ? carre : null),
+  });
+  const parSlug = (slug: string, genre: string) =>
+    zones.features.find((f) => f.properties.slug === slug && f.properties.genre === genre);
+
+  it('une commune qui a un point et un état est un point de ville', () => {
+    expect(parSlug('ouesso', 'ville')?.geometry).toEqual({
+      type: 'Point',
+      coordinates: [16.0517, 1.6136],
+    });
+    expect(parSlug('ouesso', 'ville')?.properties).toMatchObject({
+      etat: 'actif',
+      libelle: 'Relevé en cours',
+      lien: '/ecoles/congo/sangha/ouesso/',
+    });
+  });
+
+  it('un district qui a son état et son contour est un polygone', () => {
+    expect(parSlug('mossaka', 'zone')?.geometry.type).toBe('MultiPolygon');
+    expect(parSlug('mossaka', 'zone')?.properties.etat).toBe('programme');
+  });
+
+  it('une commune sans état n’est toujours pas sur la carte', () => {
+    expect(zones.features.some((f) => f.properties.slug === 'sans-etat')).toBe(false);
+  });
+});
+
 describe('les contours des zones viennent de la base', () => {
   // Un carré de 1 km de côté avec dix points par côté, à sept décimales : la base garde plus que la carte n'en veut.
   const COTE = 0.009;

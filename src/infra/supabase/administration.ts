@@ -912,6 +912,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           level: number;
           kind: Valeur<'geo_kind'>;
           name: string;
+          aliases: string[] | null;
           slug: string;
           path: string;
           open_for_fieldwork: boolean;
@@ -919,7 +920,9 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         }>((de, a) =>
           supabase()
             .from('geo_divisions')
-            .select('id, parent_id, level, kind, name, slug, path, open_for_fieldwork, public_status')
+            .select(
+              'id, parent_id, level, kind, name, aliases, slug, path, open_for_fieldwork, public_status',
+            )
             .order('path')
             .range(de, a),
         ),
@@ -950,6 +953,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           niveau: d.level,
           genre: d.kind,
           nom: d.name,
+          aliases: d.aliases ?? [],
           slug: d.slug,
           chemin: d.path,
           ouverte: d.open_for_fieldwork,
@@ -1002,6 +1006,20 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       }
       decider(error);
       return (data as { id: string }).id;
+    },
+
+    async renommerDivision(divisionId, nom, aliases) {
+      const { error } = await supabase().rpc('rename_division', {
+        p_division: divisionId,
+        p_name: nom,
+        p_aliases: aliases,
+      });
+      decider(error);
+    },
+
+    async supprimerDivision(divisionId) {
+      const { error } = await supabase().rpc('delete_division', { p_division: divisionId });
+      decider(error);
     },
 
     // Écoles -------------------------------------------------------------------------------------------

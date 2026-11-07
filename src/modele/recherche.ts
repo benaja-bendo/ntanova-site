@@ -18,7 +18,7 @@ import {
 } from './libelles';
 import { listes, type Valeur } from './listes';
 import type { DomainePublic, EcolePubliee } from './ports';
-import { lienEcole } from './geo-divisions';
+import { lienEcole, sansRepetition } from './geo-divisions';
 
 /** Sans accent, en minuscules, les tirets et les apostrophes lus comme des espaces : « Tié-Tié » = « tie tie ». */
 export function normaliser(texte: string): string {
@@ -172,6 +172,11 @@ export interface LigneRecherche {
   u: string;
   /** Où : « Congo › Pointe-Noire › Tié-Tié ». */
   d: string;
+  /**
+   * Les autres écritures des zones où se trouve l'école (« Mvoumvou » pour « Mvou-Mvou »), pour chercher seulement : elles
+   * ne s'affichent jamais. Absent quand aucune zone n'en a.
+   */
+  a?: string;
   /** L'adresse de la zone (`congo/pointe-noire/tie-tie`), pour chercher dans une zone et tout ce qu'elle contient. */
   z: string;
   /** Le quartier dit sur place. */
@@ -192,6 +197,48 @@ export interface LigneRecherche {
   g?: 1;
   /** Le type de l'école, quand il est connu (la ligne d'une école l'écrit). */
   k?: Valeur<'type_ecole'>;
+}
+
+/** Les autres écritures des zones, par adresse de zone (`congo/pointe-noire/tie-tie`, sans répétition). */
+type EcrituresDesZones = ReadonlyMap<string, readonly string[]>;
+
+/** Ce que les zones disent d'elles-mêmes en dehors de leur nom : le département et la ville de même nom se partagent une adresse. */
+function ecrituresDesZones(
+  divisions: readonly { adresse: readonly string[]; alias: readonly string[] }[],
+): EcrituresDesZones {
+  const parAdresse = new Map<string, string[]>();
+  for (const d of divisions) {
+    if (d.alias.length === 0) continue;
+    const cle = sansRepetition(d.adresse).join('/');
+    parAdresse.set(cle, [...(parAdresse.get(cle) ?? []), ...d.alias]);
+  }
+  return parAdresse;
+}
+
+/** Les autres écritures de toutes les zones où se trouve l'école : sa ville, son arrondissement, le pays. */
+function ecrituresDeLEcole(adresse: readonly string[], ecritures: EcrituresDesZones): string[] {
+  const chaine = sansRepetition(adresse);
+  const trouvees: string[] = [];
+  for (let n = 1; n <= chaine.length; n++) {
+    trouvees.push(...(ecritures.get(chaine.slice(0, n).join('/')) ?? []));
+  }
+  return trouvees;
+}
+
+/**
+ * Le fichier de recherche : une ligne par école, avec les autres écritures des zones où elle se trouve (« Tietie » trouve
+ * Tié-Tié). Une zone qui n'en a pas n'ajoute rien à la ligne.
+ */
+export function lignesDeRecherche(
+  ecoles: readonly EcolePubliee[],
+  divisions: readonly { adresse: readonly string[]; alias: readonly string[] }[],
+): LigneRecherche[] {
+  const ecritures = ecrituresDesZones(divisions);
+  return ecoles.map((e) => {
+    const autres = ecrituresDeLEcole(e.adresse, ecritures);
+    const ligne = ligneDe(e);
+    return autres.length > 0 ? { ...ligne, a: autres.join(' ') } : ligne;
+  });
 }
 
 export function ligneDe(e: EcolePubliee): LigneRecherche {
@@ -278,7 +325,7 @@ export function chercher(lignes: readonly LigneRecherche[], criteres: Criteres):
     }
     if (mots.length > 0) {
       const motsDeLEcole = normaliser(
-        [ligne.n, ligne.e, ligne.d, ligne.q, ligne.r, ...ligne.f.map((f) => f.t)]
+        [ligne.n, ligne.e, ligne.d, ligne.a, ligne.q, ligne.r, ...ligne.f.map((f) => f.t)]
           .filter(Boolean)
           .join(' '),
       ).split(' ');

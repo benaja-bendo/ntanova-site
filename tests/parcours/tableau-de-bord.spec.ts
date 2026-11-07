@@ -462,6 +462,100 @@ test.describe('tableau de bord : Zones', () => {
     await expect(page.getByRole('heading', { name: 'Loandjili', level: 2 })).toHaveCount(0);
   });
 
+  test('une zone se renomme, dit ses autres écritures, et la recherche de l’arbre les trouve', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#zones/d-bz-moungali');
+    await expect(page.getByRole('heading', { name: 'Moungali', level: 2 })).toBeVisible();
+    await page.getByText('Renommer · autres écritures', { exact: true }).click();
+    const formulaire = page.getByRole('form', { name: 'Renommer Moungali' });
+    const enregistrer = formulaire.getByRole('button', { name: 'Enregistrer' });
+    // Rien n'a changé : rien à enregistrer.
+    await expect(enregistrer).toBeDisabled();
+    await expect(formulaire.getByText('L’adresse (moungali) ne change pas')).toBeVisible();
+
+    // Une autre écriture par ligne, avec des blancs et un doublon : la liste est nettoyée.
+    await formulaire
+      .getByLabel('Autres écritures, pour la recherche')
+      .fill('  Mongali \n\nMONGALI\nMoungali');
+    await enregistrer.click();
+    await expect(messageDeLaPage(page)).toContainText(
+      'Les autres écritures de Moungali sont enregistrées.',
+    );
+    await expect(page.getByLabel('Autres écritures, pour la recherche')).toHaveValue('Mongali');
+
+    // Le nom change, l'adresse reste : le lien du volet est le même.
+    await formulaire.getByLabel('Nom', { exact: true }).fill('Moungali centre');
+    await formulaire.getByRole('button', { name: 'Enregistrer' }).click();
+    await expect(page.getByRole('heading', { name: 'Moungali centre', level: 2 })).toBeVisible();
+    await expect(messageDeLaPage(page).first()).toContainText(
+      'Moungali s’appelle maintenant Moungali centre. Son adresse ne change pas.',
+    );
+    await expect(page).toHaveURL(/#zones\/d-bz-moungali$/);
+
+    // La recherche de l'arbre trouve la zone par son ancienne écriture, sans accent ni majuscule.
+    const retour = page.getByRole('link', { name: '← Toutes les zones' });
+    if (await retour.isVisible()) await retour.click();
+    const arbre = arbreDe(page);
+    await arbre.getByLabel('Chercher une zone').fill('MONGALI');
+    await expect(arbre.getByRole('list').getByRole('button')).toHaveCount(1);
+    await expect(arbre.getByRole('button', { name: /^Moungali centre/ })).toBeVisible();
+  });
+
+  test('un nom déjà pris sous le même parent est refusé avant d’enregistrer', async ({ page }) => {
+    await seConnecter(page, '/admin/#zones/d-pn-lumumba');
+    await page.getByText('Renommer · autres écritures', { exact: true }).click();
+    const formulaire = page.getByRole('form', { name: 'Renommer Lumumba' });
+    await formulaire.getByLabel('Nom', { exact: true }).fill('  mvou-MVOU ');
+    await expect(formulaire.getByText('Mvou-Mvou existe déjà sous le même parent.')).toBeVisible();
+    await expect(formulaire.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+    await formulaire.getByLabel('Nom', { exact: true }).fill('   ');
+    await expect(formulaire.getByText('Le nom ne peut pas rester vide.')).toBeVisible();
+    await expect(formulaire.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  });
+
+  test('une zone ajoutée par erreur se supprime après confirmation, et on revient à sa zone parente', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#zones');
+    await arbreDe(page).getByRole('button', { name: 'Ajouter une zone' }).click();
+    const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
+    await fenetre.getByLabel('Sous quelle zone ?').selectOption('d-pn-tie-tie');
+    await fenetre.getByLabel('Nom', { exact: true }).fill('Mpaka par erreur');
+    await fenetre.getByRole('button', { name: 'Ajouter la zone' }).click();
+    await expect(page.getByRole('heading', { name: 'Mpaka par erreur', level: 2 })).toBeVisible();
+
+    await page.getByText('Supprimer cette zone', { exact: true }).click();
+    await expect(page.getByText('La zone est vide')).toBeVisible();
+    await page.getByRole('button', { name: 'Supprimer Mpaka par erreur…' }).click();
+
+    // La confirmation dit ce qui disparaît ; Annuler ne supprime rien.
+    const confirmation = page.getByRole('alertdialog', { name: 'Supprimer Mpaka par erreur ?' });
+    await expect(confirmation).toContainText('Tié-Tié');
+    await confirmation.getByRole('button', { name: 'Annuler' }).click();
+    await expect(confirmation).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Mpaka par erreur', level: 2 })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Supprimer Mpaka par erreur…' }).click();
+    await confirmation.getByRole('button', { name: 'Supprimer définitivement' }).click();
+    await expect(confirmation).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Tié-Tié', level: 2 })).toBeVisible();
+    await expect(messageDeLaPage(page).first()).toContainText('Mpaka par erreur est supprimée.');
+    await expect(page).toHaveURL(/#zones\/d-pn-tie-tie$/);
+  });
+
+  test('une zone qui contient quelque chose ne propose pas la suppression, et dit pourquoi', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#zones/d-pn-ngoyo');
+    await page.getByText('Supprimer cette zone', { exact: true }).click();
+    const raison = page.getByText(/Cette zone ne se supprime pas :/);
+    await expect(raison).toContainText('elle a 1 lot');
+    await expect(raison).toContainText('elle est sur la carte du site');
+    await expect(raison).toContainText('elle est ouverte aux relais');
+    await expect(page.getByRole('button', { name: /^Supprimer Ngoyo/ })).toHaveCount(0);
+  });
+
   for (const adresse of ['#zones', '#zones/d-pn-ngoyo', '#zones/d-cg', '#zones/etapes']) {
     test(`« ${adresse} » : la page ne défile pas de côté`, async ({ page }) => {
       await seConnecter(page, `/admin/${adresse}`);
