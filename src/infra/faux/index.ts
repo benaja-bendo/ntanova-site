@@ -1190,7 +1190,12 @@ const admin: PortAdministration = {
           }
           visee.niveaux = [...new Set([...(visee.niveaux ?? []), ...releve.niveaux])];
           visee.repere = visee.repere ?? releve.repere;
-          visee.numeroEnseigne = visee.numeroEnseigne ?? releve.numeroEnseigne;
+          // Comme la base : une mise à jour prend le numéro du relais s'il en a saisi un (`coalesce(r.sign_phone, k.sign_phone)`) ;
+          // les niveaux ajoutés à une implantation gardent le sien (`coalesce(k.sign_phone, r.sign_phone)`).
+          visee.numeroEnseigne =
+            mode === 'update_campus'
+              ? (releve.numeroEnseigne ?? visee.numeroEnseigne ?? null)
+              : (visee.numeroEnseigne ?? releve.numeroEnseigne);
           visee.divisionId = visee.divisionId ?? division?.id ?? null;
           if (visee.publication === 'brouillon') visee.publication = 'prete';
           visee.confieeA = null;

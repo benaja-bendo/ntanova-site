@@ -15,7 +15,7 @@ import { cycleAvecFormations } from './formations';
 import { libelleNiveau } from './libelles';
 import type { Valeur } from './listes';
 import type { DetailReleve } from './ports';
-import { numeroCongolaisSuspect } from './telephone';
+import { afficherTelephone, numeroCongolaisSuspect } from './telephone';
 import { peutParaitreSurLeSite } from './photos-publiques';
 
 /** Comment l'envoi entre dans le catalogue : la décision en un geste. */
@@ -111,6 +111,49 @@ export function ceQuiManquePourAccepter(
   return null;
 }
 
+// Le numéro écrit sur l'enseigne ---------------------------------------------------------------------------------------------
+
+/**
+ * Ce que l'administration dit du numéro que le relais a saisi. Ce numéro est publié tel quel, avec un bouton « Appeler »,
+ * dès que l'école l'est : trois numéros non vérifiés ont paru ainsi le 06/11/2026 (deux photos sans aucun numéro, une qui
+ * en montrait d'autres). Accepter demande donc de dire, d'après la photo, s'il y est.
+ */
+export type ChoixNumero = 'verifie' | 'retire';
+
+/**
+ * Le numéro à confirmer avant d'accepter : celui du relais, tant que l'administration ne l'a pas corrigé elle-même (le
+ * corriger, c'est l'avoir lu sur la photo). Rien à confirmer sans numéro, ni sur le lot d'entraînement (jamais publié).
+ */
+export function numeroAConfirmer(
+  fiche: Pick<DetailReleve, 'essai' | 'numeroEnseigne'>,
+  corrigeParLAdministration: boolean,
+): string | null {
+  if (fiche.essai || corrigeParLAdministration) return null;
+  const numero = fiche.numeroEnseigne?.trim();
+  return numero ? numero : null;
+}
+
+/** Ce qui manque du côté du numéro pour pouvoir accepter, en une phrase ; `null` quand il n'y a rien à dire. */
+export function ceQuiManqueDuNumero(
+  aConfirmer: string | null,
+  choix: ChoixNumero | null,
+): string | null {
+  return aConfirmer !== null && choix === null
+    ? 'Dis si le numéro de l’enseigne est sur la photo : il sera public, avec un bouton « Appeler ».'
+    : null;
+}
+
+/**
+ * Peut-on ne pas publier le numéro ? Oui dans tous les cas où l'on sait quelle école l'accueille. Une correction d'une
+ * école déjà créée ne le dit pas avant l'acceptation : on ne retire rien alors, de peur d'effacer un numéro déjà vérifié
+ * (« Écoles › Gérer la fiche » le retire après).
+ */
+export function numeroPeutEtreRetire(
+  fiche: Pick<DetailReleve, 'type' | 'corrigeUneFicheEnAttente'>,
+): boolean {
+  return !(fiche.type === 'correction' && !fiche.corrigeUneFicheEnAttente);
+}
+
 // Avant d'accepter (ticket #95) --------------------------------------------------------------------------------------------
 
 /** `ok` : prêt ; `info` : à savoir ; `a_faire` : manque, sans bloquer ; `bloque` : le bouton reste grisé. */
@@ -152,6 +195,10 @@ export interface EntreeAvantAccepter {
   divisionChoisie: string;
   /** Le nom de la division que dit la position, ou que l'administration a choisie. */
   divisionNom: string | null;
+  /** Ce que l'administration a dit du numéro de l'enseigne (`null` : pas encore). */
+  choixNumero?: ChoixNumero | null;
+  /** L'administration a corrigé elle-même le numéro : elle l'a lu sur la photo. */
+  numeroCorrige?: boolean;
 }
 
 export interface AvantDAccepter {
@@ -298,9 +345,37 @@ export function avantDAccepter(entree: EntreeAvantAccepter): AvantDAccepter {
     );
   }
 
-  // Le numéro de l'enseigne est public : un numéro congolais a 9 chiffres après +242.
+  // Le numéro de l'enseigne est public : il se lit sur la photo, et un numéro congolais a 9 chiffres après +242.
+  const aConfirmer = numeroAConfirmer(fiche, entree.numeroCorrige === true);
+  const choix = entree.choixNumero ?? null;
   const suspect = fiche.numeroEnseigne ? numeroCongolaisSuspect(fiche.numeroEnseigne) : null;
-  if (suspect) {
+  const avertissement = suspect
+    ? ` ${suspect.chiffres} chiffres après +242 : un numéro congolais en a 9. Relis-le sur la photo.`
+    : '';
+  if (aConfirmer !== null) {
+    lignes.push(
+      choix === null
+        ? {
+            cle: 'numero',
+            etat: 'bloque',
+            titre: 'Numéro de l’enseigne',
+            texte: `Saisi par le relais : ${afficherTelephone(aConfirmer)}. Lis-le sur la photo de l’enseigne et dis s’il y est : il sera public, avec un bouton « Appeler ».${avertissement}`,
+          }
+        : choix === 'verifie'
+          ? {
+              cle: 'numero',
+              etat: suspect ? 'a_faire' : 'ok',
+              titre: 'Numéro de l’enseigne',
+              texte: `Vérifié sur la photo : il sera publié avec un bouton « Appeler » quand l’école le sera.${avertissement}`,
+            }
+          : {
+              cle: 'numero',
+              etat: 'ok',
+              titre: 'Numéro de l’enseigne',
+              texte: 'Pas sur la photo : il ne sera pas publié.',
+            },
+    );
+  } else if (suspect) {
     lignes.push({
       cle: 'numero',
       etat: 'a_faire',
@@ -327,7 +402,9 @@ export function avantDAccepter(entree: EntreeAvantAccepter): AvantDAccepter {
         : 'Accepter crée l’école : elle devient « prête ». Elle ne paraît sur ntanova.com que lorsque tu la publies (Écoles › Publier).';
 
   return {
-    bloque: ceQuiManquePourAccepter(fiche, cible, entree.divisionChoisie) !== null,
+    bloque:
+      ceQuiManquePourAccepter(fiche, cible, entree.divisionChoisie) !== null ||
+      ceQuiManqueDuNumero(aConfirmer, choix) !== null,
     lignes,
     phrase,
   };

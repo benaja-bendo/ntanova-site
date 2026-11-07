@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   avantDAccepter,
+  ceQuiManqueDuNumero,
   ceQuiManquePourAccepter,
   divisionRequise,
   heriterDeLOrigine,
+  numeroAConfirmer,
+  numeroPeutEtreRetire,
   type Cible,
   type EntreeAvantAccepter,
 } from '../../src/modele/acceptation';
+import { afficherTelephone } from '../../src/modele/telephone';
 
 // Accepter une fiche (ticket #89). Le bouton « Accepter » ne se grise jamais sans dire pourquoi, et une correction d'une
 // fiche pas encore acceptée (le relais qui reprend sa photo après un « à corriger ») hérite de la position de la fiche
@@ -231,7 +235,10 @@ describe('avantDAccepter', () => {
 
   it('LA FICHE D’ESTAM : rien ne bloque, et ce qui manque est dit comme facultatif', () => {
     const bilan = avantDAccepter(
-      entree({ fiche: { ...entree().fiche, numeroEnseigne: '2420064970301' } }),
+      entree({
+        fiche: { ...entree().fiche, numeroEnseigne: '2420064970301' },
+        choixNumero: 'verifie',
+      }),
     );
     expect(bilan.bloque).toBe(false);
     expect(bilan.lignes.filter((l) => l.etat === 'bloque')).toEqual([]);
@@ -375,10 +382,63 @@ describe('avantDAccepter', () => {
     expect(ligne(entree({ formationsAttendues: false }), 'formations')).toBeUndefined();
   });
 
-  it('un numéro à 9 chiffres, ou aucun : rien à dire', () => {
-    expect(ligne(entree(), 'numero')).toBeUndefined();
-    const bon = entree({ fiche: { ...entree().fiche, numeroEnseigne: '242064970301' } });
-    expect(ligne(bon, 'numero')).toBeUndefined();
+  describe('le numéro écrit sur l’enseigne', () => {
+    const avec = (champs: Partial<EntreeAvantAccepter> = {}, numero = '242064970301') =>
+      entree({ fiche: { ...entree().fiche, numeroEnseigne: numero }, ...champs });
+
+    it('aucun numéro saisi : rien à dire, rien qui bloque', () => {
+      expect(ligne(entree(), 'numero')).toBeUndefined();
+      expect(avantDAccepter(entree()).bloque).toBe(false);
+    });
+
+    it('un numéro saisi par le relais bloque tant qu’on n’a pas dit s’il est sur la photo (trois numéros non vérifiés ont paru le 06/11)', () => {
+      const e = avec();
+      expect(ligne(e, 'numero')).toMatchObject({ etat: 'bloque' });
+      expect(ligne(e, 'numero')?.texte).toContain(afficherTelephone('242064970301'));
+      expect(ligne(e, 'numero')?.texte).toMatch(/photo de l’enseigne/);
+      expect(ligne(e, 'numero')?.texte).toMatch(/« Appeler »/);
+      expect(avantDAccepter(e).bloque).toBe(true);
+    });
+
+    it('« vérifié sur la photo » : prêt, et c’est dit', () => {
+      const e = avec({ choixNumero: 'verifie' });
+      expect(ligne(e, 'numero')).toMatchObject({ etat: 'ok' });
+      expect(ligne(e, 'numero')?.texte).toMatch(/Vérifié sur la photo/);
+      expect(avantDAccepter(e).bloque).toBe(false);
+    });
+
+    it('un numéro vérifié mais qui n’a pas 9 chiffres garde son avertissement, sans bloquer', () => {
+      const e = avec({ choixNumero: 'verifie' }, '2420064970301');
+      expect(ligne(e, 'numero')).toMatchObject({ etat: 'a_faire' });
+      expect(ligne(e, 'numero')?.texte).toMatch(/10 chiffres après \+242/);
+      expect(avantDAccepter(e).bloque).toBe(false);
+    });
+
+    it('« pas sur la photo » : le numéro ne sera pas publié', () => {
+      const e = avec({ choixNumero: 'retire' });
+      expect(ligne(e, 'numero')).toMatchObject({ etat: 'ok' });
+      expect(ligne(e, 'numero')?.texte).toMatch(/ne sera pas publié/);
+      expect(avantDAccepter(e).bloque).toBe(false);
+    });
+
+    it('un numéro corrigé par l’administration est un numéro qu’elle a lu : rien à confirmer', () => {
+      const e = avec({ numeroCorrige: true });
+      expect(ligne(e, 'numero')).toBeUndefined();
+      expect(avantDAccepter(e).bloque).toBe(false);
+    });
+
+    it('le lot d’entraînement n’est jamais publié : aucun numéro à confirmer', () => {
+      const e = entree({
+        fiche: { ...entree().fiche, essai: true, numeroEnseigne: '242064970301' },
+      });
+      expect(ligne(e, 'numero')).toBeUndefined();
+    });
+
+    it('un autre blocage reste dit, avec le numéro', () => {
+      const e = avec({ cible: { mode: 'update_campus', campusId: '' } });
+      expect(avantDAccepter(e).bloque).toBe(true);
+      expect(ceQuiManquePourAccepter(e.fiche, e.cible, '')).toMatch(/implantation/);
+    });
   });
 
   it('dit ce que fait « Accepter », selon ce qu’on en fait', () => {
@@ -407,5 +467,36 @@ describe('avantDAccepter', () => {
     });
     expect(ligne(corrige, 'zone')).toBeUndefined();
     expect(avantDAccepter(corrige).bloque).toBe(false);
+  });
+});
+
+describe('le numéro de l’enseigne, avant d’accepter', () => {
+  it('à confirmer : celui du relais, sauf corrigé par l’administration, sans numéro ou en essai', () => {
+    const saisi = { essai: false, numeroEnseigne: ' +242 05 056 40 40 ' };
+    expect(numeroAConfirmer(saisi, false)).toBe('+242 05 056 40 40');
+    expect(numeroAConfirmer(saisi, true)).toBeNull();
+    expect(
+      numeroAConfirmer({ essai: true, numeroEnseigne: '+242 05 056 40 40' }, false),
+    ).toBeNull();
+    expect(numeroAConfirmer({ essai: false, numeroEnseigne: null }, false)).toBeNull();
+    expect(numeroAConfirmer({ essai: false, numeroEnseigne: '   ' }, false)).toBeNull();
+  });
+
+  it('manque : un choix, seulement quand il y a un numéro à confirmer', () => {
+    expect(ceQuiManqueDuNumero('+242 05 056 40 40', null)).toMatch(/sur la photo/);
+    expect(ceQuiManqueDuNumero('+242 05 056 40 40', 'verifie')).toBeNull();
+    expect(ceQuiManqueDuNumero('+242 05 056 40 40', 'retire')).toBeNull();
+    expect(ceQuiManqueDuNumero(null, null)).toBeNull();
+  });
+
+  it('se retire partout, sauf pour la correction d’une école déjà créée (on ne sait pas quel numéro elle a déjà)', () => {
+    expect(numeroPeutEtreRetire({ type: 'releve', corrigeUneFicheEnAttente: false })).toBe(true);
+    expect(numeroPeutEtreRetire({ type: 'contre_visite', corrigeUneFicheEnAttente: false })).toBe(
+      true,
+    );
+    expect(numeroPeutEtreRetire({ type: 'correction', corrigeUneFicheEnAttente: true })).toBe(true);
+    expect(numeroPeutEtreRetire({ type: 'correction', corrigeUneFicheEnAttente: false })).toBe(
+      false,
+    );
   });
 });

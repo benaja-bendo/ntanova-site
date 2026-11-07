@@ -74,7 +74,7 @@ test.describe('avant d’accepter, l’écran dit ce qui se passe et ce qui manq
     await expect(avant(page)).not.toContainText('pas encore contrôlée');
   });
 
-  test('ce qui manque sans bloquer est dit comme facultatif : contact, formations, numéro à 10 chiffres', async ({
+  test('contact et formations sont dits facultatifs ; un numéro à 10 chiffres est signalé, et se confirme sur la photo', async ({
     page,
     context,
   }) => {
@@ -83,13 +83,23 @@ test.describe('avant d’accepter, l’écran dit ce qui se passe et ce qui manq
     await faireDeLaFicheCelleDEstam(page);
     await ouvrirLaFiche(page);
 
-    await expect(avant(page)).toContainText('Rien ne bloque');
+    // Contact et formations ne grisent jamais le bouton ; le numéro, lui, attend qu'on dise s'il est sur la photo.
     await expect(avant(page)).toContainText('Pas reçu');
     await expect(avant(page)).toContainText('n’empêche ni d’accepter ni de publier');
     await expect(avant(page)).toContainText('Facultatif pour accepter');
     await expect(avant(page)).toContainText('10 chiffres après +242');
-    // Rien de tout cela ne grise le bouton.
-    await expect(page.getByRole('button', { name: 'Accepter la fiche' })).toBeEnabled();
+    await expect(avant(page)).toContainText('Il reste un choix à faire');
+    const accepter = page.getByRole('button', { name: 'Accepter la fiche' });
+    await expect(accepter).toBeDisabled();
+
+    // Le numéro relu sur la photo : plus rien ne bloque, et l'avertissement sur les 10 chiffres reste lisible.
+    await page
+      .getByRole('group', { name: /Numéro écrit sur l’enseigne/ })
+      .getByLabel('Je l’ai vérifié sur la photo de l’enseigne')
+      .click();
+    await expect(avant(page)).toContainText('Rien ne bloque');
+    await expect(avant(page)).toContainText('10 chiffres après +242');
+    await expect(accepter).toBeEnabled();
   });
 
   test('la correction d’une fiche reçue dans un lot ne montre plus ce lot comme le sien', async ({

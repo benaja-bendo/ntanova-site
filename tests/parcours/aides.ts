@@ -19,7 +19,11 @@ export async function prendrePhotoEtPosition(page: Page) {
 }
 
 /** Remplit Ajouter 1/3 à 3/3 depuis « Mon secteur », puis revient sur « Mon secteur ». */
-export async function ajouterUneEcole(page: Page, n: number, options: { programme?: string } = {}) {
+export async function ajouterUneEcole(
+  page: Page,
+  n: number,
+  options: { programme?: string; numeroEnseigne?: string } = {},
+) {
   await prendrePhotoEtPosition(page);
   await page.getByRole('button', { name: 'Suivant' }).click();
 
@@ -27,6 +31,9 @@ export async function ajouterUneEcole(page: Page, n: number, options: { programm
   await page.getByRole('button', { name: 'Primaire' }).click();
   if (options.programme) {
     await page.getByLabel(/Programme, langues ou autre mention écrite/).fill(options.programme);
+  }
+  if (options.numeroEnseigne) {
+    await page.getByLabel(/Numéro écrit sur l.enseigne/).fill(options.numeroEnseigne);
   }
   await page.getByRole('button', { name: 'Suivant' }).click();
 
@@ -47,7 +54,11 @@ export async function ajouterUneEcole(page: Page, n: number, options: { programm
 export async function uneFicheEnvoyee(
   page: Page,
   context: BrowserContext,
-  options: { programme?: string; position?: { latitude: number; longitude: number } } = {},
+  options: {
+    programme?: string;
+    numeroEnseigne?: string;
+    position?: { latitude: number; longitude: number };
+  } = {},
 ) {
   await context.setGeolocation({
     ...(options.position ?? { latitude: -4.8, longitude: 11.9 }),
