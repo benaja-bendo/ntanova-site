@@ -703,7 +703,18 @@ export interface PortAdministration {
   detailReleve(id: string): Promise<DetailReleve>;
   /** Les photos d'un relevé (l'enseigne, le panneau des formations, le prospectus, le bâtiment). `GET /admin/releves/{id}/photos` */
   photosReleve(id: string): Promise<PhotoVue[]>;
+  /** Les enseignes et façades des relevés acceptés de l'école : les seules photos qui peuvent paraître sur sa fiche. */
   photosEcole(id: string): Promise<PhotoVue[]>;
+  /**
+   * Comment la photo de l'école est décidée (repli automatique, choix prioritaire ou retrait explicite) et laquelle la vue
+   * publique retient. Lecture seule. `GET /admin/ecoles/{id}/photo-publique`
+   */
+  etatPhotoPublique(ecoleId: string): Promise<import('./photos-publiques').EtatPhotoPublique>;
+  /**
+   * Choisir une photo (prioritaire, avec confirmation du contrôle) ou **retirer** : `photoId` nul écrit un retrait explicite
+   * qui bloque aussi le repli automatique. Jamais un simple retrait du contrôle d'une photo, qui ferait paraître une autre.
+   * `PUT /admin/ecoles/{id}/photo-publique`
+   */
   choisirPhotoPublique(ecoleId: string, photoId: string | null, confirme: boolean): Promise<void>;
   /**
    * Les personnes à contacter pour un relevé, la première reçue d'abord (vide : aucune). Elles restent attachées à la

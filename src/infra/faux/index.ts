@@ -20,6 +20,7 @@ import { lireAccordContactPublic, type ContactPublic } from '../../modele/contac
 import type { Adaptateurs } from '../index';
 import { arrondissementDeLaPosition } from '../../modele/carte/plan';
 import { heriterDeLOrigine } from '../../modele/acceptation';
+import { peutParaitreSurLeSite, type EtatPhotoPublique } from '../../modele/photos-publiques';
 import type { Point } from '../../modele/geo';
 import { messageManquant } from '../../modele/decision';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
@@ -166,6 +167,11 @@ interface Etat {
   admin: boolean;
   releves: Record<string, ReleveAEnvoyer>;
   photos: Record<string, PhotoFausse>;
+  /**
+   * Comme `prive.campus_photo_choices` : une école absente = repli automatique ; une photo = choix prioritaire ;
+   * `null` = retrait explicite, qui bloque tout repli.
+   */
+  choixPhotos: Record<string, string | null>;
   /** Les personnes à contacter, par identifiant : celle d'un téléphone d'avant a pour clé le numéro de sa fiche. */
   contacts: Record<string, ContactFaux>;
   erreurs: ErreurAEnvoyer[];
@@ -290,6 +296,7 @@ const etatInitial = (): Etat => ({
   admin: true,
   releves: {},
   photos: {},
+  choixPhotos: {},
   contacts: {},
   erreurs: [],
   decisions: {},
@@ -331,6 +338,35 @@ function ecrire(modifier: (etat: Etat) => void): void {
   const etat = lireEtat();
   modifier(etat);
   localStorage.setItem(CLE, JSON.stringify(etat));
+}
+
+/** Les photos des relevés acceptés d'une école (les seules qui peuvent paraître sur sa fiche). */
+function photosAcceptees(e: Etat, ecoleId: string): PhotoFausse[] {
+  return Object.values(e.photos).filter(
+    (p) =>
+      e.decisions[p.releveId]?.statut === 'accepte' && e.decisions[p.releveId]?.ecoleId === ecoleId,
+  );
+}
+
+/**
+ * L'état de la photo publique d'une école, comme la base le dit (`campus_public_photo_state`) : aucun choix = repli
+ * sur la première enseigne ou façade contrôlée ; un choix prioritaire doit rester valide ; un retrait bloque tout.
+ * Rien n'est retenu tant que la fiche n'est pas publiée (une restauration la remet « prête », jamais publiée).
+ */
+function etatPhotoFaux(e: Etat, ecoleId: string): EtatPhotoPublique {
+  const ecole = e.campus[ecoleId];
+  const publiee = ecole?.publication === 'publiee' && !ecole.corbeille;
+  const choix = e.choixPhotos[ecoleId];
+  const mode = choix === undefined ? 'automatique' : choix === null ? 'retire' : 'choix';
+  const controlees = photosAcceptees(e, ecoleId)
+    .filter((p) => p.publiable && peutParaitreSurLeSite(p.role))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  let retenueId: string | null = null;
+  if (publiee && mode === 'automatique') retenueId = controlees[0]?.id ?? null;
+  if (publiee && mode === 'choix') {
+    retenueId = controlees.find((p) => p.id === choix && p.publique === true)?.id ?? null;
+  }
+  return { mode, choisieId: typeof choix === 'string' ? choix : null, publiee, retenueId };
 }
 
 async function reseau(): Promise<void> {
@@ -952,12 +988,8 @@ const admin: PortAdministration = {
   },
   async photosEcole(id) {
     await reseau();
-    const e = lireEtat();
-    return Object.values(e.photos)
-      .filter(
-        (p) =>
-          e.decisions[p.releveId]?.statut === 'accepte' && e.decisions[p.releveId]?.ecoleId === id,
-      )
+    return photosAcceptees(lireEtat(), id)
+      .filter((p) => peutParaitreSurLeSite(p.role))
       .map((p) => ({
         id: p.id,
         role: p.role,
@@ -970,26 +1002,35 @@ const admin: PortAdministration = {
         publique: p.publique ?? false,
       }));
   },
+  async etatPhotoPublique(ecoleId) {
+    await reseau();
+    const e = lireEtat();
+    if (!e.campus[ecoleId]) throw new ErreurDecision('École introuvable.');
+    return etatPhotoFaux(e, ecoleId);
+  },
   async choisirPhotoPublique(ecoleId, photoId, confirme) {
     await reseau();
     const e = lireEtat();
     if (!e.campus[ecoleId]) throw new ErreurDecision('École introuvable.');
     if (photoId) {
-      const p = e.photos[photoId];
-      if (
-        !confirme ||
-        !p ||
-        p.role !== 'signboard' ||
-        e.decisions[p.releveId]?.statut !== 'accepte' ||
-        e.decisions[p.releveId]?.ecoleId !== ecoleId
-      )
-        throw new ErreurDecision('Enseigne acceptée et confirmation requises.');
-    }
-    ecrire((e) => {
-      for (const p of Object.values(e.photos)) {
-        if (e.decisions[p.releveId]?.ecoleId === ecoleId) p.publique = p.id === photoId;
-        if (p.id === photoId) p.publiable = true;
+      if (!confirme) {
+        throw new ErreurDecision(
+          'Confirme le contrôle sans enfant ni donnée personnelle et la publication.',
+        );
       }
+      const p = photosAcceptees(e, ecoleId).find((x) => x.id === photoId);
+      if (!p || !peutParaitreSurLeSite(p.role)) {
+        throw new ErreurDecision(
+          'Choisis une enseigne ou une vue du bâtiment issue d’un relevé accepté de cette école.',
+        );
+      }
+    }
+    // Comme la base : le choix est écrit même s'il est nul, et un choix nul est un retrait qui bloque aussi le repli.
+    ecrire((s) => {
+      for (const p of photosAcceptees(s, ecoleId)) p.publique = p.id === photoId;
+      const choisie = photoId ? s.photos[photoId] : undefined;
+      if (choisie) choisie.publiable = true;
+      s.choixPhotos[ecoleId] = photoId;
     });
   },
   async contactsReleve(id) {
@@ -1274,13 +1315,22 @@ const admin: PortAdministration = {
   async effacerPhoto(photoId) {
     await reseau();
     if (!(photoId in lireEtat().photos)) throw new ErreurDecision('Photo introuvable.');
-    ecrire((e) => delete e.photos[photoId]);
+    ecrire((e) => {
+      delete e.photos[photoId];
+      // Comme la base (`on delete set null`) : le choix devient un retrait, il ne laisse pas le repli prendre le relais.
+      for (const [ecole, choix] of Object.entries(e.choixPhotos)) {
+        if (choix === photoId) e.choixPhotos[ecole] = null;
+      }
+    });
   },
   async marquerPhotoPubliable(photoId, publiable) {
     await reseau();
+    const p = lireEtat().photos[photoId];
+    // Comme la base : la photo choisie ne se démarque pas à la main, il faut passer par le retrait.
+    if (p?.publique) throw new ErreurDecision('Utiliser la sélection de photo publique.');
     ecrire((e) => {
-      const p = e.photos[photoId];
-      if (p) p.publiable = publiable;
+      const q = e.photos[photoId];
+      if (q) q.publiable = publiable;
     });
   },
 

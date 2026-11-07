@@ -20,7 +20,7 @@ function fausseApi(
     const constructeur: Record<string, unknown> = {};
     for (const methode of ['select', 'eq', 'neq', 'is', 'order', 'range', 'limit', 'not', 'in']) {
       constructeur[methode] = (...args: unknown[]) => {
-        if (methode === 'eq' || methode === 'not' || methode === 'is') {
+        if (methode === 'eq' || methode === 'not' || methode === 'is' || methode === 'in') {
           appels.push({ nom: `${methode} ${table}`, arguments: args });
         }
         return constructeur;
@@ -517,6 +517,95 @@ describe('l’adaptateur Supabase de l’administration', () => {
       const retrait = appels.filter((a) => a.nom === 'update field_submission_photos')[1]
         ?.arguments as Record<string, unknown>;
       expect(retrait['child_free_checked_at']).toBeNull();
+    });
+  });
+
+  describe('la photo publique d’une école', () => {
+    it('ne propose que les enseignes et les vues du bâtiment des relevés acceptés', async () => {
+      const { port, appels } = fausseApi(
+        {},
+        {
+          field_submissions: [{ id: 'r1' }],
+          field_submission_photos: [
+            {
+              id: 'p1',
+              role: 'signboard',
+              storage_path: 'r1/p1.webp',
+              bytes: 1000,
+              width: null,
+              height: null,
+              taken_at: null,
+              child_free_checked_at: null,
+              is_public: false,
+            },
+            {
+              id: 'p2',
+              role: 'building',
+              storage_path: 'r1/p2.webp',
+              bytes: 1000,
+              width: null,
+              height: null,
+              taken_at: '2026-10-01T09:00:00Z',
+              child_free_checked_at: '2026-11-02T10:00:00Z',
+              is_public: true,
+            },
+          ],
+        },
+      );
+      const photos = await port.photosEcole('e1');
+      expect(photos.map((p) => [p.id, p.role, p.publiable, p.publique])).toEqual([
+        ['p1', 'signboard', false, false],
+        ['p2', 'building', true, true],
+      ]);
+      const roles = appels.find(
+        (a) =>
+          a.nom === 'in field_submission_photos' &&
+          Array.isArray(a.arguments) &&
+          a.arguments[0] === 'role',
+      );
+      expect(roles?.arguments).toEqual(['role', ['signboard', 'building']]);
+      expect(
+        appels.some(
+          (a) =>
+            a.nom === 'eq field_submissions' &&
+            JSON.stringify(a.arguments) === '["status","accepte"]',
+        ),
+      ).toBe(true);
+    });
+
+    it('lit l’état de la photo publique dans la base, sans jamais le déduire', async () => {
+      const { port, appels } = fausseApi({
+        campus_public_photo_state: {
+          data: { mode: 'retire', choice: null, published: true, retained: null },
+          error: null,
+        },
+      });
+      expect(await port.etatPhotoPublique('e1')).toEqual({
+        mode: 'retire',
+        choisieId: null,
+        publiee: true,
+        retenueId: null,
+      });
+      expect(appels).toEqual([{ nom: 'campus_public_photo_state', arguments: { p_campus: 'e1' } }]);
+    });
+
+    it('retire la photo publique par un choix nul, jamais en retirant seulement le contrôle d’une photo', async () => {
+      const { port, appels } = fausseApi({ set_campus_public_photo: { data: null, error: null } });
+      await port.choisirPhotoPublique('e1', null, false);
+      // Une seule commande, `set_campus_public_photo` avec une photo nulle : la base écrit un retrait explicite qui bloque
+      // aussi le repli. Aucune photo n'est modifiée à la main, sinon une autre photo contrôlée paraîtrait.
+      expect(appels).toEqual([
+        {
+          nom: 'set_campus_public_photo',
+          arguments: { p_campus: 'e1', p_photo: null, p_confirmed: false },
+        },
+      ]);
+    });
+
+    it('un choix n’est envoyé qu’avec la confirmation du contrôle', async () => {
+      const { port, appels } = fausseApi({ set_campus_public_photo: { data: null, error: null } });
+      await port.choisirPhotoPublique('e1', 'p2', true);
+      expect(appels[0]?.arguments).toEqual({ p_campus: 'e1', p_photo: 'p2', p_confirmed: true });
     });
   });
 

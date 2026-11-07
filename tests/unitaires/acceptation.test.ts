@@ -259,20 +259,55 @@ describe('avantDAccepter', () => {
     expect(ligne(sienne, 'lot')).toBeUndefined();
   });
 
-  it('une photo pas encore vérifiée ne paraîtra pas : c’est dit', () => {
+  it('une enseigne pas encore contrôlée ne paraîtra pas : c’est dit', () => {
     const une = entree({ photos: [{ role: 'signboard', publiable: false }] });
     expect(ligne(une, 'photos')).toMatchObject({ etat: 'a_faire' });
-    expect(ligne(une, 'photos')?.texte).toMatch(/pas encore vérifiée/);
-    expect(ligne(une, 'photos')?.texte).toMatch(/Marquer publiable/);
+    expect(ligne(une, 'photos')?.texte).toMatch(/pas encore contrôlée/);
+    expect(ligne(une, 'photos')?.texte).toMatch(/Contrôler pour publication/);
 
+    // Une enseigne et une vue du bâtiment, une seule contrôlée : l'autre ne paraîtra pas.
     const mixte = entree({
+      photos: [
+        { role: 'signboard', publiable: true },
+        { role: 'building', publiable: false },
+      ],
+    });
+    expect(ligne(mixte, 'photos')).toMatchObject({ etat: 'a_faire' });
+    expect(ligne(mixte, 'photos')?.texte).toMatch(/2 reçues, 1 contrôlée pour publication/);
+
+    const toutes = entree({
+      photos: [
+        { role: 'signboard', publiable: true },
+        { role: 'building', publiable: true },
+      ],
+    });
+    expect(ligne(toutes, 'photos')).toMatchObject({ etat: 'ok' });
+    expect(ligne(toutes, 'photos')?.texte).toMatch(/la première pourra paraître/);
+  });
+
+  it('le panneau des formations et le prospectus ne promettent jamais une photo publique', () => {
+    // Contrôlés ou non, ils restent privés : seuls l'enseigne et la vue du bâtiment comptent.
+    const prives = entree({
+      photos: [
+        { role: 'programs_board', publiable: true },
+        { role: 'brochure', publiable: false },
+      ],
+    });
+    expect(ligne(prives, 'photos')).toMatchObject({ etat: 'a_faire' });
+    expect(ligne(prives, 'photos')?.texte).toMatch(/Ni enseigne ni vue du bâtiment/);
+    expect(ligne(prives, 'photos')?.texte).toMatch(/restent privées/);
+
+    // Une enseigne contrôlée avec un panneau pas contrôlé : l'école aura son image, le panneau ne change rien.
+    const enseigneEtPanneau = entree({
       photos: [
         { role: 'signboard', publiable: true },
         { role: 'programs_board', publiable: false },
       ],
     });
-    expect(ligne(mixte, 'photos')).toMatchObject({ etat: 'a_faire' });
-    expect(ligne(mixte, 'photos')?.texte).toMatch(/2 reçues, 1 vérifiée/);
+    expect(ligne(enseigneEtPanneau, 'photos')).toMatchObject({ etat: 'ok' });
+    expect(ligne(enseigneEtPanneau, 'photos')?.texte).toMatch(
+      /1 reçue, contrôlée pour publication/,
+    );
   });
 
   it('aucune photo : dit, sans bloquer', () => {
