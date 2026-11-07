@@ -1163,7 +1163,26 @@ const admin: PortAdministration = {
     }
     // Comme la base : une correction d'une fiche pas encore acceptée reprend la position et le secteur de cette fiche (#89).
     const origine = releve?.corrigeReleveId ? e0.releves[releve.corrigeReleveId] : undefined;
-    const positionRetenue = releve?.position ?? origine?.position ?? null;
+    // Comme la base (ticket 144) : l'administration peut donner la position d'une fiche qui n'en a pas ; celle du relais fait foi,
+    // et de simples niveaux ajoutés ne la changent pas.
+    const positionDuRelais = releve?.position ?? origine?.position ?? null;
+    const positionSaisie = choix.position ?? null;
+    if (positionSaisie) {
+      if (!(Math.abs(positionSaisie.latitude) <= 90 && Math.abs(positionSaisie.longitude) <= 180)) {
+        throw new ErreurDecision(
+          'Position illisible : la latitude va de -90 à 90, la longitude de -180 à 180.',
+        );
+      }
+      if (mode === 'add_cycle') {
+        throw new ErreurDecision('Ajouter des niveaux ne change pas la position de l’école.');
+      }
+      if (positionDuRelais) {
+        throw new ErreurDecision(
+          'Cette fiche a déjà une position, mesurée par le relais : elle fait foi. Pour la changer, utilise « Écoles › Position » après l’acceptation.',
+        );
+      }
+    }
+    const positionRetenue = positionDuRelais ?? positionSaisie;
     const lotRetenu = releve?.lotId ?? origine?.lotId ?? null;
     const lotDuReleve = lotRetenu ? e0.lots.find((l) => l.id === lotRetenu) : undefined;
     const division =
@@ -1178,6 +1197,29 @@ const admin: PortAdministration = {
         'Division inconnue : la position n’est dans aucune division connue (ou le relevé n’a ni position ni lot). Choisissez la division de l’école.',
       );
     }
+    // Une école connue qui reçoit une position saisie passe par les règles de « Situer » (comme la base : `locate_campus`).
+    let divisionSituee: DivisionFausse | null = null;
+    const ecoleASituer =
+      positionSaisie && mode === 'update_campus' && cible ? e0.campus[cible] : null;
+    if (positionSaisie && ecoleASituer) {
+      if (ecoleASituer.publication === 'retiree') {
+        throw new ErreurDecision('Un campus retiré ne se modifie plus : le republier d’abord.');
+      }
+      divisionSituee =
+        choisie ??
+        divisionDeLaPosition(positionSaisie, e0) ??
+        (ecoleASituer.divisionId ? (e0.divisions[ecoleASituer.divisionId] ?? null) : null);
+      if (!divisionSituee) {
+        throw new ErreurDecision(
+          'Cette position n’est dans aucune division connue : choisis la division.',
+        );
+      }
+      if (ecoleASituer.publication === 'publiee' && ecoleASituer.divisionId !== divisionSituee.id) {
+        throw new ErreurDecision(
+          `Cette position est à ${divisionSituee.nom}, pas dans la division de la fiche : son adresse publique changerait.`,
+        );
+      }
+    }
     const campusId = cible ?? crypto.randomUUID();
     ecrire((e) => {
       const visee = e.campus[campusId];
@@ -1187,6 +1229,10 @@ const admin: PortAdministration = {
             // Comme la base : « Pas indiqué » et « aucun niveau » n'effacent rien ; une école à situer devient prête.
             visee.nom = visee.etiquette ? visee.nom : releve.nomEnseigne;
             visee.position = releve.position ?? visee.position;
+            if (positionSaisie && divisionSituee) {
+              visee.position = positionSaisie;
+              visee.divisionId = divisionSituee.id;
+            }
             if (releve.typeEcole !== 'non_indique') visee.typeEcole = releve.typeEcole;
             visee.programme = releve.programme ?? visee.programme ?? null;
           }
