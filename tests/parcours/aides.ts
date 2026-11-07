@@ -183,3 +183,16 @@ export async function ouvrirContacts(page: Page): Promise<void> {
   await section.locator('summary').waitFor();
   if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
 }
+
+/**
+ * Choisit une zone dans l'arbre de l'onglet Zones. Sous 72 rem, une zone choisie remplace la liste : on y revient d'abord
+ * par « Toutes les zones ».
+ */
+export async function choisirLaZone(page: Page, nom: RegExp | string): Promise<void> {
+  const retour = page.getByRole('link', { name: '← Toutes les zones' });
+  if (await retour.isVisible()) await retour.click();
+  await page
+    .getByRole('region', { name: 'Liste des zones' })
+    .getByRole('button', { name: nom })
+    .click();
+}

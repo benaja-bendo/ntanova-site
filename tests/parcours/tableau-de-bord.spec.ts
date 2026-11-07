@@ -1,5 +1,12 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { ouvrirGestion, ouvrirLaFiche, publierLaZoneTieTie, uneFicheEnvoyee } from './aides';
+import {
+  choisirLaZone,
+  ouvrirGestion,
+  ouvrirLaFiche,
+  publierLaZoneTieTie,
+  seConnecter,
+  uneFicheEnvoyee,
+} from './aides';
 
 // Audit de l'administration du 06/11/2026 : garder ses repères pendant le défilement, contrôler une photo sans quitter
 // la page, ne pas ouvrir un menu vide. Construit avec le faux serveur.
@@ -126,6 +133,20 @@ test.describe('tableau de bord : Écoles', () => {
     await expect(ligne(page).getByRole('button', { name: 'Republier' })).toBeVisible();
   });
 
+  test('depuis une zone, « Voir les écoles » ouvre Écoles déjà filtré sur elle', async ({
+    page,
+    context,
+  }) => {
+    await uneEcolePubliee(page, context);
+    await page.getByRole('link', { name: 'Zones' }).click();
+    await choisirLaZone(page, /^Tié-Tié/);
+    await expect(page.getByText('1 école · 1 publiée')).toBeVisible();
+    await page.getByRole('link', { name: 'Voir les écoles' }).click();
+    await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeVisible();
+    await expect(page.getByLabel('Zone', { exact: true })).toHaveValue('d-pn-tie-tie');
+    await expect(ligne(page)).toBeVisible();
+  });
+
   test('la corbeille : l’école quitte les listes, se restaure, puis se supprime pour de bon', async ({
     page,
     context,
@@ -185,4 +206,179 @@ test.describe('tableau de bord : Écoles', () => {
     await expect(ligne(page)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Corbeille · 0' })).toBeVisible();
   });
+});
+
+test.describe('tableau de bord : Zones', () => {
+  const arbreDe = (page: Page) => page.getByRole('region', { name: 'Liste des zones' });
+  const messageDeLaPage = (page: Page) => page.getByRole('status');
+
+  test('l’arbre garde les zones qui comptent, replie les autres en une ligne et se cherche par le nom', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#zones');
+    const arbre = arbreDe(page);
+    await expect(arbre.getByRole('button', { name: /^Loandjili/ })).toBeVisible();
+    await expect(
+      arbre.getByText(/zones · \d+ avec des écoles · \d+ suivies sur la carte/),
+    ).toBeVisible();
+
+    // Moungali n'a ni école, ni état, ni relais : elle se replie sous Brazzaville. Niari et Dolisie sous le Congo.
+    await expect(arbre.getByRole('button', { name: /^Moungali/ })).toHaveCount(0);
+    await expect(arbre.getByRole('button', { name: /1 autre zone/ })).toBeVisible();
+    await arbre.getByRole('button', { name: /2 autres zones/ }).click();
+    await expect(arbre.getByRole('button', { name: /^Dolisie/ })).toBeVisible();
+    await arbre.getByRole('button', { name: /2 autres zones/ }).click();
+    await expect(arbre.getByRole('button', { name: /^Dolisie/ })).toHaveCount(0);
+
+    // Une recherche remet à plat, sans accent ni majuscule.
+    await arbre.getByLabel('Chercher une zone').fill('TIE');
+    await expect(arbre.getByRole('button')).toHaveCount(1);
+    await expect(arbre.getByRole('button', { name: /^Tié-Tié/ })).toBeVisible();
+    await arbre.getByLabel('Chercher une zone').fill('zzz');
+    await expect(arbre.getByText('Aucune zone ne s’appelle ainsi.')).toBeVisible();
+  });
+
+  test('une zone se choisit par son adresse : le volet dit ses écoles, son état et ses relais', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#zones/d-pn-ngoyo');
+    await expect(page.getByRole('heading', { name: 'Ngoyo', level: 2 })).toBeVisible();
+    // Ngoyo est « relevé en cours » et ouverte aux relais.
+    await expect(
+      page.getByRole('group', { name: 'État de Ngoyo sur la carte' }).getByRole('radio', {
+        name: 'Relevé en cours',
+      }),
+    ).toBeChecked();
+    await expect(page.getByRole('switch', { name: 'Ouverte aux relais : Ngoyo' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    // Trois nombres sans étiquette sont devenus une barre et sa légende.
+    await expect(page.getByText(/relevées? par un relais/)).toBeVisible();
+    await expect(page.getByText(/ajoutées? par toi/)).toBeVisible();
+    // Le message d'un geste paraît dans le volet, pas tout en haut de la page.
+    await page
+      .getByRole('group', { name: 'État de Ngoyo sur la carte' })
+      .getByRole('radio', { name: 'Déploiement programmé' })
+      .click();
+    await expect(messageDeLaPage(page)).toBeInViewport();
+  });
+
+  test('une ville « pas encore couverte » dit ce que les familles lisent de ses arrondissements', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#zones');
+    await choisirLaZone(page, /^Pointe-Noire\s*Ville/);
+    await expect(
+      page.getByText(
+        /Les familles lisent quand même « Relevé en cours » sur la page de Pointe-Noire/,
+      ),
+    ).toBeVisible();
+  });
+
+  test('ouvrir une zone qui en contient beaucoup montre d’abord ce que ça change', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#zones');
+    await choisirLaZone(page, /^Pointe-Noire\s*Ville/);
+    await expect(
+      page.getByText(/Ouvrir Pointe-Noire ouvre aussi les 6 zones qu’elle contient/),
+    ).toBeVisible();
+    const ouverture = page.getByRole('switch', { name: 'Ouverte aux relais : Pointe-Noire' });
+    await ouverture.click();
+
+    const dialogue = page.getByRole('alertdialog', { name: 'Ouvrir Pointe-Noire aux relais ?' });
+    await expect(dialogue.getByText(/Cela ouvre 6 zones/)).toBeVisible();
+    // « Annuler » : rien n'a bougé.
+    await dialogue.getByRole('button', { name: 'Annuler' }).click();
+    await expect(dialogue).toHaveCount(0);
+    await expect(ouverture).toHaveAttribute('aria-checked', 'false');
+
+    await ouverture.click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Ouvrir 6 zones' }).click();
+    await expect(messageDeLaPage(page)).toHaveText(
+      'Pointe-Noire est ouverte aux relais, avec tout ce qu’elle contient.',
+    );
+    await expect(ouverture).toHaveAttribute('aria-checked', 'true');
+
+    // Refermer ne demande rien, et « Annuler » rouvre.
+    await ouverture.click();
+    await expect(messageDeLaPage(page)).toHaveText('Pointe-Noire n’est plus ouverte aux relais.');
+    await page.getByRole('button', { name: 'Annuler' }).click();
+    await expect(messageDeLaPage(page)).toHaveText(
+      'Pointe-Noire est ouverte aux relais, avec tout ce qu’elle contient.',
+    );
+  });
+
+  test('la vue par étape range les zones par état, et une zone s’y active d’un bouton', async ({
+    page,
+  }) => {
+    await seConnecter(page, '/admin/#zones');
+    await page.getByRole('link', { name: 'Par étape' }).click();
+    const programme = page.getByRole('region', { name: 'Déploiement programmé' });
+    const enCours = page.getByRole('region', { name: 'Relevé en cours' });
+    const pasEncore = page.getByRole('region', { name: 'Pas encore couverte' });
+    await expect(programme.getByText('Loandjili', { exact: true })).toBeVisible();
+    await expect(enCours.getByText('Ngoyo', { exact: true })).toBeVisible();
+    // Une zone sans école ni relais ne prend pas la place des autres : elle se déplie à la demande.
+    await expect(pasEncore.getByText('Moungali', { exact: true })).toHaveCount(0);
+    await pasEncore.getByRole('button', { name: /autres? zones? sans école/ }).click();
+    await expect(pasEncore.getByText('Moungali', { exact: true })).toBeVisible();
+
+    await programme.getByRole('button', { name: 'Activer Loandjili' }).click();
+    await expect(messageDeLaPage(page)).toHaveText(
+      'Loandjili est « Relevé en cours » sur la carte. Les relais ne sont pas concernés.',
+    );
+    await expect(enCours.getByText('Loandjili', { exact: true })).toBeVisible();
+    await expect(programme.getByText('Loandjili', { exact: true })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Annuler' }).click();
+    await expect(programme.getByText('Loandjili', { exact: true })).toBeVisible();
+
+    // Le nom d'une zone ouvre son volet dans l'arbre.
+    await programme.getByRole('button', { name: 'Régler Loandjili' }).click();
+    await expect(page).toHaveURL(/#zones\/d-pn-loandjili$/);
+    await expect(page.getByRole('heading', { name: 'Loandjili', level: 2 })).toBeVisible();
+  });
+
+  test('sur un grand écran, l’arbre garde sa place pendant que le volet défile', async ({
+    page,
+  }) => {
+    test.skip((page.viewportSize()?.width ?? 0) < 1280, 'Deux colonnes : grand écran');
+    // Une fenêtre basse : l'arbre est plus haut qu'elle, et la zone choisie doit y rester visible.
+    await page.setViewportSize({ width: 1280, height: 520 });
+    await seConnecter(page, '/admin/#zones/d-pn-loandjili');
+    const arbre = arbreDe(page);
+    await expect(arbre).toBeVisible();
+    await page.mouse.wheel(0, 600);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    const haut = await arbre.evaluate((e) => e.getBoundingClientRect().top);
+    expect(haut).toBeGreaterThanOrEqual(0);
+    expect(haut).toBeLessThan(48);
+    await expect(arbre.getByRole('button', { name: /^Loandjili/ })).toBeInViewport();
+  });
+
+  test('sur un petit écran, une zone choisie remplace la liste, et « Toutes les zones » la rend', async ({
+    page,
+  }) => {
+    test.skip((page.viewportSize()?.width ?? 0) >= 1152, 'Deux colonnes : la liste reste');
+    await seConnecter(page, '/admin/#zones/d-pn-loandjili');
+    await expect(page.getByRole('heading', { name: 'Loandjili', level: 2 })).toBeVisible();
+    await expect(arbreDe(page)).toBeHidden();
+    await page.getByRole('link', { name: '← Toutes les zones' }).click();
+    await expect(arbreDe(page)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Loandjili', level: 2 })).toHaveCount(0);
+  });
+
+  for (const adresse of ['#zones', '#zones/d-pn-ngoyo', '#zones/d-cg', '#zones/etapes']) {
+    test(`« ${adresse} » : la page ne défile pas de côté`, async ({ page }) => {
+      await seConnecter(page, `/admin/${adresse}`);
+      await expect(page.locator('main h1')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Zones', level: 1 })).toBeVisible();
+      const [contenu, fenetre] = await page.evaluate(
+        () => [document.documentElement.scrollWidth, window.innerWidth] as const,
+      );
+      expect(contenu).toBeLessThanOrEqual(fenetre);
+    });
+  }
 });

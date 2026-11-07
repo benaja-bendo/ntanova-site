@@ -1,320 +1,54 @@
 /**
- * Les zones et les lots. La géographie va du pays au quartier ; une zone est fermée aux relais tant qu'on ne
- * l'ouvre pas (ouvrir une ville ouvre tout ce qu'elle contient), et un lot se pose sur n'importe quelle ville,
- * n'importe quel arrondissement ou quartier.
+ * Les zones et les lots. La géographie va du pays au quartier ; une zone est fermée aux relais tant qu'on ne l'ouvre pas
+ * (ouvrir une ville ouvre tout ce qu'elle contient), et un lot se pose sur n'importe quelle ville, n'importe quel
+ * arrondissement ou quartier.
  *
- * Ouvrir une zone n'est pas annoncer une couverture : le site n'affiche que ce qui est publié.
+ * L'arbre à gauche garde sa place, le volet de la zone choisie défile à droite, comme « À valider » (audit de
+ * l'administration, 07/11/2026). Une seconde vue range les zones par étape de la carte. Ouvrir une zone n'est pas annoncer
+ * une couverture : le site n'affiche que ce qui est publié.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { libelleDeploiement } from '../../modele/carte/donnees';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { cheminLisible } from '../../modele/geo-divisions';
 import { libelleGenreDivision } from '../../modele/libelles';
-import type { Valeur } from '../../modele/listes';
 import type { DivisionVue, LotVu, PortAdministration, RelaisVu } from '../../modele/ports';
-import { Bandeau, Champ, jour } from '../../ui/composants';
+import {
+  SEUIL_OUVERTURE_LARGE,
+  lignesDeLArbre,
+  libelleEtat,
+  phraseDuResume,
+  resumeDesZones,
+  surLaCarte,
+  zonesDessous,
+  type EtatCarte,
+} from '../../modele/zones-admin';
+import { libelleDeploiement } from '../../modele/etat-zone';
+import { Bandeau, Champ, Icone, jour } from '../../ui/composants';
+import { Bouton } from '../../ui/actions';
+import { Dialogue } from '../../ui/Dialogue';
+import { aller, useAdresse } from '../commun/adresse';
 import { messageErreur } from './ChampPosition';
+import { VueParEtape } from './ZonesEtapes';
+import { VoletDeZone } from './ZonesVolet';
 
-/** Les genres qu'une division peut avoir sous un parent de ce niveau (voir `geo_divisions_genre_du_niveau`). */
-const GENRES_SOUS: Record<number, readonly Valeur<'geo_kind'>[]> = {
-  0: ['department', 'region'],
-  1: ['city', 'commune', 'district'],
-  2: ['arrondissement'],
-  3: ['quarter', 'zone'],
-};
-
-const adresseDe = (nom: string): string =>
-  nom
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-function AjouterDivision({
-  divisions,
-  estOuverte,
-  admin,
-  surFait,
-}: {
-  divisions: DivisionVue[];
-  /** La zone est-elle ouverte au relevé (elle-même, ou par une zone au-dessus d'elle) ? */
-  estOuverte: (divisionId: string) => boolean;
-  admin: PortAdministration;
-  surFait: (texte: string) => void;
-}) {
-  const parents = divisions.filter((d) => d.niveau <= 3);
-  const [parentId, setParentId] = useState('');
-  const parent = parents.find((d) => d.id === parentId);
-  const genres = parent ? (GENRES_SOUS[parent.niveau] ?? []) : [];
-  const [genre, setGenre] = useState<Valeur<'geo_kind'>>('quarter');
-  const [nom, setNom] = useState('');
-  const [adresse, setAdresse] = useState('');
-  const [adresseLibre, setAdresseLibre] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState(false);
-
-  const choisirParent = (id: string) => {
-    setParentId(id);
-    const p = parents.find((d) => d.id === id);
-    const permis = p ? (GENRES_SOUS[p.niveau] ?? []) : [];
-    if (permis.length > 0 && !permis.includes(genre)) setGenre(permis[0] ?? 'quarter');
-  };
-
-  const valider = async (ev: { preventDefault: () => void }) => {
-    ev.preventDefault();
-    if (!parent || nom.trim() === '') return;
-    setEnCours(true);
-    setErreur(null);
-    try {
-      await admin.ajouterDivision(parent.id, genre, nom.trim(), adresse.trim() || adresseDe(nom));
-      // Une zone nouvelle n'est pas ouverte en soi ; elle l'est par la zone qui la contient, si celle-ci l'est.
-      surFait(
-        `${nom.trim()} est ajouté sous ${parent.nom}. ` +
-          (estOuverte(parent.id)
-            ? 'Les relais peuvent y relever, comme dans tout ce que contient sa zone.'
-            : 'Fermé aux relais : ouvre-le quand tu veux.'),
-      );
-      setNom('');
-      setAdresse('');
-    } catch (e) {
-      setErreur(messageErreur(e));
-    } finally {
-      setEnCours(false);
-    }
-  };
-
-  return (
-    <form
-      className="admin-motif carte-blanche"
-      aria-label="Ajouter une zone"
-      onSubmit={(ev) => void valider(ev)}
-    >
-      <h2 className="titre-section admin-pleine-largeur">Ajouter une zone</h2>
-      <p className="mention admin-pleine-largeur">
-        Un département sous un pays, une ville sous un département, un arrondissement sous une
-        ville, un quartier ou une zone sous un arrondissement. L’adresse d’une zone ne change plus
-        ensuite : elle est dans des liens publics.
-      </p>
-      <Champ libelle="Sous quelle zone ?">
-        {(a) => (
-          <select
-            {...a}
-            className="champ"
-            value={parentId}
-            onChange={(ev) => choisirParent(ev.target.value)}
-          >
-            <option value="">Choisir…</option>
-            {parents.map((d) => (
-              <option key={d.id} value={d.id}>
-                {cheminLisible(d.id, divisions)} ({libelleGenreDivision[d.genre].toLowerCase()})
-              </option>
-            ))}
-          </select>
-        )}
-      </Champ>
-      <Champ libelle="Genre">
-        {(a) => (
-          <select
-            {...a}
-            className="champ"
-            value={genre}
-            disabled={genres.length === 0}
-            onChange={(ev) => setGenre(ev.target.value as Valeur<'geo_kind'>)}
-          >
-            {genres.map((g) => (
-              <option key={g} value={g}>
-                {libelleGenreDivision[g]}
-              </option>
-            ))}
-          </select>
-        )}
-      </Champ>
-      <Champ libelle="Nom">
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="text"
-            autoComplete="off"
-            maxLength={120}
-            value={nom}
-            onChange={(ev) => {
-              setNom(ev.target.value);
-              if (!adresseLibre) setAdresse(adresseDe(ev.target.value));
-            }}
-          />
-        )}
-      </Champ>
-      <Champ
-        libelle="Adresse (dans le lien)"
-        aide="Lettres minuscules, chiffres et tirets : « mpaka », « centre-ville »."
-      >
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="text"
-            autoComplete="off"
-            maxLength={60}
-            value={adresse}
-            onChange={(ev) => {
-              setAdresse(ev.target.value);
-              setAdresseLibre(true);
-            }}
-          />
-        )}
-      </Champ>
-      {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
-          {erreur}
-        </p>
-      )}
-      <div className="admin-actions admin-pleine-largeur">
-        <button type="submit" className="bouton" disabled={enCours || !parent || nom.trim() === ''}>
-          Ajouter la zone
-        </button>
-      </div>
-    </form>
-  );
+/** Le retour d'un geste : dit ce qui s'est passé, et le défait quand c'est possible. */
+interface Retour {
+  texte: string;
+  annuler?: () => Promise<void>;
 }
-
-function NouveauLot({
-  divisions,
-  estOuverte,
-  admin,
-  surFait,
-}: {
-  divisions: DivisionVue[];
-  /** La zone est-elle ouverte au relevé (elle-même, ou par une zone au-dessus) ? */
-  estOuverte: (divisionId: string) => boolean;
-  admin: PortAdministration;
-  surFait: (texte: string) => void;
-}) {
-  const [nom, setNom] = useState('');
-  const [divisionId, setDivisionId] = useState('');
-  const [rendreLe, setRendreLe] = useState('');
-  const [essai, setEssai] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState(false);
-
-  const creer = async (ev: { preventDefault: () => void }) => {
-    ev.preventDefault();
-    setEnCours(true);
-    setErreur(null);
-    try {
-      await admin.creerLot(nom.trim(), divisionId, rendreLe || null, essai);
-      surFait(`Le lot ${nom.trim()} est créé. Active un relais dessus depuis l’onglet « Relais ».`);
-      setNom('');
-      setRendreLe('');
-      setEssai(false);
-    } catch (e) {
-      setErreur(messageErreur(e));
-    } finally {
-      setEnCours(false);
-    }
-  };
-
-  return (
-    <form
-      className="admin-motif carte-blanche"
-      aria-label="Créer un lot"
-      onSubmit={(ev) => void creer(ev)}
-    >
-      <h2 className="titre-section admin-pleine-largeur">Créer un lot</h2>
-      <p className="mention admin-pleine-largeur">
-        Un lot est la zone qu’un relais parcourt : une ville, un arrondissement ou un quartier,
-        n’importe où dans le pays. Il se pose sur une zone <b>ouverte</b> au relevé (ouvre-la
-        d’abord dans le tableau ci-dessus) ; un lot d’entraînement se pose n’importe où.
-      </p>
-      <Champ libelle="Nom du lot">
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="text"
-            autoComplete="off"
-            maxLength={80}
-            value={nom}
-            onChange={(ev) => setNom(ev.target.value)}
-          />
-        )}
-      </Champ>
-      <Champ libelle="Zone">
-        {(a) => (
-          <select
-            {...a}
-            className="champ"
-            value={divisionId}
-            onChange={(ev) => setDivisionId(ev.target.value)}
-          >
-            <option value="">Choisir…</option>
-            {divisions
-              .filter((d) => d.niveau >= 2)
-              .map((d) => (
-                <option key={d.id} value={d.id}>
-                  {cheminLisible(d.id, divisions)}
-                  {estOuverte(d.id) ? '' : ' (fermée)'}
-                </option>
-              ))}
-          </select>
-        )}
-      </Champ>
-      <Champ libelle="À rendre pour le" facultatif>
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="date"
-            value={rendreLe}
-            onChange={(ev) => setRendreLe(ev.target.value)}
-          />
-        )}
-      </Champ>
-      <label className="rang admin-pleine-largeur">
-        <input type="checkbox" checked={essai} onChange={(ev) => setEssai(ev.target.checked)} />
-        <span>Lot d’entraînement : ses fiches ne sont jamais publiées.</span>
-      </label>
-      {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
-          {erreur}
-        </p>
-      )}
-      <div className="admin-actions admin-pleine-largeur">
-        <button
-          type="submit"
-          className="bouton"
-          disabled={
-            enCours || nom.trim() === '' || divisionId === '' || (!essai && !estOuverte(divisionId))
-          }
-        >
-          Créer le lot
-        </button>
-        {divisionId !== '' && !essai && !estOuverte(divisionId) && (
-          <span className="mention">
-            Cette zone est fermée : ouvre-la d’abord, ou fais-en un lot d’entraînement.
-          </span>
-        )}
-      </div>
-    </form>
-  );
-}
-
-/** Les zones que la carte du site dessine ou pointe : une ville, une commune, un district, un arrondissement. */
-const GENRES_SUR_LA_CARTE: readonly Valeur<'geo_kind'>[] = [
-  'city',
-  'commune',
-  'district',
-  'arrondissement',
-];
 
 export function Zones({ admin }: { admin: PortAdministration }) {
   const [divisions, setDivisions] = useState<DivisionVue[] | null>(null);
   const [lots, setLots] = useState<LotVu[]>([]);
   const [relais, setRelais] = useState<RelaisVu[]>([]);
   const [recherche, setRecherche] = useState('');
+  const [groupesOuverts, setGroupesOuverts] = useState<ReadonlySet<string>>(new Set());
   const [erreur, setErreur] = useState<string | null>(null);
-  const [annonce, setAnnonce] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState(false);
+  const [retour, setRetour] = useState<Retour | null>(null);
+  const [occupee, setOccupee] = useState<string | null>(null);
+  const [aConfirmer, setAConfirmer] = useState<DivisionVue | null>(null);
+  const [enCoursLot, setEnCoursLot] = useState(false);
+  const [, sous] = useAdresse();
+  const vue = sous === 'etapes' ? 'etapes' : 'arbre';
 
   const charger = useCallback(() => {
     Promise.all([admin.divisions(), admin.lots(), admin.relais()])
@@ -347,88 +81,163 @@ export function Zones({ admin }: { admin: PortAdministration }) {
     return resultat;
   }, [divisions]);
 
-  const basculer = async (d: DivisionVue, ouverte: boolean) => {
-    setEnCours(true);
+  const choisie = vue === 'arbre' ? ((divisions ?? []).find((d) => d.id === sous) ?? null) : null;
+
+  // Une zone choisie par son adresse, ou depuis l'autre vue, se montre dans la liste même quand celle-ci défile.
+  const idChoisie = choisie?.id;
+  const chargee = divisions !== null;
+  useEffect(() => {
+    if (!idChoisie) return;
+    document
+      .querySelector('.admin-arbre [aria-current="true"]')
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [idChoisie, chargee]);
+
+  const choisir = (zone: DivisionVue) => {
+    setRetour(null);
+    aller(`zones/${zone.id}`);
+  };
+
+  /** Un geste sur une zone : il s'enregistre, dit où il en est à côté de la zone, et se défait d'un clic. */
+  const agir = async (zoneId: string, action: () => Promise<void>, apres: Retour) => {
+    setOccupee(zoneId);
     setErreur(null);
     try {
-      await admin.ouvrirZone(d.id, ouverte);
-      setAnnonce(
-        ouverte
-          ? `${d.nom} est ouverte au relevé (avec tout ce qu’elle contient).`
-          : `${d.nom} n’est plus ouverte au relevé.`,
-      );
+      await action();
+      setRetour(apres);
       charger();
     } catch (e) {
       setErreur(messageErreur(e));
     } finally {
-      setEnCours(false);
+      setOccupee(null);
     }
   };
 
   // Ce que la carte du site dit de la zone : elle ne touche pas à l'ouverture aux relais.
-  const regler = async (d: DivisionVue, etat: 'actif' | 'programme' | null) => {
-    setEnCours(true);
-    setErreur(null);
-    try {
-      await admin.etatPublicZone(d.id, etat);
-      setAnnonce(
+  const regler = (d: DivisionVue, etat: EtatCarte) => {
+    const avant = d.deploiement;
+    if (avant === etat) return Promise.resolve();
+    return agir(d.id, () => admin.etatPublicZone(d.id, etat), {
+      texte:
         etat === null
           ? `${d.nom} n’apparaît plus comme zone suivie sur la carte : « Pas encore couverte ». Les relais ne sont pas concernés.`
           : `${d.nom} est « ${libelleDeploiement[etat]} » sur la carte. Les relais ne sont pas concernés.`,
-      );
-      charger();
-    } catch (e) {
-      setErreur(messageErreur(e));
-    } finally {
-      setEnCours(false);
+      annuler: () =>
+        agir(d.id, () => admin.etatPublicZone(d.id, avant), {
+          texte: `${d.nom} redevient « ${libelleEtat(avant)} » sur la carte.`,
+        }),
+    });
+  };
+
+  const ouvrir = (d: DivisionVue, ouverte: boolean): Promise<void> =>
+    agir(d.id, () => admin.ouvrirZone(d.id, ouverte), {
+      texte: ouverte
+        ? `${d.nom} est ouverte aux relais, avec tout ce qu’elle contient.`
+        : `${d.nom} n’est plus ouverte aux relais.`,
+      annuler: () => ouvrir(d, !ouverte),
+    });
+
+  // Un geste qui touche beaucoup de zones montre d'abord ce qu'il change.
+  const demanderOuverture = (d: DivisionVue, ouverte: boolean) => {
+    if (ouverte && zonesDessous(d, divisions ?? []).length >= SEUIL_OUVERTURE_LARGE) {
+      setAConfirmer(d);
+      return;
     }
+    void ouvrir(d, ouverte);
   };
 
   // Un secteur est « rendu » quand l'administration le déclare terminé : c'est ce que compte la mesure, à sa date.
   const rendre = async (l: LotVu, rendu: boolean) => {
-    setEnCours(true);
+    setEnCoursLot(true);
     setErreur(null);
     try {
       await admin.marquerLotRendu(l.id, rendu);
-      setAnnonce(
-        rendu ? `Le lot « ${l.nom} » est marqué rendu.` : `Le lot « ${l.nom} » est remis en cours.`,
-      );
+      setRetour({
+        texte: rendu
+          ? `Le lot « ${l.nom} » est marqué rendu.`
+          : `Le lot « ${l.nom} » est remis en cours.`,
+      });
       charger();
     } catch (e) {
       setErreur(messageErreur(e));
     } finally {
-      setEnCours(false);
+      setEnCoursLot(false);
     }
   };
 
-  const requete = recherche
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .trim();
-  const visibles = (divisions ?? []).filter(
-    (d) =>
-      requete === '' ||
-      d.nom
-        .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '')
-        .toLowerCase()
-        .includes(requete),
+  // Une zone qu'on vient d'ajouter s'ouvre aussitôt : c'est elle qu'on veut régler ensuite.
+  const surFait = (texte: string, zoneId?: string) => {
+    setRetour({ texte });
+    charger();
+    if (zoneId) aller(`zones/${zoneId}`);
+  };
+
+  const noeudRetour = retour && (
+    <div className="admin-retour">
+      <p className="bandeau bandeau-envoye" role="status">
+        {retour.texte}
+      </p>
+      {retour.annuler && (
+        <button
+          type="button"
+          className="bouton bouton-secondaire bouton-petit"
+          onClick={() => void retour.annuler?.()}
+        >
+          Annuler
+        </button>
+      )}
+    </div>
   );
+
+  const lignes = lignesDeLArbre(divisions ?? [], {
+    groupesOuverts,
+    choisie: choisie?.id ?? null,
+    requete: recherche,
+  });
+  const parId = new Map((divisions ?? []).map((d) => [d.id, d]));
+
+  const basculerGroupe = (id: string) =>
+    setGroupesOuverts((avant) => {
+      const apres = new Set(avant);
+      if (apres.has(id)) apres.delete(id);
+      else apres.add(id);
+      return apres;
+    });
 
   return (
     <div className="pile">
       <div className="admin-titre">
         <div>
-          <h1>Zones et lots</h1>
+          <h1>Zones</h1>
           <p className="texte-doux">
-            Les relais peuvent relever partout au Congo-Brazzaville : « ouverte » dit où NTanova
-            envoie des relais et où l’on pose des secteurs, jamais où il leur est interdit de
-            relever. Ouvrir une zone ouvre tout ce qu’elle contient. La colonne « Sur la carte »
-            règle ce que les familles lisent sur la carte du site, à part : elle ne change rien pour
-            les relais, et une fiche n’apparaît sur le site qu’une fois publiée. Les écoles ajoutées
-            par toi ou importées sont comptées à part de celles qu’un relais a relevées.
+            Où NTanova envoie des relais, et ce que les familles voient sur la carte. Les relais
+            peuvent relever partout au Congo-Brazzaville : « ouverte » dit seulement où l’on en
+            envoie, jamais où il leur est interdit de relever.
           </p>
+        </div>
+        <div className="admin-vues" role="group" aria-label="Affichage des zones">
+          <a
+            className="admin-vue"
+            href="#zones"
+            aria-current={vue === 'arbre' ? 'true' : undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              aller('zones');
+            }}
+          >
+            Arbre
+          </a>
+          <a
+            className="admin-vue"
+            href="#zones/etapes"
+            aria-current={vue === 'etapes' ? 'true' : undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              aller('zones/etapes');
+            }}
+          >
+            Par étape
+          </a>
         </div>
       </div>
 
@@ -437,208 +246,243 @@ export function Zones({ admin }: { admin: PortAdministration }) {
           <p>{erreur}</p>
         </Bandeau>
       )}
-      {annonce && (
-        <p className="bandeau bandeau-envoye" role="status">
-          {annonce}
+
+      {divisions === null && !erreur && (
+        <p aria-busy="true" className="texte-doux">
+          Chargement des zones…
         </p>
       )}
 
-      <Champ libelle="Chercher une zone" facultatif>
-        {(a) => (
-          <input
-            {...a}
-            className="champ"
-            type="search"
-            autoComplete="off"
-            value={recherche}
-            onChange={(ev) => setRecherche(ev.target.value)}
-          />
-        )}
-      </Champ>
-
-      <div className="admin-tableau">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Zone</th>
-              <th scope="col">Écoles</th>
-              <th scope="col">Publiées</th>
-              <th scope="col">Relevées / ajoutées / importées</th>
-              <th scope="col">Relevé</th>
-              <th scope="col">Sur la carte</th>
-            </tr>
-          </thead>
-          <tbody>
-            {divisions === null && !erreur && (
-              <tr>
-                <td colSpan={6} className="texte-doux" aria-busy="true">
-                  Chargement des zones…
-                </td>
-              </tr>
-            )}
-            {visibles.map((d) => {
-              const par = ouvertePar.get(d.id);
-              return (
-                <tr key={d.id}>
-                  <td style={{ paddingLeft: `calc(var(--espace-4) + ${d.niveau} * 1.25rem)` }}>
-                    <b>{d.nom}</b>
-                    <span className="mention admin-sous-ligne">
-                      {libelleGenreDivision[d.genre]}
-                    </span>
-                  </td>
-                  <td>{d.ecoles}</td>
-                  <td>{d.publiees}</td>
-                  <td>
-                    {d.relevees} / {d.ajoutees} / {d.importees}
-                  </td>
-                  <td>
-                    {par && par.id !== d.id ? (
-                      <span className="etiquette etat-envoye">Ouverte par {par.nom}</span>
-                    ) : par ? (
-                      <button
-                        type="button"
-                        className="bouton bouton-secondaire bouton-petit"
-                        disabled={enCours}
-                        aria-label={`Fermer ${d.nom} au relevé`}
-                        onClick={() => void basculer(d, false)}
-                      >
-                        Ouverte : fermer
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="bouton bouton-petit"
-                        disabled={enCours}
-                        aria-label={`Ouvrir ${d.nom} au relevé`}
-                        onClick={() => void basculer(d, true)}
-                      >
-                        Fermée : ouvrir
-                      </button>
-                    )}
-                  </td>
-                  <td>
-                    {GENRES_SUR_LA_CARTE.includes(d.genre) ? (
-                      <select
-                        className="champ"
-                        disabled={enCours}
-                        aria-label={`État de ${d.nom} sur la carte`}
-                        value={d.deploiement ?? ''}
-                        onChange={(ev) =>
-                          void regler(
-                            d,
-                            ev.target.value === ''
-                              ? null
-                              : (ev.target.value as 'actif' | 'programme'),
-                          )
-                        }
-                      >
-                        <option value="">Pas encore couverte</option>
-                        <option value="programme">{libelleDeploiement.programme}</option>
-                        <option value="actif">{libelleDeploiement.actif}</option>
-                      </select>
-                    ) : (
-                      <span className="texte-doux">—</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {divisions && (
+      {divisions !== null && vue === 'etapes' && (
         <>
-          <AjouterDivision
+          {noeudRetour}
+          <VueParEtape
             divisions={divisions}
-            estOuverte={(id) => ouvertePar.get(id) != null}
-            admin={admin}
-            surFait={(texte) => {
-              setAnnonce(texte);
-              charger();
-            }}
-          />
-          <NouveauLot
-            divisions={divisions}
-            estOuverte={(id) => ouvertePar.get(id) != null}
-            admin={admin}
-            surFait={(texte) => {
-              setAnnonce(texte);
-              charger();
-            }}
+            occupee={occupee}
+            surEtat={(z, etat) => void regler(z, etat)}
+            surChoix={choisir}
           />
         </>
       )}
 
-      <h2>Les lots</h2>
-      <div className="admin-tableau">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Lot</th>
-              <th scope="col">Zone</th>
-              <th scope="col">À rendre</th>
-              <th scope="col">Rendu</th>
-              <th scope="col">Relais actifs</th>
-              <th scope="col">Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lots.map((l) => (
-              <tr key={l.id}>
-                <td>
-                  <b>{l.nom}</b>
-                </td>
-                <td>{divisions ? cheminLisible(l.divisionId, divisions) : l.divisionNom}</td>
-                <td>{l.aRendreLe ? jour(l.aRendreLe) : '—'}</td>
-                <td>
-                  {l.essai ? (
-                    '—'
-                  ) : l.renduLe ? (
-                    <>
-                      Rendu le {jour(l.renduLe)}{' '}
-                      <button
-                        type="button"
-                        className="bouton bouton-secondaire bouton-petit"
-                        disabled={enCours}
-                        onClick={() => void rendre(l, false)}
-                      >
-                        Remettre en cours
-                      </button>
-                    </>
-                  ) : (
+      {divisions !== null && vue === 'arbre' && (
+        <div className={`admin-zones-deux${choisie ? ' avec-selection' : ''}`}>
+          <section className="admin-arbre" aria-label="Liste des zones">
+            <Champ libelle="Chercher une zone">
+              {(a) => (
+                <input
+                  {...a}
+                  className="champ"
+                  type="search"
+                  autoComplete="off"
+                  value={recherche}
+                  onChange={(ev) => setRecherche(ev.target.value)}
+                />
+              )}
+            </Champ>
+            <p className="mention admin-arbre-resume">
+              {phraseDuResume(resumeDesZones(divisions))}
+            </p>
+            <ul className="admin-arbre-liste">
+              {lignes.map((l) =>
+                l.type === 'groupe' ? (
+                  <li key={l.id}>
                     <button
                       type="button"
-                      className="bouton bouton-secondaire bouton-petit"
-                      disabled={enCours}
-                      onClick={() => void rendre(l, true)}
+                      className="admin-zone-groupe"
+                      style={{ '--retrait': l.indent } as CSSProperties}
+                      aria-expanded={l.ouvert}
+                      onClick={() => basculerGroupe(l.id)}
                     >
-                      Marquer rendu
+                      <span
+                        className={`admin-chevron${l.ouvert ? ' est-ouvert' : ''}`}
+                        aria-hidden="true"
+                      >
+                        <Icone nom="suivant" taille={14} />
+                      </span>
+                      <span className="admin-zone-texte">
+                        <b>{l.nombre > 1 ? `${l.nombre} autres zones` : '1 autre zone'}</b>
+                        <small>Aucune école, rien sur la carte</small>
+                      </span>
                     </button>
-                  )}
-                </td>
-                <td>{relais.filter((r) => r.lotId === l.id && r.statut === 'actif').length}</td>
-                <td className="mention">
-                  {l.essai
-                    ? 'Entraînement : ses fiches ne sont jamais publiées.'
-                    : 'Toute la zone.'}
-                  {divisions &&
-                    !ouvertePar.get(l.divisionId) &&
-                    !l.essai &&
-                    ' La zone est fermée : ouvre-la pour que les relais puissent envoyer.'}
-                </td>
-              </tr>
-            ))}
-            {lots.length === 0 && (
-              <tr>
-                <td colSpan={6} className="texte-doux">
-                  Aucun lot.
-                </td>
-              </tr>
+                  </li>
+                ) : (
+                  <li key={l.zone.id}>
+                    <button
+                      type="button"
+                      className="admin-zone-ligne"
+                      style={{ '--retrait': l.indent } as CSSProperties}
+                      aria-current={choisie?.id === l.zone.id ? 'true' : undefined}
+                      onClick={() => choisir(l.zone)}
+                    >
+                      <span
+                        className={`admin-pastille-etat admin-pastille-${
+                          surLaCarte(l.zone) ? (l.zone.deploiement ?? 'aucun') : 'sans'
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <span className="admin-zone-texte">
+                        <b>{l.zone.nom}</b>
+                        <small>
+                          {libelleGenreDivision[l.zone.genre]}
+                          {l.dansGroupe && l.zone.parentId && parId.get(l.zone.parentId)
+                            ? ` · ${parId.get(l.zone.parentId)?.nom}`
+                            : ''}
+                          {surLaCarte(l.zone) ? ` · ${libelleEtat(l.zone.deploiement)}` : ''}
+                        </small>
+                      </span>
+                      <span className={`admin-nombre${l.zone.ecoles === 0 ? ' est-nul' : ''}`}>
+                        {l.zone.ecoles}
+                      </span>
+                    </button>
+                  </li>
+                ),
+              )}
+            </ul>
+            {recherche.trim() !== '' && lignes.length === 0 && (
+              <p className="texte-doux">Aucune zone ne s’appelle ainsi.</p>
             )}
-          </tbody>
-        </table>
-      </div>
+          </section>
+
+          {choisie ? (
+            <div className="admin-zone-detail">
+              <a
+                className="lien admin-retour-liste"
+                href="#zones"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setRetour(null);
+                  aller('zones');
+                }}
+              >
+                ← Toutes les zones
+              </a>
+              <VoletDeZone
+                zone={choisie}
+                divisions={divisions}
+                lots={lots}
+                ouvertePar={ouvertePar}
+                occupee={occupee === choisie.id}
+                admin={admin}
+                retour={noeudRetour}
+                surEtat={(etat) => void regler(choisie, etat)}
+                surOuverture={(ouverte) => demanderOuverture(choisie, ouverte)}
+                surFait={surFait}
+              />
+            </div>
+          ) : (
+            <div className="admin-volet-invite">
+              {noeudRetour}
+              <p className="texte-doux admin-invite-texte">
+                Choisis une zone : tu y règles ce que voient les familles sur la carte et où NTanova
+                envoie des relais.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {divisions !== null && (
+        <>
+          <h2>Les lots</h2>
+          <div className="admin-tableau">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Lot</th>
+                  <th scope="col">Zone</th>
+                  <th scope="col">À rendre</th>
+                  <th scope="col">Rendu</th>
+                  <th scope="col">Relais actifs</th>
+                  <th scope="col">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lots.map((l) => (
+                  <tr key={l.id}>
+                    <td>
+                      <b>{l.nom}</b>
+                    </td>
+                    <td>{cheminLisible(l.divisionId, divisions)}</td>
+                    <td>{l.aRendreLe ? jour(l.aRendreLe) : '—'}</td>
+                    <td>
+                      {l.essai ? (
+                        '—'
+                      ) : l.renduLe ? (
+                        <>
+                          Rendu le {jour(l.renduLe)}{' '}
+                          <button
+                            type="button"
+                            className="bouton bouton-secondaire bouton-petit"
+                            disabled={enCoursLot}
+                            onClick={() => void rendre(l, false)}
+                          >
+                            Remettre en cours
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="bouton bouton-secondaire bouton-petit"
+                          disabled={enCoursLot}
+                          onClick={() => void rendre(l, true)}
+                        >
+                          Marquer rendu
+                        </button>
+                      )}
+                    </td>
+                    <td>{relais.filter((r) => r.lotId === l.id && r.statut === 'actif').length}</td>
+                    <td className="mention">
+                      {l.essai
+                        ? 'Entraînement : ses fiches ne sont jamais publiées.'
+                        : 'Toute la zone.'}
+                      {!ouvertePar.get(l.divisionId) &&
+                        !l.essai &&
+                        ' La zone est fermée : ouvre-la pour que les relais puissent envoyer.'}
+                    </td>
+                  </tr>
+                ))}
+                {lots.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="texte-doux">
+                      Aucun lot.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {aConfirmer && (
+        <Dialogue
+          titre={`Ouvrir ${aConfirmer.nom} aux relais ?`}
+          variante="confirmation"
+          libelleFermeture="Annuler"
+          fermer={() => setAConfirmer(null)}
+          description={`${aConfirmer.nom} contient ${zonesDessous(aConfirmer, divisions ?? []).length} autres zones : elles s’ouvrent toutes avec elle.`}
+          entete={<h2>Ouvrir {aConfirmer.nom} aux relais ?</h2>}
+        >
+          <div className="pile-serree">
+            <p>
+              Cela ouvre <b>{zonesDessous(aConfirmer, divisions ?? []).length} zones</b>. Tu pourras
+              refermer {aConfirmer.nom} d’un coup, ou ouvrir zone par zone à la place.
+            </p>
+            <div className="choix-ligne">
+              <Bouton
+                onClick={() => {
+                  const d = aConfirmer;
+                  setAConfirmer(null);
+                  void ouvrir(d, true);
+                }}
+              >
+                Ouvrir {zonesDessous(aConfirmer, divisions ?? []).length} zones
+              </Bouton>
+            </div>
+          </div>
+        </Dialogue>
+      )}
     </div>
   );
 }

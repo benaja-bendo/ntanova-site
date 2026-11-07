@@ -1,4 +1,4 @@
-import { ouvrirContacts } from '../parcours/aides';
+import { ouvrirContacts, choisirLaZone } from '../parcours/aides';
 import { ouvrirGestion } from '../parcours/aides';
 import { mkdirSync } from 'node:fs';
 import { test } from '@playwright/test';
@@ -116,6 +116,17 @@ test('une capture de chaque écran', async ({ page, context }) => {
   await ouvrirGestion(page.getByRole('row', { name: /\[École 1\]/ }), 'retirer');
   await prendre('admin-retirer-du-site');
   await page.getByRole('alertdialog').getByRole('button', { name: 'Fermer', exact: true }).click();
+
+  await page.getByRole('link', { name: 'Zones' }).click();
+  await page.getByRole('heading', { name: 'Zones', level: 1 }).waitFor();
+  await page.getByRole('region', { name: 'Liste des zones' }).waitFor();
+  await prendre('admin-zones');
+  await choisirLaZone(page, /^Tié-Tié/);
+  await page.getByRole('heading', { name: 'Tié-Tié', level: 2 }).waitFor();
+  await prendre('admin-zone-choisie');
+  await page.getByRole('link', { name: 'Par étape' }).click();
+  await page.getByRole('heading', { name: 'Relevé en cours', level: 3 }).waitFor();
+  await prendre('admin-zones-par-etape');
 
   await page.getByRole('link', { name: 'Relais' }).click();
   await page.getByRole('heading', { name: 'Relais', level: 1 }).waitFor();

@@ -717,3 +717,754 @@
     overflow-y: auto;
   }
 }
+
+/*
+ * Zones (audit de l'administration, 07/11/2026) : l'arbre garde sa place à gauche, le volet de la zone choisie défile à
+ * droite. Une zone se règle d'un clic, à côté de ce qu'elle dit. Jetons seulement.
+ */
+.admin-vues {
+  display: inline-flex;
+  align-self: flex-end;
+  padding: 3px;
+  border-radius: var(--rayon-pilule);
+  background: var(--fond-bande);
+}
+
+.admin-vue {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cible-min);
+  padding: 0 var(--espace-4);
+  border-radius: var(--rayon-pilule);
+  color: var(--texte-doux);
+  font-family: var(--police-titre);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-vue[aria-current='true'] {
+  background: var(--fond-releve);
+  box-shadow: var(--ombre-flottante);
+  color: var(--texte);
+}
+
+.admin-zones-deux {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-5);
+}
+
+.admin-arbre {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  min-width: 0;
+  padding: var(--espace-4);
+  border-radius: var(--rayon-l);
+  background: var(--fond-releve);
+  box-shadow: 0 1px 0 var(--trait);
+}
+
+.admin-arbre-resume {
+  margin: 0;
+}
+
+.admin-arbre-liste {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-zone-ligne,
+.admin-zone-groupe {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  width: 100%;
+  min-height: var(--cible-principale);
+  padding: var(--espace-2) var(--espace-3);
+  padding-left: calc(var(--espace-3) + var(--retrait, 0) * var(--espace-4));
+  border: 0;
+  border-radius: var(--rayon-s);
+  background: none;
+  color: var(--texte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-zone-ligne:hover,
+.admin-zone-groupe:hover {
+  background: var(--fond-bande);
+}
+
+.admin-zone-ligne:focus-visible,
+.admin-zone-groupe:focus-visible,
+.admin-carte-nom:focus-visible,
+.admin-voir-autres:focus-visible,
+.admin-plie summary:focus-visible {
+  outline: var(--epaisseur-focus) solid var(--focus);
+  outline-offset: 2px;
+}
+
+.admin-zone-ligne[aria-current='true'] {
+  background: var(--vert-pale);
+  box-shadow: inset 3px 0 0 var(--marque);
+}
+
+.admin-zone-groupe {
+  margin-top: var(--espace-1);
+  border-top: 1px dashed var(--trait);
+  border-radius: 0 0 var(--rayon-s) var(--rayon-s);
+}
+
+.admin-zone-groupe b {
+  color: var(--texte-doux);
+  font-weight: 600;
+}
+
+.admin-zone-texte {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-zone-texte small {
+  color: var(--texte-doux);
+  font-size: var(--taille-mention);
+}
+
+.admin-pastille-etat {
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+}
+
+.admin-pastille-actif {
+  border-color: var(--carte-zone-actif);
+  background: var(--carte-zone-actif);
+}
+
+.admin-pastille-programme {
+  border: 2px dashed var(--carte-zone-programme);
+}
+
+.admin-pastille-aucun {
+  border-color: var(--trait);
+}
+
+.admin-nombre {
+  min-width: 28px;
+  padding: 1px var(--espace-2);
+  border-radius: var(--rayon-pilule);
+  background: var(--fond-bande);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  text-align: center;
+}
+
+.admin-nombre.est-nul {
+  background: none;
+  color: var(--gris-vide);
+  font-weight: 600;
+}
+
+.admin-chevron {
+  display: inline-flex;
+  flex: 0 0 14px;
+  transition: transform 0.15s;
+}
+
+.admin-chevron.est-ouvert {
+  transform: rotate(90deg);
+}
+
+.admin-zone-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  min-width: 0;
+}
+
+.admin-retour-liste {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+}
+
+.admin-volet-invite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  min-width: 0;
+}
+
+.admin-invite-texte {
+  display: none;
+}
+
+.admin-volet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  min-width: 0;
+}
+
+.admin-volet-carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  min-width: 0;
+  padding: var(--espace-5);
+  border-radius: var(--rayon-l);
+  background: var(--fond-releve);
+  box-shadow: 0 1px 0 var(--trait);
+}
+
+.admin-volet-carte .mention,
+.admin-volet-carte h3 {
+  margin: 0;
+}
+
+.admin-volet-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3);
+}
+
+.admin-volet-titre h2 {
+  font-size: var(--taille-titre-page);
+}
+
+.admin-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+}
+
+.admin-stat {
+  display: flex;
+  flex: 1 1 8rem;
+  flex-direction: column;
+  gap: var(--espace-1);
+  padding: var(--espace-3) var(--espace-4);
+  border-radius: var(--rayon-m);
+  background: var(--fond);
+}
+
+.admin-stat b {
+  font-family: var(--police-titre);
+  font-size: var(--taille-titre-page);
+  line-height: var(--interligne-titre);
+}
+
+.admin-stat > span {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}
+
+.admin-stat-origine {
+  flex: 2 1 17rem;
+}
+
+.admin-origine {
+  display: flex;
+  height: 12px;
+  overflow: hidden;
+  border-radius: var(--rayon-pilule);
+  background: var(--trait);
+}
+
+.admin-origine > span {
+  display: block;
+  height: 100%;
+}
+
+.origine-releve {
+  background: var(--vert);
+}
+
+.origine-ajoutee {
+  background: var(--jaune);
+}
+
+.origine-importee {
+  background: var(--bleu-ardoise);
+}
+
+.admin-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-1) var(--espace-4);
+  margin: 0;
+  padding: 0;
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+  list-style: none;
+}
+
+.admin-legende li {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+.admin-legende i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.admin-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ecart-cibles);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.admin-segments:disabled {
+  opacity: 0.6;
+}
+
+.admin-segment {
+  position: relative;
+  flex: 1 1 11rem;
+}
+
+.admin-segment input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.admin-segment span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cible-principale);
+  padding: var(--espace-2) var(--espace-3);
+  border: 2px solid var(--trait-fort);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  font-family: var(--police-titre);
+  font-size: var(--taille-secondaire);
+  font-weight: 600;
+  text-align: center;
+}
+
+.admin-segment:hover span {
+  background: var(--fond-bande);
+}
+
+.admin-segment:focus-within span {
+  outline: var(--epaisseur-focus) solid var(--focus);
+  outline-offset: 2px;
+}
+
+.admin-segment-aucun.est-actif span {
+  border-color: var(--texte-doux);
+  background: var(--texte-doux);
+  color: var(--blanc);
+}
+
+.admin-segment-programme.est-actif span {
+  border: 2px dashed var(--texte);
+  background: var(--jaune-pale);
+  color: var(--texte);
+}
+
+.admin-segment-actif.est-actif span {
+  border-color: var(--marque);
+  background: var(--marque);
+  color: var(--texte-sur-marque);
+}
+
+.admin-apercu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--espace-4);
+}
+
+.admin-apercu-carte {
+  flex: 0 1 14.5rem;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+}
+
+.admin-apercu-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.admin-apercu-texte {
+  display: flex;
+  flex: 1 1 15rem;
+  flex-direction: column;
+  gap: var(--espace-3);
+  min-width: 0;
+}
+
+.admin-apercu-texte p {
+  margin: 0;
+}
+
+.apercu-terre {
+  fill: var(--gris-terre);
+}
+
+.apercu-eau {
+  fill: var(--bleu-eau);
+}
+
+.apercu-parc {
+  fill: var(--vert-parc);
+}
+
+.apercu-rue {
+  fill: none;
+  stroke: var(--blanc);
+  stroke-width: 5;
+}
+
+.apercu-zone {
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.apercu-zone-actif {
+  fill: var(--carte-zone-actif);
+  fill-opacity: 0.14;
+  stroke: var(--carte-zone-actif);
+}
+
+.apercu-zone-programme {
+  fill: url('#admin-apercu-hachures');
+  stroke: var(--carte-zone-programme);
+  stroke-dasharray: 7 5;
+}
+
+.apercu-hachures-fond {
+  fill: var(--jaune-pale);
+  fill-opacity: 0.7;
+}
+
+.apercu-hachures-trait {
+  stroke: var(--carte-zone-programme);
+  stroke-width: 2;
+}
+
+.apercu-ecole {
+  stroke: var(--blanc);
+  stroke-width: 2;
+}
+
+.apercu-ecole-m {
+  fill: var(--cycle-maternelle);
+}
+
+.apercu-ecole-p {
+  fill: var(--cycle-primaire);
+}
+
+.apercu-ecole-c {
+  fill: var(--cycle-college);
+}
+
+.admin-horloge {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-2);
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}
+
+.admin-interrupteur-rang {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+}
+
+.admin-interrupteur {
+  position: relative;
+  flex: 0 0 4.75rem;
+  width: 4.75rem;
+  height: var(--cible-min);
+  padding: 0;
+  border: 2px solid var(--trait-fort);
+  border-radius: var(--rayon-pilule);
+  background: var(--fond-bande);
+  cursor: pointer;
+}
+
+.admin-interrupteur::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--texte-doux);
+  transition: transform 0.15s;
+}
+
+.admin-interrupteur.est-actif {
+  border-color: var(--marque);
+  background: var(--marque);
+}
+
+.admin-interrupteur.est-actif::after {
+  background: var(--creme);
+  transform: translateX(32px);
+}
+
+.admin-interrupteur:focus-visible {
+  outline: var(--epaisseur-focus) solid var(--focus);
+  outline-offset: 2px;
+}
+
+.admin-interrupteur:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.admin-ecoles-rang {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3);
+}
+
+.admin-ecoles-rang progress {
+  flex: 1 1 10rem;
+  height: 12px;
+  accent-color: var(--marque);
+}
+
+.admin-plie {
+  padding-top: var(--espace-1);
+  border-top: 1px solid var(--trait);
+}
+
+.admin-plie summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--cible-min);
+  font-family: var(--police-titre);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-plie[open] > summary {
+  margin-bottom: var(--espace-2);
+}
+
+.admin-liste-simple {
+  margin: 0;
+  padding-left: var(--espace-5);
+  color: var(--texte-doux);
+}
+
+/* Le retour d'un geste reste visible pendant le défilement, à côté de ce qu'on règle. */
+.admin-retour {
+  position: sticky;
+  top: var(--espace-3);
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+.admin-retour .bandeau {
+  flex: 1 1 16rem;
+  margin: 0;
+}
+
+/* La vue par étape : trois colonnes, une carte par zone. */
+.admin-etapes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
+  gap: var(--espace-4);
+  align-items: start;
+}
+
+.admin-etape {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  min-width: 0;
+  padding: var(--espace-4);
+  border-top: 4px solid var(--trait-fort);
+  border-radius: var(--rayon-l);
+  background: var(--fond-bande);
+}
+
+.admin-etape-programme {
+  border-top: 4px dashed var(--texte-doux);
+}
+
+.admin-etape-actif {
+  border-top: 4px solid var(--marque);
+}
+
+.admin-etape-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+}
+
+.admin-etape-tete h3 {
+  font-size: var(--taille-intertitre);
+}
+
+.admin-etape > .mention {
+  margin: 0;
+}
+
+.admin-cartes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-carte-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+}
+
+.admin-carte-zone.est-compacte {
+  padding: var(--espace-2) var(--espace-3);
+}
+
+.admin-carte-zone-tete {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-carte-nom {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: var(--cible-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--texte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-carte-nom b {
+  font-family: var(--police-titre);
+}
+
+.admin-carte-nom small {
+  color: var(--texte-doux);
+  font-size: var(--taille-mention);
+}
+
+.admin-carte-nom:hover b {
+  text-decoration: underline;
+}
+
+.admin-voir-autres {
+  width: 100%;
+  min-height: var(--cible-min);
+  border: 2px dashed var(--trait-fort);
+  border-radius: var(--rayon-m);
+  background: none;
+  color: var(--texte-doux);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-voir-autres:hover {
+  background: var(--fond-releve);
+}
+
+.admin-etape-vide {
+  margin: 0;
+  padding: var(--espace-3);
+  border: 1px dashed var(--trait-fort);
+  border-radius: var(--rayon-m);
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}
+
+/*
+ * Sur grand écran, l'arbre garde sa place et défile seul, le volet défile à côté. Plus bas, une zone choisie remplace
+ * la liste (avec « Toutes les zones » pour y revenir) : trois cents zones empilées sur un téléphone ne se lisent pas.
+ */
+@media (max-width: 71.99rem) {
+  .admin-zones-deux.avec-selection .admin-arbre {
+    display: none;
+  }
+}
+
+@media (min-width: 72rem) {
+  .admin-zones-deux {
+    display: grid;
+    grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  /*
+   * L'arbre défile seul : une ombre en haut ou en bas dit qu'il y a une suite. Les deux premiers dégradés (attachés au
+   * contenu) la cachent quand on est au bout, les deux autres (attachés à la boîte) la dessinent.
+   */
+  .admin-arbre {
+    position: sticky;
+    top: var(--espace-5);
+    max-height: calc(100dvh - 2 * var(--espace-5));
+    overflow-y: auto;
+    background:
+      linear-gradient(var(--fond-releve) 30%, transparent) 0 0 / 100% 2rem local no-repeat,
+      linear-gradient(transparent, var(--fond-releve) 70%) 0 100% / 100% 2rem local no-repeat,
+      radial-gradient(farthest-side at 50% 0, var(--trait-fort), transparent) 0 0 / 100% 0.5rem
+        scroll no-repeat,
+      radial-gradient(farthest-side at 50% 100%, var(--trait-fort), transparent) 0 100% / 100%
+        0.5rem scroll no-repeat,
+      var(--fond-releve);
+  }
+
+  .admin-retour-liste {
+    display: none;
+  }
+
+  .admin-invite-texte {
+    display: block;
+  }
+}
