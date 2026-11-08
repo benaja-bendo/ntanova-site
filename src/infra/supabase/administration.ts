@@ -187,7 +187,7 @@ const COLONNES_DETAIL =
   'duplicate_answer, corrects_submission_id, outside_batch, in_open_zone, division_id, possible_duplicate, contact_confirmed_at, ' +
   'contact_role, trial_validated_at, campus_id, relais(prenom), lots(nom, essai), ' +
   'doublon:campuses!field_submissions_duplicate_of_campus_id_fkey(id, label, institutions(name)), ' +
-  'campus:campuses!field_submissions_campus_id_fkey(label, publication, institutions(name), geo_divisions(name))';
+  'campus:campuses!field_submissions_campus_id_fkey(label, publication, institutions(name), geo_divisions!campuses_division_id_fkey(name))';
 
 interface LigneCampus {
   campus_facts: LigneEquipement[];
@@ -264,10 +264,13 @@ const versMot = (ligne: LigneCampus['campus_statements']): MotDirection | null =
   return m ? { texte: m.body, ditLe: m.stated_on } : null;
 };
 
+// `geo_divisions!campuses_division_id_fkey` et non `geo_divisions` : depuis la table des anciennes adresses
+// (`campus_former_addresses`, ticket 147), PostgREST voit deux chemins entre `campuses` et `geo_divisions` et répond « 300 »
+// à un lien sans contrainte. Le contrat avec la base (`contrat-schema.test.ts`) le garde.
 const COLONNES_CAMPUS =
   'id, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
   'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, ' +
-  'institutions(name, kind), geo_divisions(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
+  'institutions(name, kind), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
   'campus_cycles(cycle, campus_programs(id, title)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*)';
 
 /** La réponse de `campus_purge_preview`, lue avec tolérance : un champ qui manque vaut zéro, jamais une erreur. */
@@ -1109,7 +1112,9 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       }>((de, a) =>
         supabase()
           .from('institutions')
-          .select('id, name, kind, campuses(id, label, publication, geo_divisions(name))')
+          .select(
+            'id, name, kind, campuses(id, label, publication, geo_divisions!campuses_division_id_fkey(name))',
+          )
           .order('id')
           .range(de, a),
       );
