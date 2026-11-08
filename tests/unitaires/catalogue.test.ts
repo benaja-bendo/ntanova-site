@@ -124,6 +124,9 @@ describe('le catalogue du site public', () => {
       'campus_fees',
       'campus_facts',
       'public_campus_photos',
+      'public_campus_accreditations',
+      'public_campus_statements',
+      'campus_enrollment_deadlines',
     ]);
   });
 
@@ -176,8 +179,17 @@ describe('le catalogue du site public', () => {
         serie: 'c',
         diplome: 'bac',
         rythmes: ['jour'],
+        agrement: null,
       },
-      { cycle: 'lycee', titre: 'Couture', domaine: null, serie: null, diplome: null, rythmes: [] },
+      {
+        cycle: 'lycee',
+        titre: 'Couture',
+        domaine: null,
+        serie: null,
+        diplome: null,
+        rythmes: [],
+        agrement: null,
+      },
     ]);
   });
 
@@ -419,6 +431,74 @@ it('garde l’origine école et sa date sans inventer un passage terrain', async
   });
   const [e] = await catalogue().ecoles();
   expect(e).toMatchObject({ origine: 'school', declareeLe: '2026-11-01', releveeLe: null });
+});
+
+it('rattache chaque référence officielle à son école ou à sa filière, et traduit le mot et les dates', async () => {
+  const reference = (program_id: string | null, reference: string) => ({
+    campus_id: 'c1',
+    program_id,
+    kind: 'agrement',
+    custom_kind: null,
+    reference,
+    issued_on: '2024-03-12',
+    source_label: '[Journal officiel]',
+    source_url: null,
+  });
+  fausseBase({
+    public_campuses: [CAMPUS],
+    public_campus_programs: [
+      {
+        campus_id: 'c1',
+        cycle: 'superieur',
+        title: 'BTS',
+        domain_slug: null,
+        domain_name: null,
+        bac_track: null,
+        diploma: null,
+        rhythms: [],
+        program_id: 'f1',
+      },
+      {
+        campus_id: 'c1',
+        cycle: 'superieur',
+        title: 'Licence',
+        domain_slug: null,
+        domain_name: null,
+        bac_track: null,
+        diploma: null,
+        rhythms: [],
+        program_id: 'f2',
+      },
+    ],
+    public_campus_accreditations: [reference(null, 'ecole'), reference('f1', 'filiere')],
+    public_campus_statements: [{ campus_id: 'c1', body: 'Un mot.', stated_on: '2026-11-05' }],
+    campus_enrollment_deadlines: [
+      {
+        id: 'd1',
+        campus_id: 'c1',
+        school_year: '2026-2027',
+        deadline: '2026-12-15',
+        declared_on: '2026-11-05',
+      },
+    ],
+  });
+  const [e] = await catalogue().ecoles();
+  expect(e?.agrement).toMatchObject({ reference: 'ecole', sourceTexte: '[Journal officiel]' });
+  expect(e?.formations[0]?.agrement).toMatchObject({
+    reference: 'filiere',
+    delivreLe: '2024-03-12',
+  });
+  expect(e?.formations[1]?.agrement).toBeNull();
+  expect(e?.motDirection).toEqual({ texte: 'Un mot.', ditLe: '2026-11-05' });
+  expect(e?.inscriptions).toEqual([
+    { id: 'd1', anneeScolaire: '2026-2027', limite: '2026-12-15', declareeLe: '2026-11-05' },
+  ]);
+});
+
+it('n’invente rien quand la base n’a ni référence, ni mot, ni date', async () => {
+  fausseBase({ public_campuses: [CAMPUS] });
+  const [e] = await catalogue().ecoles();
+  expect(e).toMatchObject({ agrement: null, motDirection: null, inscriptions: [] });
 });
 
 it('ne charge que la photo sélectionnée via le catalogue public', async () => {

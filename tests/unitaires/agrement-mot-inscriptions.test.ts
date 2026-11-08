@@ -19,7 +19,8 @@ describe('la saisie d’un agrément', () => {
     controleLe: '2026-11-05',
     documentVu: true,
   };
-  const erreur = (autre: Partial<typeof saisie>) => lireAgrement({ ...saisie, ...autre }, JOUR).erreur;
+  const erreur = (autre: Partial<typeof saisie>) =>
+    lireAgrement({ ...saisie, ...autre }, JOUR).erreur;
 
   it('accepte un document sans lien : la source se dit en mots', () => {
     const { agrement } = lireAgrement(saisie, JOUR);
@@ -52,7 +53,8 @@ describe('la saisie d’un agrément', () => {
   it('garde la précision seulement pour « Autre »', () => {
     expect(lireAgrement({ ...saisie, precision: 'x' }, JOUR).agrement?.precision).toBeNull();
     expect(
-      lireAgrement({ ...saisie, genre: 'autre', precision: 'Homologation' }, JOUR).agrement?.precision,
+      lireAgrement({ ...saisie, genre: 'autre', precision: 'Homologation' }, JOUR).agrement
+        ?.precision,
     ).toBe('Homologation');
   });
 });
@@ -69,8 +71,12 @@ describe('ce que la fiche écrit d’un agrément', () => {
 
   it('suit l’intitulé du document', () => {
     expect(intituleAgrement(a)).toBe('Agrément');
-    expect(intituleAgrement({ ...a, genre: 'autorisation_ouverture' })).toBe('Autorisation d’ouverture');
-    expect(intituleAgrement({ ...a, genre: 'autre', precision: 'Homologation' })).toBe('Homologation');
+    expect(intituleAgrement({ ...a, genre: 'autorisation_ouverture' })).toBe(
+      'Autorisation d’ouverture',
+    );
+    expect(intituleAgrement({ ...a, genre: 'autre', precision: 'Homologation' })).toBe(
+      'Homologation',
+    );
   });
 
   it('n’invente rien pour un intitulé inconnu d’une version future', () => {
@@ -92,7 +98,9 @@ describe('la saisie du mot de la direction', () => {
   };
 
   it('garde le texte tel que remis, sans les blancs autour', () => {
-    expect(lireMotDirection(saisie, JOUR).mot?.texte).toBe('Nous formons aux métiers de la gestion.');
+    expect(lireMotDirection(saisie, JOUR).mot?.texte).toBe(
+      'Nous formons aux métiers de la gestion.',
+    );
   });
 
   it.each([
@@ -128,7 +136,12 @@ describe('la date limite des inscriptions', () => {
     expect(lireDateInscription({ ...saisie, ...autre }, JOUR).erreur).toBeTruthy();
   });
 
-  const ligne = (id: string, limite: string) => ({ id, anneeScolaire: id, limite, declareeLe: '2026-01-01' });
+  const ligne = (id: string, limite: string) => ({
+    id,
+    anneeScolaire: id,
+    limite,
+    declareeLe: '2026-01-01',
+  });
 
   it('montre la prochaine date à venir', () => {
     const lignes = [ligne('b', '2027-09-01'), ligne('a', '2026-12-15'), ligne('c', '2026-01-10')];

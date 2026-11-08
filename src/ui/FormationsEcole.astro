@@ -18,6 +18,7 @@ import { NIVEAUX_AVEC_FORMATIONS } from '../modele/fiche';
 import { lienWhatsApp } from '../modele/whatsapp';
 import FraisEcole from './FraisEcole.astro';
 import Icone from './Icone.astro';
+import LigneAgrement from './LigneAgrement.astro';
 
 interface Props {
   e: EcolePubliee;
@@ -130,6 +131,7 @@ const serieDansLeTitre = (f: FormationPublique) =>
                         )}
                       </span>
                     )}
+                    {f.agrement && <LigneAgrement agrement={f.agrement} filiere />}
                   </div>
                   <div class="filiere-sous">
                     <span>

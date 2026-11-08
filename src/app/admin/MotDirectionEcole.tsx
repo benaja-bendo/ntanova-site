@@ -2,11 +2,7 @@ import { useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import { libelleFonction } from '../../modele/libelles';
 import { listes } from '../../modele/listes';
-import {
-  LONGUEUR_MAX_MOT,
-  lireMotDirection,
-  type MotDirection,
-} from '../../modele/mot-direction';
+import { LONGUEUR_MAX_MOT, lireMotDirection, type MotDirection } from '../../modele/mot-direction';
 import type { PortAdministration } from '../../modele/ports';
 import { Dialogue } from '../../ui/Dialogue';
 import { Bandeau, jour } from '../../ui/composants';
@@ -136,11 +132,7 @@ export function MotDirectionEcole({
           </select>
         </label>
         <label>
-          <input
-            type="checkbox"
-            checked={accord}
-            onChange={(e) => setAccord(e.target.checked)}
-          />{' '}
+          <input type="checkbox" checked={accord} onChange={(e) => setAccord(e.target.checked)} />{' '}
           La direction accepte la publication de ce mot.
         </label>
         {erreur && (

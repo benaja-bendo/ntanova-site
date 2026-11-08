@@ -27,6 +27,8 @@ import {
   titreOuTrouver,
 } from '../modele/presentation-fiche';
 import { dateLongue } from '../modele/pointe-noire';
+import { jourDuCongo } from '../modele/date-declaration';
+import { prochaineInscription } from '../modele/inscriptions';
 import { lienWhatsApp } from '../modele/whatsapp';
 import PhotoEcole from './PhotoEcole.astro';
 import ProprietesEcole from './ProprietesEcole.astro';
@@ -34,6 +36,9 @@ import CouvertureEcole from './CouvertureEcole.astro';
 import EquipementsEcole from './EquipementsEcole.astro';
 import FormationsEcole from './FormationsEcole.astro';
 import Icone from './Icone.astro';
+import InscriptionsEcole from './InscriptionsEcole.astro';
+import LigneAgrement from './LigneAgrement.astro';
+import MotDirectionEcole from './MotDirectionEcole.astro';
 
 interface Props {
   e: EcolePubliee;
@@ -111,6 +116,9 @@ const repereManquant = !e.repere && (vueSurPlace || confirmee || e.origine === '
 const diplomes = diplomesEnMots(e.formations);
 const aSavoir = !!(e.programme || e.contactPublic || e.numeroEnseigne || diplomes);
 const hote = new URL(lienCourt(e), Astro.site ?? Astro.url).host;
+
+// La prochaine date limite annoncée : calculée à la construction, elle disparaît une fois passée.
+const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
 ---
 
 <article class="cadre page fiche">
@@ -146,6 +154,7 @@ const hote = new URL(lienCourt(e), Astro.site ?? Astro.url).host;
             {lieuReste.length > 0 && ` · ${lieuReste.join(' · ')}`}
           </span>
         </p>
+        {e.agrement && <LigneAgrement agrement={e.agrement} />}
 
         {(puces.length > 0 || typeSeLit || rythme) && (
           <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
@@ -244,6 +253,7 @@ const hote = new URL(lienCourt(e), Astro.site ?? Astro.url).host;
 
   <div class="fiche-corps">
     <div class="fiche-principale">
+      {confirmee && e.motDirection && <MotDirectionEcole mot={e.motDirection} />}
       {aSavoir && !confirmee && (
         <section class="a-savoir" aria-label="À savoir">
           <h2 class="titre-ordinateur">À savoir</h2>
@@ -252,6 +262,7 @@ const hote = new URL(lienCourt(e), Astro.site ?? Astro.url).host;
       )}
 
       <FormationsEcole e={e} />
+      {inscription && <InscriptionsEcole inscription={inscription} />}
       <EquipementsEcole equipements={e.equipements ?? []} />
 
       {e.photo && (

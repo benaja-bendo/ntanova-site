@@ -412,6 +412,33 @@ const ECOLES: EcolePubliee[] = [
     etat: 'verifiee',
     verifieeLe: '2026-11-04',
     contactPublic: { numero: '242060000005', accordLe: '2026-11-04' },
+    // Une fiche confirmée : référence sans lien, mot de la direction, une date passée et une à venir.
+    agrement: {
+      genre: 'autorisation_ouverture',
+      precision: null,
+      reference: 'arrêté n° [référence]',
+      delivreLe: '2024-03-12',
+      sourceTexte: 'copie remise par l’établissement',
+      sourceLien: null,
+    },
+    motDirection: {
+      texte: '[Nous accueillons les élèves de la sixième à la terminale.]',
+      ditLe: '2026-11-04',
+    },
+    inscriptions: [
+      {
+        id: '74000000-0000-4000-8000-000000000001',
+        anneeScolaire: '2025-2026',
+        limite: '2025-12-15',
+        declareeLe: '2025-11-05',
+      },
+      {
+        id: '74000000-0000-4000-8000-000000000002',
+        anneeScolaire: '2030-2031',
+        limite: '2030-12-15',
+        declareeLe: '2026-11-04',
+      },
+    ],
     formations: [
       formation('lycee', 'Série A', 'autre', 'a', 'bac', ['jour']),
       formation('lycee', 'Série C', 'sciences-technologies', 'c', 'bac', ['jour']),
@@ -460,11 +487,39 @@ const ECOLES: EcolePubliee[] = [
     releveeLe: '2026-11-04T09:00:00Z',
     situeeLe: null,
     misAJourLe: '2026-11-04T09:00:00Z',
+    // Une fiche non confirmée : l'agrément paraît avec son lien, le mot jamais, et la seule date est passée.
+    agrement: {
+      genre: 'agrement',
+      precision: null,
+      reference: 'arrêté n° [référence]',
+      delivreLe: '2023-06-20',
+      sourceTexte: '[Journal officiel]',
+      sourceLien: 'https://exemple.cg/arrete',
+    },
+    motDirection: { texte: '[Ce mot ne paraît pas : fiche non confirmée.]', ditLe: '2026-11-04' },
+    inscriptions: [
+      {
+        id: '74000000-0000-4000-8000-000000000003',
+        anneeScolaire: '2025-2026',
+        limite: '2025-12-15',
+        declareeLe: '2025-11-05',
+      },
+    ],
     formations: [
-      formation('superieur', 'BTS Informatique de gestion', 'informatique', null, 'bts', [
-        'jour',
-        'soir',
-      ]),
+      {
+        ...formation('superieur', 'BTS Informatique de gestion', 'informatique', null, 'bts', [
+          'jour',
+          'soir',
+        ]),
+        agrement: {
+          genre: 'agrement',
+          precision: null,
+          reference: 'arrêté n° [filière]',
+          delivreLe: '2024-01-15',
+          sourceTexte: '[Journal officiel]',
+          sourceLien: null,
+        },
+      },
       formation('superieur', 'Licence en gestion', 'gestion', null, 'licence', ['soir', 'weekend']),
       formation('superieur', 'Licence Banque et assurance', 'gestion', null, 'licence', ['jour']),
       formation('superieur', 'Master en gestion de projets', 'gestion', null, 'master', [

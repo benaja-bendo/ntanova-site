@@ -1,0 +1,30 @@
+---
+// La date limite des inscriptions (ticket 148). Le site est statique : « Date limite annoncée » reste vrai quel que soit le jour où
+// on la lit, et la date passée disparaît à la construction suivante.
+import type { DateInscription } from '../modele/inscriptions';
+import { dateLongue } from '../modele/pointe-noire';
+
+interface Props {
+  inscription: DateInscription;
+}
+const { inscription } = Astro.props;
+---
+
+<section class="inscriptions" aria-label="Inscriptions">
+  <h2>Inscriptions {inscription.anneeScolaire}</h2>
+  <p>
+    Date limite annoncée&nbsp;: <strong>{dateLongue(inscription.limite)}</strong>
+  </p>
+  <p class="declaree">Déclarée par l’établissement le {dateLongue(inscription.declareeLe)}</p>
+</section>
+
+<style>
+  .inscriptions {
+    display: grid;
+    gap: var(--espace-1);
+  }
+  .declaree {
+    color: var(--preuve-ecole);
+    font-size: var(--taille-secondaire);
+  }
+</style>

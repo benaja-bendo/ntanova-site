@@ -1,0 +1,34 @@
+---
+// Le mot de la direction (ticket 148) : une parole de l'école, entre guillemets et datée, loin des preuves.
+import type { MotDirection } from '../modele/mot-direction';
+import { dateLongue } from '../modele/pointe-noire';
+
+interface Props {
+  mot: MotDirection;
+}
+const { mot } = Astro.props;
+---
+
+<figure class="mot-direction">
+  <blockquote>«&nbsp;{mot.texte}&nbsp;»</blockquote>
+  <figcaption>Le mot de la direction, {dateLongue(mot.ditLe)}</figcaption>
+</figure>
+
+<style>
+  .mot-direction {
+    display: grid;
+    gap: var(--espace-1);
+    margin: 0;
+    padding: var(--espace-3) var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--fond-bande);
+  }
+  blockquote {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  figcaption {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+</style>

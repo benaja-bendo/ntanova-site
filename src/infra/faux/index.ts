@@ -2125,7 +2125,11 @@ const admin: PortAdministration = {
     if (!resultat.date) throw new ErreurDecision(resultat.erreur!);
     if (id && !(c.inscriptions ?? []).some((d) => d.id === id))
       throw new ErreurDecision('Date d’inscription introuvable.');
-    if ((c.inscriptions ?? []).some((d) => d.id !== id && d.anneeScolaire === resultat.date!.anneeScolaire))
+    if (
+      (c.inscriptions ?? []).some(
+        (d) => d.id !== id && d.anneeScolaire === resultat.date!.anneeScolaire,
+      )
+    )
       throw new ErreurDecision('Une date existe déjà pour cette année scolaire : modifie-la.');
     const identifiant = id ?? crypto.randomUUID();
     ecrire((e) => {

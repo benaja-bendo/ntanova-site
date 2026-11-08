@@ -337,3 +337,15 @@ La migration `20261107020000_photo_publique_administration.sql` donne à l’adm
 - Pas de commande pour revenir au mode automatique après un retrait (décision de la livraison précédente) : choisir une photo suffit à la faire reparaître.
 
 Côté interface (`src/app/admin/`) : « Contrôler pour publication » dans « À valider » (enseigne et vue du bâtiment seulement ; le panneau et le prospectus se contrôlent aussi mais restent privés), « Photo publique » dans la gestion d’une école (état lu dans la base, choix prioritaire, retrait), `decrirePhotosPubliques` (`src/modele/photos-publiques.ts`) pour les phrases.
+
+## Agrément, mot de la direction, inscriptions — ticket 148, 08/11/2026
+
+Migrations `20261108190000_agrements_ecoles.sql`, `20261108190100_mot_et_inscriptions.sql` et `20261108190200_effacement_et_fusion_fiche.sql`.
+
+`campus_accreditations` : une ligne par établissement (`program_id` nul) et une par filière ; intitulé (`accreditation_kind`, recopié dans `src/modele/listes.ts`), référence, date, source en mots, lien `https` facultatif, jour du contrôle. Aucun droit d’écriture : `set_campus_accreditation` ajoute ou remplace, `remove_campus_accreditation` retire, l’historique va dans `prive.campus_accreditation_history`. Le public lit `public_campus_accreditations`, sans `checked_on`. `public_campus_programs` donne désormais `program_id`. Un déclencheur refuse de retirer une filière qui porte un agrément (`22023`).
+
+`campus_statements` : le mot de la direction, un par école. `set_campus_statement` l’enregistre ou le retire (texte nul) ; `prive.campus_statement_agreements` garde chaque version avec sa fonction et son canal. `public_campus_statements` ne montre que les fiches publiées et confirmées.
+
+`campus_enrollment_deadlines` : la date limite annoncée, une par école et par année scolaire, lisible comme les frais sur une fiche publiée, sans confirmation. `set_campus_enrollment_deadline` et `remove_campus_enrollment_deadline` ; historique dans `prive.campus_enrollment_history`. La date passée est retirée par le site à la construction, pas par la base.
+
+`merge_campuses` refuse un doublon qui porte l’une de ces données ; `purge_campus` les efface avec l’école. Tests : `supabase/tests/agrements.test.sql` (40 contrôles), `supabase/tests/mot_et_inscriptions.test.sql` (42 contrôles).
