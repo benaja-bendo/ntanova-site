@@ -6,7 +6,7 @@
  * confirmée par la direction) restent deux blocs, jamais fusionnés.
  */
 import type { FeatureEcole } from '../../modele/carte/donnees';
-import { adresseVue } from '../../modele/carte/navigation';
+import { adresseVue, numeroDuLien } from '../../modele/carte/navigation';
 import { zoomMaxEn } from '../../modele/carte/fond';
 import type { NomIcone } from '../../modele/carte/icones';
 import { disque, element, icone } from '../../ui/dom-pieces';
@@ -130,7 +130,7 @@ export function creerApercu(
     true,
   );
   const partage = new URL('/carte/', location.origin);
-  partage.searchParams.set('ecole', f.lien);
+  partage.searchParams.set('ecole', numeroDuLien(f.lien) ?? f.lien);
   partage.hash = adresseVue({ zoom: Math.min(15, zoomMaxEn(x, y)), latitude: y, longitude: x });
   lien(
     'bouton-secondaire',

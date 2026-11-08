@@ -145,9 +145,9 @@ test.describe('administration', () => {
 
 const pagesPubliques = [
   ['accueil', '/'],
-  ['liste d’un arrondissement', '/ecoles/congo/pointe-noire/tie-tie/'],
-  ['fiche d’une école', '/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/'],
-  ['une ville et ses arrondissements', '/ecoles/congo/pointe-noire/'],
+  ['liste d’un arrondissement', '/ecoles/pointe-noire/tie-tie/'],
+  ['fiche d’une école', '/ecoles/complexe-scolaire-exemple-482913/'],
+  ['une ville et ses arrondissements', '/ecoles/pointe-noire/'],
   ['la page « Écoles » (recherche et autour de moi)', '/ecoles/'],
   ['« Pour les écoles »', '/pour-les-ecoles/'],
   ['« À propos »', '/a-propos/'],
@@ -313,7 +313,7 @@ test.describe('site public', () => {
   test('liste : les écoles se rangent en grille, une fiche ne s’étire pas sur toute la page', async ({
     page,
   }) => {
-    await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
+    await page.goto('/ecoles/pointe-noire/tie-tie/');
     const largeur = largeurDe(page);
     const ecole = await page.locator('a.ligne-ecole').first().boundingBox();
     if (largeur >= TABLETTE) {
@@ -324,7 +324,7 @@ test.describe('site public', () => {
   });
 
   test('fiche : à partir de 1 024 px, l’appel aux directions passe à droite', async ({ page }) => {
-    await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+    await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
     const proprietes = await page.locator('dl.proprietes').boundingBox();
     const appel = await page.getByRole('complementary').boundingBox();
     if (largeurDe(page) >= ORDINATEUR) {
@@ -341,7 +341,7 @@ test.describe('site public', () => {
     const largeurs = largeurInitiale >= ORDINATEUR ? [1024, 1280, 1920] : [largeurInitiale];
     for (const largeur of largeurs) {
       await page.setViewportSize({ width: largeur, height: 900 });
-      await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+      await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
       const mesures = await page.locator('article.fiche').evaluate((el) => {
         const cadre = el.getBoundingClientRect(),
           style = getComputedStyle(el);
@@ -711,7 +711,7 @@ test('en-tête public : polices retardées et texte agrandi sans débordement', 
     await route.continue();
   });
   try {
-    await page.goto('/ecoles/congo/pointe-noire/', { waitUntil: 'domcontentloaded' });
+    await page.goto('/ecoles/pointe-noire/', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Pointe-Noire', exact: true })).toBeVisible();
     await aucunDefilementDeCote(page, 'page ville avant les polices');
   } finally {
@@ -743,7 +743,7 @@ test('en-tête public : polices retardées et texte agrandi sans débordement', 
 test('divisions : noms longs et chemin complet restent lisibles dans le cadre', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/');
+  await page.goto('/ecoles/pointe-noire/');
   await page.evaluate(() => document.fonts.ready);
   const nom = `Ville${'Exemple'.repeat(18)}`;
   await page.getByRole('heading', { level: 1 }).evaluate((e, nom) => {
@@ -915,12 +915,9 @@ test('nouvelle école : annuler une saisie ou reprendre le relevé ne conserve a
 });
 
 for (const [cas, chemin] of [
-  ['terrain partiel', '/ecoles/congo/pointe-noire/mongo-mpoukou/groupe-scolaire-exemple/'],
-  ['fiche complète', '/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/'],
-  [
-    'plusieurs sites',
-    '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/groupe-scolaire-exemple/',
-  ],
+  ['terrain partiel', '/ecoles/groupe-scolaire-exemple-904316/'],
+  ['fiche complète', '/ecoles/complexe-scolaire-exemple-482913/'],
+  ['plusieurs sites', '/ecoles/groupe-scolaire-exemple-158427/'],
 ]) {
   test(`fiche refondue : ${cas}, lecture et actions sans débordement`, async ({ page }) => {
     await page.goto(chemin!);

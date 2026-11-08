@@ -5,6 +5,8 @@ import {
   construireArbre,
   deLieu,
   ecolesSous,
+  cheminPublic,
+  lienCourt,
   lienDivision,
   lienEcole,
   lieuAvecPreposition,
@@ -54,6 +56,7 @@ function ecole(id: string, divisionId: string, nom: string, reste: Partial<Ecole
       .normalize('NFD')
       .replace(/\p{Diacritic}/gu, '')
       .replace(/[^a-z0-9]+/g, '-'),
+    numero: '123456',
     nom,
     etiquette: null,
     arrondissement: '',
@@ -102,12 +105,20 @@ describe('les adresses publiques', () => {
     expect(sansRepetition([])).toEqual([]);
   });
 
-  it('la zone et la fiche ont leur adresse, du pays au bout', () => {
-    const adresse = ['congo', 'pointe-noire', 'pointe-noire', 'tie-tie'];
-    expect(lienDivision(adresse)).toBe('/ecoles/congo/pointe-noire/tie-tie/');
-    expect(lienEcole({ adresse, slug: 'complexe-exemple' })).toBe(
-      '/ecoles/congo/pointe-noire/tie-tie/complexe-exemple/',
+  it('ticket 147 : un lieu sans le pays ni le département, une fiche par son nom et son identifiant', () => {
+    const d = (niveau: number, slug: string) => ({ niveau, slug });
+    const tieTie = [d(0, 'congo'), d(1, 'pointe-noire'), d(2, 'pointe-noire'), d(3, 'tie-tie')];
+    expect(cheminPublic(tieTie)).toEqual(['pointe-noire', 'tie-tie']);
+    expect(lienDivision(cheminPublic(tieTie))).toBe('/ecoles/pointe-noire/tie-tie/');
+    // Une ville sous un département d'un autre nom : le département n'est pas dans l'adresse.
+    expect(cheminPublic([d(0, 'congo'), d(1, 'niari'), d(2, 'dolisie')])).toEqual(['dolisie']);
+    // Un département qui n'est pas une ville garde son nom ; le pays, c'est `/ecoles/`.
+    expect(cheminPublic([d(0, 'congo'), d(1, 'niari')])).toEqual(['niari']);
+    expect(lienDivision(cheminPublic([d(0, 'congo')]))).toBe('/ecoles/');
+    expect(lienEcole({ slug: 'complexe-exemple', numero: '482913' })).toBe(
+      '/ecoles/complexe-exemple-482913/',
     );
+    expect(lienCourt({ numero: '482913' })).toBe('/ecoles/482913/');
   });
 
   it('« Les écoles du Congo-Brazzaville », de Pointe-Noire, d’Owando : le complément d’un lieu (ticket 146)', () => {

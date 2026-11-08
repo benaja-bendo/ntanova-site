@@ -3,13 +3,12 @@ import { expect, test, type Page } from '@playwright/test';
 // Audit du 05/11/2026, Vague 2 : la fiche d'école parle comme l'aperçu de la carte (disque et puces de niveau, preuves en blocs,
 // barre « Y aller · Appeler · Partager »), n'affiche plus un plan vide (D21) ni « non communiqué » à une école pas encore
 // confirmée (D3), et le menu du téléphone ouvre les cinq portes du site sans JavaScript (D13).
-const TIE_TIE = '/ecoles/congo/pointe-noire/tie-tie/';
-const COMPLEXE = `${TIE_TIE}complexe-scolaire-exemple/`;
-const SANS_DETAIL = `${TIE_TIE}ecole-sans-detail-exemple/`;
-const AJOUTEE = `${TIE_TIE}ecole-ajoutee-exemple/`;
-const CONFIRMEE = '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/groupe-scolaire-exemple/';
-const INSTITUT = '/ecoles/congo/pointe-noire/loandjili/institut-superieur-exemple/';
-const BRAZZAVILLE = '/ecoles/congo/brazzaville/moungali/ecole-de-brazzaville-exemple/';
+const COMPLEXE = '/ecoles/complexe-scolaire-exemple-482913/';
+const SANS_DETAIL = '/ecoles/ecole-sans-detail-exemple-270846/';
+const AJOUTEE = '/ecoles/ecole-ajoutee-exemple-639158/';
+const CONFIRMEE = '/ecoles/groupe-scolaire-exemple-158427/';
+const INSTITUT = '/ecoles/institut-superieur-exemple-527064/';
+const BRAZZAVILLE = '/ecoles/ecole-de-brazzaville-exemple-731590/';
 
 test.describe('la fiche d’une école', () => {
   test('le disque est celui du cycle le plus élevé, et chaque niveau a sa puce colorée', async ({
@@ -259,7 +258,8 @@ test.describe('« Où est l’école »', () => {
     const lien = page.getByRole('link', { name: 'Voir sur la carte', exact: true });
     await expect(lien).toHaveAttribute(
       'href',
-      '/carte/?ecole=%2Fecoles%2Fcongo%2Fpointe-noire%2Floandjili%2Finstitut-superieur-exemple%2F#15/-4.798/11.931',
+      // Ticket 147 : l'école se désigne par son identifiant.
+      '/carte/?ecole=527064#15/-4.798/11.931',
     );
   });
 
@@ -349,7 +349,7 @@ test.describe('le menu du téléphone', () => {
       baseURL: baseURL ?? '',
     });
     const page = await contexte.newPage();
-    await page.goto('/ecoles/congo/pointe-noire/');
+    await page.goto('/ecoles/pointe-noire/');
     const menu = page.getByRole('navigation', { name: 'Menu principal' });
     await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeHidden();
     await expect(menu).toBeHidden();
@@ -445,7 +445,7 @@ test.describe('l’accueil', () => {
   }) => {
     await page.goto('/');
     const lien = page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' });
-    await expect(lien).toHaveAttribute('href', '/ecoles/congo/pointe-noire/');
+    await expect(lien).toHaveAttribute('href', '/ecoles/pointe-noire/');
     await expect(page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' })).toHaveCount(0);
   });
 

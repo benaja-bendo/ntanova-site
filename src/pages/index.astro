@@ -79,7 +79,7 @@ const villes = arbre.racines
             <li>
               <a
                 class:list={['quartier', { 'quartier-plein': v.total > 0 }]}
-                href={lienDivision(v.zone.adresse)}
+                href={lienDivision(v.zone.chemin)}
               >
                 <span class="quartier-nom">{v.zone.division.nom}</span>
                 <span class="quartier-detail">
@@ -99,7 +99,7 @@ const villes = arbre.racines
       )}
       <div class="liens-villes">
         {pointeNoire && (
-          <a class="lien-carte" href={lienDivision(pointeNoire.adresse)}>
+          <a class="lien-carte" href={lienDivision(pointeNoire.chemin)}>
             <span>
               Les arrondissements de <span class="insecable">Pointe-Noire</span>
             </span>

@@ -11,6 +11,7 @@ import type {
   EcolePubliee,
   FormationPublique,
   PortCatalogue,
+  AncienneAdresse,
   Redirection,
 } from '../../modele/ports';
 
@@ -86,6 +87,15 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
         .sort((a, b) => a.niveau - b.niveau || a.nom.localeCompare(b.nom, 'fr'));
     })());
 
+  // Le chemin ltree (`congo.pointe_noire.pointe_noire.tie_tie`) n'est pas l'adresse (`pointe-noire`) : on repart de l'arbre.
+  const adresseDesChemins = async () => {
+    const parChemin = new Map<string, string[]>();
+    for (const d of await lireDivisions()) {
+      parChemin.set(d.adresse.map((a) => a.replaceAll('-', '_')).join('.'), sansRepetition(d.adresse));
+    }
+    return (chemin: string) => parChemin.get(chemin) ?? [];
+  };
+
   return {
     async lirePhotoPublique(id) {
       if(!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Photo publique inconnue.');
@@ -108,18 +118,29 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
       const lignes = await lireTout<{
         from_division_path: string;
         from_slug: string;
-        to_division_path: string;
-        to_slug: string;
-      }>('public_campus_redirects?select=*&order=from_division_path,from_slug');
-      // Le chemin ltree (`congo.pointe_noire.pointe_noire.tie_tie`) n'est pas l'adresse (`pointe-noire`) : on repart de l'arbre.
-      const parChemin = new Map<string, string[]>();
-      for (const d of await lireDivisions()) {
-        parChemin.set(d.adresse.map((a) => a.replaceAll('-', '_')).join('.'), sansRepetition(d.adresse));
-      }
-      const adresse = (chemin: string) => parChemin.get(chemin) ?? [];
+        from_number: number;
+        to_number: number;
+      }>('public_campus_redirects?select=from_division_path,from_slug,from_number,to_number&order=from_number');
+      const adresse = await adresseDesChemins();
       return lignes.map((r) => ({
-        de: { chemin: adresse(r.from_division_path), slug: r.from_slug },
-        vers: { chemin: adresse(r.to_division_path), slug: r.to_slug },
+        de: { chemin: adresse(r.from_division_path), slug: r.from_slug, numero: String(r.from_number) },
+        versNumero: String(r.to_number),
+      }));
+    },
+
+    async anciennesAdresses(): Promise<AncienneAdresse[]> {
+      const lignes = await lireTout<{
+        former_slug: string;
+        former_division_path: string;
+        public_number: number;
+      }>(
+        'public_campus_former_addresses?select=former_slug,former_division_path,public_number&order=public_number,former_slug,former_division_path',
+      );
+      const adresse = await adresseDesChemins();
+      return lignes.map((r) => ({
+        chemin: adresse(r.former_division_path),
+        slug: r.former_slug,
+        numero: String(r.public_number),
       }));
     },
 
@@ -152,6 +173,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           updated_at: string;
           origin: string;
           school_declared_on: string | null;
+          public_number: number;
         }>('public_campuses?select=*&order=id'),
         lireTout<{ campus_id: string; cycle: string }>(
           'public_campus_cycles?select=campus_id,cycle&order=campus_id,cycle',
@@ -202,6 +224,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
             institutionId: e.institution_id,
             divisionId: e.division_id,
             slug: e.slug,
+            numero: String(e.public_number),
             nom: e.institution_name,
             etiquette: e.label,
             // L'arrondissement s'il y en a un (niveau 3 : quatrième adresse), sinon la division la plus fine.

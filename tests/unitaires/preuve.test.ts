@@ -16,6 +16,7 @@ const fiche = (
   etiquette: null,
   adresse: ['congo', 'pointe-noire', 'tie-tie'],
   slug: 'ecole-exemple',
+  numero: '482913',
   etat,
   releveeLe,
   situeeLe,

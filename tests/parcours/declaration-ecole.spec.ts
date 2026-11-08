@@ -32,7 +32,7 @@ test('déclaration école : date et transmission explicites, brouillon et origin
 test('public : origine déclarée datée, sans preuve terrain et porte ouverte au Congo', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/brazzaville/moungali/ecole-de-brazzaville-exemple/');
+  await page.goto('/ecoles/ecole-de-brazzaville-exemple-731590/');
   await expect(page.getByText('Déclarée par l’école · 1 nov. 2026', { exact: true })).toBeVisible();
   await expect(page.locator('.preuves')).not.toContainText('Relevé terrain');
   await expect(page.getByText('Confirmée par l’école', { exact: true })).toHaveCount(0);

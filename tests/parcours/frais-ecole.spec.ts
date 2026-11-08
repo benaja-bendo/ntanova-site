@@ -61,7 +61,7 @@ test('frais déclarés : ajout, relecture, modification et retrait, sans badge n
 test('fiche publique : fourchette, période, date et inconnues, sans total annuel inventé', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+  await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
   const bloc = page.getByRole('region', { name: 'Frais déclarés par l’école' });
   await expect(bloc).toContainText(/25\s*000 à 30\s*000 FCFA/);
   await expect(bloc).toContainText('Par mois');
@@ -71,7 +71,7 @@ test('fiche publique : fourchette, période, date et inconnues, sans total annue
   await expect(bloc).not.toContainText(/300\s*000|360\s*000|Confirmée par l’école/);
 });
 test('sans déclaration de frais : état vide honnête', async ({ page }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/centre-de-formation-exemple/');
+  await page.goto('/ecoles/centre-de-formation-exemple-315702/');
   await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toHaveCount(0);
   // Depuis la refonte de la fiche, une donnée absente n'a plus de libellé « à compléter » (comme le contact et les
   // équipements) : la page ne dit rien des frais, et n'en invente aucun (ni montant, ni « gratuit »).

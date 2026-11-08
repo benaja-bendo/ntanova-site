@@ -61,6 +61,7 @@ const CAMPUS = {
   label: null,
   kind: 'privee',
   slug: 'ecole-exemple',
+  public_number: 482913,
   division_id: 'd-tt',
   division_path: 'congo.pointe_noire.pointe_noire.tie_tie',
   division_slugs: ['congo', 'pointe-noire', 'pointe-noire', 'tie-tie'],
@@ -105,6 +106,7 @@ describe('le catalogue du site public', () => {
       institutionId: 'i1',
       divisionId: 'd-tt',
       slug: 'ecole-exemple',
+      numero: '482913',
       nom: '[École exemple]',
       etiquette: null,
       typeEcole: 'privee',
@@ -229,16 +231,36 @@ describe('le catalogue du site public', () => {
         {
           from_division_path: 'congo.pointe_noire.pointe_noire.tie_tie',
           from_slug: 'ancienne-fiche',
-          to_division_path: 'congo.pointe_noire.pointe_noire.tie_tie',
-          to_slug: 'fiche-gardee',
+          from_number: 362850,
+          to_number: 482913,
         },
       ],
     });
     await expect(catalogue().redirections()).resolves.toEqual([
       {
-        de: { chemin: ['congo', 'pointe-noire', 'tie-tie'], slug: 'ancienne-fiche' },
-        vers: { chemin: ['congo', 'pointe-noire', 'tie-tie'], slug: 'fiche-gardee' },
+        de: {
+          chemin: ['congo', 'pointe-noire', 'tie-tie'],
+          slug: 'ancienne-fiche',
+          numero: '362850',
+        },
+        versNumero: '482913',
       },
+    ]);
+  });
+
+  it('lit les anciennes adresses des fiches publiées, avec leur identifiant (ticket 147)', async () => {
+    fausseBase({
+      geo_divisions: DIVISIONS,
+      public_campus_former_addresses: [
+        {
+          former_slug: 'ancien-nom',
+          former_division_path: 'congo.pointe_noire.pointe_noire.tie_tie',
+          public_number: 482913,
+        },
+      ],
+    });
+    await expect(catalogue().anciennesAdresses()).resolves.toEqual([
+      { chemin: ['congo', 'pointe-noire', 'tie-tie'], slug: 'ancien-nom', numero: '482913' },
     ]);
   });
 

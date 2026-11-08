@@ -53,7 +53,7 @@ const carte = lienCarteDuLieu({
 ---
 
 <section class="cadre page hub">
-  <a class="retour" href={parent ? lienDivision(parent.adresse) : '/ecoles/'}>
+  <a class="retour" href={parent ? lienDivision(parent.chemin) : '/ecoles/'}>
     ← {parent ? nomAffiche(parent.division.nom, parent.division.niveau) : 'Les écoles'}
   </a>
 
@@ -72,7 +72,7 @@ const carte = lienCarteDuLieu({
         </p>
       )}
     </div>
-    <BasculeVue liste={lienDivision(page.adresse)} carte={carte} actuelle="liste" />
+    <BasculeVue liste={lienDivision(page.chemin)} carte={carte} actuelle="liste" />
   </div>
 
   {sous.length > 0 && <p class="compte">{phraseDeCompte(sous.length, vues, verifiees)}</p>}
@@ -82,7 +82,7 @@ const carte = lienCarteDuLieu({
       <ul class="zones">
         {page.enfants.map((enfant) => (
           <li>
-            <a class="zone" href={lienDivision(enfant.adresse)}>
+            <a class="zone" href={lienDivision(enfant.chemin)}>
               <span class="zone-nom">{enfant.division.nom}</span>
               <span class="zone-detail">{detailDeZone(enfant).join(' · ')}</span>
             </a>

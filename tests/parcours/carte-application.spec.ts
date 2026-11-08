@@ -361,6 +361,7 @@ test.describe('plein écran sans JavaScript', () => {
 test('l’aperçu utilise la même photo publique locale que la fiche, sans justification longue', async ({
   page,
 }) => {
+  // Un lien d'avant le ticket 147 (l'adresse de la fiche avec le pays) se lit encore.
   await page.goto(
     '/carte/?ecole=%2Fecoles%2Fcongo%2Fpointe-noire%2Ftie-tie%2Fcomplexe-scolaire-exemple%2F#15/-4.79105/11.925',
   );
@@ -374,4 +375,17 @@ test('l’aperçu utilise la même photo publique locale que la fiche, sans just
   await expect(apercu).toContainText('Relevé terrain');
   await expect(apercu).not.toContainText('jeune');
   await expect(apercu).not.toContainText('seulement ce qui');
+});
+
+test('/carte/?ecole=<identifiant> ouvre l’aperçu de l’école, et la carte écrit l’identifiant (ticket 147)', async ({
+  page,
+}) => {
+  await page.goto('/carte/?ecole=482913#15/-4.79105/11.925');
+  const apercu = page.locator('.carte-apercu');
+  await expect(apercu).toContainText('[Complexe scolaire Exemple]');
+  await expect(apercu.getByRole('link', { name: 'Voir la fiche' })).toHaveAttribute(
+    'href',
+    '/ecoles/complexe-scolaire-exemple-482913/',
+  );
+  await expect(page).toHaveURL(/[?&]ecole=482913(#|&|$)/);
 });

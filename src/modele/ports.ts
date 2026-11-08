@@ -1013,8 +1013,13 @@ export interface EcolePubliee {
   institutionId: string;
   /** La division où il est (la plus fine connue : arrondissement, quartier, ou ville sans arrondissement). */
   divisionId: string;
-  /** L'adresse du campus dans sa division. */
+  /** L'adresse du campus dans sa division : le nom dans l'adresse de sa fiche. */
   slug: string;
+  /**
+   * L'identifiant NTanova (ticket 147) : six chiffres tirés par la base, jamais changés, jamais réutilisés. La fiche vit
+   * à `/ecoles/<slug>-<numero>/`, le lien court `/ecoles/<numero>/` y renvoie.
+   */
+  numero: string;
   /** Le nom de l'institution. */
   nom: string;
   /** L'implantation (« Campus de Loandjili »), quand l'institution en a plusieurs. */
@@ -1060,9 +1065,19 @@ export interface PortCatalogue {
   domaines(): Promise<DomainePublic[]>;
   /** Les anciennes adresses des doublons fusionnés, et le campus qu'elles rejoignent. */
   redirections(): Promise<Redirection[]>;
+  /** Les anciennes adresses des fiches publiées (renommées ou déplacées), ticket 147. */
+  anciennesAdresses(): Promise<AncienneAdresse[]>;
 }
 
+/** Une adresse qui a été celle d'une fiche : sa division d'alors (du pays à elle, sans répétition), son nom, son numéro. */
+export interface AncienneAdresse {
+  chemin: string[];
+  slug: string;
+  numero: string;
+}
+
+/** Un doublon fusionné : son ancienne adresse (et son propre numéro) mènent à la fiche gardée. */
 export interface Redirection {
-  de: { chemin: string[]; slug: string };
-  vers: { chemin: string[]; slug: string };
+  de: AncienneAdresse;
+  versNumero: string;
 }

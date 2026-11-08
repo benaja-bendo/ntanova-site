@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 // Audit du 05/11/2026, Vague 3 : une seule ligne d'école et un seul état vide pour toutes les listes (zone, recherche,
 // « Autour de moi »), les puces de niveau et de rayon, les pages de zone qui montrent les écoles avant la sollicitation.
-const TIE_TIE = '/ecoles/congo/pointe-noire/tie-tie/';
+const TIE_TIE = '/ecoles/pointe-noire/tie-tie/';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -30,7 +30,7 @@ test.describe('la ligne d’une école est la même à la construction et dans l
     ['ajoutée par NTanova', TIE_TIE, '[École ajoutée Exemple]', ''],
     [
       'confirmée par la direction, avec implantation',
-      '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/',
+      '/ecoles/pointe-noire/loandjili/quartier-exemple/',
       '[Groupe scolaire Exemple]',
       'Campus du quartier',
     ],
@@ -302,7 +302,7 @@ test.describe('les pages de zone', () => {
     expect(liste.y + liste.height, 'la liste est avant « Ajouter mon école »').toBeLessThanOrEqual(
       ajouter.y,
     );
-    await page.goto('/ecoles/congo/pointe-noire/');
+    await page.goto('/ecoles/pointe-noire/');
     const zones = (await page.locator('ul.zones').boundingBox())!;
     const ajouterVille = (await page
       .getByRole('link', { name: 'Ajouter mon école' })
@@ -313,7 +313,7 @@ test.describe('les pages de zone', () => {
   test('la page de la ville n’a plus de schéma ni d’état, et jamais « 0 école » (ticket 146)', async ({
     page,
   }) => {
-    await page.goto('/ecoles/congo/pointe-noire/');
+    await page.goto('/ecoles/pointe-noire/');
     await expect(page.locator('main')).not.toContainText(/\b0 écoles?\b/);
     await expect(page.locator('main svg.plan, main .plan-carte')).toHaveCount(0);
     await expect(page.locator('main')).not.toContainText(/Relevé en cours|Déploiement programmé/);
@@ -329,7 +329,7 @@ test.describe('les pages de zone', () => {
   test('une zone sans école : un seul état vide (l’état, de quoi continuer, WhatsApp)', async ({
     page,
   }) => {
-    await page.goto('/ecoles/congo/pointe-noire/ngoyo/');
+    await page.goto('/ecoles/pointe-noire/ngoyo/');
     await expect(page.locator('.etat-vide')).toHaveCount(1);
     await expect(page.locator('.etat-vide-titre')).toContainText('Aucune école publiée');
     await expect(page.locator('main a[href*="wa.me"]')).toHaveCount(1);

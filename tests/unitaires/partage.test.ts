@@ -15,6 +15,7 @@ const e = {
   etiquette: null,
   adresse: ['congo', 'pointe-noire', 'tie-tie'],
   slug: 'complexe-scolaire-exemple',
+  numero: '482913',
   divisionNoms: ['Congo', 'Pointe-Noire', 'Tié-Tié'],
   quartier: '[Quartier Exemple]',
   repere: '[derrière la station]',
@@ -46,9 +47,7 @@ describe('la preuve écrite sur l’image', () => {
 
 describe('l’adresse de l’image', () => {
   it('suit celle de la fiche, en .png', () => {
-    expect(cheminImagePartage(e)).toBe(
-      '/partage/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple.png',
-    );
+    expect(cheminImagePartage(e)).toBe('/partage/ecoles/complexe-scolaire-exemple-482913.png');
   });
 });
 

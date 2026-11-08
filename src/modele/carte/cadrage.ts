@@ -18,10 +18,13 @@ export interface CadreParDefaut {
   ecoles: number;
 }
 
-/** La ville d'une adresse du site : `/ecoles/congo/pointe-noire/tie-tie/` → `congo/pointe-noire`. */
+/**
+ * La ville de l'adresse d'un lieu (ticket 147) : `/ecoles/pointe-noire/tie-tie/` → `pointe-noire`. Une fiche
+ * (`/ecoles/<nom>-<identifiant>/`) ne dit pas sa ville : elle la porte dans `ville`.
+ */
 export function villeDuLien(lien: string): string | null {
-  const m = /^\/ecoles\/([^/]+)\/([^/]+)(?:\/|$)/.exec(lien);
-  return m ? `${m[1]}/${m[2]}` : null;
+  const m = /^\/ecoles\/([^/]+)\//.exec(lien);
+  return m?.[1] && !/(^|-)\d{6}$/.test(m[1]) ? m[1] : null;
 }
 
 type Coordonnee = readonly number[];
@@ -54,7 +57,7 @@ export function cadreParDefaut(
 ): CadreParDefaut {
   const ecolesParVille = new Map<string, FeatureEcole[]>();
   for (const e of ecoles) {
-    const ville = villeDuLien(e.properties.lien);
+    const ville = e.properties.ville;
     if (ville) ecolesParVille.set(ville, [...(ecolesParVille.get(ville) ?? []), e]);
   }
   const zonesActives = (ville: string) =>

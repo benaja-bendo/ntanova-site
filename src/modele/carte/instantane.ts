@@ -3,6 +3,7 @@
  * les construit pour la page `/carte/` (la liste, le cadre) et pour les fichiers que l'îlot charge.
  */
 import type { DivisionPublique, EcolePubliee } from '../ports';
+import { cheminDeDivision } from '../geo-divisions';
 import { cadreParDefaut } from './cadrage';
 import { ecolesGeoJSON, zonesGeoJSON } from './donnees';
 import { arrondissementDeLApercu, arrondissementDessine, vuesSurPlace } from './plan';
@@ -21,7 +22,11 @@ export function donneesDeLaCarte(site: {
         ? (arrondissementDessine(d.slug)?.contour ?? null)
         : null,
   });
-  const ecoles = ecolesGeoJSON(site.ecoles);
+  const parId = new Map(site.divisions.map((d) => [d.id, d]));
+  const ecoles = ecolesGeoJSON(site.ecoles, (e) => {
+    const d = parId.get(e.divisionId);
+    return d ? (cheminDeDivision(d, parId)[0] ?? null) : null;
+  });
   return { zones, ecoles, cadre: cadreParDefaut(zones.features, ecoles.features) };
 }
 

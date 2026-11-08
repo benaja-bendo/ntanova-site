@@ -2,7 +2,13 @@ import { creerApercu, disque, element, icone } from './apercu';
 import { montrerLEcoleChoisie } from './choisie';
 import type { MapLibreMap, GeoJSONSource } from 'maplibre-gl';
 import type { FeatureEcole, FeatureZone } from '../../modele/carte/donnees';
-import { adresseVue, lireVue, filtrerEcoles } from '../../modele/carte/navigation';
+import {
+  adresseVue,
+  ecoleDuParametre,
+  filtrerEcoles,
+  lireVue,
+  numeroDuLien,
+} from '../../modele/carte/navigation';
 import { zoomMaxEn, type Fenetre } from '../../modele/carte/fond';
 import { COUCHE_ZONES, SOURCE_ECOLES } from '../../modele/carte/couches';
 import {
@@ -134,7 +140,8 @@ export async function installerInterface(
   }
   function url(ecole?: FeatureEcole | undefined) {
     const u = new URL(location.href);
-    if (ecole) u.searchParams.set('ecole', ecole.properties.lien);
+    if (ecole)
+      u.searchParams.set('ecole', numeroDuLien(ecole.properties.lien) ?? ecole.properties.lien);
     else u.searchParams.delete('ecole');
     if (!privee) u.hash = adresseVue(vue());
     else u.hash = '';
@@ -432,7 +439,7 @@ export async function installerInterface(
   function restaurer(adresse = new URL(location.href)) {
     restaure = true;
     const v = lireVue(adresse.hash);
-    const e = data.features.find((e) => e.properties.lien === adresse.searchParams.get('ecole'));
+    const e = ecoleDuParametre(data.features, adresse.searchParams.get('ecole'));
     if (v) {
       privee = false;
       carte.setMaxZoom(zoomMaxEn(v.longitude, v.latitude));
