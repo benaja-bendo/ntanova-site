@@ -20,6 +20,7 @@ import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../modele/libel
 import type { EcolePubliee } from '../modele/ports';
 import {
   diplomesEnMots,
+  formationsARenseigner,
   invitationDirection,
   messageEcole,
   preuvesDeLaFiche,
@@ -114,7 +115,8 @@ const repereManquant = !e.repere && (vueSurPlace || confirmee || e.origine === '
 
 // Le contact et le programme : à droite sur une fiche confirmée, avec les filières à sa gauche ; sinon dans « À savoir ».
 const diplomes = diplomesEnMots(e.formations);
-const aSavoir = !!(e.programme || e.contactPublic || e.numeroEnseigne || diplomes);
+const aRenseigner = formationsARenseigner(e);
+const aSavoir = !!(e.programme || e.contactPublic || e.numeroEnseigne || diplomes || aRenseigner);
 const hote = new URL(lienCourt(e), Astro.site ?? Astro.url).host;
 
 // La prochaine date limite annoncée : calculée à la construction, elle disparaît une fois passée.
@@ -257,7 +259,7 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
       {aSavoir && !confirmee && (
         <section class="a-savoir" aria-label="À savoir">
           <h2 class="titre-ordinateur">À savoir</h2>
-          <ProprietesEcole e={e} diplomes={diplomes} />
+          <ProprietesEcole e={e} diplomes={diplomes} aRenseigner={aRenseigner} />
         </section>
       )}
 

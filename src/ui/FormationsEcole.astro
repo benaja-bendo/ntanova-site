@@ -172,15 +172,7 @@ const serieDansLeTitre = (f: FormationPublique) =>
     )}
   </section>
 ) : (
-  <>
-    {cyclesSansFormation.length > 0 && (
-      <section class="formations" aria-label="Formations à renseigner">
-        <h2>Formations</h2>
-        <p class="doux">Les filières ne sont pas encore renseignées.</p>
-      </section>
-    )}
-    <FraisEcole frais={frais} titre="Frais" />
-  </>
+  <FraisEcole frais={frais} titre="Frais" />
 )}
 
 <style>

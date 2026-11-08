@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formationsARenseigner,
   compteDesFormations,
   diplomesEnMots,
   filtresDesFormations,
@@ -80,6 +81,37 @@ describe('les mots qui suivent le nom', () => {
 });
 
 describe('les formations', () => {
+  it('dit ce qui reste à renseigner, une ligne au lieu d’un bloc vide', () => {
+    const fiche = {
+      etat: 'relevee' as const,
+      formations: [],
+      niveaux: ['college', 'lycee'] as const,
+    };
+    expect(formationsARenseigner({ ...fiche, niveaux: [...fiche.niveaux] })).toBe('Séries');
+    expect(formationsARenseigner({ ...fiche, niveaux: ['superieur'] })).toBe('Filières');
+  });
+
+  it('se tait sans cycle concerné, sur une fiche confirmée ou dès qu’une formation est notée', () => {
+    const fiche = { etat: 'relevee' as const, formations: [], niveaux: ['lycee' as const] };
+    expect(formationsARenseigner({ ...fiche, niveaux: ['primaire', 'college'] })).toBeNull();
+    expect(formationsARenseigner({ ...fiche, etat: 'verifiee' })).toBeNull();
+    expect(
+      formationsARenseigner({
+        ...fiche,
+        formations: [
+          {
+            cycle: 'lycee',
+            titre: 'Série C',
+            domaine: null,
+            serie: 'c',
+            diplome: null,
+            rythmes: [],
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
+
   const f = (diplome: 'bts' | 'licence' | null, ...rythmes: ('jour' | 'soir')[]) => ({
     diplome,
     rythmes,

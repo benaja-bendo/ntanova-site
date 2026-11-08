@@ -67,6 +67,8 @@ test.describe('dans l’administration', () => {
 
     // L'agrément
     const agrement = dialog.getByRole('form', { name: 'Agrément de [École 1]' });
+    // Sans filière, rien à choisir.
+    await expect(agrement.getByLabel('Concerne')).toHaveCount(0);
     await agrement.getByRole('button', { name: 'Enregistrer l’agrément' }).click();
     await expect(dialog).toContainText('Choisis l’intitulé du document');
     await agrement.getByLabel('Intitulé du document').selectOption('autorisation_ouverture');
@@ -86,6 +88,13 @@ test.describe('dans l’administration', () => {
     await expect(dialog.getByRole('list')).toContainText(
       'L’établissement · Autorisation d’ouverture',
     );
+    // Le retour se lit dans le panneau, en vue : le bandeau de la page reste derrière.
+    await expect(dialog.getByText('Agrément de [École 1] enregistré.')).toBeInViewport();
+    // Modifier fige la cible ; annuler vide le formulaire.
+    await dialog.getByRole('button', { name: 'Modifier : L’établissement' }).click();
+    await expect(agrement.getByLabel(/^Référence, telle/)).toHaveValue('arrêté n° [référence]');
+    await agrement.getByRole('button', { name: 'Annuler la modification' }).click();
+    await expect(agrement.getByLabel(/^Référence, telle/)).toHaveValue('');
     await expect(ligne).not.toContainText('vérifiée par la direction');
     await dialog.getByRole('button', { name: 'Retirer : L’établissement' }).click();
     await expect(dialog.getByRole('button', { name: 'Retirer : L’établissement' })).toHaveCount(0);
@@ -113,7 +122,8 @@ test.describe('dans l’administration', () => {
     await inscriptions.getByLabel('Date limite annoncée').fill('2030-12-15');
     await inscriptions.getByLabel(/^Date de la déclaration/).fill(hier());
     await inscriptions.getByRole('button', { name: 'Ajouter la date' }).click();
-    await expect(dialog.getByRole('list')).toContainText('2026-2027 · limite du');
+    await expect(dialog.getByRole('list')).toContainText('2026-2027 · limite du 15 décembre 2030');
+    await expect(dialog.getByRole('list')).not.toContainText('date passée');
     await inscriptions.getByLabel(/^Année scolaire/).fill('2026-2027');
     await inscriptions.getByLabel('Date limite annoncée').fill('2030-12-16');
     await inscriptions.getByLabel(/^Date de la déclaration/).fill(hier());
@@ -121,6 +131,14 @@ test.describe('dans l’administration', () => {
     await expect(dialog).toContainText('Une date existe déjà pour cette année scolaire');
     await dialog.getByRole('button', { name: 'Retirer 2026-2027' }).click();
     await expect(dialog.getByRole('button', { name: 'Retirer 2026-2027' })).toHaveCount(0);
+    // Une date passée se dit : la fiche ne l'affiche plus.
+    await inscriptions.getByLabel(/^Année scolaire/).fill('2024-2025');
+    await inscriptions.getByLabel('Date limite annoncée').fill('2024-12-15');
+    await inscriptions.getByLabel(/^Date de la déclaration/).fill('2024-11-05');
+    await inscriptions.getByRole('button', { name: 'Ajouter la date' }).click();
+    await expect(dialog.getByRole('list')).toContainText(
+      'date passée : la fiche ne l’affiche plus',
+    );
     const b = await dialog.boundingBox();
     expect(b!.x + b!.width).toBeLessThanOrEqual(360);
   });

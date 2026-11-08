@@ -3,6 +3,7 @@
  * DOM, ni Astro.
  */
 import type { NomIcone } from './carte/icones';
+import { NIVEAUX_AVEC_FORMATIONS } from './fiche';
 import { libelleDiplome, libelleRythme } from './libelles';
 import { listes, type Valeur } from './listes';
 import { dateCourte } from './pointe-noire';
@@ -95,6 +96,18 @@ export function titreDesFormations(cycles: readonly Niveau[], avecFrais: boolean
   const nature = natureDesFormations(cycles);
   const titre = nature.charAt(0).toLocaleUpperCase('fr') + nature.slice(1);
   return avecFrais ? `${titre} et frais` : titre;
+}
+
+/**
+ * « Filières », « Séries » : ce qu'il reste à renseigner, quand une école enseigne des cycles qui en ont normalement et qu'aucune
+ * n'est notée. Une ligne discrète plutôt qu'un bloc vide ; rien sur une fiche confirmée, où la direction a déjà relu.
+ */
+export function formationsARenseigner(
+  e: Pick<EcolePubliee, 'etat' | 'formations' | 'niveaux'>,
+): string | null {
+  if (e.etat === 'verifiee' || e.formations.length > 0) return null;
+  const niveaux = e.niveaux.filter((n) => NIVEAUX_AVEC_FORMATIONS.includes(n));
+  return niveaux.length > 0 ? titreDesFormations(niveaux, false) : null;
 }
 
 /** « Filière », « Série », « Formation » : l'en-tête de la colonne. */

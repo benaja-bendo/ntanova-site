@@ -38,6 +38,12 @@ const { photo, nom } = Astro.props;
     background: var(--fond-releve);
     border-radius: var(--rayon-m);
   }
+  /* Sur grand écran, la photo garde une taille à sa mesure : elle fait 720 px de large au plus. */
+  @media (min-width: 48rem) {
+    .photo-ecole {
+      max-width: 34rem;
+    }
+  }
   figcaption {
     max-width: var(--largeur-texte);
     font-size: var(--taille-secondaire);

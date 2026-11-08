@@ -7,8 +7,10 @@ import ContactEcole from './ContactEcole.astro';
 interface Props {
   e: EcolePubliee;
   diplomes: string | null;
+  /** « Filières », « Séries » : ce qui reste à renseigner, sur une ligne plutôt qu'un bloc vide. */
+  aRenseigner?: string | null;
 }
-const { e, diplomes } = Astro.props;
+const { e, diplomes, aRenseigner = null } = Astro.props;
 ---
 
 <dl class="proprietes">
@@ -23,6 +25,12 @@ const { e, diplomes } = Astro.props;
     <>
       <dt>Diplômes</dt>
       <dd>{diplomes}</dd>
+    </>
+  )}
+  {aRenseigner && (
+    <>
+      <dt>{aRenseigner}</dt>
+      <dd class="a-renseigner">Pas encore renseignées</dd>
     </>
   )}
 </dl>
@@ -50,6 +58,10 @@ const { e, diplomes } = Astro.props;
     margin: 0;
     font-weight: 700;
     overflow-wrap: anywhere;
+  }
+  .proprietes .a-renseigner {
+    color: var(--texte-doux);
+    font-weight: 400;
   }
   .proprietes :global(dt:first-of-type),
   .proprietes :global(dt:first-of-type + dd) {
