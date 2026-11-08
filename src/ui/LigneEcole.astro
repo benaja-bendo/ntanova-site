@@ -49,9 +49,6 @@ const { d } = Astro.props;
           <span>{d.repere}</span>
         </span>
       )}
-      {d.repereManquant && (
-        <span class="ligne-repere ligne-repere-vide">Repère pas encore relevé</span>
-      )}
       <span class="ligne-preuve-rang">
         <span class={`ligne-preuve ligne-preuve-${d.preuve}`}>
           <Icone nom={iconeDeProvenance[d.preuve]} />

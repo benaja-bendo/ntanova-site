@@ -46,6 +46,7 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.getByRole('button', { name: 'Suivant' }).click();
   await expect(page.getByLabel("Nom sur l'enseigne")).toHaveValue('[École à situer]');
   await page.getByLabel("Nom sur l'enseigne").fill('[École à situer, nom exact]');
+  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
   await page.getByRole('button', { name: 'Suivant' }).click();
   await page.getByRole('button', { name: 'Absente' }).click();
   await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();

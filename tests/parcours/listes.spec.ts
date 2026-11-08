@@ -134,6 +134,7 @@ test.describe('étape 2/3 du relais : de la crèche au supérieur', () => {
   }) => {
     await allerALEtape2(page, context);
     await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     await finirEtEnvoyer(page);
 
     const [recu] = await relevesRecus(page);
@@ -151,6 +152,7 @@ test.describe('étape 2/3 du relais : de la crèche au supérieur', () => {
   }) => {
     await allerALEtape2(page, context);
     await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     for (const niveau of ['Crèche ou garderie', 'Technique ou professionnel', 'Autre formation']) {
       await niveaux(page).getByRole('button', { name: niveau, exact: true }).click();
     }
@@ -227,6 +229,7 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
 
     await expect(page.getByLabel(/Programme, langues ou autre mention écrite/)).toHaveValue('');
     await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     await page.getByLabel(/Programme, langues ou autre mention écrite/).fill('Bilingue');
     await page.getByRole('button', { name: 'Suivant' }).click();
     await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
@@ -275,7 +278,8 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
       niveaux(page).getByRole('button', { name: 'Primaire', exact: true }),
     ).toHaveAttribute('aria-pressed', 'true');
 
-    // Et l'étape ne se referme pas en silence.
+    // Et l'étape ne se referme pas en silence. L'école n'a pas de repère : sans lui, « Suivant » fait d'abord sa relance.
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     await page.getByRole('button', { name: 'Suivant' }).click();
     await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
   });

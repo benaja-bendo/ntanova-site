@@ -112,14 +112,20 @@ describe('la ligne d’une école, écrite à la construction et dans le navigat
     });
   });
 
-  it('« Repère pas encore relevé » : jamais avec « Ajoutée par NTanova » (arbitrage du 08/11/2026)', () => {
-    expect(ligneDeEcole(ecole()).repereManquant).toBe(false);
-    expect(ligneDeEcole(ecole({ repere: null })).repereManquant).toBe(true);
-    expect(
-      ligneDeEcole(ecole({ repere: null, origine: 'school', releveeLe: null })).repereManquant,
-    ).toBe(true);
-    expect(ligneDeEcole(ecole({ repere: null, etat: 'verifiee' })).repereManquant).toBe(true);
-    expect(ligneDeEcole(ecole({ repere: null, releveeLe: null })).repereManquant).toBe(false);
+  it('sans repère, la ligne n’écrit rien : plus d’état vide négatif (décision du fondateur du 08/11/2026)', () => {
+    expect(ligneDeEcole(ecole()).repere).not.toBeNull();
+    for (const manquant of [
+      ecole({ repere: null }),
+      ecole({ repere: null, origine: 'school', releveeLe: null }),
+      ecole({ repere: null, etat: 'verifiee' }),
+      ecole({ repere: null, releveeLe: null }),
+    ]) {
+      const ligne = ligneDeEcole(manquant);
+      expect(ligne.repere).toBeNull();
+      // Ni drapeau, ni phrase à afficher : « Repère pas encore relevé » n'existe plus.
+      expect(ligne).not.toHaveProperty('repereManquant');
+      expect(JSON.stringify(ligne)).not.toMatch(/pas encore relev/i);
+    }
   });
 
   it('la preuve : une seule, la plus forte, datée quand la date est connue', () => {

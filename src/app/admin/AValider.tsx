@@ -620,6 +620,9 @@ function Detail({
         setInstitutions(i);
         setDomaines(dom);
         setDivisions(div);
+        // Ce que le relais a coché sur place préremplit les formations : l'administration le corrige avec les photos
+        // avant d'accepter, et rien ne se publie seul (collecter, accepter, publier : trois gestes).
+        setFormations(d.formationsVues);
         // Par défaut : une école déjà connue au même endroit (« la même ») se met à jour ; sinon, une nouvelle école.
         if (d.doublonDe && (d.reponseDoublon === 'la_meme' || d.type === 'contre_visite')) {
           setCible({ mode: 'update_campus', campusId: d.doublonDe.id });
@@ -1142,6 +1145,13 @@ function Detail({
                       Lis les photos du panneau ou du prospectus : les séries et les formations
                       notées ici rendent l’école cherchable (série C, BTS, licence…).
                     </p>
+                    {detail.formationsVues.length > 0 && (
+                      <p className="mention" data-testid="formations-du-relais">
+                        <b>Cochées par le relais sur place :</b>{' '}
+                        {detail.formationsVues.map((f) => f.titre).join(', ')}. Elles sont déjà dans
+                        la liste ci-dessous : corrige-les avec les photos avant d’accepter.
+                      </p>
+                    )}
                     <Formations
                       cycles={valeurs.niveaux}
                       formations={formationsRetenues}

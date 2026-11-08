@@ -139,6 +139,7 @@ test.describe('un numéro congolais qui se lit mal, côté relais', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
 
     await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     await page.getByRole('button', { name: 'Primaire' }).click();
     const numero = page.getByLabel(/Numéro écrit sur l.enseigne/);
 

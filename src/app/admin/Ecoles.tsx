@@ -702,7 +702,7 @@ function LigneEcole({
                     <Champ
                       libelle="À vérifier"
                       facultatif
-                      aide="Le relais le lit dans « Mon secteur ». Vouvoie-le."
+                      aide="Le relais le lit dans « Mon secteur ». Vouvoie-le, et n’y mets aucune référence interne (ENT-…, ETB-…) : une phrase qui en contient une ne lui est pas montrée."
                     >
                       {(a) => (
                         <input

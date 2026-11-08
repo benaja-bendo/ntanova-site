@@ -41,6 +41,7 @@ test.describe('une nouvelle version de l’application', () => {
     // Le relais est au milieu d'une saisie.
     await page.goto('/relais/#ajouter/2');
     await page.getByLabel("Nom sur l'enseigne").fill('[École en cours de saisie]');
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     const avant = await chargeeA(page);
 
     // Une nouvelle version arrive : un autre service worker prend la main, comme après une mise en ligne.

@@ -98,6 +98,7 @@ describe('l’envoi d’un relevé par l’adaptateur Supabase', () => {
     programme: null,
     programmesVus: null,
     programmesEnPhoto: false,
+    formationsVues: [],
     repere: null,
     numeroEnseigne: null,
     direction: null,
@@ -142,6 +143,41 @@ describe('l’envoi d’un relevé par l’adaptateur Supabase', () => {
       observed_programs: 'Séries A, C et D',
       programs_photographed: true,
     });
+  });
+
+  it('envoie les séries et filières cochées, dans la forme que la base garde (observed_formations)', async () => {
+    const ligne = await envoyer({
+      ...releve,
+      niveaux: ['lycee', 'superieur'],
+      formationsVues: [
+        {
+          cycle: 'lycee',
+          titre: 'Série C',
+          domaine: null,
+          serie: 'c',
+          diplome: 'bac',
+          rythmes: [],
+        },
+        {
+          cycle: 'superieur',
+          titre: 'BTS Gestion',
+          domaine: 'gestion',
+          serie: null,
+          diplome: 'bts',
+          rythmes: [],
+        },
+      ],
+    });
+    expect(ligne['observed_formations']).toEqual([
+      { cycle: 'lycee', titre: 'Série C', serie: 'c', diplome: 'bac', domaine: null },
+      { cycle: 'superieur', titre: 'BTS Gestion', serie: null, diplome: 'bts', domaine: 'gestion' },
+    ]);
+  });
+
+  it('un relevé sans rien de coché part exactement comme avant : la colonne n’est pas envoyée', async () => {
+    // Le code peut arriver un instant avant la migration du 09/11/2026 : un relais sans séries ne doit rien y perdre.
+    const ligne = await envoyer(releve);
+    expect(ligne).not.toHaveProperty('observed_formations');
   });
 
   it('n’envoie jamais ce que la base calcule : l’auteur, le statut, la paie', async () => {
@@ -422,6 +458,44 @@ describe('l’adaptateur Supabase, pour un administrateur qui est aussi relais',
       repasser: 'Lundi matin',
       photos: ['signboard', 'programs_board'],
       aContact: false,
+    });
+  });
+
+  it('rend les formations cochées d’un relevé, et une liste vide pour un relevé d’avant (ou une base sans la colonne)', async () => {
+    const [sans] = await port.mesReleves();
+    expect(sans?.formationsVues).toEqual([]);
+    const avec = {
+      ...ligneDeMesReleves,
+      levels: ['lycee'],
+      observed_formations: [
+        { cycle: 'lycee', titre: 'Série C', serie: 'c', diplome: 'bac', domaine: null },
+        // Un niveau décoché depuis, une ligne illisible, une valeur inconnue : rien ne plante.
+        {
+          cycle: 'superieur',
+          titre: 'BTS Gestion',
+          serie: null,
+          diplome: 'bts',
+          domaine: 'gestion',
+        },
+        'illisible',
+        {
+          cycle: 'lycee',
+          titre: 'Série X',
+          serie: 'x9',
+          diplome: 'diplome-futur',
+          domaine: 'robotique',
+        },
+      ],
+    };
+    const lecteur = creerPortRelais(
+      fausseBase(tables, MOI, { my_submissions: [avec] }) as unknown as () => SupabaseClient,
+    );
+    const [releve] = await lecteur.mesReleves();
+    expect(releve?.formationsVues?.map((f) => f.titre)).toEqual(['Série C', 'Série X']);
+    expect(releve?.formationsVues?.[1]).toMatchObject({
+      serie: null,
+      diplome: null,
+      domaine: null,
     });
   });
 

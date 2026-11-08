@@ -35,6 +35,7 @@ async function ajouterUneAutrePhoto(page: Page, role: RegExp) {
 async function finirLaFiche(page: Page, nom: string, niveau: string) {
   await page.getByRole('button', { name: 'Suivant' }).click();
   await page.getByLabel("Nom sur l'enseigne").fill(nom);
+  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
   await niveaux(page).getByRole('button', { name: niveau, exact: true }).click();
 }
 
@@ -242,6 +243,7 @@ test.describe('les séries et filières vues', () => {
     await arriverALEtape1(page, context);
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByLabel("Nom sur l'enseigne").fill('[Lycée 1]');
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
 
     const bloc = page.getByRole('region', { name: 'Séries et formations' });
     await expect(bloc).toHaveCount(0);
@@ -266,7 +268,7 @@ test.describe('les séries et filières vues', () => {
     await finirLaFiche(page, '[Lycée 1]', 'Lycée');
 
     const bloc = page.getByRole('region', { name: 'Séries et formations' });
-    await bloc.getByLabel(/Séries, filières ou formations visibles/).fill('Séries C et D');
+    await bloc.getByLabel(/Précisions sur les séries/).fill('Séries C et D');
     await bloc.getByLabel(/Je les ai prises en photo/).check();
     // Une photo de panneau est bien dans la fiche : pas de rappel.
     await expect(page.getByText(/Ajoutez cette photo à l.étape 1\/3/)).toHaveCount(0);
@@ -327,7 +329,7 @@ test.describe('hors ligne', () => {
     await finirLaFiche(page, '[École hors ligne]', 'Lycée');
     await page
       .getByRole('region', { name: 'Séries et formations' })
-      .getByLabel(/Séries, filières ou formations visibles/)
+      .getByLabel(/Précisions sur les séries/)
       .fill('Série C');
     await envoyerLaFicheHorsLigne(page);
 

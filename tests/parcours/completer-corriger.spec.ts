@@ -240,6 +240,7 @@ test.describe('après « À repasser »', () => {
     await prendrePhotoEtPosition(page);
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     await page.getByRole('button', { name: 'Primaire' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Absente' }).click();

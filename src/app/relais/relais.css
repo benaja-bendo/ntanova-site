@@ -282,6 +282,16 @@
   background: var(--fond);
 }
 
+/* Une relance au-dessus de « Suivant » (le repère, étape 2/3) : visible sans défiler, jamais un blocage. */
+.pied-etape .bandeau {
+  margin-bottom: var(--espace-3);
+}
+.ligne-boutons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-3);
+}
+
 /* Mes fiches ------------------------------------------------------------------------ */
 
 .fiche-relais {

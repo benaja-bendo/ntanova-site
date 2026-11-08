@@ -420,12 +420,13 @@ test.describe('site public', () => {
       await expect(liste.getByRole('link', { name: /Complexe scolaire Exemple/ })).toContainText(
         'Maternelle et primaire · Privée',
       );
-      // Le nom, le niveau (le type « Autre » ne s'écrit pas), le lieu, le repère qui manque, puis la preuve datée : rien
-      // d'autre (canevas du 08/11/2026, ticket 146).
+      // Le nom, le niveau (le type « Autre » ne s'écrit pas), le lieu, puis la preuve datée : rien d'autre. Sans repère,
+      // la ligne ne dit rien (décision du fondateur du 08/11/2026 : plus d'état vide négatif).
       await expect(liste.getByRole('link', { name: /Centre de formation Exemple/ })).toHaveText(
-        /^S\s*\[Centre de formation Exemple\]\s*S\s*Autre formation\s*Tié-Tié · Pointe-Noire\s*Repère pas encore relevé\s*Vue sur place le \d+ \S+ 2026$/,
+        /^S\s*\[Centre de formation Exemple\]\s*S\s*Autre formation\s*Tié-Tié · Pointe-Noire\s*Vue sur place le \d+ \S+ 2026$/,
       );
-      // Ajoutée par NTanova : jamais « Repère pas encore relevé » en plus (arbitrage du 08/11/2026).
+      await expect(liste).not.toContainText('Repère pas encore relevé');
+      // Ajoutée par NTanova : une seule mention, la preuve.
       await expect(liste.getByRole('link', { name: /École sans détail/ })).toHaveText(
         /^–\s*\[École sans détail Exemple\]\s*Tié-Tié · Pointe-Noire\s*Ajoutée par NTanova, pas encore vue sur place$/,
       );
