@@ -2,8 +2,10 @@
  * Les couches de NTanova sur la carte interactive (ticket 103, décisions du 03/11) : les zones, les villes, les groupes
  * d'écoles et les marqueurs. Le style du fond (`style.ts`) les reçoit par `styleDeLaCarte`.
  *
- * - les **zones** disent leur état public : « relevé en cours » (`actif` : contour net, remplissage léger) ou « déploiement
- *   programmé » (`programme` : tirets et hachures). Une zone sans état n'est pas dans le fichier : elle n'a pas de couche ;
+ * - les **zones** sont celles que l'administration met sur la carte : toutes du même dessin (contour net, remplissage
+ *   léger), avec leur nom seul. Elles ne disent plus d'état, ni « relevé en cours » ni « déploiement programmé » (décision
+ *   du fondateur du 08/11/2026, qui revient sur D2 du 03/11 ; ticket 146). Une zone qui n'est pas sur la carte n'est pas
+ *   dans le fichier : elle n'a pas de couche ;
  * - les **villes** sont des pastilles qui s'effacent quand les arrondissements prennent la place ;
  * - les **écoles** se regroupent (rond vert, nombre) jusqu'au zoom 14, puis chacune a son marqueur (`marqueurs.ts`).
  *
@@ -13,9 +15,11 @@
 import type { ExpressionSpecification, LayerSpecification, SourceSpecification } from 'maplibre-gl';
 import { POLICE_DE_LA_CARTE } from './fond';
 import { lireJeton } from './jetons';
-import { IMAGE_ECUSSON, IMAGE_HACHURES } from './marqueurs';
+import { IMAGE_ECUSSON } from './marqueurs';
 
 export const ADRESSE_DES_ZONES = '/carte/zones.geojson';
+/** Le remplissage des zones : la carte y lit la zone qu'on regarde. */
+export const COUCHE_ZONES = 'zones-fond';
 export const ADRESSE_DES_ECOLES = '/carte/ecoles.geojson';
 export const SOURCE_ZONES = 'zones';
 export const SOURCE_ECOLES = 'ecoles';
@@ -30,13 +34,6 @@ export const COUCHE_CHOISIE_NOM = 'ecole-choisie-nom';
 
 /** Le nom d'une école s'écrit à côté de son épingle à partir de ce zoom : avant, les épingles se touchent. */
 export const ZOOM_MIN_DES_NOMS = 13;
-/**
- * La trame d'un « déploiement programmé » s'efface entre ces deux zooms : de loin elle dit « pas encore parcouru », à hauteur
- * de rue elle rayerait la carte. Le contour pointillé reste, et l'état se lit dans la légende.
- */
-export const ZOOM_TRAME_PLEINE = 11;
-export const ZOOM_TRAME_EFFACEE = 12.5;
-
 /** Les noms d'école du fond, sauf celui de l'école choisie (elle écrit le sien, plus grand). */
 export function filtreDesNoms(idChoisi?: string): ExpressionSpecification {
   const base = ['!', ['has', 'point_count']];
@@ -56,9 +53,7 @@ export const ZOOM_MIN_DES_ZONES = 8;
 
 export interface CouleursDeLaCarte {
   zoneActif: string;
-  zoneProgramme: string;
   zoneNom: string;
-  zoneNomDoux: string;
   zoneHalo: string;
   groupe: string;
   groupeTexte: string;
@@ -71,9 +66,7 @@ export function couleursDeLaCarte(css: string): CouleursDeLaCarte {
   const jeton = (nom: string) => lireJeton(css, `carte-${nom}`);
   return {
     zoneActif: jeton('zone-actif'),
-    zoneProgramme: jeton('zone-programme'),
     zoneNom: jeton('zone-nom'),
-    zoneNomDoux: jeton('zone-nom-doux'),
     zoneHalo: jeton('zone-halo'),
     groupe: jeton('groupe'),
     groupeTexte: jeton('groupe-texte'),
@@ -93,7 +86,6 @@ export interface CouchesDeLaCarte {
 }
 
 const expr = (e: unknown): ExpressionSpecification => e as ExpressionSpecification;
-const de = (cle: string) => ['==', ['get', 'etat'], cle];
 const estUneZone = ['==', ['get', 'genre'], 'zone'];
 const estUneVille = ['==', ['get', 'genre'], 'ville'];
 const police = [POLICE_DE_LA_CARTE];
@@ -109,20 +101,10 @@ const imageDeLEpingle = (suffixe: string) =>
   ]);
 
 export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
-  const parEtat = (actif: string, programme: string) =>
-    expr(['match', ['get', 'etat'], 'actif', actif, programme]);
-  const nomEtLibelle = expr([
-    'format',
-    ['get', 'nom'],
-    { 'font-scale': 1 },
-    '\n',
-    {},
-    ['get', 'libelle'],
-    { 'font-scale': 0.85 },
-  ]);
+  // Une zone et une ville n'écrivent que leur nom : plus d'état (ticket 146).
   const nomSeul = expr(['format', ['get', 'nom'], { 'font-scale': 1 }]);
   const texteDeZone = {
-    'text-color': parEtat(c.zoneNom, c.zoneNomDoux),
+    'text-color': c.zoneNom,
     'text-halo-color': c.zoneHalo,
     'text-halo-width': 1.5,
   };
@@ -146,51 +128,24 @@ export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
 
     sousLEau: [
       {
-        id: 'zones-fond-actif',
+        id: COUCHE_ZONES,
         type: 'fill',
         source: SOURCE_ZONES,
         minzoom: ZOOM_MIN_DES_ZONES,
-        filter: expr(['all', estUneZone, de('actif')]),
+        filter: expr(estUneZone),
         paint: { 'fill-color': c.zoneActif, 'fill-opacity': 0.1 },
-      },
-      {
-        id: 'zones-fond-programme',
-        type: 'fill',
-        source: SOURCE_ZONES,
-        minzoom: ZOOM_MIN_DES_ZONES,
-        filter: expr(['all', estUneZone, de('programme')]),
-        paint: {
-          'fill-pattern': IMAGE_HACHURES,
-          'fill-opacity': expr([
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            ZOOM_TRAME_PLEINE,
-            1,
-            ZOOM_TRAME_EFFACEE,
-            0,
-          ]),
-        },
       },
     ],
 
     contours: [
       {
-        id: 'zones-contour-actif',
+        id: 'zones-contour',
         type: 'line',
         source: SOURCE_ZONES,
         minzoom: ZOOM_MIN_DES_ZONES,
-        filter: expr(['all', estUneZone, de('actif')]),
+        filter: expr(estUneZone),
         layout: { 'line-join': 'round' },
         paint: { 'line-color': c.zoneActif, 'line-width': 2 },
-      },
-      {
-        id: 'zones-contour-programme',
-        type: 'line',
-        source: SOURCE_ZONES,
-        minzoom: ZOOM_MIN_DES_ZONES,
-        filter: expr(['all', estUneZone, de('programme')]),
-        paint: { 'line-color': c.zoneProgramme, 'line-width': 1.5, 'line-dasharray': [4, 3] },
       },
     ],
 
@@ -202,9 +157,7 @@ export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
         minzoom: ZOOM_MIN_DES_ZONES + 0.5,
         filter: expr(estUneZone),
         layout: {
-          // Une zone « relevé en cours » dit son état ; une zone « déploiement programmé » n'écrit que son nom : l'état se
-          // lit dans la légende et dans le panneau, jamais répété sur chaque quartier.
-          'text-field': expr(['case', de('actif'), nomEtLibelle, nomSeul]),
+          'text-field': nomSeul,
           'text-font': police,
           'text-size': expr(['interpolate', ['linear'], ['zoom'], 8, 12, 14, 15]),
           'text-max-width': 8,
@@ -220,7 +173,7 @@ export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
         filter: expr(estUneVille),
         paint: {
           'circle-radius': 15,
-          'circle-color': parEtat(c.zoneActif, c.zoneProgramme),
+          'circle-color': c.zoneActif,
           'circle-stroke-width': 2,
           'circle-stroke-color': c.groupeAnneau,
         },
@@ -247,7 +200,7 @@ export function couchesDeLaCarte(c: CouleursDeLaCarte): CouchesDeLaCarte {
         maxzoom: ZOOM_MAX_DES_VILLES,
         filter: expr(estUneVille),
         layout: {
-          'text-field': nomEtLibelle,
+          'text-field': nomSeul,
           'text-font': police,
           'text-size': 13,
           'text-anchor': 'left',

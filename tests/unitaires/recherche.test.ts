@@ -145,11 +145,12 @@ describe('les facettes publiques', () => {
     expect(c?.ecoles.map((e) => e.id).sort()).toEqual(['lyc', 'mix']);
   });
 
-  it('chaque valeur a sa page', () => {
-    expect(lienFacette({ facette: 'serie', valeur: 'c' })).toBe('/formations/serie/c/');
+  it('chaque valeur mène à la page « Écoles » filtrée (ticket 146 : les pages /formations/ y renvoient)', () => {
+    expect(lienFacette({ facette: 'serie', valeur: 'c' })).toBe('/ecoles/?serie=c');
     expect(lienFacette({ facette: 'domaine', valeur: 'informatique' })).toBe(
-      '/formations/domaine/informatique/',
+      '/ecoles/?domaine=informatique',
     );
+    expect(lienFacette({ facette: 'niveau', valeur: 'college' })).toBe('/ecoles/?niveau=college');
   });
 });
 
@@ -193,16 +194,18 @@ describe('une école, en abrégé, dans le fichier de recherche', () => {
     expect(Object.keys(avecNumero).sort()).toEqual(['c', 'd', 'f', 'i', 'k', 'n', 'u', 'z']);
   });
 
-  it('dit si l’école a été vue sur place ou déclarée par elle-même, jamais le jour', () => {
+  it('dit si l’école a été vue sur place ou déclarée par elle-même, et le jour de sa preuve la plus forte', () => {
+    // La carte d'une école dit sa preuve datée (canevas validé le 08/11/2026, ticket 146) : le jour que la fiche publie déjà.
     const vue = ligneDe(ecole('v', 'V', { releveeLe: '2026-11-02T10:00:00Z' }));
     expect(vue.o).toBe(1);
-    expect(JSON.stringify(vue)).not.toMatch(/2026|T10:00/);
+    expect(vue.t).toBe('2026-11-02T10:00:00Z');
     const declaree = ligneDe(ecole('g', 'G', { origine: 'school', declareeLe: '2026-11-01' }));
     expect(declaree.g).toBe(1);
-    expect(JSON.stringify(declaree)).not.toMatch(/2026/);
+    expect(declaree.t).toBe('2026-11-01');
     const ajoutee = ligneDe(ecole('a', 'A'));
     expect(ajoutee).not.toHaveProperty('o');
     expect(ajoutee).not.toHaveProperty('g');
+    expect(ajoutee).not.toHaveProperty('t');
   });
 
   it('un type « Pas indiqué » ou « Autre » n’est pas écrit', () => {
@@ -267,6 +270,17 @@ describe('chercher', () => {
 
   it('sans critère, toutes les écoles, classées par nom', () => {
     expect(noms(chercher(LIGNES, {}))).toEqual(['mix', 'mat', 'ins', 'lyc']);
+  });
+
+  it('par type : seulement les écoles dont le type est connu et le même (ticket 146)', () => {
+    const lignes = [
+      ligneDe(ecole('pub', 'Pub', { typeEcole: 'publique' })),
+      ligneDe(ecole('pri', 'Pri', { typeEcole: 'privee' })),
+      ligneDe(ecole('inc', 'Inc', { typeEcole: 'non_indique' })),
+    ];
+    expect(noms(chercher(lignes, { type: 'publique' }))).toEqual(['pub']);
+    expect(noms(chercher(lignes, { type: 'privee' }))).toEqual(['pri']);
+    expect(noms(chercher(lignes, {})).sort()).toEqual(['inc', 'pri', 'pub']);
   });
 
   it('par niveau', () => {

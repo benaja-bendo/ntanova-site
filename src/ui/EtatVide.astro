@@ -6,8 +6,6 @@ interface Props {
   /** Ce qui se passe, en une phrase claire. */
   titre: string;
   detail?: string;
-  /** L'état public de la zone, quand c'est celui d'une zone : l'étiquette de la carte. */
-  etat?: { genre: 'actif' | 'programme'; libelle: string } | null;
   /** Ce qu'on peut faire d'autre. */
   actions?: { texte: string; url: string }[];
   /** « Une école manque ? » : la porte WhatsApp, quand elle est configurée. */
@@ -15,15 +13,10 @@ interface Props {
   /** Une étiquette pour les lecteurs d'écran (une zone vide est une région de la page). */
   etiquette?: string;
 }
-const { titre, detail, etat = null, actions = [], manque = null, etiquette } = Astro.props;
+const { titre, detail, actions = [], manque = null, etiquette } = Astro.props;
 ---
 
 <div class="etat-vide" role={etiquette ? 'group' : undefined} aria-label={etiquette}>
-  {etat && (
-    <p class="etat-vide-etat">
-      <span class={`etiquette-zone etiquette-zone-${etat.genre}`}>{etat.libelle}</span>
-    </p>
-  )}
   <p class="etat-vide-titre">{titre}</p>
   {detail && <p class="etat-vide-detail">{detail}</p>}
   {actions.length > 0 && (

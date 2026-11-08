@@ -4,7 +4,7 @@ import type { MapLibreMap, GeoJSONSource } from 'maplibre-gl';
 import type { FeatureEcole, FeatureZone } from '../../modele/carte/donnees';
 import { adresseVue, lireVue, filtrerEcoles } from '../../modele/carte/navigation';
 import { zoomMaxEn, type Fenetre } from '../../modele/carte/fond';
-import { SOURCE_ECOLES, ZOOM_TRAME_EFFACEE } from '../../modele/carte/couches';
+import { COUCHE_ZONES, SOURCE_ECOLES } from '../../modele/carte/couches';
 import {
   MESSAGES_DE_POSITION,
   dansLePays,
@@ -58,9 +58,6 @@ export async function installerInterface(
   const puces = racine.querySelectorAll<HTMLButtonElement>('[data-cycle]');
   const zone = racine.querySelector<HTMLElement>('[data-zone]')!;
   const poignee = racine.querySelector<HTMLButtonElement>('[data-poignee]')!;
-  // La légende des zones existe deux fois : sur la carte (ordinateur) et dans le tiroir (téléphone, une ligne). Une seule
-  // est affichée selon la largeur ; les deux disent la même chose.
-  const legendes = racine.querySelectorAll<HTMLElement>('.legende-carte, .legende-tiroir');
   let choisie: FeatureEcole | undefined;
   let retourFocus: HTMLElement | null = null;
   let catalogue: LigneRecherche[] | null = null;
@@ -228,7 +225,7 @@ export async function installerInterface(
           'li',
           'ligne-vide',
           recherche
-            ? 'Essayez un autre nom, ou la recherche complète.'
+            ? 'Essayez un autre nom, ou voyez la liste des écoles.'
             : 'Déplacez ou agrandissez la carte pour voir d’autres écoles.',
         ),
       );
@@ -241,7 +238,10 @@ export async function installerInterface(
         ),
       );
   }
-  /** La zone sous le centre de la carte : son état se lit ici et dans la légende, jamais écrit sur chaque quartier. */
+  /**
+   * La zone sous le centre de la carte, nommée (ticket 146 : les zones n'ont plus d'état public, « relevé en cours » ou
+   * « programmé »).
+   */
   function dire(z: FeatureZone | undefined) {
     zone.replaceChildren();
     if (!z) {
@@ -249,31 +249,14 @@ export async function installerInterface(
         'Explorez les écoles du Congo-Brazzaville. Une zone vide ne signifie pas qu’il n’y a pas d’école.';
       return;
     }
-    const etat = element(
-      'span',
-      `etiquette-zone etiquette-zone-${z.properties.etat}`,
-      `${z.properties.nom} · ${z.properties.libelle}`,
-    );
-    zone.append('Vous regardez ', etat);
-  }
-  /** De loin, les deux états ; de près, seulement celui de la zone qu'on regarde (la trame s'est effacée). */
-  function legender(z: FeatureZone | undefined) {
-    const dePres = carte.getZoom() >= ZOOM_TRAME_EFFACEE - 0.5;
-    legendes.forEach((legende) => {
-      legende.hidden = dePres && !z;
-      legende
-        .querySelectorAll<HTMLElement>('[data-legende]')
-        .forEach((l) => (l.hidden = dePres && l.dataset.legende !== z?.properties.etat));
-    });
+    zone.append('Vous regardez ', element('span', 'etiquette-zone', z.properties.nom));
   }
   async function actualiser() {
     const tour = ++generation;
     const b = carte.getBounds();
     const boite = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] as Fenetre;
     // Le premier « moveend » peut arriver avant que le style ait posé ses couches : on n'interroge que celles qui existent.
-    const couchesDeZone = ['zones-fond-actif', 'zones-fond-programme'].filter((id) =>
-      carte.getLayer(id),
-    );
+    const couchesDeZone = [COUCHE_ZONES].filter((id) => carte.getLayer(id));
     const sousLeCentre = couchesDeZone.length
       ? carte.queryRenderedFeatures(carte.project(carte.getCenter()), { layers: couchesDeZone })
       : [];
@@ -283,7 +266,6 @@ export async function installerInterface(
         sousLeCentre.some((v) => v.properties.slug === f.properties.slug),
     );
     dire(z);
-    legender(z);
     if (recherche) {
       try {
         catalogue ??= await lire<LigneRecherche[]>('/recherche.json');
@@ -304,7 +286,7 @@ export async function installerInterface(
       } catch {
         if (tour === generation) {
           compte.textContent =
-            'La recherche ne se charge pas. Réessayez ou ouvrez la recherche complète.';
+            'La recherche ne se charge pas. Réessayez, ou voyez la liste des écoles.';
           catalogue = null;
         }
       }

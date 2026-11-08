@@ -21,13 +21,17 @@ export const LIBELLE_PAS_ENCORE = 'Pas encore couverte';
 export const libelleEtat = (etat: EtatCarte): string =>
   etat ? libelleDeploiement[etat] : LIBELLE_PAS_ENCORE;
 
-/** Ce que la carte dit de chaque état, en une phrase pour l'administrateur. */
+/**
+ * Ce que la carte fait de chaque état, en une phrase pour l'administrateur. Depuis le 08/11/2026 (décision du fondateur,
+ * ticket 146), la carte n'écrit plus d'état : « programmé » et « relevé en cours » dessinent la zone de la même façon, avec
+ * son nom ; « relevé en cours » aide en plus la carte à choisir où s'ouvrir.
+ */
 export const explicationEtat: Record<'aucun' | EtatDeploiement, string> = {
   aucun: 'La zone ne se dessine pas sur la carte. Les écoles publiées y restent visibles.',
   programme:
-    'La carte trace la zone en tirets avec « Déploiement programmé » : les familles voient que ça arrive.',
+    'La carte dessine la zone avec son nom, sans écrire d’état : les familles ne lisent plus « Déploiement programmé ».',
   actif:
-    'La carte trace la zone en vert avec « Relevé en cours » : les familles voient que des relais y travaillent.',
+    'La carte dessine la zone avec son nom, sans écrire d’état, et s’ouvre de préférence sur la ville d’une zone « Relevé en cours ».',
 };
 
 /** Les zones que la carte du site dessine ou pointe : une ville, une commune, un district, un arrondissement. */

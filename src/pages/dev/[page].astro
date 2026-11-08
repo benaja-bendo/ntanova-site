@@ -234,18 +234,9 @@ const autour = arrondissementsDessines.map((a) => ({
         </p>
       </div>
 
-      <h3>Zones : étiquettes et légende</h3>
+      <h3>Zone regardée : son nom seul (ticket 146)</h3>
       <div class="rangee">
-        <span class="etiquette-zone etiquette-zone-actif">[Zone] · Relevé en cours</span>
-        <span class="etiquette-zone etiquette-zone-programme">[Zone] · Déploiement programmé</span>
-      </div>
-      <div class="legende-carte legende-statique">
-        <p>
-          <span class="puce-trame"></span>Déploiement programmé
-        </p>
-        <p>
-          <span class="puce-actif"></span>Relevé en cours
-        </p>
+        <span class="etiquette-zone">[Zone]</span>
       </div>
 
       <h3>Bouton rond : normal, désactivé</h3>
@@ -383,9 +374,6 @@ const autour = arrondissementsDessines.map((a) => ({
   .pieces-carte .simule-focus {
     outline: var(--epaisseur-focus) solid var(--focus);
     outline-offset: 2px;
-  }
-  .pieces-carte .legende-statique {
-    max-width: 18rem;
   }
   .echantillon-ombre {
     padding: var(--espace-3) var(--espace-4);

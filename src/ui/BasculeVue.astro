@@ -1,49 +1,73 @@
 ---
-// « Carte | Liste » : deux liens vers deux pages, sans JavaScript (planches « Carte du
-// quartier » et « Liste du quartier » du canevas). La vue courante n'est pas un lien.
+// « Liste | Carte » : deux liens vers deux pages, sans JavaScript (canevas « Écoles et fiches NTanova », 08/11/2026). La
+// liste est la page « Écoles » ou celle d'un lieu ; la carte est la seule carte du site, cadrée sur ce qu'on regardait
+// (ticket 146). La vue courante n'est pas un lien.
+import Icone from './Icone.astro';
+
 interface Props {
-  carte: string;
   liste: string;
-  actuelle: 'carte' | 'liste';
+  carte: string;
+  actuelle: 'liste' | 'carte';
 }
-const { carte, liste, actuelle } = Astro.props;
+const { liste, carte, actuelle } = Astro.props;
 ---
 
-<nav class="bascule" aria-label="Voir les écoles">
-  {actuelle === 'carte' ? <span aria-current="page">Carte</span> : <a href={carte}>Carte</a>}
-  {actuelle === 'liste' ? <span aria-current="page">Liste</span> : <a href={liste}>Liste</a>}
+<nav class="bascule" aria-label="Affichage">
+  {actuelle === 'liste' ? (
+    <span class="bascule-choix" aria-current="page">
+      <Icone nom="liste" />
+      Liste
+    </span>
+  ) : (
+    <a class="bascule-choix" href={liste}>
+      <Icone nom="liste" />
+      Liste
+    </a>
+  )}
+  {actuelle === 'carte' ? (
+    <span class="bascule-choix" aria-current="page">
+      <Icone nom="plan" />
+      Carte
+    </span>
+  ) : (
+    <a class="bascule-choix" href={carte}>
+      <Icone nom="plan" />
+      Carte
+    </a>
+  )}
 </nav>
 
 <style>
   .bascule {
     display: inline-flex;
-    gap: var(--espace-1);
-    padding: var(--espace-1);
-    border: 1.5px solid var(--trait);
+    flex: none;
+    padding: 2px;
+    border: 2px solid var(--trait);
     border-radius: var(--rayon-pilule);
     background: var(--fond-releve);
   }
-  .bascule a,
-  .bascule span {
+  .bascule-choix {
     display: inline-flex;
     align-items: center;
+    gap: var(--espace-1);
     min-height: var(--cible-min);
-    padding-inline: var(--espace-4);
+    padding: 0 var(--espace-3);
     border-radius: var(--rayon-pilule);
-    font-family: var(--police-titre);
+    color: var(--texte);
     font-size: var(--taille-secondaire);
     font-weight: 700;
     text-decoration: none;
   }
-  .bascule a {
-    color: var(--texte);
-  }
-  .bascule a:hover {
+  a.bascule-choix:hover {
     color: var(--marque);
     text-decoration: underline;
   }
-  .bascule [aria-current='page'] {
-    background: var(--marque-appuyee);
+  .bascule-choix[aria-current='page'] {
+    background: var(--marque);
     color: var(--texte-sur-marque);
+  }
+  .bascule-choix :global(.ico) {
+    width: 16px;
+    height: 16px;
   }
 </style>

@@ -23,15 +23,6 @@ export function lienEcole(ecole: Pick<EcolePubliee, 'adresse' | 'slug'>): string
   return `${lienDivision(ecole.adresse)}${ecole.slug}/`;
 }
 
-/**
- * L'adresse de la carte d'une division dessinée : `/cartes/congo/pointe-noire/tie-tie/`. Un « coin » vu de près
- * ajoute `coin_3` (le tiret bas n'existe pas dans une adresse de zone ou d'école : aucune collision).
- */
-export function lienCarte(adresse: readonly string[], coin?: string): string {
-  const coinAdresse = coin ? `${coin.replace('-', '_')}/` : '';
-  return `/cartes/${sansRepetition(adresse).join('/')}/${coinAdresse}`;
-}
-
 /** Une page de zone du site : une division (ou deux, quand la ville porte le nom de son département). */
 export interface PageDivision {
   /** La division qui porte la page : la plus fine. */
@@ -213,6 +204,15 @@ export function nomAffiche(nom: string, niveau: number): string {
 /** « à Pointe-Noire », « à Ngoyo », « au Congo-Brazzaville » : la préposition d'une zone. */
 export function lieuAvecPreposition(nom: string, niveau: number): string {
   return niveau === 0 ? `au ${nomAffiche(nom, niveau)}` : `à ${nom}`;
+}
+
+/**
+ * « du Congo-Brazzaville », « de Pointe-Noire », « d’Owando » : le complément d'une zone, comme dans « Les écoles du
+ * Congo-Brazzaville » (ticket 146 : le titre disait « Les écoles de Congo »).
+ */
+export function deLieu(nom: string, niveau: number): string {
+  if (niveau === 0) return `du ${nomAffiche(nom, niveau)}`;
+  return /^[aeiouyàâäéèêëîïôöûü]/i.test(nom) ? `d’${nom}` : `de ${nom}`;
 }
 
 /**

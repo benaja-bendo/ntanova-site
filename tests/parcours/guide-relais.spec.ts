@@ -43,21 +43,17 @@ test.describe('la page publique non listée', () => {
   });
 
   test('aucune page du site public n’y mène, ni la recherche', async ({ request }) => {
-    for (const adresse of [
-      '/',
-      '/a-propos/',
-      '/pour-les-ecoles/',
-      '/recherche/',
-      '/ecoles/',
-      '/autour-de-moi/',
-    ]) {
+    for (const adresse of ['/', '/a-propos/', '/pour-les-ecoles/', '/ecoles/', '/carte/']) {
       const corps = await (await request.get(adresse)).text();
       expect(corps, `${adresse} ne doit pas mener au guide`).not.toContain('guide-relais');
     }
     const recherche = await (await request.get('/recherche.json')).text();
     expect(recherche).not.toContain('guide-relais');
-    // Pas de sitemap ni de robots.txt qui le listeraient.
-    expect((await request.get('/sitemap.xml')).status()).toBe(404);
+    // Le plan du site (ticket 146) et robots.txt existent, mais ne le listent pas.
+    const plan = await request.get('/sitemap.xml');
+    expect(plan.status()).toBe(200);
+    expect(await plan.text()).not.toContain('guide-relais');
+    expect(await (await request.get('/robots.txt')).text()).not.toContain('guide-relais');
   });
 
   test('porte le numéro WhatsApp de la configuration, écrit avec des espaces, sur la carte de passage', async ({

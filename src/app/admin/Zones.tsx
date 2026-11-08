@@ -144,7 +144,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
       texte:
         etat === null
           ? `${d.nom} n’apparaît plus comme zone suivie sur la carte : « Pas encore couverte ». Les relais ne sont pas concernés.`
-          : `${d.nom} est « ${libelleDeploiement[etat]} » sur la carte. Les relais ne sont pas concernés.`,
+          : `${d.nom} est sur la carte, réglée « ${libelleDeploiement[etat]} ». Les relais ne sont pas concernés.`,
       annuler: () =>
         agir(d.id, () => admin.etatPublicZone(d.id, avant), {
           texte: `${d.nom} redevient « ${libelleEtat(avant)} » sur la carte.`,

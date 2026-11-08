@@ -64,7 +64,13 @@ test('bonne connexion : carte sous le pli, chargement à son arrivée dans la vu
   });
   await page.goto('/');
   expect(grosses).toEqual([]);
+  // Ticket 146 : sous le pli, le compte du signe d'attente ne part pas encore (sinon, arrivé tard à la carte, on lirait
+  // « La connexion est lente. » sur une carte qui commence tout juste).
+  await expect(page.locator('#carte')).toHaveAttribute('data-attente', 'vue');
+  await page.waitForTimeout(500);
+  await expect(page.locator('.carte-attente')).toBeHidden();
   await page.locator('.explorateur').scrollIntoViewIfNeeded();
+  await expect(page.locator('#carte')).not.toHaveAttribute('data-attente', /.*/);
   await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'prete');
 });
 test('sans WebGL2 : zéro téléchargement de carte, repli et liste accessibles', async ({ page }) => {

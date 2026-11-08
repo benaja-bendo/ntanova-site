@@ -1,13 +1,12 @@
 /**
  * Les images de la carte interactive, dessinées dans le navigateur au moment où MapLibre les demande (ticket 103) : les
- * marqueurs d'école, l'écusson d'une direction qui a confirmé, les hachures d'un déploiement programmé.
+ * marqueurs d'école et l'écusson d'une direction qui a confirmé.
  *
  * Aucune couleur n'est écrite ici : elles sont lues dans les jetons de `src/ui/jetons.css` (`getComputedStyle` résout les
  * `var(--…)`). Aucun fichier d'image n'est servi : le style n'a pas de sprite (décision D6, pas de pictogramme).
  */
 import {
   IMAGE_ECUSSON,
-  IMAGE_HACHURES,
   JETON_DU_CYCLE,
   LETTRES_DES_CYCLES,
   lireLEpingle,
@@ -110,33 +109,15 @@ function dessinerEcusson(): ImageDessinee {
   return pret(t);
 }
 
-/** Des hachures sobres : un trait à 45° de la couleur « programmé », assez pâle pour laisser lire le fond. */
-function dessinerHachures(): ImageDessinee {
-  const taille = 12;
-  const t = toile(taille, taille);
-  const { ctx } = t;
-  ctx.globalAlpha = 0.3;
-  ctx.strokeStyle = jeton('carte-zone-programme');
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (const decalage of [-taille, 0, taille]) {
-    ctx.moveTo(decalage, taille);
-    ctx.lineTo(decalage + taille, 0);
-  }
-  ctx.stroke();
-  return pret(t);
-}
-
 /** L'image que MapLibre demande sous ce nom, ou rien si ce n'est pas une des nôtres. */
 export function imageDeLaCarte(nom: string): ImageDessinee | null {
   if (nom === IMAGE_ECUSSON) return dessinerEcusson();
-  if (nom === IMAGE_HACHURES) return dessinerHachures();
   const epingle = lireLEpingle(nom);
   return epingle ? dessinerEpingle(epingle.lettre, epingle.confirmee, epingle.choisie) : null;
 }
 
 /**
- * Tous les noms d'image que le style peut demander : les hachures, l'écusson, et une épingle par lettre de cycle (plus la
+ * Tous les noms d'image que le style peut demander : l'écusson, et une épingle par lettre de cycle (plus la
  * neutre), avec et sans écusson. Enregistrés d'un coup, avant que MapLibre en ait besoin : le rattrapage à la demande
  * (`styleimagemissing`) arrive trop tard pour la première mise en place des marqueurs, qui n'apparaissent alors pas.
  */
@@ -144,7 +125,6 @@ export function nomsDesImages(): string[] {
   const lettres: (string | null)[] = [...LETTRES_DES_CYCLES, null];
   return [
     IMAGE_ECUSSON,
-    IMAGE_HACHURES,
     ...lettres.flatMap((l) => [nomDeLEpingle(l, false), nomDeLEpingle(l, true)]),
   ];
 }

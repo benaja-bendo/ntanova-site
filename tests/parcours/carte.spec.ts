@@ -10,175 +10,118 @@ test.beforeEach(async ({ page, context }) => {
   await servirLesTuiles(context);
 });
 
-// La carte détourée (ticket 15), sur le catalogue fictif : à Tié-Tié, deux écoles situées à
-// 270 m l'une de l'autre (une pastille de 2 sur la carte de l'arrondissement), une troisième loin
-// d'elles (située par l'administration), une quatrième sans position ; à Ngoyo, aucune école.
-// Les adresses suivent la géographie : /ecoles/congo/pointe-noire/tie-tie/ (la liste) et
-// /cartes/congo/pointe-noire/tie-tie/ (la carte). Sans JavaScript : toucher, c'est changer de page.
+// Une seule carte (décision du fondateur du 08/11/2026, ticket 146), sur le catalogue fictif : à Tié-Tié, deux écoles vues
+// sur place, une troisième située par l'administration, une quatrième sans position ; à Ngoyo, aucune école. Les anciens
+// plans dessinés (`/cartes/…`, ticket 15) ne sont plus que des renvois vers `/carte/`, cadrée sur l'arrondissement ; la
+// fiche n'a plus de petit plan ; le dessin ne sert plus que sans WebGL2 (ou sans JavaScript).
 
-test('de la ville à la fiche : arrondissement, pastille, coin vu de près, école', async ({
-  page,
-}) => {
+test('de la ville à la fiche, par la liste', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' }).click();
-
-  // La ville : Tié-Tié et Ngoyo « relevé en cours », Loandjili, Mongo-Mpoukou et Mvou-Mvou « déploiement programmé » (l'état
-  // de la carte), et le dernier arrondissement sans état : « pas encore relevé ».
   await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pointe-Noire');
-  await expect(page.getByText('L’autre arrondissement : pas encore relevé.')).toBeVisible();
-  await page.getByRole('link', { name: 'Tié-Tié : 4 écoles' }).click();
-
-  // L'arrondissement : la pastille regroupe les deux écoles situées.
-  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
-  // L'école ajoutée par NTanova n'y est pas : la carte ne montre que les écoles vues sur place.
-  await expect(page.getByText('2 écoles sur la carte de Tié-Tié')).toBeVisible();
-  await expect(
-    page.getByText(
-      '2 autres écoles ne sont que dans la liste : pas encore vues sur place, ou pas encore situées.',
-    ),
-  ).toBeVisible();
-  const pastille = page.getByRole('link', { name: /Un groupe de 2 écoles.*le voir de près/ });
-  await expect(pastille).toBeVisible();
-  await pastille.click();
-
-  // Vu de près : chaque école a sa maison, et la liste du coin suit.
-  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/coin_1\/$/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Un coin de Tié-Tié');
-  const carte = page.getByRole('group', { name: /vues de près/ });
-  await expect(
-    carte.getByRole('link', { name: /Complexe scolaire Exemple.*relevé terrain/ }),
-  ).toBeVisible();
-  await expect(carte.getByRole('link', { name: /Centre de formation Exemple/ })).toBeVisible();
-  await expect(page.locator('#ecoles-du-coin').getByRole('link')).toHaveCount(2);
-  await carte.getByRole('link', { name: /Complexe scolaire Exemple/ }).click();
-
-  // La fiche, et son petit plan qui ramène à la carte du quartier.
+  await page.locator('a.zone', { hasText: 'Tié-Tié' }).click();
+  await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/tie-tie\/$/);
+  await page
+    .locator('ul.liste-lignes a.ligne-ecole', { hasText: '[Complexe scolaire Exemple]' })
+    .click();
   await expect(page).toHaveURL(
     /\/ecoles\/congo\/pointe-noire\/tie-tie\/complexe-scolaire-exemple\/$/,
   );
-  await expect(page.getByRole('group', { name: /sur la carte de Tié-Tié/ })).toBeVisible();
-  await page.getByRole('link', { name: 'Voir sur la carte de Tié-Tié' }).click();
-  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
 });
 
-test('« Carte | Liste » : on passe de l’une à l’autre, la vue courante n’est pas un lien', async ({
+test('les anciens plans dessinés renvoient vers la carte, cadrée sur l’arrondissement', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
-  const bascule = page.getByRole('navigation', { name: 'Voir les écoles' });
-  await expect(bascule.getByText('Liste')).toHaveAttribute('aria-current', 'page');
-  await bascule.getByRole('link', { name: 'Carte' }).click();
-  await expect(page).toHaveURL(/\/cartes\/congo\/pointe-noire\/tie-tie\/$/);
-  await expect(bascule.getByText('Carte')).toHaveAttribute('aria-current', 'page');
-  await bascule.getByRole('link', { name: 'Liste' }).click();
-  await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/tie-tie\/$/);
-});
-
-test('une fiche sans position n’a pas de plan, et un arrondissement sans école dit que le relevé est en cours', async ({
-  page,
-}) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-sans-detail-exemple/');
-  await expect(page.getByRole('link', { name: /Voir sur la carte/ })).toHaveCount(0);
-
-  await page.goto('/cartes/congo/pointe-noire/ngoyo/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ngoyo');
-  await expect(
-    page.getByText('Aucune école sur la carte pour l’instant : le relevé est en cours.'),
-  ).toBeVisible();
-  await expect(page.getByRole('group', { name: /Carte de Ngoyo/ }).getByRole('link')).toHaveCount(
-    0,
-  );
-});
-
-test('la carte de Ngoyo, sans école, dessine déjà ses rues et ses avenues (ticket 46)', async ({
-  page,
-}) => {
-  await page.goto('/cartes/congo/pointe-noire/ngoyo/');
-  // Chaque trait est un « M » dans le chemin : une rue ou une avenue.
-  const traits = async (classe: string) => {
-    const chemin = page.locator(`svg path.${classe}`);
-    await expect(chemin).toHaveCount(1);
-    return ((await chemin.getAttribute('d')) ?? '').match(/M/g)?.length ?? 0;
-  };
-  expect(await traits('rue')).toBeGreaterThan(100);
-  expect(await traits('avenue')).toBeGreaterThan(20);
-  // L'attribution d'OpenStreetMap reste sous la carte.
-  await expect(page.getByText(/contributeurs d’OpenStreetMap/).first()).toBeVisible();
-});
-
-test('chaque école et chaque pastille se touchent du doigt : 44 px au moins', async ({ page }) => {
-  for (const adresse of [
+  for (const ancienne of [
     '/cartes/congo/pointe-noire/tie-tie/',
     '/cartes/congo/pointe-noire/tie-tie/coin_1/',
+    '/ecoles/tie-tie/carte/',
   ]) {
-    await page.goto(adresse);
-    const marques = page.locator('svg a.marque');
-    expect(await marques.count()).toBeGreaterThan(0);
-    for (const marque of await marques.all()) {
-      const boite = await marque.locator('.cible').boundingBox();
-      expect(boite?.width ?? 0).toBeGreaterThanOrEqual(44);
-      expect(boite?.height ?? 0).toBeGreaterThanOrEqual(44);
-    }
+    await page.goto(ancienne);
+    await expect(page, ancienne).toHaveURL(/\/carte\/#[\d.]+\/-4\.\d+\/11\.\d+$/);
   }
 });
 
-// Ticket #99 (décision du fondateur du 03/11) : la carte est la vitrine de la preuve de terrain.
-test('une école située par l’administration, sans relevé, est dans la liste avec sa mention, mais pas sur la carte', async ({
+test('« Liste | Carte » : la page d’un arrondissement mène à la carte cadrée sur lui ; la vue courante n’est pas un lien', async ({
   page,
 }) => {
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
-  await expect(
-    page.getByRole('link', {
-      name: /\[École ajoutée Exemple\].*Ajoutée par NTanova/,
-    }),
-  ).toBeVisible();
+  const bascule = page.getByRole('navigation', { name: 'Affichage' });
+  await expect(bascule.getByText('Liste')).toHaveAttribute('aria-current', 'page');
+  await expect(bascule.getByRole('link', { name: 'Liste' })).toHaveCount(0);
+  await expect(bascule.getByRole('link', { name: 'Carte' })).toHaveAttribute(
+    'href',
+    /^\/carte\/#[\d.]+\/-4\.\d+\/11\.\d+$/,
+  );
+  await expect(page.locator('main svg.plateau')).toHaveCount(0);
+});
+
+test('la fiche n’a plus de petit plan : le repère en mots et « Voir sur la carte »', async ({
+  page,
+}) => {
+  await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+  await expect(page.locator('main svg.plateau')).toHaveCount(0);
+  await expect(page.getByRole('group', { name: /sur la carte de/ })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Voir sur la carte' })).toHaveAttribute(
+    'href',
+    /^\/carte\/\?ecole=.+#\d/,
+  );
+  // Sans position, pas de lien vers la carte.
+  await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-sans-detail-exemple/');
+  await expect(page.getByRole('link', { name: /Voir .*sur la carte/ })).toHaveCount(0);
+});
+
+// Ticket #99 (décision du fondateur du 03/11) : la carte est la vitrine de la preuve de terrain.
+test('une école située par l’administration, sans relevé, est dans la liste avec sa mention, sans « Repère pas encore relevé »', async ({
+  page,
+}) => {
+  await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
+  const carte = page.locator('ul.liste-lignes li', { hasText: '[École ajoutée Exemple]' });
+  await expect(carte.locator('.ligne-preuve')).toHaveText(
+    'Ajoutée par NTanova, pas encore vue sur place',
+  );
+  await expect(carte.locator('.ligne-repere-vide')).toHaveCount(0);
   await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-ajoutee-exemple/');
   await expect(page.getByText('Ajoutée par NTanova · 3 nov. 2026')).toBeVisible();
   await expect(page.locator('.preuves')).toContainText('Ajoutée par NTanova');
   await expect(page.getByText(/Relevé terrain ·/)).toHaveCount(0);
-  // Sa fiche garde son petit plan : il dit où est l'école.
-  await expect(page.getByRole('group', { name: /sur la carte de Tié-Tié/ })).toBeVisible();
-  await page.goto('/cartes/congo/pointe-noire/tie-tie/');
-  await expect(page.getByRole('link', { name: /École ajoutée Exemple/ })).toHaveCount(0);
+  // Pas vue sur place : la carte s'ouvre sur son quartier, sans épingle, et le lien le dit.
+  await expect(page.getByRole('link', { name: 'Voir le quartier sur la carte' })).toHaveAttribute(
+    'href',
+    /^\/carte\/#\d/,
+  );
 });
 
-// L'aperçu de la carte sur l'accueil (ticket 42) : une fenêtre sur l'arrondissement où il y a des
-// écoles sur la carte (Tié-Tié : trois écoles situées dans le catalogue fictif), qui mène à sa carte.
-
-test('l’accueil montre un aperçu de la carte de Tié-Tié, qui mène à sa carte', async ({ page }) => {
+test('sans WebGL2, l’accueil garde le dessin de Tié-Tié, qui mène à la carte', async ({ page }) => {
+  // Une bonne connexion (la carte se charge d'office), mais un téléphone sans WebGL2.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'connection', { value: {}, configurable: true });
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type, ...reste) {
+      return type === 'webgl2' ? null : getContext.call(this, type, ...reste);
+    } as typeof getContext;
+  });
   await page.goto('/');
+  await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'repli-sans-webgl2');
   const apercu = page.getByRole('region', { name: 'La carte de Tié-Tié' });
   await expect(apercu).toBeVisible();
-  // L'école ajoutée par NTanova n'est pas sur la carte (ticket #99) : 2 des 3 écoles situées.
   await expect(apercu.getByText('Arrondissement 3 · 2 écoles sur la carte')).toBeVisible();
-
-  // Le dessin est décoratif : ni groupe ni lien dedans (une pastille ne mène pas à un coin dont
-  // le numéro vient de l'autre échelle), un seul des deux dessins s'affiche, et l'attribution
-  // d'OpenStreetMap reste lisible.
-  await expect(apercu.getByRole('group')).toHaveCount(0);
-  await expect(apercu.locator('svg a')).toHaveCount(0);
-  await expect(apercu.locator('svg.plateau:visible')).toHaveCount(1);
-  await expect(apercu.getByRole('link', { name: /OpenStreetMap/ })).toBeVisible();
-
-  // La porte accessible vers la carte est le bouton ; le dessin en est une autre, cachée du clavier
-  // et du lecteur d'écran.
+  await expect(page.locator('.carte-attente')).toBeHidden();
   await apercu.getByRole('link', { name: 'Voir la carte de Tié-Tié' }).click();
   await expect(page).toHaveURL(/\/carte\/$/);
 });
 
-test('le dessin de l’aperçu est lui-même un lien vers la carte, sans entrer dans l’ordre du clavier', async ({
+test('avec JavaScript, l’ancien dessin ne paraît plus pendant l’attente de la carte', async ({
   page,
 }) => {
+  await page.goto('/carte/');
+  await expect(page.locator('.carte-repli')).toBeHidden();
   await page.goto('/');
-  const lien = page
-    .getByRole('region', { name: 'La carte de Tié-Tié' })
-    .locator('a.plateau-lien:visible');
-  await expect(lien).toHaveAttribute('href', '/carte/');
-  await expect(lien).toHaveAttribute('tabindex', '-1');
-  await expect(lien).toHaveAttribute('aria-hidden', 'true');
-  await lien.click();
-  await expect(page).toHaveURL(/\/carte\/$/);
+  // L'accueil d'un téléphone qui économise ses données : les barres immobiles, pas le dessin.
+  await expect(page.locator('#carte')).toHaveAttribute('data-attente', 'appui');
+  await expect(page.locator('.carte-repli')).toBeHidden();
+  await expect(page.locator('.carte-attente .marque')).toBeVisible();
 });
 
 test('« Les arrondissements de Pointe-Noire » garde son espace à l’écran', async ({ page }) => {

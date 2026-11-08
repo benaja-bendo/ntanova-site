@@ -21,7 +21,6 @@ const TIE_TIE = '/ecoles/congo/pointe-noire/tie-tie/';
 
 const pagesSansJavaScript = [
   '/',
-  '/ecoles/',
   '/ecoles/congo/',
   '/ecoles/congo/pointe-noire/',
   TIE_TIE,
@@ -29,9 +28,6 @@ const pagesSansJavaScript = [
   '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/',
   '/ecoles/congo/brazzaville/',
   '/ecoles/congo/niari/dolisie/',
-  '/cartes/congo/pointe-noire/tie-tie/',
-  '/cartes/congo/pointe-noire/tie-tie/coin_1/',
-  '/cartes/congo/pointe-noire/ngoyo/',
   `${TIE_TIE}complexe-scolaire-exemple/`,
   `${TIE_TIE}centre-de-formation-exemple/`,
   `${TIE_TIE}ecole-sans-detail-exemple/`,
@@ -40,17 +36,12 @@ const pagesSansJavaScript = [
   '/ecoles/congo/pointe-noire/mongo-mpoukou/groupe-scolaire-exemple/',
   '/ecoles/congo/pointe-noire/loandjili/institut-superieur-exemple/',
   '/ecoles/congo/brazzaville/moungali/ecole-de-brazzaville-exemple/',
-  '/formations/',
-  '/formations/serie/c/',
-  '/formations/diplome/bts/',
-  '/formations/domaine/informatique/',
-  '/formations/rythme/soir/',
-  '/formations/niveau/lycee/',
   '/pour-les-ecoles/',
   '/a-propos/',
 ];
 
-const pagesAvecJavaScript = ['/recherche/', '/autour-de-moi/'];
+// Ticket 146 : « Écoles » a repris « Rechercher » et « Autour de moi » ; c'est la seule page publique qui filtre.
+const pagesAvecJavaScript = ['/ecoles/'];
 
 // Les fiches d'école : sans JavaScript, sauf le petit script inline du bouton « Partager » (quatrième exception de poids).
 const fichesDEcole = [
@@ -163,9 +154,7 @@ test.describe('site public', () => {
     test('le pays, la ville, l’arrondissement, le quartier : chaque niveau mène au suivant', async ({
       page,
     }) => {
-      await page.goto('/ecoles/');
-      await page.getByRole('link', { name: 'Congo-Brazzaville', exact: true }).click();
-      await expect(page).toHaveURL(/\/ecoles\/congo\/$/);
+      await page.goto('/ecoles/congo/');
       // Trois zones du pays ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
       await expect(page.locator('a.zone')).toHaveCount(3);
       await page.getByRole('link', { name: /Pointe-Noire.*7 écoles/ }).click();
@@ -184,9 +173,8 @@ test.describe('site public', () => {
     test('une zone sans école mais ouverte au relevé a sa page, qui le dit', async ({ page }) => {
       await page.goto('/ecoles/congo/pointe-noire/ngoyo/');
       await expect(page.getByRole('heading', { name: 'Ngoyo', level: 1 })).toBeVisible();
-      await expect(
-        page.getByText(/Aucune école publiée pour l.instant\s:\sle relevé est en cours\./),
-      ).toBeVisible();
+      // Ticket 146 : plus d'état de déploiement écrit sur une page de lieu.
+      await expect(page.getByText('Aucune école publiée pour l’instant.')).toBeVisible();
     });
 
     test('une école à deux campus : chaque fiche a son implantation, ses formations et renvoie à l’autre', async ({
@@ -211,7 +199,7 @@ test.describe('site public', () => {
       await expect(formations.getByRole('heading', { name: 'Lycée' })).toBeVisible();
       await expect(formations.getByRole('link', { name: 'Série C' }).first()).toHaveAttribute(
         'href',
-        '/formations/serie/c/',
+        '/ecoles/?serie=c',
       );
       // L'autre implantation de la même école.
       await page.locator('.sites-ecole summary').click();
@@ -240,39 +228,40 @@ test.describe('site public', () => {
       await expect(page.getByRole('link', { name: '← Les écoles de Dolisie' })).toBeVisible();
     });
 
-    test('les pages par formation : série, diplôme, domaine, rythme', async ({ page }) => {
-      await page.goto('/formations/');
-      await page.getByRole('link', { name: /Série C.*1 école/ }).click();
-      await expect(page).toHaveURL(/\/formations\/serie\/c\/$/);
-      await expect(page.getByRole('heading', { name: 'Série C', level: 1 })).toBeVisible();
-      await expect(page.getByRole('link', { name: /\[Groupe scolaire Exemple\]/ })).toBeVisible();
-      // Une série où aucune école publiée n'enseigne n'a pas de page.
-      expect((await page.request.get('/formations/serie/e/')).status()).toBe(404);
-
-      await page.goto('/formations/diplome/bts/');
+    test('les anciennes pages par formation mènent à la page « Écoles », filtrée de même (ticket 146)', async ({
+      page,
+    }) => {
+      await page.goto('/formations/serie/c/');
+      await expect(page).toHaveURL(/\/ecoles\/\?serie=c$/);
+      await expect(page.locator('[data-compte]')).toHaveText(/^1 école/);
       await expect(
-        page.getByRole('link', { name: /\[Institut supérieur Exemple\]/ }),
+        page.locator('ul.liste-lignes').getByRole('link', { name: /\[Groupe scolaire Exemple\]/ }),
       ).toBeVisible();
-      await page.goto('/formations/rythme/weekend/');
-      await expect(
-        page.getByRole('link', { name: /\[Institut supérieur Exemple\]/ }),
-      ).toBeVisible();
+      for (const ancienne of ['/formations/diplome/bts/', '/formations/rythme/weekend/']) {
+        await page.goto(ancienne);
+        await expect(page).toHaveURL(/\/ecoles\/\?(diplome=bts|rythme=weekend)$/);
+        await expect(
+          page
+            .locator('ul.liste-lignes')
+            .getByRole('link', { name: /\[Institut supérieur Exemple\]/ }),
+        ).toBeVisible();
+      }
     });
   });
 
   test.describe('rechercher une école', () => {
     test('par nom, puis par série du bac : les critères se combinent', async ({ page }) => {
-      await page.goto('/recherche/');
+      await page.goto('/ecoles/');
       const resultats = page.locator('ul.liste-lignes');
-      await expect(page.getByText(/^9 écoles/)).toBeVisible();
+      await expect(page.locator('[data-compte]')).toHaveText(/^9 écoles/);
       // Le nom, sans accent ni tiret : « tie tie » trouve Tié-Tié.
-      await page.getByLabel('Nom, quartier, repère ou formation').fill('tie tie');
-      await expect(page.getByText(/^4 écoles/)).toBeVisible();
-      await page.getByLabel('Nom, quartier, repère ou formation').fill('');
+      await page.getByLabel('Nom, quartier, repère ou filière').fill('tie tie');
+      await expect(page.locator('[data-compte]')).toHaveText(/^4 écoles/);
+      await page.getByLabel('Nom, quartier, repère ou filière').fill('');
       // La série C : une seule école, qui l'enseigne dans une formation du jour. Les filtres de formation sont repliés.
       await page.getByText('Plus de filtres').click();
       await page.getByLabel('Série du bac').selectOption('c');
-      await expect(page.getByText(/^1 école/)).toBeVisible();
+      await expect(page.locator('[data-compte]')).toHaveText(/^1 école/);
       await expect(
         resultats.getByRole('link', { name: /\[Groupe scolaire Exemple\]/ }),
       ).toBeVisible();
@@ -281,15 +270,15 @@ test.describe('site public', () => {
       await expect(page.getByText('Aucune école ne correspond.')).toBeVisible();
       // Série G (toutes les variantes) et cours du soir : la formation « Série G2 » est du jour et du soir.
       await page.getByLabel('Série du bac').selectOption('g');
-      await expect(page.getByText(/^1 école/)).toBeVisible();
+      await expect(page.locator('[data-compte]')).toHaveText(/^1 école/);
     });
 
     test('par diplôme et par domaine, et la recherche se garde dans l’adresse', async ({
       page,
     }) => {
-      await page.goto('/recherche/?diplome=bts&domaine=informatique');
+      await page.goto('/ecoles/?diplome=bts&domaine=informatique');
       await expect(page.getByLabel('Diplôme')).toHaveValue('bts');
-      await expect(page.getByText(/^1 école/)).toBeVisible();
+      await expect(page.locator('[data-compte]')).toHaveText(/^1 école/);
       await expect(
         page
           .locator('ul.liste-lignes')
@@ -301,14 +290,14 @@ test.describe('site public', () => {
     });
 
     test('dans une zone : tout ce qu’elle contient', async ({ page }) => {
-      await page.goto('/recherche/?zone=congo/pointe-noire/loandjili');
-      await expect(page.getByText(/^2 écoles/)).toBeVisible();
-      await page.getByLabel('Zone').selectOption('congo/brazzaville');
-      await expect(page.getByText(/^1 école/)).toBeVisible();
+      await page.goto('/ecoles/?zone=congo/pointe-noire/loandjili');
+      await expect(page.locator('[data-compte]')).toHaveText(/^2 écoles/);
+      await page.getByLabel('Lieu').selectOption('congo/brazzaville');
+      await expect(page.locator('[data-compte]')).toHaveText(/^1 école/);
     });
 
     test('chaque résultat mène à la fiche de son campus', async ({ page }) => {
-      await page.goto('/recherche/?q=mongo');
+      await page.goto('/ecoles/?q=mongo');
       await page
         .locator('ul.liste-lignes')
         .getByRole('link', { name: /Groupe scolaire/ })
@@ -328,8 +317,8 @@ test.describe('site public', () => {
       page.on('request', (r) => {
         if (r.url().includes('latitude') || r.url().includes('-4.79')) sorties.push(r.url());
       });
-      await page.goto('/autour-de-moi/');
-      await page.getByRole('button', { name: 'Trouver les écoles près de moi' }).click();
+      await page.goto('/ecoles/');
+      await page.getByRole('button', { name: 'Autour de moi' }).click();
       const resultats = page.locator('ul.liste-lignes li');
       await expect(resultats.first()).toContainText('[Complexe scolaire Exemple]');
       await expect(resultats.first()).toContainText(/À \d+\s?m/);
@@ -342,8 +331,8 @@ test.describe('site public', () => {
     test('loin de toute école : le dit, sans rien inventer', async ({ page, context }) => {
       await context.grantPermissions(['geolocation']);
       await context.setGeolocation({ latitude: -3.0, longitude: 14.0, accuracy: 10 });
-      await page.goto('/autour-de-moi/');
-      await page.getByRole('button', { name: 'Trouver les écoles près de moi' }).click();
+      await page.goto('/ecoles/');
+      await page.getByRole('button', { name: 'Autour de moi' }).click();
       await expect(
         page.getByText(/Aucune école relevée à moins de 3\skm d’ici pour l’instant/),
       ).toBeVisible();
@@ -356,12 +345,13 @@ test.describe('site public', () => {
       context,
     }) => {
       await context.clearPermissions();
-      await page.goto('/autour-de-moi/');
-      await page.getByRole('button', { name: 'Trouver les écoles près de moi' }).click();
+      await page.goto('/ecoles/');
+      await page.getByRole('button', { name: 'Autour de moi' }).click();
       await expect(
         page.getByText(/Vous avez refusé la position|n’a pas pu être lue/),
       ).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Ou parcourez les villes' })).toBeVisible();
+      // Les villes sont sur la même page, sous les résultats.
+      await expect(page.getByRole('heading', { name: 'Ville par ville' })).toBeVisible();
     });
   });
 
@@ -423,14 +413,16 @@ test.describe('site public', () => {
       await page.goto(TIE_TIE);
       const liste = page.locator('ul.liste-lignes');
       await expect(liste.getByRole('link', { name: /Complexe scolaire Exemple/ })).toContainText(
-        'Maternelle · Primaire · Privée',
+        'Maternelle et primaire · Privée',
       );
-      // Le nom, le niveau (le type « Autre » ne s'écrit pas), le lieu, puis la preuve : rien d'autre.
+      // Le nom, le niveau (le type « Autre » ne s'écrit pas), le lieu, le repère qui manque, puis la preuve datée : rien
+      // d'autre (canevas du 08/11/2026, ticket 146).
       await expect(liste.getByRole('link', { name: /Centre de formation Exemple/ })).toHaveText(
-        /^S\s*\[Centre de formation Exemple\]\s*Autre formation\s*Tié-Tié · Pointe-Noire\s*Relevé terrain$/,
+        /^S\s*\[Centre de formation Exemple\]\s*S\s*Autre formation\s*Tié-Tié · Pointe-Noire\s*Repère pas encore relevé\s*Vue sur place le \d+ \S+ 2026$/,
       );
+      // Ajoutée par NTanova : jamais « Repère pas encore relevé » en plus (arbitrage du 08/11/2026).
       await expect(liste.getByRole('link', { name: /École sans détail/ })).toHaveText(
-        /^–\s*\[École sans détail Exemple\]\s*Tié-Tié · Pointe-Noire\s*Ajoutée par NTanova$/,
+        /^–\s*\[École sans détail Exemple\]\s*Tié-Tié · Pointe-Noire\s*Ajoutée par NTanova, pas encore vue sur place$/,
       );
       await expect(liste).not.toContainText('Pas indiqué');
     });
@@ -514,13 +506,14 @@ test.describe('site public', () => {
     for (const [ancienne, nouvelle] of [
       ['/ecoles/tie-tie/', TIE_TIE],
       ['/ecoles/tie-tie/complexe-scolaire-exemple/', `${TIE_TIE}complexe-scolaire-exemple/`],
-      ['/ecoles/tie-tie/carte/', '/cartes/congo/pointe-noire/tie-tie/'],
-      ['/ecoles/tie-tie/carte/coin-1/', '/cartes/congo/pointe-noire/tie-tie/coin_1/'],
+      // Ticket 146 : l'ancien plan dessiné mène à la seule carte, cadrée sur l'arrondissement (le « coin » d'abord à lui).
+      ['/ecoles/tie-tie/carte/', '/carte/#'],
+      ['/ecoles/tie-tie/carte/coin-1/', '/carte/#'],
     ] as const) {
       const reponse = await request.get(ancienne);
       expect(reponse.status(), ancienne).toBe(200);
       const html = await reponse.text();
-      expect(html, ancienne).toContain(`<meta http-equiv="refresh" content="0; url=${nouvelle}">`);
+      expect(html, ancienne).toContain(`<meta http-equiv="refresh" content="0; url=${nouvelle}`);
       expect(html, ancienne).not.toMatch(/<script(?![^>]*application\/ld\+json)/);
     }
   });
@@ -613,26 +606,26 @@ test.describe('les données de la carte', () => {
     expect(brut).not.toMatch(/0600000|whatsapp|contact/i);
   });
 
-  test('les zones : leur état public, leurs compteurs, jamais « complet »', async ({ request }) => {
+  test('les zones : leur réglage, leurs compteurs, jamais d’état écrit ni « complet » (ticket 146)', async ({
+    request,
+  }) => {
     const reponse = await request.get('/carte/zones.geojson');
     expect(reponse.status()).toBe(200);
     const zones = (await reponse.json()) as {
       features: {
         geometry: { type: string };
-        properties: { nom: string; genre: string; etat: string; libelle: string; vues: number };
+        properties: { nom: string; genre: string; etat: string; vues: number };
       }[];
     };
     const tieTie = zones.features.find((f) => f.properties.nom === 'Tié-Tié');
     expect(tieTie?.geometry.type).toBe('MultiPolygon');
-    expect(tieTie?.properties).toMatchObject({ etat: 'actif', libelle: 'Relevé en cours' });
+    expect(tieTie?.properties).toMatchObject({ etat: 'actif' });
+    expect(tieTie?.properties).not.toHaveProperty('libelle');
     const brazzaville = zones.features.find(
       (f) => f.properties.nom === 'Brazzaville' && f.properties.genre === 'ville',
     );
     expect(brazzaville?.geometry.type).toBe('Point');
-    expect(brazzaville?.properties).toMatchObject({
-      etat: 'programme',
-      libelle: 'Déploiement programmé',
-    });
-    expect(JSON.stringify(zones)).not.toMatch(/complet/i);
+    expect(brazzaville?.properties).toMatchObject({ etat: 'programme' });
+    expect(JSON.stringify(zones)).not.toMatch(/complet|Relevé en cours|Déploiement programmé/i);
   });
 });

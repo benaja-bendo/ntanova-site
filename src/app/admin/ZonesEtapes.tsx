@@ -15,8 +15,8 @@ import type { DivisionVue } from '../../modele/ports';
 
 const description: Record<'aucun' | 'programme' | 'actif', string> = {
   aucun: 'Aucun contour sur la carte. Les écoles publiées restent visibles.',
-  programme: 'Contour en tirets : les familles voient que ça arrive.',
-  actif: 'Contour vert : les familles voient que des relais y travaillent.',
+  programme: 'Contour vert et nom seul : la carte n’écrit plus « programmé ».',
+  actif: 'Contour vert et nom seul ; la carte s’ouvre de préférence sur sa ville.',
 };
 
 interface Geste {
@@ -79,7 +79,7 @@ function CarteDeZone({
       </div>
       {herite && (
         <span className="mention">
-          Lue « {libelleEtat(herite)} » par les familles : ce qu’elle contient l’est.
+          Sur la carte par ce qu’elle contient (« {libelleEtat(herite)} »).
         </span>
       )}
       <div className="admin-actions">

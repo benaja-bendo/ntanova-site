@@ -10,23 +10,7 @@ import './carte-pieces.css';
 import { cycleLePlusEleve, lettresDesCycles } from '../modele/carte/cycles';
 import { zoomMaxEn } from '../modele/carte/fond';
 import { adresseVue } from '../modele/carte/navigation';
-import {
-  arrondissementDessine,
-  arrondissementsDessines,
-  cadreEcole,
-  marqueDe,
-  planer,
-  ruesDe,
-  situees,
-} from '../modele/carte/plan';
-import { reperes } from '../modele/carte/reperes';
-import {
-  ligneDeLieu,
-  lienCarte,
-  lienDivision,
-  lienEcole,
-  type PageDivision,
-} from '../modele/geo-divisions';
+import { ligneDeLieu, lienDivision, lienEcole, type PageDivision } from '../modele/geo-divisions';
 import {
   libelleDiplome,
   libelleNiveau,
@@ -42,7 +26,6 @@ import { dateCourte } from '../modele/pointe-noire';
 import { lienFacette } from '../modele/recherche';
 import PhotoEcole from './PhotoEcole.astro';
 import ContactEcole from './ContactEcole.astro';
-import Carte from './Carte.astro';
 import FraisEcole from './FraisEcole.astro';
 import EquipementsEcole from './EquipementsEcole.astro';
 import Icone from './Icone.astro';
@@ -97,26 +80,12 @@ const urlFiche = new URL(lienEcole(e), Astro.site ?? Astro.url).href;
 const lienPartage = `https://wa.me/?text=${encodeURIComponent(`${e.nom} · ${urlFiche}`)}`;
 const numeroAppel = e.contactPublic?.numero ?? e.numeroEnseigne;
 
-// Le petit plan de la fiche : seulement quand le contour de l'arrondissement ET ses rues sont dessinés. Un contour sans rues
-// n'est qu'un grand rectangle vide avec une maison (D21) : la fiche dit alors le repère en mots et renvoie à la vraie carte.
-const dessin = zone.adresse.join('/').startsWith('congo/pointe-noire/')
-  ? arrondissementDessine(zone.adresse[zone.adresse.length - 1] ?? '')
-  : null;
-const rues = dessin ? ruesDe(dessin.slug) : null;
-const situee = situees([e]).map(marqueDe)[0];
-const carteDuQuartier = dessin ? lienCarte(zone.adresse) : '';
-const plan =
-  situee && dessin && rues
-    ? (() => {
-        const { boite, projection } = cadreEcole(situee);
-        return planer(boite, [{ ...situee, lien: carteDuQuartier }], projection);
-      })()
-    : null;
-// Sans plan dessiné : la carte interactive, centrée sur l'école. L'école n'y a son épingle que vue sur place ; sinon la carte
-// s'ouvre sur son quartier, et le lien le dit.
+// « Voir sur la carte » : la carte du site, centrée sur l'école. La fiche n'a plus de petit plan dessiné (ticket 146 : une
+// seule carte) ; elle dit le repère en mots. L'école n'a son épingle sur la carte que vue sur place ; sinon la carte s'ouvre
+// sur son quartier, et le lien le dit.
 const vueSurPlace = e.releveeLe !== null;
 const lienSurLaCarte =
-  !plan && e.latitude !== null && e.longitude !== null
+  e.latitude !== null && e.longitude !== null
     ? `/carte/${vueSurPlace ? `?${new URLSearchParams({ ecole: lienEcole(e) })}` : ''}${adresseVue({
         zoom: Math.min(15, zoomMaxEn(e.longitude, e.latitude)),
         latitude: e.latitude,
@@ -310,24 +279,9 @@ const nomZone = zone.division.nom;
     </div>
 
     <div class="fiche-cote">
-      {(e.repere || plan || lienSurLaCarte) && (
+      {(e.repere || lienSurLaCarte) && (
         <section class="carte ou" aria-label="Où est l'école">
           <h2>Localisation</h2>
-          {plan && dessin && situee && (
-            <Carte
-              id="fiche"
-              titre={`${e.nom} sur la carte de ${nomZone}`}
-              projection={plan.projection}
-              arrondissements={arrondissementsDessines.map((a) => ({
-                arrondissement: a,
-                role: a.slug === dessin.slug ? 'focus' : 'voisin',
-              }))}
-              rues={rues}
-              marques={plan.marques}
-              reperes={reperes}
-              halo={situee}
-            />
-          )}
           {e.repere && (
             <p class="apercu-repere">
               <Icone nom="repere" petite={false} />
@@ -336,8 +290,7 @@ const nomZone = zone.division.nom;
               </span>
             </p>
           )}
-          {!e.repere && !plan && <p class="texte-doux">{lieu || nomZone}</p>}
-          {plan && <a href={carteDuQuartier}>Voir sur la carte de {nomZone}</a>}
+          {!e.repere && <p class="texte-doux">{lieu || nomZone}</p>}
           {lienSurLaCarte && (
             <a href={lienSurLaCarte}>
               {vueSurPlace ? 'Voir sur la carte' : 'Voir le quartier sur la carte'}

@@ -1,0 +1,5 @@
+# Tout le site public peut être lu ; le plan du site liste les fiches et les lieux qui ont une fiche (ticket 146).
+User-agent: *
+Allow: /
+
+Sitemap: https://ntanova.com/sitemap.xml

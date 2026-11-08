@@ -1,12 +1,8 @@
-// L'état public d'une zone (audit du 05/11/2026, D2) : la carte et les pages de zone lisent la même vérité.
+// L'état d'une zone (audit du 05/11/2026, D2), réglé dans l'administration : depuis le 08/11/2026 (ticket 146), le site ne
+// l'écrit plus, mais il décide encore quelles zones la carte dessine.
 import { describe, expect, it } from 'vitest';
 import { zonesGeoJSON } from '../../src/modele/carte/donnees';
-import {
-  etatPublicDe,
-  libelleDeploiement,
-  phraseDeLaSuite,
-  phraseSansEcole,
-} from '../../src/modele/etat-zone';
+import { etatPublicDe, libelleDeploiement } from '../../src/modele/etat-zone';
 import { lienDivision } from '../../src/modele/geo-divisions';
 import type { DivisionPublique } from '../../src/modele/ports';
 
@@ -110,7 +106,7 @@ describe('la carte et les pages disent la même chose', () => {
   const zones = zonesGeoJSON({ divisions: DIVISIONS, ecoles: [], contourDe: () => null });
   const parLien = new Map(DIVISIONS.map((d) => [lienDivision(d.adresse), d]));
 
-  it('chaque zone de la carte a l’état, et les mots, que les pages de zone lisent', () => {
+  it('chaque zone de la carte a l’état réglé, mais pas ses mots : la carte ne l’écrit plus (ticket 146)', () => {
     expect(zones.features.length).toBeGreaterThan(0);
     for (const f of zones.features) {
       const d = parLien.get(f.properties.lien);
@@ -118,7 +114,7 @@ describe('la carte et les pages disent la même chose', () => {
       // Pour une adresse partagée (la ville et son département), c'est la ville, la plus fine, qui porte la page.
       const celle = DIVISIONS.filter((x) => lienDivision(x.adresse) === f.properties.lien).at(-1)!;
       expect(etatPublicDe(celle, DIVISIONS)).toBe(f.properties.etat);
-      expect(libelleDeploiement[f.properties.etat]).toBe(f.properties.libelle);
+      expect(f.properties).not.toHaveProperty('libelle');
     }
   });
   it('Loandjili, Mongo-Mpoukou, Mvou-Mvou et Brazzaville sont « Déploiement programmé », Tié-Tié et Ngoyo « Relevé en cours »', () => {
@@ -128,25 +124,5 @@ describe('la carte et les pages disent la même chose', () => {
     expect(dit('bz')).toBe('Déploiement programmé');
     expect(dit('tt')).toBe('Relevé en cours');
     expect(dit('ng')).toBe('Relevé en cours');
-  });
-});
-
-describe('les phrases d’une zone', () => {
-  it('une zone sans école dit son état, sans en inventer un', () => {
-    expect(phraseSansEcole('actif')).toBe(
-      'Aucune école publiée pour l’instant : le relevé est en cours.',
-    );
-    expect(phraseSansEcole('programme')).toBe(
-      'Aucune école publiée pour l’instant : le déploiement est programmé.',
-    );
-    expect(phraseSansEcole(null)).toBe('Aucune école publiée pour l’instant.');
-  });
-  it('ne se contredit jamais (« pas encore relevée : relevé en cours »)', () => {
-    for (const etat of ['actif', 'programme', null] as const) {
-      expect(phraseDeLaSuite(etat)).not.toMatch(/pas encore relevée\s?:\s?relevé en cours/);
-      expect(phraseSansEcole(etat)).not.toMatch(
-        /relevé en cours.*programmé|programmé.*relevé en cours/,
-      );
-    }
   });
 });

@@ -10,10 +10,10 @@
 import type { GetStaticPaths } from 'astro';
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../../infra/index';
-import { coinsDe, arrondissementDessine, surCarte } from '../../modele/carte/plan';
+import { lienCarteDuLieu } from '../../modele/carte/navigation';
 import {
+  deLieu,
   ecolesSous,
-  lienCarte,
   lienDivision,
   lienEcole,
   lieuAvecPreposition,
@@ -57,17 +57,16 @@ export const getStaticPaths = (async () => {
     )) {
       poser(`${arrondissement}/${e.slug}`, { genre: 'renvoi', vers: lienEcole(e) });
     }
-    const dessin = arrondissementDessine(arrondissement);
-    if (dessin) {
-      poser(`${arrondissement}/carte`, { genre: 'renvoi', vers: lienCarte(page.adresse) });
-      const siennes = ecoles.filter((x) => x.arrondissement === arrondissement);
-      for (const g of coinsDe(dessin, surCarte(siennes))) {
-        poser(`${arrondissement}/carte/${g.id}`, {
-          genre: 'renvoi',
-          vers: lienCarte(page.adresse, g.id),
-        });
-      }
-    }
+    // Son ancien plan dessiné mène à la carte du site, cadrée sur lui (ticket 146) ; les « coins » de ce plan renvoient
+    // ici par `public/_redirects`.
+    poser(`${arrondissement}/carte`, {
+      genre: 'renvoi',
+      vers: lienCarteDuLieu({
+        contour: page.division.contour,
+        position: page.division.position,
+        ecoles: ecolesSous(page),
+      }),
+    });
   }
   return [...chemins].map(([chemin, cas]) => ({ params: { chemin }, props: cas }));
 }) satisfies GetStaticPaths;
@@ -82,6 +81,8 @@ const zone = e ? site.arbre.parId.get(e.divisionId) : undefined;
 const autres = e
   ? site.ecoles.filter((x) => x.institutionId === e.institutionId && x.id !== e.id)
   : [];
+// Ce qui contient le lieu, pour la description : « (Pointe-Noire) » sous Ngoyo ; ni le pays ni le lieu lui-même.
+const dansLieu = page ? [...new Set(page.noms.slice(1, -1))].reverse().join(', ') : '';
 // « Une école manque ? » : le message dit où, et, dans une zone sans école, que la personne la connaît ou la dirige.
 const lieuDeLaPage = page ? lieuAvecPreposition(page.division.nom, page.division.niveau) : '';
 const manque = page
@@ -122,11 +123,12 @@ const confirmer =
   </PagePublique>
 ) : page ? (
   <PagePublique
-    titre={`Les écoles de ${page.division.nom} · NTanova`}
-    description={`Les écoles de ${page.noms.join(', ')} : de la crèche au supérieur.`}
+    titre={`Les écoles ${deLieu(page.division.nom, page.division.niveau)}${page.division.niveau === 0 ? ', ville par ville' : ''} · NTanova`}
+    description={`Les écoles ${deLieu(page.division.nom, page.division.niveau)}${dansLieu ? ` (${dansLieu})` : ''}, de la crèche au supérieur.`}
     whatsapp={whatsapp}
+    nonIndexee={ecolesSous(page).length === 0}
   >
-    <HubDivision page={page} divisions={site.divisions} manque={manque} />
+    <HubDivision page={page} manque={manque} />
   </PagePublique>
 ) : e && zone ? (
   <PagePublique

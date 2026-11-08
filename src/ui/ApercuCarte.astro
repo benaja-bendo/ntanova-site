@@ -32,7 +32,7 @@ interface Props {
   arrondissement: ArrondissementDessine;
   /** Ses écoles publiées (celles qui ont une position sont sur la carte). */
   ecoles: EcolePubliee[];
-  /** L'adresse de sa carte (`/cartes/congo/pointe-noire/tie-tie/`). */
+  /** L'adresse de la carte interactive (`/carte/`) : le dessin n'est qu'un repli (ticket 146). */
   lienCarte: string;
 }
 const { arrondissement, ecoles, lienCarte } = Astro.props;

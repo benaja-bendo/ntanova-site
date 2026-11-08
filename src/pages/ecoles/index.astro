@@ -1,70 +1,202 @@
 ---
-// L'entrée des écoles : le pays, ses villes et départements avec ce que chacun compte d'écoles publiées et l'état de son
-// relevé (celui de la carte), puis, tant qu'il y en a peu, les écoles elles-mêmes. Les autres façons de chercher (le menu du
-// haut les porte déjà) tiennent en une ligne, sous le contenu (audit du 05/11/2026, D15).
-// Construite à partir de la base ; aucun JavaScript.
+// « Écoles » : la seule liste du site (décision du fondateur du 08/11/2026, ticket 146). On y cherche par nom, quartier,
+// repère ou filière, par niveau, par lieu et par type, et « autour de moi » ; la bascule mène à la carte.
+// Rechercher, Autour de moi et les pages de formations n'existent plus que comme renvois vers cette page.
+//
+// C'est la page publique qui filtre dans le navigateur : un petit script lit `/recherche.json` (construit avec le site). La
+// position n'est demandée qu'à l'appui du bouton « Autour de moi », sert à classer des écoles déjà chargées et n'est envoyée à
+// personne. Sans JavaScript, la page garde ses villes : la recherche n'est jamais le seul chemin.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../../infra/index';
-import { etatPublicDe, libelleDeploiement } from '../../modele/etat-zone';
-import { compterEcoles, ecolesSous, lienDivision, nomAffiche } from '../../modele/geo-divisions';
-import { lienWhatsApp } from '../../modele/whatsapp';
-import ListeEcoles from '../../ui/ListeEcoles.astro';
+import {
+  compterEcoles,
+  ecolesSous,
+  lienDivision,
+  type PageDivision,
+} from '../../modele/geo-divisions';
+import { libelleTypeEcole, typeInformatif } from '../../modele/libelles';
+import { listes } from '../../modele/listes';
+import { filtresAvances } from '../../modele/recherche';
+import { avecMessage, lienWhatsApp } from '../../modele/whatsapp';
+import BasculeVue from '../../ui/BasculeVue.astro';
+import Icone from '../../ui/Icone.astro';
+import '../../ui/carte-pieces.css';
 import PagePublique from '../../ui/PagePublique.astro';
 
-const { arbre, ecoles, divisions } = await obtenirSite();
-// Une ville sans école dit son état public (le même que la carte), jamais « 0 écoles » ni « relevé en cours » par défaut.
-const detailDe = (enfant: (typeof arbre.racines)[number]) => {
-  const n = ecolesSous(enfant).length;
-  const etat = etatPublicDe(enfant.division, divisions);
-  return {
-    compte: n > 0 ? compterEcoles(n) : etat ? null : 'aucune école publiée',
-    etat,
-  };
-};
-// Tant que la liste reste courte, les écoles sont là, sans passer par une ville ; au-delà, c'est la ville qui les range.
-const SEUIL_DE_LA_LISTE = 12;
+const { facettes, arbre, ecoles } = await obtenirSite();
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
-const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque : ');
+const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
+const valeursDe = (facette: string) => facettes.filter((f) => f.facette === facette);
+// La lettre du cycle (celle de l'épingle), le mot de la puce, les mots complets en infobulle : les mêmes puces que la carte.
+const cycles = [
+  ['M', 'Maternelle', 'Crèche et maternelle'],
+  ['P', 'Primaire', 'Primaire'],
+  ['C', 'Collège', 'Collège'],
+  ['L', 'Lycée', 'Lycée'],
+  ['T', 'Technique', 'Technique et professionnel'],
+  ['S', 'Supérieur', 'Supérieur et formation'],
+] as const;
+// Les filtres de formation : seulement ceux qui ont au moins une valeur dans les données construites, dans un volet replié.
+const avances = filtresAvances(facettes);
+// Les types présents parmi les écoles publiées, dans l'ordre de la liste fermée : jamais un choix qui ne donne rien.
+const types = listes.type_ecole.filter(
+  (t) => typeInformatif(t) && ecoles.some((e) => e.typeEcole === t),
+);
+// Les lieux où chercher : tous ceux qui ont des écoles, du pays au quartier (la page d'un lieu y renvoie avec `?zone=`).
+const zones: PageDivision[] = [];
+const parcourir = (p: PageDivision) => {
+  if (ecolesSous(p).length > 0) zones.push(p);
+  p.enfants.forEach(parcourir);
+};
+arbre.racines.forEach(parcourir);
+// Le rayon d'« Autour de moi » se choisit avant ou après l'appui ; 3 km par défaut.
+const rayons = [
+  [1000, '1 km'],
+  [3000, '3 km'],
+  [10000, '10 km'],
+  [30000, '30 km'],
+] as const;
 ---
 
 <PagePublique
   titre="Les écoles du Congo-Brazzaville · NTanova"
-  description="Les écoles du Congo-Brazzaville publiées sur NTanova : par ville et par quartier, par formation, ou autour de vous."
+  description="Les écoles du Congo-Brazzaville, de la crèche au supérieur : par nom, quartier, repère, niveau, formation ou type, près de vous, ou ville par ville."
   whatsapp={whatsapp}
 >
-  <section class="cadre page entree">
-    <a class="retour" href="/">
-      ← Accueil
-    </a>
-    <div>
+  <section class="cadre page recherche" data-recherche data-manque={manque ?? undefined}>
+    <div class="titre-page">
       <h1>Les écoles</h1>
       <p class="texte-doux">
-        {ecoles.length === 0
-          ? 'Aucune école n’est encore publiée : le relevé commence.'
-          : `${compterEcoles(ecoles.length)} publiée${ecoles.length > 1 ? 's' : ''}.`}
+        De la crèche au supérieur, publiques et privées. Chaque fiche dit ce qui a été vu, et quand.
       </p>
     </div>
 
+    <form
+      class="criteres"
+      role="search"
+      aria-label="Chercher une école"
+      autocomplete="off"
+      action="/ecoles/"
+    >
+      <label class="champ-recherche">
+        <span class="visuellement-cache">Nom, quartier, repère ou filière</span>
+        <Icone nom="loupe" petite={false} />
+        <input
+          class="champ"
+          type="search"
+          name="q"
+          placeholder="Nom, quartier, repère ou filière"
+        />
+      </label>
+      <div class="groupe-puces groupe-puces-defile" data-niveaux role="group" aria-label="Niveau">
+        <button type="button" class="pastille-choix" data-cycle="" aria-pressed="true">
+          Tous
+        </button>
+        {cycles.map(([lettre, mot, complet]) => (
+          <button
+            type="button"
+            class="pastille-choix avec-disque"
+            data-cycle={lettre}
+            aria-pressed="false"
+            title={complet}
+          >
+            <span class={`disque c-${lettre}`} aria-hidden="true">
+              {lettre}
+            </span>
+            {mot}
+          </button>
+        ))}
+      </div>
+      <div class="rangee-filtres">
+        <label class="filtre">
+          <span class="visuellement-cache">Lieu</span>
+          <select class="champ" name="zone">
+            <option value="">Lieu : partout</option>
+            {zones.map((p) => (
+              <option value={p.adresse.join('/')}>
+                {p.division.niveau === 0 ? 'Congo-Brazzaville' : p.noms.slice(1).join(' › ')}
+              </option>
+            ))}
+          </select>
+        </label>
+        {types.length > 1 && (
+          <label class="filtre">
+            <span class="visuellement-cache">Type d'école</span>
+            <select class="champ" name="type">
+              <option value="">Type : tous</option>
+              {types.map((t) => (
+                <option value={t}>{libelleTypeEcole[t]}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button type="button" class="pastille-choix autour-de-moi" data-position>
+          <Icone nom="cible" />
+          Autour de moi
+        </button>
+        <BasculeVue liste="/ecoles/" carte="/carte/" actuelle="liste" />
+      </div>
+      <div class="rayons" data-rayons-bande hidden>
+        <span class="titre-champ" id="titre-rayon">
+          Jusqu’à
+        </span>
+        <div class="groupe-puces" data-rayons role="group" aria-labelledby="titre-rayon">
+          {rayons.map(([metres, mot]) => (
+            <button
+              type="button"
+              class="pastille-choix"
+              data-rayon={metres}
+              aria-pressed={metres === 3000 ? 'true' : 'false'}
+            >
+              {mot}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p class="texte-doux message" role="status" data-message></p>
+      {avances.length > 0 && (
+        <details class="plus-de-filtres">
+          <summary>Plus de filtres</summary>
+          <div class="filtres-avances">
+            {avances.map(({ facette, titre, tous }) => (
+              <label class="champ-groupe">
+                {titre}
+                <select class="champ" name={facette}>
+                  <option value="">{tous}</option>
+                  {valeursDe(facette).map((v) => (
+                    <option value={v.valeur}>{v.libelle}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        </details>
+      )}
+    </form>
+
+    <section data-resultats aria-live="polite" class="resultats">
+      <noscript>
+        <p class="carte">
+          La recherche a besoin de JavaScript. Sans lui, choisissez votre ville ci-dessous.
+        </p>
+      </noscript>
+      <p class="compte" data-compte></p>
+      <ul class="liste-lignes"></ul>
+      <div data-vide></div>
+    </section>
+
     {arbre.racines.map((racine) => (
-      <section aria-label={racine.division.nom} class="pays">
-        <h2>
-          <a href={lienDivision(racine.adresse)}>
-            {nomAffiche(racine.division.nom, racine.division.niveau)}
-          </a>
-          <span class="texte-doux"> · {compterEcoles(ecolesSous(racine).length)}</span>
-        </h2>
+      <section class="par-lieu" id="par-ville" aria-labelledby={`titre-${racine.division.slug}`}>
+        <h2 id={`titre-${racine.division.slug}`}>Ville par ville</h2>
         <ul class="zones">
           {racine.enfants.map((enfant) => (
             <li>
               <a class="zone" href={lienDivision(enfant.adresse)}>
                 <span class="zone-nom">{enfant.division.nom}</span>
                 <span class="zone-detail">
-                  {detailDe(enfant).compte}
-                  {detailDe(enfant).etat && (
-                    <span class={`etiquette-zone etiquette-zone-${detailDe(enfant).etat}`}>
-                      {libelleDeploiement[detailDe(enfant).etat!]}
-                    </span>
-                  )}
+                  {ecolesSous(enfant).length > 0
+                    ? compterEcoles(ecolesSous(enfant).length)
+                    : 'pas encore d’école publiée'}
                 </span>
               </a>
             </li>
@@ -73,104 +205,187 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
       </section>
     ))}
 
-    {ecoles.length > 0 && ecoles.length <= SEUIL_DE_LA_LISTE && (
-      <section aria-label="Les écoles publiées" class="pays">
-        <h2>Les écoles publiées</h2>
-        <ListeEcoles ecoles={ecoles} />
-      </section>
+    {manque && (
+      <div class="encadre-pointille manque">
+        <h2>Une école manque&nbsp;?</h2>
+        <p>
+          Vous la connaissez ou vous la dirigez&nbsp;? Écrivez-nous&nbsp;: nous la noterons pour le
+          prochain passage.
+        </p>
+        <a href={manque}>Écrire sur WhatsApp</a>
+      </div>
     )}
-
-    <p class="aussi">
-      Aussi&nbsp;: <a href="/recherche/">rechercher par nom</a>
-      {', '}
-      <a href="/autour-de-moi/">autour de moi</a>
-      {', '}
-      <a href="/formations/">par formation</a>.
-    </p>
-
-    <div class="encadre-pointille">
-      <p>
-        Le relevé continue ville après ville&nbsp;: une ville apparaît ici dès que son déploiement
-        est programmé ou qu'une première école est publiée.
-      </p>
-      {manque && <a href={manque}>Une ville manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
-    </div>
   </section>
 </PagePublique>
 
-<style>
-  .entree {
+<script>
+  import { demarrerRecherche } from '../../ui/recherche-client';
+  const racine = document.querySelector<HTMLElement>('[data-recherche]');
+  if (racine) demarrerRecherche(racine);
+</script>
+
+<style is:global>
+  .recherche {
     display: grid;
     gap: var(--espace-4);
   }
-  .entree h1 {
+  .recherche .titre-page {
+    display: grid;
+    gap: var(--espace-1);
+  }
+  .recherche h1 {
     margin: 0;
     color: var(--marque-appuyee);
     font-family: var(--police-titre);
     font-size: var(--taille-titre-page);
     line-height: var(--interligne-titre);
   }
-  .entree h2 {
+  .recherche h2 {
     margin: 0;
     font-family: var(--police-titre);
     font-size: var(--taille-intertitre);
   }
-  .entree h2 a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--cible-min);
-    color: var(--texte);
-  }
-  .entree p {
+  .recherche p {
     margin: 0;
   }
-  .aussi {
-    color: var(--texte-doux);
-  }
-  .aussi a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--cible-min);
-    color: var(--marque);
-    font-weight: 700;
-  }
-  .pays {
+  .recherche .criteres {
     display: grid;
     gap: var(--espace-3);
   }
-  .zones {
+  /* Une rangée de puces qui défile ne doit pas élargir la page : ses parents se rétrécissent jusqu'à la largeur de l'écran. */
+  .recherche .criteres > * {
+    min-width: 0;
+  }
+  .recherche .champ-recherche {
+    position: relative;
+    display: block;
+  }
+  .recherche .champ-recherche .ico {
+    position: absolute;
+    top: 50%;
+    left: var(--espace-4);
+    color: var(--texte-doux);
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+  .recherche .champ-recherche .champ {
+    width: 100%;
+    padding-left: calc(var(--espace-4) + 32px);
+    border-radius: var(--rayon-pilule);
+  }
+  .recherche .rangee-filtres {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ecart-cibles);
+  }
+  .recherche .filtre .champ {
+    min-height: var(--cible-min);
+    border-radius: var(--rayon-pilule);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .recherche .autour-de-moi .ico {
+    width: 18px;
+    height: 18px;
+    color: var(--marque);
+  }
+  .recherche .rayons {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .recherche .rayons[hidden] {
+    display: none;
+  }
+  .recherche .message:empty {
+    display: none;
+  }
+  .recherche .titre-champ {
+    font-family: var(--police-titre);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .recherche .compte {
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+    font-weight: 700;
+  }
+  .recherche .compte:empty {
+    display: none;
+  }
+  .recherche .resultats {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  /* « Plus de filtres » : replié, avec le « + » qui dit qu'on peut l'ouvrir et le « − » qui dit qu'on peut le refermer. */
+  .recherche .plus-de-filtres summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-3);
+    min-height: var(--cible-min);
+    list-style: none;
+    color: var(--marque);
+    font-family: var(--police-titre);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .recherche .plus-de-filtres summary::-webkit-details-marker {
+    display: none;
+  }
+  .recherche .plus-de-filtres summary::after {
+    content: '+';
+    font-size: var(--taille-titre-fiche);
+    line-height: 1;
+  }
+  .recherche .plus-de-filtres[open] summary::after {
+    content: '−';
+  }
+  .recherche .filtres-avances {
+    display: grid;
+    gap: var(--espace-3);
+    padding-top: var(--espace-3);
+  }
+  .recherche .par-lieu {
+    display: grid;
+    gap: var(--espace-3);
+    padding-top: var(--espace-4);
+    border-top: 1px solid var(--trait);
+  }
+  .recherche .zones {
     display: grid;
     gap: var(--espace-2);
     margin: 0;
     padding: 0;
     list-style: none;
   }
-  .zone {
+  .recherche .zone {
     display: grid;
     gap: var(--espace-1);
     min-height: var(--cible-principale);
     padding: var(--espace-3) var(--espace-4);
+    border: 2px solid var(--trait);
     border-radius: var(--rayon-m);
-    background: var(--carte-releve-en-cours);
+    background: var(--fond-releve);
     color: var(--texte);
     text-decoration: none;
   }
-  .zone:hover {
-    outline: 2px solid var(--marque);
+  .recherche .zone:hover {
+    border-color: var(--marque);
   }
-  .zone-nom {
+  .recherche .zone-nom {
     font-family: var(--police-titre);
     font-weight: 700;
   }
-  .zone-detail {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--espace-1) var(--espace-2);
-    color: var(--marque-appuyee);
+  .recherche .zone-detail {
+    color: var(--texte-doux);
     font-size: var(--taille-secondaire);
   }
-  .encadre-pointille a {
+  .recherche .manque {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .recherche .manque a {
     display: inline-flex;
     align-items: center;
     min-height: var(--cible-min);
@@ -179,14 +394,23 @@ const manque = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, une ville manque 
   }
 
   @media (min-width: 48rem) {
-    .entree {
+    .recherche {
       gap: var(--espace-5);
       padding-block: var(--espace-7);
     }
-    .entree h1 {
+    .recherche h1 {
       font-size: var(--taille-titre-public);
     }
-    .zones {
+    .recherche .groupe-puces-defile {
+      flex-wrap: wrap;
+    }
+    .recherche .bascule {
+      margin-left: auto;
+    }
+    .recherche .filtres-avances {
+      grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    }
+    .recherche .zones {
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
       gap: var(--espace-3);
     }

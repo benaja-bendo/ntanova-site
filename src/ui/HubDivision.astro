@@ -1,18 +1,15 @@
 ---
-// La page d'une zone (pays, département, ville, arrondissement, quartier) : les zones qu'elle contient, avec leur
-// nombre d'écoles, puis les écoles qui sont directement chez elle. Quand le contour de la zone est dessiné
-// (aujourd'hui les six arrondissements de Pointe-Noire), la carte est à un lien. Aucun JavaScript.
-import {
-  arrondissementDessine,
-  arrondissementsDessines,
-  cadreVille,
-  vuesSurPlace,
-  type ArrondissementSurCarte,
-} from '../modele/carte/plan';
+// La page d'un lieu (pays, département, ville, arrondissement, quartier) : les lieux qu'il contient, avec leur nombre
+// d'écoles, puis les écoles qui sont directement chez lui. Une vraie page, écrite à la construction et listée dans
+// `sitemap.xml` dès qu'elle a une école (décision du fondateur du 08/11/2026). Aucun JavaScript.
+//
+// Ticket 146 : la page n'a plus de plan dessiné ni d'état de déploiement (« relevé en cours », « programmé ») ; la bascule
+// mène à la seule carte du site, cadrée sur le lieu.
+import { lienCarteDuLieu } from '../modele/carte/navigation';
+import { vuesSurPlace } from '../modele/carte/plan';
 import {
   compterEcoles,
   ecolesSous,
-  lienCarte,
   lienDivision,
   lieuAvecPreposition,
   nomAffiche,
@@ -20,26 +17,16 @@ import {
   phraseDeCompte,
   type PageDivision,
 } from '../modele/geo-divisions';
-import {
-  etatPublicDe,
-  libelleDeploiement,
-  phraseDeLaSuite,
-  phraseSansEcole,
-} from '../modele/etat-zone';
-import type { DivisionPublique } from '../modele/ports';
-import Carte from './Carte.astro';
 import BasculeVue from './BasculeVue.astro';
 import EtatVide from './EtatVide.astro';
 import ListeEcoles from './ListeEcoles.astro';
 
 interface Props {
   page: PageDivision;
-  /** Toutes les divisions du pays (même sans école) : la carte de la ville y lit celles où le relevé a commencé. */
-  divisions: DivisionPublique[];
   /** « Une école manque ? » : le lien WhatsApp, s'il est configuré. */
   manque: string | null;
 }
-const { page, divisions, manque } = Astro.props;
+const { page, manque } = Astro.props;
 
 const sous = ecolesSous(page);
 const verifiees = sous.filter((e) => e.etat === 'verifiee').length;
@@ -49,69 +36,20 @@ const niveau = page.division.niveau;
 const genre = NOM_NIVEAU[niveau] ?? 'zone';
 const ordinal = page.division.ordinal;
 const parent = page.parent;
-// L'état de la zone : le même que sur la carte (`etat-zone.ts`), jamais « relevé en cours » par défaut.
-const etat = etatPublicDe(page.division, divisions);
 const lieu = lieuAvecPreposition(nom, niveau);
 const detailDeZone = (enfant: PageDivision) => {
   const n = ecolesSous(enfant).length;
-  const sonEtat = etatPublicDe(enfant.division, divisions);
-  const morceaux = [
+  return [
     enfant.division.ordinal ? `Arrondissement ${enfant.division.ordinal}` : null,
-    n > 0 ? compterEcoles(n) : null,
-    sonEtat ? libelleDeploiement[sonEtat] : null,
+    n > 0 ? compterEcoles(n) : 'pas encore d’école publiée',
   ].filter((x): x is string => x !== null);
-  return n === 0 && !sonEtat ? [...morceaux, 'aucune école publiée'] : morceaux;
 };
-
-// Un arrondissement dessiné (Pointe-Noire) a sa carte, et la carte de la ville montre ses six arrondissements.
 const adresseTexte = page.adresse.join('/');
-const dessin =
-  niveau === 3 && adresseTexte.startsWith('congo/pointe-noire/')
-    ? arrondissementDessine(page.division.slug)
-    : null;
-const estPointeNoire = adresseTexte === 'congo/pointe-noire';
-// Chaque arrondissement dessiné dit l'état de la carte : « en-cours » (vert), « programme » (pointillés), sinon « pas encore ».
-const surLaCarte: ArrondissementSurCarte[] = estPointeNoire
-  ? arrondissementsDessines.map((a) => {
-      const fille = page.enfants.find((p) => p.division.slug === a.slug);
-      const sienne = divisions.find(
-        (d) =>
-          d.niveau === 3 &&
-          d.slug === a.slug &&
-          d.adresse.join('/').startsWith('congo/pointe-noire/'),
-      );
-      const sonEtat = sienne ? etatPublicDe(sienne, divisions) : null;
-      const n = fille ? ecolesSous(fille).length : 0;
-      const lien = fille ? lienCarte(fille.adresse) : undefined;
-      if (sonEtat === 'actif')
-        return {
-          arrondissement: a,
-          role: 'en-cours',
-          ...(lien ? { lien } : {}),
-          etiquette: n > 0 ? compterEcoles(n) : libelleDeploiement.actif,
-        };
-      if (sonEtat === 'programme')
-        return {
-          arrondissement: a,
-          role: 'programme',
-          // Une zone programmée sans école n'a rien à ouvrir : pas de lien (sa page est dans la liste, plus bas).
-          ...(lien && n > 0 ? { lien } : {}),
-          etiquette: n > 0 ? compterEcoles(n) : libelleDeploiement.programme,
-        };
-      return { arrondissement: a, role: 'pas-encore', etiquette: 'pas encore' };
-    })
-  : [];
-const pasEncore = surLaCarte.filter((a) => a.role === 'pas-encore').length;
-const sesEtats = [
-  surLaCarte.some((a) => a.role === 'en-cours') ? 'En vert\u00a0: relevé en cours.' : '',
-  surLaCarte.some((a) => a.role === 'programme')
-    ? 'En pointillés\u00a0: déploiement programmé.'
-    : '',
-]
-  .filter(Boolean)
-  .join(' ');
-const enLettres = ['aucun', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six'];
-const lienListe = lienDivision(page.adresse);
+const carte = lienCarteDuLieu({
+  contour: page.division.contour,
+  position: page.division.position,
+  ecoles: sous,
+});
 ---
 
 <section class="cadre page hub">
@@ -133,44 +71,18 @@ const lienListe = lienDivision(page.adresse);
           )}
         </p>
       )}
-      {etat && <p class={`etat-zone etat-${etat}`}>{libelleDeploiement[etat]}</p>}
     </div>
-    {dessin && <BasculeVue carte={lienCarte(page.adresse)} liste={lienListe} actuelle="liste" />}
+    <BasculeVue liste={lienDivision(page.adresse)} carte={carte} actuelle="liste" />
   </div>
 
   {sous.length > 0 && <p class="compte">{phraseDeCompte(sous.length, vues, verifiees)}</p>}
 
-  {estPointeNoire && surLaCarte.length > 0 && (
-    <div class="disposition">
-      <Carte
-        id="ville"
-        titre="Carte de Pointe-Noire par arrondissement"
-        projection={cadreVille()}
-        arrondissements={surLaCarte}
-        noms
-      />
-      <p class="texte-doux">
-        {sesEtats} Touchez un arrondissement.
-        {pasEncore > 0 &&
-          (pasEncore === 1
-            ? ' L’autre arrondissement : pas encore relevé.'
-            : ` Les ${enLettres[pasEncore]} autres arrondissements : pas encore relevés.`)}
-      </p>
-    </div>
-  )}
-
   {page.enfants.length > 0 && (
-    <section aria-label={`Les zones de ${nom}`}>
+    <section aria-label={`Les lieux de ${nom}`}>
       <ul class="zones">
         {page.enfants.map((enfant) => (
           <li>
-            <a
-              class:list={[
-                'zone',
-                { 'zone-programme': etatPublicDe(enfant.division, divisions) === 'programme' },
-              ]}
-              href={lienDivision(enfant.adresse)}
-            >
+            <a class="zone" href={lienDivision(enfant.adresse)}>
               <span class="zone-nom">{enfant.division.nom}</span>
               <span class="zone-detail">{detailDeZone(enfant).join(' · ')}</span>
             </a>
@@ -191,13 +103,13 @@ const lienListe = lienDivision(page.adresse);
   {sous.length > 0 ? (
     <>
       <p>
-        <a class="chercher" href={`/recherche/?zone=${adresseTexte}`}>
+        <a class="chercher" href={`/ecoles/?zone=${adresseTexte}`}>
           Chercher une école {lieu}
         </a>
       </p>
 
       <div class="encadre-pointille">
-        <p>{phraseDeLaSuite(etat)}</p>
+        <p>Une partie du territoire n’est pas encore relevée.</p>
         {manque && <a href={manque}>Une école manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
         <a class="chercher" href="/pour-les-ecoles/#referencer">
           Ajouter mon école
@@ -210,7 +122,7 @@ const lienListe = lienDivision(page.adresse);
     </>
   ) : (
     <EtatVide
-      titre={phraseSansEcole(etat)}
+      titre="Aucune école publiée pour l’instant."
       detail={`Vous connaissez ou vous dirigez une école ${lieu}\u00a0? Écrivez-nous : nous la noterons pour le prochain passage.`}
       actions={[{ texte: 'Voir les écoles déjà publiées', url: '/ecoles/' }]}
       manque={manque ? { texte: 'Une école manque\u00a0? Écrire sur WhatsApp', url: manque } : null}
@@ -254,10 +166,7 @@ const lienListe = lienDivision(page.adresse);
     font-family: var(--police-titre);
     font-weight: 700;
   }
-  .disposition {
-    display: grid;
-    gap: var(--espace-4);
-  }
+  /* Les lieux : la même pièce que « Ville par ville » sur la page « Écoles ». */
   .zones {
     display: grid;
     gap: var(--espace-2);
@@ -270,31 +179,21 @@ const lienListe = lienDivision(page.adresse);
     gap: var(--espace-1);
     min-height: var(--cible-principale);
     padding: var(--espace-3) var(--espace-4);
+    border: 2px solid var(--trait);
     border-radius: var(--rayon-m);
-    background: var(--carte-releve-en-cours);
+    background: var(--fond-releve);
     color: var(--texte);
     text-decoration: none;
   }
   .zone:hover {
-    outline: 2px solid var(--marque);
-  }
-  .zone-programme {
-    background: transparent;
-    outline: 2px dashed var(--trait-fort);
-    outline-offset: -2px;
-  }
-  .zone-programme .zone-detail {
-    color: var(--texte-doux);
-  }
-  .zone-programme:hover {
-    outline: 2px solid var(--marque);
+    border-color: var(--marque);
   }
   .zone-nom {
     font-family: var(--police-titre);
     font-weight: 700;
   }
   .zone-detail {
-    color: var(--marque-appuyee);
+    color: var(--texte-doux);
     font-size: var(--taille-secondaire);
   }
   .ecoles-ici {
@@ -309,28 +208,7 @@ const lienListe = lienDivision(page.adresse);
     color: var(--marque);
     font-weight: 700;
   }
-  /* L'état de la zone, le même mot que sur la carte : plein pour « relevé en cours », en pointillés pour « programmé ». */
-  .etat-zone {
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-    min-height: 1.75rem;
-    margin-top: var(--espace-2);
-    padding: 0 var(--espace-3);
-    border-radius: var(--rayon-pilule);
-    font-family: var(--police-titre);
-    font-size: var(--taille-mention);
-    font-weight: 700;
-  }
-  .etat-actif {
-    background: var(--vert-pale);
-    color: var(--marque-appuyee);
-  }
-  .etat-programme {
-    border: 2px dashed var(--trait-fort);
-    color: var(--texte-doux);
-  }
-  /* À partir de 48 rem : les zones en grille, les titres plus grands. */
+  /* À partir de 48 rem : les lieux en grille, les titres plus grands. */
   @media (min-width: 48rem) {
     .hub {
       gap: var(--espace-5);
@@ -342,13 +220,6 @@ const lienListe = lienDivision(page.adresse);
     .zones {
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
       gap: var(--espace-3);
-    }
-  }
-  @media (min-width: 64rem) {
-    .disposition {
-      grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr);
-      gap: var(--espace-6);
-      align-items: start;
     }
   }
 </style>

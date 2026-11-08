@@ -1,22 +1,15 @@
 ---
-// La ligne d'une école, écrite à la construction (une zone, un coin de la carte, une formation). Son jumeau écrit dans le
-// navigateur, `creerLigneEcole` de `dom-pieces.ts`, donne exactement le même balisage : un parcours les compare. Les mots
-// viennent de `modele/ligne-ecole.ts`. Les styles (`.ligne-ecole`, …) sont ceux de `carte-pieces.css`.
-import {
-  iconeDeProvenance,
-  lieuEtRepere,
-  niveauxEtType,
-  type LigneAffichee,
-} from '../modele/ligne-ecole';
-import { libelleProvenance } from '../modele/libelles';
+// La carte d'une école dans une liste, écrite à la construction (la page d'un lieu). Son jumeau écrit dans le navigateur,
+// `creerLigneEcole` de `dom-pieces.ts`, donne exactement le même balisage : un parcours les compare. Les mots viennent de
+// `modele/ligne-ecole.ts` ; le dessin est celui du canevas « Écoles et fiches NTanova » (ticket 146). Les styles
+// (`.ligne-ecole`, …) sont ceux de `carte-pieces.css`.
+import { iconeDeProvenance, type LigneAffichee } from '../modele/ligne-ecole';
 import Icone from './Icone.astro';
 
 interface Props {
   d: LigneAffichee;
 }
 const { d } = Astro.props;
-const sousNiveaux = niveauxEtType(d);
-const sousLieu = lieuEtRepere(d);
 ---
 
 <li>
@@ -31,14 +24,40 @@ const sousLieu = lieuEtRepere(d);
       </span>
     )}
     <span class="ligne-corps">
+      {d.distance && <span class="ligne-distance">{d.distance}</span>}
       <span class="ligne-nom">{d.nom}</span>
       {d.etiquette && <span class="ligne-sous">{d.etiquette}</span>}
-      {sousNiveaux && <span class="ligne-sous">{sousNiveaux}</span>}
-      {sousLieu && <span class="ligne-sous">{sousLieu}</span>}
-      {d.distance && <span class="ligne-distance">{d.distance}</span>}
-      <span class={`ligne-preuve ligne-preuve-${d.preuve}`}>
-        <Icone nom={iconeDeProvenance[d.preuve]} />
-        {libelleProvenance[d.preuve]}
+      {d.niveaux && (
+        <span class="ligne-niveaux">
+          {d.lettres.length > 0 && (
+            <span class="ligne-puces" aria-hidden="true">
+              {d.lettres.map((l) => (
+                <span class={`disque disque-s c-${l}`}>{l}</span>
+              ))}
+            </span>
+          )}
+          <span>{d.niveaux}</span>
+        </span>
+      )}
+      <span class="ligne-lieu">
+        <b>{d.lieu.fort}</b>
+        {d.lieu.reste && ` · ${d.lieu.reste}`}
+      </span>
+      {d.repere && (
+        <span class="ligne-repere">
+          <Icone nom="repere" />
+          <span>{d.repere}</span>
+        </span>
+      )}
+      {d.repereManquant && (
+        <span class="ligne-repere ligne-repere-vide">Repère pas encore relevé</span>
+      )}
+      <span class="ligne-preuve-rang">
+        <span class={`ligne-preuve ligne-preuve-${d.preuve}`}>
+          <Icone nom={iconeDeProvenance[d.preuve]} />
+          {d.preuveTexte}
+        </span>
+        {d.preuveDate && <span class="ligne-preuve-date">{d.preuveDate}</span>}
       </span>
     </span>
     <Icone nom="suite" petite={false} />

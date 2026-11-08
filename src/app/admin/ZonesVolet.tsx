@@ -28,29 +28,20 @@ import { AjouterDivision, NouveauLot, RenommerZone } from './ZonesFormulaires';
 const ADRESSE_DE_LA_MISE_A_JOUR =
   'https://github.com/benaja-bendo/ntanova-site/actions/workflows/mise-en-ligne.yml';
 
-/** Ce que les familles voient sur la carte, dessiné avec les couleurs de la carte : un contour, jamais un texte. */
+/**
+ * Ce que les familles voient sur la carte, dessiné avec les couleurs de la carte : un contour, jamais un texte. Depuis le
+ * 08/11/2026 (ticket 146), « programmé » et « relevé en cours » se dessinent pareil.
+ */
 function ApercuDeLaCarte({ etat, avecEcoles }: { etat: EtatCarte; avecEcoles: boolean }) {
   return (
     <svg className="admin-apercu-svg" viewBox="0 0 232 150" aria-hidden="true" focusable="false">
-      <defs>
-        <pattern
-          id="admin-apercu-hachures"
-          width="8"
-          height="8"
-          patternUnits="userSpaceOnUse"
-          patternTransform="rotate(45)"
-        >
-          <rect className="apercu-hachures-fond" width="8" height="8" />
-          <line className="apercu-hachures-trait" x1="0" y1="0" x2="0" y2="8" />
-        </pattern>
-      </defs>
       <rect className="apercu-terre" width="232" height="150" />
       <path className="apercu-eau" d="M150 150 L232 96 L232 150Z" />
       <path className="apercu-parc" d="M0 108 Q40 92 70 112 L60 150 L0 150Z" />
       <path className="apercu-rue" d="M0 60 L232 40 M70 0 L96 150 M150 0 L170 120" />
       {etat && (
         <polygon
-          className={`apercu-zone apercu-zone-${etat}`}
+          className="apercu-zone apercu-zone-actif"
           points="56,30 160,20 202,66 182,118 100,128 46,90"
         />
       )}
@@ -191,8 +182,8 @@ export function VoletDeZone({
                 <p className="bandeau bandeau-attente">
                   <Icone nom="alerte" taille={18} />
                   <span>
-                    Les familles lisent quand même « {libelleEtat(herite)} » sur la page de{' '}
-                    {zone.nom} : ce qu’elle contient l’est.
+                    Ce que {zone.nom} contient est quand même sur la carte (« {libelleEtat(herite)}{' '}
+                    »).
                   </span>
                 </p>
               )}

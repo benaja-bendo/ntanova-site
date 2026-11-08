@@ -1,7 +1,7 @@
 // Le budget de poids des pages construites (dist/).
 // Une page publique pèse moins de 100 Ko en tout (HTML, CSS, polices, images)
-// et n'a aucun JavaScript, sauf « Rechercher » et « Autour de moi » (un petit script de filtrage, 20 Ko au plus,
-// compressé) et leur fichier de recherche (300 Ko au plus, compressé). Les tailles du HTML, du CSS et du JS
+// et n'a aucun JavaScript, sauf la page « Écoles » (ticket 146 : elle a repris « Rechercher » et « Autour de moi » ; un petit
+// script de filtrage, 20 Ko au plus, compressé) et son fichier de recherche (300 Ko au plus, compressé). Les tailles du HTML, du CSS et du JS
 // sont comptées compressées (gzip), comme elles voyagent sur le réseau.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -11,8 +11,9 @@ const dist = 'dist';
 const budgetPage = 100 * 1024;
 // Les applications (/relais/, /admin/) auront leur propre budget, avec du JavaScript.
 const avecJavaScript = /^(relais|admin)\//;
-// Les deux pages publiques qui filtrent dans le navigateur : un petit script chacune, et rien d'autre.
-const petitJavaScript = /^(recherche|autour-de-moi)\//;
+// La page publique qui filtre dans le navigateur, « Écoles » (`/ecoles/` seule : ses lieux et ses fiches n'en ont pas) : un
+// petit script, et rien d'autre.
+const petitJavaScript = /^ecoles\/index\.html$/;
 const budgetPetitJavaScript = 20 * 1024;
 const budgetFichierRecherche = 300 * 1024;
 // Le guide du relais (ticket #110) montre quatre captures de l'application, chargées au défilement : 400 Ko au plus,

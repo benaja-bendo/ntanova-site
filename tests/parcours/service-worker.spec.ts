@@ -31,8 +31,8 @@ test('le service worker ne garde ni l’administration ni les scripts du site pu
 
   const prives = [
     ...(await fichiersNommesPar(page, '/admin/')),
-    ...(await fichiersNommesPar(page, '/recherche/')),
-    ...(await fichiersNommesPar(page, '/autour-de-moi/')),
+    ...(await fichiersNommesPar(page, '/ecoles/')),
+    ...(await fichiersNommesPar(page, '/carte/')),
   ].filter((fichier) => !relais.includes(fichier));
   expect(
     prives.length,
