@@ -3,7 +3,8 @@ import { jourDuCongo } from '../../modele/date-declaration';
 import { lireDateInscription, type DateInscription } from '../../modele/inscriptions';
 import type { PortAdministration } from '../../modele/ports';
 import { Dialogue } from '../../ui/Dialogue';
-import { Bandeau, jour } from '../../ui/composants';
+import { dateLongue } from '../../modele/pointe-noire';
+import { Bandeau } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
 
 const VIDE = { anneeScolaire: '', limite: '', declareeLe: '' };
@@ -84,9 +85,12 @@ export function InscriptionsEcole({
             {inscriptions.map((d) => (
               <li key={d.id}>
                 <b>
-                  {d.anneeScolaire} · limite du {jour(d.limite)}
+                  {d.anneeScolaire} · limite du {dateLongue(d.limite)}
                 </b>
-                <p>Déclarée le {jour(d.declareeLe)}</p>
+                <p>
+                  Déclarée le {dateLongue(d.declareeLe)}
+                  {d.limite < jourDuCongo() && ' · date passée : la fiche ne l’affiche plus'}
+                </p>
                 <button
                   type="button"
                   className="bouton bouton-secondaire"
@@ -156,6 +160,20 @@ export function InscriptionsEcole({
         <button className="bouton" type="submit" disabled={enCours}>
           {enCours ? 'Enregistrement…' : id ? 'Modifier la date' : 'Ajouter la date'}
         </button>
+        {id && (
+          <button
+            type="button"
+            className="bouton bouton-secondaire"
+            disabled={enCours}
+            onClick={() => {
+              setId(null);
+              setSaisie(VIDE);
+              setErreur(null);
+            }}
+          >
+            Annuler la modification
+          </button>
+        )}
         <p className="mention">Visible après la prochaine mise à jour du site.</p>
       </form>
     </Dialogue>

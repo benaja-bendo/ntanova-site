@@ -10,7 +10,8 @@ import { libelleGenreAgrement } from '../../modele/libelles';
 import { listes } from '../../modele/listes';
 import type { PortAdministration } from '../../modele/ports';
 import { Dialogue } from '../../ui/Dialogue';
-import { Bandeau, jour } from '../../ui/composants';
+import { dateLongue } from '../../modele/pointe-noire';
+import { Bandeau } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
 
 const VIDE = {
@@ -51,6 +52,7 @@ export function AgrementEcole({
   surOccupation?: (occupe: boolean) => void;
 }) {
   const [saisie, setSaisie] = useState(VIDE);
+  const [enModification, setEnModification] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   useEffect(() => {
@@ -69,6 +71,7 @@ export function AgrementEcole({
     try {
       await action();
       setSaisie(VIDE);
+      setEnModification(false);
       surChangement(`${succes} Visible après la prochaine mise à jour du site.`);
     } catch (e) {
       setErreur(messageErreur(e));
@@ -108,13 +111,14 @@ export function AgrementEcole({
                   {cible(a)} · {intituleAgrement(a)}
                 </b>
                 <p>
-                  {referenceEnMots(a)} · {a.sourceTexte} · vu le {jour(a.controleLe)}
+                  {referenceEnMots(a)} · {a.sourceTexte} · vu le {dateLongue(a.controleLe)}
                 </p>
                 <button
                   type="button"
                   className="bouton bouton-secondaire"
                   disabled={enCours}
                   onClick={() => {
+                    setEnModification(true);
                     setSaisie({
                       formationId: a.formationId ?? '',
                       genre: a.genre,
@@ -145,21 +149,24 @@ export function AgrementEcole({
             ))}
           </ul>
         )}
-        <label className="champ-groupe">
-          Concerne
-          <select
-            className="champ"
-            value={saisie.formationId}
-            onChange={(e) => changer({ formationId: e.target.value })}
-          >
-            <option value="">L’établissement</option>
-            {filieres.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.titre}
-              </option>
-            ))}
-          </select>
-        </label>
+        {filieres.length > 0 && (
+          <label className="champ-groupe">
+            Concerne
+            <select
+              className="champ"
+              value={saisie.formationId}
+              disabled={enModification}
+              onChange={(e) => changer({ formationId: e.target.value })}
+            >
+              <option value="">L’établissement</option>
+              {filieres.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.titre}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="champ-groupe">
           Intitulé du document
           <select
@@ -251,6 +258,20 @@ export function AgrementEcole({
         <button className="bouton" type="submit" disabled={enCours}>
           {enCours ? 'Enregistrement…' : 'Enregistrer l’agrément'}
         </button>
+        {enModification && (
+          <button
+            type="button"
+            className="bouton bouton-secondaire"
+            disabled={enCours}
+            onClick={() => {
+              setEnModification(false);
+              setSaisie(VIDE);
+              setErreur(null);
+            }}
+          >
+            Annuler la modification
+          </button>
+        )}
         <p className="mention">Visible après la prochaine mise à jour du site.</p>
       </form>
     </Dialogue>

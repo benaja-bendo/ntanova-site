@@ -5,7 +5,8 @@ import { listes } from '../../modele/listes';
 import { LONGUEUR_MAX_MOT, lireMotDirection, type MotDirection } from '../../modele/mot-direction';
 import type { PortAdministration } from '../../modele/ports';
 import { Dialogue } from '../../ui/Dialogue';
-import { Bandeau, jour } from '../../ui/composants';
+import { dateLongue } from '../../modele/pointe-noire';
+import { Bandeau } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
 
 /** Le mot de la direction (ticket 148) : une parole de l'école, telle qu'elle l'a remise, avec un accord daté, gardé en privé. */
@@ -89,7 +90,7 @@ export function MotDirectionEcole({
             fiche confirmée.
           </Bandeau>
         )}
-        {mot && <p>Enregistré : mot du {jour(mot.ditLe)}</p>}
+        {mot && <p>Enregistré : mot du {dateLongue(mot.ditLe)}</p>}
         <label className="champ-groupe">
           Le mot ({texte.trim().length} / {LONGUEUR_MAX_MOT})
           <textarea

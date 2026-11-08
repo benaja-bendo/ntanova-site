@@ -122,6 +122,16 @@ function LigneEcole({
   const [nomSaisi, setNomSaisi] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  // Le retour d'un enregistrement : le bandeau de la page reste derrière le panneau, il se redit donc dedans, en vue.
+  const [retour, setRetour] = useState<string | null>(null);
+  const zoneRetour = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (retour) zoneRetour.current?.scrollIntoView({ block: 'nearest' });
+  }, [retour]);
+  const signaler = (texte: string) => {
+    setRetour(texte);
+    surChangement(texte);
+  };
 
   const agir = async (action: () => Promise<unknown>, texte: string) => {
     setEnCours(true);
@@ -145,6 +155,7 @@ function LigneEcole({
     const menu = bouton.closest('details');
     if (menu) menu.open = false;
     setErreur(null);
+    setRetour(null);
     setMode(section);
   };
   const sections = [
@@ -356,6 +367,7 @@ function LigneEcole({
                       aria-pressed={mode === cle}
                       onClick={() => {
                         setErreur(null);
+                        setRetour(null);
                         setMode(cle);
                       }}
                     >
@@ -363,6 +375,11 @@ function LigneEcole({
                     </button>
                   ))}
               </nav>
+            )}
+            {retour && !confirmation && (
+              <p ref={zoneRetour} className="bandeau bandeau-envoye">
+                {retour}
+              </p>
             )}
             {mode === 'photo-publique' && (
               <PhotoPublique
@@ -372,7 +389,7 @@ function LigneEcole({
                 nom={e.nom}
                 admin={admin}
                 fermer={() => setMode(null)}
-                surChangement={surChangement}
+                surChangement={signaler}
               />
             )}
             {mode === 'equipements' && (
@@ -384,7 +401,7 @@ function LigneEcole({
                 equipements={e.equipements ?? []}
                 admin={admin}
                 fermer={() => setMode(null)}
-                surChangement={surChangement}
+                surChangement={signaler}
               />
             )}
             {mode === 'frais' && (
@@ -397,7 +414,7 @@ function LigneEcole({
                 frais={e.frais ?? []}
                 admin={admin}
                 fermer={() => setMode(null)}
-                surChangement={surChangement}
+                surChangement={signaler}
               />
             )}
             {mode === 'agrement' && (
@@ -410,7 +427,7 @@ function LigneEcole({
                 filieres={e.filieres ?? []}
                 admin={admin}
                 fermer={() => setMode(null)}
-                surChangement={surChangement}
+                surChangement={signaler}
               />
             )}
             {mode === 'mot-direction' && (
@@ -423,7 +440,7 @@ function LigneEcole({
                 confirmee={e.verifieeLe !== null}
                 admin={admin}
                 fermer={() => setMode(null)}
-                surChangement={surChangement}
+                surChangement={signaler}
               />
             )}
             {mode === 'inscriptions' && (
@@ -435,7 +452,7 @@ function LigneEcole({
                 inscriptions={e.inscriptions ?? []}
                 admin={admin}
                 fermer={() => setMode(null)}
-                surChangement={surChangement}
+                surChangement={signaler}
               />
             )}
             {mode === 'contact-public' && (
@@ -447,7 +464,7 @@ function LigneEcole({
                 contact={e.contactPublic ?? null}
                 fermer={() => setMode(null)}
                 admin={admin}
-                surChangement={surChangement}
+                surChangement={signaler}
               />
             )}
 
@@ -564,8 +581,9 @@ function LigneEcole({
                       La suppression emporte <b>{apercu.fiches}</b> fiche
                       {apercu.fiches > 1 ? 's' : ''}, <b>{apercu.photos}</b> photo
                       {apercu.photos > 1 ? 's' : ''} (fichiers compris), <b>{apercu.contacts}</b>{' '}
-                      contact{apercu.contacts > 1 ? 's' : ''}, ses frais, ses équipements et son
-                      historique. Seule une trace garde son nom et ces nombres.
+                      contact{apercu.contacts > 1 ? 's' : ''}, ses frais, ses équipements, son
+                      agrément, son mot de la direction, ses dates d’inscription et son historique.
+                      Seule une trace garde son nom et ces nombres.
                     </p>
                     <label className="champ-groupe">
                       Pour confirmer, écris le nom de l’école : <b>{e.nom}</b>
