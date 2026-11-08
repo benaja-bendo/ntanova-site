@@ -6,10 +6,18 @@
  * Pur : ni base, ni Astro. La page `src/pages/sitemap.xml.ts` le construit avec le site.
  */
 import { ecolesSous, lienDivision, lienEcole, type PageDivision } from './geo-divisions';
+import { PAGES_DE_TRANSPARENCE } from './pages-de-confiance';
 import type { EcolePubliee } from './ports';
 
-/** Les pages fixes du site public, dans l'ordre du menu. */
-export const PAGES_FIXES = ['/', '/ecoles/', '/carte/', '/pour-les-ecoles/', '/a-propos/'] as const;
+/** Les pages fixes du site public, dans l'ordre du menu, puis les pages de transparence (ticket 149). */
+export const PAGES_FIXES = [
+  '/',
+  '/ecoles/',
+  '/carte/',
+  '/pour-les-ecoles/',
+  '/a-propos/',
+  ...PAGES_DE_TRANSPARENCE.map((p) => p.href),
+] as const;
 
 export interface EntreeDuPlan {
   /** L'adresse, depuis la racine du site (`/ecoles/pointe-noire/`). */

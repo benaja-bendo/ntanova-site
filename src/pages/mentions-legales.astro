@@ -1,0 +1,103 @@
+---
+// Mentions légales (ticket 149, décision du fondateur du 08/11/2026) : qui édite le site, qui l'héberge, à qui appartiennent
+// les données et les fonds de carte. Les informations légales que NTanova n'a pas encore restent entre crochets : rien n'est
+// inventé. Le nom du responsable et l'adresse de contact viennent de la configuration.
+import { PUBLIC_CONTACT_EMAIL, PUBLIC_RESPONSABLE } from 'astro:env/client';
+import { LIEN_CONDITIONS, LIEN_CONFIDENTIALITE, LIEN_METHODE } from '../modele/pages-de-confiance';
+import ContactNtanova from '../ui/ContactNtanova.astro';
+import PageDeTexte from '../ui/PageDeTexte.astro';
+---
+
+<PageDeTexte
+  titre="Mentions légales · NTanova"
+  description="Qui édite ntanova.com, qui l’héberge, et à qui appartiennent les données, les fonds de carte et les polices."
+  surtitre="Transparence"
+  intitule="Mentions légales"
+>
+  <Fragment slot="chapeau">
+    <p class="texte-doux">
+      ntanova.com recense les écoles de la République du Congo (Congo-Brazzaville). Cette page dit
+      qui édite le site et l’héberge, et les droits de chacun sur ce qu’il montre.
+    </p>
+  </Fragment>
+
+  <section class="carte bloc" id="editeur">
+    <h2>Éditeur du site</h2>
+    <p>
+      <strong>NTanova</strong>
+    </p>
+    <ul>
+      <li>
+        Responsable de la publication&nbsp;:{' '}
+        {PUBLIC_RESPONSABLE ? (
+          PUBLIC_RESPONSABLE
+        ) : (
+          <span class="a-completer">[nom du responsable]</span>
+        )}
+      </li>
+      <li>
+        Contact&nbsp;:{' '}
+        {PUBLIC_CONTACT_EMAIL ? (
+          <a href={`mailto:${PUBLIC_CONTACT_EMAIL}`}>{PUBLIC_CONTACT_EMAIL}</a>
+        ) : (
+          <span class="a-completer">[adresse électronique]</span>
+        )}
+      </li>
+      <li class="a-completer">[Statut juridique]</li>
+      <li class="a-completer">[Adresse]</li>
+      <li class="a-completer">[Immatriculation (RCCM, NIU)]</li>
+    </ul>
+    <ContactNtanova message="Bonjour NTanova, " />
+  </section>
+
+  <section class="carte bloc" id="hebergement">
+    <h2>Hébergement</h2>
+    <ul>
+      <li>
+        <strong>Site et fond de carte</strong>&nbsp;: Cloudflare, Inc.{' '}
+        <span class="a-completer">[adresse]</span>
+      </li>
+      <li>
+        <strong>Base de données et photos</strong>&nbsp;: Supabase, région Paris (France).{' '}
+        <span class="a-completer">[société et adresse]</span>
+      </li>
+      <li>
+        <strong>Nom de domaine ntanova.com</strong>&nbsp;: Infomaniak Network SA (Suisse).{' '}
+        <span class="a-completer">[adresse]</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="carte bloc large" id="creditsetlicences">
+    <h2>Crédits et licences</h2>
+    <ul>
+      <li>
+        <strong>Limites de quartiers, d’arrondissements et de villes, fond de carte</strong>&nbsp;:
+        © les contributeurs d’<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>,
+        données sous licence ODbL. Le fond de carte est tiré de l’extrait de Protomaps, allégé par
+        NTanova. <span class="a-completer">[formule de crédit de Protomaps à vérifier]</span>
+      </li>
+      <li>
+        <strong>Bibliothèque de carte</strong>&nbsp;: MapLibre GL JS (licence BSD).
+      </li>
+      <li>
+        <strong>Polices</strong>&nbsp;: Poppins, Nunito Sans et Noto Sans, sous licence SIL Open
+        Font License, servies par ce site.
+      </li>
+      <li>
+        <strong>Fiches, preuves, dates</strong>&nbsp;: données de NTanova. Les conditions de
+        réutilisation sont sur la page <a href={LIEN_CONDITIONS}>Données</a>.
+      </li>
+    </ul>
+  </section>
+
+  <section class="carte bloc large" id="signaler">
+    <h2>Signaler un contenu</h2>
+    <p>
+      Une fiche erronée, un contenu à retirer, un numéro à effacer&nbsp;: écrivez-nous, comme
+      expliqué sur la page <a href={LIEN_CONFIDENTIALITE}>Confidentialité</a>. Comment les fiches
+      sont tenues&nbsp;: <a href={LIEN_METHODE}>Méthode</a>.
+    </p>
+    <p class="a-completer">[Loi applicable et juridiction compétente&nbsp;: à renseigner.]</p>
+  </section>
+</PageDeTexte>

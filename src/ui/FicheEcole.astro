@@ -30,6 +30,7 @@ import {
 import { dateLongue } from '../modele/pointe-noire';
 import { jourDuCongo } from '../modele/date-declaration';
 import { prochaineInscription } from '../modele/inscriptions';
+import { LIEN_METHODE } from '../modele/pages-de-confiance';
 import { lienWhatsApp } from '../modele/whatsapp';
 import PhotoEcole from './PhotoEcole.astro';
 import ProprietesEcole from './ProprietesEcole.astro';
@@ -53,9 +54,6 @@ interface Props {
   confirmer?: string | null;
 }
 const { e, zone, autres, erreur, confirmer = null } = Astro.props;
-
-// Tant que la page Méthode n'existe pas (ticket 149), le lien mène à ce que NTanova dit déjà de ce qu'il publie.
-const LIEN_METHODE = '/a-propos/#ce-que-nous-publions';
 
 // Le fil d'Ariane : les lieux qui ont une page, du plus grand au plus fin (un département n'en a pas, ticket 147).
 const ariane: { nom: string; lien: string }[] = [];

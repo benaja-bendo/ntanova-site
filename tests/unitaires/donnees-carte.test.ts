@@ -1,7 +1,13 @@
 // Les données de la carte (ticket 102, décisions du fondateur du 03/11) : des fichiers GeoJSON construits avec
 // le site. Les zones disent leur état public ; les écoles sont celles que des relais ont vues sur place.
 import { describe, expect, it } from 'vitest';
-import { cycleLePlusEleve, ecolesGeoJSON, zonesGeoJSON } from '../../src/modele/carte/donnees';
+import { readFileSync } from 'node:fs';
+import {
+  cycleLePlusEleve,
+  ecolesGeoJSON,
+  MENTION_ODBL,
+  zonesGeoJSON,
+} from '../../src/modele/carte/donnees';
 import type { DivisionPublique, EcolePubliee } from '../../src/modele/ports';
 
 const division = (
@@ -514,4 +520,21 @@ it('conserve les deux dates sans confondre confirmation et passage', () => {
   expect(f.properties.confirmation).toBe('2026-11-04');
   const g = ecolesGeoJSON([ecole('rue', { verifieeLe: '2026-11-04' })]).features[0]!;
   expect(g.properties.confirmation).toBeNull();
+});
+
+// Ticket 149 : les limites viennent d'OpenStreetMap (ODbL). Le fichier des zones porte le crédit et la licence, les écoles non.
+describe('la mention de licence du fichier des zones', () => {
+  it('crédite OpenStreetMap, nomme la licence ODbL et renvoie à son texte', () => {
+    expect(MENTION_ODBL.attribution).toMatch(/OpenStreetMap/);
+    expect(MENTION_ODBL.license).toBe('ODbL-1.0');
+    expect(MENTION_ODBL.licenseUrl).toBe('https://opendatacommons.org/licenses/odbl/1-0/');
+    expect(MENTION_ODBL.copyrightUrl).toBe('https://www.openstreetmap.org/copyright');
+  });
+
+  it('s’ajoute au fichier des zones, jamais à celui des écoles (qui ne viennent pas d’OpenStreetMap)', () => {
+    const zones = readFileSync('src/pages/carte/zones.geojson.ts', 'utf8');
+    const ecoles = readFileSync('src/pages/carte/ecoles.geojson.ts', 'utf8');
+    expect(zones).toMatch(/\.\.\.MENTION_ODBL/);
+    expect(ecoles).not.toMatch(/MENTION_ODBL/);
+  });
 });

@@ -151,6 +151,10 @@ const pagesPubliques = [
   ['la page « Écoles » (recherche et autour de moi)', '/ecoles/'],
   ['« Pour les écoles »', '/pour-les-ecoles/'],
   ['« À propos »', '/a-propos/'],
+  ['« Méthode »', '/methode/'],
+  ['« Données »', '/donnees/'],
+  ['« Confidentialité »', '/confidentialite/'],
+  ['« Mentions légales »', '/mentions-legales/'],
   ['page introuvable', '/cette-page-n-existe-pas/'],
 ] as const;
 
@@ -385,17 +389,17 @@ test.describe('site public', () => {
     }
   });
 
-  test('« À propos » : à partir de la tablette, ce qui est publié et ce qui est gardé sont côte à côte', async ({
+  test('« À propos » : à partir de la tablette, ce que nous faisons et ce que nous publions sont côte à côte', async ({
     page,
   }) => {
     await page.goto('/a-propos/');
+    const fait = await position(page, 'Ce que nous faisons');
     const publie = await position(page, 'Ce que nous publions');
-    const garde = await position(page, 'Ce que nous gardons pour nous');
     if (largeurDe(page) >= TABLETTE) {
-      expect(garde.y).toBe(publie.y);
-      expect(garde.x).toBeGreaterThan(publie.x);
+      expect(publie.y).toBe(fait.y);
+      expect(publie.x).toBeGreaterThan(fait.x);
     } else {
-      expect(garde.y).toBeGreaterThan(publie.y);
+      expect(publie.y).toBeGreaterThan(fait.y);
     }
   });
 });

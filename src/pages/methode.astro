@@ -1,0 +1,176 @@
+---
+// Méthode (ticket 149, décision du fondateur du 08/11/2026) : comment une fiche est relevée, confirmée, datée et corrigée, ce que
+// veut dire chaque mention, ce que vaut une référence d'agrément, et ce qui ne s'achète jamais. Les mentions sont écrites avec
+// les mots de la fiche (`libelleProvenance`, `libelleGenreAgrement`) : cette page ne peut pas dire autre chose qu'elle.
+import { libelleGenreAgrement, libelleProvenance, type Provenance } from '../modele/libelles';
+import {
+  DELAI_DROITS_JOURS,
+  LIEN_CONFIDENTIALITE,
+  LIEN_DONNEES,
+} from '../modele/pages-de-confiance';
+import ContactNtanova from '../ui/ContactNtanova.astro';
+import PageDeTexte from '../ui/PageDeTexte.astro';
+
+// Ce que chaque mention veut dire. Typé sur `Provenance` : une mention de plus dans la fiche oblige à la décrire ici.
+const SENS_DES_MENTIONS: Record<Provenance, string> = {
+  verifiee:
+    'La direction de l’école a donné son accord, daté, sur l’exactitude de la fiche. C’est la seule mention qui vienne de l’école. Elle ne s’achète pas.',
+  relevee:
+    'Un relais de NTanova est passé devant l’école, a photographié son enseigne et pris sa position. La fiche porte le jour de ce passage.',
+  declaree:
+    'La direction a transmis elle-même les informations à NTanova, qui les a saisies. Personne n’est encore passé sur place : la fiche porte le jour de la déclaration.',
+  ajoutee:
+    'NTanova a ajouté la fiche. Personne n’est encore passé sur place et l’école ne l’a pas déclarée : c’est la mention la plus faible.',
+};
+const ORDRE: Provenance[] = ['verifiee', 'relevee', 'declaree', 'ajoutee'];
+const intitules = Object.values(libelleGenreAgrement).filter(
+  (x) => x !== libelleGenreAgrement.autre,
+);
+---
+
+<PageDeTexte
+  titre="Méthode : comment nous tenons les fiches · NTanova"
+  description="Comment une fiche d’école est relevée, confirmée, datée et corrigée, ce que veut dire chaque mention, ce que vaut une référence d’agrément et ce qui ne s’achète jamais."
+  surtitre="Transparence"
+  intitule="Comment nous tenons les fiches"
+>
+  <Fragment slot="chapeau">
+    <p class="texte-doux">
+      Chaque fiche dit d’où vient ce qu’elle affirme, et à quelle date. Cette page explique ce que
+      veut dire chaque mention, et ce que NTanova ne fait pas.
+    </p>
+  </Fragment>
+
+  <section class="carte bloc large" id="mentions">
+    <h2>Ce que veut dire chaque mention</h2>
+    <p>
+      Une fiche affiche la preuve la plus forte, avec son jour. Les preuves ne se fusionnent
+      jamais&nbsp;: une fiche vue sur place puis confirmée par la direction affiche les deux,
+      chacune avec sa date.
+    </p>
+    <ul>
+      {ORDRE.map((preuve) => (
+        <li>
+          <strong>{libelleProvenance[preuve]}</strong>&nbsp;: {SENS_DES_MENTIONS[preuve]}
+        </li>
+      ))}
+    </ul>
+    <p>
+      Une fiche «&nbsp;pas encore confirmée par la direction&nbsp;» n’est pas fausse&nbsp;: elle n’a
+      simplement pas reçu cet accord.
+    </p>
+  </section>
+
+  <section class="carte bloc" id="position">
+    <h2>La position</h2>
+    <p>
+      La position est mesurée par le relais avec son téléphone, devant l’école. Quand le téléphone
+      n’a pas pu la mesurer, l’administration de NTanova la pose d’après une carte ou une capture
+      d’écran envoyée par le relais. Une position n’est jamais inventée&nbsp;: sans elle, l’école
+      n’a pas d’épingle.
+    </p>
+    <p>
+      Elle est approximative. Le repère écrit en mots («&nbsp;derrière la station&nbsp;») la
+      complète. La carte ne montre que les écoles vues sur place.
+    </p>
+  </section>
+
+  <section class="carte bloc" id="informations">
+    <h2>Les informations affichées</h2>
+    <ul>
+      <li>
+        <strong>Niveaux, type, repère, numéro de l’enseigne</strong>&nbsp;: relevés sur place. Le
+        numéro écrit sur l’enseigne est comparé à la photo avant d’être publié.
+      </li>
+      <li>
+        <strong>Photo</strong>&nbsp;: une seule, de l’enseigne ou du bâtiment, publiée après
+        contrôle (nette, sans enfant, sans donnée personnelle). Les autres photos ne sont pas
+        publiées.
+      </li>
+      <li>
+        <strong>Contact de l’école</strong>&nbsp;: publié seulement avec l’accord daté de la
+        direction.
+      </li>
+      <li>
+        <strong>Frais</strong>&nbsp;: seulement ceux que l’école a communiqués, par cycle, avec leur
+        date. NTanova n’en calcule aucun total et n’encaisse pas les frais de scolarité.
+      </li>
+      <li>
+        <strong>Équipements</strong>&nbsp;: ce qui se voit depuis la rue est constaté sur place. Une
+        absence ou un service ne s’écrit que si l’école le déclare. «&nbsp;Pas renseigné&nbsp;» ne
+        veut pas dire «&nbsp;absent&nbsp;».
+      </li>
+      <li>
+        <strong>Inscriptions</strong>&nbsp;: la fiche écrit «&nbsp;date limite annoncée&nbsp;». Le
+        site est mis à jour par étapes, il ne peut pas dire que les inscriptions sont encore
+        ouvertes.
+      </li>
+      <li>
+        <strong>Mot de la direction</strong>&nbsp;: le texte tel que la direction l’a remis, sur une
+        fiche confirmée seulement.
+      </li>
+    </ul>
+  </section>
+
+  <section class="carte bloc large" id="references">
+    <h2>Les références officielles (agrément)</h2>
+    <p>
+      Quand l’administration de NTanova a vu un document officiel, la fiche le cite&nbsp;: son
+      intitulé ({intitules.join(', ').toLowerCase()}, ou l’intitulé écrit sur le document), la
+      référence telle qu’elle y est écrite, sa date et l’endroit où se trouve le document. Un lien
+      n’est donné que si le document est en ligne. Une référence peut concerner l’établissement ou
+      une seule filière.
+    </p>
+    <h3>Ce que cela vaut</h3>
+    <p>
+      <strong>C’est une citation de document, pas une garantie de NTanova.</strong> NTanova
+      n’accorde aucun agrément, n’en juge pas la valeur et ne confirme pas qu’un document est
+      toujours en vigueur&nbsp;: il a pu être renouvelé ou retiré depuis. Le jour où NTanova a vu le
+      document n’est pas affiché.
+    </p>
+    <h3>Ce qu’une absence ne veut pas dire</h3>
+    <p>
+      Une fiche sans référence ne dit pas que l’école n’en a pas&nbsp;: NTanova n’a pas encore vu de
+      document. Un parent ou un ministère qui doit s’en assurer demande le document à l’école ou à
+      l’administration qui l’a délivré.
+    </p>
+  </section>
+
+  <section class="carte bloc" id="dater-corriger">
+    <h2>Dater, corriger, retirer</h2>
+    <p>
+      Chaque preuve porte son jour. Quand un relais repasse, que la direction répond ou qu’une
+      famille signale une erreur, l’administration corrige la fiche et la date change.
+    </p>
+    <p>
+      Le site est mis à jour par étapes&nbsp;: une correction faite dans notre base n’apparaît sur
+      ntanova.com qu’à la mise en ligne suivante. Pour corriger ou retirer une fiche, voir{' '}
+      <a href={LIEN_CONFIDENTIALITE}>Confidentialité</a> (délai de {DELAI_DROITS_JOURS}&nbsp;jours
+      dans notre base).
+    </p>
+  </section>
+
+  <section class="carte bloc" id="jamais-achete">
+    <h2>Ce qui ne s’achète jamais</h2>
+    <ul>
+      <li>La mention «&nbsp;{libelleProvenance.verifiee}&nbsp;».</li>
+      <li>Une information factuelle&nbsp;: on ne la modifie pas contre paiement.</li>
+      <li>
+        La place d’une école&nbsp;: les fiches sont classées par ordre alphabétique, ou par distance
+        quand vous utilisez «&nbsp;Autour de moi&nbsp;».
+      </li>
+    </ul>
+    <p>NTanova ne note pas les écoles, ne les classe pas et ne garantit pas leur qualité.</p>
+  </section>
+
+  <section class="carte bloc large" id="limites">
+    <h2>Ce que ces fiches ne sont pas</h2>
+    <p>
+      Un annuaire n’est pas un registre officiel, et il n’est pas complet. Le nombre total d’écoles
+      du Congo-Brazzaville est inconnu&nbsp;: NTanova ne dit donc jamais quelle part des écoles il
+      couvre. Ce qui est publié, en nombres et en dates, est sur la page{' '}
+      <a href={LIEN_DONNEES}>Données</a>.
+    </p>
+    <ContactNtanova message="Bonjour NTanova, une remarque sur votre méthode : " />
+  </section>
+</PageDeTexte>

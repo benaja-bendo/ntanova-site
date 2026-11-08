@@ -11,6 +11,7 @@ import {
   preuveDePartage,
   svgDeCouverture,
   svgDePartage,
+  typesSchemaOrg,
 } from '../../src/modele/partage';
 
 const e = {
@@ -156,11 +157,39 @@ describe('la couverture dessinée, image de partage d’une fiche (ticket 148)',
   });
 });
 
+describe('les types schema.org d’une fiche (ticket 149)', () => {
+  it('donnent un type précis par cycle enseigné, dans l’ordre des cycles', () => {
+    expect(typesSchemaOrg(['creche'])).toEqual(['Preschool']);
+    expect(typesSchemaOrg(['maternelle'])).toEqual(['Preschool']);
+    expect(typesSchemaOrg(['primaire'])).toEqual(['ElementarySchool']);
+    expect(typesSchemaOrg(['college'])).toEqual(['MiddleSchool']);
+    expect(typesSchemaOrg(['lycee'])).toEqual(['HighSchool']);
+    expect(typesSchemaOrg(['superieur'])).toEqual(['CollegeOrUniversity']);
+    // La crèche et la maternelle sont un seul type ; l'ordre est celui des cycles, pas celui de la saisie.
+    expect(typesSchemaOrg(['lycee', 'maternelle', 'creche', 'college', 'primaire'])).toEqual([
+      'Preschool',
+      'ElementarySchool',
+      'MiddleSchool',
+      'HighSchool',
+    ]);
+  });
+
+  it('gardent School quand aucun type précis ne s’applique, jamais autrement', () => {
+    expect(typesSchemaOrg(['technique'])).toEqual(['School']);
+    expect(typesSchemaOrg(['autre_formation'])).toEqual(['School']);
+    expect(typesSchemaOrg([])).toEqual(['School']);
+    expect(typesSchemaOrg(['lycee', 'technique'])).toEqual(['HighSchool', 'School']);
+    expect(typesSchemaOrg(['primaire', 'college'])).not.toContain('School');
+  });
+});
+
 describe('les données structurées de la fiche', () => {
+  const fiche = { ...e, niveaux: ['maternelle', 'primaire'] as ('maternelle' | 'primaire')[] };
+
   it('décrivent l’école pour les moteurs de recherche, sans rien de privé', () => {
-    const d = donneesEcole(e, 'https://ntanova.com/ecoles/congo/pointe-noire/tie-tie/x/');
+    const d = donneesEcole(fiche, 'https://ntanova.com/ecoles/complexe-scolaire-exemple-482913/');
     expect(d['@context']).toBe('https://schema.org');
-    expect(d['@type']).toBe('School');
+    expect(d['@type']).toEqual(['Preschool', 'ElementarySchool']);
     expect(d.name).toBe('[Complexe scolaire Exemple]');
     expect(d.address).toEqual({
       '@type': 'PostalAddress',
@@ -173,9 +202,32 @@ describe('les données structurées de la fiche', () => {
     expect(JSON.stringify(d)).not.toMatch(/whatsapp|direction|contact/i);
   });
 
-  it('n’écrit ni position ni téléphone absents', () => {
+  it('portent le numéro NTanova à six chiffres comme identifiant', () => {
+    const d = donneesEcole(fiche, 'https://ntanova.com/x/');
+    expect(d.identifier).toEqual({
+      '@type': 'PropertyValue',
+      propertyID: 'NTanova',
+      value: '482913',
+    });
+  });
+
+  it('écrivent un type seul, sans tableau, quand un seul cycle est enseigné', () => {
+    const d = donneesEcole({ ...fiche, niveaux: ['primaire'] }, 'https://ntanova.com/x/');
+    expect(d['@type']).toBe('ElementarySchool');
+  });
+
+  it('ne disent rien d’un agrément : une référence est citée sur la fiche, pas balisée comme un diplôme', () => {
+    const avecAgrement = {
+      ...fiche,
+      agrement: { reference: '[arrêté n° exemple]' },
+    } as unknown as Parameters<typeof donneesEcole>[0];
+    const brut = JSON.stringify(donneesEcole(avecAgrement, 'https://ntanova.com/x/'));
+    expect(brut).not.toMatch(/agr[ée]ment|hasCredential|accredit|arrêté/i);
+  });
+
+  it('n’écrivent ni position ni téléphone absents', () => {
     const d = donneesEcole(
-      { ...e, latitude: null, longitude: null, numeroEnseigne: null, repere: null },
+      { ...fiche, latitude: null, longitude: null, numeroEnseigne: null, repere: null },
       'https://ntanova.com/x/',
     );
     expect(d.geo).toBeUndefined();

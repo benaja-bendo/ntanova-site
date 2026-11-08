@@ -37,6 +37,11 @@ const pagesSansJavaScript = [
   '/ecoles/ecole-de-brazzaville-exemple-731590/',
   '/pour-les-ecoles/',
   '/a-propos/',
+  // Ticket 149 : les pages qu'une administration lit.
+  '/methode/',
+  '/donnees/',
+  '/confidentialite/',
+  '/mentions-legales/',
 ];
 
 // Ticket 146 : « Écoles » a repris « Rechercher » et « Autour de moi » ; c'est la seule page publique qui filtre.
@@ -475,21 +480,30 @@ test.describe('site public', () => {
     );
   });
 
-  test('« À propos » dit ce qui est publié, ce qui est gardé, et la loi', async ({ page }) => {
+  test('« À propos » dit ce qui est publié et renvoie la loi et les droits vers « Confidentialité »', async ({
+    page,
+  }) => {
     await page.goto('/a-propos/');
     await expect(page.getByRole('heading', { name: 'Ce que nous publions' })).toBeVisible();
+    await expect(page.getByText(/loi congolaise/)).toHaveCount(0);
+    await page.goto('/confidentialite/');
     await expect(
-      page.getByRole('heading', { name: 'Ce que nous gardons pour nous' }),
+      page.getByRole('heading', { name: 'Ce que nous publions et ce que nous gardons' }),
     ).toBeVisible();
     await expect(page.getByText(/loi congolaise n°\s29-2019 du 10\soctobre 2019/)).toBeVisible();
   });
 
-  test('« À propos » donne un délai pour corriger, retirer ou effacer', async ({ page }) => {
-    await page.goto('/a-propos/');
-    const droits = page.locator('section.droits');
+  test('« Confidentialité » donne un délai pour corriger, retirer ou effacer, et dit ce que ce délai couvre', async ({
+    page,
+  }) => {
+    await page.goto('/confidentialite/');
+    const droits = page.locator('#droits');
     await expect(droits.getByRole('heading', { name: 'Vos droits' })).toBeVisible();
     // La phrase entière, pour qu'un espace perdu autour du délai (« faisonssous 7 jours ») se voie.
-    await expect(droits.getByRole('paragraph')).toContainText(/nous le faisons sous\s7\sjours\./);
+    await expect(droits).toContainText(/dans notre base\s+sous\s7\sjours\./);
+    // Le délai vaut pour la base ; le site est mis à jour par étapes, et les copies des moteurs de recherche restent.
+    await expect(droits).toContainText('ntanova.com qu’à la mise en ligne suivante');
+    await expect(droits).toContainText('Les moteurs de recherche et les aperçus de lien');
   });
 
   // Ticket 147 : chaque adresse d'avant mène en un seul saut à celle d'aujourd'hui, sans JavaScript.
@@ -588,7 +602,13 @@ test.describe('le partage d’un lien', () => {
     );
     const brut = await page.locator('script[type="application/ld+json"]').textContent();
     const donnees = JSON.parse(brut ?? '{}') as Record<string, unknown>;
-    expect(donnees['@type']).toBe('School');
+    // Ticket 149 : un type précis par cycle enseigné (le Complexe d'exemple enseigne la maternelle et le primaire).
+    expect(donnees['@type']).toEqual(['Preschool', 'ElementarySchool']);
+    expect(donnees.identifier).toEqual({
+      '@type': 'PropertyValue',
+      propertyID: 'NTanova',
+      value: '482913',
+    });
     expect(donnees.name).toBe('[Complexe scolaire Exemple]');
     expect(brut).not.toMatch(/whatsapp|direction|contact/i);
   });

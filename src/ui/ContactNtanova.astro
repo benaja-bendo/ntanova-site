@@ -1,0 +1,46 @@
+---
+// Qui répond, et comment lui écrire : le responsable et l'adresse de contact viennent de la configuration (jamais écrits dans
+// le code), le bouton WhatsApp du numéro de la configuration. Sans l'un d'eux, la page n'affiche pas de ligne vide.
+import { PUBLIC_CONTACT_EMAIL, PUBLIC_RESPONSABLE, PUBLIC_WHATSAPP } from 'astro:env/client';
+import { lienWhatsApp } from '../modele/whatsapp';
+
+interface Props {
+  /** Le message prérempli de WhatsApp. */
+  message?: string;
+  /** Le bouton WhatsApp : faux quand la page veut seulement nommer le responsable. */
+  bouton?: boolean;
+}
+const { message = 'Bonjour NTanova, ', bouton = true } = Astro.props;
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, message);
+---
+
+{(PUBLIC_RESPONSABLE || PUBLIC_CONTACT_EMAIL) && (
+  <p class="contact-ntanova">
+    {PUBLIC_RESPONSABLE && (
+      <>
+        <b>Responsable&nbsp;:</b> {PUBLIC_RESPONSABLE}
+      </>
+    )}
+    {PUBLIC_RESPONSABLE && PUBLIC_CONTACT_EMAIL && ' · '}
+    {PUBLIC_CONTACT_EMAIL && (
+      <>
+        <b>Contact&nbsp;:</b> <a href={`mailto:${PUBLIC_CONTACT_EMAIL}`}>{PUBLIC_CONTACT_EMAIL}</a>
+      </>
+    )}
+  </p>
+)}
+{bouton && whatsapp && (
+  <a class="bouton contact-whatsapp" href={whatsapp}>
+    Écrire à NTanova sur WhatsApp
+  </a>
+)}
+
+<style>
+  .contact-ntanova {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .contact-whatsapp {
+    justify-self: start;
+  }
+</style>
