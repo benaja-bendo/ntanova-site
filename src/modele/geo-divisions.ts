@@ -2,8 +2,8 @@
  * La géographie publique : pays › département › ville › arrondissement › quartier, lue dans `geo_divisions`.
  *
  * Pointe-Noire est à la fois un département (niveau 1) et une ville (niveau 2), deux lignes de même
- * nom l'une sous l'autre : elles n'ont qu'une page, portée par la plus fine, et le fil d'Ariane ne répète pas le nom
- * (« Congo › Pointe-Noire › Tié-Tié »). Tout ce fichier est pur : il ne connaît ni la base ni Astro.
+ * nom l'une sous l'autre : le département n'a pas de page (il se confond avec le pays, ticket 147), et le fil d'Ariane
+ * ne répète pas le nom (« Congo › Pointe-Noire › Tié-Tié »). Tout ce fichier est pur : il ne connaît ni la base ni Astro.
  *
  * Les adresses publiques (ticket 147, décision du fondateur du 08/11/2026) n'ont ni le pays ni le département : une
  * ville et ce qu'elle contient (`/ecoles/pointe-noire/tie-tie/`), et chaque fiche par son nom et son identifiant
@@ -19,15 +19,11 @@ export function sansRepetition<T>(valeurs: readonly T[]): T[] {
 
 /**
  * Le chemin public d'une zone, de sa chaîne d'ancêtres (du pays à elle) : la ville et ce qu'elle contient, sans le pays
- * ni le département. Un département qui n'est pas aussi une ville garde son nom seul ; le pays n'a pas de chemin (sa
- * page est `/ecoles/`).
+ * ni le département. Le pays et les départements n'ont pas de chemin : leur page est `/ecoles/`.
  */
 export function cheminPublic(
   chaine: readonly Pick<DivisionPublique, 'niveau' | 'slug'>[],
 ): string[] {
-  const elle = chaine[chaine.length - 1];
-  if (!elle || elle.niveau === 0) return [];
-  if (elle.niveau === 1) return [elle.slug];
   return sansRepetition(chaine.filter((d) => d.niveau >= 2).map((d) => d.slug));
 }
 
@@ -116,8 +112,14 @@ export function construireArbre(
     if (d.parentId) enfantsDe.set(d.parentId, [...(enfantsDe.get(d.parentId) ?? []), d]);
   }
 
-  // Une ville qui porte le nom de son département (et en est la seule enfant) confond leurs pages : la plus fine la porte.
+  // Un département n'a pas de page (ticket 147, « aucun département ») : il se confond avec le pays, et ses villes, communes
+  // et districts sont des lieux de premier rang. Le vrai découpage le demande : le département de Pointe-Noire contient la
+  // ville et le district de Tchiamba-Nzassi, celui de Brazzaville la ville et l'Île Mbamou ; leurs pages voulaient la même
+  // adresse que celle de la ville. Ailleurs, une zone qui n'a qu'une enfant du même nom confond leurs pages : la plus fine
+  // la porte.
   const porteur = (d: DivisionPublique): DivisionPublique => {
+    const haut = d.niveau === 1 && d.parentId ? parId.get(d.parentId) : undefined;
+    if (haut) return porteur(haut);
     const enfants = enfantsDe.get(d.id) ?? [];
     const seule = enfants.length === 1 ? enfants[0] : undefined;
     return seule && seule.slug === d.slug ? porteur(seule) : d;
@@ -175,10 +177,17 @@ export function construireArbre(
   // qui ont leur propre état public (« relevé en cours », « déploiement programmé » : Brazzaville n'a pas encore d'école,
   // mais la carte la montre et son lien doit mener quelque part). Leur page dit l'état de la carte (`etat-zone.ts`).
   // Ouvrir un pays ne crée pas la page de chacune de ses villes : seule la zone réglée elle-même en a une.
+  // Le département du même nom que la ville (Pointe-Noire, Brazzaville) n'a pas de page : son état compte pour la ville.
+  const departementDuMemeNom = (p: PageDivision): DivisionPublique | undefined => {
+    const haut = p.division.parentId ? parId.get(p.division.parentId) : undefined;
+    return haut?.niveau === 1 && haut.slug === p.division.slug ? haut : undefined;
+  };
+  const regleeIci = (d: DivisionPublique | undefined): boolean =>
+    !!d && (d.ouverte || d.deploiement !== null);
   const ouverteDirectement = (p: PageDivision): boolean =>
-    p.division.ouverte ||
-    p.division.deploiement !== null ||
-    p.fusionnees.some((f) => f.ouverte || f.deploiement !== null);
+    regleeIci(p.division) ||
+    regleeIci(departementDuMemeNom(p)) ||
+    (p.division.niveau !== 0 && p.fusionnees.some(regleeIci));
   const aUnePage = (p: PageDivision): boolean =>
     p.ecoles.length > 0 || ouverteDirectement(p) || p.enfants.some(aUnePage);
   for (const p of pages.values()) p.enfants = p.enfants.filter(aUnePage);

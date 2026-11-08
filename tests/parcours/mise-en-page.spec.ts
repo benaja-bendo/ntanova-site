@@ -247,11 +247,12 @@ test.describe('site public', () => {
   });
 
   test('accueil : la ville qui a le plus de fiches passe avant les autres', async ({ page }) => {
-    // Pointe-Noire (sept écoles) avant Brazzaville et le Niari (une chacune, par ordre alphabétique).
+    // Pointe-Noire (sept écoles) avant Brazzaville et Dolisie (une chacune, par ordre alphabétique). Ticket 147 : les villes,
+    // jamais leur département (Dolisie, et non le Niari).
     await page.goto('/');
     await expect(page.locator('a.quartier').first()).toContainText('Pointe-Noire');
     await expect(page.locator('a.quartier').nth(1)).toContainText('Brazzaville');
-    await expect(page.locator('a.quartier').nth(2)).toContainText('Niari');
+    await expect(page.locator('a.quartier').nth(2)).toContainText('Dolisie');
   });
 
   test('accueil : l’aperçu de la carte est à droite de l’ouverture dès 1 024 px, dessous avant', async ({

@@ -112,8 +112,8 @@ describe('les adresses publiques', () => {
     expect(lienDivision(cheminPublic(tieTie))).toBe('/ecoles/pointe-noire/tie-tie/');
     // Une ville sous un département d'un autre nom : le département n'est pas dans l'adresse.
     expect(cheminPublic([d(0, 'congo'), d(1, 'niari'), d(2, 'dolisie')])).toEqual(['dolisie']);
-    // Un département qui n'est pas une ville garde son nom ; le pays, c'est `/ecoles/`.
-    expect(cheminPublic([d(0, 'congo'), d(1, 'niari')])).toEqual(['niari']);
+    // Le pays et un département n'ont pas de chemin : leur page, c'est `/ecoles/`.
+    expect(cheminPublic([d(0, 'congo'), d(1, 'niari')])).toEqual([]);
     expect(lienDivision(cheminPublic([d(0, 'congo')]))).toBe('/ecoles/');
     expect(lienEcole({ slug: 'complexe-exemple', numero: '482913' })).toBe(
       '/ecoles/complexe-exemple-482913/',
@@ -151,15 +151,32 @@ describe('l’arbre des zones du site public', () => {
   ];
   const arbre = construireArbre(DIVISIONS, ecoles);
 
-  it('confond la ville et le département de même nom : une seule page, portée par la ville', () => {
+  it('un département n’a pas de page : il se confond avec le pays, et la ville est un lieu de premier rang (ticket 147)', () => {
     const ville = arbre.parAdresse.get('congo/pointe-noire');
+    const pays = arbre.parAdresse.get('congo');
     expect(ville?.division.id).toBe('pn');
-    expect(ville?.fusionnees.map((d) => d.id)).toEqual(['pn-dep']);
-    // L'ancienne division se retrouve par son identifiant.
-    expect(arbre.parId.get('pn-dep')).toBe(ville);
+    expect(ville?.fusionnees).toEqual([]);
+    expect(ville?.chemin).toEqual(['pointe-noire']);
+    // Le département se retrouve par son identifiant : c'est la page du pays.
+    expect(arbre.parId.get('pn-dep')).toBe(pays);
     expect(arbre.parId.get('pn')).toBe(ville);
     expect(ville?.noms).toEqual(['Congo', 'Pointe-Noire']);
     expect(ville?.parent?.division.id).toBe('cg');
+    expect(arbre.tous.some((p) => p.division.niveau === 1)).toBe(false);
+  });
+
+  it('un département qui contient la ville de son nom et un district : deux lieux, jamais la même adresse (ticket 147)', () => {
+    // Le vrai découpage : le département de Brazzaville contient la ville et l'Île Mbamou.
+    const reel: DivisionPublique[] = [
+      division('cg', null, 0, 'country', 'Congo', 'congo'),
+      division('bz-dep', 'cg', 1, 'department', 'Brazzaville', 'brazzaville'),
+      division('bz', 'bz-dep', 2, 'city', 'Brazzaville', 'brazzaville'),
+      division('mb', 'bz-dep', 2, 'district', 'Île Mbamou', 'ile-mbamou'),
+    ];
+    const a = construireArbre(reel, [ecole('x', 'bz', '[École x]'), ecole('y', 'mb', '[École y]')]);
+    const chemins = a.tous.map((p) => p.chemin.join('/'));
+    expect(chemins).toEqual(['', 'brazzaville', 'ile-mbamou']);
+    expect(a.parAdresse.get('congo')?.enfants.map((p) => p.division.id)).toEqual(['bz', 'mb']);
   });
 
   it('range chaque campus dans sa division, et compte ceux qui sont dessous', () => {
@@ -186,7 +203,8 @@ describe('l’arbre des zones du site public', () => {
     expect(arbre.parAdresse.has('congo/pointe-noire/loandjili/mongo-mpoukou')).toBe(true);
     // Le Niari a la ville de Dolisie, qui a une école.
     expect(arbre.parAdresse.has('congo/niari/dolisie')).toBe(true);
-    expect(arbre.parAdresse.has('congo/niari')).toBe(true);
+    // Le département, lui, n'a pas de page (ticket 147).
+    expect(arbre.parAdresse.has('congo/niari')).toBe(false);
   });
 
   it('une zone ouverte aux relais garde une page, même vide : « relevé en cours »', () => {
@@ -214,7 +232,7 @@ describe('l’arbre des zones du site public', () => {
     // Le lien de la carte (`/ecoles/congo/brazzaville/`) mène à une vraie page, portée par la ville.
     expect(page?.division.id).toBe('bz');
     expect(page?.ecoles).toEqual([]);
-    expect(lienDivision(page!.adresse)).toBe('/ecoles/congo/brazzaville/');
+    expect(lienDivision(page!.chemin)).toBe('/ecoles/brazzaville/');
     expect(a.parAdresse.get('congo')?.enfants.map((p) => p.division.slug)).toContain('brazzaville');
     // Sans état, sans école et sans relevé ouvert, la ville voisine n'en a toujours pas.
     expect(a.parAdresse.has('congo/niari/dolisie')).toBe(false);
