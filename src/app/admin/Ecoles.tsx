@@ -6,6 +6,9 @@ import { dateLongue } from '../../modele/pointe-noire';
 import { EquipementsEcole } from './EquipementsEcole';
 import { FraisEcole } from './FraisEcole';
 import { ContactPublic } from './ContactPublic';
+import { AgrementEcole } from './AgrementEcole';
+import { InscriptionsEcole } from './InscriptionsEcole';
+import { MotDirectionEcole } from './MotDirectionEcole';
 /**
  * Les écoles et leur cycle de vie (supabase/schema.md, « Le cycle de vie ») :
  * à situer → prête → publiée → retirée (→ publiée). Publier est un geste à part :
@@ -107,6 +110,9 @@ function LigneEcole({
     | 'equipements'
     | 'frais'
     | 'contact-public'
+    | 'agrement'
+    | 'mot-direction'
+    | 'inscriptions'
     | null
   >(null);
   const [motif, setMotif] = useState<Valeur<'motif_retrait'>>('demande_ecole');
@@ -146,7 +152,10 @@ function LigneEcole({
     ['situer', 'Position'],
     ['contact-public', 'Contact public'],
     ['frais', 'Frais déclarés'],
+    ['inscriptions', 'Inscriptions'],
     ['equipements', 'Équipements'],
+    ['agrement', 'Agrément'],
+    ['mot-direction', 'Mot de la direction'],
     ['photo-publique', 'Photo publique'],
     ['mission', 'Mission'],
   ] as const;
@@ -386,6 +395,44 @@ function LigneEcole({
                 nom={e.nom}
                 cycles={e.niveaux}
                 frais={e.frais ?? []}
+                admin={admin}
+                fermer={() => setMode(null)}
+                surChangement={surChangement}
+              />
+            )}
+            {mode === 'agrement' && (
+              <AgrementEcole
+                surOccupation={setOperation}
+                integre
+                ecoleId={e.id}
+                nom={e.nom}
+                agrements={e.agrements ?? []}
+                filieres={e.filieres ?? []}
+                admin={admin}
+                fermer={() => setMode(null)}
+                surChangement={surChangement}
+              />
+            )}
+            {mode === 'mot-direction' && (
+              <MotDirectionEcole
+                surOccupation={setOperation}
+                integre
+                ecoleId={e.id}
+                nom={e.nom}
+                mot={e.motDirection ?? null}
+                confirmee={e.verifieeLe !== null}
+                admin={admin}
+                fermer={() => setMode(null)}
+                surChangement={surChangement}
+              />
+            )}
+            {mode === 'inscriptions' && (
+              <InscriptionsEcole
+                surOccupation={setOperation}
+                integre
+                ecoleId={e.id}
+                nom={e.nom}
+                inscriptions={e.inscriptions ?? []}
                 admin={admin}
                 fermer={() => setMode(null)}
                 surChangement={surChangement}

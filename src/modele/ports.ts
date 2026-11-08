@@ -1,6 +1,9 @@
 import type { Equipement, EquipementASaisir } from './equipements-ecole';
 import type { FraisASaisir, FraisEcole } from './frais-ecole';
 import type { AccordContactPublic, ContactPublic } from './contact-public';
+import type { AgrementASaisir, AgrementEnregistre, AgrementPublic } from './agrement';
+import type { DateInscription, DateInscriptionASaisir } from './inscriptions';
+import type { AccordMotDirection, MotDirection } from './mot-direction';
 /**
  * Les contrats entre les écrans et le serveur. Les écrans n'appellent que ces
  * ports ; src/infra/ les branche sur Supabase aujourd'hui, sur un serveur REST
@@ -570,6 +573,11 @@ export interface EcoleVue {
   equipements?: Equipement[];
   frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;
+  agrements?: AgrementEnregistre[];
+  motDirection?: MotDirection | null;
+  inscriptions?: DateInscription[];
+  /** Les filières de l'école, pour rattacher un agrément à l'une d'elles. */
+  filieres?: { id: string; titre: string }[];
   /** L'identifiant du campus. */
   id: string;
   institutionId: string;
@@ -873,6 +881,17 @@ export interface PortAdministration {
   enregistrerContactPublic(ecoleId: string, contact: AccordContactPublic | null): Promise<void>;
   enregistrerFraisEcole(ecoleId: string, frais: FraisASaisir, id: string | null): Promise<string>;
   retirerFraisEcole(ecoleId: string, id: string): Promise<void>;
+  /** Ajoute ou remplace l'agrément de l'établissement ou d'une filière : une ligne par école et par filière. */
+  enregistrerAgrement(ecoleId: string, agrement: AgrementASaisir): Promise<string>;
+  retirerAgrement(id: string): Promise<void>;
+  /** `mot` nul : le retrait. */
+  enregistrerMotDirection(ecoleId: string, mot: AccordMotDirection | null): Promise<void>;
+  enregistrerDateInscription(
+    ecoleId: string,
+    date: DateInscriptionASaisir,
+    id: string | null,
+  ): Promise<string>;
+  retirerDateInscription(ecoleId: string, id: string): Promise<void>;
   enregistrerEquipement(
     ecoleId: string,
     equipement: EquipementASaisir,
@@ -998,11 +1017,18 @@ export interface FormationPublique {
   serie: Valeur<'bac_track'> | null;
   diplome: Valeur<'diploma_kind'> | null;
   rythmes: Valeur<'study_rhythm'>[];
+  /** La référence officielle de cette filière, quand l'administration l'a saisie. */
+  agrement?: AgrementPublic | null;
 }
 
 /** Un campus publié, tel que le site public le montre : une implantation d'une institution. */
 export interface EcolePubliee {
   photo?: import('./photos-publiques').PhotoPublique | null;
+  /** La référence officielle de l'établissement, quand l'administration l'a saisie. */
+  agrement?: AgrementPublic | null;
+  /** Le mot de la direction : seulement sur une fiche confirmée. */
+  motDirection?: MotDirection | null;
+  inscriptions?: DateInscription[];
   origine?: string;
   declareeLe?: string | null;
   equipements?: Equipement[];

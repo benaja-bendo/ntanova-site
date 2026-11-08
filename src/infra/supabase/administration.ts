@@ -4,6 +4,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Point } from '../../modele/geo';
 import { heriterDeLOrigine, type OrigineDeLaCorrection } from '../../modele/acceptation';
 import type { LigneJournal } from '../../modele/sante';
+import type { AgrementEnregistre } from '../../modele/agrement';
+import type { MotDirection } from '../../modele/mot-direction';
 import { lireVueEnsemble } from '../../modele/vue-ensemble';
 import { lireEtatPhotoPublique, ROLES_PUBLIABLES } from '../../modele/photos-publiques';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
@@ -219,14 +221,54 @@ interface LigneCampus {
     status: Valeur<'mission_status'>;
     relais: { prenom: string } | null;
   }[];
-  campus_cycles: { cycle: string; campus_programs: { id: string }[] }[];
+  campus_cycles: { cycle: string; campus_programs: { id: string; title: string }[] }[];
+  campus_accreditations?: LigneAgrement[];
+  // Un lien « un pour un » (la clé du mot est celle de l'école) : l'API rend un objet, ou rien.
+  campus_statements?: { body: string; stated_on: string } | { body: string; stated_on: string }[] | null;
+  campus_enrollment_deadlines?: LigneDateInscription[];
 }
+
+interface LigneAgrement {
+  id: string;
+  program_id: string | null;
+  kind: AgrementEnregistre['genre'];
+  custom_kind: string | null;
+  reference: string;
+  issued_on: string;
+  source_label: string;
+  source_url: string | null;
+  checked_on: string;
+}
+
+interface LigneDateInscription {
+  id: string;
+  school_year: string;
+  deadline: string;
+  declared_on: string;
+}
+
+const versAgrement = (a: LigneAgrement): AgrementEnregistre => ({
+  id: a.id,
+  formationId: a.program_id,
+  genre: a.kind,
+  precision: a.custom_kind,
+  reference: a.reference,
+  delivreLe: a.issued_on,
+  sourceTexte: a.source_label,
+  sourceLien: a.source_url,
+  controleLe: a.checked_on,
+});
+
+const versMot = (ligne: LigneCampus['campus_statements']): MotDirection | null => {
+  const m = Array.isArray(ligne) ? ligne[0] : ligne;
+  return m ? { texte: m.body, ditLe: m.stated_on } : null;
+};
 
 const COLONNES_CAMPUS =
   'id, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
   'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, ' +
   'institutions(name, kind), geo_divisions(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
-  'campus_cycles(cycle, campus_programs(id)), campus_fees(*), campus_facts(*)';
+  'campus_cycles(cycle, campus_programs(id, title)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*)';
 
 /** La réponse de `campus_purge_preview`, lue avec tolérance : un champ qui manque vaut zéro, jamais une erreur. */
 const lireApercuSuppression = (donnees: unknown): ApercuSuppression => {
@@ -289,6 +331,15 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     equipements: (e.campus_facts ?? []).map(versEquipement),
     contactPublic: e.public_phone && e.public_phone_agreed_on ? { numero: e.public_phone, accordLe: e.public_phone_agreed_on } : null,
     formations: e.campus_cycles.reduce((n, c) => n + c.campus_programs.length, 0),
+    filieres: e.campus_cycles.flatMap((c) => c.campus_programs.map((p) => ({ id: p.id, titre: p.title }))),
+    agrements: (e.campus_accreditations ?? []).map(versAgrement),
+    motDirection: versMot(e.campus_statements),
+    inscriptions: (e.campus_enrollment_deadlines ?? []).map((d) => ({
+      id: d.id,
+      anneeScolaire: d.school_year,
+      limite: d.deadline,
+      declareeLe: d.declared_on,
+    })),
     verifieeLe: e.verified_on,
   };
 };
@@ -1292,6 +1343,39 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
     },
     async retirerFraisEcole(ecoleId, id) {
       const { error } = await supabase().rpc('withdraw_school_fee', { p_campus: ecoleId, p_fee: id });
+      decider(error);
+    },
+
+    async enregistrerAgrement(ecoleId, a) {
+      const { data, error } = await supabase().rpc('set_campus_accreditation', {
+        p_campus: ecoleId, p_program: a.formationId, p_kind: a.genre, p_custom_kind: a.precision,
+        p_reference: a.reference, p_issued_on: a.delivreLe, p_source_label: a.sourceTexte,
+        p_source_url: a.sourceLien, p_checked_on: a.controleLe,
+      });
+      decider(error);
+      return data as string;
+    },
+    async retirerAgrement(id) {
+      const { error } = await supabase().rpc('remove_campus_accreditation', { p_accreditation: id });
+      decider(error);
+    },
+    async enregistrerMotDirection(ecoleId, mot) {
+      const { error } = await supabase().rpc('set_campus_statement', {
+        p_campus: ecoleId, p_body: mot?.texte ?? null, p_stated_on: mot?.ditLe ?? null,
+        p_role: mot?.fonction ?? null, p_channel: mot?.canal ?? null,
+      });
+      decider(error);
+    },
+    async enregistrerDateInscription(ecoleId, date, id) {
+      const { data, error } = await supabase().rpc('set_campus_enrollment_deadline', {
+        p_campus: ecoleId, p_deadline_id: id, p_school_year: date.anneeScolaire,
+        p_deadline: date.limite, p_declared_on: date.declareeLe,
+      });
+      decider(error);
+      return data as string;
+    },
+    async retirerDateInscription(ecoleId, id) {
+      const { error } = await supabase().rpc('remove_campus_enrollment_deadline', { p_campus: ecoleId, p_deadline_id: id });
       decider(error);
     },
 

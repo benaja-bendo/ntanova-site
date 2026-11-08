@@ -91,6 +91,7 @@ export const listes = {
   ],
   equipment_state: ['present', 'absent', 'non_precise'],
   fact_source: ['ecole', 'terrain'],
+  accreditation_kind: ['agrement', 'autorisation_ouverture', 'reconnaissance', 'autre'],
 } as const;
 
 export type Liste = keyof typeof listes;

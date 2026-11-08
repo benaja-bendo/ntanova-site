@@ -32,6 +32,14 @@ export function typeInformatif(type: Valeur<'type_ecole'>): boolean {
   return type !== 'non_indique' && type !== 'autre';
 }
 
+/** L'intitulé du document officiel d'une école ou d'une filière (ticket 148). */
+export const libelleGenreAgrement: Record<Valeur<'accreditation_kind'>, string> = {
+  agrement: 'Agrément',
+  autorisation_ouverture: 'Autorisation d’ouverture',
+  reconnaissance: 'Reconnaissance',
+  autre: 'Autre intitulé',
+};
+
 export const libelleFonction: Record<Valeur<'fonction_direction'>, string> = {
   promoteur: 'Promoteur ou promotrice',
   directeur_general: 'Directeur général (DG)',
