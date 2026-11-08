@@ -69,10 +69,19 @@ function decouper(texte: string, sql = false): string[] {
 
 // Le schéma, lu dans les migrations --------------------------------------------------------------------------
 
+/** Une clé étrangère : les colonnes de la table, et la table qu'elles désignent. */
+interface Cle {
+  colonnes: string[];
+  vers: string;
+}
 interface Table {
   colonnes: Set<string>;
   /** Les tables que celle-ci référence. */
   vers: Set<string>;
+  /** Ses clés étrangères, une par contrainte (deux clés vers la même table comptent pour deux). */
+  cles: Cle[];
+  /** Les colonnes de sa clé primaire. */
+  cle: Set<string>;
 }
 interface Schema {
   tables: Map<string, Table>;
@@ -98,11 +107,25 @@ function lireSchema(): Schema {
   const seaux = new Set<string>();
   const table = (nom: string): Table => {
     let t = tables.get(nom);
-    if (!t) tables.set(nom, (t = { colonnes: new Set(), vers: new Set() }));
+    if (!t)
+      tables.set(nom, (t = { colonnes: new Set(), vers: new Set(), cles: [], cle: new Set() }));
     return t;
   };
   const MOTS_DE_TABLE = /^(constraint|primary|foreign|unique|check|exclude|like)\b/i;
   const reference = (texte: string) => /\breferences\s+(?:public\.)?(\w+)/i.exec(texte)?.[1];
+  const colonnesDe = (liste: string) =>
+    liste
+      .split(',')
+      .map((c) => c.trim().replace(/"/g, ''))
+      .filter((c) => c !== '');
+  /** `foreign key (a, b) references t (…)`, dans une définition de table ou un `alter table`. */
+  const clesEtrangeres = (texte: string): Cle[] =>
+    [...texte.matchAll(/foreign\s+key\s*\(([^)]*)\)\s*references\s+(?:public\.)?(\w+)/gi)].map(
+      (m) => ({ colonnes: colonnesDe(m[1] as string), vers: m[2] as string }),
+    );
+  /** `primary key (a, b)` : les colonnes de la clé primaire. */
+  const clePrimaire = (texte: string): string[] =>
+    colonnesDe(/primary\s+key\s*\(([^)]*)\)/i.exec(texte)?.[1] ?? '');
 
   for (const m of sql.matchAll(
     /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(\w+)\s*\(/gi,
@@ -116,13 +139,17 @@ function lireSchema(): Schema {
       const cible = reference(element);
       if (MOTS_DE_TABLE.test(element)) {
         if (cible) t.vers.add(cible);
+        t.cles.push(...clesEtrangeres(element));
+        for (const c of clePrimaire(element)) t.cle.add(c);
         continue;
       }
       const colonne = /^"?(\w+)"?/.exec(element)?.[1];
       if (!colonne) continue;
       t.colonnes.add(colonne);
+      if (/\bprimary\s+key\b/i.test(element)) t.cle.add(colonne);
       if (cible) {
         t.vers.add(cible);
+        t.cles.push({ colonnes: [colonne], vers: cible });
         contraintes.add(`${nom}_${colonne}_fkey`);
       }
     }
@@ -136,9 +163,12 @@ function lireSchema(): Schema {
       const cible = reference(ajout[2] as string);
       if (cible) {
         t.vers.add(cible);
+        t.cles.push({ colonnes: [ajout[1] as string], vers: cible });
         contraintes.add(`${m[1]}_${ajout[1]}_fkey`);
       }
     }
+    t.cles.push(...clesEtrangeres(m[2] as string));
+    for (const c of clePrimaire(m[2] as string)) t.cle.add(c);
     for (const c of (m[2] as string).matchAll(/add\s+constraint\s+(\w+)([^,]*)/gi)) {
       contraintes.add(c[1] as string);
       const cible = reference(c[2] as string);
@@ -352,6 +382,34 @@ function colonneExiste(nomTable: string, colonne: string): boolean {
   return vue !== undefined && mots(vue).has(colonne.toLowerCase());
 }
 
+/**
+ * Les chemins que PostgREST voit entre deux tables : une clé étrangère de l'une vers l'autre (dans un sens ou dans
+ * l'autre, une par contrainte), ou une table de jonction, c'est-à-dire une troisième table dont la clé primaire contient
+ * une clé vers chacune. Une table qui a des clés vers les deux sans les avoir dans sa clé primaire n'en est pas une.
+ * Quand il y en a plusieurs, `a(b(…))` ne dit pas lequel : l'API répond « 300 » (PGRST201), et l'écran qui lit `a`
+ * ne s'affiche plus. Il faut alors nommer la contrainte : `a(b!contrainte(…))`.
+ */
+function liensEntre(a: string, b: string): string[] {
+  if (a === b) return [];
+  const liens: string[] = [];
+  for (const [de, vers] of [
+    [a, b],
+    [b, a],
+  ] as const) {
+    for (const cle of schema.tables.get(de)?.cles ?? []) {
+      if (cle.vers === vers) liens.push(`${de}(${cle.colonnes.join(', ')}) → ${vers}`);
+    }
+  }
+  for (const [jonction, t] of schema.tables) {
+    if (jonction === a || jonction === b) continue;
+    const dansLaCle = (c: Cle) => c.colonnes.every((colonne) => t.cle.has(colonne));
+    const versA = t.cles.filter((c) => c.vers === a && dansLaCle(c));
+    const versB = t.cles.filter((c) => c.vers === b && dansLaCle(c));
+    for (let i = 0; i < versA.length * versB.length; i++) liens.push(`${a} ↔ ${b} par ${jonction}`);
+  }
+  return liens;
+}
+
 function problemesDeSelection(racine: string, elements: Element[], chemin = racine): string[] {
   const problemes: string[] = [];
   for (const e of elements) {
@@ -371,6 +429,15 @@ function problemesDeSelection(racine: string, elements: Element[], chemin = raci
     }
     if (e.contrainte && !schema.contraintes.has(e.contrainte)) {
       problemes.push(`${chemin}→${e.nom} : la contrainte ${e.contrainte} n’existe pas`);
+    }
+    if (!e.contrainte && schema.tables.has(racine) && schema.tables.has(e.nom)) {
+      const liens = liensEntre(racine, e.nom);
+      if (liens.length > 1) {
+        problemes.push(
+          `${chemin}→${e.nom} : ${liens.length} liens possibles entre ${racine} et ${e.nom} (${liens.join(' ; ')}), ` +
+            `l’API répond « 300 » : écrire ${e.nom}!<contrainte>(…)`,
+        );
+      }
     }
     problemes.push(...problemesDeSelection(e.nom, e.enfants, `${chemin}→${e.nom}`));
   }
@@ -487,6 +554,42 @@ describe('le contrôle de contrat mord', () => {
       lireSelection('doublon:campuses!field_submissions_inventee_fkey(id)'),
     );
     expect(problemes.join()).toMatch(/n’existe pas/);
+  });
+
+  it('un lien ambigu entre deux tables est repéré : l’API répondrait « 300 » (ticket 147, 08/11/2026)', () => {
+    // La table des anciennes adresses (`campus_former_addresses`) a une clé vers `campuses` et une vers `geo_divisions`,
+    // toutes deux dans sa clé primaire : PostgREST y voit un second chemin entre les deux, et `geo_divisions(name)`
+    // lu depuis `campuses` ne marchait plus (l'onglet Écoles de l'administration : « La base ne répond pas »).
+    expect(liensEntre('campuses', 'geo_divisions')).toHaveLength(2);
+    expect(liensEntre('geo_divisions', 'campuses')).toHaveLength(2);
+    expect(
+      problemesDeSelection('campuses', lireSelection('id, geo_divisions(name)')).join(),
+    ).toMatch(/2 liens possibles entre campuses et geo_divisions/);
+    expect(
+      problemesDeSelection(
+        'institutions',
+        lireSelection('campuses(id, geo_divisions(name))'),
+      ).join(),
+    ).toMatch(/geo_divisions/);
+    // Nommer la contrainte lève l'ambiguïté.
+    expect(
+      problemesDeSelection(
+        'campuses',
+        lireSelection('id, geo_divisions!campuses_division_id_fkey(name)'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('un seul lien, ou des clés qui ne forment pas une jonction, ne sont pas ambigus', () => {
+    // `lots` n'a qu'une clé vers `geo_divisions`.
+    expect(liensEntre('lots', 'geo_divisions')).toHaveLength(1);
+    expect(problemesDeSelection('lots', lireSelection('nom, geo_divisions(name, path)'))).toEqual(
+      [],
+    );
+    // `field_submissions` a des clés vers `campuses` et vers `geo_divisions`, mais hors de sa clé primaire (`id`) :
+    // ce n'est pas une table de jonction, elle ne s'ajoute pas aux chemins entre les deux.
+    expect(liensEntre('campuses', 'field_submissions')).toHaveLength(2);
+    expect(liensEntre('campuses', 'institutions')).toHaveLength(1);
   });
 
   it('la lecture d’une sélection garde alias, contrainte et imbrication', () => {
