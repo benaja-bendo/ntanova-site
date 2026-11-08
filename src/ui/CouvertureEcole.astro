@@ -1,0 +1,72 @@
+---
+// La couverture dessinée d'une fiche (canevas du 08/11/2026, ticket 148) : la couleur et la lettre du cycle, les trois barres de
+// NTanova. Aucune image à télécharger. La photo d'enseigne prise dans la rue n'est jamais une couverture.
+import './carte-pieces.css';
+import Marque from './Marque.astro';
+interface Props {
+  /** La lettre du cycle le plus élevé ; vide quand aucun niveau n'est noté (couverture neutre). */
+  lettre: string;
+}
+const { lettre } = Astro.props;
+---
+
+<div class:list={['couverture', lettre && `c-${lettre}`]} aria-hidden="true">
+  {/* Un décor, pas un texte : la lettre se lit sur le disque, juste dessous. */}
+  {lettre && <span class="couverture-lettre" data-lettre={lettre}></span>}
+  <Marque taille={26} />
+</div>
+
+<style>
+  .couverture {
+    position: relative;
+    height: 168px;
+    overflow: hidden;
+    background-color: var(--cycle, var(--carte-epingle-neutre));
+    background-image: repeating-linear-gradient(
+      115deg,
+      var(--couverture-rayure) 0 3px,
+      transparent 3px 26px
+    );
+  }
+  .couverture-lettre::before {
+    content: attr(data-lettre);
+  }
+  .couverture-lettre {
+    position: absolute;
+    right: 14px;
+    bottom: -70px;
+    color: var(--couverture-lettre);
+    font-family: var(--police-titre);
+    font-size: 15rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .couverture :global(.marque) {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+  }
+  @media (min-width: 48rem) {
+    .couverture {
+      height: 240px;
+      border-radius: var(--rayon-l);
+      background-image: repeating-linear-gradient(
+        115deg,
+        var(--couverture-rayure) 0 4px,
+        transparent 4px 34px
+      );
+    }
+    .couverture-lettre {
+      right: 48px;
+      bottom: -110px;
+      font-size: 23.75rem;
+    }
+    .couverture :global(.marque) {
+      top: 20px;
+      right: 24px;
+      left: auto;
+      width: 46px;
+      height: 35px;
+    }
+  }
+</style>

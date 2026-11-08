@@ -15,8 +15,8 @@ test.describe('la fiche d’une école', () => {
     page,
   }) => {
     await page.goto(COMPLEXE);
-    await expect(page.locator('.apercu-tete .disque-xl')).toHaveText('P');
-    await expect(page.locator('.apercu-tete .disque-xl')).toHaveClass(/c-P/);
+    await expect(page.locator('.fiche-identite .disque-fiche')).toHaveText('P');
+    await expect(page.locator('.fiche-identite .disque-fiche')).toHaveClass(/c-P/);
     const puces = page.getByRole('list', { name: 'Niveaux et type d’école' }).getByRole('listitem');
     await expect(puces).toHaveText([/^M\s*Maternelle$/, /^P\s*Primaire$/, 'Privée']);
     await expect(puces.nth(0).locator('.disque')).toHaveClass(/c-M/);
@@ -51,14 +51,14 @@ test.describe('la fiche d’une école', () => {
 
   test('une école sans niveau noté a un disque gris, sans lettre ni puce', async ({ page }) => {
     await page.goto(SANS_DETAIL);
-    await expect(page.locator('.apercu-tete .disque-xl')).toHaveText('');
-    await expect(page.locator('.apercu-tete .disque-xl')).not.toHaveClass(/c-/);
+    await expect(page.locator('.fiche-identite .disque-fiche')).toHaveText('');
+    await expect(page.locator('.fiche-identite .disque-fiche')).not.toHaveClass(/c-/);
     await expect(page.getByRole('list', { name: 'Niveaux et type d’école' })).toHaveCount(0);
   });
 
-  test('les preuves sont des blocs sous l’identité, jamais fusionnés', async ({ page }) => {
+  test('les preuves sont des pastilles sous l’identité, jamais fusionnées', async ({ page }) => {
     await page.goto(CONFIRMEE);
-    const tete = await page.locator('.apercu-tete').boundingBox();
+    const tete = await page.locator('.fiche-identite h1').boundingBox();
     const preuves = page.locator('.preuves .preuve');
     await expect(preuves).toHaveCount(2);
     const premiere = await preuves.first().boundingBox();
@@ -66,14 +66,14 @@ test.describe('la fiche d’une école', () => {
       tete!.y + tete!.height,
     );
     await expect(page.locator('.preuve-direction')).toContainText(
-      'Confirmée par l’école · 4 nov. 2026',
+      'Confirmée par la direction · 4 nov. 2026',
     );
     await expect(page.locator('.preuve:not(.preuve-direction)')).toContainText(
-      'Relevé terrain · 2 nov. 2026',
+      'Vue sur place · 2 nov. 2026',
     );
   });
 
-  test('sans accord de la direction, pas de bloc « Confirmée » ; sans passage, un bloc en pointillés', async ({
+  test('sans accord de la direction, pas de pastille « Confirmée » ; sans passage, une pastille en pointillés', async ({
     page,
   }) => {
     await page.goto(AJOUTEE);
@@ -81,7 +81,7 @@ test.describe('la fiche d’une école', () => {
     const vide = page.locator('.preuve-vide');
     await expect(vide).toHaveCount(1);
     await expect(vide).toContainText('Ajoutée par NTanova · 3 nov. 2026');
-    await expect(vide).not.toContainText('Relevé terrain');
+    await expect(vide).not.toContainText('Vue sur place');
   });
 
   test('une école déclarée par l’école : sa déclaration en pointillés, sans « Confirmée »', async ({
@@ -92,6 +92,80 @@ test.describe('la fiche d’une école', () => {
     await expect(page.locator('.preuves .preuve').first()).toContainText(
       'Déclarée par l’école · 1 nov. 2026',
     );
+  });
+});
+
+test.describe('le canevas du 08/11/2026 (ticket 148)', () => {
+  test('la couverture est dessinée : la couleur et la lettre du cycle, aucune image', async ({
+    page,
+  }) => {
+    await page.goto(COMPLEXE);
+    const couverture = page.locator('.couverture');
+    await expect(couverture).toHaveClass(/c-P/);
+    await expect(couverture.locator('.couverture-lettre')).toHaveAttribute('data-lettre', 'P');
+    await expect(couverture.locator('svg.marque')).toHaveCount(1);
+    await expect(couverture.locator('img')).toHaveCount(0);
+  });
+
+  test('le fil d’Ariane remonte les lieux qui ont une page', async ({ page }) => {
+    await page.goto(COMPLEXE);
+    const ariane = page.getByRole('navigation', { name: 'Fil d’Ariane' });
+    await expect(ariane.getByRole('link').first()).toHaveAttribute('href', '/ecoles/');
+    await expect(ariane.getByRole('link', { name: 'Pointe-Noire', exact: true })).toHaveAttribute(
+      'href',
+      '/ecoles/pointe-noire/',
+    );
+  });
+
+  test('une école vue sur place dit qu’elle n’est pas encore confirmée, et comment on vérifie', async ({
+    page,
+  }) => {
+    await page.goto(COMPLEXE);
+    await expect(page.locator('.preuves')).toContainText('Pas encore confirmée par la direction');
+    await expect(
+      page.getByRole('link', { name: 'Comment nous vérifions une fiche' }),
+    ).toHaveAttribute('href', '/a-propos/#ce-que-nous-publions');
+    await expect(page.locator('.identifiant')).toContainText('Fiche mise à jour le');
+  });
+
+  test('le bouton WhatsApp n’existe que sur une fiche confirmée qui a un contact public', async ({
+    page,
+  }) => {
+    await page.goto(CONFIRMEE);
+    const whatsapp = page.locator('.fiche-actions').getByRole('link', { name: 'WhatsApp' });
+    expect(decodeURIComponent((await whatsapp.getAttribute('href'))!)).toContain(
+      'je vous contacte depuis NTanova',
+    );
+    const filiere = page.getByRole('link', {
+      name: 'Écrire à l’établissement sur WhatsApp au sujet de la filière Série C',
+    });
+    expect(decodeURIComponent((await filiere.getAttribute('href'))!)).toContain(
+      'au sujet de la filière Série C',
+    );
+    // Une fiche non confirmée, même avec un contact public : ni l'un ni l'autre.
+    await page.goto(COMPLEXE);
+    await expect(
+      page.locator('.fiche-actions').getByRole('link', { name: 'WhatsApp' }),
+    ).toHaveCount(0);
+    await expect(page.locator('.filiere-contact')).toHaveCount(0);
+  });
+
+  test('les filières se filtrent sans JavaScript', async ({ browser, baseURL }) => {
+    const contexte = await browser.newContext({
+      javaScriptEnabled: false,
+      baseURL: baseURL ?? '',
+      viewport: { width: 360, height: 800 },
+    });
+    const page = await contexte.newPage();
+    await page.goto(INSTITUT);
+    const lignes = page.locator('.filiere');
+    await expect(lignes).toHaveCount(4);
+    await page.getByText('BTS', { exact: true }).first().click();
+    await expect(lignes.filter({ visible: true })).toHaveCount(1);
+    await expect(lignes.filter({ visible: true })).toContainText('BTS Informatique de gestion');
+    await page.getByText('Toutes', { exact: true }).click();
+    await expect(lignes.filter({ visible: true })).toHaveCount(4);
+    await contexte.close();
   });
 });
 
@@ -155,9 +229,9 @@ test.describe('la barre « Y aller · Appeler · Partager »', () => {
     const partage = decodeURIComponent((await actions(page).nth(2).getAttribute('href')) ?? '');
     expect(partage).toMatch(/^https:\/\/wa\.me\/\?text=/);
     expect(partage).toContain('[Complexe scolaire Exemple] · https://ntanova.com' + COMPLEXE);
-    // Y aller est le bouton plein, sur toute la largeur ; les deux autres se partagent la ligne dessous.
+    // Canevas du 08/11/2026 : les trois sur une ligne, Y aller un peu plus large.
     const [y, a, p] = await Promise.all([0, 1, 2].map((i) => actions(page).nth(i).boundingBox()));
-    expect(Math.abs(y!.width - a!.width)).toBeLessThan(2);
+    expect(y!.width).toBeGreaterThan(a!.width);
     expect(Math.abs(a!.y - y!.y)).toBeLessThan(2);
     expect(Math.abs(a!.y - p!.y)).toBeLessThan(2);
     for (const b of [y, a, p]) expect(b!.height).toBeGreaterThanOrEqual(44);

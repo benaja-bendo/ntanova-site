@@ -53,7 +53,7 @@ test('fiche publique : accord daté et numéro d’enseigne gardent leur provena
     'href',
     'tel:+242060000009',
   );
-  await expect(page.getByText('Confirmée par l’école', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Confirmée par la direction', { exact: true })).toHaveCount(0);
 });
 test('même numéro sur l’enseigne et communiqué : un appel, deux provenances', async ({ page }) => {
   await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');

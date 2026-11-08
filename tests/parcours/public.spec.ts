@@ -124,8 +124,8 @@ test.describe('site public', () => {
     await page.getByRole('link', { name: /\[Complexe scolaire Exemple\]/ }).click();
 
     await expect(page.getByRole('heading', { name: '[Complexe scolaire Exemple]' })).toBeVisible();
-    await expect(page.getByText(/Relevé terrain · 2 nov. 2026/)).toBeVisible();
-    await expect(page.getByText(/Confirmée par l’école/)).toHaveCount(0);
+    await expect(page.getByText(/Vue sur place · 2 nov. 2026/)).toBeVisible();
+    await expect(page.getByText(/Confirmée par la direction/)).toHaveCount(0);
     const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
     await expect(puces.getByRole('listitem').filter({ hasText: 'Maternelle' })).toBeVisible();
     await expect(puces.getByRole('listitem').filter({ hasText: 'Primaire' })).toBeVisible();
@@ -185,16 +185,16 @@ test.describe('site public', () => {
         page.getByRole('heading', { name: '[Groupe scolaire Exemple]', level: 1 }),
       ).toBeVisible();
       await expect(page.getByText('Campus du quartier', { exact: true })).toBeVisible();
-      await expect(page.getByText(/Confirmée par l’école · 4 nov. 2026/)).toBeVisible();
+      await expect(page.getByText(/Confirmée par la direction · 4 nov. 2026/)).toBeVisible();
       // Le lieu, du plus fin au plus large, sans répéter Pointe-Noire (ville et département).
-      await expect(
-        page.getByText('[Quartier Exemple] · Loandjili · Pointe-Noire', { exact: true }),
-      ).toBeVisible();
+      await expect(page.locator('.fiche-lieu')).toHaveText(
+        '[Quartier Exemple] · Loandjili · Pointe-Noire',
+      );
       // Les deux preuves, l'une après l'autre, jamais fusionnées.
-      await expect(page.getByText(/Relevé terrain · 2 nov. 2026/)).toBeVisible();
-      // Les formations du lycée, rangées par cycle, avec leurs liens vers les pages par série.
+      await expect(page.getByText(/Vue sur place · 2 nov. 2026/)).toBeVisible();
+      // Les formations du lycée, avec leurs liens vers les pages par série. Un seul cycle : le titre du bloc suffit.
       const formations = page.getByRole('region', { name: 'Formations' });
-      await expect(formations.getByRole('heading', { name: 'Lycée' })).toBeVisible();
+      await expect(formations.getByRole('heading', { name: 'Séries' })).toBeVisible();
       await expect(formations.getByRole('link', { name: 'Série C' }).first()).toHaveAttribute(
         'href',
         '/ecoles/?serie=c',
@@ -221,7 +221,11 @@ test.describe('site public', () => {
       await page.goto('/ecoles/dolisie/');
       await page.getByRole('link', { name: /Collège de Dolisie Exemple/ }).click();
       await expect(page).toHaveURL(/\/ecoles\/college-de-dolisie-exemple-846271\/$/);
-      await expect(page.getByRole('link', { name: '← Les écoles de Dolisie' })).toBeVisible();
+      await expect(
+        page
+          .getByRole('navigation', { name: 'Fil d’Ariane' })
+          .getByRole('link', { name: 'Dolisie', exact: true }),
+      ).toBeVisible();
     });
 
     test('les anciennes pages par formation mènent à la page « Écoles », filtrée de même (ticket 146)', async ({
@@ -428,8 +432,12 @@ test.describe('site public', () => {
     }) => {
       // Vue le 2 novembre, modifiée depuis le 20 : elle dit toujours « vue sur place le 2 novembre ».
       await page.goto('/ecoles/centre-de-formation-exemple-315702/');
-      await expect(page.getByText(/Relevé terrain · 2 nov. 2026/)).toBeVisible();
-      await expect(page.getByText(/20 novembre/)).toHaveCount(0);
+      await expect(page.getByText(/Vue sur place · 2 nov. 2026/)).toBeVisible();
+      // La modification ne se lit qu'en pied de fiche, dite comme telle (canevas du 08/11/2026), jamais dans une preuve.
+      await expect(page.locator('.preuves')).not.toContainText(/20 nov/);
+      await expect(page.locator('.identifiant')).toContainText(
+        'Fiche mise à jour le 20 novembre 2026',
+      );
     });
 
     test('sans date de relevé, la fiche ne se dit jamais vue sur place (ticket #99)', async ({
@@ -437,8 +445,8 @@ test.describe('site public', () => {
     }) => {
       await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
       await expect(page.getByText(/Ajoutée par NTanova/)).toBeVisible();
-      await expect(page.getByText(/Relevé terrain ·/)).toHaveCount(0);
-      await expect(page.getByText(/5 novembre/)).toHaveCount(0);
+      await expect(page.getByText(/Vue sur place ·/)).toHaveCount(0);
+      await expect(page.locator('.preuves')).not.toContainText(/5 nov/);
     });
 
     test('la description de la page d’une zone va de la crèche au supérieur', async ({ page }) => {
@@ -574,7 +582,7 @@ test.describe('le partage d’un lien', () => {
     expect(await meta(page, 'og:image')).toBe(
       'https://ntanova.com/partage/ecoles/complexe-scolaire-exemple-482913.png',
     );
-    expect(await meta(page, 'og:description')).toContain('Relevé terrain · 2 nov. 2026');
+    expect(await meta(page, 'og:description')).toContain('Vue sur place · 2 nov. 2026');
     expect(await page.locator('link[rel="canonical"]').getAttribute('href')).toBe(
       'https://ntanova.com/ecoles/complexe-scolaire-exemple-482913/',
     );

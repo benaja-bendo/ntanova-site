@@ -177,11 +177,11 @@ describe('les écoles de la carte', () => {
       cycle: 'college',
       lettre: 'C',
       preuve: 'terrain',
-      preuveTexte: 'Relevé terrain · 2 nov. 2026',
+      preuveTexte: 'Vue sur place · 2 nov. 2026',
     });
     expect(collection.features[1]?.properties).toMatchObject({
       preuve: 'direction',
-      preuveTexte: 'Confirmée par l’école · 4 nov. 2026',
+      preuveTexte: 'Confirmée par la direction · 4 nov. 2026',
     });
   });
 

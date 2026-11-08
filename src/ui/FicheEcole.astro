@@ -1,11 +1,10 @@
 ---
-// La fiche d'un campus publié : ce qui se voit de la rue, ce qu'il enseigne (cycles, séries, diplômes,
-// domaines, rythmes), ses autres implantations, et comment y aller.
-// Elle parle comme l'aperçu de la carte (audit du 05/11/2026, chantier 2) : le disque et les puces de niveau, les deux
-// preuves en blocs, la barre « Y aller · Appeler · Partager ». Les pièces viennent de `carte-pieces.css`.
-// Aucun JavaScript, sauf un script de moins de 2 Ko pour « Partager » (partage du téléphone, ou copie du lien) :
-// sans lui, le bouton est un lien WhatsApp.
-// Une institution à plusieurs campus a une fiche par campus, qui renvoient l'une vers l'autre.
+// La fiche d'un campus publié (canevas « Écoles et fiches NTanova », validé le 08/11/2026, ticket 148) : la couverture dessinée, le
+// disque du cycle, les preuves en pastilles, la barre « Y aller · WhatsApp · Appeler · Partager », ce qu'il enseigne, ses autres
+// implantations, et comment y aller. Sur ordinateur, deux colonnes sous la couverture.
+// Rien n'est écrit que la base ne sache : sans donnée, un bloc disparaît.
+// Aucun JavaScript, sauf un script de moins de 2 Ko pour « Partager » (partage du téléphone, ou copie du lien) : sans lui, le
+// bouton est un lien WhatsApp. Une institution à plusieurs campus a une fiche par campus, qui renvoient l'une vers l'autre.
 import './carte-pieces.css';
 import { cycleLePlusEleve, lettresDesCycles } from '../modele/carte/cycles';
 import { zoomMaxEn } from '../modele/carte/fond';
@@ -17,23 +16,23 @@ import {
   lienEcole,
   type PageDivision,
 } from '../modele/geo-divisions';
+import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../modele/libelles';
+import type { EcolePubliee } from '../modele/ports';
 import {
-  libelleDiplome,
-  libelleNiveau,
-  libelleRythme,
-  libelleSerie,
-  libelleTypeEcole,
-  typeInformatif,
-} from '../modele/libelles';
-import { listes } from '../modele/listes';
-import type { EcolePubliee, FormationPublique } from '../modele/ports';
-import { libelleProgramme } from '../modele/presentation-fiche';
-import { dateCourte } from '../modele/pointe-noire';
-import { lienFacette } from '../modele/recherche';
+  diplomesEnMots,
+  invitationDirection,
+  messageEcole,
+  preuvesDeLaFiche,
+  rythmesEnMots,
+  titreOuTrouver,
+} from '../modele/presentation-fiche';
+import { dateLongue } from '../modele/pointe-noire';
+import { lienWhatsApp } from '../modele/whatsapp';
 import PhotoEcole from './PhotoEcole.astro';
-import ContactEcole from './ContactEcole.astro';
-import FraisEcole from './FraisEcole.astro';
+import ProprietesEcole from './ProprietesEcole.astro';
+import CouvertureEcole from './CouvertureEcole.astro';
 import EquipementsEcole from './EquipementsEcole.astro';
+import FormationsEcole from './FormationsEcole.astro';
 import Icone from './Icone.astro';
 
 interface Props {
@@ -49,8 +48,18 @@ interface Props {
 }
 const { e, zone, autres, erreur, confirmer = null } = Astro.props;
 
+// Tant que la page Méthode n'existe pas (ticket 149), le lien mène à ce que NTanova dit déjà de ce qu'il publie.
+const LIEN_METHODE = '/a-propos/#ce-que-nous-publions';
+
+// Le fil d'Ariane : les lieux qui ont une page, du plus grand au plus fin (un département n'en a pas, ticket 147).
+const ariane: { nom: string; lien: string }[] = [];
+for (let p: PageDivision | null = zone; p; p = p.parent) {
+  if (p.chemin.length > 0) ariane.unshift({ nom: p.division.nom, lien: lienDivision(p.chemin) });
+}
+
 const typeSeLit = typeInformatif(e.typeEcole);
-const lieu = ligneDeLieu(e.quartier, zone.noms);
+const lieu = ligneDeLieu(e.quartier, zone.noms) || (zone.noms[0] ?? '');
+const [lieuFort = '', ...lieuReste] = lieu.split(' · ');
 const itineraire =
   e.latitude !== null && e.longitude !== null
     ? `https://www.google.com/maps/dir/?api=1&destination=${e.latitude},${e.longitude}`
@@ -60,31 +69,28 @@ const itineraire =
 const lettreEcole = cycleLePlusEleve(e.niveaux)?.lettre ?? '';
 const classeDisque = (lettre: string) => (lettre ? `disque c-${lettre}` : 'disque');
 const puces = e.niveaux.map((n) => ({ libelle: libelleNiveau[n], lettre: lettresDesCycles([n]) }));
+// « Cours du jour et du soir » : utile à qui travaille, donc seulement là où l'on choisit une filière.
+const rythme = e.niveaux.some((n) => n === 'superieur' || n === 'technique')
+  ? rythmesEnMots(e.formations)
+  : null;
 
-// Les formations, cycle par cycle (dans l'ordre de la liste des cycles).
-const parCycle = listes.niveau
-  .map((cycle) => ({ cycle, formations: e.formations.filter((f) => f.cycle === cycle) }))
-  .filter((c) => c.formations.length > 0);
-// Un cycle qui a normalement des filières, sans aucune de notée : on le dit.
-const cyclesSansFormation = e.niveaux.filter(
-  (n) =>
-    ['lycee', 'technique', 'superieur', 'autre_formation'].includes(n) &&
-    !e.formations.some((f) => f.cycle === n),
-);
-const rythmes = (f: FormationPublique) => f.rythmes.map((r) => libelleRythme[r]).join(', ');
-function serieDejaDansLeTitre(f: FormationPublique): boolean {
-  return (
-    f.serie !== null &&
-    f.titre.trim().toLocaleLowerCase('fr') === libelleSerie[f.serie].toLocaleLowerCase('fr')
-  );
-}
 const confirmee = e.etat === 'verifiee';
+const preuves = preuvesDeLaFiche(e);
+const classesPreuve = {
+  direction: 'preuve preuve-direction',
+  terrain: 'preuve',
+  ecole: 'preuve preuve-ecole',
+  vide: 'preuve preuve-vide',
+} as const;
 
 // La barre d'actions : l'adresse de la fiche (celle que WhatsApp montre avec son image), le numéro à appeler (le contact
-// publié avec l'accord de la direction, sinon celui de l'enseigne).
+// publié avec l'accord de la direction, sinon celui de l'enseigne), WhatsApp sur une fiche confirmée qui a un contact public.
 const urlFiche = new URL(lienEcole(e), Astro.site ?? Astro.url).href;
 const lienPartage = `https://wa.me/?text=${encodeURIComponent(`${e.nom} · ${urlFiche}`)}`;
 const numeroAppel = e.contactPublic?.numero ?? e.numeroEnseigne;
+const whatsappEcole =
+  confirmee && e.contactPublic ? lienWhatsApp(e.contactPublic.numero, messageEcole(e.nom)) : null;
+const nombreActions = 1 + Number(!!itineraire) + Number(!!numeroAppel) + Number(!!whatsappEcole);
 
 // « Voir sur la carte » : la carte du site, centrée sur l'école. La fiche n'a plus de petit plan dessiné (ticket 146 : une
 // seule carte) ; elle dit le repère en mots. L'école n'a son épingle sur la carte que vue sur place ; sinon la carte s'ouvre
@@ -98,113 +104,131 @@ const lienSurLaCarte =
         longitude: e.longitude,
       })}`
     : null;
-const nomZone = zone.division.nom;
+// Jamais avec « Ajoutée par NTanova » : pas deux mentions négatives de suite (arbitrage du 08/11/2026).
+const repereManquant = !e.repere && (vueSurPlace || confirmee || e.origine === 'school');
+
+// Le contact et le programme : à droite sur une fiche confirmée, avec les filières à sa gauche ; sinon dans « À savoir ».
+const diplomes = diplomesEnMots(e.formations);
+const aSavoir = !!(e.programme || e.contactPublic || e.numeroEnseigne || diplomes);
+const hote = new URL(lienCourt(e), Astro.site ?? Astro.url).host;
 ---
 
 <article class="cadre page fiche">
-  <a class="retour" href={lienDivision(zone.chemin)}>
-    ← Les écoles de {nomZone}
-  </a>
+  <nav class="ariane" aria-label="Fil d’Ariane">
+    <ol>
+      <li>
+        <a href="/ecoles/">Écoles</a>
+      </li>
+      {ariane.map((a) => (
+        <li>
+          <a href={a.lien}>{a.nom}</a>
+        </li>
+      ))}
+    </ol>
+  </nav>
 
-  <div class="fiche-corps">
-    <div class="fiche-principale">
-      <header class="apercu-tete">
-        <span class={`${classeDisque(lettreEcole)} disque-xl`} aria-hidden="true">
+  <div class="fiche-entete">
+    <div class="fiche-couverture">
+      <CouvertureEcole lettre={lettreEcole} />
+    </div>
+
+    <div class="fiche-tete">
+      <div class="fiche-identite">
+        <span class={`${classeDisque(lettreEcole)} disque-fiche`} aria-hidden="true">
           {lettreEcole}
         </span>
-        <div class="apercu-titres">
-          <h1>{e.nom}</h1>
-          {e.etiquette && <p class="etiquette-campus">{e.etiquette}</p>}
-          <p class="apercu-lieu">
-            <Icone nom="lieu" />
-            <span>{lieu || zone.noms[0]}</span>
-          </p>
-        </div>
-      </header>
+        <h1>{e.nom}</h1>
+        {e.etiquette && <p class="etiquette-campus">{e.etiquette}</p>}
+        <p class="fiche-lieu">
+          <Icone nom="lieu" />
+          <span>
+            <strong>{lieuFort}</strong>
+            {lieuReste.length > 0 && ` · ${lieuReste.join(' · ')}`}
+          </span>
+        </p>
 
-      {(puces.length > 0 || typeSeLit) && (
-        <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
-          {puces.map((p) => (
-            <li class="etiquette-niveau">
-              <span class={classeDisque(p.lettre)} aria-hidden="true">
-                {p.lettre}
-              </span>
-              {p.libelle}
-            </li>
-          ))}
-          {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
-        </ul>
-      )}
-
-      {autres.length > 0 && (
-        <details class="sites-ecole">
-          <summary>Changer de site</summary>
-          <section class="autres" aria-label="Autres implantations">
-            <h2>Autres sites</h2>
-            <p class="texte-doux">Sites publiés dans l’annuaire</p>
-            <ul>
-              {autres.map((a) => (
-                <li>
-                  <a href={lienEcole(a)}>
-                    <b>{a.etiquette ?? a.nom}</b>
-                    <span class="texte-doux">
-                      {ligneDeLieu(a.quartier, a.divisionNoms)}
-                      {a.niveaux.length > 0
-                        ? ` · ${a.niveaux.map((n) => libelleNiveau[n]).join(', ')}`
-                        : ''}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </details>
-      )}
-
-      <div class="preuves" aria-label="Sources de la fiche">
-        {confirmee && (
-          <p class="preuve preuve-direction">
-            <Icone nom="bouclier" />
-            Confirmée par l’école{e.verifieeLe ? ` · ${dateCourte(e.verifieeLe)}` : ''}
-          </p>
+        {(puces.length > 0 || typeSeLit || rythme) && (
+          <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
+            {puces.map((p) => (
+              <li class="etiquette-niveau">
+                <span class={classeDisque(p.lettre)} aria-hidden="true">
+                  {p.lettre}
+                </span>
+                {p.libelle}
+              </li>
+            ))}
+            {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
+            {rythme && <li class="etiquette-type">{rythme}</li>}
+          </ul>
         )}
-        {e.origine === 'school' && (
-          <p class="preuve">
-            <Icone nom="repere" />
-            Déclarée par l’école{e.declareeLe ? ` · ${dateCourte(e.declareeLe)}` : ''}
-          </p>
+
+        {autres.length > 0 && (
+          <details class="sites-ecole">
+            <summary>Changer de site</summary>
+            <section class="autres" aria-label="Autres implantations">
+              <h2>Autres sites</h2>
+              <p class="texte-doux">Sites publiés dans l’annuaire</p>
+              <ul>
+                {autres.map((a) => (
+                  <li>
+                    <a href={lienEcole(a)}>
+                      <b>{a.etiquette ?? a.nom}</b>
+                      <span class="texte-doux">
+                        {ligneDeLieu(a.quartier, a.divisionNoms)}
+                        {a.niveaux.length > 0
+                          ? ` · ${a.niveaux.map((n) => libelleNiveau[n]).join(', ')}`
+                          : ''}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </details>
         )}
-        {e.releveeLe ? (
-          <p class="preuve">
-            <Icone nom="oeil" />
-            Relevé terrain · {dateCourte(e.releveeLe)}
-          </p>
-        ) : (
-          e.origine !== 'school' && (
-            <p class="preuve preuve-vide">
-              Ajoutée par NTanova{e.situeeLe ? ` · ${dateCourte(e.situeeLe)}` : ''}
+
+        <div class="preuves" aria-label="Sources de la fiche">
+          {preuves.map((p) => (
+            <p class={classesPreuve[p.genre]}>
+              {p.icone && <Icone nom={p.icone} />}
+              {p.texte}
             </p>
-          )
-        )}
+          ))}
+          <a class="lien-methode" href={LIEN_METHODE}>
+            Comment nous vérifions une fiche
+          </a>
+        </div>
       </div>
 
-      {e.photo && <PhotoEcole photo={e.photo} nom={e.nom} />}
-
-      {/* Les trois gestes d'une famille. Trois actions équilibrées, sans lien vide. */}
-      <div class="apercu-actions fiche-actions">
+      {/* Les gestes d'une famille : uniquement ceux qui mènent quelque part. */}
+      <div
+        class:list={[
+          'fiche-actions',
+          {
+            'fiche-actions-trois': nombreActions === 3,
+            'fiche-actions-quatre': nombreActions === 4,
+          },
+        ]}
+      >
         {itineraire && (
-          <a class="bouton bouton-large" href={itineraire}>
+          <a class="bouton" href={itineraire}>
             <Icone nom="aller" />Y aller
           </a>
         )}
+        {whatsappEcole && (
+          <a class="bouton bouton-secondaire" href={whatsappEcole}>
+            <Icone nom="bulle" />
+            WhatsApp
+          </a>
+        )}
         {numeroAppel && (
-          <a class:list={['bouton', 'bouton-secondaire']} href={`tel:+${numeroAppel}`}>
+          <a class="bouton bouton-secondaire" href={`tel:+${numeroAppel}`}>
             <Icone nom="appeler" />
             Appeler
           </a>
         )}
         <a
-          class:list={['bouton', 'bouton-secondaire']}
+          class="bouton bouton-secondaire"
           href={lienPartage}
           data-partager
           data-url={urlFiche}
@@ -215,122 +239,104 @@ const nomZone = zone.division.nom;
         </a>
       </div>
       <p class="visuellement-cache" role="status" data-partager-etat></p>
+    </div>
+  </div>
 
-      {(e.programme || e.contactPublic || e.numeroEnseigne) && (
-        <dl class="carte proprietes">
-          {e.programme && (
-            <>
-              <dt>{libelleProgramme(e.programme)}</dt>
-              <dd>{e.programme}</dd>
-            </>
-          )}
-          <ContactEcole contact={e.contactPublic ?? null} enseigne={e.numeroEnseigne} />
-        </dl>
-      )}
-
-      {parCycle.length > 0 && (
-        <section class="carte formations" aria-label="Formations">
-          <h2>Ce qui est enseigné</h2>
-          {parCycle.map((c) => (
-            <div class="cycle">
-              <h3>{libelleNiveau[c.cycle]}</h3>
-              <ul>
-                {c.formations.map((f) => (
-                  <li>
-                    {f.serie && serieDejaDansLeTitre(f) ? (
-                      <a
-                        class="titre-formation"
-                        href={lienFacette({ facette: 'serie', valeur: f.serie })}
-                      >
-                        <b>{f.titre}</b>
-                      </a>
-                    ) : (
-                      <b>{f.titre}</b>
-                    )}
-                    <span class="liens-formation">
-                      {f.serie && !serieDejaDansLeTitre(f) && (
-                        <a href={lienFacette({ facette: 'serie', valeur: f.serie })}>
-                          {libelleSerie[f.serie]}
-                        </a>
-                      )}
-                      {f.diplome && (
-                        <a href={lienFacette({ facette: 'diplome', valeur: f.diplome })}>
-                          {libelleDiplome[f.diplome]}
-                        </a>
-                      )}
-                      {f.domaine && (
-                        <a href={lienFacette({ facette: 'domaine', valeur: f.domaine.slug })}>
-                          {f.domaine.nom}
-                        </a>
-                      )}
-                      {f.rythmes.length > 0 && <span>{rythmes(f)}</span>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+  <div class="fiche-corps">
+    <div class="fiche-principale">
+      {aSavoir && !confirmee && (
+        <section class="a-savoir" aria-label="À savoir">
+          <h2 class="titre-ordinateur">À savoir</h2>
+          <ProprietesEcole e={e} diplomes={diplomes} />
         </section>
       )}
 
-      {cyclesSansFormation.length > 0 && (
-        <section class="carte formations" aria-label="Formations à renseigner">
-          <h2>Formations</h2>
-          <p class="texte-doux">
-            Les filières {parCycle.length > 0 ? 'de certains niveaux ne sont' : 'ne sont'} pas
-            encore renseignées.
-          </p>
+      <FormationsEcole e={e} />
+      <EquipementsEcole equipements={e.equipements ?? []} />
+
+      {e.photo && (
+        <section class="photos" aria-label="Photos">
+          <h2>Photos</h2>
+          <PhotoEcole photo={e.photo} nom={e.nom} />
         </section>
       )}
     </div>
 
     <div class="fiche-cote">
-      {(e.repere || lienSurLaCarte) && (
-        <section class="carte ou" aria-label="Où est l'école">
-          <h2>Localisation</h2>
+      {aSavoir && confirmee && (
+        <section class="contact" aria-label="Contact">
+          <h2 class="titre-ordinateur">Contact</h2>
+          <ProprietesEcole e={e} diplomes={diplomes} />
+        </section>
+      )}
+
+      {(e.repere || lienSurLaCarte || repereManquant) && (
+        <section class="bloc ou" aria-label="Où est l'école">
+          <h2>{titreOuTrouver(e.nom)}</h2>
           {e.repere && (
             <p class="apercu-repere">
               <Icone nom="repere" petite={false} />
-              <span>
-                <b>Repère&nbsp;:</b> {e.repere}
-              </span>
+              <span>{e.repere}</span>
             </p>
           )}
-          {!e.repere && <p class="texte-doux">{lieu || nomZone}</p>}
+          {repereManquant && <p class="texte-doux">Repère pas encore relevé</p>}
+          <p class="texte-doux">{lieu}</p>
           {lienSurLaCarte && (
-            <a href={lienSurLaCarte}>
+            <a class="bouton bouton-secondaire ou-carte" href={lienSurLaCarte}>
+              <Icone nom="plan" />
               {vueSurPlace ? 'Voir sur la carte' : 'Voir le quartier sur la carte'}
             </a>
           )}
         </section>
       )}
-      <FraisEcole frais={e.frais ?? []} />
-      <EquipementsEcole equipements={e.equipements ?? []} />
-      <aside class="ecoles-appel">
+
+      {!confirmee && (
+        <aside class="ecoles-appel">
+          <h2>{invitationDirection(e.nom)}</h2>
+          <p>
+            Confirmez sa fiche avec nous&nbsp;: la date de votre accord y paraîtra. Ajoutez vos
+            filières, vos frais et votre contact. Ce que vous nous transmettez n’est publié qu’avec
+            votre accord.
+          </p>
+          <a class="bouton" href={confirmer ?? '/pour-les-ecoles/'}>
+            <Icone nom="bulle" />
+            Confirmer cette fiche
+          </a>
+          {confirmer && <a href="/pour-les-ecoles/">Ce que nous vous demanderons</a>}
+        </aside>
+      )}
+
+      <div class="liens-fiche">
+        {confirmee && (
+          <a href={confirmer ?? '/pour-les-ecoles/'}>
+            <Icone nom="bulle" />
+            Mettre à jour cette fiche
+          </a>
+        )}
+        {erreur && (
+          <a href={erreur}>
+            <Icone nom="repere" />
+            Signaler une erreur sur cette fiche
+          </a>
+        )}
+      </div>
+
+      {/* Ticket 147 : l'identifiant NTanova, permanent, et le lien court, la seule forme courte (`/ecoles/<identifiant>/`). */}
+      <div class="identifiant">
         <p>
-          <b>Vous dirigez cet établissement&nbsp;?</b>
+          Identifiant NTanova&nbsp;: <b>{e.numero}</b>
         </p>
         <p>
-          {confirmee
-            ? 'Signalez un changement de filières, de tarifs ou de coordonnées.'
-            : 'Confirmez cette fiche pour publier vos filières, vos tarifs et vos coordonnées officielles.'}
+          Lien court&nbsp;:{' '}
+          <a href={lienCourt(e)}>
+            {hote}
+            {lienCourt(e)}
+          </a>
         </p>
-        <a class="bouton bouton-secondaire" href={confirmer ?? '/pour-les-ecoles/'}>
-          {confirmee ? 'Mettre à jour cette fiche' : 'Confirmer cette fiche'}
-        </a>
-        {confirmer && <a href="/pour-les-ecoles/">Ce que nous vous demanderons</a>}
-        {erreur && <a href={erreur}>Signaler une erreur</a>}
-      </aside>
+        <p>Fiche mise à jour le {dateLongue(e.misAJourLe)}</p>
+      </div>
     </div>
   </div>
-  {/* Ticket 147 : l'identifiant NTanova, permanent, et le lien court, la seule forme courte (`/ecoles/<identifiant>/`). */}
-  <p class="identifiant">
-    Identifiant NTanova&nbsp;: <b>{e.numero}</b> · Lien court&nbsp;:{' '}
-    <a href={lienCourt(e)}>
-      {new URL(lienCourt(e), Astro.site ?? Astro.url).host}
-      {lienCourt(e)}
-    </a>
-  </p>
 </article>
 
 {/* « Partager » : le partage du téléphone quand il existe, sinon la copie du lien avec un retour visible. Sans l'un ni l'autre
@@ -374,41 +380,151 @@ const nomZone = zone.division.nom;
   .fiche {
     display: grid;
     gap: var(--espace-4);
+    padding-block-start: var(--espace-2);
   }
   .fiche h1 {
-    margin: 0;
+    margin: var(--espace-1) 0 0;
     font-family: var(--police-titre);
-    font-size: var(--taille-titre-fiche);
+    font-size: 1.5rem;
     line-height: var(--interligne-titre);
     overflow-wrap: anywhere;
   }
-  .fiche h2 {
+  .fiche :global(h2) {
     margin: 0;
     font-family: var(--police-titre);
     font-size: var(--taille-intertitre);
   }
-  .fiche h3 {
+  .fiche :global(p) {
     margin: 0;
-    font-family: var(--police-titre);
-    font-size: var(--taille-courante);
   }
-  .fiche p {
+
+  /* Le fil d'Ariane : le séparateur est un décor, il ne se lit pas. */
+  .ariane ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--espace-1);
     margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .ariane li + li::before {
+    content: '›' / '';
+    margin-inline-end: var(--espace-1);
+    color: var(--trait-fort);
+  }
+  .ariane a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+  }
+
+  /* La couverture touche les bords du téléphone ; l'en-tête remonte dessus. */
+  .fiche-couverture {
+    margin-inline: calc(var(--espace-4) * -1);
+  }
+  .fiche-tete {
+    position: relative;
+    display: grid;
+    gap: var(--espace-4);
+    margin-top: -30px;
+  }
+  .fiche-identite {
+    display: grid;
+    gap: var(--espace-2);
+    min-width: 0;
+  }
+  .disque-fiche {
+    width: 60px;
+    height: 60px;
+    font-size: 1.625rem;
+    box-shadow: 0 0 0 4px var(--fond);
   }
   .etiquette-campus {
     color: var(--marque-appuyee);
     font-family: var(--police-titre);
     font-weight: 700;
   }
+  .fiche-lieu {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-1);
+    color: var(--texte-doux);
+  }
+  .fiche-lieu :global(.ico) {
+    color: var(--marque);
+  }
+  .fiche-lieu strong {
+    color: var(--texte);
+  }
   .puces {
-    margin: 0;
+    margin: var(--espace-1) 0 0;
     padding: 0;
     list-style: none;
   }
+
+  /* Les preuves : une pastille par preuve, la source et la date sur une ligne. */
   .preuves {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
     gap: var(--espace-2);
+    margin-top: var(--espace-1);
+  }
+  .preuves .preuve {
+    align-items: center;
+    gap: var(--espace-2);
+    min-height: 34px;
+    box-sizing: border-box;
+    padding: 2px var(--espace-3) 2px var(--espace-2);
+    border-radius: var(--rayon-pilule);
+    color: var(--preuve-terrain);
+    font-weight: 700;
+  }
+  .preuves .preuve-direction {
+    color: var(--preuve-direction-texte);
+  }
+  .preuves .preuve-ecole {
+    border-color: var(--preuve-ecole);
+    color: var(--preuve-ecole);
+  }
+  .preuves .preuve-ecole :global(.ico) {
+    color: var(--preuve-ecole);
+  }
+  .preuves .preuve-vide {
+    padding-inline-start: var(--espace-3);
+    color: var(--texte-doux);
+  }
+  .lien-methode {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+
+  /* Les actions : une ligne de trois, ou deux lignes de deux. */
+  .fiche-actions {
+    display: flex;
+    gap: var(--espace-2);
+  }
+  .fiche-actions .bouton {
+    flex: 1;
+    gap: 6px;
+    min-width: 0;
+    padding-inline: var(--espace-1);
+    font-size: 0.9375rem;
+  }
+  .fiche-actions-trois .bouton:first-child {
+    flex-grow: 1.3;
+  }
+  .fiche-actions-quatre {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   /* Le bouton « Partager » dit qu'il a copié le lien. */
   .fiche-actions .copie {
@@ -416,93 +532,109 @@ const nomZone = zone.division.nom;
     background: var(--vert-pale);
     color: var(--marque-appuyee);
   }
-  .preuve {
-    padding: var(--espace-2) var(--espace-3);
-    font-size: var(--taille-secondaire);
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-m);
-    background: var(--fond);
-    color: var(--texte);
-    gap: var(--espace-2);
-  }
-  .preuve-direction :global(.ico) {
-    color: var(--marque);
-  }
   @media (max-width: 24rem) {
     .fiche-actions :global(.ico) {
       display: none;
     }
   }
-  .fiche-actions {
-    display: flex;
-  }
-  .fiche-actions .bouton {
-    flex: 1;
+
+  /* Sur téléphone, les blocs se suivent. Le titre d'« À savoir » et de « Contact » ne sert qu'en colonnes. */
+  .fiche-corps,
+  .fiche-principale,
+  .fiche-cote {
+    display: grid;
+    gap: var(--espace-4);
     min-width: 0;
   }
-  .fiche-actions .bouton-large {
-    grid-column: auto;
+  .titre-ordinateur {
+    display: none;
   }
-  .ecoles-appel {
-    background: var(--fond);
-    color: var(--texte);
-    border: 1px solid var(--trait);
-    padding: var(--espace-4);
-    border-radius: var(--rayon-m);
+  .a-savoir,
+  .contact,
+  .photos {
     display: grid;
     gap: var(--espace-3);
   }
-  .ecoles-appel a {
-    color: var(--marque);
+  .bloc {
+    border: 2px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
   }
-  .proprietes {
+
+  /* Où la trouver */
+  .ou {
     display: grid;
-    grid-template-columns: auto 1fr;
-    gap: var(--espace-3) var(--espace-4);
-    margin: 0;
+    gap: var(--espace-3);
     padding: var(--espace-4);
   }
-  /* Le contact est écrit par ContactEcole : ses dt et dd n'ont pas l'attribut de cette feuille, d'où `:global`. Les lignes
-     « Programme », « Contact » et « Numéro sur l'enseigne » sont alignées de la même façon. */
-  .proprietes :global(dt) {
-    color: var(--texte-doux);
+  .apercu-repere :global(.ico) {
+    color: var(--rouge);
+  }
+  .ou-carte {
+    justify-self: start;
+  }
+
+  /* L'invitation aux directions : le bandeau clair de la maquette, pas le bandeau sombre des pages de zone. */
+  .ecoles-appel {
+    display: grid;
+    gap: var(--espace-3);
+    padding: var(--espace-4);
+    border: 0;
+    border-radius: var(--rayon-m);
+    background: var(--fond-bande);
+    color: var(--texte);
+  }
+  .ecoles-appel p {
     font-size: var(--taille-secondaire);
   }
-  .proprietes :global(dd) {
-    margin: 0;
+  .ecoles-appel .bouton {
+    justify-self: start;
+  }
+  .ecoles-appel > a:not(.bouton) {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-size: var(--taille-secondaire);
     font-weight: 700;
-    text-align: right;
   }
-  .formations,
-  .autres {
+
+  .liens-fiche {
     display: grid;
-    gap: var(--espace-3);
-    padding: var(--espace-4);
+    justify-items: start;
   }
-  .cycle {
-    display: grid;
+  .liens-fiche a {
+    display: inline-flex;
+    align-items: center;
     gap: var(--espace-2);
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
   }
-  .formations ul,
-  .autres ul {
+
+  /* L'identifiant, permanent : en pied de fiche sur téléphone, dans un cadre en colonnes. */
+  .identifiant {
     display: grid;
-    gap: var(--espace-2);
-    margin: 0;
-    padding: 0;
-    list-style: none;
+    gap: var(--espace-1);
+    padding-top: var(--espace-3);
+    border-top: 1px solid var(--trait);
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+    overflow-wrap: anywhere;
   }
-  .formations li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--espace-1) var(--espace-3);
+  .identifiant b {
+    color: var(--texte);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
   }
-  .titre-formation {
+  .identifiant a {
     display: inline-flex;
     align-items: center;
     min-height: var(--cible-min);
-    color: var(--marque);
   }
+
   .sites-ecole {
     border: 1px solid var(--trait);
     border-radius: var(--rayon-m);
@@ -519,25 +651,17 @@ const nomZone = zone.division.nom;
     outline: var(--epaisseur-focus) solid var(--focus);
     outline-offset: 2px;
   }
-  .sites-ecole .autres {
-    padding-top: 0;
+  .autres {
+    display: grid;
+    gap: var(--espace-3);
+    padding: 0 var(--espace-4) var(--espace-4);
   }
-
-  .liens-formation {
-    flex: 1 1 12rem;
-    min-width: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--espace-1) var(--espace-3);
-    color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
-  }
-  .liens-formation a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--cible-min);
-    color: var(--marque);
+  .autres ul {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
   .autres a {
     display: grid;
@@ -550,46 +674,59 @@ const nomZone = zone.division.nom;
     color: var(--marque);
     text-decoration: underline;
   }
-  .identifiant {
-    margin: var(--espace-4) 0 0;
-    color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
-    overflow-wrap: anywhere;
-  }
-  /* Une cible de doigt, comme tous les liens de la fiche. */
-  .identifiant a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--cible-min);
-  }
-  .ou {
-    display: grid;
-    gap: var(--espace-3);
-    padding: var(--espace-4);
-  }
-  .ou > a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--cible-min);
-    color: var(--marque);
-    font-weight: 700;
-  }
-  /* Sur téléphone, les blocs se suivent : les informations de la fiche, puis l’appel aux directions. */
-  .fiche-corps,
-  .fiche-principale,
-  .fiche-cote {
-    display: grid;
-    gap: var(--espace-4);
-  }
 
-  /* À partir de 48 rem : une colonne plus aérée ; à partir de 64 rem, l'appel aux directions passe à droite. */
+  /* À partir de 48 rem : la couverture en bandeau arrondi, les actions à droite du nom. */
   @media (min-width: 48rem) {
     .fiche {
       gap: var(--espace-5);
-      padding-block: var(--espace-7);
+      padding-block-end: var(--espace-7);
     }
     .fiche h1 {
+      margin-top: var(--espace-2);
       font-size: var(--taille-titre-public);
+    }
+    .fiche :global(h2) {
+      font-size: var(--taille-titre-fiche);
+    }
+    .fiche-couverture {
+      margin-inline: 0;
+    }
+    .fiche-tete {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: var(--espace-4) var(--espace-6);
+      margin-top: -60px;
+      padding-left: var(--espace-5);
+    }
+    /* Assez étroit pour laisser quatre boutons à droite du nom, à 1 280 px. */
+    .fiche-identite {
+      flex: 1 1 30rem;
+    }
+    .disque-fiche {
+      width: 84px;
+      height: 84px;
+      font-size: 2.25rem;
+      box-shadow: 0 0 0 6px var(--fond);
+    }
+    .fiche-lieu {
+      font-size: var(--taille-intertitre);
+    }
+    .preuves {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .fiche-actions,
+    .fiche-actions-quatre {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .fiche-actions .bouton {
+      flex: none;
+      gap: var(--espace-2);
+      padding-inline: 1.25rem;
     }
     /* La colonne de la fiche garde la largeur d'une ligne de texte : cartes et texte alignés. */
     .fiche-corps {
@@ -601,27 +738,30 @@ const nomZone = zone.division.nom;
       align-content: start;
       gap: var(--espace-5);
     }
-    .proprietes {
-      grid-template-columns: minmax(9rem, auto) 1fr;
-    }
-    .proprietes :global(dt) {
-      align-self: center;
-    }
-    .proprietes :global(dd) {
-      text-align: left;
-    }
-    .ou > a,
-    .ou .bouton {
-      justify-self: start;
-    }
   }
+
+  /* À partir de 64 rem : deux colonnes ; « À savoir » passe sous les photos, comme sur la maquette. */
   @media (min-width: 64rem) {
     .fiche-corps {
-      /* Les pistes occupent le cadre ; les paragraphes gardent leur limite de lecture. */
-      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-      gap: var(--espace-7);
+      grid-template-columns: minmax(0, 1fr) 20rem;
+      gap: var(--espace-6);
       align-items: start;
       max-width: none;
+    }
+    .fiche .titre-ordinateur {
+      display: block;
+      font-size: var(--taille-titre-fiche);
+    }
+    .fiche-cote .titre-ordinateur {
+      font-size: var(--taille-intertitre);
+    }
+    .a-savoir {
+      order: 1;
+    }
+    .identifiant {
+      padding: var(--espace-3) var(--espace-4);
+      border: 1px solid var(--trait);
+      border-radius: var(--rayon-m);
     }
   }
 </style>

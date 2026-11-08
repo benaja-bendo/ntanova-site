@@ -1,64 +1,76 @@
 ---
-import { nomEquipement, etatPublicEquipement, type Equipement } from '../modele/equipements-ecole';
+import {
+  etatPublicEquipement,
+  groupesEquipementsPublics,
+  nomEquipement,
+  type Equipement,
+} from '../modele/equipements-ecole';
 import { dateLongue } from '../modele/pointe-noire';
+import Icone from './Icone.astro';
 interface Props {
   equipements: Equipement[];
 }
 const { equipements } = Astro.props;
+// Une pastille par équipement, rangées par état, source et date : ce qui est absent ou non précisé ne se lit jamais comme présent.
+const groupes = groupesEquipementsPublics(equipements);
+const provenance = (source: string) =>
+  source === 'terrain' ? 'Observation' : source === 'ecole' ? 'Déclaration' : 'Information';
 ---
 
 {equipements.length > 0 && (
-  <section class="carte equipements-ecole" aria-label="Équipements et infrastructures">
-    <h2>Équipements et infrastructures</h2>
-    <ul>
-      {equipements.map((e) => (
-        <li>
-          <h3>{nomEquipement(e)}</h3>
-          <p>{etatPublicEquipement(e)}</p>
-          <p class="date-equipement">
-            {e.source === 'terrain'
-              ? 'Observation'
-              : e.source === 'ecole'
-                ? 'Déclaration'
-                : 'Information'}{' '}
-            du {dateLongue(e.constateLe)}.
-          </p>
-          {e.note && <p>{e.note}</p>}
-        </li>
-      ))}
-    </ul>
+  <section class="equipements-ecole" aria-label="Équipements et infrastructures">
+    <h2>Équipements</h2>
+    {groupes.map((g) => (
+      <div class="groupe">
+        <ul>
+          {g.liste.map((e) => (
+            <li class="etiquette-type">
+              {g.etat === 'present' && <Icone nom="coche" />}
+              {g.etat === 'absent' && <Icone nom="croix" />}
+              {nomEquipement(e)}
+            </li>
+          ))}
+        </ul>
+        <p class="source">
+          {etatPublicEquipement(g)} · {provenance(g.source)} du {dateLongue(g.constateLe)}.
+        </p>
+        {g.liste.map(
+          (e) =>
+            e.note && (
+              <p>
+                {nomEquipement(e)}&nbsp;: {e.note}
+              </p>
+            ),
+        )}
+      </div>
+    ))}
   </section>
 )}
 <style>
-  .equipements-ecole {
-    padding: var(--espace-4);
-    display: grid;
-    gap: var(--espace-3);
-  }
-  h2 {
-    font-size: var(--taille-titre-fiche);
-  }
-  h3 {
-    font-size: var(--taille-courante);
-  }
-  ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: grid;
-    gap: var(--espace-4);
-  }
-  li {
+  .equipements-ecole,
+  .groupe {
     display: grid;
     gap: var(--espace-2);
   }
-  p,
-  h2,
-  h3 {
+  .equipements-ecole {
+    gap: var(--espace-3);
+  }
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .etiquette-type :global(.ico) {
+    color: var(--marque);
+  }
+  p {
     margin: 0;
   }
-  .date-equipement {
-    color: var(--texte-doux);
+  .source {
+    color: var(--preuve-ecole);
     font-size: var(--taille-secondaire);
   }
 </style>

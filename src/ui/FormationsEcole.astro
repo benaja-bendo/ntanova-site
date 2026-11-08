@@ -1,0 +1,355 @@
+---
+// Les filières d'une école et ses frais (canevas du 08/11/2026, ticket 148) : une ligne par filière, en colonnes sur ordinateur.
+// Les pastilles de filtre sont des boutons radio : aucun JavaScript. La base range les frais par cycle, pas par filière : ils
+// restent sous la liste.
+import { lienFacette } from '../modele/recherche';
+import { libelleDiplome, libelleNiveau, libelleSerie } from '../modele/libelles';
+import { listes } from '../modele/listes';
+import type { EcolePubliee, FormationPublique } from '../modele/ports';
+import {
+  compteDesFormations,
+  filtresDesFormations,
+  messageFiliere,
+  nomDUneFormation,
+  rythmesEnMots,
+  titreDesFormations,
+} from '../modele/presentation-fiche';
+import { NIVEAUX_AVEC_FORMATIONS } from '../modele/fiche';
+import { lienWhatsApp } from '../modele/whatsapp';
+import FraisEcole from './FraisEcole.astro';
+import Icone from './Icone.astro';
+
+interface Props {
+  e: EcolePubliee;
+}
+const { e } = Astro.props;
+const frais = e.frais ?? [];
+
+// Les formations, cycle par cycle (dans l'ordre de la liste des cycles).
+const parCycle = listes.niveau
+  .map((cycle) => ({ cycle, formations: e.formations.filter((f) => f.cycle === cycle) }))
+  .filter((c) => c.formations.length > 0);
+// Un cycle qui a normalement des filières, sans aucune de notée : on le dit.
+const cyclesSansFormation = e.niveaux.filter(
+  (n) => NIVEAUX_AVEC_FORMATIONS.includes(n) && !e.formations.some((f) => f.cycle === n),
+);
+const cycles = parCycle.map((c) => c.cycle);
+const annees = [...new Set(frais.map((f) => f.anneeScolaire))];
+const annee = annees.length === 1 ? annees[0] : null;
+const sousTitre = [
+  parCycle.length > 0 ? compteDesFormations(e.formations.length, cycles) : null,
+  annee ? `année ${annee}` : null,
+]
+  .filter(Boolean)
+  .join(' · ');
+
+// Filtrer n'a de sens que dans une seule liste : sinon un titre de cycle resterait seul, sans ligne dessous.
+const filtres = parCycle.length === 1 ? filtresDesFormations(e.formations) : [];
+const groupesDe = (f: FormationPublique) =>
+  filtres.flatMap((filtre, i) =>
+    filtre.membres.has(e.formations.indexOf(f)) ? [`g-${i + 1}`] : [],
+  );
+
+// Sur une fiche confirmée qui a un contact public, chaque filière a son bouton (arbitrage du 08/11/2026). Sans cela, aucun.
+const contact = e.etat === 'verifiee' ? (e.contactPublic?.numero ?? null) : null;
+const whatsappFiliere = (titre: string) =>
+  contact ? lienWhatsApp(contact, messageFiliere(titre)) : null;
+const avecContact = contact !== null && lienWhatsApp(contact) !== null;
+
+const serieDansLeTitre = (f: FormationPublique) =>
+  f.serie !== null &&
+  f.titre.trim().toLocaleLowerCase('fr') === libelleSerie[f.serie].toLocaleLowerCase('fr');
+---
+
+{parCycle.length > 0 ? (
+  <section class="formations" aria-label="Formations">
+    <div class="tete">
+      <h2>{titreDesFormations(cycles, frais.length > 0)}</h2>
+      {sousTitre && <p>{sousTitre}</p>}
+    </div>
+    <div class="corps">
+      {filtres.length > 0 && (
+        <>
+          <input
+            class="visuellement-cache filtre filtre-0"
+            type="radio"
+            id="filtre-0"
+            name="filtre-formations"
+            checked
+          />
+          <label class="pastille-choix" for="filtre-0">
+            Toutes
+          </label>
+          {filtres.map((filtre, i) => (
+            <>
+              <input
+                class={`visuellement-cache filtre filtre-${i + 1}`}
+                type="radio"
+                id={`filtre-${i + 1}`}
+                name="filtre-formations"
+              />
+              <label class="pastille-choix" for={`filtre-${i + 1}`}>
+                {filtre.libelle}
+              </label>
+            </>
+          ))}
+        </>
+      )}
+      <div class="lignes">
+        {parCycle.map((c) => (
+          <div class="cycle">
+            {parCycle.length > 1 && <h3>{libelleNiveau[c.cycle]}</h3>}
+            <ul class:list={[{ 'avec-contact': avecContact }]}>
+              <li class="entetes" aria-hidden="true">
+                <span>{nomDUneFormation(cycles)}</span>
+                <span>Diplôme</span>
+                <span>Rythme</span>
+                {avecContact && <span>Contact</span>}
+              </li>
+              {c.formations.map((f) => (
+                <li class:list={['filiere', ...groupesDe(f)]}>
+                  <div class="filiere-nom">
+                    {f.serie && serieDansLeTitre(f) ? (
+                      <a href={lienFacette({ facette: 'serie', valeur: f.serie })}>
+                        <b>{f.titre}</b>
+                      </a>
+                    ) : (
+                      <b>{f.titre}</b>
+                    )}
+                    {((f.serie && !serieDansLeTitre(f)) || f.domaine) && (
+                      <span class="filiere-liens">
+                        {f.serie && !serieDansLeTitre(f) && (
+                          <a href={lienFacette({ facette: 'serie', valeur: f.serie })}>
+                            {libelleSerie[f.serie]}
+                          </a>
+                        )}
+                        {f.domaine && (
+                          <a href={lienFacette({ facette: 'domaine', valeur: f.domaine.slug })}>
+                            {f.domaine.nom}
+                          </a>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <div class="filiere-sous">
+                    <span>
+                      {f.diplome && (
+                        <a href={lienFacette({ facette: 'diplome', valeur: f.diplome })}>
+                          {libelleDiplome[f.diplome]}
+                        </a>
+                      )}
+                    </span>
+                    <span>{rythmesEnMots([f])}</span>
+                  </div>
+                  {whatsappFiliere(f.titre) && (
+                    <a
+                      class="filiere-contact"
+                      href={whatsappFiliere(f.titre)}
+                      aria-label={`Écrire à l’établissement sur WhatsApp au sujet de la filière ${f.titre}`}
+                    >
+                      <Icone nom="bulle" />
+                      <span>Écrire</span>
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+    {cyclesSansFormation.length > 0 && (
+      <p class="doux">Les filières de certains niveaux ne sont pas encore renseignées.</p>
+    )}
+    <FraisEcole frais={frais} />
+    {avecContact && (
+      <p class="note">
+        <Icone nom="bulle" />
+        <span>Le bouton d’une filière ouvre WhatsApp avec un message prêt.</span>
+      </p>
+    )}
+  </section>
+) : (
+  <>
+    {cyclesSansFormation.length > 0 && (
+      <section class="formations" aria-label="Formations à renseigner">
+        <h2>Formations</h2>
+        <p class="doux">Les filières ne sont pas encore renseignées.</p>
+      </section>
+    )}
+    <FraisEcole frais={frais} titre="Frais" />
+  </>
+)}
+
+<style>
+  .formations {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .tete {
+    display: grid;
+    gap: var(--espace-1);
+  }
+  .tete p,
+  .doux {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  p {
+    margin: 0;
+  }
+  /* Les radios et la liste sont frères : c'est ce qui permet de filtrer sans JavaScript. */
+  .corps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+  }
+  .filtre:checked + .pastille-choix {
+    border-color: var(--marque);
+    background: var(--vert-pale);
+    color: var(--marque-appuyee);
+  }
+  .filtre:focus-visible + .pastille-choix {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  .filtre-1:checked ~ .lignes .filiere:not(.g-1),
+  .filtre-2:checked ~ .lignes .filiere:not(.g-2),
+  .filtre-3:checked ~ .lignes .filiere:not(.g-3),
+  .filtre-4:checked ~ .lignes .filiere:not(.g-4),
+  .filtre-5:checked ~ .lignes .filiere:not(.g-5) {
+    display: none;
+  }
+  .lignes {
+    flex: 1 1 100%;
+    min-width: 0;
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .cycle {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  h3 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-courante);
+  }
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 2px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    overflow: hidden;
+  }
+  .entetes {
+    display: none;
+  }
+  .filiere {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--espace-3);
+    padding: var(--espace-3) var(--espace-4);
+  }
+  .filiere + .filiere {
+    border-top: 1px solid var(--trait);
+  }
+  .filiere a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+  }
+  .filiere-nom {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    grid-column: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .filiere-nom b {
+    font-family: var(--police-titre);
+    line-height: 1.25;
+  }
+  .filiere-liens,
+  .filiere-sous {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--espace-3);
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .filiere-sous {
+    grid-column: 1;
+  }
+  .filiere .filiere-contact {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: start;
+    justify-content: center;
+    gap: var(--espace-1);
+    width: var(--cible-min);
+    height: var(--cible-min);
+    border: 2px solid var(--marque);
+    border-radius: 50%;
+    text-decoration: none;
+  }
+  .filiere-contact span {
+    display: none;
+  }
+  .note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--espace-2);
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .note :global(.ico) {
+    color: var(--marque);
+  }
+  @media (min-width: 64rem) {
+    .entetes,
+    .filiere {
+      --colonnes: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.2fr);
+      display: grid;
+      grid-template-columns: var(--colonnes);
+      align-items: center;
+      column-gap: var(--espace-4);
+    }
+    .avec-contact .entetes,
+    .avec-contact .filiere {
+      grid-template-columns: var(--colonnes) 6rem;
+    }
+    .entetes {
+      padding: var(--espace-3) var(--espace-4);
+      background: var(--fond-bande);
+      color: var(--texte-doux);
+      font-size: var(--taille-mention);
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .filiere-sous {
+      display: contents;
+    }
+    .filiere .filiere-contact {
+      grid-column: auto;
+      grid-row: auto;
+      align-self: center;
+      justify-self: end;
+      width: auto;
+      height: auto;
+      padding: 0 var(--espace-3);
+      border-radius: var(--rayon-pilule);
+      font-size: var(--taille-secondaire);
+      font-weight: 700;
+    }
+    .filiere-contact span {
+      display: inline;
+    }
+  }
+</style>

@@ -32,11 +32,11 @@ describe('la preuve écrite sur l’image', () => {
   it('dit le passage du relais, l’accord de la direction, ou leur absence, avec la date', () => {
     expect(preuveDePartage(e)).toEqual({
       genre: 'terrain',
-      texte: 'Relevé terrain · 2 nov. 2026',
+      texte: 'Vue sur place · 2 nov. 2026',
     });
     expect(preuveDePartage({ ...e, etat: 'verifiee', verifieeLe: '2026-11-04' })).toEqual({
       genre: 'direction',
-      texte: 'Confirmée par l’école · 4 nov. 2026',
+      texte: 'Confirmée par la direction · 4 nov. 2026',
     });
     expect(preuveDePartage({ ...e, releveeLe: null })).toEqual({
       genre: 'ajoutee',
@@ -84,7 +84,7 @@ describe('le dessin', () => {
       couleurs,
     });
     expect(svg).toContain('École &lt;A&gt; &amp; B');
-    expect(svg).toContain('Relevé terrain · 2 nov. 2026');
+    expect(svg).toContain('Vue sur place · 2 nov. 2026');
     expect(svg).toContain('width="1200" height="630"');
     const permises = new Set(Object.values(couleurs));
     for (const hex of svg.match(/#[0-9a-f]{6}\b/gi) ?? []) expect(permises).toContain(hex);

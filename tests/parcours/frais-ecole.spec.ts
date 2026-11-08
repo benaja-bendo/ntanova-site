@@ -68,7 +68,7 @@ test('fiche publique : fourchette, période, date et inconnues, sans total annue
   await expect(bloc).toContainText('Année scolaire non précisée');
   await expect(bloc).toContainText('Frais d’inscription : non communiqués');
   await expect(bloc).toContainText('Déclarés par l’école le 3 novembre 2026.');
-  await expect(bloc).not.toContainText(/300\s*000|360\s*000|Confirmée par l’école/);
+  await expect(bloc).not.toContainText(/300\s*000|360\s*000|Confirmée par la direction/);
 });
 test('sans déclaration de frais : état vide honnête', async ({ page }) => {
   await page.goto('/ecoles/centre-de-formation-exemple-315702/');

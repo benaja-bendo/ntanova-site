@@ -63,7 +63,7 @@ test('fiche publique : observé, déclaré absent et non précisé restent disti
   await expect(b).toContainText('Non précisé par l’école');
   await expect(b).toContainText('Déclaration du 3 novembre 2026.');
   await expect(b).not.toContainText('Non renseignés :');
-  await expect(b).not.toContainText('Confirmée par l’école');
+  await expect(b).not.toContainText('Confirmée par la direction');
 });
 test('sans information : aucun équipement supposé absent', async ({ page }) => {
   await page.goto('/ecoles/centre-de-formation-exemple-315702/');

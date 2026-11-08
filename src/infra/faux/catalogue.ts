@@ -411,6 +411,7 @@ const ECOLES: EcolePubliee[] = [
     misAJourLe: '2026-11-04T08:00:00Z',
     etat: 'verifiee',
     verifieeLe: '2026-11-04',
+    contactPublic: { numero: '242060000005', accordLe: '2026-11-04' },
     formations: [
       formation('lycee', 'Série A', 'autre', 'a', 'bac', ['jour']),
       formation('lycee', 'Série C', 'sciences-technologies', 'c', 'bac', ['jour']),
@@ -465,6 +466,7 @@ const ECOLES: EcolePubliee[] = [
         'soir',
       ]),
       formation('superieur', 'Licence en gestion', 'gestion', null, 'licence', ['soir', 'weekend']),
+      formation('superieur', 'Licence Banque et assurance', 'gestion', null, 'licence', ['jour']),
       formation('superieur', 'Master en gestion de projets', 'gestion', null, 'master', [
         'weekend',
       ]),

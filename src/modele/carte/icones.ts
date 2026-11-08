@@ -43,6 +43,10 @@ export const ICONES = {
   ],
   liste: ['M9 6h11M9 12h11M9 18h11', 'M4.5 6h.01M4.5 12h.01M4.5 18h.01'],
   plan: ['M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z', 'M9 4v13.5M15 6.5v13.5'],
+  // La fiche d'école (canevas du 08/11/2026, ticket 148) : une déclaration écrite, WhatsApp, l'écusson encore vide.
+  document: ['M6 3.5h8l4 4V20.5H6z', 'M14 3.5v4h4', 'M9 13h6M9 16.5h4'],
+  bulle: ['M4 19.5l1.4-4.2A7.5 7.5 0 1 1 8.7 18.6z'],
+  bouclierVide: ['M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z'],
 } as const;
 
 export type NomIcone = keyof typeof ICONES;

@@ -1,6 +1,7 @@
 ---
 import type { PhotoPublique } from '../modele/photos-publiques';
 import { cheminPhotoPublique } from '../modele/photos-publiques';
+import { dateLongue } from '../modele/pointe-noire';
 interface Props {
   photo: PhotoPublique;
   nom: string;
@@ -17,7 +18,10 @@ const { photo, nom } = Astro.props;
     loading="lazy"
     decoding="async"
   />
-  <figcaption>Photo relevée sur place</figcaption>
+  <figcaption>
+    Photo prise sur place{photo.prisLe ? ` le ${dateLongue(photo.prisLe)}` : ''}. Les photos ne
+    montrent jamais d’enfant.
+  </figcaption>
 </figure>
 <style>
   .photo-ecole {

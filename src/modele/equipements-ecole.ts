@@ -106,3 +106,28 @@ export function etatPublicEquipement(e: { source: string; etat: string }): strin
         ? 'Non précisé par l’école'
         : 'État non précisé';
 }
+
+/**
+ * Les équipements d'une fiche publique, rangés par ce qu'on en sait : même état, même source, même date (ticket 148). Chaque
+ * groupe garde sa source et sa date ; rien ne se fusionne entre « observé » et « déclaré », ni entre deux dates.
+ */
+export function groupesEquipementsPublics<
+  E extends Pick<Equipement, 'source' | 'etat' | 'constateLe'>,
+>(equipements: readonly E[]): { source: string; etat: string; constateLe: string; liste: E[] }[] {
+  const groupes = new Map<
+    string,
+    { source: string; etat: string; constateLe: string; liste: E[] }
+  >();
+  for (const e of equipements) {
+    const cle = `${e.source}|${e.etat}|${e.constateLe}`;
+    const groupe = groupes.get(cle) ?? {
+      source: e.source,
+      etat: e.etat,
+      constateLe: e.constateLe,
+      liste: [],
+    };
+    groupe.liste.push(e);
+    groupes.set(cle, groupe);
+  }
+  return [...groupes.values()];
+}

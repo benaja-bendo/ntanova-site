@@ -242,7 +242,7 @@ test('fiche publique : image locale légère, provenance et partage sans URL pri
   const r = await request.get(src!);
   expect(r.ok()).toBe(true);
   expect((await r.body()).length).toBeLessThanOrEqual(32768);
-  await expect(page.getByText(/Photo relevée sur place/)).toBeVisible();
+  await expect(page.getByText(/Photo prise sur place/)).toBeVisible();
   const html = await page.content();
   expect(html).not.toContain('/storage/v1/');
   const og = await request.get(

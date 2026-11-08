@@ -95,14 +95,14 @@ test('sélection, deux preuves datées, partage puis retour sans quitter la cart
   await page.getByRole('button', { name: 'Chercher', exact: true }).click();
   await page.locator('[data-resultats]').getByRole('button').first().click();
   const apercu = page.locator('.carte-apercu');
-  await expect(apercu).toContainText('Relevé terrain ·');
-  await expect(apercu).toContainText('Confirmée par l’école ·');
+  await expect(apercu).toContainText('Vue sur place ·');
+  await expect(apercu).toContainText('Confirmée par la direction ·');
   // La fiche dit le niveau comme l'épingle : un disque à la lettre du cycle, puis le mot.
   await expect(apercu.locator('.etiquette-niveau .disque').first()).toHaveText(/^[MPCLTS]$/);
   await expect(apercu.locator('.apercu-tete .disque')).toHaveText(/^[MPCLTS]$/);
   // Deux preuves, deux blocs : jamais fusionnées.
   await expect(apercu.locator('.preuve')).toHaveCount(2);
-  await expect(apercu.locator('.preuve-direction')).toContainText('Confirmée par l’école ·');
+  await expect(apercu.locator('.preuve-direction')).toContainText('Confirmée par la direction ·');
   // Une action principale (la fiche), puis deux secondaires, toutes de vraies cibles de doigt.
   await expect(apercu.getByRole('link', { name: 'Voir la fiche' })).toHaveClass(/bouton-large/);
   for (const nom of ['Voir la fiche', 'Y aller', 'Partager sur WhatsApp'])
@@ -372,7 +372,7 @@ test('l’aperçu utilise la même photo publique locale que la fiche, sans just
   await expect
     .poll(() => image.evaluate((e: HTMLImageElement) => e.complete && e.naturalWidth > 0))
     .toBe(true);
-  await expect(apercu).toContainText('Relevé terrain');
+  await expect(apercu).toContainText('Vue sur place');
   await expect(apercu).not.toContainText('jeune');
   await expect(apercu).not.toContainText('seulement ce qui');
 });

@@ -88,6 +88,9 @@
   --preuve-ecole: var(--bleu-ardoise);
   --preuve-vide: var(--gris-vide);
   --preuve-vide-trait: var(--encre-50);
+  /* La couverture dessinée d'une fiche (ticket 148) : les rayures et la grande lettre, en blanc translucide sur la couleur du cycle */
+  --couverture-rayure: rgb(255 255 255 / 7%);
+  --couverture-lettre: rgb(255 255 255 / 14%);
   /* Les cycles : la couleur et la lettre du cycle le plus élevé d'une école, sur son marqueur */
   --cycle-lettre: var(--blanc);
   --cycle-maternelle: var(--ambre);

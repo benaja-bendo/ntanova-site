@@ -34,8 +34,8 @@ test('public : origine déclarée datée, sans preuve terrain et porte ouverte a
 }) => {
   await page.goto('/ecoles/ecole-de-brazzaville-exemple-731590/');
   await expect(page.getByText('Déclarée par l’école · 1 nov. 2026', { exact: true })).toBeVisible();
-  await expect(page.locator('.preuves')).not.toContainText('Relevé terrain');
-  await expect(page.getByText('Confirmée par l’école', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.preuves')).not.toContainText('Vue sur place');
+  await expect(page.getByText('Confirmée par la direction', { exact: true })).toHaveCount(0);
   await page.goto('/pour-les-ecoles/#referencer');
   const section = page.getByRole('region', { name: 'Confirmez ou ajoutez votre école' });
   await expect(section).toContainText('Partout au Congo-Brazzaville');
