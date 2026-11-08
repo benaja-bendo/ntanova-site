@@ -511,13 +511,14 @@ test.describe('zones et lots', () => {
     ).toBeVisible();
     await expect(page.getByText(/ne relèvent que dans une zone ouverte/)).toHaveCount(0);
 
-    // Loandjili : « Déploiement programmé » au départ (en tirets sur la carte), fermée aux relais.
+    // Loandjili : « Déploiement programmé » au départ, fermée aux relais. Depuis le 08/11/2026 (ticket 146), la carte dessine
+    // la zone sans écrire d'état ; le réglage garde ses mots ici.
     await choisirLaZone(page, /^Loandjili/);
     const etat = page.getByRole('group', { name: 'État de Loandjili sur la carte' });
     await expect(etat.getByRole('radio', { name: 'Déploiement programmé' })).toBeChecked();
     await etat.getByRole('radio', { name: 'Relevé en cours' }).click();
     await expect(page.getByRole('status')).toHaveText(
-      'Loandjili est « Relevé en cours » sur la carte. Les relais ne sont pas concernés.',
+      'Loandjili est sur la carte, réglée « Relevé en cours ». Les relais ne sont pas concernés.',
     );
     await expect(etat.getByRole('radio', { name: 'Relevé en cours' })).toBeChecked();
     // L'ouverture aux relais n'a pas bougé.

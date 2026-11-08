@@ -5,14 +5,13 @@
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../infra/index';
 import { donneesDeLaCarte, arrondissementDuRepli } from '../modele/carte/instantane';
-import { etatPublicDe, libelleDeploiement } from '../modele/etat-zone';
 import { compterEcoles, ecolesSous, lienDivision } from '../modele/geo-divisions';
 import { lienWhatsApp } from '../modele/whatsapp';
 import ExplorateurCarte from '../ui/ExplorateurCarte.astro';
 import PagePublique from '../ui/PagePublique.astro';
 
 const site = await obtenirSite();
-const { arbre, ecoles, divisions } = site;
+const { arbre, ecoles } = site;
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 const pointeNoire = arbre.parAdresse.get('congo/pointe-noire');
 // Les villes et départements : les zones juste sous le pays. Là où l'on a des fiches d'abord, puis par nom.
@@ -24,8 +23,6 @@ const villes = arbre.racines
       zone,
       total: siennes.length,
       verifiees: siennes.filter((e) => e.etat === 'verifiee').length,
-      // L'état public de la ville, celui de la carte : une ville sans école le dit au lieu d'afficher « 0 écoles ».
-      etat: etatPublicDe(zone.division, divisions),
     };
   })
   .sort(
@@ -54,10 +51,10 @@ const villes = arbre.racines
           <a class="bouton" href="/carte/" data-vers-carte>
             Explorer la carte
           </a>
-          <a class="bouton bouton-secondaire" href="/recherche/">
-            Rechercher une école
+          <a class="bouton bouton-secondaire" href="/ecoles/">
+            Chercher une école
           </a>
-          <a class="lien-carte" href="/autour-de-moi/">
+          <a class="lien-carte" href="/ecoles/?autour=3">
             Autour de moi
           </a>
         </nav>
@@ -87,11 +84,7 @@ const villes = arbre.racines
                 <span class="quartier-nom">{v.zone.division.nom}</span>
                 <span class="quartier-detail">
                   <span class="quartier-compte">
-                    {v.total > 0
-                      ? compterEcoles(v.total)
-                      : v.etat
-                        ? libelleDeploiement[v.etat]
-                        : 'Aucune école publiée'}
+                    {v.total > 0 ? compterEcoles(v.total) : 'pas encore d’école publiée'}
                     {v.verifiees > 0
                       ? `, dont ${v.verifiees} confirmée${v.verifiees > 1 ? 's' : ''} par la direction`
                       : ''}
@@ -114,9 +107,6 @@ const villes = arbre.racines
         )}
         <a class="lien-carte" href="/ecoles/">
           <span>Voir toutes les écoles</span>
-        </a>
-        <a class="lien-carte" href="/formations/">
-          <span>Les écoles par formation</span>
         </a>
       </div>
     </section>

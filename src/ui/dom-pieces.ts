@@ -6,13 +6,7 @@
  */
 import { ICONES, type NomIcone } from '../modele/carte/icones';
 import { estUneLettreDeCycle } from '../modele/carte/marqueurs';
-import { libelleProvenance } from '../modele/libelles';
-import {
-  iconeDeProvenance,
-  lieuEtRepere,
-  niveauxEtType,
-  type LigneAffichee,
-} from '../modele/ligne-ecole';
+import { iconeDeProvenance, type LigneAffichee } from '../modele/ligne-ecole';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
@@ -54,24 +48,45 @@ export function disque(lettre: string | null | undefined, taille = ''): HTMLElem
 }
 
 /**
- * La ligne d'une école : disque, nom, niveaux et type, lieu et repère, distance quand la liste est classée, preuve, flèche.
- * Même balisage que `LigneEcole.astro`.
+ * La carte d'une école : disque, distance quand la liste est classée, nom, puces et niveaux en mots, lieu, repère, preuve
+ * datée, flèche. Même balisage que `LigneEcole.astro`.
  */
 export function creerLigneEcole(d: LigneAffichee): HTMLLIElement {
   const li = document.createElement('li');
   const a = element('a', 'ligne-ecole');
   a.href = d.url;
   const corps = element('span', 'ligne-corps');
+  if (d.distance) corps.append(element('span', 'ligne-distance', d.distance));
   corps.append(element('span', 'ligne-nom', d.nom));
   if (d.etiquette) corps.append(element('span', 'ligne-sous', d.etiquette));
-  const sousNiveaux = niveauxEtType(d);
-  if (sousNiveaux) corps.append(element('span', 'ligne-sous', sousNiveaux));
-  const sousLieu = lieuEtRepere(d);
-  if (sousLieu) corps.append(element('span', 'ligne-sous', sousLieu));
-  if (d.distance) corps.append(element('span', 'ligne-distance', d.distance));
+  if (d.niveaux) {
+    const niveaux = element('span', 'ligne-niveaux');
+    if (d.lettres.length > 0) {
+      const puces = element('span', 'ligne-puces');
+      puces.setAttribute('aria-hidden', 'true');
+      for (const l of d.lettres) puces.append(element('span', `disque disque-s c-${l}`, l));
+      niveaux.append(puces);
+    }
+    niveaux.append(element('span', '', d.niveaux));
+    corps.append(niveaux);
+  }
+  const lieu = element('span', 'ligne-lieu');
+  lieu.append(element('b', '', d.lieu.fort));
+  if (d.lieu.reste) lieu.append(` · ${d.lieu.reste}`);
+  corps.append(lieu);
+  if (d.repere) {
+    const repere = element('span', 'ligne-repere');
+    repere.append(icone('repere'), element('span', '', d.repere));
+    corps.append(repere);
+  }
+  if (d.repereManquant)
+    corps.append(element('span', 'ligne-repere ligne-repere-vide', 'Repère pas encore relevé'));
+  const rang = element('span', 'ligne-preuve-rang');
   const preuve = element('span', `ligne-preuve ligne-preuve-${d.preuve}`);
-  preuve.append(icone(iconeDeProvenance[d.preuve]), libelleProvenance[d.preuve]);
-  corps.append(preuve);
+  preuve.append(icone(iconeDeProvenance[d.preuve]), d.preuveTexte);
+  rang.append(preuve);
+  if (d.preuveDate) rang.append(element('span', 'ligne-preuve-date', d.preuveDate));
+  corps.append(rang);
   const rond = d.lettre
     ? disque(d.lettre, 'disque-l')
     : (() => {
@@ -90,8 +105,6 @@ export interface EtatVideDonnees {
   /** Ce qui se passe, en une phrase claire. */
   titre: string;
   detail?: string | undefined;
-  /** L'état public de la zone, quand l'état vide est celui d'une zone : l'étiquette de la carte. */
-  etat?: { genre: 'actif' | 'programme'; libelle: string } | null | undefined;
   /** Ce qu'on peut faire d'autre : des boutons à contour. */
   actions?: ActionVide[] | undefined;
   /** « Une école manque ? » : la porte WhatsApp, quand elle est configurée. */
@@ -101,11 +114,6 @@ export interface EtatVideDonnees {
 /** L'état vide, le même partout : un état clair, de quoi continuer, et la porte « Une école manque ? ». Même balisage que `EtatVide.astro`. */
 export function creerEtatVide(d: EtatVideDonnees): HTMLElement {
   const bloc = element('div', 'etat-vide');
-  if (d.etat) {
-    const p = element('p', 'etat-vide-etat');
-    p.append(element('span', `etiquette-zone etiquette-zone-${d.etat.genre}`, d.etat.libelle));
-    bloc.append(p);
-  }
   bloc.append(element('p', 'etat-vide-titre', d.titre));
   if (d.detail) bloc.append(element('p', 'etat-vide-detail', d.detail));
   if (d.actions?.length) {

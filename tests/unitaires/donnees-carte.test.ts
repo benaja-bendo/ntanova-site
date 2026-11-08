@@ -1,12 +1,7 @@
 // Les données de la carte (ticket 102, décisions du fondateur du 03/11) : des fichiers GeoJSON construits avec
 // le site. Les zones disent leur état public ; les écoles sont celles que des relais ont vues sur place.
 import { describe, expect, it } from 'vitest';
-import {
-  cycleLePlusEleve,
-  ecolesGeoJSON,
-  libelleDeploiement,
-  zonesGeoJSON,
-} from '../../src/modele/carte/donnees';
+import { cycleLePlusEleve, ecolesGeoJSON, zonesGeoJSON } from '../../src/modele/carte/donnees';
 import type { DivisionPublique, EcolePubliee } from '../../src/modele/ports';
 
 const division = (
@@ -287,11 +282,9 @@ describe('les zones de la carte', () => {
     expect(parSlug('tie-tie')?.properties).toMatchObject({
       genre: 'zone',
       etat: 'actif',
-      libelle: 'Relevé en cours',
     });
     expect(parSlug('lumumba')?.properties).toMatchObject({
       etat: 'programme',
-      libelle: 'Déploiement programmé',
     });
   });
 
@@ -373,7 +366,6 @@ describe('les communes et les districts sont dessinés comme les villes (audit d
     });
     expect(parSlug('ouesso', 'ville')?.properties).toMatchObject({
       etat: 'actif',
-      libelle: 'Relevé en cours',
       lien: '/ecoles/congo/sangha/ouesso/',
     });
   });
@@ -471,7 +463,6 @@ describe('les contours des zones viennent de la base', () => {
     expect(bzv.every((f) => f.properties.etat === 'programme')).toBe(true);
     const polygone = bzv.find((f) => f.properties.genre === 'zone');
     expect(polygone?.properties).toMatchObject({
-      libelle: 'Déploiement programmé',
       ecoles: 0,
       vues: 0,
     });
@@ -505,11 +496,13 @@ describe('les contours des zones viennent de la base', () => {
   });
 });
 
-describe('les mots de l’état public', () => {
-  it('dit « relevé en cours » et « déploiement programmé », jamais « complet »', () => {
-    expect(libelleDeploiement.actif).toBe('Relevé en cours');
-    expect(libelleDeploiement.programme).toBe('Déploiement programmé');
-    expect(JSON.stringify(libelleDeploiement)).not.toMatch(/complet|terminé|100/i);
+describe('les zones de la carte n’écrivent plus d’état (décision du 08/11/2026, ticket 146)', () => {
+  it('ni « relevé en cours », ni « déploiement programmé », ni « complet »', () => {
+    const zones = zonesGeoJSON({ divisions: D, ecoles: [], contourDe: () => null });
+    expect(zones.features.length).toBeGreaterThan(0);
+    expect(JSON.stringify(zones)).not.toMatch(
+      /Relevé en cours|Déploiement programmé|complet|terminé/i,
+    );
   });
 });
 

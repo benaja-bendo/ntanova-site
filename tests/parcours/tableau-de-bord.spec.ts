@@ -262,14 +262,14 @@ test.describe('tableau de bord : Zones', () => {
     await expect(messageDeLaPage(page)).toBeInViewport();
   });
 
-  test('une ville « pas encore couverte » dit ce que les familles lisent de ses arrondissements', async ({
+  test('une ville « pas encore couverte » dit que ses arrondissements restent sur la carte', async ({
     page,
   }) => {
     await seConnecter(page, '/admin/#zones');
     await choisirLaZone(page, /^Pointe-Noire\s*Ville/);
     await expect(
       page.getByText(
-        /Les familles lisent quand même « Relevé en cours » sur la page de Pointe-Noire/,
+        /Ce que Pointe-Noire contient est quand même sur la carte \(« Relevé en cours\s?»\)/,
       ),
     ).toBeVisible();
   });
@@ -325,7 +325,7 @@ test.describe('tableau de bord : Zones', () => {
 
     await programme.getByRole('button', { name: 'Activer Loandjili' }).click();
     await expect(messageDeLaPage(page)).toHaveText(
-      'Loandjili est « Relevé en cours » sur la carte. Les relais ne sont pas concernés.',
+      'Loandjili est sur la carte, réglée « Relevé en cours ». Les relais ne sont pas concernés.',
     );
     await expect(enCours.getByText('Loandjili', { exact: true })).toBeVisible();
     await expect(programme.getByText('Loandjili', { exact: true })).toHaveCount(0);

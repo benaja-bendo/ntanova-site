@@ -1,0 +1,25 @@
+---
+// Une adresse qui ne sert plus qu'à renvoyer vers la nouvelle (ticket 146 : Rechercher, Autour de moi, les formations et les
+// anciens plans dessinés ont rejoint « Écoles » et « Carte »). Sans JavaScript : rafraîchissement immédiat, adresse canonique
+// et `noindex` (`PagePublique`, `renvoi`), et un lien pour qui ne suit pas le rafraîchissement.
+import PagePublique from './PagePublique.astro';
+
+interface Props {
+  /** La nouvelle adresse. */
+  vers: string;
+}
+const { vers } = Astro.props;
+---
+
+<PagePublique
+  titre="Page déplacée · NTanova"
+  description="Cette page a une nouvelle adresse sur NTanova."
+  renvoi={vers}
+>
+  <section class="cadre page">
+    <h1>Cette page a une nouvelle adresse</h1>
+    <a class="bouton" href={vers}>
+      Voir la page
+    </a>
+  </section>
+</PagePublique>

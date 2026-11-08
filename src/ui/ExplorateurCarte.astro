@@ -1,5 +1,9 @@
 ---
+// La carte interactive, sur l'accueil (aperçu) et sur `/carte/` (l'application) : une seule carte sur tout le site (ticket
+// 146). Tant qu'elle se charge, le signe d'attente (les trois barres du logo) ; l'ancien dessin (`ApercuCarte`) ne sert plus
+// que sans JavaScript, sans WebGL2 ou après un échec.
 import ApercuCarte from './ApercuCarte.astro';
+import Marque from './Marque.astro';
 import type { donneesDeLaCarte, arrondissementDuRepli } from '../modele/carte/instantane';
 interface Props {
   donnees: ReturnType<typeof donneesDeLaCarte>;
@@ -37,11 +41,17 @@ const cycles = [
     role="region"
     aria-label="Carte interactive des écoles"
   >
-    {application && (
-      <p class="carte-attente" role="status">
-        Chargement de la carte…
+    {/* Le signe d'attente (canevas « Chargement », 08/11/2026) : voir le CSS plus bas. Sur l'accueil d'un téléphone qui
+        économise ses données, les barres immobiles disent que la carte attend l'appui. Sans JavaScript : le dessin. */}
+    <div class="carte-attente" role="status" aria-live="polite">
+      <Marque taille={49} />
+      <p class="attente-chargement">Chargement de la carte…</p>
+      <p class="attente-lente">La connexion est lente.</p>
+      <p class="attente-sortie">
+        La carte arrive. En attendant&nbsp;: <a href="/ecoles/">voir la liste des écoles</a>
       </p>
-    )}
+      <p class="attente-appui">La carte se charge à la demande, pour ménager vos données.</p>
+    </div>
     <div class="carte-repli">
       {repli.tete ? (
         <ApercuCarte arrondissement={repli.tete} ecoles={repli.ecoles} lienCarte="/carte/" />
@@ -83,14 +93,6 @@ const cycles = [
           <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
         </svg>
       </button>
-      <div class="legende-carte" role="group" aria-label="Légende des zones" hidden>
-        <p data-legende="programme">
-          <span class="puce-trame" aria-hidden="true"></span>Déploiement programmé
-        </p>
-        <p data-legende="actif">
-          <span class="puce-actif" aria-hidden="true"></span>Relevé en cours
-        </p>
-      </div>
       <aside class="panneau-carte" aria-label="Écoles et recherche" data-hauteur="petit">
         <button
           type="button"
@@ -126,17 +128,14 @@ const cycles = [
         </form>
         <div id="contenu-tiroir">
           <p data-zone class="contexte"></p>
-          {/* Sur téléphone, la légende tient en une ligne ici, sous le texte d'aide : elle ne cache plus la carte. */}
-          <div class="legende-tiroir" role="group" aria-label="Légende des zones" hidden>
-            <p data-legende="programme">
-              <span class="puce-trame" aria-hidden="true"></span>Déploiement programmé
-            </p>
-            <p data-legende="actif">
-              <span class="puce-actif" aria-hidden="true"></span>Relevé en cours
-            </p>
-          </div>
           <div data-selection></div>
-          <p data-compte role="status" aria-live="polite" class="titre-liste"></p>
+          {/* « Voir en liste » : la bascule de la carte vers la liste, dans le tiroir (canevas, ticket 146). */}
+          <div class="tete-liste">
+            <p data-compte role="status" aria-live="polite" class="titre-liste"></p>
+            <a class="voir-en-liste" href="/ecoles/">
+              Voir en liste
+            </a>
+          </div>
           <ul data-resultats class="resultats-carte"></ul>
           <div class="ecole-manque" hidden>
             <h2>Une école manque ?</h2>
@@ -160,7 +159,7 @@ const cycles = [
                 .filter((z) => z.properties.genre === 'zone')
                 .map((z) => (
                   <li>
-                    <a href={z.properties.lien}>{z.properties.nom}</a> · {z.properties.libelle}
+                    <a href={z.properties.lien}>{z.properties.nom}</a>
                   </li>
                 ))}
             </ul>
@@ -174,8 +173,8 @@ const cycles = [
             </ul>
           </div>
           <p class="carte-liens">
-            <a href="/recherche/">Recherche complète</a> · <a href="/ecoles/">Toutes les écoles</a>{' '}
-            · <a href="/a-propos/">Comment les fiches sont tenues</a> ·{' '}
+            <a href="/ecoles/">Toutes les écoles</a> ·{' '}
+            <a href="/a-propos/">Comment les fiches sont tenues</a> ·{' '}
             <a href="/pour-les-ecoles/">Pour les écoles</a>
           </p>
           <p class="confidentialite-position" hidden>
@@ -201,22 +200,139 @@ const cycles = [
     border-radius: var(--rayon-s);
     background: var(--carte-fond);
   }
+  /* Le signe d'attente (canevas « Chargement », 08/11/2026, ticket 146). Il vit dans le CSS pour paraître même avant que le
+     script n'arrive : rien de 0 à 0,4 s, puis les barres et la phrase ; à 10 s, « La connexion est lente. » et la sortie vers
+     la liste. Le chargeur ne fait que le garder au moins 0,5 s (`data-signe="garde"`) et dire quand la carte attend
+     l'appui (`data-attente="appui"`) ou, sur l'accueil, l'arrivée de la carte à l'écran (`data-attente="vue"` : le compte
+     ne part qu'à ce moment). Sans JavaScript, il ne paraît jamais : le dessin et les listes sont là. */
   .carte-attente {
-    display: none;
-    padding: var(--espace-3);
+    position: absolute;
+    inset: 0;
+    /* Sur la carte, sous les puces (3) et le tiroir (4) : le signe ne cache jamais ce qui sert déjà. */
+    z-index: 2;
+    display: grid;
+    grid-template-areas: 'signe' 'phrase' 'sortie';
+    align-content: center;
+    justify-items: center;
+    gap: var(--espace-2);
+    padding: var(--espace-4);
+    background: var(--carte-fond);
     color: var(--texte-doux);
+    text-align: center;
+    pointer-events: none;
+    visibility: hidden;
   }
-  /* Dès le premier rendu HTML, avant même la réception du chargeur.
-     Sans JavaScript, le dessin reste immédiat. Un échec ou l’absence de WebGL2 le rétablit. */
-  @media (scripting: enabled) {
-    .explorateur-app [data-etat='repli'] .carte-repli,
-    .explorateur-app [data-etat='chargement'] .carte-repli {
+  .carte-attente .marque {
+    grid-area: signe;
+  }
+  .carte-attente p {
+    grid-area: phrase;
+    margin: 0;
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .carte-attente .attente-sortie {
+    grid-area: sortie;
+    font-family: var(--police-texte);
+    font-weight: 400;
+  }
+  .carte-attente a {
+    color: var(--marque);
+    font-weight: 700;
+    pointer-events: auto;
+  }
+  .carte-attente :is(.attente-lente, .attente-sortie) {
+    visibility: hidden;
+  }
+  .carte-attente .attente-appui {
+    display: none;
+  }
+  @keyframes attente-montrer {
+    to {
+      visibility: visible;
+    }
+  }
+  @keyframes attente-cacher {
+    to {
       visibility: hidden;
     }
-    .explorateur-app [data-etat='repli'] .carte-attente,
-    .explorateur-app [data-etat='chargement'] .carte-attente {
-      display: block;
+  }
+  @media (scripting: enabled) {
+    .carte-interactive:is([data-etat='repli'], [data-etat='chargement']):not([data-attente])
+      .carte-attente {
+      animation: attente-montrer 0s linear 0.4s forwards;
     }
+    .carte-interactive:is([data-etat='repli'], [data-etat='chargement']):not([data-attente])
+      .attente-chargement {
+      animation: attente-cacher 0s linear 10s forwards;
+    }
+    .carte-interactive:is([data-etat='repli'], [data-etat='chargement']):not([data-attente])
+      :is(.attente-lente, .attente-sortie) {
+      animation: attente-montrer 0s linear 10s forwards;
+    }
+  }
+  /* La carte est prête juste après la venue du signe : il reste encore un peu, pour ne pas clignoter. */
+  .carte-interactive[data-signe='garde'] .carte-attente {
+    visibility: visible;
+  }
+  /* L'accueil d'un téléphone qui économise ses données : la carte attend l'appui, les barres immobiles le disent. */
+  .carte-interactive[data-attente='appui'] .carte-attente {
+    position: static;
+    padding-block: var(--espace-6);
+    visibility: visible;
+  }
+  .carte-interactive[data-attente='appui']
+    :is(.attente-chargement, .attente-lente, .attente-sortie) {
+    display: none;
+  }
+  .carte-interactive[data-attente='appui'] .attente-appui {
+    display: block;
+    font-family: var(--police-texte);
+    font-weight: 400;
+  }
+  /* Les barres se lèvent tour à tour, depuis leur base : de la moitié à toute leur hauteur, en 1,2 s, à 0,15 s d'écart.
+     Immobiles quand la carte attend l'appui, ou quand le téléphone demande moins de mouvement. */
+  @keyframes lever-la-barre {
+    0%,
+    100% {
+      transform: scaleY(0.5);
+    }
+    40% {
+      transform: scaleY(1);
+    }
+    70% {
+      transform: scaleY(0.78);
+    }
+  }
+  .carte-attente .marque path {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+  }
+  .carte-attente .marque .barre-jaune {
+    --decalage: 0.15s;
+  }
+  .carte-attente .marque .barre-rouge {
+    --decalage: 0.3s;
+  }
+  /* Les barres ne bougent que pendant l'attente : cachées, elles ne coûtent rien au téléphone. */
+  @media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+    .carte-interactive:is([data-etat='repli'], [data-etat='chargement'], [data-signe='garde']):not(
+        [data-attente]
+      )
+      .marque
+      path {
+      animation: lever-la-barre 1.2s ease-in-out var(--decalage, 0s) infinite;
+    }
+  }
+  /* Dès le premier rendu HTML, avant même la réception du chargeur : avec JavaScript, l'ancien dessin ne paraît pas pendant
+     l'attente (il « clignotait » avant la carte). Sans JavaScript, il reste ; l'absence de WebGL2 ou un échec le rétablit. */
+  @media (scripting: enabled) {
+    .carte-interactive:is([data-etat='repli'], [data-etat='chargement']) .carte-repli {
+      visibility: hidden;
+    }
+  }
+  .carte-interactive[data-attente='appui'] .carte-repli {
+    display: none;
   }
   .carte-repli {
     position: absolute;
@@ -237,8 +353,8 @@ const cycles = [
   [data-etat='prete'] .carte-repli {
     display: none;
   }
-  /* Sur l'accueil, tant que la carte n'est pas chargée (économiseur de données, connexion lente, pas de WebGL2, échec), le cadre
-     a la hauteur de son dessin, pas celle d'une carte qui n'est pas là : plus de grand vide au-dessus du dessin. */
+  /* Sur l'accueil, quand la carte ne vient pas d'office (économiseur de données, connexion lente, pas de WebGL2, échec), le
+     cadre a la hauteur de ce qu'il montre, pas celle d'une carte qui n'est pas là. */
   .explorateur:not(.explorateur-app) .carte-interactive[data-attente='appui'][data-etat='repli'],
   .explorateur:not(.explorateur-app) .carte-interactive[data-etat='repli-sans-webgl2'],
   .explorateur:not(.explorateur-app) .carte-interactive[data-etat='echec'] {
@@ -268,8 +384,27 @@ const cycles = [
   .panneau-carte a {
     text-underline-offset: 3px;
   }
-  .titre-liste {
+  /* Le compte de la vue et « Voir en liste », sur une ligne. */
+  .tete-liste {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--espace-1) var(--espace-3);
     margin: 0 0 var(--espace-3);
+  }
+  .tete-liste:has(.titre-liste:empty) {
+    justify-content: flex-end;
+  }
+  .voir-en-liste {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+  .titre-liste {
+    margin: 0;
     font-family: var(--police-titre);
     font-size: var(--taille-intertitre);
     font-weight: 700;
@@ -490,7 +625,7 @@ const cycles = [
   @media (max-width: 63.99rem) {
     .explorateur-app[data-active]
       .panneau-carte[data-hauteur='petit']
-      :is(.titre-liste, .resultats-carte, .ecole-manque, .carte-liens, .confidentialite-position) {
+      :is(.resultats-carte, .ecole-manque, .carte-liens, .confidentialite-position) {
       display: none;
     }
   }
@@ -517,38 +652,6 @@ const cycles = [
     right: var(--espace-3);
     bottom: calc(var(--tiroir-h) + 2.5rem);
     z-index: 3;
-  }
-  /* Tant que la carte n'est pas active, aucune légende : le script les dévoile dès le premier mouvement de la carte. */
-  .explorateur-app:not([data-active]) :is(.legende-carte, .legende-tiroir) {
-    display: none;
-  }
-  /* La légende des zones : dans le tiroir sur téléphone (une ligne, sous le texte d'aide), sur la carte sur ordinateur. */
-  .explorateur-app[data-active] .legende-carte {
-    display: none;
-    position: absolute;
-    left: var(--espace-3);
-    bottom: var(--espace-6);
-    z-index: 3;
-  }
-  .legende-tiroir {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--espace-1) var(--espace-4);
-    margin: 0 0 var(--espace-3);
-    color: var(--texte-doux);
-    font-size: var(--taille-mention);
-    font-weight: 700;
-  }
-  .legende-tiroir p {
-    display: flex;
-    align-items: center;
-    gap: var(--espace-2);
-    margin: 0;
-  }
-  .legende-tiroir .puce-trame,
-  .legende-tiroir .puce-actif {
-    width: 18px;
-    height: 12px;
   }
   .explorateur-app[data-active][data-hauteur='grand'] .rond,
   .explorateur-app[data-active]:has(.carte-apercu) .rond {
@@ -605,8 +708,7 @@ const cycles = [
   /* L'aperçu ouvert montre sa fiche : la recherche, la zone et la liste attendent derrière le retour. */
   .panneau-carte:has(.carte-apercu) .recherche-carte,
   .panneau-carte:has(.carte-apercu) [data-zone],
-  .panneau-carte:has(.carte-apercu) .legende-tiroir,
-  .panneau-carte:has(.carte-apercu) .titre-liste,
+  .panneau-carte:has(.carte-apercu) .tete-liste,
   .panneau-carte:has(.carte-apercu) .resultats-carte,
   .panneau-carte:has(.carte-apercu) .ecole-manque {
     display: none;
@@ -636,14 +738,6 @@ const cycles = [
     .explorateur-app[data-active] .rond {
       bottom: 3rem;
       right: var(--espace-4);
-    }
-    .explorateur-app[data-active] .legende-carte {
-      display: grid;
-      left: calc(25rem + var(--espace-4));
-      bottom: var(--espace-6);
-    }
-    .legende-tiroir {
-      display: none !important;
     }
     .explorateur-app[data-active] .maplibregl-ctrl-bottom-right {
       bottom: 0;

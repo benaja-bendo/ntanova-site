@@ -23,14 +23,13 @@ import {
   ZOOM_MAX_DES_GROUPES,
   ZOOM_MAX_DES_VILLES,
   ZOOM_MIN_DES_NOMS,
-  ZOOM_TRAME_EFFACEE,
-  ZOOM_TRAME_PLEINE,
+  COUCHE_ZONES,
   couchesDeLaCarte,
   couleursDeLaCarte,
   filtreDesNoms,
 } from '../../src/modele/carte/couches';
 import { POLICE_DE_LA_CARTE } from '../../src/modele/carte/fond';
-import { IMAGE_ECUSSON, IMAGE_HACHURES, nomDeLEpingle } from '../../src/modele/carte/marqueurs';
+import { IMAGE_ECUSSON, nomDeLEpingle } from '../../src/modele/carte/marqueurs';
 import { styleDeLaCarte, styleDuFond } from '../../src/modele/carte/style';
 
 const css = readFileSync('src/ui/jetons.css', 'utf8');
@@ -55,7 +54,7 @@ describe('le style complet de la carte', () => {
     }
   });
 
-  it('range les zones sous l’eau : le fleuve de Brazzaville n’est jamais hachuré', () => {
+  it('range les zones sous l’eau : le fleuve de Brazzaville n’est jamais coloré', () => {
     const ids = idsDe(style.layers);
     const premiereEau = style.layers.findIndex((l) => sourceLayer(l) === 'water');
     for (const id of idsDe(couches.sousLEau)) {
@@ -65,9 +64,9 @@ describe('le style complet de la carte', () => {
     // … mais au-dessus de la terre, de l'occupation du sol et sous les routes (les pistes d'aéroport passent dessous).
     const terre = style.layers.findIndex((l) => sourceLayer(l) === 'earth');
     const parc = ids.indexOf('landuse_park');
-    expect(ids.indexOf('zones-fond-programme')).toBeGreaterThan(terre);
-    expect(ids.indexOf('zones-fond-programme')).toBeGreaterThan(parc);
-    expect(ids.indexOf('zones-fond-programme')).toBeLessThan(ids.indexOf('roads_minor'));
+    expect(ids.indexOf(COUCHE_ZONES)).toBeGreaterThan(terre);
+    expect(ids.indexOf(COUCHE_ZONES)).toBeGreaterThan(parc);
+    expect(ids.indexOf(COUCHE_ZONES)).toBeLessThan(ids.indexOf('roads_minor'));
   });
 
   it('range les contours sous les noms du fond, et tout le reste tout en haut', () => {
@@ -145,8 +144,7 @@ describe('les couleurs et la police des couches de NTanova', () => {
 
   it('lisent les jetons de la direction artistique', () => {
     const c = couleursDeLaCarte(css);
-    expect(c.zoneActif).toBe('#0b5d4a'); // le vert de la marque : « relevé en cours »
-    expect(c.zoneProgramme).toBe('#868c86'); // un gris : « déploiement programmé », jamais une promesse en vert
+    expect(c.zoneActif).toBe('#0b5d4a'); // le vert de la marque : toutes les zones de la carte (ticket 146)
     expect(c.groupeTexte).toBe('#ffffff');
   });
 
@@ -159,10 +157,10 @@ describe('les couleurs et la police des couches de NTanova', () => {
       expect((l.layout as Record<string, unknown>)['text-font']).toEqual([POLICE_DE_LA_CARTE]);
   });
 
-  it('ne demandent que des images que l’îlot sait dessiner : hachures, écusson et marqueurs', () => {
+  it('ne demandent que des images que l’îlot sait dessiner : écusson et marqueurs, plus de hachures', () => {
     const images = JSON.stringify(style.layers).match(/"icon-image":("[^"]*"|\[.*?\]\])/g) ?? [];
     expect(images.join('')).toContain(IMAGE_ECUSSON);
-    expect(JSON.stringify(couches.sousLEau)).toContain(IMAGE_HACHURES);
+    expect(JSON.stringify(couches.sousLEau)).not.toContain('fill-pattern');
     expect('sprite' in style).toBe(false);
   });
 });
@@ -249,46 +247,26 @@ describe('l’école choisie, le nom des écoles et la trame des zones (refonte 
     expect(JSON.stringify(filtreDesNoms())).not.toContain('ETB');
   });
 
-  it('efface la trame d’un déploiement programmé de près, sans toucher à son contour', () => {
-    const opacite = (zoom: number) =>
-      evaluer(
-        (couche('zones-fond-programme')?.paint as Record<string, unknown>)['fill-opacity'],
-        'fill-opacity',
-        styleSpec.paint_fill['fill-opacity'],
-        zoom,
-        {},
-        3,
-      ) as number;
-    expect(opacite(ZOOM_TRAME_PLEINE - 1)).toBe(1);
-    expect(opacite(ZOOM_TRAME_EFFACEE + 1)).toBe(0);
-    const milieu = opacite((ZOOM_TRAME_PLEINE + ZOOM_TRAME_EFFACEE) / 2);
-    expect(milieu).toBeGreaterThan(0);
-    expect(milieu).toBeLessThan(1);
-    // Le contour pointillé reste, à tous les zooms où la zone existe.
-    expect(couche('zones-contour-programme')?.maxzoom).toBeUndefined();
-  });
-
-  it('n’écrit l’état d’une zone que pour « relevé en cours » : celui d’un déploiement programmé est dans la légende', () => {
-    const texte = (etat: string) =>
+  it('dessine toutes les zones de la même façon et n’écrit que leur nom, sans état (ticket 146)', () => {
+    const zones = [...couches.sousLEau, ...couches.contours];
+    expect(idsDe(zones)).toEqual([COUCHE_ZONES, 'zones-contour']);
+    expect(JSON.stringify(zones)).not.toMatch(/etat|programme|dasharray/);
+    const texte = (id: string, etat: string) =>
       (
         evaluer(
-          (couche('zones-nom')?.layout as Record<string, unknown>)['text-field'],
+          (couche(id)?.layout as Record<string, unknown>)['text-field'],
           'text-field',
           styleSpec.layout_symbol['text-field'],
           12,
-          {
-            genre: 'zone',
-            nom: 'Loandjili',
-            libelle: etat === 'actif' ? 'Relevé en cours' : 'Déploiement programmé',
-            etat,
-          },
+          { genre: id === 'zones-nom' ? 'zone' : 'ville', nom: 'Loandjili', etat },
           3,
         ) as { sections: { text: string }[] }
       ).sections
         .map((s) => s.text)
         .join('');
-    expect(texte('programme')).toBe('Loandjili');
-    expect(texte('actif')).toContain('Loandjili');
-    expect(texte('actif')).toContain('Relevé en cours');
+    for (const etat of ['actif', 'programme']) {
+      expect(texte('zones-nom', etat)).toBe('Loandjili');
+      expect(texte('villes-nom', etat)).toBe('Loandjili');
+    }
   });
 });

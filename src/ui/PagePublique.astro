@@ -13,8 +13,10 @@ interface Props {
   description: string;
   /** Le lien WhatsApp de NTanova, s'il est configuré (voir src/modele/whatsapp.ts). */
   whatsapp?: string | null;
-  /** Une page de renvoi (fiche fusionnée) : l'adresse où aller, sans JavaScript. */
+  /** Une page de renvoi (fiche fusionnée, ancien plan) : l'adresse où aller, sans JavaScript. */
   renvoi?: string;
+  /** Une page qu'un moteur de recherche ne garde pas : la page d'un lieu sans école publiée (ticket 146). */
+  nonIndexee?: boolean;
   /** L'image que WhatsApp montre sous un lien partagé (ticket 101) : celle de la fiche, sinon celle du site. */
   image?: { chemin: string; alt: string };
   /** Les données structurées de la page (`schema.org`), écrites en JSON-LD : jamais exécutées. */
@@ -25,6 +27,7 @@ const {
   description,
   whatsapp = null,
   renvoi,
+  nonIndexee = false,
   image = { chemin: IMAGE_PARTAGE_SITE, alt: 'NTanova : les écoles près de chez vous' },
   donnees,
 } = Astro.props;
@@ -33,19 +36,17 @@ const absolue = (chemin: string) => new URL(chemin, Astro.site ?? Astro.url).hre
 const canonique = absolue(Astro.url.pathname);
 const chemin = Astro.url.pathname;
 const surPourLesEcoles = chemin.startsWith('/pour-les-ecoles');
-const surEcoles =
-  chemin.startsWith('/ecoles') || chemin.startsWith('/cartes') || chemin.startsWith('/formations');
-// Les cinq portes du site : la navigation du haut (à partir de 48 rem) et le menu du téléphone les écrivent toutes deux.
+// Les anciennes portes (rechercher, autour de moi, formations) renvoient vers « Écoles » (`public/_redirects`).
+const surEcoles = chemin.startsWith('/ecoles');
+const surCarte = chemin.startsWith('/carte/');
+// Les quatre entrées du site (décision du fondateur du 08/11/2026, ticket 146) : des choses, pas des outils. Rechercher, Autour
+// de moi et les formations sont des filtres de la page « Écoles ». La navigation du haut (à partir de 48 rem) et le menu du
+// téléphone les écrivent toutes deux.
 const portes = [
-  { href: '/carte/', texte: 'Carte', courante: chemin.startsWith('/carte/') },
-  { href: '/ecoles/', texte: 'Les écoles', courante: surEcoles },
-  { href: '/recherche/', texte: 'Rechercher', courante: chemin.startsWith('/recherche') },
-  {
-    href: '/autour-de-moi/',
-    texte: 'Autour de moi',
-    courante: chemin.startsWith('/autour-de-moi'),
-  },
+  { href: '/ecoles/', texte: 'Écoles', courante: surEcoles },
+  { href: '/carte/', texte: 'Carte', courante: surCarte },
   { href: '/pour-les-ecoles/', texte: 'Pour les écoles', courante: surPourLesEcoles },
+  { href: '/a-propos/', texte: 'À propos', courante: chemin.startsWith('/a-propos') },
 ];
 ---
 
@@ -60,9 +61,9 @@ const portes = [
       <>
         <meta http-equiv="refresh" content={`0; url=${renvoi}`} />
         <link rel="canonical" href={renvoi} />
-        <meta name="robots" content="noindex" />
       </>
     )}
+    {(renvoi || nonIndexee) && <meta name="robots" content="noindex" />}
     {!renvoi && <link rel="canonical" href={canonique} />}
     <meta property="og:site_name" content="NTanova" />
     <meta property="og:locale" content="fr_FR" />
@@ -86,7 +87,7 @@ const portes = [
       crossorigin
     />
   </head>
-  <body>
+  <body data-page={surCarte ? 'carte' : undefined}>
     <header class="entete">
       <div class="cadre entete-cadre">
         <div class="identite">
@@ -94,8 +95,26 @@ const portes = [
             <Marque taille={28} />
             <span>NTanova</span>
           </a>
-          {/* Une simple étiquette : le pays où l'on est. Ni bouton ni lien (audit du 05/11, D13). */}
-          <span class="ville">Congo-Brazzaville</span>
+          {/* Le pays s'ouvre et dit que NTanova recense pour le moment le seul Congo-Brazzaville, sans rien promettre d'autre
+              (décision du fondateur du 08/11/2026, ticket 146 ; il était une simple étiquette depuis l'audit du 05/11, D13). Un
+              `<details>` : aucun JavaScript. */}
+          <details class="pays">
+            <summary class="ville">
+              <Icone nom="globe" />
+              Congo-Brazzaville
+              <Icone nom="bas" />
+            </summary>
+            <div class="pays-bulle">
+              <p class="pays-titre">Pays</p>
+              <p class="pays-choisi">
+                Congo-Brazzaville
+                <Icone nom="coche" />
+              </p>
+              <p>
+                Pour le moment, NTanova recense les écoles du Congo-Brazzaville, ville après ville.
+              </p>
+            </div>
+          </details>
         </div>
         <div class="entete-droite">
           {/* La navigation du haut n'existe qu'à partir de 48 rem ; sur téléphone, le menu l'ouvre (et le pied la répète). */}
@@ -140,16 +159,10 @@ const portes = [
             </p>
             <ul aria-labelledby="pied-trouver">
               <li>
-                <a href="/carte/">Carte</a>
-              </li>
-              <li>
                 <a href="/ecoles/">Les écoles</a>
               </li>
               <li>
-                <a href="/recherche/">Rechercher une école</a>
-              </li>
-              <li>
-                <a href="/autour-de-moi/">Autour de moi</a>
+                <a href="/carte/">Carte</a>
               </li>
             </ul>
           </div>
@@ -214,6 +227,105 @@ const portes = [
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+  /* Le pays (ticket 146) : sur téléphone sous la marque, sa bulle sous l'en-tête ; un petit texte, mais une cible de 32 px. */
+  .pays > summary {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espace-1);
+    min-height: 2rem;
+    list-style: none;
+    cursor: pointer;
+  }
+  /* Une cible de 44 px pour le doigt, sans grandir l'en-tête : la zone touchable déborde du texte. */
+  .pays > summary::after {
+    content: '';
+    position: absolute;
+    inset: -6px -8px;
+  }
+  .pays > summary::-webkit-details-marker {
+    display: none;
+  }
+  .pays > summary :global(svg) {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .pays[open] > summary :global(svg:last-child) {
+    transform: rotate(180deg);
+  }
+  .pays > summary:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--rayon-s);
+  }
+  .pays-bulle {
+    position: absolute;
+    top: 100%;
+    left: var(--espace-4);
+    right: var(--espace-4);
+    z-index: 1;
+    display: grid;
+    gap: var(--espace-2);
+    max-width: 20rem;
+    padding: var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    box-shadow: var(--ombre-flottante);
+    color: var(--texte);
+    font-size: var(--taille-secondaire);
+  }
+  .pays-bulle p {
+    margin: 0;
+  }
+  .pays-titre {
+    color: var(--texte-doux);
+    font-family: var(--police-titre);
+    font-size: var(--taille-mention);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .pays-choisi {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-2);
+    min-height: var(--cible-min);
+    padding: 0 var(--espace-3);
+    border: 2px solid var(--marque);
+    border-radius: var(--rayon-s);
+    background: var(--vert-pale);
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-weight: 700;
+  }
+  .pays-choisi :global(svg) {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  /* Sur la carte, au téléphone : l'en-tête se réduit et le pays se cache, pour laisser la place à la carte entre les filtres
+     et le tiroir (arbitrage du fondateur du 08/11/2026, ticket 146). */
+  @media (max-width: 47.99rem) {
+    [data-page='carte'] .pays {
+      display: none;
+    }
+    [data-page='carte'] .entete-cadre {
+      padding-block: var(--espace-1);
+    }
+    [data-page='carte'] .menu-bouton {
+      min-height: var(--cible-min);
+    }
   }
   .menu-bouton {
     display: inline-flex;
@@ -410,12 +522,32 @@ const portes = [
       text-decoration-thickness: 3px;
       text-underline-offset: 0.35em;
     }
-    .ville {
+    .pays {
+      position: relative;
       grid-column: 2;
       grid-row: 1;
       justify-self: end;
+    }
+    .ville {
       margin-top: 0;
       font-size: var(--taille-secondaire);
+    }
+    .pays > summary {
+      min-height: var(--cible-min);
+      padding: 0 var(--espace-3);
+      border: 2px solid var(--trait);
+      border-radius: var(--rayon-pilule);
+    }
+    .pays[open] > summary {
+      border-color: var(--marque);
+      background: var(--vert-pale);
+      color: var(--marque-appuyee);
+    }
+    .pays-bulle {
+      top: calc(100% + var(--espace-2));
+      left: auto;
+      right: 0;
+      width: 20rem;
     }
     /* Les deux groupes l'un sous l'autre, titres et liens alignés à gauche, le bloc à droite de la phrase. */
     .pied-liens {
@@ -442,7 +574,7 @@ const portes = [
       grid-row: 1;
       justify-content: flex-end;
     }
-    .ville {
+    .pays {
       grid-column: 3;
     }
     /* La phrase garde sa place et ne se casse pas en trois lignes : ce sont les liens qui se partagent le reste. */

@@ -1220,22 +1220,6 @@ button.admin-zone-bascule:focus-visible {
   stroke: var(--carte-zone-actif);
 }
 
-.apercu-zone-programme {
-  fill: url('#admin-apercu-hachures');
-  stroke: var(--carte-zone-programme);
-  stroke-dasharray: 7 5;
-}
-
-.apercu-hachures-fond {
-  fill: var(--jaune-pale);
-  fill-opacity: 0.7;
-}
-
-.apercu-hachures-trait {
-  stroke: var(--carte-zone-programme);
-  stroke-width: 2;
-}
-
 .apercu-ecole {
   stroke: var(--blanc);
   stroke-width: 2;

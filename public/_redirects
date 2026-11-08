@@ -1,0 +1,19 @@
+# Renvois servis par Cloudflare (Workers, fichiers statiques), avant toute page : une règle d'ici l'emporte sur un fichier
+# du même chemin. Les paramètres de l'adresse suivent quand la destination n'en a pas (`/recherche/?q=lycee` mène à
+# `/ecoles/?q=lycee`) ; ils sont remplacés quand elle en a.
+#
+# Ticket 146 (décision du fondateur du 08/11/2026) : Rechercher, Autour de moi et les formations sont devenus des filtres
+# de la page « Écoles ». Les pages par filière reviendront avec « Après le bac » : retirer alors les règles `/formations`.
+
+/recherche /ecoles/ 301
+/recherche/ /ecoles/ 301
+/autour-de-moi /ecoles/?autour=3 301
+/autour-de-moi/ /ecoles/?autour=3 301
+/formations /ecoles/ 301
+/formations/ /ecoles/ 301
+/formations/:facette/:valeur /ecoles/?:facette=:valeur 301
+/formations/:facette/:valeur/ /ecoles/?:facette=:valeur 301
+
+# Les « coins » des anciens plans dessinés renvoient vers la page de leur arrondissement, qui renvoie vers la carte.
+/cartes/:pays/:ville/:arrondissement/:coin/ /cartes/:pays/:ville/:arrondissement/ 301
+/ecoles/:arrondissement/carte/:coin/ /ecoles/:arrondissement/carte/ 301

@@ -68,19 +68,19 @@ test('« Comment les fiches sont tenues » est visible en haut de la page « Qui
   await expect(page.locator('main')).not.toContainText('commence à Tié-Tié');
 });
 
-test('page introuvable : un accès direct à la recherche et aux écoles, et le WhatsApp dans le pied', async ({
+test('page introuvable : un accès direct aux écoles et à la carte, et le WhatsApp dans le pied', async ({
   page,
 }) => {
   const reponse = await page.goto('/une-page-qui-n-existe-pas/');
   expect(reponse?.status()).toBe(404);
   const principal = page.locator('main');
-  await expect(principal.getByRole('link', { name: 'Rechercher une école' })).toHaveAttribute(
-    'href',
-    '/recherche/',
-  );
-  await expect(principal.getByRole('link', { name: 'Voir les écoles' })).toHaveAttribute(
+  await expect(principal.getByRole('link', { name: 'Chercher une école' })).toHaveAttribute(
     'href',
     '/ecoles/',
+  );
+  await expect(principal.getByRole('link', { name: 'Voir la carte' })).toHaveAttribute(
+    'href',
+    '/carte/',
   );
   await expect(principal.getByRole('link', { name: /Revenir à l.accueil/ })).toBeVisible();
   await expect(
@@ -93,11 +93,10 @@ test('le pied de page : deux groupes de liens, et la phrase « République du Co
 }) => {
   await page.goto('/ecoles/');
   const pied = page.locator('footer');
+  // Ticket 146 : Rechercher et Autour de moi sont des filtres de la page « Écoles ».
   await expect(pied.getByRole('list', { name: 'Trouver une école' }).getByRole('link')).toHaveText([
-    'Carte',
     'Les écoles',
-    'Rechercher une école',
-    'Autour de moi',
+    'Carte',
   ]);
   await expect(pied.getByRole('list', { name: 'NTanova' }).getByRole('link')).toHaveText([
     'Pour les écoles',
@@ -120,21 +119,8 @@ test('le pied de page de téléphone n’occupe plus qu’environ la moitié de 
   test.skip((page.viewportSize()?.width ?? 0) > 400, 'téléphone seulement');
   await page.goto('/ecoles/');
   const liens = await page.locator('footer nav').boundingBox();
-  // Sept liens de 44 px en une colonne : 308 px. Deux colonnes : ≈ 4 lignes.
+  // Cinq liens de 44 px en une colonne : 220 px. Deux colonnes : ≈ 3 lignes.
   expect(liens!.height).toBeLessThanOrEqual(240);
-});
-
-test('« Autour de moi » : plus de point médian collé entre les deux liens', async ({ page }) => {
-  await page.goto('/autour-de-moi/');
-  const chemins = page.locator('.autres-chemins');
-  await expect(chemins).not.toContainText('·');
-  const [a, b] = await chemins.getByRole('link').all();
-  const boiteA = await a!.boundingBox();
-  const boiteB = await b!.boundingBox();
-  // Côte à côte avec un écart, ou l'un sous l'autre : jamais collés.
-  const aCote = Math.abs(boiteA!.y - boiteB!.y) < 4;
-  if (aCote) expect(boiteB!.x - (boiteA!.x + boiteA!.width)).toBeGreaterThanOrEqual(16);
-  else expect(boiteB!.y).toBeGreaterThanOrEqual(boiteA!.y + boiteA!.height);
 });
 
 test('l’accueil : les liens sous les villes ne se touchent pas, et les deux boutons ont la même hauteur', async ({
@@ -142,7 +128,7 @@ test('l’accueil : les liens sous les villes ne se touchent pas, et les deux bo
 }) => {
   await page.goto('/');
   const liens = await page.locator('.liens-villes a').all();
-  expect(liens.length).toBe(3);
+  expect(liens.length).toBe(2);
   const boites = await Promise.all(liens.map((l) => l.boundingBox()));
   for (let i = 1; i < boites.length; i++) {
     const avant = boites[i - 1]!;
@@ -151,8 +137,8 @@ test('l’accueil : les liens sous les villes ne se touchent pas, et les deux bo
     if (memeLigne) expect(apres.x - (avant.x + avant.width)).toBeGreaterThanOrEqual(16);
     else expect(apres.y).toBeGreaterThanOrEqual(avant.y + avant.height);
   }
-  // D17 : « Explorer la carte » et « Rechercher une école » mesurent 48 px, ni plus ni moins.
-  for (const nom of ['Explorer la carte', 'Rechercher une école']) {
+  // D17 : « Explorer la carte » et « Chercher une école » mesurent 48 px, ni plus ni moins.
+  for (const nom of ['Explorer la carte', 'Chercher une école']) {
     const bouton = await page
       .locator('.actions-accueil')
       .getByRole('link', { name: nom, exact: true })

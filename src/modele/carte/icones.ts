@@ -27,6 +27,22 @@ export const ICONES = {
   croix: ['M6 6l12 12M18 6L6 18'],
   retour: ['M15 6l-6 6 6 6'],
   suite: ['M9 6l6 6-6 6'],
+  // Le pays de l'en-tête (ticket 146) : un globe, et la flèche qui dit que l'étiquette s'ouvre.
+  globe: [
+    'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0',
+    'M3.5 9h17M3.5 15h17',
+    'M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z',
+  ],
+  bas: ['M6 9l6 6 6-6'],
+  // La page « Écoles » (ticket 146) : chercher, autour de moi, la bascule Liste | Carte.
+  loupe: ['M4 10.5a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0-13 0', 'M15.5 15.5L20 20'],
+  cible: [
+    'M12 2v3M12 19v3M2 12h3M19 12h3',
+    'M5.5 12a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0-13 0',
+    'M10.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0',
+  ],
+  liste: ['M9 6h11M9 12h11M9 18h11', 'M4.5 6h.01M4.5 12h.01M4.5 18h.01'],
+  plan: ['M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z', 'M9 4v13.5M15 6.5v13.5'],
 } as const;
 
 export type NomIcone = keyof typeof ICONES;

@@ -133,7 +133,7 @@ test.describe('les informations utiles au premier écran', () => {
     await expect(serie.getByText('Série A', { exact: true })).toHaveCount(1);
     await expect(serie.getByRole('link', { name: 'Série A', exact: true })).toHaveAttribute(
       'href',
-      '/formations/serie/a/',
+      '/ecoles/?serie=a',
     );
     await expect(serie).toContainText('Baccalauréat');
     await expect(serie).toContainText('Cours du jour');
@@ -273,15 +273,14 @@ test.describe('« Où est l’école »', () => {
     await expect(page.getByRole('link', { name: 'Voir sur la carte', exact: true })).toHaveCount(0);
   });
 
-  test('avec des rues dessinées (Tié-Tié), le petit plan reste, et mène à la carte du quartier', async ({
+  test('même avec des rues dessinées (Tié-Tié), plus de petit plan : « Voir sur la carte » mène à la seule carte (ticket 146)', async ({
     page,
   }) => {
     await page.goto(COMPLEXE);
-    await expect(page.getByRole('group', { name: /sur la carte de Tié-Tié/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Voir sur la carte de Tié-Tié' })).toHaveAttribute(
-      'href',
-      '/cartes/congo/pointe-noire/tie-tie/',
-    );
+    await expect(page.getByRole('group', { name: /sur la carte de/ })).toHaveCount(0);
+    await expect(
+      page.getByRole('link', { name: 'Voir sur la carte', exact: true }),
+    ).toHaveAttribute('href', /^\/carte\/\?ecole=.+#15\/-4\.79105\/11\.925$/);
   });
 
   test('sans position ni repère : aucun bloc de localisation vide', async ({ page }) => {
@@ -340,7 +339,7 @@ test.describe('sur ordinateur', () => {
 });
 
 test.describe('le menu du téléphone', () => {
-  test('« Menu » ouvre les cinq portes du site, sans JavaScript, et la page courante est marquée', async ({
+  test('« Menu » ouvre les quatre portes du site, sans JavaScript, et la page courante est marquée (ticket 146)', async ({
     browser,
     baseURL,
   }) => {
@@ -356,20 +355,19 @@ test.describe('le menu du téléphone', () => {
     await expect(menu).toBeHidden();
     await page.locator('summary.menu-bouton').click();
     await expect(menu.getByRole('link')).toHaveText([
+      'Écoles',
       'Carte',
-      'Les écoles',
-      'Rechercher',
-      'Autour de moi',
       'Pour les écoles',
+      'À propos',
     ]);
     for (const lien of await menu.getByRole('link').all())
       expect((await lien.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    await expect(menu.getByRole('link', { name: 'Les écoles', exact: true })).toHaveAttribute(
+    await expect(menu.getByRole('link', { name: 'Écoles', exact: true })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    await menu.getByRole('link', { name: 'Rechercher' }).click();
-    await expect(page).toHaveURL(/\/recherche\/$/);
+    await menu.getByRole('link', { name: 'Carte' }).click();
+    await expect(page).toHaveURL(/\/carte\/$/);
     await contexte.close();
   });
 
@@ -390,18 +388,32 @@ test.describe('le menu du téléphone', () => {
     expect(pointe).toBe(true);
   });
 
-  test('« Congo-Brazzaville » est une étiquette : ni lien, ni bouton, ni contour, ni curseur de clic', async ({
-    page,
+  test('« Congo-Brazzaville » s’ouvre sans JavaScript et dit que NTanova ne recense pour le moment que ce pays (ticket 146)', async ({
+    browser,
+    baseURL,
   }) => {
+    const contexte = await browser.newContext({
+      javaScriptEnabled: false,
+      viewport: { width: 360, height: 640 },
+      baseURL: baseURL ?? '',
+    });
+    const page = await contexte.newPage();
     await page.goto('/');
-    const etiquette = page.locator('header .ville');
-    await expect(etiquette).toBeVisible();
-    await expect(etiquette).toHaveText('Congo-Brazzaville');
-    expect(await etiquette.evaluate((e) => e.tagName)).toBe('SPAN');
-    expect(await etiquette.evaluate((e) => e.closest('a, button, summary'))).toBeNull();
-    await expect(etiquette).toHaveCSS('border-top-width', '0px');
-    await expect(etiquette).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-    await expect(etiquette).not.toHaveCSS('cursor', 'pointer');
+    const pays = page.locator('header details.pays');
+    await expect(pays.locator('summary')).toHaveText('Congo-Brazzaville');
+    const bulle = pays.locator('.pays-bulle');
+    await expect(bulle).toBeHidden();
+    await pays.locator('summary').click();
+    await expect(bulle).toBeVisible();
+    await expect(bulle).toContainText(
+      'Pour le moment, NTanova recense les écoles du Congo-Brazzaville, ville après ville.',
+    );
+    // Rien de promis au-delà : aucun autre pays, aucun lien.
+    await expect(bulle.getByRole('link')).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      360,
+    );
+    await contexte.close();
   });
 });
 

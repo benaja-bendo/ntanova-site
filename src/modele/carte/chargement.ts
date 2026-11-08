@@ -30,3 +30,16 @@ export function modeDeChargement(
     return 'sur-appui';
   return 'd-office';
 }
+
+/**
+ * Le signe d'attente de la carte (canevas « Chargement », validé par le fondateur le 08/11/2026, ticket 146) : rien avant
+ * 0,4 s (sur une bonne connexion, personne ne le voit), au moins 0,5 s une fois paru (il ne clignote pas), et après 10 s une
+ * sortie vers la liste des écoles (personne ne reste bloqué).
+ */
+export const ATTENTE_DE_LA_CARTE = { avantLeSigne: 400, signeAuMoins: 500, lente: 10_000 } as const;
+
+/** Combien de millisecondes garder encore le signe paru à `paruA` (`null` : il n'a pas paru). */
+export function resteDuSigne(paruA: number | null, maintenant: number): number {
+  if (paruA === null) return 0;
+  return Math.max(0, ATTENTE_DE_LA_CARTE.signeAuMoins - (maintenant - paruA));
+}

@@ -2,9 +2,10 @@
  * Les données de la carte interactive (ticket 102, décisions du fondateur du 03/11) : deux fichiers GeoJSON construits
  * avec le site, donc le même instantané que les pages.
  *
- * - les **zones** disent leur état public : « relevé en cours » (`actif`) ou « déploiement programmé » (`programme`),
- *   avec des compteurs publics (écoles publiées, vues sur place, confirmées par la direction, dernier passage) ;
- *   aucun seuil du registre, aucun « complet » ;
+ * - les **zones** sont celles que l'administration met sur la carte (`deploiement` réglé), avec des compteurs publics
+ *   (écoles publiées, vues sur place, confirmées par la direction, dernier passage) ; aucun seuil du registre, aucun
+ *   « complet ». Leur réglage (`etat`) ne sert plus qu'à cadrer la carte : la carte ne l'écrit plus (« relevé en cours »,
+ *   « déploiement programmé »), décision du fondateur du 08/11/2026, ticket 146 ;
  * - les **écoles** sont celles qu'un relais a vues sur place (la carte est la vitrine de la preuve de terrain) ;
  *   chacune porte tous ses cycles (l'aperçu les liste) et le plus élevé (le marqueur : sa lettre et sa couleur).
  *
@@ -12,7 +13,7 @@
  */
 import { cheminPhotoPublique } from '../photos-publiques';
 import { lienDivision, lienEcole, ligneDeLieu, sansRepetition } from '../geo-divisions';
-import { etatPublicDe, libelleDeploiement, type EtatDeploiement } from '../etat-zone';
+import { etatPublicDe, type EtatDeploiement } from '../etat-zone';
 import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../libelles';
 import { listes } from '../listes';
 import type { MultiPolygone } from '../geo';
@@ -23,8 +24,8 @@ import { vuesSurPlace } from './plan';
 import { simplifierContour } from './simplification';
 
 type Niveau = Valeur<'niveau'>;
-// L'état d'une zone et ses mots vivent dans `modele/etat-zone.ts` : la carte et les pages de zone lisent la même vérité.
-export { libelleDeploiement, type EtatDeploiement } from '../etat-zone';
+// L'état d'une zone vit dans `modele/etat-zone.ts` ; l'administration le règle et en lit les mots.
+export type { EtatDeploiement } from '../etat-zone';
 
 import { ORDRE_LETTRES, cycleLePlusEleve, lettresDesCycles } from './cycles';
 export { cycleLePlusEleve, lettresDesCycles };
@@ -124,8 +125,8 @@ export interface FeatureZone {
     genre: 'zone' | 'ville';
     nom: string;
     slug: string;
+    /** Le réglage de l'administration : il cadre la carte, la carte ne l'écrit pas. */
     etat: EtatDeploiement;
-    libelle: string;
     /** La page des écoles de la zone. */
     lien: string;
     ecoles: number;
@@ -204,7 +205,6 @@ export function zonesGeoJSON({
         nom: d.nom,
         slug: d.slug,
         etat,
-        libelle: libelleDeploiement[etat],
         lien: lienDivision(d.adresse),
         ...compteurs(adresseDe(d), ecoles),
       },

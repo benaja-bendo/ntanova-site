@@ -1,9 +1,10 @@
 /**
- * L'état public d'une zone : ce que la carte et les pages disent d'elle, écrit une seule fois (audit du 05/11/2026, D2).
+ * L'état d'une zone, réglé dans l'administration (audit du 05/11/2026, D2) : « relevé en cours », « déploiement
+ * programmé », ou rien.
  *
- * Avant ce fichier, la carte lisait l'état réglé dans l'administration (`division.deploiement`) et les pages de zone
- * écrivaient « relevé en cours » pour toute zone sans école : une famille lisait « Déploiement programmé » sur la carte
- * et « relevé en cours » sur la page du même quartier. Les deux passent maintenant par `etatPublicDe`.
+ * Depuis le 08/11/2026 (décision du fondateur qui revient sur D2, ticket 146), le site public ne l'écrit plus : ni la
+ * carte, ni les pages de lieu. Le réglage décide encore quelles zones la carte dessine (`carte/donnees.ts`) et où elle
+ * s'ouvre (`carte/cadrage.ts`) ; l'administration en garde les mots.
  *
  * Pur : ce fichier ne connaît ni la base ni Astro.
  */
@@ -35,20 +36,4 @@ export function etatPublicDe(
   if (dessous.some((x) => x.deploiement === 'actif')) return 'actif';
   if (dessous.some((x) => x.deploiement === 'programme')) return 'programme';
   return null;
-}
-
-/** Les mots d'une zone qui n'a pas encore d'école publiée : son état, dit tel quel, sans rien promettre de plus. */
-export function phraseSansEcole(etat: EtatDeploiement | null): string {
-  if (etat === 'actif') return 'Aucune école publiée pour l’instant : le relevé est en cours.';
-  if (etat === 'programme')
-    return 'Aucune école publiée pour l’instant : le déploiement est programmé.';
-  return 'Aucune école publiée pour l’instant.';
-}
-
-/** La phrase d'une zone qui a des écoles, sur ce qui reste à relever. */
-export function phraseDeLaSuite(etat: EtatDeploiement | null): string {
-  if (etat === 'actif') return 'Le relevé est en cours : d’autres écoles peuvent encore s’ajouter.';
-  if (etat === 'programme')
-    return 'Le déploiement est programmé : le relevé n’a pas encore commencé partout.';
-  return 'Une partie du territoire n’est pas encore relevée.';
 }

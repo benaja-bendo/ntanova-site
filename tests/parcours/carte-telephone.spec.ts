@@ -147,26 +147,31 @@ test('l’attribution d’OpenStreetMap reste écrite et ne recouvre jamais le t
   await verifier('petit');
 });
 
-test('la légende des zones tient sur une ligne dans le tiroir, et la carte reste libre', async ({
+test('plus de légende des zones (ticket 146) : le tiroir dit le compte de la vue et « Voir en liste »', async ({
   page,
 }) => {
   await ouvrir(page);
-  await expect(page.locator('.legende-carte')).toBeHidden();
-  const legende = page.locator('.legende-tiroir');
-  await expect(legende).toBeVisible();
-  await expect(legende).toContainText('Déploiement programmé');
-  await expect(legende).toContainText('Relevé en cours');
+  await expect(page.locator('.legende-carte, .legende-tiroir')).toHaveCount(0);
+  const voir = page.getByRole('link', { name: 'Voir en liste' });
+  await expect(voir).toBeVisible();
+  await expect(voir).toHaveAttribute('href', '/ecoles/');
   const tiroir = await boite(page, '.panneau-carte');
-  const l = await boite(page, '.legende-tiroir');
-  expect(l.y).toBeGreaterThanOrEqual(tiroir.y);
-  expect(l.y + l.height).toBeLessThanOrEqual(tiroir.y + tiroir.height);
-  // Une ligne : sur 360 px, les deux repères se suivent sans passer à la ligne.
-  expect(l.height).toBeLessThan(30);
-  // Une école choisie : la fiche remplace le texte d'aide et la légende.
+  const lien = await boite(page, '.voir-en-liste');
+  expect(lien.y).toBeGreaterThanOrEqual(tiroir.y);
+  expect(lien.y + lien.height).toBeLessThanOrEqual(tiroir.y + tiroir.height);
+  expect(lien.height).toBeGreaterThanOrEqual(44);
+  // Une école choisie : la fiche remplace le compte et « Voir en liste ».
   await page.getByRole('button', { name: 'Voir les écoles', exact: true }).click();
   await page.locator('[data-resultats]').getByRole('button').first().click();
   await expect(page.locator('.carte-apercu')).toBeVisible();
-  await expect(legende).toBeHidden();
+  await expect(voir).toBeHidden();
+});
+
+test('sur téléphone, l’en-tête de la carte est réduit et le pays masqué', async ({ page }) => {
+  await ouvrir(page);
+  await expect(page.locator('header details.pays')).toBeHidden();
+  const entete = await boite(page, 'header');
+  expect(entete.height).toBeLessThanOrEqual(72);
 });
 
 test('toucher la recherche ouvre le tiroir en grand ; le clavier ne fait pas sauter la page', async ({

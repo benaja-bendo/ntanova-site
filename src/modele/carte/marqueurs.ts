@@ -25,7 +25,6 @@ export const JETON_DU_CYCLE: Record<LettreDeCycle, string> = {
 
 /** Les images que le style demande à l'îlot de dessiner. */
 export const IMAGE_ECUSSON = 'ecusson';
-export const IMAGE_HACHURES = 'hachures';
 
 const PREFIXE = 'epingle-';
 const SUFFIXE_CONFIRMEE = '-confirmee';

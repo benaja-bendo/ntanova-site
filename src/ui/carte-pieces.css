@@ -45,6 +45,12 @@
   height: 40px;
   font-size: var(--taille-intertitre);
 }
+/* La puce d'un cycle dans la carte d'une école : 20 px, la même lettre que le disque (ticket 146). */
+.disque-s {
+  width: 20px;
+  height: 20px;
+  font-size: 0.6875rem;
+}
 .disque-vide {
   border: 2px dashed var(--trait-fort);
   background: transparent;
@@ -250,6 +256,7 @@
   font-size: 1.5rem;
   cursor: pointer;
 }
+/* Le nom de la zone qu'on regarde sur la carte : un nom seul, sans état (ticket 146). */
 .etiquette-zone {
   display: inline-flex;
   align-items: center;
@@ -257,17 +264,10 @@
   min-height: 28px;
   padding: 0 var(--espace-3);
   border-radius: var(--rayon-pilule);
-  font-size: var(--taille-secondaire);
-  font-weight: 700;
-}
-.etiquette-zone-actif {
   background: var(--vert-pale);
   color: var(--marque-appuyee);
-}
-.etiquette-zone-programme {
-  border: 1.5px dashed var(--trait-fort);
-  background: var(--fond-bande);
-  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
 }
 .ligne-ecole {
   display: flex;
@@ -326,19 +326,65 @@
 .ligne-ecole .ico {
   color: var(--texte-doux);
 }
-/* La distance (« À 350 m »), quand la liste est classée. */
+/* La distance (« À 350 m »), quand la liste est classée : en tête, du plus proche au plus loin. */
 .ligne-distance {
   color: var(--marque-appuyee);
   font-size: var(--taille-secondaire);
   font-weight: 700;
   line-height: 1.35;
 }
-/* La preuve d'une ligne : une seule, dite en quelques mots, avec la même icône que le bloc de la fiche. */
+/* Les niveaux : une puce par cycle, puis les niveaux en mots et le type. Jamais la couleur seule. */
+.ligne-niveaux {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-1) var(--espace-2);
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+  line-height: 1.35;
+}
+.ligne-puces {
+  display: inline-flex;
+  gap: 3px;
+}
+/* Le lieu : le plus fin en gras, puis ce qui le contient. */
+.ligne-lieu {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+  line-height: 1.35;
+}
+.ligne-lieu b {
+  color: var(--texte);
+}
+/* Le repère, avec le drapeau rouge de la carte ; « Repère pas encore relevé » en gris. */
+.ligne-repere {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--espace-1);
+  font-size: var(--taille-secondaire);
+  line-height: 1.35;
+}
+.ligne-ecole .ligne-repere .ico {
+  flex: none;
+  margin-top: 0.15em;
+  color: var(--carte-repere);
+}
+.ligne-repere-vide {
+  color: var(--preuve-vide);
+  font-style: italic;
+}
+/* La preuve d'une carte : une seule, la plus forte, datée ; la même icône que le bloc de la fiche. */
+.ligne-preuve-rang {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-1) var(--espace-2);
+  margin-top: var(--espace-1);
+}
 .ligne-preuve {
   display: inline-flex;
   align-items: flex-start;
   gap: var(--espace-1);
-  margin-top: var(--espace-1);
   font-size: var(--taille-secondaire);
   font-weight: 700;
   line-height: 1.35;
@@ -348,13 +394,29 @@
   margin-top: 0.15em;
   color: currentColor;
 }
+/* Confirmée par la direction : la pastille pleine, sa date à côté. */
 .ligne-preuve-verifiee {
-  color: var(--preuve-direction);
+  align-items: center;
+  min-height: 24px;
+  padding: 0 var(--espace-2);
+  border-radius: var(--rayon-pilule);
+  background: var(--preuve-direction);
+  color: var(--preuve-direction-texte);
+}
+.ligne-ecole .ligne-preuve-verifiee .ico {
+  margin-top: 0;
+}
+.ligne-preuve-date {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
 }
 .ligne-preuve-relevee {
   color: var(--preuve-terrain);
 }
-.ligne-preuve-declaree,
+.ligne-preuve-declaree {
+  color: var(--preuve-ecole);
+}
 .ligne-preuve-ajoutee {
   color: var(--preuve-vide);
 }
@@ -422,41 +484,6 @@
 .rond:disabled {
   color: var(--preuve-vide);
   cursor: progress;
-}
-.legende-carte {
-  display: grid;
-  gap: var(--espace-2);
-  padding: var(--espace-3);
-  border-radius: var(--rayon-m);
-  background: var(--fond-releve);
-  box-shadow: var(--ombre-flottante);
-  font-size: var(--taille-secondaire);
-  font-weight: 700;
-}
-.legende-carte p {
-  display: flex;
-  align-items: center;
-  gap: var(--espace-3);
-  margin: 0;
-}
-.puce-trame,
-.puce-actif {
-  flex: none;
-  width: 24px;
-  height: 16px;
-  border-radius: 3px;
-}
-.puce-trame {
-  border: 1.5px dashed var(--carte-zone-programme);
-  background: repeating-linear-gradient(
-    45deg,
-    var(--carte-zone-programme) 0 1px,
-    transparent 1px 6px
-  );
-}
-.puce-actif {
-  border: 2px solid var(--carte-zone-actif);
-  background: var(--vert-pale);
 }
 /* Sur téléphone, la croix ferme la fiche ; sur ordinateur, le retour à la liste. */
 

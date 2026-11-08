@@ -1,8 +1,13 @@
 // Le cadre par défaut de la carte interactive, son zoom borné, la règle de chargement et le nom des marqueurs
 // (ticket 103, décisions D7 et D9 du fondateur, 03/11/2026). Les fichiers GeoJSON viennent des vrais constructeurs.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { cadreParDefaut, boiteDes, villeDuLien } from '../../src/modele/carte/cadrage';
-import { modeDeChargement } from '../../src/modele/carte/chargement';
+import {
+  ATTENTE_DE_LA_CARTE,
+  modeDeChargement,
+  resteDuSigne,
+} from '../../src/modele/carte/chargement';
 import { ecolesGeoJSON, zonesGeoJSON } from '../../src/modele/carte/donnees';
 import {
   BOITE_DU_PAYS,
@@ -317,5 +322,23 @@ describe('le nom des marqueurs', () => {
 
   it('a un jeton de couleur par lettre, ceux de la direction artistique', () => {
     expect(Object.keys(JETON_DU_CYCLE)).toEqual([...LETTRES_DES_CYCLES]);
+  });
+});
+
+describe('le signe d’attente de la carte (canevas « Chargement », 08/11/2026, ticket 146)', () => {
+  it('rien avant 0,4 s, une sortie vers la liste après 10 s', () => {
+    expect(ATTENTE_DE_LA_CARTE.avantLeSigne).toBe(400);
+    expect(ATTENTE_DE_LA_CARTE.lente).toBe(10_000);
+  });
+  it('le CSS de la carte suit les mêmes délais', () => {
+    const css = readFileSync('src/ui/ExplorateurCarte.astro', 'utf8');
+    expect(css).toContain(`attente-montrer 0s linear ${ATTENTE_DE_LA_CARTE.avantLeSigne / 1000}s`);
+    expect(css).toContain(`attente-cacher 0s linear ${ATTENTE_DE_LA_CARTE.lente / 1000}s`);
+  });
+  it('une fois paru, le signe reste au moins 0,5 s : il ne clignote pas', () => {
+    expect(resteDuSigne(null, 1000)).toBe(0);
+    expect(resteDuSigne(1000, 1100)).toBe(400);
+    expect(resteDuSigne(1000, 1500)).toBe(0);
+    expect(resteDuSigne(1000, 9000)).toBe(0);
   });
 });

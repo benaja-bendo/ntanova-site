@@ -11,9 +11,10 @@
   ! Permissions-Policy
   Permissions-Policy: camera=(self), microphone=(), geolocation=(self)
 
-# « Autour de moi » demande la position de la personne, à l'appui d'un bouton : elle sert à classer des écoles déjà dans
-# la page et n'est envoyée à personne. Pas d'appareil photo ici.
-/autour-de-moi/*
+# « Autour de moi », filtre de la page « Écoles » (ticket 146), demande la position de la personne, à l'appui d'un bouton :
+# elle sert à classer des écoles déjà dans la page et n'est envoyée à personne. Pas d'appareil photo ici. La page seule :
+# les pages des lieux et les fiches, sous `/ecoles/…`, gardent la règle générale.
+/ecoles/
   ! Permissions-Policy
   Permissions-Policy: camera=(), microphone=(), geolocation=(self)
 

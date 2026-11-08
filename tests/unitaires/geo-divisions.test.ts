@@ -3,8 +3,8 @@ import {
   cheminLisible,
   compterEcoles,
   construireArbre,
+  deLieu,
   ecolesSous,
-  lienCarte,
   lienDivision,
   lienEcole,
   lieuAvecPreposition,
@@ -102,15 +102,19 @@ describe('les adresses publiques', () => {
     expect(sansRepetition([])).toEqual([]);
   });
 
-  it('la zone, la fiche et la carte ont leur adresse, du pays au bout', () => {
+  it('la zone et la fiche ont leur adresse, du pays au bout', () => {
     const adresse = ['congo', 'pointe-noire', 'pointe-noire', 'tie-tie'];
     expect(lienDivision(adresse)).toBe('/ecoles/congo/pointe-noire/tie-tie/');
     expect(lienEcole({ adresse, slug: 'complexe-exemple' })).toBe(
       '/ecoles/congo/pointe-noire/tie-tie/complexe-exemple/',
     );
-    expect(lienCarte(adresse)).toBe('/cartes/congo/pointe-noire/tie-tie/');
-    // Un coin vu de près : le tiret bas n'existe dans aucune adresse de zone ou d'école.
-    expect(lienCarte(adresse, 'coin-3')).toBe('/cartes/congo/pointe-noire/tie-tie/coin_3/');
+  });
+
+  it('« Les écoles du Congo-Brazzaville », de Pointe-Noire, d’Owando : le complément d’un lieu (ticket 146)', () => {
+    expect(deLieu('Congo', 0)).toBe('du Congo-Brazzaville');
+    expect(deLieu('Pointe-Noire', 2)).toBe('de Pointe-Noire');
+    expect(deLieu('Owando', 2)).toBe('d’Owando');
+    expect(deLieu('Éboué', 4)).toBe('d’Éboué');
   });
 
   it('le fil d’Ariane lisible ne répète pas non plus le nom', () => {

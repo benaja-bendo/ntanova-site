@@ -51,8 +51,9 @@ export interface ValeurFacette {
   ecoles: EcolePubliee[];
 }
 
+/** Une formation, une série, un diplôme… : la page « Écoles » filtrée (ticket 146 ; les pages `/formations/` y renvoient). */
 export const lienFacette = (f: { facette: Facette; valeur: string }): string =>
-  `/formations/${f.facette}/${f.valeur}/`;
+  `/ecoles/?${f.facette}=${encodeURIComponent(f.valeur)}`;
 
 /**
  * Les valeurs de chaque facette qui ont au moins une école publiée (pas de page vide). « Série F » rassemble F, F1 à F4 ;
@@ -195,6 +196,8 @@ export interface LigneRecherche {
   o?: 1;
   /** Déclarée par l'école elle-même. */
   g?: 1;
+  /** Le jour de la preuve la plus forte (l'accord, le passage ou la déclaration), quand il est connu : la ligne le dit. */
+  t?: string;
   /** Le type de l'école, quand il est connu (la ligne d'une école l'écrit). */
   k?: Valeur<'type_ecole'>;
 }
@@ -265,13 +268,23 @@ export function ligneDe(e: EcolePubliee): LigneRecherche {
     ...(e.releveeLe !== null ? { o: 1 as const } : {}),
     ...(e.origine === 'school' ? { g: 1 as const } : {}),
     ...(typeInformatif(e.typeEcole) ? { k: e.typeEcole } : {}),
+    ...(dateDeLaPreuveForte(e) ? { t: dateDeLaPreuveForte(e) as string } : {}),
   };
+}
+
+/** Le jour de la preuve la plus forte, dans l'ordre de `provenanceDe` : l'accord, le passage, puis la déclaration. */
+function dateDeLaPreuveForte(e: EcolePubliee): string | null {
+  if (e.etat === 'verifiee') return e.verifieeLe;
+  if (e.releveeLe !== null) return e.releveeLe;
+  return e.origine === 'school' ? (e.declareeLe ?? null) : null;
 }
 
 export interface Criteres {
   texte?: string;
   /** Une zone (`congo/pointe-noire`) : ses écoles et celles de tout ce qu'elle contient. */
   zone?: string | undefined;
+  /** Le type d'école (publique, privée…) : seulement les écoles dont le type est connu et le même. */
+  type?: Valeur<'type_ecole'> | undefined;
   niveau?: Valeur<'niveau'> | undefined;
   /** La lettre d'un cycle (M, P, C, L, T, S : celle de l'épingle et des puces) : toutes les écoles qui l'enseignent. */
   cycle?: string | undefined;
@@ -307,6 +320,7 @@ export function chercher(lignes: readonly LigneRecherche[], criteres: Criteres):
 
   const retenues: Resultat[] = [];
   for (const ligne of lignes) {
+    if (criteres.type && ligne.k !== criteres.type) continue;
     if (criteres.niveau && !ligne.c.includes(criteres.niveau)) continue;
     if (criteres.cycle && !lettresDesCycles(ligne.c).includes(criteres.cycle)) continue;
     if (criteres.zone && ligne.z !== criteres.zone && !ligne.z.startsWith(`${criteres.zone}/`))

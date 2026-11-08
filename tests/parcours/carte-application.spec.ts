@@ -291,6 +291,63 @@ test('plein écran : aucun flash du dessin pendant le chargement du moteur', asy
   await expect(page.locator('.carte-attente')).toBeHidden();
 });
 
+test('le signe d’attente : les trois barres du logo, puis après 10 s une sortie vers la liste (ticket 146)', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  let liberer!: () => void;
+  const attente = new Promise<void>((resolve) => (liberer = resolve));
+  await page.route('**/_astro/*.js', async (route) => {
+    await attente;
+    await route.continue();
+  });
+  try {
+    await page.goto('/carte/', { waitUntil: 'commit' });
+    const signe = page.locator('.carte-attente');
+    // La feuille de style est arrivée : le signe attend ses 0,4 s (sans elle, la page n'est pas encore dessinée).
+    await page.waitForFunction(
+      () =>
+        getComputedStyle(document.querySelector('.carte-attente')!).animationName ===
+        'attente-montrer',
+    );
+    await expect(signe).toBeVisible();
+    await expect(signe.locator('.marque path')).toHaveCount(3);
+    await expect(signe.locator('.attente-chargement')).toBeVisible();
+    await expect(signe.locator('.attente-chargement')).toHaveText('Chargement de la carte…');
+    await expect(signe.locator('.attente-lente')).toBeHidden();
+    // Après 10 s : la connexion est lente, et la liste est à un lien.
+    await expect(signe.locator('.attente-lente')).toBeVisible({ timeout: 15_000 });
+    await expect(signe.locator('.attente-lente')).toHaveText('La connexion est lente.');
+    await expect(signe.locator('.attente-chargement')).toBeHidden();
+    await expect(signe.getByRole('link', { name: 'voir la liste des écoles' })).toHaveAttribute(
+      'href',
+      '/ecoles/',
+    );
+  } finally {
+    liberer();
+  }
+  await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'prete');
+  await expect(page.locator('.carte-attente')).toBeHidden();
+});
+
+test('le signe d’attente reste immobile quand le téléphone demande moins de mouvement', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/carte/');
+  const animation = await page
+    .locator('.carte-attente .marque path')
+    .first()
+    .evaluate((p) => getComputedStyle(p).animationName);
+  expect(animation).toBe('none');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const enMouvement = await page
+    .locator('.carte-attente .marque path')
+    .first()
+    .evaluate((p) => getComputedStyle(p).animationName);
+  expect(enMouvement).toBe('lever-la-barre');
+});
+
 test.describe('plein écran sans JavaScript', () => {
   test.use({ javaScriptEnabled: false });
   test('le dessin et les listes restent immédiatement disponibles', async ({ page }) => {

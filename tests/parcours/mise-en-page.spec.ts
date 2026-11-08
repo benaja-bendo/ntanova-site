@@ -148,8 +148,7 @@ const pagesPubliques = [
   ['liste d’un arrondissement', '/ecoles/congo/pointe-noire/tie-tie/'],
   ['fiche d’une école', '/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/'],
   ['une ville et ses arrondissements', '/ecoles/congo/pointe-noire/'],
-  ['recherche', '/recherche/'],
-  ['autour de moi', '/autour-de-moi/'],
+  ['la page « Écoles » (recherche et autour de moi)', '/ecoles/'],
   ['« Pour les écoles »', '/pour-les-ecoles/'],
   ['« À propos »', '/a-propos/'],
   ['page introuvable', '/cette-page-n-existe-pas/'],
@@ -222,10 +221,13 @@ test.describe('site public', () => {
     const [premier, second] = await page.locator('a.quartier').all();
     const [a, b] = await Promise.all([premier?.boundingBox(), second?.boundingBox()]);
     if (largeur >= TABLETTE) {
-      await expect(navigation.getByRole('link', { name: 'Les écoles', exact: true })).toBeVisible();
-      await expect(navigation.getByRole('link', { name: 'Rechercher' })).toBeVisible();
-      await expect(navigation.getByRole('link', { name: 'Autour de moi' })).toBeVisible();
-      await expect(navigation.getByRole('link', { name: 'Pour les écoles' })).toBeVisible();
+      // Ticket 146 : quatre entrées, Rechercher et Autour de moi vivent dans `/ecoles/`.
+      await expect(navigation.getByRole('link')).toHaveText([
+        'Écoles',
+        'Carte',
+        'Pour les écoles',
+        'À propos',
+      ]);
       await expect(etapes).toBeVisible();
       expect(a?.y, 'les deux villes sont sur la même ligne').toBe(b?.y);
     } else {
@@ -265,10 +267,19 @@ test.describe('site public', () => {
     }
   });
 
-  test('accueil : le cartouche et la légende, posés sur la carte dès 1 024 px, ne cachent aucune école', async ({
+  test('accueil sans WebGL2 : le cartouche et la légende du dessin, posés sur lui dès 1 024 px, ne cachent aucune école', async ({
     page,
   }) => {
+    // Ticket 146 : le dessin ne paraît plus qu'en repli (sans WebGL2, sans JavaScript, ou après un échec).
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'connection', { value: {}, configurable: true });
+      const getContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type, ...reste) {
+        return type === 'webgl2' ? null : getContext.call(this, type, ...reste);
+      } as typeof getContext;
+    });
     await page.goto('/');
+    await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'repli-sans-webgl2');
     const apercu = page.getByRole('region', { name: 'La carte de Tié-Tié' });
     const dessin = await apercu.locator('svg.plateau:visible').boundingBox();
     const cartouche = await apercu.locator('.apercu-cartouche').boundingBox();
@@ -408,10 +419,13 @@ test.describe('application carte', () => {
       true,
     );
     const panneau = await page.locator('.panneau-carte').boundingBox();
-    // La légende des zones : sur la carte à partir de 64 rem, dans le tiroir en dessous (elle ne cache pas la carte).
+    // Plus de légende des zones (ticket 146) : les zones n'ont plus d'état ; « Voir en liste » est dans le tiroir.
     const surOrdinateur = (page.viewportSize()?.width ?? 0) >= 1024;
-    await expect(page.locator('.legende-carte')).toBeVisible({ visible: surOrdinateur });
-    await expect(page.locator('.legende-tiroir')).toBeVisible({ visible: !surOrdinateur });
+    await expect(page.locator('.legende-carte, .legende-tiroir')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Voir en liste' })).toHaveAttribute(
+      'href',
+      '/ecoles/',
+    );
     if (surOrdinateur) expect(panneau?.width).toBeCloseTo(400, 0);
     else {
       const bouton = page.getByRole('button', { name: 'Voir les écoles', exact: true });
