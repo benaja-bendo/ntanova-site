@@ -18,6 +18,7 @@ import { NIVEAUX_AVEC_FORMATIONS } from '../modele/fiche';
 import { lienWhatsApp } from '../modele/whatsapp';
 import FraisEcole from './FraisEcole.astro';
 import Icone from './Icone.astro';
+import LigneAgrement from './LigneAgrement.astro';
 
 interface Props {
   e: EcolePubliee;
@@ -130,6 +131,7 @@ const serieDansLeTitre = (f: FormationPublique) =>
                         )}
                       </span>
                     )}
+                    {f.agrement && <LigneAgrement agrement={f.agrement} filiere />}
                   </div>
                   <div class="filiere-sous">
                     <span>
@@ -170,15 +172,7 @@ const serieDansLeTitre = (f: FormationPublique) =>
     )}
   </section>
 ) : (
-  <>
-    {cyclesSansFormation.length > 0 && (
-      <section class="formations" aria-label="Formations à renseigner">
-        <h2>Formations</h2>
-        <p class="doux">Les filières ne sont pas encore renseignées.</p>
-      </section>
-    )}
-    <FraisEcole frais={frais} titre="Frais" />
-  </>
+  <FraisEcole frais={frais} titre="Frais" />
 )}
 
 <style>

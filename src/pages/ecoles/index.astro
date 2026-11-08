@@ -49,6 +49,9 @@ const parcourir = (p: PageDivision) => {
   p.enfants.forEach(parcourir);
 };
 arbre.racines.forEach(parcourir);
+// « Ville par ville » : celles qui ont des écoles d'abord, le reste dans son ordre habituel.
+const villesDAbord = (enfants: PageDivision[]) =>
+  [...enfants].sort((a, b) => Number(ecolesSous(b).length > 0) - Number(ecolesSous(a).length > 0));
 // Le rayon d'« Autour de moi » se choisit avant ou après l'appui ; 3 km par défaut.
 const rayons = [
   [1000, '1 km'],
@@ -189,7 +192,7 @@ const rayons = [
       <section class="par-lieu" id="par-ville" aria-labelledby={`titre-${racine.division.slug}`}>
         <h2 id={`titre-${racine.division.slug}`}>Ville par ville</h2>
         <ul class="zones">
-          {racine.enfants.map((enfant) => (
+          {villesDAbord(racine.enfants).map((enfant) => (
             <li>
               <a class="zone" href={lienDivision(enfant.chemin)}>
                 <span class="zone-nom">{enfant.division.nom}</span>

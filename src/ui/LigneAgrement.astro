@@ -1,0 +1,54 @@
+---
+// La référence officielle d'une école ou d'une filière (ticket 148) : une ligne qui cite le document, jamais une pastille ni une
+// garantie. La source se dit en mots ; « voir la source » n'existe que si le document est en ligne.
+import { intituleAgrement, referenceEnMots, type AgrementPublic } from '../modele/agrement';
+import Icone from './Icone.astro';
+
+interface Props {
+  agrement: AgrementPublic;
+  /** Sur une filière : « Agrément de la filière ». */
+  filiere?: boolean;
+}
+const { agrement, filiere = false } = Astro.props;
+const intitule = `${intituleAgrement(agrement)}${filiere ? ' de la filière' : ''}`;
+---
+
+<p class="ligne-agrement">
+  <Icone nom="document" />
+  <span>
+    <strong>{intitule}</strong>&nbsp;: {referenceEnMots(agrement)} ·{' '}
+    {agrement.sourceLien ? (
+      <a
+        href={agrement.sourceLien}
+        rel="noopener nofollow"
+        aria-label={`Voir la source : ${agrement.sourceTexte}`}
+      >
+        voir la source
+      </a>
+    ) : (
+      `source : ${agrement.sourceTexte}`
+    )}
+  </span>
+</p>
+
+<style>
+  .ligne-agrement {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-1);
+    font-size: var(--taille-secondaire);
+    overflow-wrap: anywhere;
+  }
+  .ligne-agrement :global(.ico) {
+    flex: none;
+    color: var(--marque);
+  }
+  /* Une cible de 44 px au moins, même au milieu d'une phrase. */
+  .ligne-agrement a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+</style>

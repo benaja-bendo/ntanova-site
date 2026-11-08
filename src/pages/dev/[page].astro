@@ -17,6 +17,9 @@ import Carte from '../../ui/Carte.astro';
 import LegendeCarte from '../../ui/LegendeCarte.astro';
 import BasculeVue from '../../ui/BasculeVue.astro';
 import CouvertureEcole from '../../ui/CouvertureEcole.astro';
+import InscriptionsEcole from '../../ui/InscriptionsEcole.astro';
+import LigneAgrement from '../../ui/LigneAgrement.astro';
+import MotDirectionEcole from '../../ui/MotDirectionEcole.astro';
 import PagePublique from '../../ui/PagePublique.astro';
 // Les pièces de la page carte : les mêmes feuilles que celles de /carte/, jamais une copie.
 import '../../ui/carte-pieces.css';
@@ -273,6 +276,42 @@ const autour = arrondissementsDessines.map((a) => ({
       {['M', 'P', 'C', 'L', 'T', 'S', ''].map((lettre) => (
         <CouvertureEcole lettre={lettre} />
       ))}
+    </div>
+
+    <h2 id="agrement">La référence officielle, le mot, les inscriptions</h2>
+    <div style="display: grid; gap: var(--espace-4)">
+      <LigneAgrement
+        agrement={{
+          genre: 'agrement',
+          precision: null,
+          reference: 'arrêté n° [référence]',
+          delivreLe: '2024-03-12',
+          sourceTexte: '[Journal officiel]',
+          sourceLien: 'https://exemple.cg/arrete',
+        }}
+      />
+      <LigneAgrement
+        filiere
+        agrement={{
+          genre: 'autre',
+          precision: '[Homologation]',
+          reference: 'décision n° [référence]',
+          delivreLe: '2024-03-12',
+          sourceTexte: 'copie remise par l’établissement',
+          sourceLien: null,
+        }}
+      />
+      <MotDirectionEcole
+        mot={{ texte: '[Le mot de la direction, 400 caractères au plus.]', ditLe: '2026-11-05' }}
+      />
+      <InscriptionsEcole
+        inscription={{
+          id: 'exemple',
+          anneeScolaire: '2026-2027',
+          limite: '2026-12-15',
+          declareeLe: '2026-11-05',
+        }}
+      />
     </div>
 
     <h2>États</h2>

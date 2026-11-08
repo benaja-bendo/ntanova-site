@@ -282,7 +282,7 @@ export function svgDeCouverture({
     ? `<text x="80" y="${basTitre + (lignes.length > 2 ? 44 : 54)}" font-family="Nunito Sans" font-size="32" fill="${c.texteDoux}">${echapper(coupeEnLignes(lieu, 62, 1)[0] ?? lieu)}</text>`
     : '';
   const lettreSvg = lettre
-    ? `<text x="1130" y="${HAUTEUR_COUVERTURE + 120}" text-anchor="end" font-family="Poppins" font-weight="700" font-size="520" fill="${c.blanc}" fill-opacity="${c.opaciteLettre}">${echapper(lettre)}</text>`
+    ? `<text x="1130" y="${HAUTEUR_COUVERTURE - 22}" text-anchor="end" font-family="Poppins" font-weight="700" font-size="250" fill="${c.blanc}" fill-opacity="${c.opaciteLettre}">${echapper(lettre)}</text>`
     : '';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${LARGEUR_PARTAGE}" height="${HAUTEUR_PARTAGE}" viewBox="0 0 ${LARGEUR_PARTAGE} ${HAUTEUR_PARTAGE}"><defs><clipPath id="bandeau"><rect width="${LARGEUR_PARTAGE}" height="${HAUTEUR_COUVERTURE}"/></clipPath><pattern id="rayures" width="42" height="42" patternUnits="userSpaceOnUse" patternTransform="rotate(25)"><rect width="6" height="42" fill="${c.blanc}" fill-opacity="${c.opaciteRayure}"/></pattern></defs><rect width="${LARGEUR_PARTAGE}" height="${HAUTEUR_PARTAGE}" fill="${c.fond}"/><g clip-path="url(#bandeau)"><rect width="${LARGEUR_PARTAGE}" height="${HAUTEUR_COUVERTURE}" fill="${fond}"/><rect width="${LARGEUR_PARTAGE}" height="${HAUTEUR_COUVERTURE}" fill="url(#rayures)"/>${lettreSvg}</g><g transform="translate(80 56) scale(0.5)">${barresDeLaMarque(c)}</g>${titreSvg}${lieuSvg}${pastilleDePreuve(preuve, c, 490)}<text x="1120" y="540" text-anchor="end" font-family="Nunito Sans" font-size="28" fill="${c.texteDoux}">ntanova.com</text></svg>`;
 }

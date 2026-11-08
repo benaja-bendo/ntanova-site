@@ -7,6 +7,9 @@ import {
 } from '../../modele/equipements-ecole';
 import { lireFraisEcole, saisieDeFrais, type FraisEcole } from '../../modele/frais-ecole';
 import { lireAccordContactPublic, type ContactPublic } from '../../modele/contact-public';
+import { lireAgrement, type AgrementEnregistre } from '../../modele/agrement';
+import { lireDateInscription, type DateInscription } from '../../modele/inscriptions';
+import { lireMotDirection, type MotDirection } from '../../modele/mot-direction';
 /**
  * Un faux serveur, gardé dans le navigateur, pour les parcours Playwright
  * (`PUBLIC_ADAPTATEUR=faux`). Il répond comme la base : « reçu », « déjà reçu »,
@@ -72,6 +75,9 @@ interface PhotoFausse {
 
 /** Une institution et son campus, réunis (le faux serveur n'a qu'un campus par institution, sauf ajout). */
 interface CampusFaux {
+  agrements?: AgrementEnregistre[];
+  motDirection?: MotDirection | null;
+  inscriptions?: DateInscription[];
   equipements?: Equipement[];
   frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;
@@ -806,6 +812,10 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     equipements: c.equipements ?? [],
     contactPublic: c.contactPublic ?? null,
     formations: (c.formations ?? []).length,
+    filieres: (c.formations ?? []).map((f) => ({ id: `${f.cycle}|${f.titre}`, titre: f.titre })),
+    agrements: c.agrements ?? [],
+    motDirection: c.motDirection ?? null,
+    inscriptions: c.inscriptions ?? [],
     verifieeLe: c.verifieeLe ?? null,
   };
 }
@@ -2056,6 +2066,88 @@ const admin: PortAdministration = {
     ecrire((e) => {
       const c = e.campus[ecoleId]!;
       c.frais = (c.frais ?? []).filter((f) => f.id !== id);
+    });
+  },
+
+  async enregistrerAgrement(ecoleId, agrement) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    if (!c) throw new ErreurDecision('École introuvable.');
+    const resultat = lireAgrement({
+      ...agrement,
+      formationId: agrement.formationId ?? '',
+      precision: agrement.precision ?? '',
+      sourceLien: agrement.sourceLien ?? '',
+      documentVu: true,
+    });
+    if (!resultat.agrement) throw new ErreurDecision(resultat.erreur!);
+    const deja = (c.agrements ?? []).find((a) => a.formationId === agrement.formationId);
+    const id = deja?.id ?? crypto.randomUUID();
+    ecrire((e) => {
+      const campus = e.campus[ecoleId]!;
+      campus.agrements = [
+        ...(campus.agrements ?? []).filter((a) => a.id !== id),
+        { ...resultat.agrement!, id },
+      ];
+    });
+    return id;
+  },
+  async retirerAgrement(id) {
+    await reseau();
+    const ecole = Object.values(lireEtat().campus).find((c) =>
+      (c.agrements ?? []).some((a) => a.id === id),
+    );
+    if (!ecole) throw new ErreurDecision('Agrément introuvable.');
+    ecrire((e) => {
+      const campus = e.campus[ecole.id]!;
+      campus.agrements = (campus.agrements ?? []).filter((a) => a.id !== id);
+    });
+  },
+  async enregistrerMotDirection(ecoleId, mot) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    if (!c) throw new ErreurDecision('École introuvable.');
+    if (mot) {
+      const resultat = lireMotDirection({ ...mot, accord: true });
+      if (resultat.erreur) throw new ErreurDecision(resultat.erreur);
+    } else if (!c.motDirection) {
+      throw new ErreurDecision('Cette école n’a pas de mot de la direction.');
+    }
+    ecrire((e) => {
+      e.campus[ecoleId]!.motDirection = mot ? { texte: mot.texte, ditLe: mot.ditLe } : null;
+    });
+  },
+  async enregistrerDateInscription(ecoleId, date, id) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    if (!c) throw new ErreurDecision('École introuvable.');
+    const resultat = lireDateInscription(date);
+    if (!resultat.date) throw new ErreurDecision(resultat.erreur!);
+    if (id && !(c.inscriptions ?? []).some((d) => d.id === id))
+      throw new ErreurDecision('Date d’inscription introuvable.');
+    if (
+      (c.inscriptions ?? []).some(
+        (d) => d.id !== id && d.anneeScolaire === resultat.date!.anneeScolaire,
+      )
+    )
+      throw new ErreurDecision('Une date existe déjà pour cette année scolaire : modifie-la.');
+    const identifiant = id ?? crypto.randomUUID();
+    ecrire((e) => {
+      const campus = e.campus[ecoleId]!;
+      campus.inscriptions = [
+        ...(campus.inscriptions ?? []).filter((d) => d.id !== identifiant),
+        { ...resultat.date!, id: identifiant },
+      ];
+    });
+    return identifiant;
+  },
+  async retirerDateInscription(ecoleId, id) {
+    await reseau();
+    if (!(lireEtat().campus[ecoleId]?.inscriptions ?? []).some((d) => d.id === id))
+      throw new ErreurDecision('Date d’inscription introuvable.');
+    ecrire((e) => {
+      const campus = e.campus[ecoleId]!;
+      campus.inscriptions = (campus.inscriptions ?? []).filter((d) => d.id !== id);
     });
   },
 

@@ -1,9 +1,11 @@
+import type { AgrementPublic } from '../../modele/agrement';
 import type { Equipement } from '../../modele/equipements-ecole';
 import { versEquipement, type LigneEquipement } from './equipements';
 import type { FraisEcole } from '../../modele/frais-ecole';
 import { versFrais, type LigneFrais } from './frais';
 import type { MultiPolygone } from '../../modele/geo';
 import { sansRepetition } from '../../modele/geo-divisions';
+import type { DateInscription } from '../../modele/inscriptions';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import type {
   DivisionPublique,
@@ -16,6 +18,17 @@ import type {
 } from '../../modele/ports';
 
 const TAILLE_PAGE = 1000;
+
+interface LigneAgrementPublic {
+  campus_id: string;
+  program_id: string | null;
+  kind: AgrementPublic['genre'];
+  custom_kind: string | null;
+  reference: string;
+  issued_on: string;
+  source_label: string;
+  source_url: string | null;
+}
 
 /**
  * Le catalogue lu à la construction, par l'API publique de la base (clé `publishable`, droits d'un visiteur :
@@ -145,7 +158,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
     },
 
     async ecoles(): Promise<EcolePubliee[]> {
-      const [campus, cycles, formations, frais, equipements, photos] = await Promise.all([
+      const [campus, cycles, formations, frais, equipements, photos, agrements, mots, dates] = await Promise.all([
         lireTout<{
           id: string;
           institution_id: string;
@@ -187,12 +200,41 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           bac_track: Valeur<'bac_track'> | null;
           diploma: Valeur<'diploma_kind'> | null;
           rhythms: Valeur<'study_rhythm'>[];
+          program_id: string;
         }>('public_campus_programs?select=*&order=campus_id,cycle,title'),
         lireTout<LigneFrais>('campus_fees?select=*&order=id'),
         lireTout<LigneEquipement>('campus_facts?select=*&order=id'),
         lireTout<{campus_id:string;id:string;taken_at:string|null}>('public_campus_photos?select=campus_id,id,taken_at&order=campus_id'),
+        lireTout<LigneAgrementPublic>('public_campus_accreditations?select=*&order=campus_id'),
+        lireTout<{ campus_id: string; body: string; stated_on: string }>(
+          'public_campus_statements?select=campus_id,body,stated_on&order=campus_id',
+        ),
+        lireTout<{ id: string; campus_id: string; school_year: string; deadline: string; declared_on: string }>(
+          'campus_enrollment_deadlines?select=id,campus_id,school_year,deadline,declared_on&order=campus_id,deadline',
+        ),
       ]);
 
+      const versAgrement = (a: LigneAgrementPublic): AgrementPublic => ({
+        genre: a.kind,
+        precision: a.custom_kind,
+        reference: a.reference,
+        delivreLe: a.issued_on,
+        sourceTexte: a.source_label,
+        sourceLien: a.source_url,
+      });
+      const agrementDeLEcole = new Map(
+        agrements.filter((a) => a.program_id === null).map((a) => [a.campus_id, versAgrement(a)]),
+      );
+      const agrementDeLaFiliere = new Map(
+        agrements.filter((a) => a.program_id !== null).map((a) => [a.program_id, versAgrement(a)]),
+      );
+      const motDe = new Map(mots.map((m) => [m.campus_id, { texte: m.body, ditLe: m.stated_on }]));
+      const inscriptionsDe = new Map<string, DateInscription[]>();
+      for (const d of dates)
+        inscriptionsDe.set(d.campus_id, [
+          ...(inscriptionsDe.get(d.campus_id) ?? []),
+          { id: d.id, anneeScolaire: d.school_year, limite: d.deadline, declareeLe: d.declared_on },
+        ]);
       const photosDe=new Map(photos.map(p=>[p.campus_id,{id:p.id,prisLe:p.taken_at}]));
       const cyclesDe = new Map<string, string[]>();
       for (const c of cycles) cyclesDe.set(c.campus_id, [...(cyclesDe.get(c.campus_id) ?? []), c.cycle]);
@@ -211,6 +253,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
             serie: f.bac_track,
             diplome: f.diploma,
             rythmes: f.rhythms,
+            agrement: agrementDeLaFiliere.get(f.program_id) ?? null,
           },
         ]);
       }
@@ -221,6 +264,9 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           return {
             id: e.id,
             photo: photosDe.get(e.id)??null,
+            agrement: agrementDeLEcole.get(e.id) ?? null,
+            motDirection: motDe.get(e.id) ?? null,
+            inscriptions: inscriptionsDe.get(e.id) ?? [],
             institutionId: e.institution_id,
             divisionId: e.division_id,
             slug: e.slug,
