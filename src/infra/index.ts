@@ -17,6 +17,7 @@ import type {
   PortCatalogue,
   PortRelais,
   PortSession,
+  AncienneAdresse,
   Redirection,
 } from '../modele/ports';
 import {
@@ -66,6 +67,7 @@ export async function obtenirCatalogue(): Promise<PortCatalogue> {
       ecoles: async () => [],
       domaines: async () => [],
       redirections: async () => [],
+      anciennesAdresses: async () => [],
     };
   }
   const { creerCatalogue } = await import('./supabase/catalogue');
@@ -80,6 +82,8 @@ export interface Site {
   ecoles: EcolePubliee[];
   domaines: DomainePublic[];
   redirections: Redirection[];
+  /** Les anciennes adresses des fiches publiées (ticket 147) : chacune renvoie vers la fiche. */
+  anciennesAdresses: AncienneAdresse[];
   facettes: ValeurFacette[];
   recherche: LigneRecherche[];
 }
@@ -93,11 +97,12 @@ let site: Promise<Site> | null = null;
 export function obtenirSite(): Promise<Site> {
   site ??= (async () => {
     const catalogue = await obtenirCatalogue();
-    const [divisions, ecoles, domaines, redirections] = await Promise.all([
+    const [divisions, ecoles, domaines, redirections, anciennesAdresses] = await Promise.all([
       catalogue.divisions(),
       catalogue.ecoles(),
       catalogue.domaines(),
       catalogue.redirections(),
+      catalogue.anciennesAdresses(),
     ]);
     return {
       divisions,
@@ -105,6 +110,7 @@ export function obtenirSite(): Promise<Site> {
       ecoles,
       domaines,
       redirections,
+      anciennesAdresses,
       facettes: facettesPubliques(ecoles, domaines),
       recherche: lignesDeRecherche(ecoles, divisions),
     };

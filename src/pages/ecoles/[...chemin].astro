@@ -1,12 +1,15 @@
 ---
-// Toutes les pages sous /ecoles/ : les zones (pays, département, ville, arrondissement, quartier), la fiche
-// de chaque campus publié, et les renvois (une fiche fusionnée, les adresses d'avant les villes). Une seule
-// route, construite à partir de la base ; aucun JavaScript.
+// Toutes les pages sous /ecoles/ : les lieux (ville, arrondissement, quartier ; un département qui n'est pas une ville),
+// la fiche de chaque campus publié, et les renvois. Une seule route, construite à partir de la base ; aucun JavaScript.
+// Les adresses (ticket 147, décision du fondateur du 08/11/2026) n'ont ni le pays ni le département :
 //
-//   /ecoles/congo/                                  le pays
-//   /ecoles/congo/pointe-noire/                     la ville (le département de même nom n'a pas sa propre page)
-//   /ecoles/congo/pointe-noire/tie-tie/             l'arrondissement
-//   /ecoles/congo/pointe-noire/tie-tie/<adresse>/   la fiche d'un campus
+//   /ecoles/pointe-noire/                 la ville (le département de même nom n'a pas sa propre page)
+//   /ecoles/pointe-noire/tie-tie/         l'arrondissement
+//   /ecoles/<nom>-<identifiant>/          la fiche d'un campus (`/ecoles/complexe-exemple-482913/`)
+//   /ecoles/<identifiant>/                le lien court, qui y renvoie
+//
+// Le pays n'a plus de page : `/ecoles/` le porte (la liste, puis « Ville par ville »). Toute adresse d'avant
+// (`/ecoles/congo/…`, `/ecoles/tie-tie/…`, l'ancien nom d'une fiche renommée, un doublon fusionné) renvoie en un saut.
 import type { GetStaticPaths } from 'astro';
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../../infra/index';
@@ -30,31 +33,64 @@ type Cas =
   | { genre: 'renvoi'; vers: string };
 
 export const getStaticPaths = (async () => {
-  const { arbre, ecoles, redirections } = await obtenirSite();
+  const { arbre, ecoles, redirections, anciennesAdresses } = await obtenirSite();
   const chemins = new Map<string, Cas>();
-  // Le premier qui prend une adresse la garde : une vraie page n'est jamais remplacée par un renvoi.
+  // Une vraie page n'a qu'une adresse, et deux pages ne la partagent jamais : la construction s'arrête plutôt que d'en
+  // cacher une (deux villes de même nom dans deux départements, par exemple).
+  const poserPage = (chemin: string, cas: Cas) => {
+    const deja = chemins.get(chemin);
+    if (deja)
+      throw new Error(`Deux pages pour /ecoles/${chemin}/ : ${JSON.stringify([deja, cas])}`);
+    chemins.set(chemin, cas);
+  };
+  // Un renvoi ne remplace jamais une vraie page, ni un renvoi déjà posé.
   const poser = (chemin: string, cas: Cas) => {
     if (chemin !== '' && !chemins.has(chemin)) chemins.set(chemin, cas);
   };
+  const sousEcoles = (lien: string) => lien.replace(/^\/ecoles\//, '').replace(/\/$/, '');
 
+  // Les pages (ticket 147) : les lieux sans le pays ni le département, les fiches par leur nom et leur identifiant.
+  for (const p of arbre.tous) {
+    if (p.chemin.length > 0)
+      poserPage(p.chemin.join('/'), { genre: 'zone', cle: p.adresse.join('/') });
+  }
+  for (const e of ecoles) poserPage(sousEcoles(lienEcole(e)), { genre: 'ecole', cle: e.id });
+
+  // Les renvois, chacun en un seul saut vers l'adresse d'aujourd'hui.
+  const parNumero = new Map(ecoles.map((e) => [e.numero, e]));
+  const versLaFiche = (numero: string): Cas | null => {
+    const e = parNumero.get(numero);
+    return e ? { genre: 'renvoi', vers: lienEcole(e) } : null;
+  };
+  for (const e of ecoles) {
+    const vers: Cas = { genre: 'renvoi', vers: lienEcole(e) };
+    poser(e.numero, vers); // le lien court
+    poser([...e.adresse, e.slug].join('/'), vers); // l'adresse d'avant : `/ecoles/congo/pointe-noire/tie-tie/<nom>/`
+  }
+  // Les lieux d'avant : `/ecoles/congo/pointe-noire/tie-tie/` ; le pays (`/ecoles/congo/`) mène à la liste.
   for (const p of arbre.tous)
-    poser(p.adresse.join('/'), { genre: 'zone', cle: p.adresse.join('/') });
-  for (const e of ecoles) poser([...e.adresse, e.slug].join('/'), { genre: 'ecole', cle: e.id });
-  // L'ancienne adresse d'une fiche fusionnée renvoie vers l'école gardée.
+    poser(p.adresse.join('/'), { genre: 'renvoi', vers: lienDivision(p.chemin) });
+  // Une fiche renommée ou déplacée : ses anciennes adresses, des deux formes.
+  for (const a of anciennesAdresses) {
+    const vers = versLaFiche(a.numero);
+    if (!vers) continue;
+    poser(`${a.slug}-${a.numero}`, vers);
+    poser([...a.chemin, a.slug].join('/'), vers);
+  }
+  // Un doublon fusionné : son lien court, son adresse et son adresse d'avant mènent à l'école gardée.
   for (const r of redirections) {
-    poser([...r.de.chemin, r.de.slug].join('/'), {
-      genre: 'renvoi',
-      vers: lienEcole({ adresse: r.vers.chemin, slug: r.vers.slug }),
-    });
+    const vers = versLaFiche(r.versNumero);
+    if (!vers) continue;
+    poser(r.de.numero, vers);
+    poser(`${r.de.slug}-${r.de.numero}`, vers);
+    poser([...r.de.chemin, r.de.slug].join('/'), vers);
   }
   // Les adresses d'avant les villes (`/ecoles/tie-tie/…`) : le relevé n'avait commencé qu'à Tié-Tié et à Ngoyo.
   for (const arrondissement of ['tie-tie', 'ngoyo']) {
     const page = arbre.parAdresse.get(`congo/pointe-noire/${arrondissement}`);
     if (!page) continue;
-    poser(arrondissement, { genre: 'renvoi', vers: lienDivision(page.adresse) });
-    for (const e of ecoles.filter(
-      (x) => x.adresse.slice(0, 3).join('/') === `congo/pointe-noire/${arrondissement}`,
-    )) {
+    poser(arrondissement, { genre: 'renvoi', vers: lienDivision(page.chemin) });
+    for (const e of ecolesSous(page)) {
       poser(`${arrondissement}/${e.slug}`, { genre: 'renvoi', vers: lienEcole(e) });
     }
     // Son ancien plan dessiné mène à la carte du site, cadrée sur lui (ticket 146) ; les « coins » de ce plan renvoient

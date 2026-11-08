@@ -116,6 +116,7 @@ const ecole = (
   institutionId: `i-${id}`,
   divisionId: ville === 'pointe-noire' ? 'tie' : 'bzv',
   slug: `ecole-${id}`,
+  numero: '123456',
   nom: `[École ${id}]`,
   etiquette: null,
   arrondissement: ville === 'pointe-noire' ? 'tie-tie' : 'brazzaville',
@@ -141,26 +142,33 @@ const ecole = (
 const cadrer = (divisions: DivisionPublique[], ecoles: EcolePubliee[]) =>
   cadreParDefaut(
     zonesGeoJSON({ divisions, ecoles, contourDe: () => null }).features,
-    ecolesGeoJSON(ecoles).features,
+    ecolesGeoJSON(ecoles, (e) => (e.divisionId === 'tie' ? 'pointe-noire' : 'brazzaville'))
+      .features,
   );
 
 describe('la ville d’une adresse', () => {
-  it('lit le pays et la ville dans le lien d’une zone ou d’une école', () => {
-    expect(villeDuLien('/ecoles/congo/pointe-noire/tie-tie/')).toBe('congo/pointe-noire');
-    expect(villeDuLien('/ecoles/congo/brazzaville/ecole-a/')).toBe('congo/brazzaville');
+  it('lit la ville dans le lien d’un lieu ; une fiche ne la dit pas (ticket 147)', () => {
+    expect(villeDuLien('/ecoles/pointe-noire/tie-tie/')).toBe('pointe-noire');
+    expect(villeDuLien('/ecoles/brazzaville/')).toBe('brazzaville');
+    expect(villeDuLien('/ecoles/ecole-a-123456/')).toBeNull();
+    expect(villeDuLien('/ecoles/123456/')).toBeNull();
+    expect(villeDuLien('/ecoles/')).toBeNull();
     expect(villeDuLien('/formations/')).toBeNull();
   });
 
   it('suit le lien que les vrais constructeurs écrivent', () => {
-    const [vue] = ecolesGeoJSON([ecole('a', 'pointe-noire', 11.92, -4.79)]).features;
-    expect(villeDuLien(vue?.properties.lien ?? '')).toBe('congo/pointe-noire');
+    const [vue] = ecolesGeoJSON(
+      [ecole('a', 'pointe-noire', 11.92, -4.79)],
+      () => 'pointe-noire',
+    ).features;
+    expect(vue?.properties.ville).toBe('pointe-noire');
     const zones = zonesGeoJSON({
       divisions: [...POINTE_NOIRE, ...BRAZZAVILLE],
       ecoles: [],
       contourDe: () => null,
     });
     expect(new Set(zones.features.map((z) => villeDuLien(z.properties.lien)))).toEqual(
-      new Set(['congo/pointe-noire', 'congo/brazzaville']),
+      new Set(['pointe-noire', 'brazzaville']),
     );
   });
 });
@@ -175,7 +183,7 @@ describe('le cadre par défaut', () => {
         ecole('c', 'brazzaville', 15.27, -4.27),
       ],
     );
-    expect(cadre.ville).toBe('congo/pointe-noire');
+    expect(cadre.ville).toBe('pointe-noire');
     expect(cadre.ecoles).toBe(2);
     // Tié-Tié (11,90 à 11,95) et une école à 11,96 : la boîte les contient ; ni Lumumba ni Brazzaville n’y entrent.
     expect(cadre.boite[0]).toBeCloseTo(11.9, 2);
@@ -199,7 +207,7 @@ describe('le cadre par défaut', () => {
         ecole('c', 'pointe-noire', 11.93, -4.79),
       ],
     );
-    expect(cadre.ville).toBe('congo/brazzaville');
+    expect(cadre.ville).toBe('brazzaville');
   });
 
   it('à égalité d’écoles, prend la ville qui a une zone « relevé en cours »', () => {
@@ -207,12 +215,12 @@ describe('le cadre par défaut', () => {
       [...POINTE_NOIRE, ...BRAZZAVILLE],
       [ecole('a', 'brazzaville', 15.27, -4.27), ecole('b', 'pointe-noire', 11.93, -4.79)],
     );
-    expect(cadre.ville).toBe('congo/pointe-noire');
+    expect(cadre.ville).toBe('pointe-noire');
   });
 
   it('sans école, cadre la zone « relevé en cours » (jamais sur du vide ailleurs)', () => {
     const cadre = cadrer([...POINTE_NOIRE, ...BRAZZAVILLE], []);
-    expect(cadre.ville).toBe('congo/pointe-noire');
+    expect(cadre.ville).toBe('pointe-noire');
     expect(cadre.ecoles).toBe(0);
     expect(cadre.boite[0]).toBeCloseTo(11.9, 2);
     expect(cadre.boite[2]).toBeCloseTo(11.95, 2);
@@ -225,7 +233,7 @@ describe('le cadre par défaut', () => {
 
   it('une seule école donne une boîte d’un point : l’îlot la borne par le zoom du cadre', () => {
     const cadre = cadrer(BRAZZAVILLE, [ecole('a', 'brazzaville', 15.27, -4.27)]);
-    expect(cadre.ville).toBe('congo/brazzaville');
+    expect(cadre.ville).toBe('brazzaville');
     expect(cadre.boite).toEqual([15.27, -4.27, 15.27, -4.27]);
     expect(ZOOM_MAX_DU_CADRE_PAR_DEFAUT).toBe(13);
   });

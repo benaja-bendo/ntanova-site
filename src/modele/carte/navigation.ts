@@ -81,3 +81,26 @@ export function filtrerEcoles(
         : e,
     );
 }
+
+/** L'identifiant d'une fiche, lu à la fin de son adresse (`/ecoles/complexe-exemple-482913/` → `482913`). */
+export function numeroDuLien(lien: string): string | null {
+  return /-(\d{6})\/$/.exec(lien)?.[1] ?? null;
+}
+
+/**
+ * L'école que désigne `/carte/?ecole=…` (ticket 147) : son identifiant, ou son adresse ; un lien d'avant
+ * (`/ecoles/congo/pointe-noire/tie-tie/complexe-exemple/`) se lit encore par son dernier nom, s'il ne désigne qu'une école.
+ */
+export function ecoleDuParametre<F extends { properties: { lien: string } }>(
+  ecoles: readonly F[],
+  valeur: string | null,
+): F | undefined {
+  if (!valeur) return undefined;
+  if (/^\d{6}$/.test(valeur)) return ecoles.find((e) => numeroDuLien(e.properties.lien) === valeur);
+  const exacte = ecoles.find((e) => e.properties.lien === valeur);
+  if (exacte) return exacte;
+  const nom = valeur.split('/').filter(Boolean).pop();
+  if (!nom) return undefined;
+  const memes = ecoles.filter((e) => e.properties.lien.startsWith(`/ecoles/${nom}-`));
+  return memes.length === 1 ? memes[0] : undefined;
+}

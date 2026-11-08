@@ -18,16 +18,14 @@ test.beforeEach(async ({ page, context }) => {
 test('de la ville à la fiche, par la liste', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' }).click();
-  await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/$/);
+  await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pointe-Noire');
   await page.locator('a.zone', { hasText: 'Tié-Tié' }).click();
-  await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/tie-tie\/$/);
+  await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/tie-tie\/$/);
   await page
     .locator('ul.liste-lignes a.ligne-ecole', { hasText: '[Complexe scolaire Exemple]' })
     .click();
-  await expect(page).toHaveURL(
-    /\/ecoles\/congo\/pointe-noire\/tie-tie\/complexe-scolaire-exemple\/$/,
-  );
+  await expect(page).toHaveURL(/\/ecoles\/complexe-scolaire-exemple-482913\/$/);
 });
 
 test('les anciens plans dessinés renvoient vers la carte, cadrée sur l’arrondissement', async ({
@@ -46,7 +44,7 @@ test('les anciens plans dessinés renvoient vers la carte, cadrée sur l’arron
 test('« Liste | Carte » : la page d’un arrondissement mène à la carte cadrée sur lui ; la vue courante n’est pas un lien', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
+  await page.goto('/ecoles/pointe-noire/tie-tie/');
   const bascule = page.getByRole('navigation', { name: 'Affichage' });
   await expect(bascule.getByText('Liste')).toHaveAttribute('aria-current', 'page');
   await expect(bascule.getByRole('link', { name: 'Liste' })).toHaveCount(0);
@@ -60,7 +58,7 @@ test('« Liste | Carte » : la page d’un arrondissement mène à la carte cadr
 test('la fiche n’a plus de petit plan : le repère en mots et « Voir sur la carte »', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+  await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
   await expect(page.locator('main svg.plateau')).toHaveCount(0);
   await expect(page.getByRole('group', { name: /sur la carte de/ })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Voir sur la carte' })).toHaveAttribute(
@@ -68,7 +66,7 @@ test('la fiche n’a plus de petit plan : le repère en mots et « Voir sur la c
     /^\/carte\/\?ecole=.+#\d/,
   );
   // Sans position, pas de lien vers la carte.
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-sans-detail-exemple/');
+  await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
   await expect(page.getByRole('link', { name: /Voir .*sur la carte/ })).toHaveCount(0);
 });
 
@@ -76,13 +74,13 @@ test('la fiche n’a plus de petit plan : le repère en mots et « Voir sur la c
 test('une école située par l’administration, sans relevé, est dans la liste avec sa mention, sans « Repère pas encore relevé »', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
+  await page.goto('/ecoles/pointe-noire/tie-tie/');
   const carte = page.locator('ul.liste-lignes li', { hasText: '[École ajoutée Exemple]' });
   await expect(carte.locator('.ligne-preuve')).toHaveText(
     'Ajoutée par NTanova, pas encore vue sur place',
   );
   await expect(carte.locator('.ligne-repere-vide')).toHaveCount(0);
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-ajoutee-exemple/');
+  await page.goto('/ecoles/ecole-ajoutee-exemple-639158/');
   await expect(page.getByText('Ajoutée par NTanova · 3 nov. 2026')).toBeVisible();
   await expect(page.locator('.preuves')).toContainText('Ajoutée par NTanova');
   await expect(page.getByText(/Relevé terrain ·/)).toHaveCount(0);

@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { zonesGeoJSON } from '../../src/modele/carte/donnees';
 import { etatPublicDe, libelleDeploiement } from '../../src/modele/etat-zone';
-import { lienDivision } from '../../src/modele/geo-divisions';
+import { cheminDeDivision, lienDivision } from '../../src/modele/geo-divisions';
 import type { DivisionPublique } from '../../src/modele/ports';
 
 const division = (
@@ -104,7 +104,9 @@ describe('etatPublicDe', () => {
 
 describe('la carte et les pages disent la même chose', () => {
   const zones = zonesGeoJSON({ divisions: DIVISIONS, ecoles: [], contourDe: () => null });
-  const parLien = new Map(DIVISIONS.map((d) => [lienDivision(d.adresse), d]));
+  const parId = new Map(DIVISIONS.map((d) => [d.id, d]));
+  const lienDe = (d: (typeof DIVISIONS)[number]) => lienDivision(cheminDeDivision(d, parId));
+  const parLien = new Map(DIVISIONS.map((d) => [lienDe(d), d]));
 
   it('chaque zone de la carte a l’état réglé, mais pas ses mots : la carte ne l’écrit plus (ticket 146)', () => {
     expect(zones.features.length).toBeGreaterThan(0);
@@ -112,7 +114,7 @@ describe('la carte et les pages disent la même chose', () => {
       const d = parLien.get(f.properties.lien);
       expect(d, `la page de ${f.properties.nom} existe dans les données`).toBeDefined();
       // Pour une adresse partagée (la ville et son département), c'est la ville, la plus fine, qui porte la page.
-      const celle = DIVISIONS.filter((x) => lienDivision(x.adresse) === f.properties.lien).at(-1)!;
+      const celle = DIVISIONS.filter((x) => lienDe(x) === f.properties.lien).at(-1)!;
       expect(etatPublicDe(celle, DIVISIONS)).toBe(f.properties.etat);
       expect(f.properties).not.toHaveProperty('libelle');
     }

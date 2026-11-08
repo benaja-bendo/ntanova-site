@@ -191,7 +191,7 @@ const rayons = [
         <ul class="zones">
           {racine.enfants.map((enfant) => (
             <li>
-              <a class="zone" href={lienDivision(enfant.adresse)}>
+              <a class="zone" href={lienDivision(enfant.chemin)}>
                 <span class="zone-nom">{enfant.division.nom}</span>
                 <span class="zone-detail">
                   {ecolesSous(enfant).length > 0

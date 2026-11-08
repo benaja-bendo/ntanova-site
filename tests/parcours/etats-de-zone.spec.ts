@@ -37,7 +37,7 @@ test('chaque zone de la carte a une page qui répond, et aucune n’écrit d’�
 });
 
 test('Brazzaville a sa page, qui renvoie au pays', async ({ page }) => {
-  await page.goto('/ecoles/congo/brazzaville/');
+  await page.goto('/ecoles/brazzaville/');
   await expect(page.getByRole('heading', { name: 'Brazzaville', level: 1 })).toBeVisible();
   await expect(page.getByRole('link', { name: '← Congo-Brazzaville' })).toBeVisible();
 });
@@ -46,7 +46,7 @@ test('une zone sans école : un seul état vide avec la porte WhatsApp, et pas d
   page,
   request,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/mvou-mvou/');
+  await page.goto('/ecoles/pointe-noire/mvou-mvou/');
   await expect(page.getByRole('heading', { name: 'Mvou-Mvou', level: 1 })).toBeVisible();
   await expect(page.getByText('Aucune école publiée pour l’instant.')).toBeVisible();
   await expect(page.locator('main')).not.toContainText(ETATS);
@@ -66,12 +66,12 @@ test('une zone sans école : un seul état vide avec la porte WhatsApp, et pas d
   // Ticket 146 : une page de lieu sans fiche n'est ni indexée, ni dans `sitemap.xml`.
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
   const plan = await (await request.get('/sitemap.xml')).text();
-  expect(plan).not.toContain('/ecoles/congo/pointe-noire/mvou-mvou/<');
-  expect(plan).toContain('/ecoles/congo/pointe-noire/tie-tie/<');
+  expect(plan).not.toContain('/ecoles/pointe-noire/mvou-mvou/<');
+  expect(plan).toContain('/ecoles/pointe-noire/tie-tie/<');
 });
 
 test('la ville liste ses zones avec leur nombre d’écoles, sans état', async ({ page }) => {
-  await page.goto('/ecoles/congo/pointe-noire/');
+  await page.goto('/ecoles/pointe-noire/');
   const zone = (nom: string) => page.locator('a.zone', { hasText: nom });
   await expect(zone('Tié-Tié')).toContainText(/\d+ écoles/);
   await expect(zone('Loandjili')).toContainText('2 écoles');
@@ -80,22 +80,17 @@ test('la ville liste ses zones avec leur nombre d’écoles, sans état', async 
   await expect(page.locator('.etat-zone')).toHaveCount(0);
 });
 
-test('le pays s’appelle « Congo-Brazzaville », et la phrase de recherche est juste', async ({
+test('le pays n’a plus de page : son adresse d’avant mène à la liste (ticket 147)', async ({
   page,
 }) => {
   await page.goto('/ecoles/congo/');
-  await expect(page).toHaveTitle('Les écoles du Congo-Brazzaville, ville par ville · NTanova');
-  await expect(page.getByRole('heading', { name: 'Congo-Brazzaville', level: 1 })).toBeVisible();
-  const chercher = page.getByRole('link', { name: 'Chercher une école au Congo-Brazzaville' });
-  await expect(chercher).toHaveAttribute('href', '/ecoles/?zone=congo');
+  await expect(page).toHaveURL(/\/ecoles\/$/);
   await expect(page.locator('main')).not.toContainText('à Congo');
-  // La ligne « Pays » sous le titre ne répète pas le titre.
-  await expect(page.locator('main').getByText('Pays', { exact: true })).toHaveCount(0);
 });
 
 test('le compteur d’une zone se dit comme celui de l’accueil, sans « 2 vues sur place » nu', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
+  await page.goto('/ecoles/pointe-noire/tie-tie/');
   await expect(page.locator('.compte')).toHaveText(/^\d+ écoles, dont \d+ vues? sur place/);
 });

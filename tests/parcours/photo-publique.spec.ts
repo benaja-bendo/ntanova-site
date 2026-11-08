@@ -231,7 +231,7 @@ test('fiche publique : image locale légère, provenance et partage sans URL pri
   page,
   request,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+  await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
   const image = page.getByRole('img', {
     name: 'Vue de [Complexe scolaire Exemple]',
     exact: true,

@@ -98,6 +98,7 @@ const ecole = (id: string, reste: Partial<EcolePubliee> = {}): EcolePubliee => (
   institutionId: `i-${id}`,
   divisionId: 'tie',
   slug: `ecole-${id}`,
+  numero: '123456',
   nom: `[École ${id}]`,
   etiquette: null,
   arrondissement: 'tie-tie',
@@ -171,7 +172,7 @@ describe('les écoles de la carte', () => {
   it('garde TOUS les cycles pour l’aperçu, et le plus élevé pour le marqueur', () => {
     expect(collection.features[0]?.properties).toMatchObject({
       nom: '[École vue]',
-      lien: '/ecoles/congo/pointe-noire/tie-tie/ecole-vue/',
+      lien: '/ecoles/ecole-vue-123456/',
       niveaux: ['Maternelle', 'Primaire', 'Collège'],
       cycle: 'college',
       lettre: 'C',
@@ -321,7 +322,7 @@ describe('les zones de la carte', () => {
   });
 
   it('une zone dessinée a la page de ses écoles ; un lien n’est jamais inventé', () => {
-    expect(parSlug('tie-tie')?.properties.lien).toBe('/ecoles/congo/pointe-noire/tie-tie/');
+    expect(parSlug('tie-tie')?.properties.lien).toBe('/ecoles/pointe-noire/tie-tie/');
   });
 });
 
@@ -366,7 +367,7 @@ describe('les communes et les districts sont dessinés comme les villes (audit d
     });
     expect(parSlug('ouesso', 'ville')?.properties).toMatchObject({
       etat: 'actif',
-      lien: '/ecoles/congo/sangha/ouesso/',
+      lien: '/ecoles/ouesso/',
     });
   });
 

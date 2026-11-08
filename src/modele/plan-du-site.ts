@@ -12,7 +12,7 @@ import type { EcolePubliee } from './ports';
 export const PAGES_FIXES = ['/', '/ecoles/', '/carte/', '/pour-les-ecoles/', '/a-propos/'] as const;
 
 export interface EntreeDuPlan {
-  /** L'adresse, depuis la racine du site (`/ecoles/congo/pointe-noire/`). */
+  /** L'adresse, depuis la racine du site (`/ecoles/pointe-noire/`). */
   chemin: string;
   /** Le jour de la dernière mise à jour, quand on le connaît (`AAAA-MM-JJ`). */
   misAJourLe: string | null;
@@ -32,7 +32,7 @@ export function entreesDuPlan(
     const siennes = ecolesSous(lieu);
     if (siennes.length === 0) continue;
     entrees.push({
-      chemin: lienDivision(lieu.adresse),
+      chemin: lienDivision(lieu.chemin),
       misAJourLe: plusRecent(siennes.map((e) => jour(e.misAJourLe))),
     });
   }

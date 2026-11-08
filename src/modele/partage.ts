@@ -38,10 +38,9 @@ type Fiche = Pick<
   | 'declareeLe'
 >;
 
-/** L'adresse de l'image d'une fiche : celle de la fiche, en `.png`, sous `/partage/`. */
-export function cheminImagePartage(e: Pick<Fiche, 'adresse' | 'slug'>): string {
-  const adresse = e.adresse.filter((x, i) => i === 0 || x !== e.adresse[i - 1]);
-  return `/partage/ecoles/${adresse.join('/')}/${e.slug}.png`;
+/** L'adresse de l'image d'une fiche : celle de la fiche, en `.png`, sous `/partage/` (`/partage/ecoles/<nom>-<id>.png`). */
+export function cheminImagePartage(e: Pick<EcolePubliee, 'slug' | 'numero'>): string {
+  return `/partage/ecoles/${e.slug}-${e.numero}.png`;
 }
 
 export interface PreuveDePartage {

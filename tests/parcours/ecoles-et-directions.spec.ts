@@ -39,7 +39,7 @@ test('« Pour les écoles » : le message WhatsApp principal dit confirmer ou aj
 test('les pages de zone et l’accueil parlent de « Ajouter mon école » et de « Confirmer », jamais de « Référencez »', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/');
+  await page.goto('/ecoles/pointe-noire/tie-tie/');
   await expect(page.getByRole('link', { name: 'Ajouter mon école' })).toHaveAttribute(
     'href',
     '/pour-les-ecoles/#referencer',

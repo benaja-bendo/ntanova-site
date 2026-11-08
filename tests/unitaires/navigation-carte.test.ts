@@ -4,6 +4,8 @@ import {
   adresseVue,
   filtrerEcoles,
   lienCarteDuLieu,
+  ecoleDuParametre,
+  numeroDuLien,
 } from '../../src/modele/carte/navigation';
 import type { FeatureEcole } from '../../src/modele/carte/donnees';
 const ecole = (id: string, lettres: string, x: number): FeatureEcole => ({
@@ -13,6 +15,7 @@ const ecole = (id: string, lettres: string, x: number): FeatureEcole => ({
     id,
     nom: id,
     lien: '/ecoles/' + id + '/',
+    ville: 'pointe-noire',
     lieu: 'Pointe-Noire',
     lettres,
     niveaux: [],
@@ -92,5 +95,30 @@ describe('la carte cadrée sur un lieu (ticket 146 : les anciens plans et les pa
     expect(lienCarteDuLieu({ contour: null, position: null, ecoles: [ecoles[1]!] })).toBe(
       '/carte/',
     );
+  });
+});
+
+describe('/carte/?ecole= (ticket 147)', () => {
+  const fiches = [
+    { properties: { lien: '/ecoles/complexe-exemple-482913/' } },
+    { properties: { lien: '/ecoles/groupe-scolaire-exemple-158427/' } },
+    { properties: { lien: '/ecoles/groupe-scolaire-exemple-904316/' } },
+  ];
+  it('lit l’identifiant à la fin de l’adresse d’une fiche', () => {
+    expect(numeroDuLien('/ecoles/complexe-exemple-482913/')).toBe('482913');
+    expect(numeroDuLien('/ecoles/pointe-noire/tie-tie/')).toBeNull();
+  });
+  it('trouve l’école par son identifiant, son adresse, ou un lien d’avant sans ambiguïté', () => {
+    expect(ecoleDuParametre(fiches, '482913')).toBe(fiches[0]);
+    expect(ecoleDuParametre(fiches, '/ecoles/complexe-exemple-482913/')).toBe(fiches[0]);
+    expect(ecoleDuParametre(fiches, '/ecoles/congo/pointe-noire/tie-tie/complexe-exemple/')).toBe(
+      fiches[0],
+    );
+    // Deux écoles de même nom : un lien d'avant ne choisit pas au hasard.
+    expect(
+      ecoleDuParametre(fiches, '/ecoles/congo/pointe-noire/ngoyo/groupe-scolaire-exemple/'),
+    ).toBeUndefined();
+    expect(ecoleDuParametre(fiches, '999999')).toBeUndefined();
+    expect(ecoleDuParametre(fiches, null)).toBeUndefined();
   });
 });

@@ -260,6 +260,7 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000001',
     division: D.tieTie,
     slug: 'complexe-scolaire-exemple',
+    numero: '482913',
     photo: { id: '93000000-0000-4000-8000-000000000001', prisLe: '2026-11-03' },
     equipements: [
       {
@@ -325,6 +326,7 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000002',
     division: D.tieTie,
     slug: 'centre-de-formation-exemple',
+    numero: '315702',
     nom: '[Centre de formation Exemple]',
     etiquette: null,
     quartier: null,
@@ -349,6 +351,7 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000003',
     division: D.tieTie,
     slug: 'ecole-sans-detail-exemple',
+    numero: '270846',
     contactPublic: { numero: '242060000002', accordLe: '2026-11-03' },
     nom: '[École sans détail Exemple]',
     etiquette: null,
@@ -371,6 +374,7 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000004',
     division: D.tieTie,
     slug: 'ecole-ajoutee-exemple',
+    numero: '639158',
     nom: '[École ajoutée Exemple]',
     etiquette: null,
     quartier: null,
@@ -391,6 +395,7 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000005',
     division: D.quartier,
     slug: 'groupe-scolaire-exemple',
+    numero: '158427',
     nom: '[Groupe scolaire Exemple]',
     etiquette: 'Campus du quartier',
     quartier: '[Quartier Exemple]',
@@ -418,6 +423,7 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000005',
     division: D.mongo,
     slug: 'groupe-scolaire-exemple',
+    numero: '904316',
     nom: '[Groupe scolaire Exemple]',
     etiquette: 'Campus de Mongo-Mpoukou',
     quartier: null,
@@ -439,6 +445,7 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000007',
     division: D.loandjili,
     slug: 'institut-superieur-exemple',
+    numero: '527064',
     nom: '[Institut supérieur Exemple]',
     etiquette: null,
     quartier: null,
@@ -469,6 +476,7 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000008',
     division: D.moungali,
     slug: 'ecole-de-brazzaville-exemple',
+    numero: '731590',
     origine: 'school',
     declareeLe: '2026-11-01',
     nom: '[École de Brazzaville Exemple]',
@@ -491,6 +499,7 @@ const ECOLES: EcolePubliee[] = [
     institutionId: '10000000-0000-4000-8000-000000000009',
     division: D.dolisie,
     slug: 'college-de-dolisie-exemple',
+    numero: '846271',
     nom: '[Collège de Dolisie Exemple]',
     etiquette: null,
     quartier: null,
@@ -527,9 +536,19 @@ export const catalogueFaux: PortCatalogue = {
   async redirections() {
     return [
       {
-        de: { chemin: ['congo', 'pointe-noire', 'tie-tie'], slug: 'ancienne-fiche-exemple' },
-        vers: { chemin: ['congo', 'pointe-noire', 'tie-tie'], slug: 'complexe-scolaire-exemple' },
+        de: {
+          chemin: ['congo', 'pointe-noire', 'tie-tie'],
+          slug: 'ancienne-fiche-exemple',
+          numero: '362850',
+        },
+        versNumero: '482913',
       },
+    ];
+  },
+  // Ticket 147 : le Complexe scolaire Exemple s'appelait « complexe-exemple » dans l'adresse de sa fiche.
+  async anciennesAdresses() {
+    return [
+      { chemin: ['congo', 'pointe-noire', 'tie-tie'], slug: 'complexe-exemple', numero: '482913' },
     ];
   },
 };

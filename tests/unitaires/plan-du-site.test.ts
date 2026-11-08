@@ -5,15 +5,15 @@ import type { PageDivision } from '../../src/modele/geo-divisions';
 import { entreesDuPlan, PAGES_FIXES, planDuSite } from '../../src/modele/plan-du-site';
 import type { EcolePubliee } from '../../src/modele/ports';
 
-const ecole = (slug: string, adresse: string[], misAJourLe: string) =>
-  ({ slug, adresse, misAJourLe }) as unknown as EcolePubliee;
-const lieu = (adresse: string[], ecoles: EcolePubliee[], enfants: PageDivision[] = []) =>
-  ({ adresse, ecoles, enfants }) as unknown as PageDivision;
+const ecole = (slug: string, numero: string, misAJourLe: string) =>
+  ({ slug, numero, misAJourLe }) as unknown as EcolePubliee;
+const lieu = (chemin: string[], ecoles: EcolePubliee[], enfants: PageDivision[] = []) =>
+  ({ chemin, ecoles, enfants }) as unknown as PageDivision;
 
-const fiche = ecole('[ecole-exemple]', ['congo', 'pointe-noire', 'ngoyo'], '2026-11-06T09:00:00Z');
-const ngoyo = lieu(['congo', 'pointe-noire', 'ngoyo'], [fiche]);
-const vide = lieu(['congo', 'pointe-noire', 'tie-tie'], []);
-const ville = lieu(['congo', 'pointe-noire'], [], [ngoyo, vide]);
+const fiche = ecole('[ecole-exemple]', '482913', '2026-11-06T09:00:00Z');
+const ngoyo = lieu(['pointe-noire', 'ngoyo'], [fiche]);
+const vide = lieu(['pointe-noire', 'tie-tie'], []);
+const ville = lieu(['pointe-noire'], [], [ngoyo, vide]);
 
 describe('le plan du site', () => {
   const entrees = entreesDuPlan([ville, ngoyo, vide], [fiche]);
@@ -21,21 +21,21 @@ describe('le plan du site', () => {
 
   it('liste les pages fixes, les lieux qui ont une fiche et les fiches', () => {
     expect(chemins.slice(0, PAGES_FIXES.length)).toEqual([...PAGES_FIXES]);
-    expect(chemins).toContain('/ecoles/congo/pointe-noire/');
-    expect(chemins).toContain('/ecoles/congo/pointe-noire/ngoyo/');
-    expect(chemins).toContain('/ecoles/congo/pointe-noire/ngoyo/[ecole-exemple]/');
+    expect(chemins).toContain('/ecoles/pointe-noire/');
+    expect(chemins).toContain('/ecoles/pointe-noire/ngoyo/');
+    expect(chemins).toContain('/ecoles/[ecole-exemple]-482913/');
   });
 
   it('laisse de côté une page de lieu sans fiche, et ne répète jamais une adresse', () => {
-    expect(chemins).not.toContain('/ecoles/congo/pointe-noire/tie-tie/');
+    expect(chemins).not.toContain('/ecoles/pointe-noire/tie-tie/');
     expect(new Set(chemins).size).toBe(chemins.length);
     expect(entreesDuPlan([ngoyo, ngoyo], [fiche, fiche]).length).toBe(PAGES_FIXES.length + 2);
   });
 
   it('date un lieu par sa fiche la plus récente, et une fiche par sa mise à jour', () => {
     const date = (chemin: string) => entrees.find((x) => x.chemin === chemin)?.misAJourLe;
-    expect(date('/ecoles/congo/pointe-noire/')).toBe('2026-11-06');
-    expect(date('/ecoles/congo/pointe-noire/ngoyo/[ecole-exemple]/')).toBe('2026-11-06');
+    expect(date('/ecoles/pointe-noire/')).toBe('2026-11-06');
+    expect(date('/ecoles/[ecole-exemple]-482913/')).toBe('2026-11-06');
     expect(date('/')).toBeNull();
   });
 

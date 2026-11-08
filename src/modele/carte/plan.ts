@@ -228,6 +228,7 @@ interface EcoleASituer {
   etiquette?: string | null;
   adresse: string[];
   slug: string;
+  numero: string;
   etat: 'verifiee' | 'relevee';
   releveeLe: string | null;
   situeeLe: string | null;

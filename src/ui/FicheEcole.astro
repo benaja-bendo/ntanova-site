@@ -10,7 +10,13 @@ import './carte-pieces.css';
 import { cycleLePlusEleve, lettresDesCycles } from '../modele/carte/cycles';
 import { zoomMaxEn } from '../modele/carte/fond';
 import { adresseVue } from '../modele/carte/navigation';
-import { ligneDeLieu, lienDivision, lienEcole, type PageDivision } from '../modele/geo-divisions';
+import {
+  ligneDeLieu,
+  lienCourt,
+  lienDivision,
+  lienEcole,
+  type PageDivision,
+} from '../modele/geo-divisions';
 import {
   libelleDiplome,
   libelleNiveau,
@@ -86,7 +92,7 @@ const numeroAppel = e.contactPublic?.numero ?? e.numeroEnseigne;
 const vueSurPlace = e.releveeLe !== null;
 const lienSurLaCarte =
   e.latitude !== null && e.longitude !== null
-    ? `/carte/${vueSurPlace ? `?${new URLSearchParams({ ecole: lienEcole(e) })}` : ''}${adresseVue({
+    ? `/carte/${vueSurPlace ? `?${new URLSearchParams({ ecole: e.numero })}` : ''}${adresseVue({
         zoom: Math.min(15, zoomMaxEn(e.longitude, e.latitude)),
         latitude: e.latitude,
         longitude: e.longitude,
@@ -96,7 +102,7 @@ const nomZone = zone.division.nom;
 ---
 
 <article class="cadre page fiche">
-  <a class="retour" href={lienDivision(zone.adresse)}>
+  <a class="retour" href={lienDivision(zone.chemin)}>
     ← Les écoles de {nomZone}
   </a>
 
@@ -317,6 +323,14 @@ const nomZone = zone.division.nom;
       </aside>
     </div>
   </div>
+  {/* Ticket 147 : l'identifiant NTanova, permanent, et le lien court, la seule forme courte (`/ecoles/<identifiant>/`). */}
+  <p class="identifiant">
+    Identifiant NTanova&nbsp;: <b>{e.numero}</b> · Lien court&nbsp;:{' '}
+    <a href={lienCourt(e)}>
+      {new URL(lienCourt(e), Astro.site ?? Astro.url).host}
+      {lienCourt(e)}
+    </a>
+  </p>
 </article>
 
 {/* « Partager » : le partage du téléphone quand il existe, sinon la copie du lien avec un retour visible. Sans l'un ni l'autre
@@ -535,6 +549,18 @@ const nomZone = zone.division.nom;
   .autres a:hover b {
     color: var(--marque);
     text-decoration: underline;
+  }
+  .identifiant {
+    margin: var(--espace-4) 0 0;
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+    overflow-wrap: anywhere;
+  }
+  /* Une cible de doigt, comme tous les liens de la fiche. */
+  .identifiant a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
   }
   .ou {
     display: grid;

@@ -19,6 +19,7 @@ function ecole(id: string, nom: string, reste: Partial<EcolePubliee> = {}): Ecol
     institutionId: `i-${id}`,
     divisionId: 'tt',
     slug: id,
+    numero: '123456',
     nom,
     etiquette: null,
     arrondissement: 'tie-tie',
@@ -160,7 +161,7 @@ describe('une école, en abrégé, dans le fichier de recherche', () => {
     expect(l).toMatchObject({
       i: 'ins',
       n: 'Institut Supérieur Ngoyo',
-      u: '/ecoles/congo/pointe-noire/ngoyo/ins/',
+      u: '/ecoles/ins-123456/',
       d: 'Congo › Pointe-Noire › Ngoyo',
       z: 'congo/pointe-noire/ngoyo',
       c: ['superieur'],

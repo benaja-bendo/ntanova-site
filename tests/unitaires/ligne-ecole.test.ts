@@ -12,6 +12,7 @@ function ecole(reste: Partial<EcolePubliee> = {}): EcolePubliee {
     institutionId: 'i1',
     divisionId: 'tt',
     slug: 'complexe',
+    numero: '482913',
     nom: '[Complexe scolaire Exemple]',
     etiquette: null,
     arrondissement: 'tie-tie',

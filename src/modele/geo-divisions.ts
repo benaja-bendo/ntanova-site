@@ -2,9 +2,13 @@
  * La géographie publique : pays › département › ville › arrondissement › quartier, lue dans `geo_divisions`.
  *
  * Pointe-Noire est à la fois un département (niveau 1) et une ville (niveau 2), deux lignes de même
- * nom l'une sous l'autre : elles n'ont qu'une page (`/ecoles/congo/pointe-noire/`), portée par la plus fine, et le fil
- * d'Ariane ne répète pas le nom (« Congo › Pointe-Noire › Tié-Tié »). Tout ce fichier est pur : il ne connaît ni la
- * base ni Astro.
+ * nom l'une sous l'autre : elles n'ont qu'une page, portée par la plus fine, et le fil d'Ariane ne répète pas le nom
+ * (« Congo › Pointe-Noire › Tié-Tié »). Tout ce fichier est pur : il ne connaît ni la base ni Astro.
+ *
+ * Les adresses publiques (ticket 147, décision du fondateur du 08/11/2026) n'ont ni le pays ni le département : une
+ * ville et ce qu'elle contient (`/ecoles/pointe-noire/tie-tie/`), et chaque fiche par son nom et son identifiant
+ * (`/ecoles/complexe-exemple-482913/`). Le découpage en départements change (15 depuis octobre 2024) : un lien partagé
+ * ne doit pas en dépendre. Les adresses d'avant (`/ecoles/congo/…`) renvoient vers les nouvelles.
  */
 import type { DivisionPublique, EcolePubliee } from './ports';
 
@@ -13,14 +17,48 @@ export function sansRepetition<T>(valeurs: readonly T[]): T[] {
   return valeurs.filter((v, i) => i === 0 || v !== valeurs[i - 1]);
 }
 
-/** L'adresse publique d'une zone : `/ecoles/congo/pointe-noire/` */
-export function lienDivision(adresse: readonly string[]): string {
-  return `/ecoles/${sansRepetition(adresse).join('/')}/`;
+/**
+ * Le chemin public d'une zone, de sa chaîne d'ancêtres (du pays à elle) : la ville et ce qu'elle contient, sans le pays
+ * ni le département. Un département qui n'est pas aussi une ville garde son nom seul ; le pays n'a pas de chemin (sa
+ * page est `/ecoles/`).
+ */
+export function cheminPublic(
+  chaine: readonly Pick<DivisionPublique, 'niveau' | 'slug'>[],
+): string[] {
+  const elle = chaine[chaine.length - 1];
+  if (!elle || elle.niveau === 0) return [];
+  if (elle.niveau === 1) return [elle.slug];
+  return sansRepetition(chaine.filter((d) => d.niveau >= 2).map((d) => d.slug));
 }
 
-/** L'adresse publique de la fiche d'un campus : `/ecoles/congo/pointe-noire/tie-tie/complexe-exemple/` */
-export function lienEcole(ecole: Pick<EcolePubliee, 'adresse' | 'slug'>): string {
-  return `${lienDivision(ecole.adresse)}${ecole.slug}/`;
+/** Le chemin public d'une division, en remontant ses parents. */
+export function cheminDeDivision(
+  d: DivisionPublique,
+  parId: ReadonlyMap<string, DivisionPublique>,
+): string[] {
+  const chaine: DivisionPublique[] = [];
+  for (
+    let x: DivisionPublique | undefined = d;
+    x;
+    x = x.parentId ? parId.get(x.parentId) : undefined
+  )
+    chaine.unshift(x);
+  return cheminPublic(chaine);
+}
+
+/** L'adresse publique d'une zone, de son chemin public : `/ecoles/pointe-noire/tie-tie/` (le pays : `/ecoles/`). */
+export function lienDivision(chemin: readonly string[]): string {
+  return chemin.length === 0 ? '/ecoles/' : `/ecoles/${chemin.join('/')}/`;
+}
+
+/** L'adresse canonique de la fiche d'un campus : le nom d'abord, lisible sur WhatsApp, `/ecoles/complexe-exemple-482913/`. */
+export function lienEcole(ecole: Pick<EcolePubliee, 'slug' | 'numero'>): string {
+  return `/ecoles/${ecole.slug}-${ecole.numero}/`;
+}
+
+/** Le lien court d'une fiche, la seule forme courte : `/ecoles/482913/`. Il renvoie vers l'adresse canonique. */
+export function lienCourt(ecole: Pick<EcolePubliee, 'numero'>): string {
+  return `/ecoles/${ecole.numero}/`;
 }
 
 /** Une page de zone du site : une division (ou deux, quand la ville porte le nom de son département). */
@@ -29,8 +67,10 @@ export interface PageDivision {
   division: DivisionPublique;
   /** Les divisions confondues avec elle (le département de même nom), vides sinon. */
   fusionnees: DivisionPublique[];
-  /** Les adresses du pays à cette zone, sans répétition : `['congo', 'pointe-noire', 'tie-tie']`. */
+  /** Les adresses du pays à cette zone, sans répétition : `['congo', 'pointe-noire', 'tie-tie']`. La clé de `parAdresse`. */
   adresse: string[];
+  /** Le chemin public de sa page (ticket 147) : `['pointe-noire', 'tie-tie']` ; vide pour le pays. */
+  chemin: string[];
   /** Le fil d'Ariane (noms), sans répétition. */
   noms: string[];
   parent: PageDivision | null;
@@ -90,6 +130,7 @@ export function construireArbre(
       division: d,
       fusionnees: [],
       adresse: [],
+      chemin: [],
       noms: [],
       parent: null,
       enfants: [],
@@ -110,6 +151,7 @@ export function construireArbre(
   for (const page of pages.values()) {
     const chaine = ancetres(page.division);
     page.adresse = sansRepetition(chaine.map((x) => x.slug));
+    page.chemin = cheminPublic(chaine);
     page.noms = sansRepetition(chaine.map((x) => x.nom));
     page.releve = chaine.some((x) => x.ouverte);
     // Le parent : la page du premier ancêtre qui n'est pas confondu avec celle-ci.

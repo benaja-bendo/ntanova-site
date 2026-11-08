@@ -44,7 +44,7 @@ test('contact public : accord distinct, ajout, relecture et retrait sans badge',
 test('fiche publique : accord daté et numéro d’enseigne gardent leur provenance', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+  await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
   await expect(page.getByText('Contact communiqué par l’école', { exact: true })).toBeVisible();
   await expect(page.getByText('Publication autorisée le 3 novembre 2026.')).toBeVisible();
   // Une ligne dans la fiche, plus le bouton « Appeler » de la barre d'actions : le même numéro, le contact communiqué d'abord.
@@ -56,7 +56,7 @@ test('fiche publique : accord daté et numéro d’enseigne gardent leur provena
   await expect(page.getByText('Confirmée par l’école', { exact: true })).toHaveCount(0);
 });
 test('même numéro sur l’enseigne et communiqué : un appel, deux provenances', async ({ page }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/ecole-sans-detail-exemple/');
+  await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
   await expect(page.locator('dl.proprietes a[href="tel:+242060000002"]')).toHaveCount(1);
   await expect(page.getByRole('link', { name: 'Appeler' })).toHaveAttribute(
     'href',
@@ -66,7 +66,7 @@ test('même numéro sur l’enseigne et communiqué : un appel, deux provenances
   await expect(page.getByText("Contact de l'école", { exact: true })).toHaveCount(0);
 });
 test('sans accord public : pas de nouveau contact ni de mention inventée', async ({ page }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/centre-de-formation-exemple/');
+  await page.goto('/ecoles/centre-de-formation-exemple-315702/');
   await expect(page.getByText('Contact communiqué par l’école', { exact: true })).toHaveCount(0);
   await expect(page.getByText("Contact de l'école", { exact: true })).toHaveCount(0);
 });

@@ -17,25 +17,24 @@ const nomDe = async (cible: Locator) =>
 // Chaque page : en français, sans JavaScript (sauf « Rechercher » et « Autour de moi », qui filtrent dans le
 // navigateur), sans ressource extérieure, lisible dans 360 px, avec des cibles d'au moins 44 px.
 
-const TIE_TIE = '/ecoles/congo/pointe-noire/tie-tie/';
+const TIE_TIE = '/ecoles/pointe-noire/tie-tie/';
 
 const pagesSansJavaScript = [
   '/',
-  '/ecoles/congo/',
-  '/ecoles/congo/pointe-noire/',
+  '/ecoles/pointe-noire/',
   TIE_TIE,
-  '/ecoles/congo/pointe-noire/ngoyo/',
-  '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/',
-  '/ecoles/congo/brazzaville/',
-  '/ecoles/congo/niari/dolisie/',
-  `${TIE_TIE}complexe-scolaire-exemple/`,
-  `${TIE_TIE}centre-de-formation-exemple/`,
-  `${TIE_TIE}ecole-sans-detail-exemple/`,
-  `${TIE_TIE}ecole-ajoutee-exemple/`,
-  '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/groupe-scolaire-exemple/',
-  '/ecoles/congo/pointe-noire/mongo-mpoukou/groupe-scolaire-exemple/',
-  '/ecoles/congo/pointe-noire/loandjili/institut-superieur-exemple/',
-  '/ecoles/congo/brazzaville/moungali/ecole-de-brazzaville-exemple/',
+  '/ecoles/pointe-noire/ngoyo/',
+  '/ecoles/pointe-noire/loandjili/quartier-exemple/',
+  '/ecoles/brazzaville/',
+  '/ecoles/dolisie/',
+  '/ecoles/complexe-scolaire-exemple-482913/',
+  '/ecoles/centre-de-formation-exemple-315702/',
+  '/ecoles/ecole-sans-detail-exemple-270846/',
+  '/ecoles/ecole-ajoutee-exemple-639158/',
+  '/ecoles/groupe-scolaire-exemple-158427/',
+  '/ecoles/groupe-scolaire-exemple-904316/',
+  '/ecoles/institut-superieur-exemple-527064/',
+  '/ecoles/ecole-de-brazzaville-exemple-731590/',
   '/pour-les-ecoles/',
   '/a-propos/',
 ];
@@ -45,14 +44,14 @@ const pagesAvecJavaScript = ['/ecoles/'];
 
 // Les fiches d'école : sans JavaScript, sauf le petit script inline du bouton « Partager » (quatrième exception de poids).
 const fichesDEcole = [
-  `${TIE_TIE}complexe-scolaire-exemple/`,
-  `${TIE_TIE}centre-de-formation-exemple/`,
-  `${TIE_TIE}ecole-sans-detail-exemple/`,
-  `${TIE_TIE}ecole-ajoutee-exemple/`,
-  '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/groupe-scolaire-exemple/',
-  '/ecoles/congo/pointe-noire/mongo-mpoukou/groupe-scolaire-exemple/',
-  '/ecoles/congo/pointe-noire/loandjili/institut-superieur-exemple/',
-  '/ecoles/congo/brazzaville/moungali/ecole-de-brazzaville-exemple/',
+  '/ecoles/complexe-scolaire-exemple-482913/',
+  '/ecoles/centre-de-formation-exemple-315702/',
+  '/ecoles/ecole-sans-detail-exemple-270846/',
+  '/ecoles/ecole-ajoutee-exemple-639158/',
+  '/ecoles/groupe-scolaire-exemple-158427/',
+  '/ecoles/groupe-scolaire-exemple-904316/',
+  '/ecoles/institut-superieur-exemple-527064/',
+  '/ecoles/ecole-de-brazzaville-exemple-731590/',
 ];
 
 /** Ce que toute page publique respecte : en français, aucune ressource extérieure, 360 px, des cibles de 44 px. */
@@ -114,7 +113,7 @@ test.describe('site public', () => {
     await page.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ }).click();
 
     // La ville : le département de même nom n'a pas de page à lui ; ses arrondissements en sont les zones.
-    await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/$/);
+    await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/$/);
     await expect(page.getByRole('heading', { name: 'Pointe-Noire', level: 1 })).toBeVisible();
     await page
       .getByRole('link', { name: /Tié-Tié.*Arrondissement 3.*4 écoles/ })
@@ -144,7 +143,7 @@ test.describe('site public', () => {
     const message = decodeURIComponent((await confirmer.getAttribute('href')) ?? '');
     expect(message).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
     expect(message).toContain('je dirige [Complexe scolaire Exemple]');
-    expect(message).toContain('/ecoles/congo/pointe-noire/tie-tie/');
+    expect(message).toContain('/ecoles/complexe-scolaire-exemple-482913/');
     // Ce que NTanova demande se lit sur « Pour les écoles », un lien plus bas.
     await page.getByRole('link', { name: 'Ce que nous vous demanderons' }).click();
     await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
@@ -154,12 +153,13 @@ test.describe('site public', () => {
     test('le pays, la ville, l’arrondissement, le quartier : chaque niveau mène au suivant', async ({
       page,
     }) => {
-      await page.goto('/ecoles/congo/');
+      // Ticket 147 : le pays n'a plus de page, `/ecoles/` le porte (« Ville par ville »).
+      await page.goto('/ecoles/');
       // Trois zones du pays ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
       await expect(page.locator('a.zone')).toHaveCount(3);
       await page.getByRole('link', { name: /Pointe-Noire.*7 écoles/ }).click();
       await page.getByRole('link', { name: /Loandjili.*Arrondissement 4.*2 écoles/ }).click();
-      await expect(page).toHaveURL(/\/ecoles\/congo\/pointe-noire\/loandjili\/$/);
+      await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/loandjili\/$/);
       await page.getByRole('link', { name: /\[Quartier Exemple\].*1 école/ }).click();
       await expect(page).toHaveURL(/\/loandjili\/quartier-exemple\/$/);
       await expect(
@@ -171,7 +171,7 @@ test.describe('site public', () => {
     });
 
     test('une zone sans école mais ouverte au relevé a sa page, qui le dit', async ({ page }) => {
-      await page.goto('/ecoles/congo/pointe-noire/ngoyo/');
+      await page.goto('/ecoles/pointe-noire/ngoyo/');
       await expect(page.getByRole('heading', { name: 'Ngoyo', level: 1 })).toBeVisible();
       // Ticket 146 : plus d'état de déploiement écrit sur une page de lieu.
       await expect(page.getByText('Aucune école publiée pour l’instant.')).toBeVisible();
@@ -180,9 +180,7 @@ test.describe('site public', () => {
     test('une école à deux campus : chaque fiche a son implantation, ses formations et renvoie à l’autre', async ({
       page,
     }) => {
-      await page.goto(
-        '/ecoles/congo/pointe-noire/loandjili/quartier-exemple/groupe-scolaire-exemple/',
-      );
+      await page.goto('/ecoles/groupe-scolaire-exemple-158427/');
       await expect(
         page.getByRole('heading', { name: '[Groupe scolaire Exemple]', level: 1 }),
       ).toBeVisible();
@@ -205,7 +203,7 @@ test.describe('site public', () => {
       await page.locator('.sites-ecole summary').click();
       const autres = page.getByRole('region', { name: 'Autres implantations' });
       await autres.getByRole('link', { name: /Campus de Mongo-Mpoukou/ }).click();
-      await expect(page).toHaveURL(/\/mongo-mpoukou\/groupe-scolaire-exemple\/$/);
+      await expect(page).toHaveURL(/\/ecoles\/groupe-scolaire-exemple-904316\/$/);
       await expect(
         page.getByText('Campus de Mongo-Mpoukou', { exact: true }).first(),
       ).toBeVisible();
@@ -220,11 +218,9 @@ test.describe('site public', () => {
     test('un campus dans une ville sans arrondissement : la commune porte la fiche', async ({
       page,
     }) => {
-      await page.goto('/ecoles/congo/niari/dolisie/');
+      await page.goto('/ecoles/dolisie/');
       await page.getByRole('link', { name: /Collège de Dolisie Exemple/ }).click();
-      await expect(page).toHaveURL(
-        /\/ecoles\/congo\/niari\/dolisie\/college-de-dolisie-exemple\/$/,
-      );
+      await expect(page).toHaveURL(/\/ecoles\/college-de-dolisie-exemple-846271\/$/);
       await expect(page.getByRole('link', { name: '← Les écoles de Dolisie' })).toBeVisible();
     });
 
@@ -302,7 +298,7 @@ test.describe('site public', () => {
         .locator('ul.liste-lignes')
         .getByRole('link', { name: /Groupe scolaire/ })
         .click();
-      await expect(page).toHaveURL(/\/mongo-mpoukou\/groupe-scolaire-exemple\/$/);
+      await expect(page).toHaveURL(/\/ecoles\/groupe-scolaire-exemple-904316\/$/);
     });
   });
 
@@ -357,7 +353,7 @@ test.describe('site public', () => {
 
   test.describe('toutes les écoles, de la crèche au supérieur (ticket 12)', () => {
     test('la fiche dit le type, les niveaux et le programme de l’école', async ({ page }) => {
-      await page.goto(`${TIE_TIE}complexe-scolaire-exemple/`);
+      await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
       const proprietes = page.locator('dl.proprietes');
       // Le type et les niveaux sont des puces sous le nom (audit du 05/11, chantier 2), plus des lignes de tableau.
       const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
@@ -375,7 +371,7 @@ test.describe('site public', () => {
     test('un type inconnu et des niveaux absents ne créent pas de contenu vide', async ({
       page,
     }) => {
-      await page.goto(`${TIE_TIE}ecole-sans-detail-exemple/`);
+      await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
       const proprietes = page.locator('dl.proprietes');
       await expect(proprietes).not.toContainText('Pas indiqué');
       await expect(proprietes).not.toContainText('Non indiqués');
@@ -390,7 +386,7 @@ test.describe('site public', () => {
     test('un type « Autre » ne s’écrit pas non plus, et « Autre formation » est un niveau comme un autre', async ({
       page,
     }) => {
-      await page.goto(`${TIE_TIE}centre-de-formation-exemple/`);
+      await page.goto('/ecoles/centre-de-formation-exemple-315702/');
       const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
       // La puce porte la lettre du cycle (aria-hidden) puis son nom : « S Autre formation ».
       await expect(puces.getByRole('listitem')).toHaveText([/^S\s*Autre formation$/]);
@@ -400,7 +396,7 @@ test.describe('site public', () => {
 
     test('un cycle à filières dit ce qui manque, ou ce qui est noté', async ({ page }) => {
       // Le centre de formation a une formation notée : rien à signaler pour lui.
-      await page.goto(`${TIE_TIE}centre-de-formation-exemple/`);
+      await page.goto('/ecoles/centre-de-formation-exemple-315702/');
       await expect(page.locator('.fiche-cote')).not.toContainText('Séries ou filières');
       await expect(page.getByRole('region', { name: 'Formations' })).toContainText(
         'Couture et stylisme',
@@ -431,7 +427,7 @@ test.describe('site public', () => {
       page,
     }) => {
       // Vue le 2 novembre, modifiée depuis le 20 : elle dit toujours « vue sur place le 2 novembre ».
-      await page.goto(`${TIE_TIE}centre-de-formation-exemple/`);
+      await page.goto('/ecoles/centre-de-formation-exemple-315702/');
       await expect(page.getByText(/Relevé terrain · 2 nov. 2026/)).toBeVisible();
       await expect(page.getByText(/20 novembre/)).toHaveCount(0);
     });
@@ -439,7 +435,7 @@ test.describe('site public', () => {
     test('sans date de relevé, la fiche ne se dit jamais vue sur place (ticket #99)', async ({
       page,
     }) => {
-      await page.goto(`${TIE_TIE}ecole-sans-detail-exemple/`);
+      await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
       await expect(page.getByText(/Ajoutée par NTanova/)).toBeVisible();
       await expect(page.getByText(/Relevé terrain ·/)).toHaveCount(0);
       await expect(page.getByText(/5 novembre/)).toHaveCount(0);
@@ -488,24 +484,30 @@ test.describe('site public', () => {
     await expect(droits.getByRole('paragraph')).toContainText(/nous le faisons sous\s7\sjours\./);
   });
 
-  test('l’ancienne adresse d’une fiche fusionnée renvoie vers l’école gardée, sans JavaScript', async ({
+  // Ticket 147 : chaque adresse d'avant mène en un seul saut à celle d'aujourd'hui, sans JavaScript.
+  test('les adresses d’avant, le lien court, un doublon fusionné et un ancien nom renvoient vers la fiche', async ({
     request,
   }) => {
-    const reponse = await request.get(`${TIE_TIE}ancienne-fiche-exemple/`);
-    expect(reponse.status()).toBe(200);
-    const html = await reponse.text();
-    expect(html).toContain(
-      `<meta http-equiv="refresh" content="0; url=${TIE_TIE}complexe-scolaire-exemple/">`,
-    );
-    expect(html).not.toMatch(/<script(?![^>]*application\/ld\+json)/);
-  });
-
-  test('les adresses d’avant les villes renvoient vers les nouvelles, sans JavaScript', async ({
-    request,
-  }) => {
+    const FICHE = '/ecoles/complexe-scolaire-exemple-482913/';
     for (const [ancienne, nouvelle] of [
+      // Le lien court, la seule forme courte.
+      ['/ecoles/482913/', FICHE],
+      // L'adresse d'avant le ticket 147, avec le pays et le département.
+      ['/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/', FICHE],
+      // Les lieux d'avant ; le pays mène à la liste.
+      ['/ecoles/congo/pointe-noire/tie-tie/', TIE_TIE],
+      ['/ecoles/congo/niari/dolisie/', '/ecoles/dolisie/'],
+      ['/ecoles/congo/', '/ecoles/'],
+      // Un ancien nom de la fiche, des deux formes.
+      ['/ecoles/complexe-exemple-482913/', FICHE],
+      ['/ecoles/congo/pointe-noire/tie-tie/complexe-exemple/', FICHE],
+      // Un doublon fusionné : son adresse d'avant, son adresse et son lien court.
+      ['/ecoles/congo/pointe-noire/tie-tie/ancienne-fiche-exemple/', FICHE],
+      ['/ecoles/ancienne-fiche-exemple-362850/', FICHE],
+      ['/ecoles/362850/', FICHE],
+      // Les adresses d'avant les villes.
       ['/ecoles/tie-tie/', TIE_TIE],
-      ['/ecoles/tie-tie/complexe-scolaire-exemple/', `${TIE_TIE}complexe-scolaire-exemple/`],
+      ['/ecoles/tie-tie/complexe-scolaire-exemple/', FICHE],
       // Ticket 146 : l'ancien plan dessiné mène à la seule carte, cadrée sur l'arrondissement (le « coin » d'abord à lui).
       ['/ecoles/tie-tie/carte/', '/carte/#'],
       ['/ecoles/tie-tie/carte/coin-1/', '/carte/#'],
@@ -514,8 +516,22 @@ test.describe('site public', () => {
       expect(reponse.status(), ancienne).toBe(200);
       const html = await reponse.text();
       expect(html, ancienne).toContain(`<meta http-equiv="refresh" content="0; url=${nouvelle}`);
+      expect(html, ancienne).toContain('<meta name="robots" content="noindex"');
       expect(html, ancienne).not.toMatch(/<script(?![^>]*application\/ld\+json)/);
     }
+  });
+
+  test('la fiche donne son identifiant et son lien court en pied de page (ticket 147)', async ({
+    page,
+  }) => {
+    await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
+    const pied = page.locator('.identifiant');
+    await expect(pied).toContainText('Identifiant NTanova : 482913');
+    await expect(pied.getByRole('link')).toHaveAttribute('href', '/ecoles/482913/');
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      /\/ecoles\/complexe-scolaire-exemple-482913\/$/,
+    );
   });
 
   test('une adresse inconnue renvoie la page introuvable', async ({ page }) => {
@@ -554,13 +570,13 @@ test.describe('le partage d’un lien', () => {
   test('une fiche a son image, sa preuve dans la description, et ses données schema.org, sans rien de privé', async ({
     page,
   }) => {
-    await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+    await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
     expect(await meta(page, 'og:image')).toBe(
-      'https://ntanova.com/partage/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple.png',
+      'https://ntanova.com/partage/ecoles/complexe-scolaire-exemple-482913.png',
     );
     expect(await meta(page, 'og:description')).toContain('Relevé terrain · 2 nov. 2026');
     expect(await page.locator('link[rel="canonical"]').getAttribute('href')).toBe(
-      'https://ntanova.com/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/',
+      'https://ntanova.com/ecoles/complexe-scolaire-exemple-482913/',
     );
     const brut = await page.locator('script[type="application/ld+json"]').textContent();
     const donnees = JSON.parse(brut ?? '{}') as Record<string, unknown>;

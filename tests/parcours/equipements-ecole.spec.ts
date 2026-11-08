@@ -55,7 +55,7 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
 test('fiche publique : observé, déclaré absent et non précisé restent distincts et datés', async ({
   page,
 }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/complexe-scolaire-exemple/');
+  await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
   const b = page.getByRole('region', { name: 'Équipements et infrastructures' });
   await expect(b).toContainText('Observé sur place');
   await expect(b).toContainText('Observation du 3 novembre 2026.');
@@ -66,7 +66,7 @@ test('fiche publique : observé, déclaré absent et non précisé restent disti
   await expect(b).not.toContainText('Confirmée par l’école');
 });
 test('sans information : aucun équipement supposé absent', async ({ page }) => {
-  await page.goto('/ecoles/congo/pointe-noire/tie-tie/centre-de-formation-exemple/');
+  await page.goto('/ecoles/centre-de-formation-exemple-315702/');
   await expect(page.getByRole('region', { name: 'Équipements et infrastructures' })).toHaveCount(0);
   await expect(page.getByText('Équipements', { exact: true })).toHaveCount(0);
 });

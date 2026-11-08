@@ -12,7 +12,13 @@
  * Des fonctions pures : les fichiers sont écrits par `src/pages/carte/`.
  */
 import { cheminPhotoPublique } from '../photos-publiques';
-import { lienDivision, lienEcole, ligneDeLieu, sansRepetition } from '../geo-divisions';
+import {
+  cheminDeDivision,
+  lienDivision,
+  lienEcole,
+  ligneDeLieu,
+  sansRepetition,
+} from '../geo-divisions';
 import { etatPublicDe, type EtatDeploiement } from '../etat-zone';
 import { libelleNiveau, libelleTypeEcole, typeInformatif } from '../libelles';
 import { listes } from '../listes';
@@ -54,6 +60,8 @@ export interface FeatureEcole {
     id: string;
     nom: string;
     lien: string;
+    /** La ville de l'école, comme dans l'adresse de ses lieux (`pointe-noire`) : la carte s'ouvre sur la plus fournie. */
+    ville: string | null;
     lieu: string;
     /** Tous les cycles, dans les mots du site : l'aperçu les liste. */
     niveaux: string[];
@@ -78,7 +86,10 @@ export interface FeatureEcole {
 }
 
 /** Les écoles de la carte : vues sur place, et situées. Rien de privé. */
-export function ecolesGeoJSON(ecoles: readonly EcolePubliee[]): {
+export function ecolesGeoJSON(
+  ecoles: readonly EcolePubliee[],
+  villeDe: (e: EcolePubliee) => string | null = () => null,
+): {
   type: 'FeatureCollection';
   features: FeatureEcole[];
 } {
@@ -95,6 +106,7 @@ export function ecolesGeoJSON(ecoles: readonly EcolePubliee[]): {
         id: e.id,
         nom: e.etiquette ? `${e.nom} (${e.etiquette})` : e.nom,
         lien: lienEcole(e),
+        ville: villeDe(e),
         lieu: ligneDeLieu(e.quartier, e.divisionNoms),
         niveaux: niveaux.map((n) => libelleNiveau[n]),
         niveauxLettres: niveaux.map((n) => lettresDesCycles([n])),
@@ -187,6 +199,7 @@ export function zonesGeoJSON({
 }): { type: 'FeatureCollection'; features: FeatureZone[] } {
   const features: FeatureZone[] = [];
   const adresseDe = (d: DivisionPublique) => sansRepetition(d.adresse).join('/');
+  const parId = new Map(divisions.map((d) => [d.id, d]));
   const contourDeLaZone = (d: DivisionPublique): MultiPolygone | null => {
     const brut = d.contour ?? contourDe(d);
     return brut ? simplifierContour(brut, TOLERANCE_CONTOUR_M) : null;
@@ -205,7 +218,7 @@ export function zonesGeoJSON({
         nom: d.nom,
         slug: d.slug,
         etat,
-        lien: lienDivision(d.adresse),
+        lien: lienDivision(cheminDeDivision(d, parId)),
         ...compteurs(adresseDe(d), ecoles),
       },
     });
