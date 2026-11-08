@@ -32,11 +32,11 @@ import { ecrireDistance, type LigneRecherche } from './recherche';
 
 type Niveau = Valeur<'niveau'>;
 
-/** L'icône de chaque preuve : l'écusson de la direction, l'œil du passage, le fanion de la déclaration. */
+/** L'icône de chaque preuve : l'écusson de la direction, l'œil du passage, la feuille de la déclaration. */
 export const iconeDeProvenance: Record<Provenance, NomIcone> = {
   verifiee: 'bouclier',
   relevee: 'oeil',
-  declaree: 'repere',
+  declaree: 'document',
   ajoutee: 'oeil',
 };
 

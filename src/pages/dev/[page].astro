@@ -16,6 +16,7 @@ import type { Repere } from '../../modele/carte/reperes';
 import Carte from '../../ui/Carte.astro';
 import LegendeCarte from '../../ui/LegendeCarte.astro';
 import BasculeVue from '../../ui/BasculeVue.astro';
+import CouvertureEcole from '../../ui/CouvertureEcole.astro';
 import PagePublique from '../../ui/PagePublique.astro';
 // Les pièces de la page carte : les mêmes feuilles que celles de /carte/, jamais une copie.
 import '../../ui/carte-pieces.css';
@@ -205,7 +206,7 @@ const autour = arrondissementsDessines.map((a) => ({
             <span class="ligne-nom">[Nom de l'école]</span>
             <span class="ligne-sous">Collège · Privée</span>
             <span class="ligne-sous">[Quartier] · [Ville]</span>
-            <span class="ligne-preuve ligne-preuve-relevee">Relevé terrain</span>
+            <span class="ligne-preuve ligne-preuve-relevee">Vue sur place</span>
           </span>
         </a>
         <a class="ligne-ecole" href="#carte-interactive">
@@ -267,6 +268,13 @@ const autour = arrondissementsDessines.map((a) => ({
       </div>
     </div>
 
+    <h2 id="couverture">La couverture dessinée d'une fiche</h2>
+    <div style="display: grid; gap: var(--espace-4)">
+      {['M', 'P', 'C', 'L', 'T', 'S', ''].map((lettre) => (
+        <CouvertureEcole lettre={lettre} />
+      ))}
+    </div>
+
     <h2>États</h2>
     <div class="rangee">
       {etats.map((e) => (
@@ -297,7 +305,7 @@ const autour = arrondissementsDessines.map((a) => ({
     type: 'Privée',
     repere: '[Repère en mots]',
     preuve: 'terrain',
-    preuveTexte: 'Relevé terrain · 2 nov. 2026',
+    preuveTexte: 'Vue sur place · 2 nov. 2026',
     passage: '2026-11-02T10:00:00Z',
     confirmation: null,
   };

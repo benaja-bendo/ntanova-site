@@ -83,13 +83,13 @@ export function creerApercu(
     bloc.append(repere);
   }
 
-  if (f.passage) bloc.append(preuve('', 'oeil', `Relevé terrain · ${dateCarte(f.passage)}`));
+  if (f.passage) bloc.append(preuve('', 'oeil', `Vue sur place · ${dateCarte(f.passage)}`));
   if (f.confirmation)
     bloc.append(
       preuve(
         'preuve-direction',
         'bouclier',
-        `Confirmée par l’école · ${dateCarte(f.confirmation)}`,
+        `Confirmée par la direction · ${dateCarte(f.confirmation)}`,
       ),
     );
   if (!f.passage && !f.confirmation) bloc.append(preuve('preuve-vide', 'oeil', f.preuveTexte));

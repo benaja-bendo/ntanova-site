@@ -924,7 +924,6 @@ for (const [cas, chemin] of [
     await page.goto(chemin!);
     await expect(page.locator('.manque, .pastilles-vides')).toHaveCount(0);
     await expect(page.locator('.preuves')).not.toContainText('jeune');
-    await expect(page.locator('.ecoles-appel')).toContainText('Vous dirigez cet établissement');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       page.viewportSize()!.width,
     );
@@ -936,12 +935,14 @@ for (const [cas, chemin] of [
     await page.screenshot({
       path: `captures/fiches/${cas}-${page.viewportSize()!.width}.png`,
       fullPage: true,
+      // À l'échelle de la page : au triple, une fiche longue dépasse les 8 192 px du rendu logiciel de ce fichier.
+      scale: 'css',
     });
     const cote = await page.locator('.fiche-cote').boundingBox();
     const principal = await page.locator('.fiche-principale').boundingBox();
-    const b2b = await page.locator('.ecoles-appel').boundingBox();
+    // Le côté (où la trouver, contact, identifiant) suit la fiche sur téléphone, passe à droite sur ordinateur.
     if (page.viewportSize()!.width < 1024)
-      expect(b2b!.y).toBeGreaterThan(principal!.y + principal!.height);
+      expect(cote!.y).toBeGreaterThan(principal!.y + principal!.height - 1);
     else expect(cote!.x).toBeGreaterThan(principal!.x + principal!.width);
     if (cas === 'terrain partiel') {
       await expect(page.locator('.proprietes dt')).toContainText(['Langue d’enseignement']);
@@ -959,9 +960,10 @@ for (const [cas, chemin] of [
     }
     if (cas === 'fiche complète') {
       await expect(page.locator('.photo-ecole img')).toBeVisible();
+      // Canevas du 08/11/2026 : la photo vit dans la fiche, sous les actions.
       const image = await page.locator('.photo-ecole').boundingBox();
       const actions = await page.locator('.fiche-actions').boundingBox();
-      expect(image!.y).toBeLessThan(actions!.y);
+      expect(image!.y).toBeGreaterThan(actions!.y);
       await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toBeVisible();
     }
   });

@@ -1,27 +1,23 @@
-import sharp from 'sharp';
-import { photoPourLeSite } from '../../partage/photos';
 // Les images de partage (ticket 101) : une par fiche publiée, et une pour le reste du site, construites avec le
 // site en PNG de 1 200 × 630 (WhatsApp ne montre pas un SVG). La page ne les charge jamais : seul l'aperçu d'un
 // lien partagé les lit. Le dessin est dans src/modele/partage.ts ; ici, le rendu, avec les polices du site.
 import { readFileSync } from 'node:fs';
 import { Resvg } from '@resvg/resvg-js';
 import type { APIRoute, GetStaticPaths } from 'astro';
-import { obtenirSite, obtenirPhotoPublique } from '../../infra/index';
+import { obtenirSite } from '../../infra/index';
 import {
   cheminImagePartage,
   contenuDePartage,
   couleursDePartage,
   IMAGE_PARTAGE_SITE,
+  svgDeCouverture,
   svgDePartage,
   type PreuveDePartage,
 } from '../../modele/partage';
 
-interface Contenu {
-  photoId?: string | undefined;
-  titre: string;
-  lieu: string;
-  preuve: PreuveDePartage | null;
-}
+type Contenu =
+  | { titre: string; lieu: string; preuve: null }
+  | { titre: string; lieu: string; preuve: PreuveDePartage; lettre: string };
 
 export const getStaticPaths = (async () => {
   const { ecoles } = await obtenirSite();
@@ -37,7 +33,7 @@ export const getStaticPaths = (async () => {
     },
     ...ecoles.map((e) => ({
       params: { chemin: sansPng(cheminImagePartage(e)) },
-      props: { ...contenuDePartage(e), photoId: e.photo?.id } satisfies Contenu,
+      props: contenuDePartage(e) satisfies Contenu,
     })),
   ];
 }) satisfies GetStaticPaths;
@@ -45,16 +41,12 @@ export const getStaticPaths = (async () => {
 const couleurs = couleursDePartage(readFileSync('src/ui/jetons.css', 'utf8'));
 const polices = ['src/partage/polices/poppins-700.ttf', 'src/partage/polices/nunito-sans-400.ttf'];
 
-export const GET: APIRoute = async ({ props }) => {
-  const id = (props as Contenu).photoId;
-  const photo = id
-    ? `data:image/png;base64,${(
-        await sharp(await photoPourLeSite(await obtenirPhotoPublique(id)))
-          .png()
-          .toBuffer()
-      ).toString('base64')}`
-    : undefined;
-  const svg = svgDePartage({ ...(props as Contenu), photo, couleurs });
+export const GET: APIRoute = ({ props }) => {
+  const contenu = props as Contenu;
+  const svg =
+    contenu.preuve === null
+      ? svgDePartage({ ...contenu, couleurs })
+      : svgDeCouverture({ ...(contenu as Extract<Contenu, { lettre: string }>), couleurs });
   const png = new Resvg(svg, {
     font: { fontFiles: polices, loadSystemFonts: false, defaultFontFamily: 'Nunito Sans' },
   })

@@ -1,0 +1,58 @@
+---
+// Le programme, le contact et les diplômes d'une école, une ligne par propriété. Le contact est écrit par ContactEcole : ses dt
+// et dd n'ont pas l'attribut de cette feuille, d'où `:global`.
+import type { EcolePubliee } from '../modele/ports';
+import { libelleProgramme } from '../modele/presentation-fiche';
+import ContactEcole from './ContactEcole.astro';
+interface Props {
+  e: EcolePubliee;
+  diplomes: string | null;
+}
+const { e, diplomes } = Astro.props;
+---
+
+<dl class="proprietes">
+  {e.programme && (
+    <>
+      <dt>{libelleProgramme(e.programme)}</dt>
+      <dd>{e.programme}</dd>
+    </>
+  )}
+  <ContactEcole contact={e.contactPublic ?? null} enseigne={e.numeroEnseigne} />
+  {diplomes && (
+    <>
+      <dt>Diplômes</dt>
+      <dd>{diplomes}</dd>
+    </>
+  )}
+</dl>
+
+<style>
+  .proprietes {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 40%) minmax(0, 1fr);
+    margin: 0;
+    border: 2px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .proprietes :global(dt),
+  .proprietes :global(dd) {
+    padding: var(--espace-3) var(--espace-4);
+    border-top: 1px solid var(--trait);
+  }
+  .proprietes :global(dt) {
+    padding-inline-end: 0;
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .proprietes :global(dd) {
+    margin: 0;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .proprietes :global(dt:first-of-type),
+  .proprietes :global(dt:first-of-type + dd) {
+    border-top: 0;
+  }
+</style>

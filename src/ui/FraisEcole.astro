@@ -2,70 +2,110 @@
 import { montantFrais, francsCFA, periodesFrais, type FraisEcole } from '../modele/frais-ecole';
 import { libelleNiveau } from '../modele/libelles';
 import { dateLongue } from '../modele/pointe-noire';
+import Icone from './Icone.astro';
 interface Props {
   frais: FraisEcole[];
+  /** Le titre du bloc quand il est seul ; rien quand il est dans « Filières et frais ». */
+  titre?: string | null;
 }
-const { frais } = Astro.props;
+const { frais, titre = null } = Astro.props;
+// La base range les frais par cycle : une fourchette du supérieur dépend de la filière (arbitrage du 08/11/2026).
+const selonLaFiliere = (f: FraisEcole) =>
+  f.minimum !== f.maximum && ['superieur', 'technique'].includes(f.cycle);
 ---
 
 {frais.length > 0 && (
-  <section class="carte frais-ecole" aria-label="Frais déclarés par l’école">
-    <h2>Frais déclarés par l’école</h2>
-    <p>Informations communiquées par l’école, à confirmer auprès d’elle.</p>
+  <section class="frais-ecole" aria-label="Frais déclarés par l’école">
+    {titre && <h2>{titre}</h2>}
     <ul>
       {frais.map((f) => (
         <li>
-          <h3>{libelleNiveau[f.cycle]}</h3>
+          <div class="frais-ligne">
+            <h3>{libelleNiveau[f.cycle]}</h3>
+            <p class="frais-montant">
+              <b>{montantFrais(f)}</b>
+              <span>
+                {f.periode === 'autre' ? f.precisionPeriode : periodesFrais[f.periode]}
+                {selonLaFiliere(f) && ', selon la filière'}
+              </span>
+            </p>
+          </div>
           <p>
-            <b>{montantFrais(f)}</b> ·{' '}
-            {f.periode === 'autre' ? f.precisionPeriode : periodesFrais[f.periode]}
+            Frais d’inscription&nbsp;:{' '}
+            {f.inscription === null ? 'non communiqués' : francsCFA(f.inscription)}
           </p>
-          <p>
+          <p class="frais-doux">
             {f.anneeScolaire
               ? `Année scolaire : ${f.anneeScolaire}`
               : 'Année scolaire non précisée'}
           </p>
-          <p>
-            Frais d’inscription :{' '}
-            {f.inscription === null ? 'non communiqués' : francsCFA(f.inscription)}
+          {f.note && <p class="frais-doux">{f.note}</p>}
+          <p class="frais-source">
+            <Icone nom="document" />
+            Déclarés par l’école le {dateLongue(f.declaresLe)}.
           </p>
-          {f.note && <p>{f.note}</p>}
-          <p class="date-frais">Déclarés par l’école le {dateLongue(f.declaresLe)}.</p>
         </li>
       ))}
     </ul>
+    <p class="frais-doux">Informations communiquées par l’école, à confirmer auprès d’elle.</p>
   </section>
 )}
 <style>
   .frais-ecole {
-    padding: var(--espace-4);
     display: grid;
     gap: var(--espace-3);
-  }
-  h2 {
-    font-size: var(--taille-titre-fiche);
-  }
-  h3 {
-    font-size: var(--taille-courante);
   }
   ul {
     margin: 0;
     padding: 0;
     list-style: none;
-    display: grid;
-    gap: var(--espace-4);
+    border: 2px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    overflow: hidden;
   }
   li {
     display: grid;
-    gap: var(--espace-2);
+    gap: var(--espace-1);
+    padding: var(--espace-3) var(--espace-4);
+  }
+  li + li {
+    border-top: 1px solid var(--trait);
   }
   p,
-  h2,
   h3 {
     margin: 0;
   }
-  .date-frais {
+  h3 {
+    font-family: var(--police-titre);
+    font-size: var(--taille-courante);
+  }
+  .frais-ligne {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--espace-1) var(--espace-3);
+  }
+  .frais-montant {
+    display: grid;
+    justify-items: end;
+    text-align: right;
+  }
+  .frais-montant b {
+    font-family: var(--police-titre);
+    font-variant-numeric: tabular-nums;
+  }
+  .frais-montant span,
+  .frais-doux {
     color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .frais-source {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--espace-2);
+    color: var(--preuve-ecole);
     font-size: var(--taille-secondaire);
   }
 </style>
