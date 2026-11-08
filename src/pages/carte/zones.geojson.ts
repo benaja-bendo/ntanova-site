@@ -3,11 +3,12 @@
 // compteurs publics. Les contours viennent de la base ; voir src/modele/carte/donnees.ts.
 import type { APIRoute } from 'astro';
 import { obtenirSite } from '../../infra/index';
+import { MENTION_ODBL } from '../../modele/carte/donnees';
 import { donneesDeLaCarte } from '../../modele/carte/instantane';
 
 export const GET: APIRoute = async () => {
   const { zones } = donneesDeLaCarte(await obtenirSite());
-  return new Response(JSON.stringify(zones), {
+  return new Response(JSON.stringify({ ...zones, ...MENTION_ODBL }), {
     headers: { 'Content-Type': 'application/geo+json; charset=utf-8' },
   });
 };

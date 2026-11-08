@@ -1,0 +1,160 @@
+---
+// Le gabarit des pages de texte de confiance (Méthode, Données, Confidentialité, Mentions légales, À propos) : un titre, un
+// chapeau, des blocs `<section class="carte bloc">` et, en bas, ce qui renvoie aux autres. Aucun JavaScript. Les blocs
+// passent par la fente ; leurs styles sont ici, sous `.texte-page`.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { lienWhatsApp } from '../modele/whatsapp';
+import PagePublique from './PagePublique.astro';
+
+interface Props {
+  /** Le titre de l'onglet et des aperçus de lien. */
+  titre: string;
+  description: string;
+  /** La petite ligne au-dessus du titre. */
+  surtitre: string;
+  /** Le titre de la page. */
+  intitule: string;
+}
+const { titre, description, surtitre, intitule } = Astro.props;
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+---
+
+<PagePublique titre={titre} description={description} whatsapp={whatsapp}>
+  <section class="cadre page texte-page">
+    <div class="bloc tete">
+      <p class="surtitre-public">{surtitre}</p>
+      <h1>{intitule}</h1>
+      <slot name="chapeau" />
+    </div>
+    <slot />
+  </section>
+</PagePublique>
+
+<style is:global>
+  .texte-page {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .texte-page h1 {
+    margin: 0;
+    color: var(--marque-appuyee);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-page);
+    line-height: var(--interligne-titre);
+  }
+  .texte-page h2 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .texte-page h3 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-courante);
+  }
+  .texte-page p,
+  .texte-page ul,
+  .texte-page ol {
+    margin: 0;
+  }
+  .texte-page ul,
+  .texte-page ol {
+    padding-left: var(--espace-5);
+  }
+  .texte-page li + li {
+    margin-top: var(--espace-1);
+  }
+  .texte-page .bloc {
+    display: grid;
+    gap: var(--espace-2);
+    align-content: start;
+  }
+  .texte-page .tete,
+  .texte-page .large,
+  .texte-page .references {
+    grid-column: 1 / -1;
+  }
+  .texte-page .references {
+    display: grid;
+    gap: var(--espace-1);
+    padding-top: var(--espace-3);
+    border-top: 1px solid var(--trait);
+    color: var(--texte-doux);
+    font-size: var(--taille-mention);
+  }
+  .texte-page .a-completer {
+    color: var(--texte-doux);
+  }
+  /* Un lien est une cible de 44 px au moins, même au milieu d'une phrase (règle du site, gardée par les parcours). Dans une phrase,
+     le haut et le bas du lien dépassent la ligne sans la grandir (marges négatives) : le paragraphe garde son interligne. 14 px de chaque
+     côté : 44 px même pour une ligne de 12 px (les références en bas de page). */
+  .texte-page a:not(.bouton) {
+    color: var(--marque);
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .texte-page p a:not(.bouton),
+  .texte-page li a:not(.bouton) {
+    display: inline-block;
+    padding-block: 0.875rem;
+    margin-block: -0.875rem;
+  }
+  .texte-page th a:not(.bouton) {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+  }
+  /* Les tableaux de chiffres : une légende, des en-têtes, des cellules à 44 px de haut pour le doigt, aucun défilement de côté. */
+  .texte-page table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--taille-secondaire);
+  }
+  .texte-page caption {
+    padding-bottom: var(--espace-2);
+    text-align: left;
+    font-family: var(--police-titre);
+    font-size: var(--taille-courante);
+    font-weight: 700;
+  }
+  .texte-page th,
+  .texte-page td {
+    padding: var(--espace-2) var(--espace-2) var(--espace-2) 0;
+    border-bottom: 1px solid var(--trait);
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+  .texte-page th[scope='col'] {
+    color: var(--texte-doux);
+    font-size: var(--taille-mention);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .texte-page td.nombre,
+  .texte-page th.nombre {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .texte-page .sous-lieu {
+    padding-left: var(--espace-4);
+  }
+  .texte-page .sous-sous-lieu {
+    padding-left: var(--espace-7);
+  }
+
+  @media (min-width: 48rem) {
+    .texte-page {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      padding-block: var(--espace-7);
+    }
+    .texte-page h1 {
+      font-size: var(--taille-titre-public);
+    }
+    .texte-page .carte {
+      padding: var(--espace-5);
+      border-radius: var(--rayon-l);
+    }
+  }
+</style>

@@ -45,6 +45,10 @@ test('une capture de chaque écran', async ({ page, context }) => {
     ['public-autour-de-moi', '/autour-de-moi/'],
     ['public-pour-les-ecoles', '/pour-les-ecoles/'],
     ['public-a-propos', '/a-propos/'],
+    ['public-methode', '/methode/'],
+    ['public-donnees', '/donnees/'],
+    ['public-confidentialite', '/confidentialite/'],
+    ['public-mentions-legales', '/mentions-legales/'],
     ['public-introuvable', '/cette-page-n-existe-pas/'],
   ] as const) {
     await page.goto(adresse);

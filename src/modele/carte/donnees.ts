@@ -172,6 +172,20 @@ function compteurs(prefixe: string, ecoles: readonly EcolePubliee[]) {
   };
 }
 
+/**
+ * La mention qui accompagne le fichier des zones (ticket 149) : ses limites et ses points de villes viennent d'OpenStreetMap, sous
+ * licence ODbL. L'ODbL demande le crédit et le texte de la licence « dans la base elle-même » (un fichier de données n'a pas de
+ * légende) : GeoJSON accepte des membres en plus, que la carte ignore. Les écoles de NTanova n'en portent pas : elles ne viennent
+ * pas d'OpenStreetMap.
+ */
+export const MENTION_ODBL = {
+  attribution: '© les contributeurs d’OpenStreetMap',
+  license: 'ODbL-1.0',
+  licenseUrl: 'https://opendatacommons.org/licenses/odbl/1-0/',
+  copyrightUrl: 'https://www.openstreetmap.org/copyright',
+  note: 'Limites et points tirés d’OpenStreetMap, simplifiés à 10 m par NTanova (ntanova.com/donnees/).',
+} as const;
+
 /** Un détail de moins de 10 m n'est pas dessiné : c'est un pixel au plus grand zoom stocké, et des octets pour rien. */
 export const TOLERANCE_CONTOUR_M = 10;
 

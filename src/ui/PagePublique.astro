@@ -7,6 +7,7 @@ import './public.css';
 import Icone from './Icone.astro';
 import Marque from './Marque.astro';
 import { HAUTEUR_PARTAGE, IMAGE_PARTAGE_SITE, LARGEUR_PARTAGE } from '../modele/partage';
+import { LIEN_A_PROPOS, PAGES_DE_TRANSPARENCE } from '../modele/pages-de-confiance';
 
 interface Props {
   titre: string;
@@ -46,7 +47,7 @@ const portes = [
   { href: '/ecoles/', texte: 'Écoles', courante: surEcoles },
   { href: '/carte/', texte: 'Carte', courante: surCarte },
   { href: '/pour-les-ecoles/', texte: 'Pour les écoles', courante: surPourLesEcoles },
-  { href: '/a-propos/', texte: 'À propos', courante: chemin.startsWith('/a-propos') },
+  { href: LIEN_A_PROPOS, texte: 'À propos', courante: chemin.startsWith(LIEN_A_PROPOS) },
 ];
 ---
 
@@ -175,13 +176,26 @@ const portes = [
                 <a href="/pour-les-ecoles/">Pour les écoles</a>
               </li>
               <li>
-                <a href="/a-propos/">À propos et données personnelles</a>
+                <a href={LIEN_A_PROPOS}>À propos</a>
               </li>
               {whatsapp && (
                 <li>
                   <a href={whatsapp}>Écrire à NTanova sur WhatsApp</a>
                 </li>
               )}
+            </ul>
+          </div>
+          {/* Les pages qu'une administration, une direction ou une famille lit pour savoir à qui elle a affaire (ticket 149). */}
+          <div class="pied-groupe pied-groupe-transparence">
+            <p class="pied-titre" id="pied-transparence">
+              Transparence
+            </p>
+            <ul aria-labelledby="pied-transparence">
+              {PAGES_DE_TRANSPARENCE.map((p) => (
+                <li>
+                  <a href={p.href}>{p.texte}</a>
+                </li>
+              ))}
             </ul>
           </div>
         </nav>
@@ -441,6 +455,18 @@ const portes = [
   .pied-groupe {
     display: grid;
     align-content: start;
+  }
+  /* Le groupe « Transparence » (ticket 149) prend toute la largeur sous les deux autres, ses quatre liens sur deux colonnes. */
+  .pied-groupe-transparence {
+    grid-column: 1 / -1;
+  }
+  .pied-groupe-transparence ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 21.99rem) {
+    .pied-groupe-transparence ul {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
   .pied-titre {
     color: var(--texte-doux);

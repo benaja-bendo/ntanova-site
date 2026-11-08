@@ -1,0 +1,243 @@
+---
+// Confidentialité (ticket 149, décision du fondateur du 08/11/2026) : la partie « données personnelles » de l'ancienne page
+// « À propos », complétée de ce que l'article 46 de la loi n° 29-2019 demande d'écrire au plus tard à la collecte : le
+// responsable, les finalités, les catégories de données, les destinataires, la durée de conservation, les transferts hors du
+// Congo, les droits. Ce que NTanova ne sait pas encore reste entre crochets (rien n'est inventé).
+import { DELAI_DROITS_JOURS, LIEN_METHODE, LIEN_DONNEES } from '../modele/pages-de-confiance';
+import ContactNtanova from '../ui/ContactNtanova.astro';
+import PageDeTexte from '../ui/PageDeTexte.astro';
+
+const TEXTE_DU = '8 novembre 2026';
+
+// Les données gardées, une par ligne : pourquoi, qui les voit, combien de temps. Les durées restent à fixer par le fondateur.
+const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree: string }[] = [
+  {
+    nom: 'La fiche publique d’une école',
+    quoi: 'Nom, enseigne, position, niveaux, type, repère, numéro affiché sur l’enseigne, preuves et leurs dates.',
+    pourquoi: 'Faire connaître les écoles aux familles.',
+    qui: 'Tout le monde, sur ntanova.com.',
+    duree:
+      'Tant que la fiche est publiée ; retirée à votre demande. [Durée de conservation après un retrait : à fixer.]',
+  },
+  {
+    nom: 'Ce que l’école accepte de publier',
+    quoi: 'Photos, frais, contact, mot de la direction.',
+    pourquoi: 'Informer les familles.',
+    qui: 'Tout le monde, avec l’accord daté de la direction.',
+    duree: 'Tant que l’accord vaut ; retiré à votre demande.',
+  },
+  {
+    nom: 'Le contact privé de la direction',
+    quoi: 'Nom, fonction, numéro de téléphone, date de l’accord.',
+    pourquoi: 'Vérifier la fiche et écrire à la direction à ce sujet.',
+    qui: 'NTanova seul. Jamais publié.',
+    duree: '[À fixer.]',
+  },
+  {
+    nom: 'Les photos non publiées',
+    quoi: 'Photos envoyées par les relais et non retenues pour le site.',
+    pourquoi: 'Vérifier la fiche.',
+    qui: 'NTanova seul.',
+    duree: '[À fixer.]',
+  },
+  {
+    nom: 'Les relais',
+    quoi: 'Prénom, adresse de connexion Google, identifiant du compte Google, fiches envoyées, paie [préciser les données de paiement].',
+    pourquoi: 'Faire relever les écoles, vérifier le travail, payer.',
+    qui: 'NTanova seul. Le nom d’un relais n’apparaît jamais sur le site.',
+    duree: '[À fixer.]',
+  },
+  {
+    nom: 'Le journal technique de l’application des relais',
+    quoi: 'Type de téléphone, version de l’application, erreurs rencontrées.',
+    pourquoi: 'Réparer l’application.',
+    qui: 'NTanova seul.',
+    duree: '[À fixer.]',
+  },
+  {
+    nom: 'Vos messages à NTanova',
+    quoi: 'Ce que vous écrivez sur WhatsApp ou par e-mail.',
+    pourquoi: 'Vous répondre.',
+    qui: 'NTanova. WhatsApp est un service de Meta.',
+    duree: '[À fixer.]',
+  },
+];
+---
+
+<PageDeTexte
+  titre="Confidentialité : vos données personnelles · NTanova"
+  description="Ce que NTanova publie, ce qu’il garde pour lui, qui reçoit quoi, où sont les données, combien de temps, et comment corriger, retirer ou effacer."
+  surtitre="Transparence"
+  intitule="Vos données personnelles"
+>
+  <Fragment slot="chapeau">
+    <p class="texte-doux">
+      NTanova publie des informations sur des écoles. Cette page dit ce qui se rapporte à des
+      personnes, qui le voit, où cela est gardé et comment faire corriger, retirer ou effacer. Texte
+      du {TEXTE_DU}.
+    </p>
+    <ContactNtanova message="Bonjour NTanova, une question sur mes données : " />
+  </Fragment>
+
+  <section class="carte bloc large" id="ce-que-nous-gardons">
+    <h2>Ce que nous publions et ce que nous gardons</h2>
+    <p>
+      Pour chaque école, nous publions ce qui se voit de la rue&nbsp;: nom, enseigne, position,
+      niveaux, numéro écrit sur l’enseigne. Photos, frais, contact et mot de la direction ne sont
+      publiés qu’avec l’accord daté de la direction. Une fiche décrit un établissement, pas une
+      personne&nbsp;; un numéro de téléphone peut pourtant se rapporter à une personne, et vous
+      pouvez demander qu’il soit retiré.
+    </p>
+    <ul class="registre">
+      {DONNEES.map((d) => (
+        <li>
+          <strong>{d.nom}</strong>
+          <dl>
+            <dt>Quoi</dt>
+            <dd>{d.quoi}</dd>
+            <dt>Pourquoi</dt>
+            <dd>{d.pourquoi}</dd>
+            <dt>Qui la voit</dt>
+            <dd>{d.qui}</dd>
+            <dt>Combien de temps</dt>
+            <dd class={d.duree.includes('[') ? 'a-completer' : undefined}>{d.duree}</dd>
+          </dl>
+        </li>
+      ))}
+    </ul>
+    <p>
+      Rien n’est obligatoire pour une école&nbsp;: sans réponse de sa direction, la fiche reste ce
+      qu’un relais a vu de la rue. Un contact n’est gardé que si la direction l’accepte.
+    </p>
+  </section>
+
+  <section class="carte bloc" id="ou-sont-les-donnees">
+    <h2>Où sont les données</h2>
+    <ul>
+      <li>
+        <strong>Base de données et photos</strong>&nbsp;: Supabase, région Paris (France).
+      </li>
+      <li>
+        <strong>Site et fond de carte</strong>&nbsp;: Cloudflare.
+      </li>
+      <li>
+        <strong>Connexion des relais</strong>&nbsp;: Google.
+      </li>
+      <li>
+        <strong>Messages</strong>&nbsp;: WhatsApp (Meta).
+      </li>
+      <li>
+        <strong>Carte de position de l’application des relais</strong>&nbsp;: quand un relais
+        l’ouvre, son navigateur demande des morceaux de carte aux serveurs d’OpenStreetMap, qui
+        voient son adresse IP et la zone demandée.
+      </li>
+    </ul>
+    <p>
+      Ces services sont hors du Congo-Brazzaville. La loi n°&nbsp;29-2019 (article&nbsp;23)
+      n’autorise le transfert de données personnelles vers un autre pays que s’il assure une
+      protection suffisante, et demande d’en informer la commission chargée de la protection des
+      données. <span class="a-completer">[Où en est cette démarche&nbsp;: à renseigner.]</span>
+    </p>
+  </section>
+
+  <section class="carte bloc" id="visiteurs">
+    <h2>Les familles qui visitent le site</h2>
+    <p>
+      Pas de compte, pas de cookie, pas de mesure de votre navigation. Comme tout hébergeur,
+      Cloudflare reçoit l’adresse IP de votre appareil pour vous envoyer les pages.
+    </p>
+    <h3>Votre position sur la carte</h3>
+    <p>
+      Le bouton «&nbsp;Ma position&nbsp;» demande votre accord. NTanova ne conserve pas vos
+      coordonnées GPS. Le fond de carte est servi par Cloudflare&nbsp;: les demandes de tuiles
+      correspondent à la zone que vous consultez. Le partage d’une école transmet sa position, pas
+      votre position personnelle.
+    </p>
+    <p>Vos messages partent sur WhatsApp.</p>
+  </section>
+
+  <section class="carte bloc" id="relais">
+    <h2>Les relais</h2>
+    <p>
+      Les jeunes qui relèvent les écoles se connectent avec leur compte Google. Seuls leur prénom,
+      leur adresse de connexion et l’identifiant de leur compte sont lus&nbsp;; NTanova n’accède à
+      rien d’autre dans leur compte. Leur nom n’apparaît jamais sur le site.
+    </p>
+  </section>
+
+  <section class="carte bloc" id="enfants">
+    <h2>Les enfants</h2>
+    <p>
+      Le site ne contient aucune donnée sur des élèves. Nous demandons aux relais de ne jamais
+      photographier un enfant&nbsp;; une photo qui en montre un n’est pas publiée.
+    </p>
+  </section>
+
+  <section class="carte bloc large" id="droits">
+    <h2>Vos droits</h2>
+    <p>
+      Vous pouvez demander, en justifiant de votre identité, à voir ce qui vous concerne, à le
+      corriger, à le retirer ou à l’effacer&nbsp;: une fiche, un numéro, un contact.
+      Écrivez-nous&nbsp;: nous le faisons dans notre base{' '}
+      <span class="insecable">sous {DELAI_DROITS_JOURS} jours</span>.
+    </p>
+    <h3>Ce que cela veut dire sur le site</h3>
+    <ul>
+      <li>
+        Le site est mis à jour par étapes&nbsp;: une correction n’est visible sur ntanova.com qu’à
+        la mise en ligne suivante. Pour le retrait d’une fiche ou l’effacement d’un numéro, nous
+        demandons cette mise en ligne sans attendre.
+      </li>
+      <li>
+        Les moteurs de recherche et les aperçus de lien (par exemple dans WhatsApp) peuvent garder
+        une copie plus longtemps&nbsp;: nous ne pouvons pas l’effacer chez eux.
+      </li>
+    </ul>
+    <p class="a-completer">
+      [Si vous estimez que vos droits ne sont pas respectés, vous pouvez saisir l’autorité de
+      contrôle&nbsp;: coordonnées à renseigner.]
+    </p>
+    <ContactNtanova message="Bonjour NTanova, je voudrais faire corriger, retirer ou effacer : " />
+  </section>
+
+  <div class="references">
+    <p>
+      Référence&nbsp;: loi congolaise n°&nbsp;29-2019 du 10&nbsp;octobre 2019 portant protection des
+      données à caractère personnel (Journal officiel n°&nbsp;45-2019).
+    </p>
+    <p>
+      Comment les fiches sont tenues&nbsp;: <a href={LIEN_METHODE}>Méthode</a>. Ce qui est publié,
+      en chiffres&nbsp;: <a href={LIEN_DONNEES}>Données</a>.
+    </p>
+  </div>
+</PageDeTexte>
+
+<style>
+  .registre {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .registre li {
+    display: grid;
+    gap: var(--espace-1);
+    padding-top: var(--espace-3);
+    border-top: 1px solid var(--trait);
+  }
+  .registre dl {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--espace-1) var(--espace-3);
+    margin: 0;
+    font-size: var(--taille-secondaire);
+  }
+  .registre dt {
+    color: var(--texte-doux);
+  }
+  .registre dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+</style>

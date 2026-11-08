@@ -51,21 +51,32 @@ test('les pages de zone et l’accueil parlent de « Ajouter mon école » et de
   ).toBeVisible();
 });
 
-test('« Comment les fiches sont tenues » est visible en haut de la page « Qui sommes-nous ? », avec un périmètre exact et daté', async ({
+test('« Qui sommes-nous ? » dit qui est NTanova, sans périmètre écrit à la main, et renvoie vers les quatre pages de transparence (ticket 149)', async ({
   page,
 }) => {
   await page.goto('/a-propos/');
-  await expect(
-    page.getByText('Comment les fiches sont tenues', { exact: true }).first(),
-  ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Qui sommes-nous ?' })).toBeVisible();
   const chapeau = page.locator('.tete');
   await expect(chapeau).toContainText('les écoles du Congo-Brazzaville');
-  await expect(chapeau).toContainText('Au 5 novembre 2026');
-  await expect(chapeau).toContainText('les premières écoles publiées sont à Pointe-Noire');
-  await expect(chapeau).toContainText('le relevé s’étend progressivement au Congo-Brazzaville');
-  // L'ancien périmètre (« commence à Tié-Tié et à Ngoyo ») a disparu.
+  // Le périmètre en chiffres vit sur « Données », daté de la construction : plus de date écrite à la main ici.
+  await expect(chapeau).toContainText('en nombres et en dates');
+  await expect(chapeau.getByRole('link', { name: 'Données' })).toHaveAttribute('href', '/donnees/');
+  await expect(page.locator('main')).not.toContainText('Au 5 novembre 2026');
   await expect(page.locator('main')).not.toContainText('commence à Tié-Tié');
+  // Les données personnelles ont déménagé : ni leur titre ni la loi ici, un lien vers leur page.
+  await expect(page.getByRole('heading', { name: 'Vos droits' })).toHaveCount(0);
+  await expect(page.locator('#transparence').getByRole('link')).toHaveText([
+    'Méthode',
+    'Données',
+    'Confidentialité',
+    'Mentions légales',
+    'Écrire à NTanova sur WhatsApp',
+  ]);
+  // L'ancre que les fiches visaient avant la page Méthode reste, et renvoie vers elle.
+  await expect(page.locator('#ce-que-nous-publions').getByRole('link')).toHaveAttribute(
+    'href',
+    '/methode/',
+  );
 });
 
 test('page introuvable : un accès direct aux écoles et à la carte, et le WhatsApp dans le pied', async ({
@@ -88,7 +99,7 @@ test('page introuvable : un accès direct aux écoles et à la carte, et le What
   ).toHaveAttribute('href', /wa\.me/);
 });
 
-test('le pied de page : deux groupes de liens, et la phrase « République du Congo » tient sur une ligne', async ({
+test('le pied de page : trois groupes de liens, et la phrase « République du Congo » tient sur une ligne', async ({
   page,
 }) => {
   await page.goto('/ecoles/');
@@ -100,8 +111,15 @@ test('le pied de page : deux groupes de liens, et la phrase « République du Co
   ]);
   await expect(pied.getByRole('list', { name: 'NTanova' }).getByRole('link')).toHaveText([
     'Pour les écoles',
-    'À propos et données personnelles',
+    'À propos',
     'Écrire à NTanova sur WhatsApp',
+  ]);
+  // Ticket 149 : les pages qu'une administration lit, sur toutes les pages publiques.
+  await expect(pied.getByRole('list', { name: 'Transparence' }).getByRole('link')).toHaveText([
+    'Méthode',
+    'Données',
+    'Confidentialité',
+    'Mentions légales',
   ]);
   // La phrase : une seule ligne à toutes les largeurs.
   const phrase = pied.getByText('NTanova · République du Congo');
@@ -119,8 +137,9 @@ test('le pied de page de téléphone n’occupe plus qu’environ la moitié de 
   test.skip((page.viewportSize()?.width ?? 0) > 400, 'téléphone seulement');
   await page.goto('/ecoles/');
   const liens = await page.locator('footer nav').boundingBox();
-  // Cinq liens de 44 px en une colonne : 220 px. Deux colonnes : ≈ 3 lignes.
-  expect(liens!.height).toBeLessThanOrEqual(240);
+  // Une seule colonne de cinq liens de 44 px faisait 220 px, plus ses titres. Depuis le ticket 149 : deux colonnes (≈ 3 lignes), puis le
+  // groupe « Transparence » (quatre liens sur deux colonnes, 2 lignes) : 268 px mesurés, pour neuf liens au lieu de cinq.
+  expect(liens!.height).toBeLessThanOrEqual(280);
 });
 
 test('l’accueil : les liens sous les villes ne se touchent pas, et les deux boutons ont la même hauteur', async ({

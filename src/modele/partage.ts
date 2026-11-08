@@ -1,6 +1,6 @@
 /**
  * Le partage d'une fiche (ticket 101) : l'image que WhatsApp montre sous un lien (1 200 × 630, construite avec le
- * site, jamais chargée par la page elle-même) et les données structurées de la fiche (`schema.org/School`).
+ * site, jamais chargée par la page elle-même) et les données structurées de la fiche (`schema.org`).
  * Des fonctions pures : le rendu en PNG est dans `src/pages/partage/[...chemin].png.ts`.
  *
  * Les couleurs viennent des jetons (`src/ui/jetons.css`), lus à la construction : aucune couleur n'est écrite ici.
@@ -8,6 +8,7 @@
  * la photo d'enseigne prise dans la rue n'est jamais une couverture.
  */
 import { cycleLePlusEleve } from './carte/cycles';
+import { listes, type Valeur } from './listes';
 import type { EcolePubliee } from './ports';
 import { ligneDeLieu } from './geo-divisions';
 import { libelleProvenance, provenanceDe } from './libelles';
@@ -302,14 +303,50 @@ export function contenuDePartage(e: Fiche & Pick<EcolePubliee, 'niveaux'>): {
   };
 }
 
-/** Les données structurées d'une fiche (`schema.org/School`) : ce que la fiche montre déjà, rien de plus. */
-export function donneesEcole(e: Fiche, adresse: string): Record<string, unknown> {
+/**
+ * Les types schema.org d'une fiche (ticket 149) : un type précis par cycle enseigné, dans l'ordre des cycles. Ces types sont
+ * des types frères sous `EducationalOrganization`, pas des sous-types de `School` : une fiche qui n'a aucun type précis à
+ * donner (technique, autre formation, aucun niveau noté) garde `School`, et rien d'autre.
+ */
+const TYPE_SCHEMA_ORG: Partial<Record<Valeur<'niveau'>, string>> = {
+  creche: 'Preschool',
+  maternelle: 'Preschool',
+  primaire: 'ElementarySchool',
+  college: 'MiddleSchool',
+  lycee: 'HighSchool',
+  superieur: 'CollegeOrUniversity',
+};
+
+export function typesSchemaOrg(niveaux: readonly Valeur<'niveau'>[]): string[] {
+  const types = new Set<string>();
+  let sansType = niveaux.length === 0;
+  for (const niveau of listes.niveau) {
+    if (!niveaux.includes(niveau)) continue;
+    const type = TYPE_SCHEMA_ORG[niveau];
+    if (type) types.add(type);
+    else sansType = true;
+  }
+  if (sansType) types.add('School');
+  return [...types];
+}
+
+/**
+ * Les données structurées d'une fiche (`schema.org`) : ce que la fiche montre déjà, rien de plus. Le numéro à six chiffres est
+ * son identifiant permanent. **Jamais d'agrément** : la fiche cite un document, et un identifiant de diplôme lisible par une
+ * machine se lirait comme une garantie de NTanova.
+ */
+export function donneesEcole(
+  e: Fiche & Pick<EcolePubliee, 'niveaux' | 'numero'>,
+  adresse: string,
+): Record<string, unknown> {
   const lieu = ligneDeLieu(e.quartier, e.divisionNoms).split(' · ').join(', ');
+  const types = typesSchemaOrg(e.niveaux);
   return {
     '@context': 'https://schema.org',
-    '@type': 'School',
+    '@type': types.length === 1 ? types[0] : types,
     name: e.etiquette ? `${e.nom} (${e.etiquette})` : e.nom,
     url: adresse,
+    identifier: { '@type': 'PropertyValue', propertyID: 'NTanova', value: e.numero },
     address: {
       '@type': 'PostalAddress',
       ...(e.repere ? { streetAddress: e.repere } : {}),

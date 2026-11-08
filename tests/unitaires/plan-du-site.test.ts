@@ -26,6 +26,11 @@ describe('le plan du site', () => {
     expect(chemins).toContain('/ecoles/[ecole-exemple]-482913/');
   });
 
+  it('liste les pages de transparence (ticket 149), jamais absentes du plan du site', () => {
+    for (const page of ['/methode/', '/donnees/', '/confidentialite/', '/mentions-legales/'])
+      expect(chemins).toContain(page);
+  });
+
   it('laisse de côté une page de lieu sans fiche, et ne répète jamais une adresse', () => {
     expect(chemins).not.toContain('/ecoles/pointe-noire/tie-tie/');
     expect(new Set(chemins).size).toBe(chemins.length);

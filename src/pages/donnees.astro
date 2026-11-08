@@ -1,0 +1,269 @@
+---
+// Données (ticket 149, décision du fondateur du 08/11/2026) : des statistiques ouvertes, en nombres et en dates, jamais en
+// pourcentage (le nombre total d'écoles du pays est inconnu) ; pas de téléchargement libre ; l'export complet est remis sur
+// demande aux ministères, aux chercheurs et aux partenaires ; les conditions d'utilisation. Les chiffres sont calculés à la
+// construction du site et datés de cette construction.
+import { obtenirSite } from '../infra/index';
+import { dateLongue } from '../modele/pointe-noire';
+import { LIEN_METHODE } from '../modele/pages-de-confiance';
+import { statistiquesOuvertes } from '../modele/statistiques-ouvertes';
+import ContactNtanova from '../ui/ContactNtanova.astro';
+import PageDeTexte from '../ui/PageDeTexte.astro';
+
+const site = await obtenirSite();
+const s = statistiquesOuvertes({
+  racines: site.arbre.racines,
+  ecoles: site.ecoles,
+  construiteLe: new Date(),
+});
+/** « 6 novembre 2026 », d'un jour `AAAA-MM-JJ`. */
+const jourLong = (jour: string) => dateLongue(`${jour}T12:00:00Z`);
+
+// Un jour par ligne, les 31 plus récents ; le reste en une ligne, pour que la table reste lisible quand les fiches seront nombreuses.
+const JOURS_MONTRES = 31;
+const jours = s.parJour.slice(0, JOURS_MONTRES);
+const plusAnciennes = s.parJour.slice(JOURS_MONTRES).reduce((n, j) => n + j.fiches, 0);
+const classeDuLieu = (profondeur: number) =>
+  profondeur === 2 ? 'sous-lieu' : profondeur >= 3 ? 'sous-sous-lieu' : undefined;
+---
+
+<PageDeTexte
+  titre="Données : ce que NTanova a publié · NTanova"
+  description="Les fiches d’école publiées par NTanova, en nombres et en dates : par lieu, par cycle, par preuve, avec leur fraîcheur. Export complet sur demande, conditions d’utilisation."
+  surtitre="Transparence"
+  intitule="Ce que NTanova a publié"
+>
+  <Fragment slot="chapeau">
+    <p class="texte-doux">
+      Des nombres et des dates, jamais un pourcentage&nbsp;: le nombre total d’écoles du
+      Congo-Brazzaville est inconnu, et NTanova ne dit pas quelle part des écoles il couvre.
+    </p>
+    <p>
+      Chiffres arrêtés au <strong>{jourLong(s.construiteLe)}</strong>, jour de la dernière
+      construction du site. Une fiche publiée ensuite n’y est pas encore comptée.
+    </p>
+  </Fragment>
+
+  <section class="carte bloc" id="fiches">
+    <h2>Fiches publiées</h2>
+    <p>
+      <strong>{s.fiches}</strong> {s.fiches > 1 ? 'fiches publiées' : 'fiche publiée'} au total.
+    </p>
+    {s.lieux.length > 0 ? (
+      <table>
+        <caption>Par lieu</caption>
+        <thead>
+          <tr>
+            <th scope="col">Lieu</th>
+            <th scope="col" class="nombre">
+              Fiches
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {s.lieux.map((l) => (
+            <tr>
+              <th scope="row" class={classeDuLieu(l.profondeur)}>
+                <a href={l.lien}>{l.nom}</a>
+              </th>
+              <td class="nombre">{l.fiches}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    ) : (
+      <p>Aucun lieu n’a encore de fiche publiée.</p>
+    )}
+    <p class="texte-doux">
+      Un lieu qui en contient d’autres compte leurs fiches&nbsp;: les lignes ne s’additionnent pas.
+      Un lieu absent n’a aucune fiche publiée.
+    </p>
+  </section>
+
+  <section class="carte bloc" id="cycles">
+    <h2>Par cycle</h2>
+    {s.parCycle.length > 0 ? (
+      <table>
+        <caption>Fiches par cycle enseigné</caption>
+        <thead>
+          <tr>
+            <th scope="col">Cycle</th>
+            <th scope="col" class="nombre">
+              Fiches
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {s.parCycle.map((c) => (
+            <tr>
+              <th scope="row">{c.libelle}</th>
+              <td class="nombre">{c.fiches}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    ) : (
+      <p>Aucun cycle n’est encore renseigné.</p>
+    )}
+    <p class="texte-doux">
+      Une fiche compte dans chaque cycle qu’elle enseigne&nbsp;: la somme dépasse le nombre de
+      fiches.
+    </p>
+  </section>
+
+  <section class="carte bloc" id="preuves">
+    <h2>Par preuve</h2>
+    <table>
+      <caption>Fiches par preuve la plus forte</caption>
+      <thead>
+        <tr>
+          <th scope="col">Preuve</th>
+          <th scope="col" class="nombre">
+            Fiches
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {s.parPreuve.map((p) => (
+          <tr>
+            <th scope="row">{p.libelle}</th>
+            <td class="nombre">{p.fiches}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    <p class="texte-doux">
+      Chaque fiche est comptée une fois, à sa preuve la plus forte. Le sens de chaque preuve est
+      dans la <a href={`${LIEN_METHODE}#mentions`}>Méthode</a>.
+    </p>
+  </section>
+
+  <section class="carte bloc" id="fraicheur">
+    <h2>Fraîcheur</h2>
+    {s.preuveLaPlusRecente && s.preuveLaPlusAncienne ? (
+      <>
+        <p>
+          La preuve la plus récente date du <strong>{jourLong(s.preuveLaPlusRecente)}</strong>, la
+          plus ancienne du <strong>{jourLong(s.preuveLaPlusAncienne)}</strong>.
+          {s.derniereMiseAJour && (
+            <> La dernière modification d’une fiche date du {jourLong(s.derniereMiseAJour)}.</>
+          )}
+        </p>
+        <table>
+          <caption>Fiches par jour de leur preuve la plus forte</caption>
+          <thead>
+            <tr>
+              <th scope="col">Jour</th>
+              <th scope="col" class="nombre">
+                Fiches
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {jours.map((j) => (
+              <tr>
+                <th scope="row">{jourLong(j.jour)}</th>
+                <td class="nombre">{j.fiches}</td>
+              </tr>
+            ))}
+            {plusAnciennes > 0 && (
+              <tr>
+                <th scope="row">Plus anciennes</th>
+                <td class="nombre">{plusAnciennes}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </>
+    ) : (
+      <p>Aucune fiche n’a encore de preuve datée.</p>
+    )}
+    {s.sansDate > 0 && (
+      <p class="texte-doux">
+        {s.sansDate} {s.sansDate > 1 ? 'fiches n’ont' : 'fiche n’a'} pas de jour connu.
+      </p>
+    )}
+  </section>
+
+  <section class="carte bloc" id="photos-references">
+    <h2>Photos et références</h2>
+    <ul>
+      <li>
+        <strong>{s.avecPhoto}</strong> {s.avecPhoto > 1 ? 'fiches ont' : 'fiche a'} une photo
+        publique.
+      </li>
+      <li>
+        <strong>{s.avecReference}</strong> {s.avecReference > 1 ? 'fiches citent' : 'fiche cite'}{' '}
+        une référence officielle. Ce n’est pas le nombre d’écoles agréées&nbsp;: voir la{' '}
+        <a href={`${LIEN_METHODE}#references`}>Méthode</a>.
+      </li>
+    </ul>
+  </section>
+
+  <section class="carte bloc large" id="export">
+    <h2>Le jeu complet, sur demande</h2>
+    <p>
+      NTanova ne propose pas de téléchargement libre. Le jeu complet est remis,{' '}
+      <strong>sur demande</strong>, aux ministères, aux chercheurs et aux partenaires, sous
+      convention&nbsp;: les fiches publiées, leurs preuves et leurs dates, avec l’identifiant
+      NTanova à six chiffres de chaque école, aux formats CSV et GeoJSON. Rien de privé n’y figure.
+    </p>
+    <p>
+      Il comprend deux fichiers&nbsp;: les <strong>écoles</strong> (les données de NTanova) et les{' '}
+      <strong>zones</strong> (limites tirées d’OpenStreetMap, sous licence ODbL, voir ci-dessous).
+      Pour le demander, dites qui vous êtes et ce que vous voulez en faire.
+    </p>
+    <ContactNtanova message="Bonjour NTanova, je voudrais demander le jeu de données complet. Je suis : [qui] ; pour : [usage]. " />
+    <h3>Ce que le site charge lui-même</h3>
+    <p>
+      Pour fonctionner, le site charge trois fichiers de données&nbsp;: la recherche, les écoles de
+      la carte et les zones de la carte. Un navigateur peut les lire, comme il lit chaque fiche. Ils
+      ne sont pas proposés en téléchargement et ne portent aucune licence d’utilisation&nbsp;: les
+      conditions ci-dessous s’appliquent à eux comme au reste.
+    </p>
+  </section>
+
+  <section class="carte bloc large" id="conditions">
+    <h2>Conditions d’utilisation</h2>
+    <h3>Ce que vous pouvez faire</h3>
+    <ul>
+      <li>Consulter les fiches, partager le lien d’une fiche.</li>
+      <li>
+        Citer une fiche ou un chiffre en nommant la source&nbsp;: «&nbsp;NTanova, ntanova.com,
+        données du {jourLong(s.construiteLe)}&nbsp;».
+      </li>
+    </ul>
+    <h3>Ce que vous ne pouvez pas faire sans convention écrite avec NTanova</h3>
+    <ul>
+      <li>
+        Copier les fiches de façon systématique ou automatique pour les republier, les revendre ou
+        constituer une autre base.
+      </li>
+      <li>
+        Utiliser les numéros de téléphone publiés pour du démarchage commercial. La loi
+        n°&nbsp;29-2019 interdit la prospection sans consentement préalable (article&nbsp;21).
+      </li>
+      <li>
+        Laisser croire que NTanova est un service de l’État, ou qu’une administration a validé les
+        fiches.
+      </li>
+      <li>Modifier les données en les attribuant à NTanova.</li>
+    </ul>
+    <h3>Les limites de quartiers, d’arrondissements et de villes</h3>
+    <p>
+      Elles viennent d’OpenStreetMap&nbsp;: © les contributeurs d’OpenStreetMap, données sous
+      licence ODbL 1.0 (
+      <a href="https://opendatacommons.org/licenses/odbl/1-0/">texte de la licence</a>,{' '}
+      <a href="https://www.openstreetmap.org/copyright">droit d’auteur d’OpenStreetMap</a>). NTanova
+      les simplifie à 10&nbsp;mètres près. Elles restent réutilisables selon cette licence, y
+      compris cette version simplifiée&nbsp;: avec le crédit, et sous la même licence pour toute
+      base qui en dérive. Le fichier des zones porte cette mention.
+    </p>
+    <h3>Sans garantie</h3>
+    <p>
+      Les informations sont celles que NTanova a relevées à la date indiquée sur chaque fiche. Elles
+      ont pu changer depuis, et NTanova ne garantit ni qu’elles soient complètes, ni qu’elles soient
+      exactes à un jour donné.
+    </p>
+  </section>
+</PageDeTexte>
