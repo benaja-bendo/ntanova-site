@@ -33,6 +33,30 @@ async function ouvrirLaCarte(page: Page) {
   await page.locator('#carte').scrollIntoViewIfNeeded();
 }
 
+/**
+ * La carte au repos : plus de mouvement, sources et tuiles chargées, et deux images dessinées depuis. Lire les features avant
+ * ce repos donne un état périmé sur un ordinateur lent (la CI) : le groupe d'après un zoom n'est pas encore recalculé, l'épingle
+ * voisine absente, et la position lue pour un toucher n'est plus la bonne.
+ */
+async function auRepos(page: Page) {
+  await page.waitForFunction(
+    () => {
+      const m = (
+        window as unknown as { ntanovaCarte: { loaded: () => boolean; isMoving: () => boolean } }
+      ).ntanovaCarte;
+      return m.loaded() && !m.isMoving();
+    },
+    undefined,
+    { timeout: 20_000 },
+  );
+  await page.evaluate(
+    () =>
+      new Promise<void>((fin) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => fin()));
+      }),
+  );
+}
+
 /** Les features rendues d'une couche, avec leur place à l'écran (pixels de la page). */
 async function rendues(page: Page, couche: string) {
   return page.evaluate((c) => {
@@ -125,6 +149,7 @@ test('un groupe se défait au toucher, une épingle ouvre son aperçu avec le li
 }) => {
   await servirLesTuiles(context);
   await ouvrirLaCarte(page);
+  await auRepos(page);
 
   // À l'arrivée sur Pointe-Noire, les cinq écoles de la carte forment UN groupe, avec son nombre. L'une d'elles est confirmée
   // par sa direction : le groupe porte un écusson.
@@ -137,6 +162,7 @@ test('un groupe se défait au toucher, une épingle ouvre son aperçu avec le li
   // Toucher un groupe le défait : la carte s'approche, jusqu'à ce que chaque école ait son épingle (au doigt, comme sur un
   // téléphone : le toucher couvre 22 px autour du doigt).
   for (let i = 0; i < 8; i++) {
+    await auRepos(page);
     const restants = await rendues(page, 'ecoles-groupes');
     const groupe = restants[0];
     if (!groupe) break;
@@ -147,6 +173,7 @@ test('un groupe se défait au toucher, une épingle ouvre son aperçu avec le li
       .toBe(true);
     await expect.poll(() => carte<boolean>(page, 'isMoving'), { timeout: 10_000 }).toBe(false);
   }
+  await auRepos(page);
   expect(await rendues(page, 'ecoles-groupes')).toHaveLength(0);
   const epingles = await rendues(page, 'ecoles-epingles');
   expect(epingles.length).toBeGreaterThanOrEqual(2);
@@ -155,6 +182,7 @@ test('un groupe se défait au toucher, une épingle ouvre son aperçu avec le li
   const confirmee = epingles.find((e) => e.proprietes.preuve === 'direction');
   expect(confirmee, 'l’épingle de l’école confirmée est sur la carte').toBeDefined();
   await carte(page, 'jumpTo', { center: confirmee!.coordonnees });
+  await auRepos(page);
   const cibleConfirmee = (await rendues(page, 'ecoles-epingles')).find(
     (e) => e.proprietes.preuve === 'direction',
   )!;
@@ -188,6 +216,7 @@ test('un groupe se défait au toucher, une épingle ouvre son aperçu avec le li
   );
   expect(vue, 'une épingle « vue sur place » est sur la carte').toBeDefined();
   await carte(page, 'jumpTo', { center: vue!.coordonnees });
+  await auRepos(page);
   const cibleVue = (await rendues(page, 'ecoles-epingles')).find(
     (e) => e.proprietes.id === vue!.proprietes.id,
   )!;
