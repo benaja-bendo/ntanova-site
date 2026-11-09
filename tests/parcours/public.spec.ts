@@ -149,6 +149,15 @@ test.describe('site public', () => {
     expect(message).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
     expect(message).toContain('je dirige [Complexe scolaire Exemple]');
     expect(message).toContain('/ecoles/complexe-scolaire-exemple-482913/');
+    // Le lieu s'écrit du plus fin au plus large, sans le pays : jamais « à Congo, Pointe-Noire, Tié-Tié ».
+    expect(message).toContain('à [Quartier], Tié-Tié, Pointe-Noire, et je souhaite');
+    expect(message).not.toContain('à Congo');
+    // La description de la fiche (ce que Google et les aperçus de lien montrent) dit le même lieu.
+    const description = await page.locator('meta[name="description"]').getAttribute('content');
+    expect(description).toContain(
+      '[Complexe scolaire Exemple], à [Quartier], Tié-Tié, Pointe-Noire :',
+    );
+    expect(description).not.toContain('Congo');
     // Ce que NTanova demande se lit sur « Pour les écoles », un lien plus bas.
     await page.getByRole('link', { name: 'Ce que nous vous demanderons' }).click();
     await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();

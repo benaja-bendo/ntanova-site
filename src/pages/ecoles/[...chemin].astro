@@ -20,6 +20,7 @@ import {
   lienDivision,
   lienEcole,
   lieuAvecPreposition,
+  lieuEnPhrase,
 } from '../../modele/geo-divisions';
 import { cheminImagePartage, donneesEcole, preuveDePartage } from '../../modele/partage';
 import { lienWhatsApp } from '../../modele/whatsapp';
@@ -114,6 +115,9 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 const page = cas.genre === 'zone' ? site.arbre.parAdresse.get(cas.cle) : undefined;
 const e = cas.genre === 'ecole' ? site.ecoles.find((x) => x.id === cas.cle) : undefined;
 const zone = e ? site.arbre.parId.get(e.divisionId) : undefined;
+// Le lieu de la fiche dans ses phrases (description, message « Confirmer cette fiche ») : « Loandjili, Pointe-Noire ». Une fiche
+// rattachée au pays lui-même n'a pas de lieu plus fin : le nom du pays, plutôt qu'une phrase vide.
+const lieuDeLaFiche = e && zone ? lieuEnPhrase(e.quartier, zone.noms) || (zone.noms[0] ?? '') : '';
 const autres = e
   ? site.ecoles.filter((x) => x.institutionId === e.institutionId && x.id !== e.id)
   : [];
@@ -138,7 +142,7 @@ const confirmer =
   e && zone
     ? lienWhatsApp(
         PUBLIC_WHATSAPP,
-        `Bonjour NTanova, je dirige ${e.nom}${e.etiquette ? ` (${e.etiquette})` : ''}, à ${zone.noms.join(', ')}, et je souhaite ${e.etat === 'verifiee' ? 'mettre à jour' : 'confirmer'} sa fiche : ${new URL(lienEcole(e), Astro.site ?? Astro.url).href}`,
+        `Bonjour NTanova, je dirige ${e.nom}${e.etiquette ? ` (${e.etiquette})` : ''}, à ${lieuDeLaFiche}, et je souhaite ${e.etat === 'verifiee' ? 'mettre à jour' : 'confirmer'} sa fiche : ${new URL(lienEcole(e), Astro.site ?? Astro.url).href}`,
       )
     : null;
 ---
@@ -169,7 +173,7 @@ const confirmer =
 ) : e && zone ? (
   <PagePublique
     titre={`${e.nom}${e.etiquette ? ` (${e.etiquette})` : ''} · ${zone.division.nom} · NTanova`}
-    description={`${e.nom}, à ${zone.noms.join(', ')} : niveaux, formations, type, repère et itinéraire. ${preuveDePartage(e).texte}.`}
+    description={`${e.nom}, à ${lieuDeLaFiche} : niveaux, formations, type, repère et itinéraire. ${preuveDePartage(e).texte}.`}
     whatsapp={whatsapp}
     image={{ chemin: cheminImagePartage(e), alt: `${e.nom} : ${preuveDePartage(e).texte}` }}
     donnees={donneesEcole(e, new URL(lienEcole(e), Astro.site ?? Astro.url).href)}

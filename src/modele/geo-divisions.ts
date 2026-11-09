@@ -276,6 +276,15 @@ export function ligneDeLieu(quartier: string | null, noms: readonly string[]): s
   return morceaux.filter((x, i) => morceaux.indexOf(x) === i).join(' · ');
 }
 
+/**
+ * Le lieu d'une fiche écrit dans une phrase (« à Loandjili, Pointe-Noire »), pour la description et le message WhatsApp
+ * « Confirmer cette fiche » : le même ordre que `ligneDeLieu` (du plus fin au plus large, sans le pays, jamais deux fois le
+ * même nom), séparé par des virgules. Ces phrases disaient « à Congo, Pointe-Noire, Loandjili » : le fil d'Ariane tel quel.
+ */
+export function lieuEnPhrase(quartier: string | null, noms: readonly string[]): string {
+  return ligneDeLieu(quartier, noms).split(' · ').join(', ');
+}
+
 /** Le fil d'Ariane d'une division, sans la répétition ville/département de même nom : « Congo › Pointe-Noire › Tié-Tié ». */
 export function cheminLisible(
   id: string,
