@@ -3,7 +3,7 @@
 // la carte ne montre que les écoles vues sur place.
 import { describe, expect, it } from 'vitest';
 import { surCarte, vuesSurPlace } from '../../src/modele/carte/plan';
-import { ligneDeLieu } from '../../src/modele/geo-divisions';
+import { ligneDeLieu, lieuEnPhrase } from '../../src/modele/geo-divisions';
 import { libelleProvenance, provenanceDe } from '../../src/modele/libelles';
 
 const fiche = (
@@ -75,5 +75,29 @@ describe('la ligne de lieu d’une fiche', () => {
 
   it('une ville sans arrondissement s’écrit seule', () => {
     expect(ligneDeLieu(null, ['Congo', 'Dolisie'])).toBe('Dolisie');
+  });
+});
+
+// Le lieu d'une fiche dans une phrase : la description (Google, aperçus de lien) et le message WhatsApp « Confirmer cette fiche »
+// disaient « à Congo, Pointe-Noire, Loandjili » (le fil d'Ariane tel quel : du pays vers la zone, pays compris).
+describe('le lieu d’une fiche dans une phrase', () => {
+  it('va du plus fin au plus large, sans le pays : « Loandjili, Pointe-Noire »', () => {
+    expect(lieuEnPhrase(null, ['Congo', 'Pointe-Noire', 'Loandjili'])).toBe(
+      'Loandjili, Pointe-Noire',
+    );
+  });
+
+  it('garde le quartier noté par le relais et ne répète jamais un nom', () => {
+    expect(lieuEnPhrase('[Quartier Exemple]', ['Congo', 'Pointe-Noire', 'Tié-Tié'])).toBe(
+      '[Quartier Exemple], Tié-Tié, Pointe-Noire',
+    );
+    expect(lieuEnPhrase('Tié-Tié', ['Congo', 'Pointe-Noire', 'Tié-Tié'])).toBe(
+      'Tié-Tié, Pointe-Noire',
+    );
+  });
+
+  it('une ville sans arrondissement s’écrit seule ; sans lieu plus fin que le pays, rien', () => {
+    expect(lieuEnPhrase(null, ['Congo', 'Dolisie'])).toBe('Dolisie');
+    expect(lieuEnPhrase(null, ['Congo'])).toBe('');
   });
 });
