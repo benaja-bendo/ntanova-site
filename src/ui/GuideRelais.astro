@@ -20,10 +20,9 @@ interface Props {
 }
 const { dansAppli = false } = Astro.props;
 
-// Jamais de montant sur la page : elle est lisible par quiconque a le lien. Les montants sont dans le document complet.
+// Aucun montant ni mention de paiement : la page est lisible par quiconque a le lien (décision du 09/11).
 const ctx = {
   urlCapture: (nom: string) => `/guide-relais/captures/${nom}.webp`,
-  avecMontants: false,
 };
 const noms = nomsDesFichiers();
 const adresse = (fichier: string) => `/guide-relais/${fichier}`;
@@ -40,10 +39,10 @@ const carte = carteEnHtml(GUIDE.carte, numeroEnHtml(numeroLisible(PUBLIC_WHATSAP
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Guide du relais · NTanova</title>
+    <title>Guide des Relais et Contributeurs · NTanova</title>
     <meta
       name="description"
-      content="Le guide des relais NTanova : comment relever une école, ce qu'on dit, ce qui est payé."
+      content="Le guide des Relais et Contributeurs NTanova : comment aider à référencer les écoles de votre ville, ce qu'on dit, ce qu'on envoie."
     />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -58,9 +57,9 @@ const carte = carteEnHtml(GUIDE.carte, numeroEnHtml(numeroLisible(PUBLIC_WHATSAP
         )}
         <div class="guide-marque">
           <Marque taille={32} />
-          <p class="surtitre-public">Équipe terrain</p>
+          <p class="surtitre-public">Relais et Contributeurs</p>
         </div>
-        <h1>Le guide du relais</h1>
+        <h1>Le guide des Relais et Contributeurs</h1>
         <p class="guide-version" data-testid="version-du-guide">
           Version {GUIDE.version} · mise à jour le {miseAJour}
         </p>
@@ -360,46 +359,6 @@ const carte = carteEnHtml(GUIDE.carte, numeroEnHtml(numeroLisible(PUBLIC_WHATSAP
     background: var(--blanc);
     font-weight: 700;
   }
-  .guide-page .exemple {
-    padding: var(--espace-3) var(--espace-4);
-    border-radius: var(--rayon-m);
-    background: var(--marque-appuyee);
-    color: var(--texte-sur-marque);
-  }
-  .guide-page .exemple b {
-    color: var(--accent);
-  }
-
-  .guide-page .argent {
-    display: grid;
-    gap: var(--espace-2);
-    padding-top: var(--espace-3);
-    border-top: 2px solid var(--trait);
-  }
-  .guide-page .argent:first-of-type {
-    padding-top: 0;
-    border-top: 0;
-  }
-  .guide-page .argent .val {
-    justify-self: start;
-    padding: var(--espace-1) var(--espace-4);
-    border-radius: var(--rayon-pilule);
-    background: var(--accent);
-    color: var(--texte);
-    font-family: var(--police-titre);
-    font-weight: 700;
-    white-space: nowrap;
-  }
-  .guide-page .argent .val.plus {
-    background: var(--marque);
-    color: var(--texte-sur-marque);
-  }
-  .guide-page .argent h3 {
-    color: var(--marque);
-  }
-  .guide-page .argent p {
-    color: var(--texte-doux);
-  }
 
   .guide-page .ou .r {
     display: grid;
@@ -587,10 +546,6 @@ const carte = carteEnHtml(GUIDE.carte, numeroEnHtml(numeroLisible(PUBLIC_WHATSAP
     .guide-page .ou .r {
       grid-template-columns: minmax(7rem, 10rem) 1fr;
       gap: var(--espace-3);
-    }
-    .guide-page .argent {
-      grid-template-columns: 14rem 1fr;
-      align-items: center;
     }
   }
 </style>

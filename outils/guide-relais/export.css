@@ -80,17 +80,7 @@ body { font-family: 'Poppins', 'Helvetica Neue', Arial, sans-serif; color: var(-
 .jamais span { background: var(--rouge-pale); color: var(--rouge-texte); border-radius: 22px; padding: 10px 22px; font-size: 26px; font-weight: 700; }
 .jamais span::before { content: "✕ "; font-weight: 800; }
 
-/* page 5 : l'argent */
-.argent { display: flex; align-items: center; gap: 22px; padding: 18px 0; border-top: 3px solid var(--trait); }
-.argent:first-of-type { border-top: 0; padding-top: 0; }
-.argent .val { flex: none; width: 250px; text-align: center; white-space: nowrap; background: var(--jaune); color: var(--encre); font-weight: 800; font-size: 32px; border-radius: 999px; padding: 8px 20px; }
-.argent .val.plus { background: var(--vert); color: var(--creme); }
-.argent h3 { margin: 0 0 2px; font-size: 28px; font-weight: 800; color: var(--vert); }
-.argent p { margin: 0; font-size: 23px; line-height: 1.28; color: var(--gris); font-weight: 500; }
-.exemple { background: var(--vert-fonce); color: var(--creme); border-radius: 24px; padding: 18px 28px; margin: 4px 0 8px; font-size: 26px; line-height: 1.4; font-weight: 600; }
-.exemple b { color: var(--jaune); }
-
-/* page 6 : le premier jour */
+/* page 5 : le premier jour */
 .deuxcol { display: flex; gap: 30px; align-items: flex-start; }
 .deuxcol > div { flex: 1; min-width: 0; }
 .deuxcol > .cote-ecran { flex: none; }

@@ -20,7 +20,9 @@ test.describe('la page publique non listée', () => {
   }) => {
     const reponse = await page.goto('/guide-relais/');
     expect(reponse?.status()).toBe(200);
-    await expect(page.getByRole('heading', { level: 1, name: 'Le guide du relais' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Le guide des Relais et Contributeurs' }),
+    ).toBeVisible();
     await expect(page.getByTestId('version-du-guide')).toHaveText(versionLue);
     // Six pages et la carte de passage, chacune sa section nommée.
     await expect(page.locator('section.guide-page')).toHaveCount(GUIDE.pages.length + 1);
@@ -79,7 +81,7 @@ test.describe('la page publique non listée', () => {
     expect(reponse.headers()['x-robots-tag'] ?? '').toContain('noindex');
     const octets = await reponse.body();
     expect(octets.subarray(0, 4).toString()).toBe('%PDF');
-    // Six pages et la carte de passage.
+    // Cinq pages et la carte de passage.
     expect((octets.toString('latin1').match(/\/Type\s*\/Page(?![\w])/g) ?? []).length).toBe(
       GUIDE.pages.length + 1,
     );
@@ -94,19 +96,17 @@ test.describe('la page publique non listée', () => {
     }
   });
 
-  // La page est lisible par quiconque a le lien : les montants ne sont que dans le document complet remis aux relais.
-  test('ne montre aucun montant, et ne publie pas le document complet qui en a', async ({
+  // La page est lisible par quiconque a le lien : ni montant ni mention de paiement (décision du 09/11/2026).
+  test('ne montre ni montant ni mention de paiement, et finit sur le premier jour', async ({
     page,
-    request,
   }) => {
     for (const adresse of ['/guide-relais/', '/relais/guide/']) {
       await page.goto(adresse);
-      await expect(page.locator('body')).not.toContainText('FCFA');
-      await expect(page.locator('#page-5')).toContainText('Les montants');
-    }
-    const complet = nomsDesFichiers(GUIDE, { complet: true });
-    for (const fichier of [complet.pdf, complet.carte, ...complet.images.map((i) => i.fichier)]) {
-      expect((await request.get(`/guide-relais/${fichier}`)).status(), fichier).toBe(404);
+      const corps = page.locator('body');
+      await expect(corps).not.toContainText('FCFA');
+      await expect(corps).not.toContainText('Mobile Money');
+      await expect(corps).not.toContainText(/paiement|rémunér|payé/i);
+      await expect(page.locator('#page-5')).toContainText('Votre premier jour');
     }
   });
 
@@ -131,7 +131,9 @@ test.describe('dans l’espace relais', () => {
 
     await page.getByRole('link', { name: 'Lire le guide du relais' }).click();
     await expect(page).toHaveURL(/\/relais\/guide\/$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Le guide du relais' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Le guide des Relais et Contributeurs' }),
+    ).toBeVisible();
     await expect(page.getByTestId('version-du-guide')).toHaveText(versionLue);
 
     await page.getByRole('link', { name: 'Retour à l’application' }).click();
@@ -152,7 +154,9 @@ test.describe('dans l’espace relais', () => {
     await seConnecter(page, '/relais/');
     await attendreLeServiceWorker(page);
     await page.goto('/relais/guide/');
-    await expect(page.getByRole('heading', { level: 1, name: 'Le guide du relais' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Le guide des Relais et Contributeurs' }),
+    ).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Sommaire du guide' })).toBeVisible();
   });
 
