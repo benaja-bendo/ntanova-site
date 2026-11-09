@@ -107,8 +107,13 @@ const niveaux = [
 
 export const GUIDE: Guide = {
   version: 'v3',
-  miseAJour: '2026-11-03',
+  miseAJour: '2026-11-09',
   changements: [
+    {
+      date: '2026-11-09',
+      texte:
+        'Les séries et les filières se touchent au lieu de s’écrire (séries du lycée ; diplôme puis domaines pour le technique et le supérieur). Le repère remonte sous le nom : « Qu’y a-t-il juste à côté ? », avec des repères à toucher.',
+    },
     {
       date: '2026-11-03',
       texte:
@@ -207,8 +212,8 @@ export const GUIDE: Guide = {
             {
               type: 'texte',
               html:
-                'Lycée, technique, supérieur ou autre formation : notez aussi <b>les séries ou filières</b> écrites ' +
-                '(séries C et D, BTS gestion…), ou dites qu’elles sont sur un panneau pris en photo.',
+                'Lycée, technique, supérieur ou autre formation : touchez <b>les séries ou filières</b> écrites ' +
+                '(série C ; BTS puis gestion…), ou dites qu’elles sont sur un panneau pris en photo.',
             },
             { type: 'titre', texte: 'Si ça ne rentre pas dans une case' },
             {
@@ -303,14 +308,17 @@ export const GUIDE: Guide = {
                 {
                   cle: 'Séries, filières',
                   html:
-                    'Sur l’enseigne ou un panneau (séries C et D, BTS gestion…). Un prospectus, oui : ' +
+                    'Sur l’enseigne ou un panneau : on touche, on ne tape pas. Un prospectus, oui : ' +
                     'jamais une liste d’élèves ni un bulletin.',
                 },
                 {
                   cle: 'Mentions, numéro',
                   html: 'Langues, programme ou numéro écrits. Facultatif.',
                 },
-                { cle: 'Repère', html: 'Autour : le marché, la pharmacie. Facultatif.' },
+                {
+                  cle: 'Repère',
+                  html: 'Juste à côté : le marché, la pharmacie (on touche). Les familles s’en servent pour trouver l’école.',
+                },
                 {
                   cle: 'Direction',
                   html: 'Gardien ou accueil : « à qui pouvons-nous nous adresser ? »',

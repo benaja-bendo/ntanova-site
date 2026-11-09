@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Valeur } from '../../../modele/listes';
 import { appartientAuCompte, duBrouillon } from '../../../modele/compte';
+import { texteDestineAuRelais } from '../../../modele/consigne';
 import { phraseDuBilan } from '../../../modele/envoi';
 import { base, compteConnecte, lireMemoire, useRequete } from '../base-locale';
 import { aller, useEnLigne, useRelais } from '../contexte';
@@ -112,7 +113,6 @@ export function EtatEnvoi() {
 export function MonLot() {
   const profil = useRequete(() => lireMemoire('profil'));
   const lot = useRequete(() => lireMemoire('lot'));
-  const zones = useRequete(() => lireMemoire('zones')) ?? [];
   const releves = useRequete(() => lireMemoire('releves')) ?? [];
   // `null` : les premiers pas ne sont pas faits ; `undefined` : la lecture n'est pas finie (la carte ne clignote pas).
   const premiersPas = useRequete(async () => (await lireMemoire('premiersPas')) ?? null);
@@ -165,9 +165,10 @@ export function MonLot() {
               </span>
             )
           ) : (
+            // Plus de liste de zones (audit du 08/11/2026) : elle avait des doublons, mélangeait départements et
+            // quartiers, et se lisait comme une limite alors que la collecte est autorisée partout au Congo-Brazzaville.
             <span className="texte-doux">
-              Relevez les écoles là où vous êtes
-              {zones.length > 0 ? `. Zones ouvertes : ${zones.join(', ')}` : ''}.
+              Relevez les écoles là où vous êtes, partout au Congo-Brazzaville.
             </span>
           )}
         </section>
@@ -250,7 +251,11 @@ function ACompleter() {
               {[e.quartier, e.repere].filter(Boolean).join(' · ') || 'Quartier inconnu'}
             </span>
             <span className="mention a-completer-ligne">{consigne[e.genre]}</span>
-            {e.note && <span className="mention a-completer-ligne">À vérifier : {e.note}</span>}
+            {texteDestineAuRelais(e.note) && (
+              <span className="mention a-completer-ligne">
+                À vérifier : {texteDestineAuRelais(e.note)}
+              </span>
+            )}
           </div>
           <button
             type="button"

@@ -178,6 +178,7 @@ test.describe('modifier une fiche enregistrée', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
     await expect(page.getByLabel("Nom sur l'enseigne")).toHaveValue('[École 1]');
     await page.getByLabel("Nom sur l'enseigne").fill('[École 1, nom corrigé]');
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
@@ -219,6 +220,7 @@ test.describe('abandonner une fiche en cours', () => {
       await page.getByRole('button', { name: 'Suivant' }).click();
       if (etape === 3) {
         await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
+        await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
         await page.getByRole('button', { name: 'Suivant' }).click();
       }
       await expect(page.locator('.entete-etape-compte')).toHaveText(`${etape}/3`);

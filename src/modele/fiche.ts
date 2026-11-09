@@ -5,10 +5,12 @@
  */
 import { z } from 'zod';
 import { listes, niveauxConnus, typeConnu, type Valeur } from './listes';
+import { formationsDesNiveaux, lireFormationsVues } from './formations-rapides';
 import type { Point } from './geo';
 import type {
   ContactAEnvoyer,
   EcoleACompleter,
+  FormationSaisie,
   PhotoAEnvoyer,
   ReleveAEnvoyer,
   ReleveRecu,
@@ -123,6 +125,12 @@ export interface FicheLocale {
   programmesVus?: string;
   /** Les formations sont sur un panneau, une affiche ou un prospectus pris en photo. */
   programmesEnPhoto?: boolean;
+  /**
+   * Les séries et filières **cochées** sur place (puces, sans clavier) : elles préremplissent « À valider », rien ne
+   * se publie seul. Facultatif : un brouillon écrit avant le 09/11/2026 n'a pas le champ, toujours lu par
+   * `lireFormationsVues` (qui rend une liste vide). Le texte libre ci-dessus reste, pour ce que les puces ne disent pas.
+   */
+  formationsVues?: FormationSaisie[];
   repere: string;
   numeroEnseigne: string;
 
@@ -193,6 +201,7 @@ export function nouvelleFiche(
     programme: '',
     programmesVus: '',
     programmesEnPhoto: false,
+    formationsVues: [],
     repere: '',
     numeroEnseigne: '',
     direction: null,
@@ -256,6 +265,8 @@ export function nouvelleCorrection(
     programme: recu.programme ?? '',
     programmesVus: recu.programmesVus ?? '',
     programmesEnPhoto: recu.programmesEnPhoto ?? false,
+    // Corriger une fiche, c'est la retrouver cochée : ce que le relais avait coché revient, sans rien redemander.
+    formationsVues: lireFormationsVues(recu.formationsVues, niveauxConnus(recu.niveaux ?? [])),
     repere: recu.repere ?? '',
     numeroEnseigne: recu.numeroEnseigne ? `+${recu.numeroEnseigne}` : '',
     direction: recu.direction ?? null,
@@ -494,6 +505,11 @@ export function versReleve(fiche: FicheLocale): ReleveAEnvoyer {
     // une note devenue sans objet.
     programmesVus: demandeLesFormations(fiche.niveaux) ? vide(fiche.programmesVus ?? '') : null,
     programmesEnPhoto: demandeLesFormations(fiche.niveaux) && (fiche.programmesEnPhoto ?? false),
+    // Un brouillon d'avant n'a pas la liste (lue vide) ; on ne garde que les filières d'un niveau coché : la base refuse
+    // d'accepter une filière dont le cycle n'est pas dans les niveaux de la fiche.
+    formationsVues: demandeLesFormations(fiche.niveaux)
+      ? formationsDesNiveaux(lireFormationsVues(fiche.formationsVues), fiche.niveaux)
+      : [],
     repere: vide(fiche.repere),
     numeroEnseigne: normaliserTelephone(fiche.numeroEnseigne),
     direction: fiche.direction,

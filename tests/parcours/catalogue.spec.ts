@@ -40,9 +40,10 @@ async function envoyerUnLycee(page: Page, nom: string) {
   await page.getByRole('button', { name: 'Suivant' }).click();
 
   await page.getByLabel("Nom sur l'enseigne").fill(nom);
+  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
   await niveaux(page).getByRole('button', { name: 'Lycée', exact: true }).click();
   const series = page.getByRole('region', { name: 'Séries et formations' });
-  await series.getByLabel(/Séries, filières ou formations visibles/).fill('Séries C et D');
+  await series.getByLabel(/Précisions sur les séries/).fill('Séries C et D');
   await series.getByLabel(/Je les ai prises en photo/).check();
   await page.getByRole('button', { name: 'Suivant' }).click();
 
@@ -61,6 +62,7 @@ async function envoyerUneFicheCourte(page: Page, nom: string) {
   await expect(page.getByText('Position prise')).toBeVisible();
   await page.getByRole('button', { name: 'Suivant' }).click();
   await page.getByLabel("Nom sur l'enseigne").fill(nom);
+  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
   await niveaux(page).getByRole('button', { name: 'Primaire', exact: true }).click();
   await page.getByRole('button', { name: 'Suivant' }).click();
   await page.getByRole('button', { name: 'Absente' }).click();
@@ -336,6 +338,7 @@ test.describe('le pont avec la direction', () => {
     await expect(page.getByText('Position prise')).toBeVisible();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByLabel("Nom sur l'enseigne").fill('[École sans accord]');
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Oui', exact: true }).click();
     await page.getByLabel('Sa fonction').selectOption('directeur');

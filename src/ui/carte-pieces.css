@@ -372,10 +372,6 @@
   margin-top: 0.15em;
   color: var(--carte-repere);
 }
-.ligne-repere-vide {
-  color: var(--preuve-vide);
-  font-style: italic;
-}
 /* La preuve d'une carte : une seule, la plus forte, datée ; la même icône que le bloc de la fiche. */
 .ligne-preuve-rang {
   display: flex;

@@ -79,7 +79,7 @@ test('une école située par l’administration, sans relevé, est dans la liste
   await expect(carte.locator('.ligne-preuve')).toHaveText(
     'Ajoutée par NTanova, pas encore vue sur place',
   );
-  await expect(carte.locator('.ligne-repere-vide')).toHaveCount(0);
+  await expect(carte).not.toContainText('Repère pas encore relevé');
   await page.goto('/ecoles/ecole-ajoutee-exemple-639158/');
   await expect(page.getByText('Ajoutée par NTanova · 3 nov. 2026')).toBeVisible();
   await expect(page.locator('.preuves')).toContainText('Ajoutée par NTanova');

@@ -7,9 +7,8 @@
  * - le **nom**, puis l'implantation quand l'institution en a plusieurs ;
  * - les **niveaux** : une puce par cycle, puis les niveaux en mots et le type d'école ;
  * - le **lieu** : le plus fin en gras, puis ce qui le contient ;
- * - le **repère**, avec le drapeau de la carte ; « Repère pas encore relevé » seulement pour une école vue sur place,
- *   déclarée ou confirmée dont le repère est vide, jamais avec « Ajoutée par NTanova » (arbitrage du fondateur du 08/11/2026 :
- *   ne pas empiler deux mentions négatives) ;
+ * - le **repère**, avec le drapeau de la carte ; **rien quand il manque** (décision du fondateur du 08/11/2026 : plus d'état
+ *   vide négatif, « Repère pas encore relevé » donnait l'impression d'un site inachevé) ;
  * - la **preuve** : une seule, la plus forte, toujours datée quand la date est connue.
  *
  * Ce fichier ne dit QUE ce qu'on écrit : deux rendus le dessinent à l'identique, `ui/LigneEcole.astro` (à la construction)
@@ -55,8 +54,6 @@ export interface LigneAffichee {
   /** Le lieu le plus fin (en gras), puis ce qui le contient : « Ngoyo » et « Pointe-Noire ». */
   lieu: { fort: string; reste: string };
   repere: string | null;
-  /** « Repère pas encore relevé » : une école vue, déclarée ou confirmée, sans repère. */
-  repereManquant: boolean;
   preuve: Provenance;
   /** La preuve en mots : « Vue sur place le 2 nov. 2026 », « Confirmée par la direction », … */
   preuveTexte: string;
@@ -179,7 +176,6 @@ function composer(d: {
     niveaux: [niveauxEnMots(d.niveaux), type].filter(Boolean).join(' · '),
     lieu: { fort, reste: reste.join(' · ') },
     repere: d.repere,
-    repereManquant: !d.repere && d.preuve !== 'ajoutee',
     preuve: d.preuve,
     preuveTexte: texte,
     preuveDate: date,

@@ -22,12 +22,14 @@ export async function prendrePhotoEtPosition(page: Page) {
 export async function ajouterUneEcole(
   page: Page,
   n: number,
-  options: { programme?: string; numeroEnseigne?: string } = {},
+  options: { programme?: string; numeroEnseigne?: string; repere?: string } = {},
 ) {
   await prendrePhotoEtPosition(page);
   await page.getByRole('button', { name: 'Suivant' }).click();
 
   await page.getByLabel("Nom sur l'enseigne").fill(`[École ${n}]`);
+  // Le repère (« Qu'y a-t-il juste à côté ? ») : sans lui, « Suivant » fait une relance avant de passer (audit du 08/11/2026).
+  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill(options.repere ?? 'Face au marché');
   await page.getByRole('button', { name: 'Primaire' }).click();
   if (options.programme) {
     await page.getByLabel(/Programme, langues ou autre mention écrite/).fill(options.programme);
@@ -57,6 +59,7 @@ export async function uneFicheEnvoyee(
   options: {
     programme?: string;
     numeroEnseigne?: string;
+    repere?: string;
     position?: { latitude: number; longitude: number };
   } = {},
 ) {

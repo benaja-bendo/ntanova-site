@@ -9,6 +9,7 @@ import type { MotDirection } from '../../modele/mot-direction';
 import { lireVueEnsemble } from '../../modele/vue-ensemble';
 import { lireEtatPhotoPublique, ROLES_PUBLIABLES } from '../../modele/photos-publiques';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
+import { lireFormationsVues } from '../../modele/formations-rapides';
 import {
   ErreurDecision,
   type CorrectionEcole,
@@ -156,6 +157,8 @@ interface LigneDetail {
   curriculum_note: string | null;
   observed_programs: string | null;
   programs_photographed: boolean;
+  /** Les formations que le relais a cochées (liste vide pour une fiche d'avant le 09/11/2026). */
+  observed_formations: unknown;
   landmark: string | null;
   sign_phone: string | null;
   direction_seen: Valeur<'direction_vue'> | null;
@@ -183,7 +186,7 @@ interface LigneDetail {
 
 const COLONNES_DETAIL =
   'id, relay_id, received_at, taken_at, kind, sign_name, position, accuracy_m, levels, school_kind, curriculum_note, ' +
-  'observed_programs, programs_photographed, landmark, sign_phone, direction_seen, come_back_note, ' +
+  'observed_programs, programs_photographed, observed_formations, landmark, sign_phone, direction_seen, come_back_note, ' +
   'duplicate_answer, corrects_submission_id, outside_batch, in_open_zone, division_id, possible_duplicate, contact_confirmed_at, ' +
   'contact_role, trial_validated_at, campus_id, relais(prenom), lots(nom, essai), ' +
   'doublon:campuses!field_submissions_duplicate_of_campus_id_fkey(id, label, institutions(name)), ' +
@@ -477,6 +480,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         programme: r.curriculum_note,
         programmesVus: r.observed_programs,
         programmesEnPhoto: r.programs_photographed,
+        formationsVues: lireFormationsVues(r.observed_formations, r.levels),
         repere: r.landmark,
         numeroEnseigne: r.sign_phone,
         direction: r.direction_seen,

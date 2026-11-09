@@ -92,6 +92,8 @@ export interface ReleveRecu {
   /** Les séries ou filières lues sur l'enseigne, et si elles sont en photo. */
   programmesVus: string | null;
   programmesEnPhoto: boolean;
+  /** Les séries et filières que le relais avait cochées. Absent d'une lecture d'avant le 09/11/2026 : lu comme une liste vide. */
+  formationsVues?: FormationSaisie[];
   repere: string | null;
   numeroEnseigne: string | null;
   position: Point | null;
@@ -159,6 +161,11 @@ export interface ReleveAEnvoyer {
   programmesVus: string | null;
   /** Elles sont sur un panneau, une affiche ou un prospectus pris en photo. */
   programmesEnPhoto: boolean;
+  /**
+   * Les séries et filières cochées sur place (puces) : elles préremplissent « À valider », rien ne se publie seul.
+   * Seulement celles d'un niveau coché qui en annonce.
+   */
+  formationsVues: FormationSaisie[];
   repere: string | null;
   numeroEnseigne: string | null;
   direction: Valeur<'direction_vue'> | null;
@@ -368,6 +375,8 @@ export interface DetailReleve extends ReleveAValider {
   /** Les séries ou filières que le relais a lues sur l'enseigne. */
   programmesVus: string | null;
   programmesEnPhoto: boolean;
+  /** Ce que le relais a coché sur place : préremplit les formations de l'acceptation, que l'administration corrige. */
+  formationsVues: FormationSaisie[];
   repere: string | null;
   numeroEnseigne: string | null;
   direction: Valeur<'direction_vue'> | null;

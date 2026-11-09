@@ -146,6 +146,7 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     await expect(page.getByText('Position prise')).toBeVisible();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByLabel("Nom sur l'enseigne").fill('[École à situer, nom exact]');
+    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     await page.getByLabel(/Numéro écrit sur l.enseigne/).fill('05 111 22 33');
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Absente' }).click();

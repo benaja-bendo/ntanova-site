@@ -69,8 +69,24 @@ test.describe('la ligne d’une école est la même à la construction et dans l
     await expect(sans.locator('.ligne-preuve')).toHaveText(
       'Ajoutée par NTanova, pas encore vue sur place',
     );
-    // Arbitrage du 08/11/2026 : jamais « Repère pas encore relevé » avec « Ajoutée par NTanova ».
-    await expect(sans.locator('.ligne-repere-vide')).toHaveCount(0);
+    // Décision du fondateur du 08/11/2026 : plus jamais « Repère pas encore relevé », avec ou sans « Ajoutée par NTanova ».
+    await expect(sans).not.toContainText('Repère pas encore relevé');
+  });
+
+  test('une fiche sans repère ni filières ne dit rien de ce qui manque : la ligne et le bloc disparaissent', async ({
+    page,
+  }) => {
+    // Un établissement vu sur place, sans repère, qui enseigne une « autre formation » sans qu'aucune filière soit notée.
+    await page.goto('/ecoles/centre-de-formation-exemple-315702/');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(
+      'Centre de formation Exemple',
+    );
+    const corps = page.locator('main');
+    await expect(corps).not.toContainText('Repère pas encore relevé');
+    await expect(corps).not.toContainText('Pas encore renseignées');
+    await expect(corps).not.toContainText('pas encore relevé');
+    // La porte reste : ce n'est pas un état vide, c'est l'invitation faite à la direction.
+    await expect(corps).toContainText('Vous dirigez cet établissement');
   });
 });
 

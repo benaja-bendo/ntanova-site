@@ -1,4 +1,5 @@
 import type { Valeur } from '../../modele/listes';
+import { lireFormationsVues, versLaBase } from '../../modele/formations-rapides';
 import type { MultiPolygone } from '../../modele/geo';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
@@ -118,6 +119,8 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         curriculum_note: string | null;
         observed_programs: string | null;
         programs_photographed: boolean;
+        /** Les formations cochées : absentes d'une base qui n'a pas encore la migration du 09/11. */
+        observed_formations?: unknown;
         landmark: string | null;
         sign_phone: string | null;
         latitude: number | null;
@@ -151,6 +154,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         programme: r.curriculum_note,
         programmesVus: r.observed_programs,
         programmesEnPhoto: r.programs_photographed,
+        formationsVues: lireFormationsVues(r.observed_formations, r.levels),
         repere: r.landmark,
         numeroEnseigne: r.sign_phone,
         position:
@@ -296,6 +300,9 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
           curriculum_note: r.programme,
           observed_programs: r.programmesVus,
           programs_photographed: r.programmesEnPhoto,
+          // Seulement quand le relais a coché quelque chose : un relevé sans formations part exactement comme avant,
+          // même si le code arrivait un instant avant la migration (la colonne a une valeur par défaut).
+          ...(r.formationsVues.length > 0 ? { observed_formations: versLaBase(r.formationsVues) } : {}),
           landmark: r.repere,
           sign_phone: r.numeroEnseigne,
           direction_seen: r.direction,

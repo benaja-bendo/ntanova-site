@@ -147,15 +147,21 @@ test.describe('espace relais', () => {
     await seConnecter(page, '/relais/');
     const secteur = page.getByRole('region', { name: 'Mon secteur' });
     await expect(secteur).toContainText('Pas de secteur conseillé');
-    // À défaut de secteur, l'écran dit où NTanova relève : les zones ouvertes.
-    await expect(secteur).toContainText('Zones ouvertes : Ngoyo, Tié-Tié');
+    // À défaut de secteur, l'écran dit simplement où relever : partout. Plus de liste de zones (audit du 08/11/2026 :
+    // des doublons, des départements et des quartiers mélangés, et une limite que la collecte n'a pas).
+    await expect(secteur).toContainText(
+      'Relevez les écoles là où vous êtes, partout au Congo-Brazzaville',
+    );
+    await expect(secteur).not.toContainText('Zones ouvertes');
     await expect(secteur).not.toContainText('Aucun lot');
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
     await context.setOffline(true);
     await page.reload();
     await expect(page.getByText('Hors ligne', { exact: true })).toBeVisible();
-    await expect(secteur).toContainText('Zones ouvertes : Ngoyo, Tié-Tié');
+    await expect(secteur).toContainText(
+      'Relevez les écoles là où vous êtes, partout au Congo-Brazzaville',
+    );
 
     await prendrePhotoEtPosition(page);
     const doublon = page.getByRole('region', { name: 'Doublon possible' });

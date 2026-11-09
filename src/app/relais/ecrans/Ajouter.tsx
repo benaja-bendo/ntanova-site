@@ -25,6 +25,13 @@ import {
   type PhotoLocale,
 } from '../../../modele/fiche';
 import { PERSONNES_MAX } from '../../../modele/contacts';
+import { lireFormationsVues, sansLesFormationsDuCycle } from '../../../modele/formations-rapides';
+import {
+  REPERES_RAPIDES,
+  basculerRepere,
+  repereCoche,
+  repereManquant,
+} from '../../../modele/repere';
 import { plusProche, PRECISION_SUFFISANTE_M, type Point } from '../../../modele/geo';
 import { listes, type Valeur } from '../../../modele/listes';
 import type { EcoleACompleter, ReleveRecu } from '../../../modele/ports';
@@ -44,10 +51,14 @@ import { journaliser } from '../journal';
 import { alleger, PhotoTropLourde } from '../photo';
 import { mesurerPosition, type ErreurPosition, type Mesure } from '../position';
 import { AidePosition } from './AidePosition';
+import { FormationsRapides } from './FormationsRapides';
 import { aideDePrecision, lireErreurPosition } from '../../../modele/aide-position';
 import { environnementActuel, etatDeLAutorisation } from '../environnement';
 import { useReprisePosition } from '../reprise-position';
 import { PhotosRecues, PositionRecue, VoirSurLaCarte } from './DejaRecu';
+
+/** Les fiches qui ont déjà eu leur relance sur le repère (l'étape 2/3 en fait une seule par fiche). */
+const fichesDejaRelancees = new Set<string>();
 
 /** Change des champs de la fiche en cours ; une fonction reçoit la fiche à jour (deux photos qui se suivent ne s'écrasent pas). */
 type Modifier = (
@@ -528,17 +539,33 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   const [erreurs, setErreurs] = useState<Erreurs>({});
   // Un numéro congolais a 9 chiffres après +242 : le relais est prévenu, sans être bloqué (ticket #95).
   const numeroSuspect = numeroCongolaisSuspect(normaliserTelephone(fiche.numeroEnseigne));
+  const champRepere = useRef<HTMLInputElement>(null);
+  // Une seule relance sur le repère **par fiche**, jamais un blocage : le deuxième « Suivant » passe quoi qu'il arrive,
+  // et revenir à l'étape 2 depuis la 3 ne la répète pas.
+  const [relanceRepere, setRelanceRepere] = useState(false);
   const suivant = () => {
     const e = erreursEtape2(fiche);
     setErreurs(e);
-    if (Object.keys(e).length === 0) aller('ajouter/3');
+    if (Object.keys(e).length > 0) return;
+    if (repereManquant(fiche.repere) && !fichesDejaRelancees.has(fiche.id)) {
+      fichesDejaRelancees.add(fiche.id);
+      setRelanceRepere(true);
+      return;
+    }
+    aller('ajouter/3');
   };
-  const basculerNiveau = (n: Valeur<'niveau'>) =>
+  const basculerNiveau = (n: Valeur<'niveau'>) => {
+    const retire = fiche.niveaux.includes(n);
     modifier({
-      niveaux: fiche.niveaux.includes(n)
+      niveaux: retire
         ? fiche.niveaux.filter((x) => x !== n)
         : listes.niveau.filter((x) => x === n || fiche.niveaux.includes(x)),
+      // Décocher un niveau retire ses séries et filières : la base refuse d'accepter une filière orpheline.
+      ...(retire
+        ? { formationsVues: sansLesFormationsDuCycle(lireFormationsVues(fiche.formationsVues), n) }
+        : {}),
     });
+  };
 
   return (
     <div className="ecran">
@@ -578,6 +605,39 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           )}
         </Champ>
 
+        {/* Le repère remonte sous le nom (audit du 08/11/2026) : il était le 6ᵉ champ sur 7, tout en bas de l'étape. */}
+        <div className="pile-serree">
+          <Champ
+            libelle="Qu’y a-t-il juste à côté ?"
+            aide="Les familles s’en servent pour trouver l’école. Touchez un repère, ou écrivez le vôtre."
+            erreur={erreurs.repere}
+          >
+            {(a) => (
+              <input
+                {...a}
+                ref={champRepere}
+                className="champ"
+                type="text"
+                autoComplete="off"
+                placeholder="Ex. : face au marché, derrière la pharmacie"
+                value={fiche.repere}
+                onChange={(e) => modifier({ repere: e.target.value })}
+              />
+            )}
+          </Champ>
+          <Choix
+            legende="Repères rapides"
+            options={REPERES_RAPIDES.map((r) => ({ valeur: r.cle, libelle: r.libelle }))}
+            valeurs={REPERES_RAPIDES.filter((r) => repereCoche(fiche.repere, r.phrase)).map(
+              (r) => r.cle,
+            )}
+            surChoix={(cle) => {
+              const r = REPERES_RAPIDES.find((x) => x.cle === cle);
+              if (r) modifier({ repere: basculerRepere(fiche.repere, r.phrase) });
+            }}
+          />
+        </div>
+
         <Choix
           legende="Niveaux écrits sur l'enseigne"
           options={listes.niveau.map((n) => ({ valeur: n, libelle: libelleNiveau[n] }))}
@@ -589,10 +649,15 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
         {demandeLesFormations(fiche.niveaux) && (
           <section className="carte-blanche pile-serree" aria-label="Séries et formations">
+            <FormationsRapides
+              niveaux={fiche.niveaux}
+              formations={lireFormationsVues(fiche.formationsVues, fiche.niveaux)}
+              surChangement={(liste) => modifier({ formationsVues: liste })}
+            />
             <Champ
-              libelle="Séries, filières ou formations visibles"
+              libelle="Précisions sur les séries ou filières"
               facultatif
-              aide="Ex. : séries C et D, BTS gestion, licence en droit. Notez ce qui est écrit sur l'enseigne ou sur un panneau."
+              aide="Ce que les puces ne disent pas : une série rare, une filière qui n'est pas dans la liste."
               erreur={erreurs.programmesVus}
             >
               {(a) => (
@@ -663,20 +728,6 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           )}
         </Champ>
 
-        <Champ libelle="Repère" facultatif erreur={erreurs.repere}>
-          {(a) => (
-            <input
-              {...a}
-              className="champ"
-              type="text"
-              autoComplete="off"
-              placeholder="Ex. : face au marché, derrière la pharmacie"
-              value={fiche.repere}
-              onChange={(e) => modifier({ repere: e.target.value })}
-            />
-          )}
-        </Champ>
-
         <Champ
           libelle="Numéro écrit sur l'enseigne"
           facultatif
@@ -706,6 +757,33 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         <BoutonAbandonner fiche={fiche} />
       </main>
       <PiedEtape>
+        {relanceRepere && repereManquant(fiche.repere) && (
+          <section className="bandeau bandeau-attente pile-serree" aria-label="Un repère aide">
+            <p>
+              <b>Un repère aide les familles.</b> Même un seul mot (le marché, la pharmacie) les
+              aide à trouver l’école.
+            </p>
+            <div className="ligne-boutons">
+              <button
+                type="button"
+                className="bouton bouton-secondaire bouton-petit"
+                onClick={() => {
+                  champRepere.current?.scrollIntoView({ block: 'center' });
+                  champRepere.current?.focus();
+                }}
+              >
+                Ajouter un repère
+              </button>
+              <button
+                type="button"
+                className="bouton bouton-secondaire bouton-petit"
+                onClick={() => aller('ajouter/3')}
+              >
+                Continuer sans
+              </button>
+            </div>
+          </section>
+        )}
         <BoutonSuivant surClic={suivant} />
       </PiedEtape>
     </div>

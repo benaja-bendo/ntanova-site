@@ -79,8 +79,6 @@ export function creerLigneEcole(d: LigneAffichee): HTMLLIElement {
     repere.append(icone('repere'), element('span', '', d.repere));
     corps.append(repere);
   }
-  if (d.repereManquant)
-    corps.append(element('span', 'ligne-repere ligne-repere-vide', 'Repère pas encore relevé'));
   const rang = element('span', 'ligne-preuve-rang');
   const preuve = element('span', `ligne-preuve ligne-preuve-${d.preuve}`);
   preuve.append(icone(iconeDeProvenance[d.preuve]), d.preuveTexte);
