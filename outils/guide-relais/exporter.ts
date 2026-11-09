@@ -3,15 +3,13 @@
 //   node outils/guide-relais/exporter.ts            (lancé par `pnpm build`, après la construction du site)
 //
 // Le texte vient de src/modele/guide-relais.ts, le même que celui de la page /guide-relais/ ; la mise en page est celle du
-// livret v3 (1 080 × 1 920, lisible sur un téléphone). Deux exports :
-//   - le guide PUBLIÉ, dans dist/guide-relais/ (avec le site) : SANS les montants, car la page est lisible par quiconque a
-//     le lien : NTANOVA-guide-relais-<version>-<date>.pdf et une image par page ;
-//   - le document COMPLET, avec les montants, dans outils/guide-relais/sortie/ (jamais publié, jamais versionné) : le
-//     fondateur l'envoie à la main sur WhatsApp : NTANOVA-guide-relais-<version>-<date>-complet.pdf et ses images.
+// livret v3 (1 080 × 1 920, lisible sur un téléphone). Un seul export, dans dist/guide-relais/ (avec le site) :
+// NTANOVA-guide-relais-<version>-<date>.pdf et une image par page. Le guide ne porte aucun montant ni aucune mention de
+// paiement (décision du 09/11/2026) : la page est lisible par quiconque a le lien.
 //
 // Ce qu'il vérifie dans le navigateur, pour chaque page (la construction échoue sinon) : le contenu ne déborde pas sur
-// le pied de page ; le badge « n/6 » est en haut à droite sans chevaucher un bloc ; le tableau « Où trouver » est aligné ;
-// la police Poppins est chargée ; sur la carte de passage, les écarts du numéro sont égaux. Puis : le PDF a bien 7 pages.
+// le pied de page ; le badge « n/5 » est en haut à droite sans chevaucher un bloc ; le tableau « Où trouver » est aligné ;
+// la police Poppins est chargée ; sur la carte de passage, les écarts du numéro sont égaux. Puis : le PDF a bien 6 pages.
 //
 // Le numéro WhatsApp n'est jamais écrit dans le dépôt : il est lu dans PUBLIC_WHATSAPP (l'environnement, sinon le .env).
 // Il n'apparaît que sur la carte de passage exportée.
@@ -33,7 +31,6 @@ import {
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = join(ICI, '..', '..');
 const SORTIE = join(RACINE, 'dist', 'guide-relais');
-const SORTIE_COMPLET = join(ICI, 'sortie');
 const LARGEUR = 1080;
 const HAUTEUR = 1920;
 const ORIGINE = 'http://guide.invalid';
@@ -53,7 +50,7 @@ const logo = () => readFileSync(join(ICI, 'logo-mark-sombre.svg'), 'utf8');
 
 function haut(numero: number, total: number): string {
   return (
-    `<header class="top"><span class="brand">${logo()}<span>NTANOVA <small>ÉQUIPE TERRAIN</small></span></span>` +
+    `<header class="top"><span class="brand">${logo()}<span>NTANOVA <small>RELAIS ET CONTRIBUTEURS</small></span></span>` +
     `<span class="nav"><span class="badge-page">${numero}/${total}</span></span></header>`
   );
 }
@@ -68,11 +65,11 @@ function police(): string {
     .join('');
 }
 
-function documentHtml(numero: string | undefined, avecMontants: boolean): string {
+function documentHtml(numero: string | undefined): string {
   const total = GUIDE.pages.length;
   // Les images se chargent d'un coup : le PDF et les captures ne tiennent pas compte du défilement.
   const eager = (html: string) => html.replaceAll(' loading="lazy"', '');
-  const ctx = { urlCapture: (nom: string) => `${ORIGINE}/captures/${nom}.png`, avecMontants };
+  const ctx = { urlCapture: (nom: string) => `${ORIGINE}/captures/${nom}.png` };
   const pied = `<footer class="regles">${GUIDE.pied.map((r) => `<span>${echapper(typo(r))}</span>`).join('')}</footer>`;
   const pages = GUIDE.pages.map(
     (p, i) =>
@@ -81,7 +78,7 @@ function documentHtml(numero: string | undefined, avecMontants: boolean): string
       `${eager(pageEnHtml(p, ctx))}${pied}</section>`,
   );
   const carte =
-    `<section class="page passage" data-page="07-carte-de-passage">` +
+    `<section class="page passage" data-page="06-carte-de-passage">` +
     `<div class="haut">${logo()}<div class="mot">NTANOVA<small>RECENSEMENT DES ÉCOLES</small></div></div>` +
     `${carteEnHtml(GUIDE.carte, numeroEnHtml(numeroLisible(numero)))}</section>`;
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>NTANOVA · Guide du relais</title>
@@ -197,11 +194,6 @@ async function main(): Promise<void> {
     );
   }
 
-  const variantes = [
-    { complet: false, dossier: SORTIE, libelle: 'publié, sans les montants' },
-    { complet: true, dossier: SORTIE_COMPLET, libelle: 'complet, avec les montants (non publié)' },
-  ];
-
   const navigateur = await chromium.launch().catch((erreur: unknown) => {
     throw new Error(
       `Chromium de Playwright introuvable (\`pnpm exec playwright install chromium\`) : ${String(erreur)}`,
@@ -215,7 +207,7 @@ async function main(): Promise<void> {
       const url = new URL(route.request().url());
       const { pathname } = url;
       if (pathname === '/guide.html') {
-        const html = documentHtml(numero, url.searchParams.get('complet') === 'oui');
+        const html = documentHtml(numero);
         return route.fulfill({ contentType: 'text/html', body: html });
       }
       const dossier = pathname.startsWith('/polices/')
@@ -231,66 +223,62 @@ async function main(): Promise<void> {
       });
     });
 
-    for (const { complet, dossier, libelle } of variantes) {
-      const noms = nomsDesFichiers(GUIDE, { complet });
-      mkdirSync(dossier, { recursive: true });
-      await page.goto(`${ORIGINE}/guide.html${complet ? '?complet=oui' : ''}`, {
-        waitUntil: 'load',
-      });
-      await page.evaluate(() => window.document.fonts.ready);
+    const dossier = SORTIE;
+    const libelle = 'publié';
+    const noms = nomsDesFichiers(GUIDE);
+    mkdirSync(dossier, { recursive: true });
+    await page.goto(`${ORIGINE}/guide.html`, { waitUntil: 'load' });
+    await page.evaluate(() => window.document.fonts.ready);
 
-      // Ce qui est publié ne dit jamais un montant : la page est lisible par quiconque a le lien.
-      const montants = await page.evaluate(() => /FCFA/.test(window.document.body.innerText));
-      if (montants !== complet) {
-        throw new Error(
-          complet
-            ? 'Le document complet devrait porter les montants.'
-            : 'Le guide publié porte un montant (FCFA) : il ne doit être que dans le document complet.',
-        );
-      }
-
-      const mesures = await page.evaluate(mesurer);
-      // La marge de chaque page, pour voir venir un débordement : Linux (la CI) et macOS ne coupent pas toujours les
-      // lignes au même endroit.
-      console.log(
-        `  marges (px avant le pied de page) : ${mesures.pages
-          .filter((m) => m.limite > 0)
-          .map((m) => `${m.page.slice(0, 2)}=${m.limite - m.fin}`)
-          .join(' ')}`,
-      );
-      const fautes = fautesDeMiseEnPage(mesures);
-      if (fautes.length)
-        throw new Error(
-          `Le guide exporté (${libelle}) est mal mis en page :\n  - ${fautes.join('\n  - ')}`,
-        );
-
-      const pdf = await page.pdf({
-        width: `${LARGEUR}px`,
-        height: `${HAUTEUR}px`,
-        printBackground: true,
-        preferCSSPageSize: true,
-      });
-      const pagesDuPdf = (pdf.toString('latin1').match(/\/Type\s*\/Page(?![\w])/g) ?? []).length;
-      const attendu = GUIDE.pages.length + 1;
-      if (pagesDuPdf !== attendu)
-        throw new Error(
-          `Le PDF (${libelle}) a ${pagesDuPdf} pages, pas ${attendu} (les pages et la carte de passage).`,
-        );
-      writeFileSync(join(dossier, noms.pdf), pdf);
-
-      const fichiers = [
-        ...noms.images.map((i) => ({ fichier: i.fichier, page: i.page })),
-        { fichier: noms.carte, page: '07-carte-de-passage' },
-      ];
-      for (const { fichier, page: nom } of fichiers) {
-        await page
-          .locator(`.page[data-page="${nom}"]`)
-          .screenshot({ path: join(dossier, fichier) });
-      }
-      console.log(
-        `Guide du relais ${GUIDE.version} (${GUIDE.miseAJour}), ${libelle} : ${noms.pdf} et ${fichiers.length} images, dans ${relative(RACINE, dossier)}/`,
+    // Ce qui est publié ne dit jamais un montant ni un paiement : la page est lisible par quiconque a le lien.
+    const paiement = await page.evaluate(() =>
+      /FCFA|Mobile Money|paiement|rémunér/i.test(window.document.body.innerText),
+    );
+    if (paiement) {
+      throw new Error(
+        'Le guide publié parle de montant ou de paiement (FCFA, Mobile Money, paiement, rémunération) : décision du 09/11/2026, jamais sur le guide.',
       );
     }
+
+    const mesures = await page.evaluate(mesurer);
+    // La marge de chaque page, pour voir venir un débordement : Linux (la CI) et macOS ne coupent pas toujours les
+    // lignes au même endroit.
+    console.log(
+      `  marges (px avant le pied de page) : ${mesures.pages
+        .filter((m) => m.limite > 0)
+        .map((m) => `${m.page.slice(0, 2)}=${m.limite - m.fin}`)
+        .join(' ')}`,
+    );
+    const fautes = fautesDeMiseEnPage(mesures);
+    if (fautes.length)
+      throw new Error(
+        `Le guide exporté (${libelle}) est mal mis en page :\n  - ${fautes.join('\n  - ')}`,
+      );
+
+    const pdf = await page.pdf({
+      width: `${LARGEUR}px`,
+      height: `${HAUTEUR}px`,
+      printBackground: true,
+      preferCSSPageSize: true,
+    });
+    const pagesDuPdf = (pdf.toString('latin1').match(/\/Type\s*\/Page(?![\w])/g) ?? []).length;
+    const attendu = GUIDE.pages.length + 1;
+    if (pagesDuPdf !== attendu)
+      throw new Error(
+        `Le PDF (${libelle}) a ${pagesDuPdf} pages, pas ${attendu} (les pages et la carte de passage).`,
+      );
+    writeFileSync(join(dossier, noms.pdf), pdf);
+
+    const fichiers = [
+      ...noms.images.map((i) => ({ fichier: i.fichier, page: i.page })),
+      { fichier: noms.carte, page: '06-carte-de-passage' },
+    ];
+    for (const { fichier, page: nom } of fichiers) {
+      await page.locator(`.page[data-page="${nom}"]`).screenshot({ path: join(dossier, fichier) });
+    }
+    console.log(
+      `Guide du relais ${GUIDE.version} (${GUIDE.miseAJour}), ${libelle} : ${noms.pdf} et ${fichiers.length} images, dans ${relative(RACINE, dossier)}/`,
+    );
   } finally {
     await navigateur.close();
   }

@@ -4,20 +4,11 @@
  * Les deux n'ont pas la même feuille de style (la page est fluide, le PDF est en 1 080 × 1 920), mais elles ont le même
  * balisage, donc le même texte. Les textes viennent de `guide-relais.ts` : du HTML de confiance, jamais une saisie.
  */
-import type { Bloc, CartePassage, Ligne, PageGuide, Texte } from './guide-relais';
+import type { Bloc, CartePassage, Ligne, PageGuide } from './guide-relais';
 
 export interface ContexteRendu {
   /** L'adresse d'une capture d'écran de l'application : `/guide-relais/captures/mon-lot.webp` pour la page. */
   urlCapture: (nom: string) => string;
-  /**
-   * Montrer les montants : seulement dans le document complet remis aux relais, jamais sur la page en ligne ni dans le PDF
-   * publié (lisibles par quiconque a le lien).
-   */
-  avecMontants: boolean;
-}
-
-function choisir(texte: Texte, ctx: ContexteRendu): string {
-  return typeof texte === 'string' ? texte : ctx.avecMontants ? texte.avec : texte.sans;
 }
 
 export function echapper(texte: string): string {
@@ -54,11 +45,11 @@ export function texteBrut(html: string): string {
     .trim();
 }
 
-function lignes(items: Ligne[], ctx: ContexteRendu): string {
+function lignes(items: Ligne[]): string {
   return items
     .map(
       (l) =>
-        `<div class="ligne"><span class="n">${echapper(l.signe)}</span><div><h3>${typo(choisir(l.titre, ctx))}</h3><p>${typo(l.html)}</p></div></div>`,
+        `<div class="ligne"><span class="n">${echapper(l.signe)}</span><div><h3>${typo(l.titre)}</h3><p>${typo(l.html)}</p></div></div>`,
     )
     .join('');
 }
@@ -75,24 +66,13 @@ export function blocEnHtml(bloc: Bloc, ctx: ContexteRendu): string {
       return `<div class="chips">${[...normales, ...sorties].join('')}</div>`;
     }
     case 'lignes':
-      return lignes(bloc.items, ctx);
+      return lignes(bloc.items);
     case 'attention':
       return `<div class="attention">${typo(bloc.html)}</div>`;
     case 'dire':
       return `<div class="dire">${typo(bloc.html)}</div>`;
     case 'jamais':
       return `<div class="jamais">${bloc.items.map((x) => `<span>${echapper(x)}</span>`).join('')}</div>`;
-    case 'argent':
-      return bloc.items
-        .map(
-          (a) =>
-            `<div class="argent"><span class="val${a.plus ? ' plus' : ''}">${a.valeur}</span><div><h3>${typo(a.titre)}</h3><p>${typo(a.html)}</p></div></div>`,
-        )
-        .join('');
-    case 'exemple':
-      return `<div class="exemple">${typo(bloc.html)}</div>`;
-    case 'montants':
-      return blocsEnHtml(ctx.avecMontants ? bloc.avec : bloc.sans, ctx);
     case 'ou':
       return (
         '<div class="ou">' +
@@ -130,7 +110,7 @@ export function blocEnHtml(bloc: Bloc, ctx: ContexteRendu): string {
       );
     case 'premier-jour':
       return (
-        `<div class="deuxcol"><div>${lignes(bloc.etapes, ctx)}</div>` +
+        `<div class="deuxcol"><div>${lignes(bloc.etapes)}</div>` +
         `<div class="cote-ecran"><div class="ecran"><img alt="L’écran d’accueil de l’espace relais" src="${ctx.urlCapture(bloc.capture)}" loading="lazy"></div>` +
         `<p class="legende">${typo(echapper(bloc.legende))}</p></div></div>`
       );

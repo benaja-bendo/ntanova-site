@@ -4,13 +4,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  CONTACT,
-  ESSAI,
-  FICHE,
   GUIDE,
   chiffresDuNumero,
   dateLisible,
-  montant,
   nomsDesFichiers,
   numeroLisible,
 } from '../../src/modele/guide-relais';
@@ -22,12 +18,10 @@ import {
   typo,
 } from '../../src/modele/guide-relais-html';
 
-// La page en ligne et le PDF publié n'ont aucun montant ; le document complet remis aux relais les a.
+// La page en ligne et le PDF publié n'ont ni montant ni mention de paiement (décision du 09/11/2026).
 const ctx = {
   urlCapture: (nom: string) => `/guide-relais/captures/${nom}.webp`,
-  avecMontants: false,
 };
-const ctxComplet = { ...ctx, avecMontants: true };
 
 /** Sans la typographie : espaces (insécables comprises), guillemets, apostrophes, casse. */
 function normaliser(t: string): string {
@@ -41,14 +35,10 @@ const pages = GUIDE.pages.map((p) => ({
 }));
 const carte = normaliser(carteEnHtml(GUIDE.carte, numeroEnHtml(numeroLisible('242061234567'))));
 const tout = [...pages.map((p) => p.texte), carte].join(' ');
-const toutComplet = [
-  ...GUIDE.pages.map((p) => normaliser(`${p.titre} ${p.lead} ${pageEnHtml(p, ctxComplet)}`)),
-  carte,
-].join(' ');
 
 describe('le contenu du guide', () => {
-  it('a six pages et la carte de passage, une version et une date', () => {
-    expect(GUIDE.pages).toHaveLength(6);
+  it('a cinq pages et la carte de passage, une version et une date', () => {
+    expect(GUIDE.pages).toHaveLength(5);
     expect(GUIDE.version).toMatch(/^v\d+$/);
     expect(GUIDE.miseAJour).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(GUIDE.changements.length).toBeGreaterThan(0);
@@ -65,8 +55,15 @@ describe('le contenu du guide', () => {
   // Ce qu'on doit lire, page par page.
   const attendu: Record<string, string[]> = {
     '01-bienvenue': [
-      'Bienvenue dans',
-      'l’équipe terrain',
+      'Bienvenue chez les',
+      'Relais et Contributeurs',
+      'Deux façons d’aider',
+      'Envoyer une information',
+      'étudiant, parent ou habitant',
+      'écrivez à NTanova sur WhatsApp',
+      'Devenir relais',
+      'Brazzaville, Pointe-Noire, Dolisie, Nkayi, Ouesso, Oyo',
+      'relit chaque information avant toute publication',
       'Dans la rue',
       'Votre téléphone',
       'NTanova',
@@ -101,7 +98,7 @@ describe('le contenu du guide', () => {
       'Séries, filières',
       'Mentions, numéro',
       'Repère',
-      'Pour être payée',
+      'Pour être acceptée',
       'panneau des filières, prospectus, vue du bâtiment',
     ],
     '04-posture': [
@@ -112,8 +109,12 @@ describe('le contenu du guide', () => {
       'Avez-vous vu la direction ?',
       'ne forcez pas',
     ],
-    '05-argent': ['Les montants', 'Mobile Money', 'vendredi soir'],
-    '06-premier-jour': ['Votre premier jour', 'Lot Essai : 3 fiches', 'Avant de partir'],
+    '05-premier-jour': [
+      'Votre premier jour',
+      'Lot Essai : 3 fiches',
+      'Avant de partir',
+      'Puis votre secteur',
+    ],
   };
 
   for (const [fichier, mots] of Object.entries(attendu)) {
@@ -147,6 +148,14 @@ describe('le contenu du guide', () => {
     ['100 % gratuit', 'NTanova ne promet pas la gratuité'],
     ['république démocratique', 'le Congo-Brazzaville n’est pas la RDC'],
     ['rdc', 'le Congo-Brazzaville n’est pas la RDC'],
+    // Aucune promesse de rémunération sur une page publique (décision du fondateur, 09/11/2026).
+    ['mobile money', 'aucune mention de paiement sur le guide public'],
+    ['fcfa', 'aucun montant sur le guide public'],
+    ['paiement', 'aucune mention de paiement sur le guide public'],
+    ['payé', 'aucune mention de paiement sur le guide public'],
+    ['rémunér', 'aucune promesse de rémunération'],
+    ['vendredi soir', 'le jour de paie ne se dit pas ici'],
+    ['salaire', 'aucune promesse de rémunération'],
     // Le lot est un secteur conseillé, jamais une limite ni une condition de paie (ticket 67).
     ['dans votre zone', 'le secteur est un conseil'],
     ['hors de votre zone', 'le secteur est un conseil'],
@@ -160,8 +169,7 @@ describe('le contenu du guide', () => {
   ];
   for (const [mot, pourquoi] of interdit) {
     it(`ne dit jamais « ${mot} »`, () => {
-      expect(tout, `${pourquoi} (page en ligne)`).not.toContain(mot);
-      expect(toutComplet, `${pourquoi} (document complet)`).not.toContain(mot);
+      expect(tout, pourquoi).not.toContain(mot);
     });
   }
 
@@ -171,35 +179,11 @@ describe('le contenu du guide', () => {
   });
 });
 
-describe('les montants', () => {
-  it('viennent des constantes et s’écrivent avec une espace insécable', () => {
-    expect([FICHE, CONTACT, ESSAI]).toEqual([500, 300, 1500]);
-    expect(montant(1500)).toBe('1\u00a0500');
-    expect(montant(6500)).toBe('6\u00a0500');
-  });
-
-  // La page est lisible par quiconque a le lien : jamais un montant dessus, ni dans le PDF publié (décision du 03/11).
-  it('ne sont jamais sur la page en ligne ni dans le PDF publié', () => {
+describe('aucun montant', () => {
+  // La page est lisible par quiconque a le lien : jamais un montant dessus, ni dans le PDF publié.
+  it('ne figure sur aucune page ni sur la carte de passage', () => {
     expect(tout).not.toMatch(/fcfa/);
-    expect(tout).not.toMatch(/\b(500|300|1 500|5 000|1 500|6 500)\b/);
-    const page = pages.find((x) => x.p.fichier === '05-argent');
-    expect(page?.texte).toContain('les montants');
-    expect(page?.texte).toContain('whatsapp');
-    const jour = pages.find((x) => x.p.fichier === '06-premier-jour');
-    expect(jour?.texte).toContain('payées tout de suite');
-  });
-
-  it('sont dans le document complet remis aux relais, et l’exemple de la page 5 est juste', () => {
-    const complet = normaliser(
-      pageEnHtml(GUIDE.pages.find((x) => x.fichier === '05-argent') ?? GUIDE.pages[0]!, ctxComplet),
-    );
-    expect(complet).toContain('500 fcfa');
-    expect(complet).toContain('300 fcfa');
-    expect(complet).toContain('1 500 fcfa');
-    expect(complet).toContain('10 fiches acceptées = 5 000 fcfa');
-    expect(complet).toContain('+ 1 500 fcfa');
-    expect(complet).toContain('6 500 fcfa en tout');
-    expect(toutComplet).toContain('1 500 fcfa, tout de suite');
+    expect(tout).not.toMatch(/\b(500|300|1 500|5 000|6 500)\b/);
   });
 });
 
@@ -279,19 +263,11 @@ describe('les fichiers exportés', () => {
   it('portent la version et la date, une image par page et la carte de passage', () => {
     const noms = nomsDesFichiers();
     expect(noms.pdf).toBe(`NTANOVA-guide-relais-${GUIDE.version}-${GUIDE.miseAJour}.pdf`);
-    expect(noms.images).toHaveLength(6);
+    expect(noms.images).toHaveLength(5);
     expect(noms.images[0]?.fichier).toBe(
       `guide-relais-${GUIDE.version}-${GUIDE.miseAJour}-01-bienvenue.png`,
     );
-    expect(noms.carte).toContain('07-carte-de-passage');
-  });
-
-  it('le document complet (avec les montants) a son propre nom : il n’est jamais confondu avec le publié', () => {
-    const publie = nomsDesFichiers();
-    const complet = nomsDesFichiers(GUIDE, { complet: true });
-    expect(complet.pdf).toBe(publie.pdf.replace('.pdf', '-complet.pdf'));
-    expect(complet.pdf).not.toBe(publie.pdf);
-    expect(complet.images[0]?.fichier).not.toBe(publie.images[0]?.fichier);
+    expect(noms.carte).toContain('06-carte-de-passage');
   });
 });
 

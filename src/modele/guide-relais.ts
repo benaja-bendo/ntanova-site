@@ -1,5 +1,5 @@
 /**
- * Le guide du relais : le texte, les montants et la version, en un seul endroit.
+ * Le guide des Relais et Contributeurs NTanova : le texte et la version, en un seul endroit.
  *
  * La page `/guide-relais/`, la même page dans l'espace relais (`/relais/guide/`, qui marche hors ligne), le PDF et les
  * images pour WhatsApp (`outils/guide-relais/`) sont tous construits à partir de ce fichier. Pour changer le guide :
@@ -8,33 +8,20 @@
  * Règles à tenir (le test `tests/unitaires/guide-relais.test.ts` les vérifie) :
  * - aucune hypothèse ni seuil du registre, aucune offre : on parle de relever une école et de la faire valider ;
  * - ni gratuité ni prix promis aux écoles (« on ne parle pas de prix pour l'instant ») ;
+ * - **aucune promesse de rémunération, aucun montant, aucune mention de paiement** (décision du fondateur, 09/11/2026) :
+ *   la page est lisible par quiconque a le lien, et elle s'adresse aussi aux contributeurs (étudiants, parents,
+ *   habitants). Ce qui concerne la paie des relais historiques se dit par WhatsApp et dans l'espace relais (écran « Ma
+ *   paie »), jamais ici. L'ancien texte (page « Ce que vous touchez », montants) est dans l'historique git, avant la v4 ;
  * - les phrases « À dire en entrant », « Jamais » et « À lui dire » sont celles de l'application
  *   (`src/app/relais/ecrans/MonLot.tsx` et `Ajouter.tsx`) ;
- * - le lot est un secteur conseillé, jamais une limite ni une condition de paie : « votre secteur » ;
- * - le Congo-Brazzaville (pas la RDC) ; on vouvoie les relais ;
- * - **aucun montant sur la page en ligne ni dans le PDF publié** (décision du 03/11, ticket 110) : la page est lisible par
- *   quiconque a le lien. Les montants (blocs `montants`, textes `{ avec, sans }`) ne sont que dans le document complet,
- *   exporté sur le Mac du fondateur (`outils/guide-relais/sortie/`), qu'il envoie à la main sur WhatsApp ;
+ * - le lot est un secteur conseillé, jamais une limite : « votre secteur » ;
+ * - le Congo-Brazzaville (pas la RDC) ; on vouvoie ;
  * - le numéro WhatsApp n'est jamais écrit ici : il vient de la configuration (`PUBLIC_WHATSAPP`).
  *
  * Les textes sont du HTML de confiance (`<b>`, `<em>`, `&nbsp;`) écrit ici, jamais une saisie.
  */
 
-// Montants et règles de paiement : décisions du fondateur du 01/11/2026, confirmées le soir.
-export const FICHE = 500;
-export const CONTACT = 300;
-export const ESSAI = 1500;
-export const JOUR_PAIEMENT = 'vendredi soir';
-
-/** Un montant avec une espace insécable : 6 500. */
-export function montant(n: number): string {
-  return n.toLocaleString('fr-FR').replace(/[\s\u202f]/g, '\u00a0');
-}
-
-/** Un texte qui change selon que les montants sont montrés (le document remis aux relais) ou non (la page en ligne). */
-export type Texte = string | { avec: string; sans: string };
-
-export type Ligne = { signe: string; titre: Texte; html: string };
+export type Ligne = { signe: string; titre: string; html: string };
 
 export type Bloc =
   | { type: 'titre'; texte: string }
@@ -44,10 +31,6 @@ export type Bloc =
   | { type: 'attention'; html: string }
   | { type: 'dire'; html: string }
   | { type: 'jamais'; items: string[] }
-  | { type: 'argent'; items: { valeur: string; plus: boolean; titre: string; html: string }[] }
-  | { type: 'exemple'; html: string }
-  /** Ce qui ne se publie pas : les blocs `avec` sont dans le document remis aux relais, les blocs `sans` sur la page. */
-  | { type: 'montants'; avec: Bloc[]; sans: Bloc[] }
   | { type: 'ou'; items: { cle: string; html: string }[] }
   | { type: 'flux'; cases: { numero: string; titre: string; html: string; actif?: boolean }[] }
   | {
@@ -106,9 +89,14 @@ const niveaux = [
 ];
 
 export const GUIDE: Guide = {
-  version: 'v3',
+  version: 'v4',
   miseAJour: '2026-11-09',
   changements: [
+    {
+      date: '2026-11-09',
+      texte:
+        'Le guide devient celui des Relais et Contributeurs : étudiant, parent ou habitant, on peut aussi envoyer une information sur WhatsApp. Il tient en cinq pages.',
+    },
     {
       date: '2026-11-09',
       texte:
@@ -135,8 +123,8 @@ export const GUIDE: Guide = {
   pages: [
     {
       fichier: '01-bienvenue',
-      titre: 'Bienvenue dans <em>l’équipe terrain</em>',
-      lead: 'NTanova construit un annuaire en ligne des écoles, quartier par quartier.',
+      titre: 'Bienvenue chez les <em>Relais et Contributeurs</em>',
+      lead: 'NTanova construit un annuaire en ligne des écoles du Congo-Brazzaville, ville par ville, pour aider les familles à s’orienter.',
       avant: [
         {
           type: 'flux',
@@ -151,42 +139,46 @@ export const GUIDE: Guide = {
       panneaux: [
         {
           blocs: [
-            { type: 'titre', texte: 'Ce qu’on attend de vous' },
+            { type: 'titre', texte: 'Deux façons d’aider' },
             {
               type: 'texte',
               html:
-                '<b>Répertorier les écoles autour de vous</b> : une photo de l’enseigne, la position de l’entrée, ' +
-                'ce qui est écrit, et à qui s’adresser pour faire valider la fiche.',
+                '<b>Envoyer une information</b> : étudiant, parent ou habitant, écrivez à NTanova sur WhatsApp. ' +
+                'Dites le nom de l’école, sa ville et son quartier, et ce qui manque ou ce qui est faux. ' +
+                'Une photo de l’enseigne aide, jamais celle d’un enfant. NTanova relit chaque information avant toute publication.',
+            },
+            {
+              type: 'texte',
+              html:
+                '<b>Devenir relais</b> : <b>répertorier les écoles autour de vous</b>, avec l’application (photo de l’enseigne, ' +
+                'position de l’entrée, ce qui est écrit, à qui s’adresser pour faire valider la fiche). Les pages suivantes expliquent comment.',
+            },
+            { type: 'titre', texte: 'Où ?' },
+            {
+              type: 'texte',
+              html:
+                'À <b>Brazzaville, Pointe-Noire, Dolisie, Nkayi, Ouesso, Oyo</b> ou ailleurs au Congo-Brazzaville. ' +
+                'NTanova publie ville après ville.',
             },
             { type: 'titre', texte: 'Votre secteur' },
             {
               type: 'texte',
               html:
-                'NTanova vous indique sur WhatsApp un <b>secteur</b> : un quartier ou un groupe ' +
-                'de rues, à parcourir à pied. C’est un <b>conseil, pas une limite</b> : relevez <b>toutes</b> les écoles ' +
-                'que vous croisez, où que vous soyez au Congo-Brazzaville, de la crèche à l’université. Essayez de couvrir votre secteur ' +
-                'avant la date « à rendre le » affichée sur l’écran « Mon secteur ».',
-            },
-            { type: 'titre', texte: 'L’état d’esprit' },
-            {
-              type: 'texte',
-              html:
-                'NTanova est en construction et avance vite. On s’ajuste ensemble : <b>dites-nous ce qui ne marche pas</b>, ' +
-                'demandez dès que vous hésitez. Poser une question est attendu, pas un problème.',
+                'NTanova vous indique sur WhatsApp un <b>secteur</b> (un quartier ou un groupe de rues) : un <b>conseil, pas une limite</b>. ' +
+                'Relevez <b>toutes</b> les écoles que vous croisez, où que vous soyez, et essayez de couvrir votre secteur ' +
+                'avant la date « à rendre le » de l’écran « Mon secteur ».',
             },
             { type: 'titre', texte: 'Ce que NTanova vous donne' },
             {
               type: 'texte',
-              html:
-                'Un compte à votre nom, un secteur conseillé, une réponse sur WhatsApp dans la demi-journée, ' +
-                'et un paiement par Mobile Money chaque semaine (page 5).',
+              html: 'Un compte à votre nom, un secteur conseillé et une réponse sur WhatsApp dans la demi-journée.',
             },
             {
               type: 'texte',
               petit: true,
               html:
-                'Cadre d’essai, pas un contrat : les règles peuvent évoluer et on les ajuste avec vous. ' +
-                'Votre premier lot est un lot d’essai (page 6).',
+                'Cadre d’essai, pas un contrat : les règles évoluent, on les ajuste avec vous. ' +
+                'Votre premier lot est un lot d’essai (page 5).',
             },
           ],
         },
@@ -234,8 +226,8 @@ export const GUIDE: Guide = {
                   titre: 'Une école déjà relevée',
                   html:
                     'L’application affiche <b>« doublon possible »</b> quand une école déjà en ligne est à moins de 40 m. ' +
-                    'Ne la relevez pas deux fois : un doublon n’est pas payé. Si un autre relais a déjà relevé la même école, ' +
-                    'c’est sa fiche qui est payée.',
+                    'Ne la relevez pas deux fois : un doublon n’est pas retenu. Si un autre relais a déjà relevé la même école, ' +
+                    'sa fiche est déjà là.',
                 },
               ],
             },
@@ -324,7 +316,7 @@ export const GUIDE: Guide = {
                   html: 'Gardien ou accueil : « à qui pouvons-nous nous adresser ? »',
                 },
                 {
-                  cle: 'Pour être payée',
+                  cle: 'Pour être acceptée',
                   html:
                     '<b>Photo nette + nom + position (précision 50&nbsp;m ou moins) + ' +
                     'pas de doublon.</b>',
@@ -401,84 +393,9 @@ export const GUIDE: Guide = {
       ],
     },
     {
-      fichier: '05-argent',
-      titre: 'Ce que vous <em>touchez</em>',
-      lead: 'Un tarif simple, payé quand NTanova a validé.',
-      panneaux: [
-        {
-          blocs: [
-            {
-              type: 'montants',
-              avec: [
-                {
-                  type: 'argent',
-                  items: [
-                    {
-                      valeur: `${montant(FICHE)} FCFA`,
-                      plus: false,
-                      titre: 'Une fiche acceptée',
-                      html: 'Photo nette de l’enseigne, nom, position (précision 50&nbsp;m ou moins), pas de doublon.',
-                    },
-                    {
-                      valeur: `+ ${montant(CONTACT)} FCFA`,
-                      plus: true,
-                      titre: 'Un contact de direction confirmé',
-                      html:
-                        'Confirmé quand la personne répond à NTanova sur WhatsApp et confirme sa fonction. Pas le secrétariat. ' +
-                        'Prévenez-la (page 4).',
-                    },
-                    {
-                      valeur: `${montant(ESSAI)} FCFA`,
-                      plus: true,
-                      titre: 'Les 3 fiches du lot Essai',
-                      html: 'Payées dès leur validation, une fois les 3 corrigées avec NTanova. Si vous arrêtez avant, rien n’est dû.',
-                    },
-                  ],
-                },
-                {
-                  type: 'exemple',
-                  html:
-                    `Exemple : <b>10 fiches acceptées = ${montant(10 * FICHE)} FCFA</b>. ` +
-                    `Si 5 contacts sont confirmés, <b>+ ${montant(5 * CONTACT)} FCFA</b>, soit ${montant(10 * FICHE + 5 * CONTACT)} FCFA en tout.`,
-                },
-              ],
-              sans: [
-                {
-                  type: 'attention',
-                  html: '<b>Les montants</b> (par fiche acceptée, par contact confirmé, et le lot Essai) ne sont pas sur cette page : ils sont dans le document que NTanova vous a remis. Une question : écrivez à NTanova sur WhatsApp.',
-                },
-              ],
-            },
-            { type: 'titre', texte: 'Quand et comment' },
-            {
-              type: 'texte',
-              html: `NTanova valide en <b>24 à 48 h</b>. Le paiement part par <b>Mobile Money chaque ${JOUR_PAIEMENT}</b>, pour les fiches validées dans la semaine.`,
-            },
-            { type: 'titre', texte: 'Transport et crédit internet' },
-            {
-              type: 'texte',
-              html: '<b>Compris dans le tarif à la fiche.</b> Rien n’est versé d’avance. Un secteur se fait à pied.',
-            },
-            { type: 'titre', texte: 'Une fiche refusée ou à corriger' },
-            {
-              type: 'texte',
-              html:
-                'On vous dit pourquoi (photo floue, nom absent, position à reprendre, doublon) et ce qu’il faut reprendre. ' +
-                'Une fiche corrigée puis acceptée est payée.',
-            },
-            {
-              type: 'texte',
-              petit: true,
-              html: 'Cadre d’essai, pas un contrat de travail. Les règles peuvent évoluer, on les ajuste avec vous.',
-            },
-          ],
-        },
-      ],
-    },
-    {
-      fichier: '06-premier-jour',
+      fichier: '05-premier-jour',
       titre: 'Votre premier jour',
-      lead: 'Vous commencez par le lot Essai : c’est l’entraînement, et il est payé.',
+      lead: 'Vous commencez par le lot Essai : c’est l’entraînement.',
       panneaux: [
         {
           blocs: [
@@ -508,13 +425,8 @@ export const GUIDE: Guide = {
                 },
                 {
                   signe: '4',
-                  titre: {
-                    avec: `${montant(ESSAI)} FCFA, tout de suite`,
-                    sans: 'Payées tout de suite',
-                  },
-                  html:
-                    'Les 3 fiches validées sont payées dès la validation, puis vous passez à votre secteur. ' +
-                    'Si vous arrêtez avant, rien n’est dû.',
+                  titre: 'Puis votre secteur',
+                  html: 'Les 3 fiches validées, vous passez à votre secteur et vous relevez toutes les écoles que vous croisez.',
                 },
               ],
             },
@@ -523,7 +435,7 @@ export const GUIDE: Guide = {
               titre: 'Avant de partir, je sais dire…',
               items: [
                 'ce que je dis en entrant',
-                'ce qui rend une fiche payée',
+                'ce qui rend une fiche acceptée',
                 'ce que je ne fais jamais',
                 'à qui j’écris si je suis bloqué : <b>NTanova, sur WhatsApp</b>',
               ],
@@ -570,18 +482,15 @@ export function numeroLisible(numero: string | undefined): string[] | null {
   return c ? ['+242', c.slice(0, 2), c.slice(2, 5), c.slice(5, 7), c.slice(7)] : null;
 }
 
-/**
- * Les noms des fichiers exportés : la version et la date y figurent, pour ne jamais confondre deux envois.
- * Le document `complet` (avec les montants) a son propre nom : il n'est jamais publié.
- */
-export function nomsDesFichiers(guide: Guide = GUIDE, options: { complet?: boolean } = {}) {
-  const base = `${guide.version}-${guide.miseAJour}${options.complet ? '-complet' : ''}`;
+/** Les noms des fichiers exportés : la version et la date y figurent, pour ne jamais confondre deux envois. */
+export function nomsDesFichiers(guide: Guide = GUIDE) {
+  const base = `${guide.version}-${guide.miseAJour}`;
   return {
     pdf: `NTANOVA-guide-relais-${base}.pdf`,
     images: guide.pages.map((p) => ({
       fichier: `guide-relais-${base}-${p.fichier}.png`,
       page: p.fichier,
     })),
-    carte: `guide-relais-${base}-07-carte-de-passage.png`,
+    carte: `guide-relais-${base}-06-carte-de-passage.png`,
   };
 }
