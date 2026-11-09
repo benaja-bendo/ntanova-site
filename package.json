@@ -20,6 +20,7 @@
     "captures": "PUBLIC_ADAPTATEUR=faux PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} astro build && playwright test -c playwright.captures.config.ts",
     "couleurs": "node outils/verifier-couleurs.mjs",
     "poids": "node outils/verifier-poids.mjs",
+    "icones": "node outils/generer-icones.mjs",
     "base:demarrer": "supabase start",
     "base:arreter": "supabase stop",
     "base:reset": "supabase db reset",

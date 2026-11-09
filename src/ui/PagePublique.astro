@@ -6,6 +6,7 @@ import './composants.css';
 import './public.css';
 import Icone from './Icone.astro';
 import Marque from './Marque.astro';
+import { ICONES_SITE } from '../modele/icones';
 import { HAUTEUR_PARTAGE, IMAGE_PARTAGE_SITE, LARGEUR_PARTAGE } from '../modele/partage';
 import { LIEN_A_PROPOS, PAGES_DE_TRANSPARENCE } from '../modele/pages-de-confiance';
 
@@ -79,7 +80,9 @@ const portes = [
     <meta property="og:image:alt" content={image.alt} />
     <meta name="twitter:card" content="summary_large_image" />
     {donnees && <script type="application/ld+json" set:html={JSON.stringify(donnees)} />}
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {ICONES_SITE.map((icone) => (
+      <link {...icone} />
+    ))}
     <link
       rel="preload"
       href="/polices/nunito-sans-latin-400-normal.woff2"
