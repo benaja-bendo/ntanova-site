@@ -53,7 +53,7 @@ select throws_ok($$select pg_temp.mot(null,null,null,null)$$,'P0002',null,'Rien 
 select throws_ok($$insert into public.campus_statements(campus_id,body,stated_on) values ('86000000-0000-4000-8000-000000000001','x',current_date)$$,'42501',null,'Pas d’écriture directe du mot');
 select lives_ok($$select pg_temp.mot()$$,'L’administration enregistre le mot');
 select lives_ok($$select pg_temp.mot('Un autre mot, relu par la direction.')$$,'Une seconde saisie remplace la première');
-select is((select body from public.campus_statements),'Un autre mot, relu par la direction.','Une seule ligne par école');
+select is((select body from public.institution_statements),'Un autre mot, relu par la direction.','Une seule ligne par école (le mot est celui de l’école depuis le 13/11)');
 select throws_ok($$select pg_temp.limite(null,'  ')$$,'22023',null,'L’année scolaire est obligatoire');
 select throws_ok($$select pg_temp.limite(null,'2026-2027',null)$$,'22023',null,'La date limite est obligatoire');
 select throws_ok($$select pg_temp.limite(null,'2026-2027',current_date+3,current_date+5)$$,'22023',null,'Pas de déclaration datée du futur');

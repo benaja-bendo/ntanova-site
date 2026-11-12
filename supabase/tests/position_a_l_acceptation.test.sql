@@ -47,8 +47,8 @@ set local role authenticated;
 -- Une seule fonction, avec la position en plus -----------------------------------------------------------------------------------
 
 select has_function('public', 'accept_reviewed_submission',
-  array['uuid', 'text', 'uuid', 'uuid', 'text', 'jsonb', 'uuid', 'jsonb', 'double precision', 'double precision'],
-  'accept_reviewed_submission reçoit une latitude et une longitude facultatives');
+  array['uuid', 'text', 'uuid', 'uuid', 'text', 'jsonb', 'uuid', 'jsonb', 'double precision', 'double precision', 'jsonb'],
+  'accept_reviewed_submission reçoit une latitude et une longitude facultatives (et, depuis le 13/11, les équipements gardés)');
 select hasnt_function('public', 'accept_reviewed_submission',
   array['uuid', 'text', 'uuid', 'uuid', 'text', 'jsonb', 'uuid', 'jsonb'],
   'et l''ancienne signature n''existe plus : un seul chemin, pas deux fonctions');

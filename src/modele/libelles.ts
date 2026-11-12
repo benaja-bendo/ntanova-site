@@ -47,6 +47,7 @@ export const libelleFonction: Record<Valeur<'fonction_direction'>, string> = {
   gestionnaire_comptable: 'Gestionnaire ou comptable',
   secretariat: 'Secrétariat',
   autre: 'Autre',
+  enseignant: 'Enseignant ou enseignante',
 };
 
 /** La forme courte, pour « Contact : confirmé · promoteur ». */
@@ -57,6 +58,7 @@ export const libelleFonctionCourt: Record<Valeur<'fonction_direction'>, string> 
   gestionnaire_comptable: 'gestionnaire',
   secretariat: 'secrétariat',
   autre: 'autre fonction',
+  enseignant: 'enseignant',
 };
 
 export const libelleDirection: Record<Valeur<'direction_vue'>, string> = {
@@ -165,6 +167,11 @@ export const libelleRolePhoto: Record<Valeur<'photo_role'>, string> = {
   programs_board: 'Le panneau ou l’affiche des formations',
   brochure: 'Le prospectus remis par l’école',
   building: 'Une vue du bâtiment (sans enfant)',
+  entrance: 'Le portail',
+  courtyard: 'La cour, vide',
+  room_empty: 'Une salle ou un équipement, vide',
+  sports_ground: 'Le terrain de sport',
+  enrollment_poster: 'L’affiche d’inscription',
 };
 
 /** Les trois usages des photos facultatives, dans les mots de l'écran Ajouter 1/3. */
@@ -173,6 +180,11 @@ export const libelleRolePhotoCourt: Record<Valeur<'photo_role'>, string> = {
   programs_board: 'Panneau ou affiche des formations',
   brochure: "Prospectus remis par l'école",
   building: 'Autre vue du bâtiment (sans enfant)',
+  entrance: 'Portail',
+  courtyard: 'Cour (vide)',
+  room_empty: 'Salle ou équipement (vide)',
+  sports_ground: 'Terrain de sport',
+  enrollment_poster: "Affiche d'inscription",
 };
 
 export const libelleOrigine: Record<Valeur<'origin_kind'>, string> = {

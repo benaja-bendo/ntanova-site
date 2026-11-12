@@ -132,8 +132,8 @@ select is(public.register_photo('52000000-0000-4000-8000-000000000003', '5100000
   'Le prospectus s''enregistre');
 select is(public.register_photo('52000000-0000-4000-8000-000000000004', '51000000-0000-4000-8000-000000000010', 'building', 'image/webp', 70000), 'recu',
   'Une vue du bâtiment s''enregistre');
-select throws_ok($$select public.register_photo('52000000-0000-4000-8000-000000000005', '51000000-0000-4000-8000-000000000010', 'building', 'image/webp', 70000)$$,
-  '22023', null, 'Au plus trois photos en plus de l''enseigne');
+select is(public.register_photo('52000000-0000-4000-8000-000000000005', '51000000-0000-4000-8000-000000000010', 'building', 'image/webp', 70000), 'recu',
+  'Une quatrième photo en plus de l''enseigne entre (cinq au plus depuis le 13/11 : voir releve_bonus.test.sql)');
 select throws_ok($$select public.register_photo('52000000-0000-4000-8000-000000000006', '51000000-0000-4000-8000-000000000010', 'signboard', 'image/webp', 70000)$$,
   '23505', null, 'Une fiche n''a qu''une photo d''enseigne');
 select throws_ok($$select public.register_photo(gen_random_uuid(), '51000000-0000-4000-8000-000000000001', 'building', 'image/gif', 70000)$$,
@@ -162,7 +162,7 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated"}', true);
 select is((select photos || '|' || signboard_received::text || '|' || has_programs_hint::text || '|' || contact_received::text
-           from public.submissions_to_review where id = '51000000-0000-4000-8000-000000000010'), '4|true|true|true',
+           from public.submissions_to_review where id = '51000000-0000-4000-8000-000000000010'), '5|true|true|true',
   'La file « À valider » dit combien de photos, si l''enseigne est là, si des formations sont signalées, si un contact est reçu');
 select is((select sent || '|' || accepted from public.relay_counters where first_name = 'Alice'), '6|1',
   'Les compteurs de chaque relais : fiches envoyées et acceptées');

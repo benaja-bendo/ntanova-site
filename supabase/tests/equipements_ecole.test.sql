@@ -25,11 +25,11 @@ select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-00000000
 select throws_ok($$select pg_temp.fait('cloture','present',null)$$,'22023',null,'Source obligatoire');
 select throws_ok($$select pg_temp.fait('cloture','present','terrain',current_date+2)$$,'22023',null,'Pas de date future');
 select throws_ok($$select pg_temp.fait('autre')$$,'22023',null,'Autre équipement doit être précisé');
-select throws_ok($$select pg_temp.fait('cloture','absent')$$,'22023',null,'Une absence ne se déduit pas du terrain');
+select throws_ok($$select pg_temp.fait('eau','absent')$$,'22023',null,'Une absence ne se déduit pas du terrain (seule la clôture se voit de la rue, M2 du 13/11)');
 select throws_ok($$select pg_temp.fait('cloture','non_precise')$$,'22023',null,'Une non-observation n’est pas un constat');
-select throws_ok($$select pg_temp.fait('eau')$$,'22023',null,'Le terrain ne prouve pas un service d’eau');
-select throws_ok($$select pg_temp.fait('electricite')$$,'22023',null,'Le terrain ne prouve pas le service électrique');
-select throws_ok($$select pg_temp.fait('cantine')$$,'22023',null,'La cantine nécessite une déclaration de l’école');
+select throws_ok($$select pg_temp.fait('electricite','absent')$$,'22023',null,'Le terrain ne dit pas qu’il n’y a pas d’électricité');
+select throws_ok($$select pg_temp.fait('cantine','absent')$$,'22023',null,'Le terrain ne dit pas qu’il n’y a pas de cantine');
+select throws_ok($$select pg_temp.fait('informatique','absent')$$,'22023',null,'Une absence d’équipement se déclare par l’école');
 select throws_ok($$select 'invente'::public.equipment_key$$,'23514',null,'Clé inconnue refusée');
 select throws_ok($$insert into public.campus_facts(campus_id,key,value,source,observed_on) values ('82000000-0000-4000-8000-000000000001','cloture','present','terrain',current_date)$$,'42501',null,'Pas d’insertion directe sans historique');
 insert into lignes select 1,pg_temp.fait();
