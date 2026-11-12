@@ -10,6 +10,7 @@ export const libelleEquipement: Record<Valeur<'equipment_key'>, string> = {
   terrain_sport: 'Terrain de sport',
   cloture: 'Clôture',
   autre: 'Autre équipement',
+  toilettes: 'Toilettes',
 };
 export const libelleEtatEquipement: Record<Valeur<'equipment_state'>, string> = {
   present: 'Présent',

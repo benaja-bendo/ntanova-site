@@ -101,6 +101,8 @@ select is((select count(*)::int from suivante where trial_bundles > 0), 0, 'L''e
 
 -- Un nouveau tarif remplace l'ancien à sa date -------------------------------------------------------------------------------------------------------------
 
+-- Le vrai tarif du 13/11 (prime de contact à 0) passerait devant cet essai de tarif : on l'écarte le temps du test.
+delete from public.payout_rates where valid_from = date '2026-11-13';
 insert into public.payout_rates (valid_from, per_submission_xaf, per_contact_xaf, note) values (date '2026-11-10', 600, 350, 'Essai de tarif');
 select is((select total_xaf from public.payout_preview(date '2026-11-13') where first_name = 'Alice'), 600, 'À partir du 10/11, 600 FCFA par fiche');
 select is((select total_xaf from public.payout_preview(date '2026-11-06') where first_name = 'Alice'), null::int,
