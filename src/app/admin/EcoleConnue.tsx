@@ -159,7 +159,11 @@ export function EcoleConnue({
         )}
       </div>
       {gestes.length > 0 && (
-        <div className="flex flex-wrap gap-2.5" role="group" aria-label="Ta réponse">
+        <div
+          className="flex gap-2.5 max-lg:w-full max-lg:[&>button]:flex-1"
+          role="group"
+          aria-label="Ta réponse"
+        >
           {gestes.map((g, i) => (
             <button
               key={g.libelle}

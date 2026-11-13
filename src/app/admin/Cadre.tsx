@@ -92,6 +92,9 @@ function Logo({ className }: { className?: string }) {
 // Le titre et les règles de l'écran ouvert : la barre du haut (téléphone) et la feuille « Plus » les lisent.
 interface EtatEcran {
   titre: string;
+  /** Sur téléphone, la barre verte peut dire autre chose que le titre (le nom de l'école ouverte, « 2 sur 15 »). */
+  titreHaut?: string | null;
+  droiteHaut?: string | null;
   regles: ReactNode | null;
   retour: { libelle: string; chemin: string } | null;
 }
@@ -126,8 +129,12 @@ export function TitreEcran({
   actions,
   retour = null,
   focusRetour = false,
+  titreHaut = null,
+  droiteHaut = null,
 }: {
   titre: string;
+  titreHaut?: string | null;
+  droiteHaut?: string | null;
   regles?: ReactNode;
   actions?: ReactNode;
   retour?: { libelle: string; chemin: string } | null;
@@ -135,10 +142,10 @@ export function TitreEcran({
 }) {
   const ecran = useContext(ContexteEcran);
   useEffect(() => {
-    ecran?.poser({ titre, regles: regles ?? null, retour });
+    ecran?.poser({ titre, regles: regles ?? null, retour, titreHaut, droiteHaut });
     // Les règles sont du texte fixe : on ne repose l'écran que si le titre ou le retour changent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [titre, retour?.chemin]);
+  }, [titre, retour?.chemin, titreHaut, droiteHaut]);
   return (
     <div className="flex flex-wrap items-center gap-3">
       <h1
@@ -303,9 +310,12 @@ export function Cadre({
             )}
             {/* Sur téléphone, le titre de l'écran est ici (le `h1` de la page est caché, mais lu). */}
             <span className="flex-1 truncate font-serif text-xl font-bold" aria-hidden="true">
-              {etat.titre}
+              {etat.titreHaut ?? etat.titre}
             </span>
-            <div className="relative">
+            {etat.droiteHaut && (
+              <span className="shrink-0 text-sm whitespace-nowrap">{etat.droiteHaut}</span>
+            )}
+            <div className={cn('relative', etat.droiteHaut && 'hidden')}>
               <button
                 type="button"
                 aria-label="Mon compte"

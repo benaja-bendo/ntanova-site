@@ -95,7 +95,16 @@ export function BadgePublication({ etat }: { etat: EtatPublication }) {
 }
 
 /** Le menu « ⋯ » d'une ligne : une liste de boutons native ; Tab parcourt les actions, Échap rend le focus. */
-export function ActionsSecondaires({ nom, children }: { nom: string; children: ReactNode }) {
+export function ActionsSecondaires({
+  nom,
+  children,
+  versLeHaut = false,
+}: {
+  nom: string;
+  children: ReactNode;
+  /** Dans une barre du bas, le menu s'ouvre au-dessus. */
+  versLeHaut?: boolean;
+}) {
   const ref = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const dehors = (e: PointerEvent) => {
@@ -131,7 +140,13 @@ export function ActionsSecondaires({ nom, children }: { nom: string; children: R
       >
         <IconePoints className="size-5" aria-hidden />
       </summary>
-      <div className="absolute right-0 z-30 mt-1 flex min-w-60 flex-col overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg [&_a]:flex [&_a]:min-h-11 [&_a]:items-center [&_a]:px-4 [&_a]:text-[15px] [&_a]:font-bold [&_a]:text-foreground [&_a]:no-underline [&_button]:flex [&_button]:min-h-11 [&_button]:w-full [&_button]:cursor-pointer [&_button]:items-center [&_button]:border-0 [&_button]:bg-transparent [&_button]:px-4 [&_button]:text-left [&_button]:font-sans [&_button]:text-[15px] [&_button]:font-bold [&_button]:text-foreground [&_button:hover]:bg-muted">
+      <div
+        className={cn(
+          'absolute right-0 z-30 flex min-w-60',
+          versLeHaut ? 'bottom-full mb-1' : 'mt-1',
+          ' flex-col overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg [&_a]:flex [&_a]:min-h-11 [&_a]:items-center [&_a]:px-4 [&_a]:text-[15px] [&_a]:font-bold [&_a]:text-foreground [&_a]:no-underline [&_button]:flex [&_button]:min-h-11 [&_button]:w-full [&_button]:cursor-pointer [&_button]:items-center [&_button]:border-0 [&_button]:bg-transparent [&_button]:px-4 [&_button]:text-left [&_button]:font-sans [&_button]:text-[15px] [&_button]:font-bold [&_button]:text-foreground [&_button:hover]:bg-muted',
+        )}
+      >
         {children}
       </div>
     </details>
