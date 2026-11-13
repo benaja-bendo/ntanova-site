@@ -202,6 +202,7 @@ const COLONNES_DETAIL =
   'campus:campuses!field_submissions_campus_id_fkey(label, publication, institutions(name), geo_divisions!campuses_division_id_fkey(name))';
 
 interface LigneCampus {
+  public_number?: number | null;
   campus_facts: LigneEquipement[];
   campus_fees: LigneFrais[];
   id: string;
@@ -289,7 +290,7 @@ const versMot = (ligne: LigneCampus['campus_statements']): MotDirection | null =
 // (`campus_former_addresses`, ticket 147), PostgREST voit deux chemins entre `campuses` et `geo_divisions` et répond « 300 »
 // à un lien sans contrainte. Le contrat avec la base (`contrat-schema.test.ts`) le garde.
 const COLONNES_CAMPUS =
-  'id, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
+  'id, public_number, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
   'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, same_place_as_campus_id, ' +
   'institutions(name, kind), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
   'campus_cycles(cycle, campus_programs(id, title)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*)';
@@ -320,6 +321,7 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     institutionId: e.institution_id,
     nom: e.institutions?.name ?? '',
     etiquette: e.label,
+    numeroPublic: e.public_number ?? null,
     memeLieuQue: e.same_place_as_campus_id ?? null,
     quartier: e.neighbourhood,
     division: e.geo_divisions?.name ?? null,

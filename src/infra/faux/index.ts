@@ -987,6 +987,7 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     institutionId: c.institutionId,
     nom: c.nom,
     etiquette: c.etiquette,
+    numeroPublic: 158427,
     quartier: c.quartier,
     division: division?.nom ?? null,
     divisionId: division?.id ?? null,
@@ -1215,7 +1216,7 @@ const admin: PortAdministration = {
       .map((p) => ({
         id: p.id,
         role: p.role,
-        adresse: '/relais/icone-512.png',
+        adresse: p.exemple ? photoExempleAdresse : '/relais/icone-512.png',
         octets: p.octets,
         largeur: 1280,
         hauteur: 960,
@@ -1231,7 +1232,7 @@ const admin: PortAdministration = {
       .map((p) => ({
         id: p.id,
         role: p.role,
-        adresse: '/relais/icone-512.png',
+        adresse: p.exemple ? photoExempleAdresse : '/relais/icone-512.png',
         octets: p.octets,
         largeur: 1280,
         hauteur: 960,

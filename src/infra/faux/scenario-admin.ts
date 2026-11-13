@@ -20,6 +20,8 @@ const MARCHE = '51000000-0000-4000-8000-000000000003';
 const PRESCOLAIRE = '51000000-0000-4000-8000-000000000004';
 const RITA = '51000000-0000-4000-8000-000000000005';
 
+const jourIlYA = (jours: number) =>
+  new Date(Date.now() - jours * 86_400_000).toISOString().slice(0, 10);
 const ilYA = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 const id = (prefixe: string, n: number) =>
   `${prefixe}-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -148,11 +150,16 @@ export function etatDesPlanchesAdmin() {
     releve(21, '[École Exemple 21]', 60 * 30),
     releve(22, '[École Exemple 22]', 60 * 50),
   ];
-  const tous = [...aTraiter.map(([r]) => r), voisine, ...renvoyees];
+  // La fiche acceptée qui a fait Les Palmiers (site 1) : ses photos sont celles de la fiche de l'école.
+  const fondatrice = releve(30, 'Complexe scolaire Les Palmiers', 60 * 24 * 30, {
+    position: POS_PALMIERS,
+  });
+  const tous = [...aTraiter.map(([r]) => r), voisine, ...renvoyees, fondatrice];
   const relaisDe: Record<string, string> = Object.fromEntries(
     aTraiter.map(([r, nom]) => [r.id, nom]),
   );
   relaisDe[voisine.id] = 'Relais B';
+  relaisDe[fondatrice.id] = 'Relais A';
   for (const r of renvoyees) relaisDe[r.id] = 'Relais D';
 
   const decision = (statut: Valeur<'statut_releve'>, message: string | null = null) => ({
@@ -187,10 +194,32 @@ export function etatDesPlanchesAdmin() {
     releves: Object.fromEntries(tous.map((r) => [r.id, r])),
     decisions: Object.fromEntries([
       [voisine.id, decision('accepte')],
+      [fondatrice.id, { ...decision('accepte'), ecoleId: PALMIERS }],
       ...renvoyees.map((r) => [r.id, decision('a_corriger', 'La photo de l’enseigne est floue.')]),
     ]),
-    photos: Object.fromEntries(
-      [...aTraiter.map(([r]) => r), voisine].map((r, k) => [
+    photos: Object.fromEntries([
+      ...(
+        [
+          ['signboard', true],
+          ['courtyard', true],
+          ['room_empty', true],
+          ['sports_ground', false],
+          ['brochure', false],
+        ] as const
+      ).map(([role, publiable], k) => [
+        id('64000000', k + 1),
+        {
+          id: id('64000000', k + 1),
+          releveId: fondatrice.id,
+          role,
+          mime: 'image/jpeg',
+          octets: 150_000,
+          publiable,
+          publique: publiable,
+          exemple: true,
+        },
+      ]),
+      ...[...aTraiter.map(([r]) => r), voisine].map((r, k) => [
         id('63000000', k + 1),
         {
           id: id('63000000', k + 1),
@@ -202,7 +231,7 @@ export function etatDesPlanchesAdmin() {
           exemple: true,
         },
       ]),
-    ),
+    ]),
     relaisDesReleves: relaisDe,
     campus: Object.fromEntries([
       campus(PALMIERS, 'Complexe scolaire Les Palmiers', {
@@ -212,7 +241,53 @@ export function etatDesPlanchesAdmin() {
         position: POS_PALMIERS,
         niveaux: ['maternelle', 'primaire', 'college'],
         repere: 'face au marché',
+        programme: 'Français',
         verifieeLe: ilYA(60 * 24 * 3),
+        equipements: [
+          ['eq-1', 'cantine', 'terrain'],
+          ['eq-2', 'informatique', 'terrain'],
+          ['eq-3', 'terrain_sport', 'terrain'],
+          ['eq-4', 'electricite', 'ecole'],
+        ].map(([id, cle, source]) => ({
+          id,
+          cle,
+          precision: cle === 'electricite' ? 'Groupe électrogène' : null,
+          etat: 'present',
+          source,
+          constateLe: jourIlYA(12),
+          note: null,
+        })),
+        frais: [
+          ['fr-1', 'maternelle', 'Petite section', 15_000],
+          ['fr-2', 'primaire', 'CP à CM2', 20_000],
+          ['fr-3', 'college', '6e à 4e', 25_000],
+        ].map(([id, cycle, classe, montant]) => ({
+          id,
+          cycle,
+          classe,
+          minimum: montant,
+          maximum: montant,
+          periode: 'mois',
+          precisionPeriode: null,
+          inscription: 10_000,
+          anneeScolaire: '2026-2027',
+          declaresLe: jourIlYA(20),
+          note: null,
+          preuve: 'prospectus',
+        })),
+        contactPublic: { numero: '242060000001', accordLe: jourIlYA(5) },
+        motDirection: {
+          texte: '[Le texte remis par l’école, en quelques lignes.]',
+          ditLe: jourIlYA(8),
+        },
+        inscriptions: [
+          {
+            id: 'in-1',
+            anneeScolaire: '2026-2027',
+            limite: jourIlYA(-30),
+            declareeLe: jourIlYA(8),
+          },
+        ],
       }),
       campus(PALMIERS_2, 'Complexe scolaire Les Palmiers', {
         institutionId: PALMIERS,

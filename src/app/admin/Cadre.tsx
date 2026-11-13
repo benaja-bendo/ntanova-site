@@ -131,8 +131,11 @@ export function TitreEcran({
   focusRetour = false,
   titreHaut = null,
   droiteHaut = null,
+  cacherTitre = false,
 }: {
   titre: string;
+  /** Le titre n'est lu que par les lecteurs d'écran (la fiche d'une école a son nom dans sa carte). */
+  cacherTitre?: boolean;
   titreHaut?: string | null;
   droiteHaut?: string | null;
   regles?: ReactNode;
@@ -151,7 +154,10 @@ export function TitreEcran({
       <h1
         tabIndex={focusRetour ? -1 : undefined}
         data-retour-liste={focusRetour || undefined}
-        className="m-0 mr-auto font-serif text-[32px] leading-tight font-bold text-primary-strong outline-none max-lg:sr-only"
+        className={cn(
+          'm-0 mr-auto font-serif text-[32px] leading-tight font-bold text-primary-strong outline-none max-lg:sr-only',
+          cacherTitre && 'sr-only',
+        )}
       >
         {titre}
       </h1>

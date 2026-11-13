@@ -683,6 +683,8 @@ export interface ApercuSuppression {
 }
 
 export interface EcoleVue {
+  /** Le numéro public du site : son lien court `/ecoles/<numero>/` (refonte v2 : « Aperçu »). */
+  numeroPublic?: number | null;
   equipements?: Equipement[];
   frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;
