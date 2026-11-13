@@ -33,6 +33,9 @@ const VUS = listes.equipment_key.filter((k) => k !== 'cloture' && k !== 'autre')
 export function Bonus({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier }) {
   const enregistrer = useEnregistrer(fiche);
   const [envoi, setEnvoi] = useState(false);
+  // Une photo en préparation : « Envoyer la fiche » attend qu'elle soit gardée, sinon son enregistrement arriverait après
+  // et remettrait la fiche en brouillon (elle ne partirait jamais, sans rien dire).
+  const [prepare, setPrepare] = useState(0);
   const vus = fiche.vusSurPlace ?? [];
   const basculer = (k: Valeur<'equipment_key'>) =>
     modifier({ vusSurPlace: vus.includes(k) ? vus.filter((x) => x !== k) : [...vus, k] });
@@ -62,11 +65,12 @@ export function Bonus({ fiche, modifier }: { fiche: FicheLocale; modifier: Modif
           colonnes={3}
         />
 
-        <PhotosEnPlus fiche={fiche} modifier={modifier} />
+        <PhotosEnPlus fiche={fiche} modifier={modifier} prepare={prepare} setPrepare={setPrepare} />
       </main>
       <div className="pied-etape">
         <Bouton
           className="bouton-large"
+          disabled={prepare > 0}
           enCours={envoi}
           texteEnCours="Enregistrement…"
           onClick={() => {
@@ -83,9 +87,18 @@ export function Bonus({ fiche, modifier }: { fiche: FicheLocale; modifier: Modif
 }
 
 /** Les photos en plus, en deux groupes ; un compteur « 2 sur 5 » ; la sixième est refusée avec sa raison. */
-function PhotosEnPlus({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier }) {
+function PhotosEnPlus({
+  fiche,
+  modifier,
+  prepare,
+  setPrepare,
+}: {
+  fiche: FicheLocale;
+  modifier: Modifier;
+  prepare: number;
+  setPrepare: (f: (n: number) => number) => void;
+}) {
   const [erreur, setErreur] = useState<string | null>(null);
-  const [prepare, setPrepare] = useState(0);
   const autres = photosFacultatives(fiche);
   const apercus = useMemo(
     () =>
