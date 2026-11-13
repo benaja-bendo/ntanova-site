@@ -1,5 +1,11 @@
 import { jourDuCongo } from '../../modele/date-declaration';
-import type { DetailsMission, Manque, MediaAdmin } from '../../modele/fiche-admin';
+import type {
+  AdmissionASaisir,
+  DetailsMission,
+  Manque,
+  MediaAdmin,
+  NouvelleAdmin,
+} from '../../modele/fiche-admin';
 import { erreursFormulaireEcole, formulaireDe } from '../../modele/correction-ecole';
 import { erreursDeclaration } from '../../modele/declaration-ecole';
 import {
@@ -184,6 +190,8 @@ interface Etat {
     etat: Valeur<'request_state'>;
   }[];
   medias?: (MediaAdmin & { campusId: string })[];
+  nouvelles?: (NouvelleAdmin & { campusId: string })[];
+  admissions?: Record<string, AdmissionASaisir>;
   /** v2 (13/11) : les « Je n'ai pas pu » reçus, pour les parcours. */
   missionsPasPu?: { missionId: string; motif: string; note: string | null }[];
   utilisateur: { id: string; email: string } | null;
@@ -1068,6 +1076,22 @@ const admin: PortAdministration = {
         publiable: p.publiable,
       }));
   },
+  async photosDeTravail(id) {
+    await reseau();
+    return photosAcceptees(lireEtat(), id)
+      .filter((p) => ['brochure', 'programs_board', 'enrollment_poster'].includes(p.role))
+      .map((p) => ({
+        id: p.id,
+        role: p.role,
+        adresse: '/relais/icone-512.png',
+        octets: p.octets,
+        largeur: 1280,
+        hauteur: 960,
+        prisLe: null,
+        publiable: false,
+        publique: false,
+      }));
+  },
   async photosEcole(id) {
     await reseau();
     return photosAcceptees(lireEtat(), id)
@@ -1792,6 +1816,81 @@ const admin: PortAdministration = {
     const e = lireEtat();
     return Object.values(e.campus).map((c) => vueDeCampus(c, e));
   },
+  // v2 (13/11) : les nouvelles et l'admission, gardées par site.
+  async nouvellesDeLEcole(ecoleId) {
+    await reseau();
+    return (lireEtat().nouvelles ?? [])
+      .filter((n) => n.campusId === ecoleId)
+      .map((n) => ({ ...n, campusId: undefined }) as NouvelleAdmin);
+  },
+  async publierNouvelle(ecoleId, n) {
+    await reseau();
+    if (!n.accord)
+      throw new ErreurDecision(
+        'L’accord de l’école est requis : qui, par quel canal, et quand. Sans accord, rien ne paraît.',
+      );
+    const id = crypto.randomUUID();
+    ecrire((e) => {
+      e.nouvelles = [
+        ...(e.nouvelles ?? []),
+        {
+          id,
+          campusId: ecoleId,
+          genre: n.genre,
+          titre: n.titre,
+          texte: n.texte,
+          publieeLe: n.publieeLe,
+          fournieParLEcole: n.fournieParLEcole,
+          etat: 'publiee',
+        },
+      ];
+    });
+    return id;
+  },
+  async retirerNouvelle(id) {
+    await reseau();
+    ecrire((e) => {
+      for (const n of e.nouvelles ?? []) if (n.id === id) n.etat = 'retiree';
+    });
+  },
+  async admissionDeLEcole(ecoleId) {
+    await reseau();
+    return lireEtat().admissions?.[ecoleId] ?? null;
+  },
+  async enregistrerAdmission(ecoleId, a) {
+    await reseau();
+    if (a.etapes.some((x) => x.fin && x.fin < x.debut))
+      throw new ErreurDecision(
+        'Vérifie les pièces (10 au plus), le lieu de dépôt (300 caractères) et le calendrier (une date par étape, la fin après le début).',
+      );
+    ecrire((e) => {
+      e.admissions = { ...(e.admissions ?? {}), [ecoleId]: a };
+    });
+  },
+  // v2 (13/11) : comme `attach_campus_to_institution` ; le conflit de logo se règle par `ntanova-faux-conflit-logo`.
+  async rattacherSite(campusId, institutionId) {
+    await reseau();
+    const e0 = lireEtat();
+    const c = e0.campus[campusId];
+    if (!c) throw new ErreurDecision('Site introuvable, à la corbeille ou retiré.');
+    if (c.institutionId === institutionId)
+      throw new ErreurDecision('Ce site appartient déjà à cette école.');
+    const cible = Object.values(e0.campus).find((x) => x.institutionId === institutionId);
+    if (!cible) throw new ErreurDecision('École introuvable (ou sans site actif).');
+    const orpheline = !Object.values(e0.campus).some(
+      (x) => x.institutionId === c.institutionId && x.id !== campusId,
+    );
+    if (orpheline && localStorage.getItem('ntanova-faux-conflit-logo'))
+      throw new ErreurDecision(
+        'Les deux écoles ont un logo : retire celui qui ne vaut plus, puis rattache.',
+      );
+    ecrire((e) => {
+      const site = e.campus[campusId]!;
+      site.institutionId = institutionId;
+      site.nom = cible.nom;
+    });
+    return { ancienneSupprimee: orpheline };
+  },
   async institutions() {
     await reseau();
     const e = lireEtat();
@@ -2238,11 +2337,12 @@ const admin: PortAdministration = {
           f.cycle === frais.cycle &&
           f.periode === frais.periode &&
           f.precisionPeriode === frais.precisionPeriode &&
-          f.anneeScolaire === frais.anneeScolaire,
+          f.anneeScolaire === frais.anneeScolaire &&
+          (f.classe ?? null) === (frais.classe ?? null),
       )
     )
       throw new ErreurDecision(
-        'Une ligne existe déjà pour ce cycle, cette période et cette année scolaire : modifie-la.',
+        'Une ligne existe déjà pour cette classe, cette période et cette année scolaire : modifie-la.',
       );
     const identifiant = id ?? crypto.randomUUID();
     ecrire((e) => {

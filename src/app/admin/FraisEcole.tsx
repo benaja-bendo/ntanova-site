@@ -11,7 +11,7 @@ import {
 } from '../../modele/frais-ecole';
 import { libelleNiveau } from '../../modele/libelles';
 import type { Valeur } from '../../modele/listes';
-import type { PortAdministration } from '../../modele/ports';
+import type { PhotoVue, PortAdministration } from '../../modele/ports';
 import { Bandeau, jour } from '../../ui/composants';
 import { Dialogue } from '../../ui/Dialogue';
 import { messageErreur } from './ChampPosition';
@@ -44,8 +44,41 @@ export function FraisEcole({
     surOccupation?.(enCours);
     return () => surOccupation?.(false);
   }, [enCours, surOccupation]);
-  const champ = (cle: keyof SaisieFrais, valeur: string | boolean) =>
+  const champ = (cle: keyof SaisieFrais, valeur: string | boolean | null) =>
     setSaisie((s) => ({ ...s, [cle]: valeur }));
+  // v2 (13/11) : le prospectus photographié par un relais, à côté du formulaire. Photo de travail : jamais publique ; seules
+  // les lignes recopiées le sont.
+  const [prospectus, setProspectus] = useState<PhotoVue[] | null>(null);
+  const [vue, setVue] = useState(0);
+  useEffect(() => {
+    let vivant = true;
+    void admin
+      .photosDeTravail(ecoleId)
+      .then((p) => vivant && setProspectus(p.filter((x) => x.role === 'brochure')))
+      .catch(() => vivant && setProspectus([]));
+    return () => {
+      vivant = false;
+    };
+  }, [admin, ecoleId]);
+  const photo = prospectus?.[vue] ?? null;
+  // « Illisible » : la ligne n'est pas enregistrée ; elle devient un manque précisé, demandé à l'école.
+  const illisible = async () => {
+    const quoi =
+      (saisie.classe ?? '').trim() ||
+      (saisie.cycle ? libelleNiveau[saisie.cycle as Valeur<'niveau'>] : '');
+    if (!quoi) return setErreur('Choisis le cycle (ou écris la classe) de la ligne illisible.');
+    setEnCours(true);
+    setErreur(null);
+    try {
+      await admin.demanderALEcole(ecoleId, 'frais', `Frais ${quoi}, illisible sur le prospectus`);
+      setSaisie(saisieFraisVide());
+      surChangement(`« Frais ${quoi} » s’ajoute à ce qui manque : demandé à l’école.`);
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
   const sauver = async () => {
     const resultat = lireFraisEcole(saisie);
     if (!resultat.frais) {
@@ -97,7 +130,8 @@ export function FraisEcole({
           {frais.map((f) => (
             <li key={f.id}>
               <b>
-                {libelleNiveau[f.cycle]} · {montantFrais(f)}
+                {libelleNiveau[f.cycle]}
+                {f.classe ? ` · ${f.classe}` : ''} · {montantFrais(f)}
               </b>
               <p>
                 {f.periode === 'autre' ? f.precisionPeriode : periodesFrais[f.periode]} ·{' '}
@@ -144,6 +178,43 @@ export function FraisEcole({
           }}
         >
           <h4>{id ? 'Modifier la déclaration' : 'Ajouter une déclaration'}</h4>
+          {prospectus && prospectus.length > 0 && photo && (
+            <figure className="admin-prospectus">
+              {photo.adresse && (
+                <img src={photo.adresse} alt="Le prospectus des frais, pris par un relais" />
+              )}
+              <figcaption className="mention">
+                Prospectus · photo de travail, jamais publique
+                {prospectus.length > 1 && (
+                  <>
+                    {' '}
+                    ·{' '}
+                    <button
+                      type="button"
+                      className="lien"
+                      onClick={() => setVue((vue + 1) % prospectus.length)}
+                    >
+                      Photo suivante ({vue + 1} sur {prospectus.length})
+                    </button>
+                  </>
+                )}
+              </figcaption>
+              <label className="case">
+                <input
+                  type="checkbox"
+                  checked={saisie.photoPreuve === photo.id}
+                  onChange={(e) => champ('photoPreuve', e.target.checked ? photo.id : null)}
+                />
+                Ligne lue sur ce prospectus
+              </label>
+            </figure>
+          )}
+          {prospectus && prospectus.length === 0 && (
+            <p className="mention">
+              Pas de prospectus photographié : la ligne se publie « dite par l’école », avec sa
+              date.
+            </p>
+          )}
           <label className="champ-groupe">
             Cycle
             <select
@@ -158,6 +229,16 @@ export function FraisEcole({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="champ-groupe">
+            Classe (facultatif)
+            <input
+              className="champ"
+              maxLength={40}
+              placeholder="Ex. : CP1 à CM2, 3e"
+              value={saisie.classe ?? ''}
+              onChange={(e) => champ('classe', e.target.value)}
+            />
           </label>
           <label className="champ-groupe">
             Montant minimum ou unique (FCFA)
@@ -264,6 +345,19 @@ export function FraisEcole({
               Annuler la modification
             </button>
           )}
+          {!id && (
+            <button
+              type="button"
+              className="bouton bouton-secondaire"
+              disabled={enCours}
+              onClick={() => void illisible()}
+            >
+              Illisible : la demander à l’école
+            </button>
+          )}
+          <p className="mention">
+            Une ligne illisible n’est jamais publiée : elle s’ajoute à ce qui manque.
+          </p>
         </form>
       )}
       {erreur && (

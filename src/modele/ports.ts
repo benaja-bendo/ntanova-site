@@ -784,6 +784,8 @@ export interface PortAdministration {
   photosReleve(id: string): Promise<PhotoVue[]>;
   /** Les enseignes et façades des relevés acceptés de l'école : les seules photos qui peuvent paraître sur sa fiche. */
   photosEcole(id: string): Promise<PhotoVue[]>;
+  /** v2 (13/11) : les photos de travail d'une école (prospectus, programmes, affiche), pour lire les frais. Jamais publiques. */
+  photosDeTravail(id: string): Promise<PhotoVue[]>;
   /**
    * Comment la photo de l'école est décidée (repli automatique, choix prioritaire ou retrait explicite) et laquelle la vue
    * publique retient. Lecture seule. `GET /admin/ecoles/{id}/photo-publique`
@@ -889,6 +891,22 @@ export interface PortAdministration {
   ecoles(): Promise<EcoleVue[]>;
   /** `GET /admin/institutions` : pour rattacher un relevé à une institution connue. */
   institutions(): Promise<InstitutionVue[]>;
+  /**
+   * v2 (13/11) : « C'est un site de… » : le site rejoint une autre école ; son adresse publique ne change pas. L'école quittée,
+   * sans autre site, lui donne ce qui lui manque (sigle, année, site web, logo, mot) puis est supprimée. Refusé quand les
+   * deux écoles ont un logo ou un mot : on retire d'abord celui qui ne vaut plus. `POST /admin/ecoles/{id}/rattachement`
+   */
+  rattacherSite(campusId: string, institutionId: string): Promise<{ ancienneSupprimee: boolean }>;
+  /** v2 (13/11) : les nouvelles d'un site. `GET /admin/ecoles/{id}/nouvelles` */
+  nouvellesDeLEcole(ecoleId: string): Promise<import('./fiche-admin').NouvelleAdmin[]>;
+  /** v2 : publie une nouvelle, avec l'accord daté de l'école. `POST /admin/ecoles/{id}/nouvelles` */
+  publierNouvelle(ecoleId: string, n: import('./fiche-admin').NouvelleASaisir): Promise<string>;
+  /** v2 : `DELETE /admin/nouvelles/{id}` (gardée au journal, retirée de la page) */
+  retirerNouvelle(id: string): Promise<void>;
+  /** v2 : l'admission d'un site du supérieur, la plus récente. `GET /admin/ecoles/{id}/admission` */
+  admissionDeLEcole(ecoleId: string): Promise<import('./fiche-admin').AdmissionASaisir | null>;
+  /** v2 : `PUT /admin/ecoles/{id}/admission` */
+  enregistrerAdmission(ecoleId: string, a: import('./fiche-admin').AdmissionASaisir): Promise<void>;
   /** Une école d'un coup : institution, campus, cycles, formations. `POST /admin/ecoles` */
   creerEcole(
     entree: EntreeCatalogue,

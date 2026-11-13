@@ -4,6 +4,8 @@ import { ActionsSecondaires, BadgePublication, Bouton } from '../../ui/actions';
 import { PhotoPublique } from './PhotoPublique';
 import { ImagesEcole } from './ImagesEcole';
 import { ManquesEcole } from './ManquesEcole';
+import { NouvellesEcole } from './NouvellesEcole';
+import { AdmissionEcole } from './AdmissionEcole';
 import { dateLongue } from '../../modele/pointe-noire';
 import { EquipementsEcole } from './EquipementsEcole';
 import { FraisEcole } from './FraisEcole';
@@ -121,6 +123,9 @@ function LigneEcole({
     | 'mot-direction'
     | 'completer'
     | 'images'
+    | 'rattacher'
+    | 'nouvelles'
+    | 'admission'
     | 'inscriptions'
     | null
   >(null);
@@ -157,6 +162,14 @@ function LigneEcole({
   };
 
   const autres = ecoles.filter((x) => x.id !== e.id && x.publication !== 'retiree');
+  // v2 (13/11) : « C'est un site de… » : une ligne par école (pas par site), jamais celle de ce site.
+  const ecolesCibles = [
+    ...new Map(
+      autres.filter((x) => x.institutionId !== e.institutionId).map((x) => [x.institutionId, x]),
+    ).values(),
+  ].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  const [ecoleCible, setEcoleCible] = useState('');
+  const seul = !ecoles.some((x) => x.id !== e.id && x.institutionId === e.institutionId);
   const prenom = relais.find((r) => r.id === relaisId)?.prenom ?? '';
 
   const ouvrir = (section: NonNullable<typeof mode>, bouton: HTMLElement) => {
@@ -179,6 +192,8 @@ function LigneEcole({
     ['mot-direction', 'Mot de la direction'],
     ['photo-publique', 'Photo publique'],
     ['images', 'Images'],
+    ['nouvelles', 'Nouvelles'],
+    ['admission', 'Admission'],
     ['mission', 'Mission'],
   ] as const;
   const confirmation =
@@ -305,6 +320,11 @@ function LigneEcole({
           {etat !== 'corbeille' && (
             <ActionsSecondaires nom={e.nom}>
               {etat !== 'retiree' && (
+                <Bouton variante="discret" onClick={(ev) => ouvrir('rattacher', ev.currentTarget)}>
+                  C’est un site de…
+                </Bouton>
+              )}
+              {etat !== 'retiree' && (
                 <Bouton variante="discret" onClick={(ev) => ouvrir('mission', ev.currentTarget)}>
                   {e.confiee ? 'Mission en cours…' : 'Confier à un relais'}
                 </Bouton>
@@ -367,7 +387,10 @@ function LigneEcole({
                 {sections
                   .filter(
                     ([cle]) =>
-                      etat !== 'retiree' || !['modifier', 'situer', 'mission'].includes(cle),
+                      (etat !== 'retiree' || !['modifier', 'situer', 'mission'].includes(cle)) &&
+                      // L'admission ne concerne que le supérieur et le technique.
+                      (cle !== 'admission' ||
+                        e.niveaux.some((n) => n === 'superieur' || n === 'technique')),
                   )
                   .map(([cle, libelle]) => (
                     <button
@@ -404,6 +427,12 @@ function LigneEcole({
                 }}
                 surChangement={signaler}
               />
+            )}
+            {mode === 'nouvelles' && (
+              <NouvellesEcole ecoleId={e.id} admin={admin} surChangement={signaler} />
+            )}
+            {mode === 'admission' && (
+              <AdmissionEcole ecoleId={e.id} admin={admin} surChangement={signaler} />
             )}
             {mode === 'images' && (
               <ImagesEcole ecoleId={e.id} admin={admin} surChangement={signaler} />
@@ -632,6 +661,78 @@ function LigneEcole({
                     </Bouton>
                   </>
                 )}
+              </form>
+            )}
+
+            {mode === 'rattacher' && (
+              <form
+                className="admin-motif pile-serree"
+                aria-label={`Rattacher ${e.nom} à une autre école`}
+                onSubmit={(ev) => {
+                  ev.preventDefault();
+                  const cible = ecolesCibles.find((x) => x.institutionId === ecoleCible);
+                  if (!cible) return;
+                  void agir(
+                    () =>
+                      admin
+                        .rattacherSite(e.id, cible.institutionId)
+                        .then((r) =>
+                          r.ancienneSupprimee
+                            ? signaler(
+                                `Ce site est maintenant un site de ${cible.nom}. L’ancienne école, sans autre site, est supprimée (notée au journal).`,
+                              )
+                            : undefined,
+                        ),
+                    `Ce site est maintenant un site de ${cible.nom}. Son adresse publique ne change pas.`,
+                  );
+                }}
+              >
+                <h3>C’est un site de…</h3>
+                <Champ libelle="L’école">
+                  {(a) => (
+                    <select
+                      {...a}
+                      className="champ"
+                      value={ecoleCible}
+                      onChange={(ev) => setEcoleCible(ev.target.value)}
+                    >
+                      <option value="">Choisir</option>
+                      {ecolesCibles.map((x) => (
+                        <option key={x.institutionId} value={x.institutionId}>
+                          {x.nom}
+                          {x.division ? ` · ${x.division}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Champ>
+                <p className="mention">
+                  Le site garde son adresse publique.
+                  {seul
+                    ? ' Son école actuelle n’a pas d’autre site : ce qui manque à l’école choisie (sigle, année, site web, logo, mot de la direction) lui est donné, puis elle est supprimée.'
+                    : ' Son école actuelle garde ses autres sites.'}
+                </p>
+                {erreur && /logo|mot de la direction/.test(erreur) && (
+                  <div className="bandeau bandeau-attente pile-serree" role="alert">
+                    <p>
+                      <b>{erreur}</b> Garde celui qui vaut : retire l’autre dans sa fiche, puis
+                      reviens ici.
+                    </p>
+                    <button
+                      type="button"
+                      className="bouton bouton-secondaire"
+                      onClick={() => {
+                        setErreur(null);
+                        setMode(/logo/.test(erreur) ? 'images' : 'mot-direction');
+                      }}
+                    >
+                      {/logo/.test(erreur) ? 'Voir le logo de ce site' : 'Voir le mot de ce site'}
+                    </button>
+                  </div>
+                )}
+                <Bouton type="submit" enCours={enCours} disabled={!ecoleCible}>
+                  Rattacher ce site
+                </Bouton>
               </form>
             )}
 

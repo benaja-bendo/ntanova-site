@@ -8,7 +8,7 @@ import type { AgrementEnregistre } from '../../modele/agrement';
 import type { MotDirection } from '../../modele/mot-direction';
 import { lireVueEnsemble } from '../../modele/vue-ensemble';
 import { lireEtatPhotoPublique, ROLES_PUBLIABLES } from '../../modele/photos-publiques';
-import type { Manque, MediaAdmin } from '../../modele/fiche-admin';
+import type { AdmissionASaisir, Manque, MediaAdmin, NouvelleAdmin } from '../../modele/fiche-admin';
 import { listes, niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { lireFormationsVues } from '../../modele/formations-rapides';
 import {
@@ -568,6 +568,44 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const adresses=new Map((urls??[]).map(a=>[a.path,a.signedUrl]));
       return lignes.map(l=>({id:l.id,role:l.role,adresse:adresses.get(l.storage_path)??null,octets:l.bytes,largeur:l.width,hauteur:l.height,prisLe:l.taken_at,publiable:l.child_free_checked_at!==null,publique:l.is_public}));
     },
+    async photosDeTravail(id): Promise<PhotoVue[]> {
+      const releves = await toutesLesLignes<{ id: string }>((de, a) =>
+        supabase().from('field_submissions').select('id').eq('campus_id', id).eq('status', 'accepte').order('id').range(de, a),
+      );
+      if (!releves.length) return [];
+      const lignes = await toutesLesLignes<{
+        id: string;
+        role: Valeur<'photo_role'>;
+        storage_path: string;
+        bytes: number;
+        width: number | null;
+        height: number | null;
+        taken_at: string | null;
+      }>((de, a) =>
+        supabase()
+          .from('field_submission_photos')
+          .select('id,role,storage_path,bytes,width,height,taken_at')
+          .in('submission_id', releves.map((r) => r.id))
+          .in('role', ['brochure', 'programs_board', 'enrollment_poster'])
+          .order('received_at')
+          .order('id')
+          .range(de, a),
+      );
+      if (!lignes.length) return [];
+      const { data: urls } = await supabase().storage.from(SEAU_PHOTOS).createSignedUrls(lignes.map((l) => l.storage_path), 3600);
+      const adresses = new Map((urls ?? []).map((u) => [u.path, u.signedUrl]));
+      return lignes.map((l) => ({
+        id: l.id,
+        role: l.role,
+        adresse: adresses.get(l.storage_path) ?? null,
+        octets: l.bytes,
+        largeur: l.width,
+        hauteur: l.height,
+        prisLe: l.taken_at,
+        publiable: false,
+        publique: false,
+      }));
+    },
     async etatPhotoPublique(ecoleId) {
       const { data, error } = await supabase().rpc('campus_public_photo_state', { p_campus: ecoleId });
       decider(error);
@@ -1123,6 +1161,107 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         .sort((x, y) => x.nom.localeCompare(y.nom, 'fr') || (x.etiquette ?? '').localeCompare(y.etiquette ?? '', 'fr'));
     },
 
+    async nouvellesDeLEcole(ecoleId) {
+      const { data, error } = await supabase()
+        .from('campus_posts')
+        .select('id, kind, title, body, published_on, provided_by_school, state')
+        .eq('campus_id', ecoleId)
+        .order('published_on', { ascending: false });
+      decider(error);
+      return ((data ?? []) as {
+        id: string;
+        kind: NouvelleAdmin['genre'];
+        title: string;
+        body: string;
+        published_on: string;
+        provided_by_school: boolean;
+        state: NouvelleAdmin['etat'];
+      }[]).map((p) => ({
+        id: p.id,
+        genre: p.kind,
+        titre: p.title,
+        texte: p.body,
+        publieeLe: p.published_on,
+        fournieParLEcole: p.provided_by_school,
+        etat: p.state,
+      }));
+    },
+    async publierNouvelle(ecoleId, n) {
+      const { data, error } = await supabase().rpc('set_campus_post', {
+        p_campus: ecoleId,
+        p_post: null,
+        p_kind: n.genre,
+        p_title: n.titre.trim(),
+        p_body: n.texte.trim(),
+        p_media: null,
+        p_published_on: n.publieeLe,
+        p_provided_by_school: n.fournieParLEcole,
+        p_role: n.accord?.qui ?? null,
+        p_channel: n.accord?.canal ?? null,
+        p_agreed_on: n.accord?.le ?? null,
+      });
+      decider(error);
+      return data as string;
+    },
+    async retirerNouvelle(id) {
+      const { error } = await supabase().rpc('withdraw_campus_post', { p_post: id });
+      decider(error);
+    },
+    async admissionDeLEcole(ecoleId) {
+      const { data, error } = await supabase()
+        .from('campus_admissions')
+        .select('school_year, documents, where_to_apply, on_site_only, declared_on')
+        .eq('campus_id', ecoleId)
+        .order('school_year', { ascending: false })
+        .limit(1);
+      decider(error);
+      const a = ((data ?? []) as {
+        school_year: string;
+        documents: string[];
+        where_to_apply: string | null;
+        on_site_only: boolean;
+        declared_on: string;
+      }[])[0];
+      if (!a) return null;
+      const { data: etapes, error: e2 } = await supabase()
+        .from('campus_admission_steps')
+        .select('step, starts_on, ends_on')
+        .eq('campus_id', ecoleId)
+        .eq('school_year', a.school_year)
+        .order('starts_on');
+      decider(e2);
+      return {
+        anneeScolaire: a.school_year,
+        pieces: a.documents ?? [],
+        ouDeposer: a.where_to_apply,
+        surPlaceSeulement: a.on_site_only,
+        declareeLe: a.declared_on,
+        etapes: ((etapes ?? []) as { step: AdmissionASaisir['etapes'][number]['etape']; starts_on: string; ends_on: string | null }[]).map(
+          (x) => ({ etape: x.step, debut: x.starts_on, fin: x.ends_on }),
+        ),
+      };
+    },
+    async enregistrerAdmission(ecoleId, a) {
+      const { error } = await supabase().rpc('set_campus_admission', {
+        p_campus: ecoleId,
+        p_school_year: a.anneeScolaire.trim(),
+        p_documents: a.pieces,
+        p_where_to_apply: a.ouDeposer,
+        p_on_site_only: a.surPlaceSeulement,
+        p_declared_on: a.declareeLe,
+        p_steps: a.etapes.map((x) => ({ step: x.etape, starts_on: x.debut, ends_on: x.fin })),
+      });
+      decider(error);
+    },
+    async rattacherSite(campusId, institutionId) {
+      const { data, error } = await supabase().rpc('attach_campus_to_institution', {
+        p_campus: campusId,
+        p_institution: institutionId,
+      });
+      decider(error);
+      return { ancienneSupprimee: Boolean((data as { deleted_institution?: string | null } | null)?.deleted_institution) };
+    },
+
     async institutions(): Promise<InstitutionVue[]> {
       const lignes = await toutesLesLignes<{
         id: string;
@@ -1519,6 +1658,10 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         p_campus: ecoleId, p_fee: id, p_cycle: frais.cycle, p_minimum: frais.minimum, p_maximum: frais.maximum,
         p_period: frais.periode, p_period_detail: frais.precisionPeriode, p_registration: frais.inscription,
         p_school_year: frais.anneeScolaire, p_declared_on: frais.declaresLe, p_note: frais.note,
+        // v2 (13/11) : la classe, et le prospectus quand la ligne y a été lue ; sinon « dit par l'école ».
+        p_level_label: frais.classe ?? null,
+        p_evidence: frais.photoPreuve ? 'prospectus' : 'declaration',
+        p_proof_photo: frais.photoPreuve ?? null,
       });
       decider(error);
       return data as string;

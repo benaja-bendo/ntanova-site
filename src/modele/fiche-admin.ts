@@ -106,3 +106,56 @@ export interface DetailsMission {
   avantLe: string | null;
   paieXaf: number | null;
 }
+
+/** Une nouvelle, vue par l'administration ; l'accord de l'école (qui, canal, date) reste privé. */
+export interface NouvelleAdmin {
+  id: string;
+  genre: Valeur<'post_kind'>;
+  titre: string;
+  texte: string;
+  publieeLe: string;
+  fournieParLEcole: boolean;
+  etat: Valeur<'post_state'>;
+}
+
+export interface NouvelleASaisir {
+  genre: Valeur<'post_kind'>;
+  titre: string;
+  texte: string;
+  publieeLe: string;
+  fournieParLEcole: boolean;
+  accord: {
+    qui: Valeur<'fonction_direction'>;
+    canal: 'whatsapp' | 'appel' | 'sur_place' | 'autre';
+    le: string;
+  } | null;
+}
+
+/** Ce qui manque à une nouvelle avant de la publier, dit près du bouton ; `null` quand elle peut partir. */
+export function raisonDeNePasPublier(n: NouvelleASaisir, aujourdhui: string): string | null {
+  if (!n.titre.trim() || n.titre.trim().length > 80) return 'Un titre, 80 caractères au plus.';
+  if (!n.texte.trim() || n.texte.trim().length > 400) return 'Un texte, 400 caractères au plus.';
+  if (!n.accord || !n.accord.le)
+    return 'L’accord daté de l’école manque : sans lui, rien ne paraît.';
+  if (n.accord.le > aujourdhui) return 'La date de l’accord ne peut pas être dans le futur.';
+  return null;
+}
+
+export interface AdmissionASaisir {
+  anneeScolaire: string;
+  pieces: string[];
+  ouDeposer: string | null;
+  surPlaceSeulement: boolean;
+  declareeLe: string;
+  etapes: { etape: Valeur<'admission_step'>; debut: string; fin: string | null }[];
+}
+
+/** Une étape dont la fin précède le début ne part pas : la phrase le dit, étape par étape. */
+export function erreurDuCalendrier(a: AdmissionASaisir): string | null {
+  for (const e of a.etapes)
+    if (e.fin && e.fin < e.debut) return 'Une étape finit avant de commencer : vérifie ses dates.';
+  if (!a.anneeScolaire.trim() || !a.declareeLe)
+    return 'L’année scolaire et la date où l’école l’a dit sont requises.';
+  if (a.pieces.length > 10) return 'Dix pièces au plus.';
+  return null;
+}
