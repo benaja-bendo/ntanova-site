@@ -68,6 +68,13 @@ import { Formations } from './Formations';
 import { Personnes } from './Personnes';
 import { Pont } from './Pont';
 
+/** Lot I : « On y voit », tel que le relais l'a coché sous la photo de l'étape 1. */
+const ON_Y_VOIT_ADMIN = {
+  signboard: 'l’enseigne',
+  entrance: 'le portail',
+  building: 'le bâtiment',
+} as const;
+
 type Filtre = 'tout' | 'releve' | 'correction' | 'contre_visite' | 'renvoyees' | 'decidees';
 
 const libelleType: Record<ReleveAValider['type'], string> = {
@@ -557,6 +564,22 @@ function Photos({
             )}
             <figcaption className="mention">
               <b>{libelleRolePhoto[p.role]}</b>
+              {p.role === 'signboard' && p.onYVoit && (
+                <>
+                  <br />
+                  <span>
+                    Le relais y voit&nbsp;:{' '}
+                    {p.onYVoit.length === 0
+                      ? 'ni l’enseigne, ni le portail, ni le bâtiment'
+                      : p.onYVoit.map((v) => ON_Y_VOIT_ADMIN[v]).join(', ')}
+                  </span>
+                  {!p.onYVoit.includes('signboard') && (
+                    <span className="admin-sous-ligne message-attention">
+                      L’enseigne n’est pas sur la photo.
+                    </span>
+                  )}
+                </>
+              )}
               {p.role === 'signboard' && (
                 <>
                   <br />

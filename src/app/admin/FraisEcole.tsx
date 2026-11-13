@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
+  avecMemeInscription,
+  francsCFA,
+  inscriptionLaPlusFrequente,
+  lireMontant,
   lireFraisEcole,
   saisieFraisVide,
   saisieDeFrais,
@@ -163,6 +167,32 @@ export function FraisEcole({
             </li>
           ))}
         </ul>
+      )}
+      {frais.length >= 2 && (
+        <MemeInscription
+          frais={frais}
+          enCours={enCours}
+          appliquer={async (montant) => {
+            const aChanger = avecMemeInscription(frais, montant);
+            if (aChanger.length === 0)
+              return surChangement(
+                `Toutes les lignes ont déjà ${francsCFA(montant)} d’inscription.`,
+              );
+            setEnCours(true);
+            setErreur(null);
+            try {
+              // Une ligne à la fois : chacune garde sa preuve, sa formation et sa date ; la base trace chaque modification.
+              for (const f of aChanger) await admin.enregistrerFraisEcole(ecoleId, f, f.id);
+              surChangement(
+                `Inscription de ${francsCFA(montant)} sur ${aChanger.length} ligne${aChanger.length > 1 ? 's' : ''}. Reconstruis le site pour publier ce changement.`,
+              );
+            } catch (e) {
+              setErreur(messageErreur(e));
+            } finally {
+              setEnCours(false);
+            }
+          }}
+        />
       )}
       {cycles.length === 0 ? (
         <p>
@@ -377,5 +407,73 @@ export function FraisEcole({
         Ouvrir la mise à jour du site
       </a>
     </Dialogue>
+  );
+}
+
+/**
+ * Lot I (planche « Frais par classe ») : « Même inscription sur toutes les lignes ». Un prospectus donne souvent une seule
+ * inscription pour plusieurs classes : on la pose partout en un geste, préremplie avec la plus fréquente.
+ */
+function MemeInscription({
+  frais,
+  enCours,
+  appliquer,
+}: {
+  frais: Frais[];
+  enCours: boolean;
+  appliquer: (montant: number) => Promise<void>;
+}) {
+  const [ouvert, setOuvert] = useState(false);
+  const [saisie, setSaisie] = useState('');
+  const [erreur, setErreur] = useState<string | null>(null);
+  if (!ouvert)
+    return (
+      <button
+        type="button"
+        className="bouton bouton-secondaire"
+        disabled={enCours}
+        onClick={() => {
+          const m = inscriptionLaPlusFrequente(frais);
+          setSaisie(m === null ? '' : String(m));
+          setErreur(null);
+          setOuvert(true);
+        }}
+      >
+        Même inscription sur toutes les lignes
+      </button>
+    );
+  return (
+    <form
+      className="admin-motif"
+      aria-label="Même inscription sur toutes les lignes"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const montant = lireMontant(saisie);
+        if (montant === null) return setErreur('Indique un montant entier en FCFA.');
+        void appliquer(montant).then(() => setOuvert(false));
+      }}
+    >
+      <label className="champ-groupe">
+        Inscription pour les {frais.length} lignes (FCFA)
+        <input
+          className="champ"
+          inputMode="numeric"
+          value={saisie}
+          onChange={(e) => {
+            setSaisie(e.target.value);
+            setErreur(null);
+          }}
+        />
+      </label>
+      {erreur && <p className="message-erreur">{erreur}</p>}
+      <div className="admin-actions">
+        <button type="submit" className="bouton" disabled={enCours}>
+          {enCours ? 'Enregistrement…' : 'Appliquer à toutes les lignes'}
+        </button>
+        <button type="button" className="lien" onClick={() => setOuvert(false)}>
+          Annuler
+        </button>
+      </div>
+    </form>
   );
 }

@@ -52,6 +52,29 @@ export interface PhotoLocale {
   hauteur: number;
   prisLe: string;
   envoyee: boolean;
+  /** Lot I : « On y voit » (photo de l'étape 1) — ce que le relais dit voir dessus. Absent : pas dit. */
+  onYVoit?: CeQuOnVoit[];
+}
+
+/** Lot I : ce que la photo de l'étape 1 peut montrer, dans l'ordre des puces. */
+export type CeQuOnVoit = 'signboard' | 'entrance' | 'building';
+export const ON_Y_VOIT: readonly { valeur: CeQuOnVoit; libelle: string }[] = [
+  { valeur: 'signboard', libelle: 'L’enseigne' },
+  { valeur: 'entrance', libelle: 'Le portail' },
+  { valeur: 'building', libelle: 'Le bâtiment' },
+];
+
+/** Un toucher sur une puce « On y voit » : elle se coche ou se décoche, sur la photo de l'enseigne seulement. */
+export function basculerCeQuOnVoit(fiche: FicheLocale, cle: CeQuOnVoit): FicheLocale {
+  return {
+    ...fiche,
+    photos: fiche.photos.map((p) => {
+      if (p.role !== 'signboard') return p;
+      const avant = p.onYVoit ?? [];
+      const apres = avant.includes(cle) ? avant.filter((x) => x !== cle) : [...avant, cle];
+      return { ...p, onYVoit: ON_Y_VOIT.map((o) => o.valeur).filter((v) => apres.includes(v)) };
+    }),
+  };
 }
 
 /** L'enseigne est la seule photo obligatoire ; on peut en ajouter trois autres au plus. */
@@ -579,6 +602,7 @@ export function versPhotos(fiche: FicheLocale): PhotoAEnvoyer[] {
               largeur: p.largeur,
               hauteur: p.hauteur,
               prisLe: p.prisLe,
+              ...(p.onYVoit ? { onYVoit: p.onYVoit } : {}),
             },
           ],
     );

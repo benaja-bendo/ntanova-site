@@ -262,6 +262,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         reason?: string | null;
         due_on?: string | null;
         pay_xaf?: number | null;
+        assigned_at?: string | null;
       }>(await supabase().rpc('my_missions'));
       return lignes.map((m) => ({
         id: m.campus_id,
@@ -287,20 +288,35 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         raison: m.reason ?? null,
         avantLe: m.due_on ?? null,
         paieXaf: m.pay_xaf ?? null,
+        confieeLe: m.assigned_at ?? null,
       }));
     },
 
     async monNumeroDePaie() {
-      const lignes = lireListe<{ operator: OperateurMobileMoney; msisdn: string; updated_at: string }>(
-        await avecDelai(supabase().rpc('my_payment_details'), DELAI_APPEL_MS),
-      );
+      const lignes = lireListe<{
+        operator: OperateurMobileMoney;
+        msisdn: string;
+        updated_at: string;
+        holder_name?: string | null;
+      }>(await avecDelai(supabase().rpc('my_payment_details'), DELAI_APPEL_MS));
       const l = lignes[0];
-      return l ? { operateur: l.operator, numero: l.msisdn, majLe: l.updated_at } : null;
+      return l
+        ? {
+            operateur: l.operator,
+            numero: l.msisdn,
+            titulaire: l.holder_name ?? null,
+            majLe: l.updated_at,
+          }
+        : null;
     },
 
-    async enregistrerMonNumeroDePaie(operateur, numero) {
+    async enregistrerMonNumeroDePaie(operateur, numero, titulaire) {
       const { error } = await avecDelai(
-        supabase().rpc('set_my_payment_details', { p_operator: operateur, p_msisdn: numero }),
+        supabase().rpc('set_my_payment_details', {
+          p_operator: operateur,
+          p_msisdn: numero,
+          p_holder_name: titulaire,
+        }),
         DELAI_APPEL_MS,
       );
       traduire(error);
@@ -448,6 +464,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
           p_width: photo.largeur > 0 ? photo.largeur : null,
           p_height: photo.hauteur > 0 ? photo.hauteur : null,
           p_taken_at: photo.prisLe,
+          ...(photo.onYVoit ? { p_shows: photo.onYVoit } : {}),
         }),
         DELAI_APPEL_MS,
       );

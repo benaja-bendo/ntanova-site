@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import {
   lireNumeroDePaie,
+  lireTitulaire,
   libelleOperateur,
   OPERATEURS,
   type NumeroDePaie as NumeroDePaieLu,
@@ -169,6 +170,7 @@ function NumeroDePaie() {
   const [edition, setEdition] = useState(false);
   const [operateur, setOperateur] = useState<OperateurMobileMoney | null>(null);
   const [saisie, setSaisie] = useState('');
+  const [nom, setNom] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [annonce, setAnnonce] = useState<string | null>(null);
@@ -192,6 +194,7 @@ function NumeroDePaie() {
   const ouvrir = () => {
     setOperateur(lu?.operateur ?? null);
     setSaisie(lu ? afficherTelephone(lu.numero) : '');
+    setNom(lu?.titulaire ?? '');
     setErreur(null);
     setAnnonce(null);
     setEdition(true);
@@ -199,11 +202,18 @@ function NumeroDePaie() {
   const enregistrer = async () => {
     const r = lireNumeroDePaie(operateur, saisie);
     if (!r.ok) return setErreur(r.erreur);
+    const t = lireTitulaire(nom);
+    if (!t.ok) return setErreur(t.erreur);
     setEnCours(true);
     setErreur(null);
     try {
-      await adaptateurs.relais.enregistrerMonNumeroDePaie(operateur!, r.numero);
-      setLu({ operateur: operateur!, numero: r.numero, majLe: new Date().toISOString() });
+      await adaptateurs.relais.enregistrerMonNumeroDePaie(operateur!, r.numero, t.titulaire);
+      setLu({
+        operateur: operateur!,
+        numero: r.numero,
+        titulaire: t.titulaire,
+        majLe: new Date().toISOString(),
+      });
       setEdition(false);
       setAnnonce('Numéro enregistré. NTanova paiera sur ce numéro.');
     } catch {
@@ -272,6 +282,26 @@ function NumeroDePaie() {
               />
             )}
           </Champ>
+          <Champ
+            libelle="Au nom de"
+            aide="Le nom du titulaire, tel que MTN ou Airtel l’affiche : NTanova le vérifie avant d’envoyer."
+          >
+            {(a) => (
+              <input
+                {...a}
+                className="champ"
+                type="text"
+                autoComplete="name"
+                autoCapitalize="words"
+                placeholder="[Nom du titulaire]"
+                value={nom}
+                onChange={(e) => {
+                  setNom(e.target.value);
+                  setErreur(null);
+                }}
+              />
+            )}
+          </Champ>
           {erreur && (
             <p className="message-erreur" role="alert">
               {erreur}
@@ -295,6 +325,10 @@ function NumeroDePaie() {
           <div>
             <dt>Numéro</dt>
             <dd>{afficherTelephone(lu.numero)}</dd>
+          </div>
+          <div>
+            <dt>Au nom de</dt>
+            <dd>{lu.titulaire ?? <span className="texte-doux">À ajouter (Modifier)</span>}</dd>
           </div>
         </dl>
       ) : (

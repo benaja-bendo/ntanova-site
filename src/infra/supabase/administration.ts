@@ -540,10 +540,11 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         height: number | null;
         taken_at: string | null;
         child_free_checked_at: string | null;
+        shows: ('signboard' | 'entrance' | 'building')[] | null;
       }>(
         await supabase()
           .from('field_submission_photos')
-          .select('id, role, storage_path, bytes, width, height, taken_at, child_free_checked_at')
+          .select('id, role, storage_path, bytes, width, height, taken_at, child_free_checked_at, shows')
           .eq('submission_id', id)
           .order('received_at')
           .order('id'),
@@ -566,6 +567,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         hauteur: l.height,
         prisLe: l.taken_at,
         publiable: l.child_free_checked_at !== null,
+        onYVoit: l.shows ?? null,
       }));
     },
 
@@ -1698,6 +1700,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         p_school_year: frais.anneeScolaire, p_declared_on: frais.declaresLe, p_note: frais.note,
         // v2 (13/11) : la classe, et le prospectus quand la ligne y a été lue ; sinon « dit par l'école ».
         p_level_label: frais.classe ?? null,
+        // Lot I : la formation et la preuve d'une ligne modifiée restent (avant, « Modifier » les effaçait).
+        p_program: frais.formationId ?? null,
         p_evidence: frais.photoPreuve ? 'prospectus' : 'declaration',
         p_proof_photo: frais.photoPreuve ?? null,
       });
@@ -1952,6 +1956,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         msisdn: string | null;
         paid_at: string | null;
         reference: string | null;
+        holder_name?: string | null;
       }>(await supabase().rpc('payout_statements_of', { p_batch: semaineId }));
       return lignes.map((l) => ({
         relaisId: l.relay_id,
@@ -1962,6 +1967,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         essais: l.trial_bundles,
         operateur: l.operator,
         numero: l.msisdn,
+        titulaire: l.holder_name ?? null,
         payeLe: l.paid_at,
         reference: l.reference,
       }));
@@ -1976,11 +1982,12 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       decider(error);
     },
 
-    async enregistrerMobileMoney(relaisId, operateur, numero) {
+    async enregistrerMobileMoney(relaisId, operateur, numero, titulaire) {
       const { error } = await supabase().rpc('set_relay_payment_details', {
         p_relay: relaisId,
         p_operator: operateur,
         p_msisdn: numero,
+        ...(titulaire ? { p_holder_name: titulaire } : {}),
       });
       decider(error);
     },

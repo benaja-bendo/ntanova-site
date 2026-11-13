@@ -20,12 +20,13 @@ export interface FraisASaisir {
   /** v2 (13/11) : la classe (« CM2 ») ; la photo du prospectus qui prouve la ligne (photo de travail, jamais publique). */
   classe?: string | null;
   photoPreuve?: string | null;
+  /** La formation du supérieur à qui la ligne est rattachée (lot I : gardée quand on modifie la ligne). */
+  formationId?: string | null;
 }
 export interface FraisEcole extends FraisASaisir {
   id: string;
   /** v2 (13/11) : la classe (« CM2 », « 6e à 4e ») quand la ligne en précise une ; la formation du supérieur ; la preuve. */
   classe?: string | null;
-  formationId?: string | null;
   preuve?: 'declaration' | 'prospectus';
 }
 export interface SaisieFrais {
@@ -42,6 +43,7 @@ export interface SaisieFrais {
   /** v2 (13/11) : la classe, facultative ; la photo du prospectus quand la ligne y a été lue. */
   classe?: string;
   photoPreuve?: string | null;
+  formationId?: string | null;
 }
 export const saisieFraisVide = (): SaisieFrais => ({
   cycle: '',
@@ -122,9 +124,36 @@ export function lireFraisEcole(
           note: s.note.trim() || null,
           classe: (s.classe ?? '').trim() || null,
           photoPreuve: s.photoPreuve ?? null,
+          formationId: s.formationId ?? null,
         },
   };
 }
+
+/**
+ * Lot I, « Même inscription sur toutes les lignes » : les lignes dont l'inscription change, avec le nouveau montant. Le reste
+ * de chaque ligne (montant, période, preuve, formation, date) ne bouge pas ; une ligne qui a déjà ce montant n'est pas
+ * réécrite.
+ */
+export function avecMemeInscription(
+  frais: readonly FraisEcole[],
+  inscription: number,
+): FraisEcole[] {
+  return frais.filter((f) => f.inscription !== inscription).map((f) => ({ ...f, inscription }));
+}
+
+/** L'inscription la plus fréquente parmi les lignes (pour préremplir), ou null. */
+export function inscriptionLaPlusFrequente(frais: readonly FraisEcole[]): number | null {
+  const compte = new Map<number, number>();
+  for (const f of frais)
+    if (f.inscription !== null) compte.set(f.inscription, (compte.get(f.inscription) ?? 0) + 1);
+  let meilleure: number | null = null;
+  for (const [montant, n] of compte)
+    if (meilleure === null || n > (compte.get(meilleure) ?? 0)) meilleure = montant;
+  return meilleure;
+}
+
+/** Une saisie de montant en FCFA (« 25 000 ») : l'entier, ou null. */
+export const lireMontant = (s: string): number | null => entier(s);
 export const francsCFA = (n: number): string => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 export const montantFrais = (f: Pick<FraisASaisir, 'minimum' | 'maximum'>): string =>
   f.minimum === f.maximum

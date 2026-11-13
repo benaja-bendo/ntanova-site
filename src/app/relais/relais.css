@@ -921,3 +921,31 @@ a.carte-mission {
 .tests-telephone .non_teste {
   color: var(--texte-doux);
 }
+
+/* Lot I : la petite aide « (i) » en haut à droite d'un groupe (le repère), et son texte replié. */
+.avec-aide {
+  position: relative;
+}
+.bouton-aide-coin {
+  position: absolute;
+  top: -12px;
+  right: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cible-min);
+  height: var(--cible-min);
+  border: 0;
+  border-radius: var(--rayon-pilule);
+  background: transparent;
+  color: var(--texte-doux);
+  cursor: pointer;
+}
+.aide-repliable {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--rayon-m);
+  background: var(--fond-bande);
+  color: var(--texte-doux);
+  font-size: 0.875rem;
+}

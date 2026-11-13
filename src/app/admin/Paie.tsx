@@ -29,12 +29,18 @@ function NumeroMobileMoney({
 }) {
   const [operateur, setOperateur] = useState<Operateur>('mtn');
   const [numero, setNumero] = useState('');
+  const [titulaire, setTitulaire] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const noter = async (ev: { preventDefault: () => void }) => {
     ev.preventDefault();
     setErreur(null);
     try {
-      await admin.enregistrerMobileMoney(relaisId, operateur, numero.replace(/[\s.+()-]/g, ''));
+      await admin.enregistrerMobileMoney(
+        relaisId,
+        operateur,
+        numero.replace(/[\s.+()-]/g, ''),
+        titulaire.trim() || null,
+      );
       surFait();
     } catch (e) {
       setErreur(messageErreur(e));
@@ -67,6 +73,15 @@ function NumeroMobileMoney({
         placeholder="242 06 …"
         value={numero}
         onChange={(ev) => setNumero(ev.target.value)}
+      />
+      <input
+        className="champ admin-note"
+        type="text"
+        autoComplete="off"
+        aria-label="Au nom de"
+        placeholder="Au nom de [titulaire]"
+        value={titulaire}
+        onChange={(ev) => setTitulaire(ev.target.value)}
       />
       <button
         type="submit"
@@ -145,6 +160,15 @@ function SemaineOuverte({
                     {afficherTelephone(p.numero)}
                     <span className="mention admin-sous-ligne">
                       {libelleOperateur[(p.operateur as Operateur | null) ?? 'autre']}
+                    </span>
+                    <span className="admin-sous-ligne">
+                      {p.titulaire ? (
+                        <>
+                          Au nom de <b>{p.titulaire}</b>
+                        </>
+                      ) : (
+                        <span className="mention">Nom du titulaire non donné</span>
+                      )}
                     </span>
                   </>
                 ) : (
