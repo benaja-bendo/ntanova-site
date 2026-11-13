@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ajouterUneEcole, prendrePhotoEtPosition, seConnecter } from './aides';
+import { ajouterUneEcole, attendreLaLecture, prendrePhotoEtPosition, seConnecter } from './aides';
 
 // L'espace relais, construit avec le faux serveur (PUBLIC_ADAPTATEUR=faux) : le
 // faux serveur vit dans le navigateur et refuse tout quand le téléphone est hors ligne.
@@ -155,6 +155,7 @@ test.describe('espace relais', () => {
     await expect(secteur).not.toContainText('Zones ouvertes');
     await expect(secteur).not.toContainText('Aucun lot');
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+    await attendreLaLecture(page);
 
     await context.setOffline(true);
     await page.reload();

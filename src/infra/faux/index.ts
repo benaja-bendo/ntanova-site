@@ -133,6 +133,8 @@ interface CampusFaux {
   /** Lot F : le détail des formations du supérieur, par filière (`cycle|titre`, l'identifiant du faux). */
   detailsFormations?: Record<string, DetailsFormation>;
   verifieeLe?: string | null;
+  /** Lot G : l'école voisine au même lieu. */
+  memeLieuQue?: string | null;
   reference?: string | null;
 }
 
@@ -940,6 +942,7 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     motDirection: c.motDirection ?? null,
     inscriptions: c.inscriptions ?? [],
     verifieeLe: c.verifieeLe ?? null,
+    memeLieuQue: c.memeLieuQue ?? null,
   };
 }
 
@@ -1466,8 +1469,21 @@ const admin: PortAdministration = {
           o.ecoleId = campusId;
         }
       }
+      // Lot G : « Même lieu », noté sur la nouvelle école.
+      if (choix.memeLieuQue && e.campus[campusId])
+        e.campus[campusId].memeLieuQue = choix.memeLieuQue;
     });
     return campusId;
+  },
+  async definirMemeLieu(campusId, autreId) {
+    await reseau();
+    if (autreId === campusId)
+      throw new ErreurDecision('Une école n’est pas « au même lieu » qu’elle-même.');
+    ecrire((e) => {
+      const c = e.campus[campusId];
+      if (!c) throw new ErreurDecision('École introuvable.');
+      c.memeLieuQue = autreId;
+    });
   },
   async demanderCorrection(id, motif, message) {
     await reseau();
@@ -1640,6 +1656,13 @@ const admin: PortAdministration = {
           acceptees: siennes.filter((r) => d(r.id) === 'accepte' && r.type !== 'correction').length,
           refusees: siennes.filter((r) => d(r.id) === 'refuse').length,
           contactsConfirmes: siennes.filter((r) => e.decisions[r.id]?.contactConfirmeLe).length,
+          // Le faux serveur tient toutes ses fiches pour « de la semaine ».
+          envoyeesSemaine: siennes.length,
+          positionLenteSemaine: e.erreurs.filter(
+            (x) =>
+              x.code === 'position_trop_longue' &&
+              Date.now() - new Date(x.survenueLe).getTime() < 7 * 86_400_000,
+          ).length,
         },
       },
       {
@@ -1658,6 +1681,8 @@ const admin: PortAdministration = {
           acceptees: 0,
           refusees: 0,
           contactsConfirmes: 0,
+          envoyeesSemaine: 0,
+          positionLenteSemaine: 0,
         },
       },
     ];

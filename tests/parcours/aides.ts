@@ -20,6 +20,33 @@ export async function prendrePhotoEtPosition(page: Page, repere: string | null =
   if (repere !== null) await page.getByLabel('Comment la trouver ?').fill(repere);
 }
 
+/**
+ * Attend que le téléphone ait fini sa première lecture (les écoles connues gardées en mémoire). « Mon secteur » s'affiche
+ * dès le profil lu : couper le réseau avant la fin laisse le téléphone sans rien à comparer pour « Doublon possible ».
+ */
+export async function attendreLaLecture(page: Page) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            new Promise<boolean>((resoudre) => {
+              const q = indexedDB.open('ntanova-relais');
+              q.onerror = () => resoudre(false);
+              q.onsuccess = () => {
+                const db = q.result;
+                if (!db.objectStoreNames.contains('memoire')) return resoudre(false);
+                const l = db.transaction('memoire').objectStore('memoire').get('ecoles');
+                l.onsuccess = () => resoudre(l.result !== undefined);
+                l.onerror = () => resoudre(false);
+              };
+            }),
+        ),
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+}
+
 /** v2 (13/11) : depuis l'étape 3, « Envoyer maintenant » puis « Envoyer sans bonus » (la fenêtre de confirmation). */
 export async function envoyerSansBonus(page: Page) {
   await page.getByRole('button', { name: 'Envoyer maintenant' }).click();

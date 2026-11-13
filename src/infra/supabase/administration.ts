@@ -224,6 +224,7 @@ interface LigneCampus {
   retirement_reason: Valeur<'motif_retrait'> | null;
   retirement_note: string | null;
   replaced_by_campus_id: string | null;
+  same_place_as_campus_id?: string | null;
   institutions: { name: string; kind: string } | null;
   geo_divisions: { name: string } | null;
   missions: {
@@ -289,7 +290,7 @@ const versMot = (ligne: LigneCampus['campus_statements']): MotDirection | null =
 // à un lien sans contrainte. Le contrat avec la base (`contrat-schema.test.ts`) le garde.
 const COLONNES_CAMPUS =
   'id, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
-  'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, ' +
+  'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, same_place_as_campus_id, ' +
   'institutions(name, kind), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
   'campus_cycles(cycle, campus_programs(id, title)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*)';
 
@@ -319,6 +320,7 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     institutionId: e.institution_id,
     nom: e.institutions?.name ?? '',
     etiquette: e.label,
+    memeLieuQue: e.same_place_as_campus_id ?? null,
     quartier: e.neighbourhood,
     division: e.geo_divisions?.name ?? null,
     divisionId: e.division_id,
@@ -735,7 +737,27 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
             p_division: decision.divisionId ?? null,
           });
       decider(error);
-      return data as string;
+      const campus = data as string;
+      // Lot G : « Même lieu » se note sur la nouvelle école, juste après sa création.
+      if (decision.memeLieuQue) {
+        const meme = await supabase().rpc('set_campus_same_place', {
+          p_campus: campus,
+          p_other: decision.memeLieuQue,
+        });
+        if (meme.error)
+          throw new ErreurDecision(
+            'L’école est créée, mais « Même lieu » ne s’est pas enregistré : note-le dans sa fiche.',
+          );
+      }
+      return campus;
+    },
+
+    async definirMemeLieu(campusId, autreId) {
+      const { error } = await supabase().rpc('set_campus_same_place', {
+        p_campus: campusId,
+        p_other: autreId,
+      });
+      decider(error);
     },
 
     async demanderCorrection(id, motif, message) {
@@ -856,7 +878,9 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           .order('id'),
         supabase()
           .from('relay_counters')
-          .select('relay_id, sent, to_review, to_correct, accepted, refused, contacts_confirmed'),
+          .select(
+            'relay_id, sent, to_review, to_correct, accepted, refused, contacts_confirmed, sent_week, slow_position_week',
+          ),
       ]);
       // Les adresses (partie privée). Une base pas encore à jour n'a pas la fonction : la liste se lit quand même.
       const adresses = new Map<string, string>();
@@ -877,6 +901,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         accepted: number;
         refused: number;
         contacts_confirmed: number;
+        sent_week?: number;
+        slow_position_week?: number;
       }>(compteurs)) {
         parRelais.set(c.relay_id, {
           envoyees: c.sent,
@@ -885,6 +911,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           acceptees: c.accepted,
           refusees: c.refused,
           contactsConfirmes: c.contacts_confirmed,
+          envoyeesSemaine: c.sent_week ?? 0,
+          positionLenteSemaine: c.slow_position_week ?? 0,
         });
       }
       return lireListe<{
@@ -902,6 +930,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           acceptees: 0,
           refusees: 0,
           contactsConfirmes: 0,
+          envoyeesSemaine: 0,
+          positionLenteSemaine: 0,
         };
         return {
           id: r.id,

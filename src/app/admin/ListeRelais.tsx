@@ -14,6 +14,45 @@ const libelleStatut: Record<RelaisVu['statut'], { texte: string; classe: string 
   suspendu: { texte: 'Suspendu', classe: 'etat-refusee' },
 };
 
+/** Lot G : ce qui demande un regard — des fiches renvoyées, une position lente cette semaine ; sinon « Aucun ». */
+export function signauxDuRelais(r: Pick<RelaisVu, 'compteurs'>): string[] {
+  const s: string[] = [];
+  const { aCorriger, positionLenteSemaine } = r.compteurs;
+  if (aCorriger > 0)
+    s.push(`${aCorriger} fiche${aCorriger > 1 ? 's' : ''} renvoyée${aCorriger > 1 ? 's' : ''}`);
+  if (positionLenteSemaine > 0) s.push(`Position lente ${positionLenteSemaine} fois`);
+  return s;
+}
+
+function SignalDuRelais({ r }: { r: RelaisVu }) {
+  const s = signauxDuRelais(r);
+  if (s.length === 0) return <span className="texte-doux">Aucun</span>;
+  return (
+    <span className="relais-signaux">
+      {s.map((x) => (
+        <span key={x} className="etiquette etat-attente">
+          {x}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Lot G : en tête, les comptes à activer et les relais de la semaine ; les autres, repliés en bas de liste. */
+export function relaisDeLaSemaine(
+  r: Pick<RelaisVu, 'statut' | 'activeLe' | 'compteurs'>,
+  maintenant: number = Date.now(),
+): boolean {
+  if (r.statut === 'en_attente') return true;
+  if (r.compteurs.envoyeesSemaine > 0) return true;
+  // Un relais activé depuis moins de 7 jours reste en vue : il commence.
+  return (
+    r.statut === 'actif' &&
+    r.activeLe !== null &&
+    maintenant - Date.parse(r.activeLe) < 7 * 86_400_000
+  );
+}
+
 function LigneRelais({
   r,
   lots,
@@ -53,15 +92,18 @@ function LigneRelais({
         <b>{r.prenom || '[sans prénom]'}</b>
         {r.email && <span className="mention admin-sous-ligne admin-email">{r.email}</span>}
         <span className="mention admin-sous-ligne">Première connexion : {jour(r.creeLe)}</span>
+        <span className="mention admin-sous-ligne">{nomLot}</span>
       </td>
       <td>
         <span className={`etiquette ${libelleStatut[r.statut].classe}`}>
           {libelleStatut[r.statut].texte}
         </span>
       </td>
-      <td>{nomLot}</td>
       <td>
         {r.compteurs.envoyees}
+        {r.compteurs.envoyeesSemaine > 0 && (
+          <span className="texte-doux"> · {r.compteurs.envoyeesSemaine} cette semaine</span>
+        )}
         <span className="mention admin-sous-ligne">
           {r.compteurs.aValider > 0 && `${r.compteurs.aValider} à valider · `}
           {r.compteurs.acceptees} acceptée{r.compteurs.acceptees > 1 ? 's' : ''}
@@ -71,6 +113,9 @@ function LigneRelais({
         </span>
       </td>
       <td>{r.compteurs.contactsConfirmes}</td>
+      <td>
+        <SignalDuRelais r={r} />
+      </td>
       <td>
         <div className="admin-actions">
           <select
@@ -146,6 +191,55 @@ function LigneRelais({
   );
 }
 
+function TableauRelais({
+  relais,
+  lots,
+  admin,
+  surChangement,
+  vide,
+}: {
+  relais: RelaisVu[];
+  lots: LotVu[];
+  admin: PortAdministration;
+  surChangement: (id: string, texte: string) => void;
+  vide: string | null;
+}) {
+  return (
+    <div className="admin-tableau relais-tableau">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Relais</th>
+            <th scope="col">Compte</th>
+            <th scope="col">Fiches envoyées</th>
+            <th scope="col">Contacts confirmés</th>
+            <th scope="col">Signal</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {relais.map((r) => (
+            <LigneRelais
+              key={`${r.id}-${r.statut}-${r.lotId ?? ''}`}
+              r={r}
+              lots={lots}
+              admin={admin}
+              surChangement={(texte) => surChangement(r.id, texte)}
+            />
+          ))}
+          {vide && (
+            <tr>
+              <td colSpan={6} className="texte-doux">
+                {vide}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function ListeRelais({
   admin,
   surCompte,
@@ -159,6 +253,10 @@ export function ListeRelais({
   const [erreur, setErreur] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
 
+  // Un relais sur lequel on vient d'agir reste en vue pendant la visite : il ne file pas dans « autres relais ».
+  const [touches, setTouches] = useState<ReadonlySet<string>>(new Set());
+  const enVue = (relais ?? []).filter((r) => relaisDeLaSemaine(r) || touches.has(r.id));
+  const autres = (relais ?? []).filter((r) => !relaisDeLaSemaine(r) && !touches.has(r.id));
   const charger = useCallback(() => {
     Promise.all([admin.relais(), admin.lots()])
       .then(([r, l]) => {
@@ -175,6 +273,12 @@ export function ListeRelais({
   useEffect(() => {
     charger();
   }, [charger]);
+
+  const surChangement = (id: string, texte: string) => {
+    setTouches((avant) => new Set(avant).add(id));
+    setAnnonce(texte);
+    charger();
+  };
 
   return (
     <div className="pile">
@@ -208,48 +312,35 @@ export function ListeRelais({
         </p>
       )}
 
-      <div className="admin-tableau relais-tableau">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Relais</th>
-              <th scope="col">Compte</th>
-              <th scope="col">Lot</th>
-              <th scope="col">Fiches envoyées</th>
-              <th scope="col">Contacts confirmés</th>
-              <th scope="col">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {relais?.map((r) => (
-              <LigneRelais
-                key={`${r.id}-${r.statut}-${r.lotId ?? ''}`}
-                r={r}
-                lots={lots}
-                admin={admin}
-                surChangement={(texte) => {
-                  setAnnonce(texte);
-                  charger();
-                }}
-              />
-            ))}
-            {relais === null && !erreur && (
-              <tr>
-                <td colSpan={6} className="texte-doux" aria-busy="true">
-                  Chargement des relais…
-                </td>
-              </tr>
-            )}
-            {relais?.length === 0 && (
-              <tr>
-                <td colSpan={6} className="texte-doux">
-                  Aucun relais ne s'est encore connecté.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <TableauRelais
+        relais={enVue}
+        lots={lots}
+        admin={admin}
+        surChangement={surChangement}
+        vide={
+          relais === null && !erreur
+            ? 'Chargement des relais…'
+            : relais?.length === 0
+              ? 'Aucun relais ne s’est encore connecté.'
+              : enVue.length === 0
+                ? 'Aucun relais n’a envoyé de fiche cette semaine.'
+                : null
+        }
+      />
+      {autres.length > 0 && (
+        <details className="relais-autres">
+          <summary>
+            {autres.length} autre{autres.length > 1 ? 's' : ''} relais, sans envoi cette semaine
+          </summary>
+          <TableauRelais
+            relais={autres}
+            lots={lots}
+            admin={admin}
+            surChangement={surChangement}
+            vide={null}
+          />
+        </details>
+      )}
       <details className="admin-sous-ligne">
         <summary>Quelqu’un ne peut pas se connecter ?</summary>
         <p className="mention">

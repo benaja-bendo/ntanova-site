@@ -95,7 +95,7 @@ test.describe('avant d’accepter, l’écran dit ce qui se passe et ce qui manq
     // Le numéro relu sur la photo : plus rien ne bloque, et l'avertissement sur les 10 chiffres reste lisible.
     await page
       .getByRole('group', { name: /Numéro écrit sur l’enseigne/ })
-      .getByLabel('Je l’ai vérifié sur la photo de l’enseigne')
+      .getByRole('button', { name: 'Sur la photo', exact: true })
       .click();
     await expect(avant(page)).toContainText('Rien ne bloque');
     await expect(avant(page)).toContainText('10 chiffres après +242');

@@ -2293,3 +2293,116 @@ button.admin-zone-bascule:focus-visible {
     0 0 0 3px var(--fond-releve),
     0 0 0 5px var(--marque);
 }
+
+/* Lot G (13/11) : « Comme sur l'enseigne / Différent » sous le nom, « Sur la photo » à côté du numéro. */
+.admin-comparer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+  margin-top: var(--espace-2);
+}
+
+.admin-etiquette-numero {
+  margin-inline-start: var(--espace-2);
+}
+
+/* Lot G (13/11) : l'aperçu en tête de la fiche admin (couverture, logo, « X rubriques remplies sur Y »). */
+.fiche-admin-apercu {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  overflow: hidden;
+}
+
+.fiche-admin-couverture {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 5;
+  min-height: 96px;
+  background: var(--encre-10);
+}
+
+.fiche-admin-couverture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fiche-admin-changer {
+  position: absolute;
+  right: var(--espace-2);
+  bottom: var(--espace-2);
+}
+
+.fiche-admin-apercu-pied {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  padding: 0 var(--espace-3) var(--espace-3);
+}
+
+.fiche-admin-logo {
+  margin-top: -32px;
+  overflow: hidden;
+}
+
+.fiche-admin-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--blanc);
+}
+
+.fiche-admin-completude {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espace-2);
+  min-height: 44px;
+  padding: var(--espace-2) 0;
+  border: 0;
+  background: none;
+  color: var(--texte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fiche-admin-completude b {
+  font-family: var(--police-titre);
+  font-size: 1.25rem;
+}
+
+.fiche-admin-completude span {
+  color: var(--texte-doux);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lien-bouton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--marque-appuyee);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Lot G (13/11) : le signal des relais, et les relais sans envoi de la semaine, repliés en bas de liste. */
+.relais-signaux {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-1);
+}
+
+.relais-autres > summary {
+  min-height: 44px;
+  padding: var(--espace-3) 0;
+  font-weight: 700;
+  cursor: pointer;
+}

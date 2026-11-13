@@ -16,11 +16,14 @@ export function CorrectionAvantAcceptation({
   correction,
   surChangement,
   surEdition,
+  demande = 0,
 }: {
   fiche: DetailReleve;
   correction: CorrectionEcole;
   surChangement: (valeurs: CorrectionEcole) => void;
   surEdition: (edition: boolean) => void;
+  /** Lot G : « Différent » (le nom n'est pas celui de l'enseigne) ouvre la correction ; chaque demande l'ouvre. */
+  demande?: number;
 }) {
   const declencheur = useRef<HTMLDivElement>(null);
   const formulaire = useRef<HTMLFormElement>(null);
@@ -37,6 +40,16 @@ export function CorrectionAvantAcceptation({
     setEdition(true);
     surEdition(true);
   };
+  const derniereDemande = useRef(demande);
+  useEffect(() => {
+    if (demande === derniereDemande.current) return;
+    derniereDemande.current = demande;
+    setChamps(formulaireDe({ ...avant, ...correction }));
+    setErreurs({});
+    setEdition(true);
+    surEdition(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demande]);
   const fermer = () => {
     setEdition(false);
     surEdition(false);
