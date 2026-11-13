@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { verdictDeProximite } from '../../src/modele/fiche-admin';
 
 describe('le verdict de proximité', () => {
-  it('à moins de 100 m, c’est le même endroit, quel que soit le nom', () => {
-    expect(verdictDeProximite(40, 0)).toBe('deja_la');
+  it('à moins de 100 m avec un nom proche, c’est le même endroit', () => {
+    expect(verdictDeProximite(40, 0.8)).toBe('deja_la');
+  });
+  it('lot G : un autre nom à moins de 100 m, c’est une voisine (« Même lieu » se propose)', () => {
+    expect(verdictDeProximite(40, 0)).toBe('voisine');
   });
   it('à moins de 500 m avec un nom proche, aussi', () => {
     expect(verdictDeProximite(450, 0.6)).toBe('deja_la');

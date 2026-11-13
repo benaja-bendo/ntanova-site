@@ -49,6 +49,7 @@ import { Bandeau, Champ, Choix, jour } from '../../ui/composants';
 import { ChampPosition, messageErreur as message } from './ChampPosition';
 import { Creation } from './Creation';
 import { useAdresse } from '../commun/adresse';
+import { ApercuFiche } from './ApercuFiche';
 import { TitreEcran } from './Cadre';
 
 export const libelleMotifRetrait: Record<Valeur<'motif_retrait'>, string> = {
@@ -80,6 +81,10 @@ const comparable = (texte: string) =>
 
 const EN_LIGNE = 'Elle paraît sur ntanova.com après la prochaine mise à jour du site.';
 
+/** Le nom d'un site, avec son étiquette quand l'école en a plusieurs. */
+const nomDuSite = (x: Pick<EcoleVue, 'nom' | 'etiquette'>) =>
+  x.etiquette ? `${x.nom} — ${x.etiquette}` : x.nom;
+
 function LigneEcole({
   e,
   ecoles,
@@ -99,6 +104,8 @@ function LigneEcole({
   pleinEcran?: boolean;
 }) {
   const etat = etatDe(e);
+  // Lot G : l'école voisine au même lieu (même portail), notée depuis « Est-ce une école connue ? ».
+  const memeLieu = e.memeLieuQue ? (ecoles.find((x) => x.id === e.memeLieuQue) ?? null) : null;
   const [declencheur, setDeclencheur] = useState<HTMLElement | null>(null);
   const [operation, setOperation] = useState(false);
   const [relaisId, setRelaisId] = useState(e.confiee?.relaisId ?? relais[0]?.id ?? '');
@@ -813,10 +820,17 @@ function LigneEcole({
         <a className="lien lien-discret fiche-admin-retour" href="#ecoles">
           ← Écoles
         </a>
+        <ApercuFiche
+          ecole={e}
+          admin={admin}
+          surCouverture={(bouton) => ouvrir('images', bouton)}
+          surManques={() => {
+            setErreur(null);
+            setRetour(null);
+            setMode('completer');
+          }}
+        />
         <header className="fiche-admin-tete">
-          <span className="fiche-admin-rond" aria-hidden="true">
-            {(e.nom.replace(/^[^\p{L}]+/u, '').charAt(0) || '?').toUpperCase()}
-          </span>
           <div className="fiche-admin-identite">
             <p className="fiche-admin-nom">{e.nom}</p>
             <p className="mention">
@@ -834,6 +848,25 @@ function LigneEcole({
                 <span className="etiquette etat-verifiee">Confirmée par la direction</span>
               )}
             </div>
+            {memeLieu && (
+              <p className="mention fiche-admin-meme-lieu">
+                Même lieu que <a href={`#ecoles/fiche/${memeLieu.id}`}>{nomDuSite(memeLieu)}</a>
+                {' · '}
+                <button
+                  type="button"
+                  className="lien-bouton"
+                  disabled={enCours}
+                  onClick={() =>
+                    void agir(
+                      () => admin.definirMemeLieu(e.id, null),
+                      `« Même lieu » est retiré de ${e.nom}.`,
+                    )
+                  }
+                >
+                  Retirer
+                </button>
+              </p>
+            )}
             {sites.length > 1 && (
               <nav className="fiche-admin-sites" aria-label="Les sites de cette école">
                 {sites.map((x) => (
@@ -913,6 +946,9 @@ function LigneEcole({
       <td>
         <b>{e.nom}</b>
         {e.etiquette && <span className="mention admin-sous-ligne">{e.etiquette}</span>}
+        {memeLieu && (
+          <span className="mention admin-sous-ligne">Même lieu que {nomDuSite(memeLieu)}</span>
+        )}
         <span className="mention admin-sous-ligne">
           {[...new Set([e.quartier, e.division].filter(Boolean))].join(' · ') ||
             (e.divisionId ? 'Quartier inconnu' : 'Division à choisir')}

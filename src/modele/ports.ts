@@ -532,6 +532,11 @@ export interface DecisionAcceptation {
    * et quand ; la division est celle du contour qui la contient, sinon `divisionId`.
    */
   position?: Point | null;
+  /**
+   * Lot G : « Même lieu » — une nouvelle école (`new_institution`) qui partage le portail d'une école connue : le site
+   * voisin est noté sur la nouvelle (`set_campus_same_place`). Jamais une fusion.
+   */
+  memeLieuQue?: string | null;
 }
 
 /**
@@ -577,6 +582,10 @@ export interface CompteursRelais {
   acceptees: number;
   refusees: number;
   contactsConfirmes: number;
+  /** Lot G : les fiches reçues depuis 7 jours. */
+  envoyeesSemaine: number;
+  /** Lot G : les « position trop longue » du journal de son téléphone depuis 7 jours. */
+  positionLenteSemaine: number;
 }
 
 export interface RelaisVu {
@@ -707,6 +716,8 @@ export interface EcoleVue {
   formations: number;
   /** « Vérifié » : la direction a validé la fiche à cette date (l'existence a été constatée par un relais). */
   verifieeLe: string | null;
+  /** Lot G : une autre école au même lieu (même portail), notée par l'administration ; son identifiant de site. */
+  memeLieuQue?: string | null;
 }
 
 /**
@@ -837,6 +848,8 @@ export interface PortAdministration {
   corrigerContact(contactId: string, contact: ContactASaisir): Promise<void>;
   /** Transforme le relevé en institution, campus ou cycle. Rend le campus. `POST /admin/releves/{id}/decision` */
   accepter(id: string, decision?: DecisionAcceptation): Promise<string>;
+  /** Lot G : note (ou retire, avec null) l'école voisine au même lieu. `set_campus_same_place` */
+  definirMemeLieu(campusId: string, autreId: string | null): Promise<void>;
   demanderCorrection(
     id: string,
     motif: Valeur<'motif_decision'>,
@@ -1193,6 +1206,8 @@ export interface FormationPublique {
 /** Un campus publié, tel que le site public le montre : une implantation d'une institution. */
 export interface EcolePubliee {
   photo?: import('./photos-publiques').PhotoPublique | null;
+  /** Lot G : une autre école publiée au même lieu (même portail) : son nom et son numéro (le lien court). */
+  memeLieu?: { nom: string; numero: string } | null;
   /** v2 (13/11) : ce qui est commun à l'école (tous ses sites) et le profil du site, dits par l'école. */
   sigle?: string | null;
   fondeeEn?: number | null;

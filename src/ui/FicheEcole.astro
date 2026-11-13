@@ -405,13 +405,18 @@ const joursRestants = (n: number) =>
         </div>
       )}
 
-      {(e.repere || lienSurLaCarte) && (
+      {(e.repere || lienSurLaCarte || e.memeLieu) && (
         <section class="bloc ou o-10" aria-label="Où est l'école">
           <h2>{titreOuTrouver(e.nom)}</h2>
           {e.repere && (
             <p class="apercu-repere">
               <Icone nom="repere" petite={false} />
               <span>{e.repere}</span>
+            </p>
+          )}
+          {e.memeLieu && (
+            <p class="meme-lieu">
+              Même lieu que <a href={lienCourt(e.memeLieu)}>{e.memeLieu.nom}</a>
             </p>
           )}
           <p class="texte-doux">{lieu}</p>

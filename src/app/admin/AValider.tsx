@@ -61,6 +61,7 @@ import { afficherTelephone } from '../../modele/telephone';
 import { libelleEquipement } from '../../modele/equipements-ecole';
 import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
+import { ficheApresLeGeste, gesteDeLaTouche } from '../../modele/raccourcis';
 import { SignauxDuRelais } from './Sante';
 import { ChampPosition, messageErreur } from './ChampPosition';
 import { Formations } from './Formations';
@@ -196,6 +197,32 @@ export function AValider({
     filtre === 'renvoyees' ? 'renvoyees' : filtre === 'decidees' ? 'decidees' : 'a_traiter';
   const listeEnCours = surLesDecidees ? decidesVisibles : visibles;
   const rang = selection ? listeEnCours.findIndex((r) => r.id === selection.id) + 1 : 0;
+  // Lot G : sur ordinateur, J/K passent d'une fiche à l'autre, Échap revient à la liste.
+  const idsEnCours = listeEnCours.map((r) => r.id).join(' ');
+  const idSelection = selection?.id ?? null;
+  useEffect(() => {
+    if (!matchMedia('(min-width: 64rem)').matches) return;
+    const ecouter = (e: KeyboardEvent) => {
+      const actif = document.activeElement as HTMLElement | null;
+      const geste = gesteDeLaTouche({
+        key: e.key,
+        altKey: e.altKey,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        cible: actif?.tagName ?? null,
+        modifiable: actif?.isContentEditable ?? false,
+        fenetreOuverte: document.querySelector('dialog[open]') !== null,
+      });
+      if (geste === null) return;
+      const ids = idsEnCours === '' ? [] : idsEnCours.split(' ');
+      const apres = ficheApresLeGeste(geste, ids, idSelection);
+      if (apres === undefined) return;
+      e.preventDefault();
+      aller(apres === null ? 'valider' : `valider/${apres}`);
+    };
+    addEventListener('keydown', ecouter);
+    return () => removeEventListener('keydown', ecouter);
+  }, [idsEnCours, idSelection]);
   const filtresDeLaFile = !surLesDecidees && releves !== null && (
     <div className="admin-affiner" role="group" aria-label="Affiner la file">
       {(
@@ -269,6 +296,10 @@ export function AValider({
               sans rien changer.
             </p>
             <p>« Refuser » est à l’écart des autres gestes, et n’a jamais de raccourci.</p>
+            <p>
+              Sur ordinateur : J ouvre la fiche suivante, K la précédente, Échap revient à la liste.
+              Aucune touche ne décide à ta place.
+            </p>
           </>
         }
       />
@@ -660,6 +691,9 @@ function Detail({
   const [corrections, setCorrections] = useState<CorrectionEcole>({});
   // Le numéro de l'enseigne que le relais a saisi : il est public, l'administration dit s'il est sur la photo.
   const [choixNumero, setChoixNumero] = useState<ChoixNumero | null>(null);
+  // Lot G : le nom saisi se compare à l'enseigne ; « Différent » ouvre la correction avant d'accepter.
+  const [nomCompare, setNomCompare] = useState<'comme' | 'different' | null>(null);
+  const [demandeCorrection, setDemandeCorrection] = useState(0);
   const [editionInformations, setEditionInformations] = useState(false);
   const [formations, setFormations] = useState<FormationSaisie[]>([]);
 
@@ -798,6 +832,7 @@ function Detail({
           },
           mode: 'new_institution',
           etiquette: etiquette.trim() || null,
+          ...(cible.memeLieuQue ? { memeLieuQue: cible.memeLieuQue } : {}),
         };
       case 'new_campus':
         return {
@@ -1001,7 +1036,36 @@ function Detail({
         </h3>
         <dl className="admin-champs">
           <dt>Nom de l'établissement</dt>
-          <dd>{detail.nomEnseigne}</dd>
+          <dd>
+            {detail.nomEnseigne}
+            {nouvelleEcole && !lectureSeule && (
+              <span
+                className="admin-comparer"
+                role="group"
+                aria-label="Le nom, comparé à l’enseigne"
+              >
+                <button
+                  type="button"
+                  className="pastille-choix"
+                  aria-pressed={nomCompare === 'comme'}
+                  onClick={() => setNomCompare('comme')}
+                >
+                  Comme sur l’enseigne
+                </button>
+                <button
+                  type="button"
+                  className="pastille-choix"
+                  aria-pressed={nomCompare === 'different'}
+                  onClick={() => {
+                    setNomCompare('different');
+                    setDemandeCorrection((n) => n + 1);
+                  }}
+                >
+                  Différent
+                </button>
+              </span>
+            )}
+          </dd>
           {detail.sigle && (
             <>
               <dt>Sigle</dt>
@@ -1030,7 +1094,26 @@ function Detail({
           <dt>Repère</dt>
           <dd>{detail.repere ?? '—'}</dd>
           <dt>Numéro sur l'enseigne</dt>
-          <dd>{detail.numeroEnseigne ? afficherTelephone(detail.numeroEnseigne) : '—'}</dd>
+          <dd>
+            {detail.numeroEnseigne ? afficherTelephone(detail.numeroEnseigne) : '—'}
+            {aConfirmer !== null && !lectureSeule && (
+              <span
+                className={`etiquette ${
+                  choixNumero === 'verifie'
+                    ? 'etat-envoye'
+                    : choixNumero === 'retire'
+                      ? 'etat-refusee'
+                      : 'etat-attente'
+                } admin-etiquette-numero`}
+              >
+                {choixNumero === 'verifie'
+                  ? 'Sur la photo'
+                  : choixNumero === 'retire'
+                    ? 'Pas sur la photo'
+                    : 'Sur la photo ?'}
+              </span>
+            )}
+          </dd>
         </dl>
       </section>
 
@@ -1138,6 +1221,7 @@ function Detail({
                 correction={corrections}
                 surChangement={setCorrections}
                 surEdition={setEditionInformations}
+                demande={demandeCorrection}
               />
             )}
             {editionInformations && (
@@ -1313,30 +1397,31 @@ function Detail({
                   Saisi par le relais : compare-le à la photo de l’enseigne ci-dessus. Il sera
                   publié tel quel, avec un bouton « Appeler », dès que l’école le sera.
                 </p>
-                <label className="rang">
-                  <input
-                    type="radio"
-                    name="numero-enseigne"
-                    checked={choixNumero === 'verifie'}
-                    onChange={() => setChoixNumero('verifie')}
-                  />
-                  <span>Je l’ai vérifié sur la photo de l’enseigne</span>
-                </label>
-                {numeroPeutEtreRetire(detail) ? (
-                  <label className="rang">
-                    <input
-                      type="radio"
-                      name="numero-enseigne"
-                      checked={choixNumero === 'retire'}
-                      onChange={() => setChoixNumero('retire')}
-                    />
-                    <span>Il n’est pas sur la photo : ne pas le publier</span>
-                  </label>
-                ) : (
-                  <p className="mention">
-                    Pour ne pas le publier, accepte puis retire-le dans « Écoles › Gérer la fiche ».
-                  </p>
-                )}
+                <div className="admin-comparer" role="group" aria-label="Le numéro, sur la photo ?">
+                  <button
+                    type="button"
+                    className="pastille-choix"
+                    aria-pressed={choixNumero === 'verifie'}
+                    onClick={() => setChoixNumero('verifie')}
+                  >
+                    Sur la photo
+                  </button>
+                  {numeroPeutEtreRetire(detail) && (
+                    <button
+                      type="button"
+                      className="pastille-choix"
+                      aria-pressed={choixNumero === 'retire'}
+                      onClick={() => setChoixNumero('retire')}
+                    >
+                      Pas sur la photo
+                    </button>
+                  )}
+                </div>
+                <p className="mention">
+                  {numeroPeutEtreRetire(detail)
+                    ? '« Pas sur la photo » : il ne sera pas publié.'
+                    : 'Pour ne pas le publier, accepte puis retire-le dans la fiche de l’école.'}
+                </p>
               </fieldset>
             )}
 

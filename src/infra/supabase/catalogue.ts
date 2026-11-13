@@ -200,6 +200,9 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           division_names: string[];
           neighbourhood: string | null;
           landmark: string | null;
+          // Lot G : l'école voisine au même lieu, si elle est publiée (absente d'une base pas encore à jour).
+          same_place_name?: string | null;
+          same_place_number?: number | null;
           sign_phone: string | null;
           public_phone: string | null;
           public_phone_agreed_on: string | null;
@@ -425,6 +428,10 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
             programme: e.curriculum_note,
             formations: formationsDe.get(e.id) ?? [],
             repere: e.landmark,
+            memeLieu:
+              e.same_place_name && e.same_place_number != null
+                ? { nom: e.same_place_name, numero: String(e.same_place_number) }
+                : null,
             numeroEnseigne: e.sign_phone,
             frais: fraisDe.get(e.id) ?? [],
             equipements: equipementsDe.get(e.id) ?? [],

@@ -56,7 +56,7 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
 
     // « Vérifié sur la photo » : l'école est acceptée avec son numéro.
     const choix = page.getByRole('group', { name: /Numéro écrit sur l’enseigne/ });
-    await choix.getByLabel('Je l’ai vérifié sur la photo de l’enseigne').check();
+    await choix.getByRole('button', { name: 'Sur la photo', exact: true }).click();
     await expect(accepter).toBeEnabled();
     await expect(bilan.getByText(/Vérifié sur la photo : il sera publié/)).toBeVisible();
     await accepter.click();
@@ -76,8 +76,8 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     await expect(accepter).toBeDisabled();
     await page
       .getByRole('group', { name: /Numéro écrit sur l’enseigne/ })
-      .getByLabel('Il n’est pas sur la photo : ne pas le publier')
-      .check();
+      .getByRole('button', { name: 'Pas sur la photo', exact: true })
+      .click();
     await expect(
       page.getByRole('region', { name: 'Avant d’accepter' }).getByText(/ne sera pas publié/),
     ).toBeVisible();
@@ -171,8 +171,8 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     await expect(accepter).toBeDisabled();
     await page
       .getByRole('group', { name: /Numéro écrit sur l’enseigne/ })
-      .getByLabel('Il n’est pas sur la photo : ne pas le publier')
-      .check();
+      .getByRole('button', { name: 'Pas sur la photo', exact: true })
+      .click();
     await accepter.click();
     await expect(page.getByRole('status')).toHaveText(/est mise à jour/);
 

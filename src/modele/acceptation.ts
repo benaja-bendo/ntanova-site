@@ -24,7 +24,8 @@ import { peutParaitreSurLeSite } from './photos-publiques';
 
 /** Comment l'envoi entre dans le catalogue : la décision en un geste. */
 export type Cible =
-  | { mode: 'nouvelle' }
+  /** Lot G : `memeLieuQue`, le site voisin au même portail (« Même lieu ») : toujours une nouvelle école distincte. */
+  | { mode: 'nouvelle'; memeLieuQue?: string }
   | { mode: 'new_campus'; institutionId: string }
   | { mode: 'update_campus'; campusId: string }
   | { mode: 'add_cycle'; campusId: string };

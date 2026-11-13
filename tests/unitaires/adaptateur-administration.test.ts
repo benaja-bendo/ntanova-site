@@ -634,6 +634,8 @@ describe('l’adaptateur Supabase de l’administration', () => {
               accepted: 2,
               refused: 1,
               contacts_confirmed: 2,
+              sent_week: 3,
+              slow_position_week: 4,
             },
           ],
         },
@@ -650,7 +652,11 @@ describe('l’adaptateur Supabase de l’administration', () => {
         acceptees: 2,
         refusees: 1,
         contactsConfirmes: 2,
+        envoyeesSemaine: 3,
+        positionLenteSemaine: 4,
       });
+      // Une base sans la vue du lot G : zéro, jamais une erreur.
+      expect(relais[1]?.compteurs.envoyeesSemaine).toBe(0);
     });
 
     it('crée un lot sur une zone, ouvre une zone, publie une zone et un lot', async () => {

@@ -271,9 +271,74 @@ export function verdictDeProximite(
   distanceM: number | null,
   ressemblance: number,
 ): EcoleSimilaire['verdict'] | null {
-  if (distanceM !== null && (distanceM <= 100 || (distanceM <= 500 && ressemblance >= 0.45)))
-    return 'deja_la';
+  // Lot G : un autre nom tout près est une voisine (planche « Est-ce une école connue ? »), plus « déjà dans la base ».
+  if (distanceM !== null && distanceM <= 500 && ressemblance >= 0.45) return 'deja_la';
   if (ressemblance >= 0.45) return 'autre_site';
   if (distanceM !== null && distanceM <= 500) return 'voisine';
   return null;
+}
+
+/** Une rubrique de la fiche publique, remplie ou non (lot G : « X rubriques remplies sur Y »). */
+export interface RubriqueRemplie {
+  titre: string;
+  remplie: boolean;
+}
+
+export interface CompletudeDeLaFiche {
+  rubriques: RubriqueRemplie[];
+  remplies: number;
+  total: number;
+  /** Ce qui manque et que l'école peut donner, sans demande ouverte : « Z à demander ». */
+  aDemander: number;
+}
+
+/**
+ * Lot G (13/11/2026), en-tête de la fiche admin en plein écran : combien de rubriques de la page publique ont un contenu.
+ * Neuf pour toutes les écoles (logo, couverture, photos, en bref, sur place, frais, contact, agrément, mot de la direction),
+ * plus les formations pour le supérieur et le technique. Les nouvelles n'y sont pas : la page les cache quand il n'y en a
+ * aucune, ce n'est pas un manque.
+ */
+export function completudeDeLaFiche(
+  e: Pick<
+    import('./ports').EcoleVue,
+    | 'niveaux'
+    | 'repere'
+    | 'equipements'
+    | 'frais'
+    | 'contactPublic'
+    | 'agrements'
+    | 'motDirection'
+    | 'formations'
+  >,
+  medias: readonly Pick<MediaAdmin, 'genre' | 'publique'>[],
+  manques: readonly Pick<Manque, 'quiPeut' | 'demandeLe'>[],
+): CompletudeDeLaFiche {
+  const publique = (genre: MediaAdmin['genre']) =>
+    medias.some((m) => m.genre === genre && m.publique);
+  const rubriques: RubriqueRemplie[] = [
+    { titre: 'Logo', remplie: publique('logo') },
+    { titre: 'Couverture', remplie: publique('cover') },
+    { titre: 'Photos', remplie: publique('gallery') },
+    { titre: 'En bref', remplie: e.niveaux.length > 0 && !!e.repere },
+    { titre: 'Sur place', remplie: (e.equipements ?? []).length > 0 },
+    { titre: 'Frais', remplie: (e.frais ?? []).length > 0 },
+    { titre: 'Contact', remplie: !!e.contactPublic },
+    { titre: 'Agrément', remplie: (e.agrements ?? []).length > 0 },
+    { titre: 'Mot de la direction', remplie: !!e.motDirection },
+  ];
+  if (e.niveaux.some((n) => n === 'superieur' || n === 'technique'))
+    rubriques.push({ titre: 'Formations', remplie: e.formations > 0 });
+  const remplies = rubriques.filter((r) => r.remplie).length;
+  return {
+    rubriques,
+    remplies,
+    total: rubriques.length,
+    aDemander: manques.filter((m) => m.quiPeut.includes('ecole') && !m.demandeLe).length,
+  };
+}
+
+/** « 7 rubriques remplies sur 10 · 3 à demander » (sans « · 0 à demander »). */
+export function completudeEnMots(c: CompletudeDeLaFiche): string {
+  const base = `${c.remplies} rubrique${c.remplies > 1 ? 's' : ''} remplie${c.remplies > 1 ? 's' : ''} sur ${c.total}`;
+  return c.aDemander > 0 ? `${base} · ${c.aDemander} à demander` : base;
 }

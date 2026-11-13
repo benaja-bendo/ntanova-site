@@ -4,7 +4,8 @@
  * attente (`similar_schools`). Elle propose ; l'administration confirme. Quatre états, deux boutons au plus, jamais de fusion :
  * - même endroit : « Compléter sa fiche » (`update_campus`) ou « Non, une autre école » ;
  * - même nom plus loin : « Oui, nouveau site » (`new_campus` de cette école) ou « Non, autre école » ;
- * - autre nom tout près : une école voisine, dite seulement (« Même lieu » attend la décision du fondateur) ;
+ * - autre nom tout près : une école voisine ; « Même lieu » (décision du fondateur, 13/11) crée une nouvelle école et note
+ *   le site voisin sur elle (même portail, deux écoles), « Lieux distincts » une nouvelle école sans mention ;
  * - rien : « Nouvelle école ».
  */
 import { useEffect, useState } from 'react';
@@ -84,7 +85,7 @@ export function EcoleConnue({
       {
         libelle: 'Non, une autre école',
         c: { mode: 'nouvelle' },
-        actif: cible.mode === 'nouvelle',
+        actif: cible.mode === 'nouvelle' && !cible.memeLieuQue,
       },
     ];
   } else if (site?.verdict === 'autre_site' && site.institutionId) {
@@ -101,16 +102,36 @@ export function EcoleConnue({
         c: { mode: 'new_campus', institutionId: site.institutionId },
         actif: cible.mode === 'new_campus' && cible.institutionId === site.institutionId,
       },
-      { libelle: 'Non, autre école', c: { mode: 'nouvelle' }, actif: cible.mode === 'nouvelle' },
+      {
+        libelle: 'Non, autre école',
+        c: { mode: 'nouvelle' },
+        actif: cible.mode === 'nouvelle' && !cible.memeLieuQue,
+      },
     ];
   } else if (site?.verdict === 'voisine') {
     titre = 'Une école voisine';
     texte = (
       <>
         « {site.nom} », <b>{ou(site)}</b> : un autre nom, tout près. Deux écoles peuvent partager un
-        portail ; rien ne change ici.
+        portail : « Même lieu » crée une nouvelle école et le dit sur sa fiche.
       </>
     );
+    // « Même lieu » se propose seulement tout près (100 m) : plus loin, deux écoles ne partagent pas un portail.
+    gestes =
+      (site.distanceM ?? Infinity) > 100
+        ? []
+        : [
+            {
+              libelle: 'Même lieu',
+              c: { mode: 'nouvelle', memeLieuQue: site.id },
+              actif: cible.mode === 'nouvelle' && cible.memeLieuQue === site.id,
+            },
+            {
+              libelle: 'Lieux distincts',
+              c: { mode: 'nouvelle' },
+              actif: cible.mode === 'nouvelle' && !cible.memeLieuQue,
+            },
+          ];
   } else {
     titre = 'Nouvelle école';
     texte = 'Aucune école de ce nom, et rien à moins de 500 m.';

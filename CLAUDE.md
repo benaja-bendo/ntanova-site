@@ -318,7 +318,9 @@ Le journal détaillé est `docs/avancement-admin-v2.md`. L'essentiel :
 - **« Aujourd'hui »** remplace la vue d'ensemble : ce qui t'attend, puis la semaine ; le détail chiffré est replié.
 - **« À valider »** : onglets d'état, liste puis fiche sur téléphone (la liste disparaît quand une fiche est ouverte), barre de décision collée en bas, **« Est-ce une école connue ? »** (`EcoleConnue.tsx`, `similar_schools`) en tête de la fiche.
 - **Écoles** : la fiche d'une école est une page (`#ecoles/fiche/<id>`), plus un tiroir ; la liste groupe les sites d'une même école. Dans les parcours : `ouvrirGestion` ouvre la fiche puis la rubrique ; `retourAuxEcoles`, `ouvrirEcranAdmin` (passe par « Plus » sur téléphone) et `ouvrirRegles` sont dans `tests/parcours/aides.ts`.
-- **Tailwind et shadcn ne sont pas branchés** (écart au cahier, § 4) : le canevas est rendu avec les jetons existants.
+- **Tailwind et shadcn ne sont pas branchés** : le fondateur garde le CSS natif et les jetons v2 (13/11). Toute couleur, même dans une ombre, passe par un jeton de `src/ui/jetons.css` (`pnpm couleurs` refuse un `rgb()` ailleurs).
+- **Lot G** : l'aperçu en tête de la fiche (`ApercuFiche.tsx`, « X rubriques remplies sur Y »), le signal des relais et les relais repliés, « Comme sur l'enseigne / Différent » et « Sur la photo », les raccourcis J/K/Échap (`src/modele/raccourcis.ts`), et **« Même lieu »** (`campuses.same_place_as_campus_id`, M11 : deux écoles distinctes, jamais fusionnées). Un autre nom à moins de 100 m est une **voisine** pour `similar_schools` et `verdictDeProximite`.
+- **Parcours relais hors ligne** : avant `context.setOffline(true)`, attendre `attendreLaLecture(page)` (la première lecture gardée) ; « Mon secteur » s'affiche avant la fin de la lecture.
 
 ### Le rangement du site public (ticket 146, décision du fondateur du 08/11/2026)
 
