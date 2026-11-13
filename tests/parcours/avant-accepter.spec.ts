@@ -138,8 +138,7 @@ test.describe('un numéro congolais qui se lit mal, côté relais', () => {
     await prendrePhotoEtPosition(page);
     await page.getByRole('button', { name: 'Suivant' }).click();
 
-    await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+    await page.getByLabel("Nom de l'établissement").fill('[École 1]');
     await page.getByRole('button', { name: 'Primaire' }).click();
     const numero = page.getByLabel(/Numéro écrit sur l.enseigne/);
 
@@ -154,6 +153,8 @@ test.describe('un numéro congolais qui se lit mal, côté relais', () => {
 
     // L'avertissement ne bloque pas : le relais a peut-être raison.
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await expect(page.getByRole('group', { name: 'Avez-vous vu la direction ?' })).toBeVisible();
+    await expect(
+      page.getByRole('group', { name: 'Avez-vous parlé à quelqu’un de l’école ?' }),
+    ).toBeVisible();
   });
 });

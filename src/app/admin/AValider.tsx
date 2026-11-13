@@ -42,6 +42,7 @@ import type {
   DetailReleve,
   DivisionVue,
   DomainePublic,
+  FaitGarde,
   FormationSaisie,
   InstitutionVue,
   ModeAcceptation,
@@ -55,6 +56,7 @@ import { Bouton } from '../../ui/actions';
 import { Dialogue } from '../../ui/Dialogue';
 import { SectionRepliable } from '../../ui/SectionRepliable';
 import { afficherTelephone } from '../../modele/telephone';
+import { libelleEquipement } from '../../modele/equipements-ecole';
 import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
 import { SignauxDuRelais } from './Sante';
@@ -654,6 +656,8 @@ function Detail({
     setPersonnes(await admin.contactsReleve(id));
   };
 
+  const [ecartes, setEcartes] = useState<ReadonlySet<string>>(new Set());
+
   if (!detail) {
     return (
       <section className="admin-detail" aria-busy={!erreur}>
@@ -706,9 +710,13 @@ function Detail({
     .filter((d) => d.niveau >= 2)
     .map((d) => ({ id: d.id, chemin: cheminLisible(d.id, divisions) }))
     .sort((a, b) => a.chemin.localeCompare(b.chemin, 'fr'));
+  // v2 (13/11) : le bonus du relais. L'administration garde ce qu'il a vu (tout, par défaut) ; elle n'ajoute jamais rien.
+  const faitsDuBonus = faitsProposes(detail);
+  const faitsGardes = faitsDuBonus.filter((f) => !ecartes.has(f.cle));
   const decision = (): DecisionAcceptation => {
     const base: DecisionAcceptation = {
       formations: formationsRetenues,
+      ...(faitsGardes.length > 0 ? { faits: faitsGardes } : {}),
       ...((divisionRequise || divisionFacultative) && divisionId !== '' ? { divisionId } : {}),
       ...(saisie?.position ? { position: saisie.position } : {}),
     };
@@ -719,7 +727,11 @@ function Detail({
       case 'nouvelle':
         return {
           ...base,
-          corrections: choixNumero === 'retire' ? { ...retenues, numeroEnseigne: null } : retenues,
+          corrections: {
+            // Le sigle lu par le relais remplit celui de la nouvelle école, sauf si l'administration l'a corrigé.
+            ...(detail.sigle && retenues.sigle === undefined ? { sigle: detail.sigle } : {}),
+            ...(choixNumero === 'retire' ? { ...retenues, numeroEnseigne: null } : retenues),
+          },
           mode: 'new_institution',
           etiquette: etiquette.trim() || null,
         };
@@ -904,8 +916,14 @@ function Detail({
           Public : ce qui se voit de la rue
         </h3>
         <dl className="admin-champs">
-          <dt>Nom sur l'enseigne</dt>
+          <dt>Nom de l'établissement</dt>
           <dd>{detail.nomEnseigne}</dd>
+          {detail.sigle && (
+            <>
+              <dt>Sigle</dt>
+              <dd>{detail.sigle}</dd>
+            </>
+          )}
           <dt>Type</dt>
           <dd>{libelleTypeEcole[detail.typeEcole]}</dd>
           <dt>Niveaux</dt>
@@ -931,6 +949,45 @@ function Detail({
           <dd>{detail.numeroEnseigne ? afficherTelephone(detail.numeroEnseigne) : '—'}</dd>
         </dl>
       </section>
+
+      {(faitsDuBonus.length > 0 || detail.remarque || detail.autreSiteDe) && (
+        <section className="pile-serree" aria-label="Le bonus du relais">
+          <h3 className="rang">Le bonus du relais</h3>
+          {detail.autreSiteDe && (
+            <p className="mention">
+              Le relais dit que c’est un autre site d’une école connue (choisie dans sa liste).
+            </p>
+          )}
+          {detail.remarque && (
+            <p>
+              <b>Sa remarque&nbsp;:</b> {detail.remarque}
+            </p>
+          )}
+          {faitsDuBonus.length > 0 && (
+            <fieldset className="pile-serree">
+              <legend>Ce qu’il a vu (gardé comme vu sur place à l’acceptation)</legend>
+              {faitsDuBonus.map((f) => (
+                <label className="case" key={f.cle}>
+                  <input
+                    type="checkbox"
+                    checked={!ecartes.has(f.cle)}
+                    onChange={(e) =>
+                      setEcartes((avant) => {
+                        const apres = new Set(avant);
+                        if (e.target.checked) apres.delete(f.cle);
+                        else apres.add(f.cle);
+                        return apres;
+                      })
+                    }
+                  />
+                  {libelleEquipement[f.cle]}
+                  {f.cle === 'cloture' && (f.etat === 'present' ? ' : oui' : ' : non')}
+                </label>
+              ))}
+            </fieldset>
+          )}
+        </section>
+      )}
 
       {(Object.keys(retenues).length > 0 || detail.revision) && (
         <section className="admin-motif pile-serree" aria-label="Valeurs retenues par NTanova">
@@ -1407,4 +1464,19 @@ function Detail({
       </SectionRepliable>
     </section>
   );
+}
+
+/** Les faits que propose le bonus d'un relevé : chaque équipement vu, et la clôture (oui ou non). */
+function faitsProposes(d: Pick<DetailReleve, 'vusSurPlace' | 'cloture'>): FaitGarde[] {
+  return [
+    ...(d.vusSurPlace ?? []).map((cle): FaitGarde => ({ cle, etat: 'present' })),
+    ...(d.cloture
+      ? [
+          {
+            cle: 'cloture' as const,
+            etat: d.cloture === 'oui' ? ('present' as const) : ('absent' as const),
+          },
+        ]
+      : []),
+  ];
 }

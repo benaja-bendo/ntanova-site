@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { ajouterUneEcole, prendrePhotoEtPosition, seConnecter } from './aides';
+import { ajouterUneEcole, prendrePhotoEtPosition, seConnecter, envoyerSansBonus } from './aides';
 
 // La file d'envoi de l'espace relais (ticket #55, PR 2), construite avec le faux serveur. Deux réglages du
 // faux serveur, dans `localStorage` du navigateur, rejouent ce que la vraie base répond :
@@ -176,11 +176,10 @@ test.describe('modifier une fiche enregistrée', () => {
     await expect(page.locator('.entete-etape-titre')).toHaveText('Ajouter une école');
     await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await expect(page.getByLabel("Nom sur l'enseigne")).toHaveValue('[École 1]');
-    await page.getByLabel("Nom sur l'enseigne").fill('[École 1, nom corrigé]');
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+    await expect(page.getByLabel("Nom de l'établissement")).toHaveValue('[École 1]');
+    await page.getByLabel("Nom de l'établissement").fill('[École 1, nom corrigé]');
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await envoyerSansBonus(page);
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
     // L'envoi lancé par l'enregistrement a bien rencontré la panne : on attend de le voir avant de la lever.
     await expect(page.getByText(/Un envoi a échoué/)).toBeVisible({ timeout: 10_000 });
@@ -219,8 +218,7 @@ test.describe('abandonner une fiche en cours', () => {
       await prendrePhotoEtPosition(page);
       await page.getByRole('button', { name: 'Suivant' }).click();
       if (etape === 3) {
-        await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
-        await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+        await page.getByLabel("Nom de l'établissement").fill('[École 1]');
         await page.getByRole('button', { name: 'Suivant' }).click();
       }
       await expect(page.locator('.entete-etape-compte')).toHaveText(`${etape}/3`);

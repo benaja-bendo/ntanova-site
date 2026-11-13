@@ -88,8 +88,8 @@ export function EquipementsEcole({
     <Dialogue titre={`Équipements de ${nom}`} fermer={fermer} integre={integre}>
       <h3>Équipements et infrastructures</h3>
       <p>
-        Non observé ne veut pas dire absent. Le terrain atteste seulement un élément réellement
-        visible ; les absences et les services restent des déclarations de l’école.
+        Non observé ne veut pas dire absent. Le terrain dit ce qu’il a vu ; une absence ne se dit
+        que pour la clôture, les autres restent des déclarations de l’école.
       </p>
       {equipements.length > 0 && (
         <ul className="admin-equipements-liste">

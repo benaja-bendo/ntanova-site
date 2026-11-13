@@ -658,7 +658,7 @@ test('relais : confirmation accessible, annulation sans perte et suppression ré
   await seConnecter(page, '/relais/');
   await prendrePhotoEtPosition(page);
   await page.getByRole('button', { name: 'Suivant', exact: true }).click();
-  const nom = page.getByLabel("Nom sur l'enseigne");
+  const nom = page.getByLabel("Nom de l'établissement");
   await nom.fill('[Fiche conservée]');
   await context.setOffline(true);
   const ouvrir = page.getByRole('button', { name: 'Abandonner cette fiche', exact: true });

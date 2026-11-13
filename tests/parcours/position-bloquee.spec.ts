@@ -24,7 +24,7 @@ async function ouvrirLEtape1(page: Page) {
     page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Ajouter une école' }).click();
-  await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
 }
 
 const aide = (page: Page) => page.getByRole('alert', { name: 'La position est bloquée' });
@@ -113,6 +113,7 @@ test.describe('Chrome sur iPhone', () => {
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 
     await expect(page.getByText('Position prise')).toBeVisible();
+    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
     await expect(aide(page)).toHaveCount(0);
   });
 
@@ -123,6 +124,7 @@ test.describe('Chrome sur iPhone', () => {
     await context.setGeolocation({ latitude: -4.7982, longitude: 11.9, accuracy: 8 });
     await page.getByRole('button', { name: 'Reprendre la position' }).click();
     await expect(page.getByText('Position prise')).toBeVisible();
+    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
     await expect(aide(page)).toHaveCount(0);
   });
 

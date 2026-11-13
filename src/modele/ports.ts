@@ -62,6 +62,19 @@ export interface EcoleProche extends Point {
   id: string;
   nom: string;
   genre?: 'campus' | 'releve';
+  /** v2 (13/11) : le sigle, l'école (institution) et son nombre de sites, pour « Déjà sur NTanova ? ». */
+  sigle?: string | null;
+  institutionId?: string | null;
+  sites?: number;
+}
+
+/** v2 (13/11) : la liste nationale légère des écoles, gardée par le téléphone pour « Même nom, ailleurs ». */
+export interface EcoleDuPays {
+  id: string;
+  nom: string;
+  sigle: string | null;
+  ville: string | null;
+  sites: number;
 }
 
 /**
@@ -170,6 +183,12 @@ export interface ReleveAEnvoyer {
   numeroEnseigne: string | null;
   direction: Valeur<'direction_vue'> | null;
   repasser: string | null;
+  /** v2 (13/11) : le sigle, la remarque du relais, le bonus (vu sur place, clôture), l'école dont c'est « un autre site ». */
+  sigle?: string | null;
+  remarque?: string | null;
+  vusSurPlace?: Valeur<'equipment_key'>[];
+  cloture?: 'oui' | 'non' | null;
+  autreSiteDe?: string | null;
 }
 
 export interface ContactAEnvoyer {
@@ -271,6 +290,8 @@ export interface PortRelais {
    * marche sans réseau, où que le relais se trouve. `GET /moi/lieux-connus`
    */
   lieuxConnus(): Promise<EcoleProche[]>;
+  /** v2 (13/11) : `GET /moi/ecoles-du-pays`, la liste nationale légère (nom, sigle, ville, sites). */
+  ecolesDuPays(): Promise<EcoleDuPays[]>;
   /**
    * Le nom des zones ouvertes aux relais, par ordre alphabétique : de quoi dire où relever à un relais qui n'a pas
    * de secteur. `GET /zones-ouvertes`
@@ -395,6 +416,18 @@ export interface DetailReleve extends ReleveAValider {
   campusNom: string | null;
   /** Le campus accepté est-il déjà en ligne ? */
   campusPublie: boolean;
+  /** v2 (13/11) : le sigle, la remarque du relais, son bonus, et l'école dont il dit que c'est « un autre site ». */
+  sigle?: string | null;
+  remarque?: string | null;
+  vusSurPlace?: Valeur<'equipment_key'>[];
+  cloture?: 'oui' | 'non' | null;
+  autreSiteDe?: string | null;
+}
+
+/** v2 (13/11) : un équipement du bonus que l'administration garde, comme fait du terrain (« vu », ou la clôture absente). */
+export interface FaitGarde {
+  cle: Valeur<'equipment_key'>;
+  etat: 'present' | 'absent';
 }
 
 /** Une photo d'un relevé, avec une adresse temporaire pour la voir (jamais publique d'office). */
@@ -433,6 +466,8 @@ export interface FormationSaisie {
 export type ModeAcceptation = 'new_institution' | 'new_campus' | 'update_campus' | 'add_cycle';
 
 export interface DecisionAcceptation {
+  /** v2 (13/11) : les équipements du bonus que l'administration garde ; jamais un équipement que le relais n'a pas vu. */
+  faits?: FaitGarde[];
   /** Corrections explicites d’une nouvelle école, appliquées dans la même transaction que l’acceptation. */
   corrections?: CorrectionEcole;
   mode?: ModeAcceptation;
@@ -635,6 +670,8 @@ export interface EcoleVue {
  */
 export interface CorrectionEcole {
   nom?: string;
+  /** v2 (13/11) : le sigle de l'école, qui remplit celui de la nouvelle école. */
+  sigle?: string | null;
   typeEcole?: Valeur<'type_ecole'>;
   niveaux?: Valeur<'niveau'>[];
   programme?: string | null;

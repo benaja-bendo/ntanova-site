@@ -505,7 +505,7 @@ describe('l’adaptateur Supabase, pour un administrateur qui est aussi relais',
 
   it('lit les écoles connues des zones ouvertes et de son secteur, pour l’alerte doublon sans réseau', async () => {
     const lieux = await port.lieuxConnus();
-    expect(lieux).toEqual([
+    expect(lieux).toMatchObject([
       { id: 'c1', nom: '[École connue]', latitude: -4.79, longitude: 11.92, genre: 'campus' },
       { id: 'r9', nom: '[Relevé d’un autre]', latitude: -4.8, longitude: 11.93, genre: 'releve' },
     ]);

@@ -52,8 +52,13 @@ export const saisieDeEquipement = (e: Equipement): SaisieEquipement => ({
   note: e.note ?? '',
   confirme: false,
 });
-export function observableDepuisLaRue(cle: string): boolean {
-  return ['cloture', 'terrain_sport', 'autre'].includes(cle);
+/**
+ * Ce que le terrain peut affirmer (base du 13/11, M2, règle de `campus_facts` et de `set_school_fact`) : « vu » pour tout
+ * équipement ; « absent » seulement pour la clôture, qui se voit de la rue. Les autres absences restent des déclarations
+ * de l'école. Avant le 13/11, le code limitait le terrain à la clôture, au terrain de sport et à « autre ».
+ */
+export function constatDuTerrainPermis(cle: string, etat: string): boolean {
+  return etat === 'present' || (etat === 'absent' && cle === 'cloture');
 }
 export function lireEquipement(
   s: SaisieEquipement,
@@ -68,9 +73,9 @@ export function lireEquipement(
     !listes.fact_source.includes(s.source as Valeur<'fact_source'>)
   )
     erreur = 'Indique l’état et la source de cette information.';
-  else if (s.source === 'terrain' && (s.etat !== 'present' || !observableDepuisLaRue(s.cle)))
+  else if (s.source === 'terrain' && !constatDuTerrainPermis(s.cle, s.etat))
     erreur =
-      'Le terrain atteste seulement un élément réellement visible : clôture, terrain de sport ou autre constat précisé. Une absence ou un service doit être déclaré par l’école.';
+      'Le terrain dit ce qu’il a vu. Une absence ne se dit que pour la clôture ; les autres sont déclarées par l’école.';
   else if (!dateDeclareeValide(s.constateLe, aujourdHui))
     erreur = 'Indique la date réelle de déclaration ou d’observation, pas une date future.';
   else if (!s.confirme)

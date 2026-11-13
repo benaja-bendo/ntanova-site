@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirGestion, ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
+import {
+  ouvrirGestion,
+  ouvrirLaFiche,
+  seConnecter,
+  uneFicheEnvoyee,
+  envoyerSansBonus,
+} from './aides';
 
 // Le numéro écrit sur l'enseigne est publié tel quel, avec un bouton « Appeler », dès que l'école l'est. Le 06/11/2026,
 // trois numéros non vérifiés ont paru (deux photos sans aucun numéro, une qui en montrait d'autres). Avant d'accepter,
@@ -144,13 +150,13 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     await page.getByRole('button', { name: 'Compléter' }).click();
     await page.locator('input[type=file]').first().setInputFiles(photo);
     await expect(page.getByText('Position prise')).toBeVisible();
+    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await page.getByLabel("Nom sur l'enseigne").fill('[École à situer, nom exact]');
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+    await page.getByLabel("Nom de l'établissement").fill('[École à situer, nom exact]');
     await page.getByLabel(/Numéro écrit sur l.enseigne/).fill('05 111 22 33');
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await page.getByRole('button', { name: 'Absente' }).click();
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await page.getByRole('button', { name: 'Personne', exact: true }).click();
+    await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 

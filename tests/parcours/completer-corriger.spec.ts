@@ -1,4 +1,4 @@
-import { ouvrirContacts } from './aides';
+import { ouvrirContacts, envoyerSansBonus } from './aides';
 import { ouvrirGestion } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter, uneFicheEnvoyee } from './aides';
@@ -88,7 +88,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     // Sans nouvelle photo, on passe.
     await page.getByRole('button', { name: 'Suivant' }).click();
     await expect(page.getByText("Ajoutez la photo de l'enseigne.")).toHaveCount(0);
-    await expect(page.getByLabel("Nom sur l'enseigne")).toHaveValue('[École 1]');
+    await expect(page.getByLabel("Nom de l'établissement")).toHaveValue('[École 1]');
     await expect(page.getByRole('button', { name: 'Primaire' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -97,8 +97,8 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
 
     // La direction est déjà confirmée : rien à redire.
     await expect(page.getByText(/contact de la direction est déjà confirmé/)).toBeVisible();
-    await expect(page.getByText('Avez-vous vu la direction ?')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await expect(page.getByText('Avez-vous parlé à quelqu’un de l’école ?')).toHaveCount(0);
+    await envoyerSansBonus(page);
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
     await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
@@ -125,9 +125,9 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await expect(encart(page)).toContainText('Déjà chez NTanova');
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await expect(page.getByText('Avez-vous vu la direction ?')).toBeVisible();
-    await page.getByRole('button', { name: 'Absente' }).click();
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await expect(page.getByText('Avez-vous parlé à quelqu’un de l’école ?')).toBeVisible();
+    await page.getByRole('button', { name: 'Personne', exact: true }).click();
+    await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     expect(await serveur(page)).toMatchObject({ photos: 1 });
@@ -171,11 +171,12 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
 
     // La position : le GPS se lance, et la fiche corrigée n'est pas prise pour un doublon d'elle-même.
     await expect(page.getByText('Position prise')).toBeVisible();
+    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
     await expect(page.getByText('Est-ce la même école ?')).toHaveCount(0);
     await page.getByRole('button', { name: 'Suivant' }).click();
 
     // Tout ce qui était saisi revient.
-    await expect(page.getByLabel("Nom sur l'enseigne")).toHaveValue('[École 1]');
+    await expect(page.getByLabel("Nom de l'établissement")).toHaveValue('[École 1]');
     await expect(page.getByRole('button', { name: 'Primaire' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -184,7 +185,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
 
     // Le contact est déjà parti avec la fiche : il ne se redemande pas, et ne repart pas.
     await expect(page.getByText(/contact de la direction est déjà parti/)).toBeVisible();
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await envoyerSansBonus(page);
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
     await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
@@ -221,7 +222,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     await expect.poll(async () => (await serveur(page)).photos).toBe(2);
@@ -239,18 +240,17 @@ test.describe('après « À repasser »', () => {
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
     await prendrePhotoEtPosition(page);
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+    await page.getByLabel("Nom de l'établissement").fill('[École 1]');
     await page.getByRole('button', { name: 'Primaire' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await page.getByRole('button', { name: 'Absente' }).click();
-    await page.getByLabel('Quand repasser ?').fill('Lundi matin');
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await page.getByRole('button', { name: 'Personne', exact: true }).click();
+    await envoyerSansBonus(page);
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     expect(await serveur(page)).toMatchObject({ contacts: 0 });
 
     // « À repasser » a maintenant un geste : le relais a revu la direction.
-    await expect(page.getByText('À repasser : Lundi matin')).toBeVisible({ timeout: 15_000 });
+    // v2 (13/11) : « Quand repasser ? » est retiré de l'étape 3 ; « À repasser » reste, sans note.
+    await expect(page.getByText(/^À repasser/)).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'J’ai revu la direction' }).click();
     await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
     await page.getByLabel('Sa fonction').selectOption('promoteur');

@@ -35,7 +35,7 @@ const INTERVALLE_MS = 3 * 60_000;
 function Ecrans() {
   const [ecran = 'lot', etape] = useAdresse();
   if (ecran === 'ajouter') {
-    const n = etape === '2' ? 2 : etape === '3' ? 3 : 1;
+    const n = etape === '2' ? 2 : etape === '3' ? 3 : etape === 'bonus' ? 4 : 1;
     return <Ajouter key={n} etape={n} />;
   }
   if (ecran === 'fiches') return <MesFiches />;

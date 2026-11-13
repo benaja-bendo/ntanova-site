@@ -40,8 +40,7 @@ test.describe('une nouvelle version de l’application', () => {
 
     // Le relais est au milieu d'une saisie.
     await page.goto('/relais/#ajouter/2');
-    await page.getByLabel("Nom sur l'enseigne").fill('[École en cours de saisie]');
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+    await page.getByLabel("Nom de l'établissement").fill('[École en cours de saisie]');
     const avant = await chargeeA(page);
 
     // Une nouvelle version arrive : un autre service worker prend la main, comme après une mise en ligne.
@@ -54,12 +53,16 @@ test.describe('une nouvelle version de l’application', () => {
     // La page n'a pas été rechargée et la saisie est intacte, même après un moment.
     await page.waitForTimeout(1_500);
     expect(await chargeeA(page), 'la page a été rechargée toute seule').toBe(avant);
-    await expect(page.getByLabel("Nom sur l'enseigne")).toHaveValue('[École en cours de saisie]');
+    await expect(page.getByLabel("Nom de l'établissement")).toHaveValue(
+      '[École en cours de saisie]',
+    );
 
     // Le relais recharge quand il le décide ; la saisie est retrouvée (elle est gardée dans le téléphone).
     await bandeauVersion(page).getByRole('button', { name: 'Recharger' }).click();
     await page.waitForFunction((t) => performance.timeOrigin !== t, avant);
-    await expect(page.getByLabel("Nom sur l'enseigne")).toHaveValue('[École en cours de saisie]');
+    await expect(page.getByLabel("Nom de l'établissement")).toHaveValue(
+      '[École en cours de saisie]',
+    );
     // (Pas de contrôle de la disparition du bandeau après le rechargement : ici la « nouvelle version » est une autre
     // adresse du service worker, que la page remplace aussitôt par la sienne ; en ligne, l'adresse ne change pas.)
   });

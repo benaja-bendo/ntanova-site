@@ -10,12 +10,23 @@ export async function seConnecter(page: Page, adresse: string): Promise<void> {
 }
 
 /** Ouvre Ajouter 1/3 depuis « Mon secteur », prend la photo, et attend que la position soit prise. */
-export async function prendrePhotoEtPosition(page: Page) {
+export async function prendrePhotoEtPosition(page: Page, repere: string | null = 'Face au marché') {
   await page.getByRole('button', { name: 'Ajouter une école' }).click();
-  await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
   await page.locator('input[type=file]').first().setInputFiles(photo);
   await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
   await expect(page.getByText('Position prise')).toBeVisible();
+  // v2 (13/11) : le repère (« Comment la trouver ? ») est à l'étape 1 ; sans lui, « Suivant » fait une relance.
+  if (repere !== null) await page.getByLabel('Comment la trouver ?').fill(repere);
+}
+
+/** v2 (13/11) : depuis l'étape 3, « Envoyer maintenant » puis « Envoyer sans bonus » (la fenêtre de confirmation). */
+export async function envoyerSansBonus(page: Page) {
+  await page.getByRole('button', { name: 'Envoyer maintenant' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Envoyer sans le bonus ?' })
+    .getByRole('button', { name: 'Envoyer sans bonus' })
+    .click();
 }
 
 /** Remplit Ajouter 1/3 à 3/3 depuis « Mon secteur », puis revient sur « Mon secteur ». */
@@ -24,12 +35,10 @@ export async function ajouterUneEcole(
   n: number,
   options: { programme?: string; numeroEnseigne?: string; repere?: string } = {},
 ) {
-  await prendrePhotoEtPosition(page);
+  await prendrePhotoEtPosition(page, options.repere ?? 'Face au marché');
   await page.getByRole('button', { name: 'Suivant' }).click();
 
-  await page.getByLabel("Nom sur l'enseigne").fill(`[École ${n}]`);
-  // Le repère (« Qu'y a-t-il juste à côté ? ») : sans lui, « Suivant » fait une relance avant de passer (audit du 08/11/2026).
-  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill(options.repere ?? 'Face au marché');
+  await page.getByLabel("Nom de l'établissement").fill(`[École ${n}]`);
   await page.getByRole('button', { name: 'Primaire' }).click();
   if (options.programme) {
     await page.getByLabel(/Programme, langues ou autre mention écrite/).fill(options.programme);
@@ -43,7 +52,7 @@ export async function ajouterUneEcole(
   await page.getByLabel('Sa fonction').selectOption('promoteur');
   await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
   await page.getByLabel(/Son WhatsApp/).fill(`06 123 45 6${n}`);
-  await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+  await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
   await page.getByRole('link', { name: 'Mon secteur' }).click();
 }

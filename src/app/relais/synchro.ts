@@ -21,7 +21,7 @@ export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvo
     const profil = await relais.monProfil();
     await garder('profil', profil);
     if (profil.statut === 'actif') {
-      const [lot, ecoles, releves, aCompleter, zones, paie] = await Promise.all([
+      const [lot, ecoles, releves, aCompleter, zones, pays, paie] = await Promise.all([
         relais.monLot(),
         relais.lieuxConnus(),
         relais.mesReleves(),
@@ -30,6 +30,12 @@ export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvo
         relais.zonesOuvertes().catch((erreur: unknown) => {
           if (erreur instanceof ErreurReseau || erreur instanceof ErreurSession) throw erreur;
           void journaliser('synchro', 'zones_illisibles', erreur);
+          return null;
+        }),
+        // La liste nationale ne sert qu'à proposer : une panne ici n'arrête rien d'autre.
+        relais.ecolesDuPays().catch((erreur: unknown) => {
+          if (erreur instanceof ErreurReseau || erreur instanceof ErreurSession) throw erreur;
+          void journaliser('synchro', 'ecoles_du_pays_illisibles', erreur);
           return null;
         }),
         // La paie ne se lit que pour être affichée : une panne ici n'arrête ni l'envoi ni le reste de la lecture.
@@ -45,6 +51,7 @@ export async function actualiser(adaptateurs: Adaptateurs): Promise<ResultatEnvo
         garder('releves', releves),
         garder('aCompleter', aCompleter),
         ...(zones ? [garder('zones', zones)] : []),
+        ...(pays ? [garder('ecolesDuPays', pays)] : []),
         ...(paie ? [garder('paie', paie)] : []),
       ]);
     }

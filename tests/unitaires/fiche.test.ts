@@ -355,17 +355,19 @@ describe('les listes ne bloquent personne', () => {
 });
 
 describe('les photos de la fiche', () => {
-  it('l’enseigne d’abord, puis au plus trois autres', () => {
+  it('l’enseigne d’abord, puis au plus cinq autres (base du 13/11)', () => {
     let f = fiche();
     f = avecPhoto(f, unePhoto('b', 'programs_board'));
     f = avecPhoto(f, unePhoto('a', 'signboard'));
     f = avecPhoto(f, unePhoto('c', 'brochure'));
     f = avecPhoto(f, unePhoto('d', 'building'));
-    expect(f.photos.map((p) => p.id)).toEqual(['a', 'b', 'c', 'd']);
+    f = avecPhoto(f, unePhoto('e', 'courtyard'));
+    f = avecPhoto(f, unePhoto('f', 'room_empty'));
+    expect(f.photos.map((p) => p.id)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
     expect(peutAjouterPhoto(f)).toBe(false);
-    // Une quatrième photo facultative n’est pas gardée.
-    expect(avecPhoto(f, unePhoto('e', 'building')).photos).toHaveLength(4);
-    expect(photosFacultatives(f).map((p) => p.id)).toEqual(['b', 'c', 'd']);
+    // Une sixième photo facultative n’est pas gardée.
+    expect(avecPhoto(f, unePhoto('g', 'sports_ground')).photos).toHaveLength(6);
+    expect(photosFacultatives(f).map((p) => p.id)).toEqual(['b', 'c', 'd', 'e', 'f']);
   });
 
   it('une seconde enseigne remplace la première', () => {
@@ -600,5 +602,41 @@ describe('le titre de l’écran dit ce que le relais fait', () => {
     for (const type of listes.type_releve) {
       expect(titreDeLEcran(type)).not.toBe('');
     }
+  });
+});
+
+// v2 (13/11, lot B du ticket 165) : le sigle, la remarque, le bonus et « un autre site de… » partent avec le relevé.
+import { bonusCommence, versReleve as versReleveV2 } from '../../src/modele/fiche';
+describe('le relevé v2', () => {
+  it('ne part que ce que le relais a rempli ; « un autre site » seulement avec sa réponse', () => {
+    const base = fiche();
+    const r = versReleveV2(base);
+    expect(r.sigle).toBeNull();
+    expect(r.remarque).toBeNull();
+    expect(r.vusSurPlace).toEqual([]);
+    expect(r.cloture).toBeNull();
+    expect(r.autreSiteDe).toBeNull();
+    expect(bonusCommence(base)).toBe(false);
+    const v2 = {
+      ...base,
+      sigle: ' CSLP ',
+      remarque: 'Inscriptions ouvertes',
+      vusSurPlace: ['cantine', 'cantine', 'toilettes'] as const,
+      cloture: 'non' as const,
+      reponseDoublon: 'autre_site' as const,
+      autreSiteDe: { institutionId: 'i1', nom: '[École]' },
+    };
+    const r2 = versReleveV2({ ...v2, vusSurPlace: [...v2.vusSurPlace] });
+    expect(r2).toMatchObject({
+      sigle: 'CSLP',
+      remarque: 'Inscriptions ouvertes',
+      vusSurPlace: ['cantine', 'toilettes'],
+      cloture: 'non',
+      autreSiteDe: 'i1',
+    });
+    expect(bonusCommence({ ...base, cloture: 'oui' })).toBe(true);
+    expect(
+      versReleveV2({ ...v2, vusSurPlace: [], reponseDoublon: 'la_meme' }).autreSiteDe,
+    ).toBeNull();
   });
 });

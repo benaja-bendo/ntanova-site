@@ -132,7 +132,7 @@ test.describe('espace relais', () => {
       await expect(page.getByText(/dans votre/)).toHaveCount(0);
       // Et la fiche continue.
       await page.getByRole('button', { name: 'Suivant' }).click();
-      await expect(page.getByLabel("Nom sur l'enseigne")).toBeVisible();
+      await expect(page.getByLabel("Nom de l'établissement")).toBeVisible();
     });
   }
 

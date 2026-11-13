@@ -18,16 +18,26 @@ describe('équipement et preuve', () => {
       constateLe: '2026-11-04',
     });
   });
-  it('ne transforme ni non observé en absent ni présence d’un tuyau en service d’eau disponible', () => {
+  // Lot B du ticket 165 (13/11) : la règle du code suit celle de la base (M2). Le terrain dit « vu » pour tout équipement ;
+  // « absent » seulement pour la clôture ; jamais « non précisé ». Avant, il était bridé à clôture, terrain de sport, autre.
+  it('le terrain dit « vu » pour tout équipement, « absent » seulement pour la clôture', () => {
+    for (const cle of ['eau', 'electricite', 'cantine', 'transport', 'bibliotheque', 'toilettes'])
+      expect(
+        lireEquipement({ ...base, cle, source: 'terrain', etat: 'present' }, '2026-11-04')
+          .equipement?.etat,
+      ).toBe('present');
+    expect(
+      lireEquipement({ ...base, cle: 'cloture', source: 'terrain', etat: 'absent' }, '2026-11-04')
+        .equipement?.etat,
+    ).toBe('absent');
     for (const c of [
-      { etat: 'absent' },
-      { etat: 'non_precise' },
-      { cle: 'eau' },
-      { cle: 'electricite' },
-      { cle: 'cantine' },
-      { cle: 'transport' },
+      { cle: 'cantine', etat: 'absent' },
+      { cle: 'eau', etat: 'non_precise' },
+      { cle: 'cloture', etat: 'non_precise' },
     ])
-      expect(lireEquipement({ ...base, ...c }, '2026-11-04').equipement).toBeNull();
+      expect(
+        lireEquipement({ ...base, ...c, source: 'terrain' }, '2026-11-04').equipement,
+      ).toBeNull();
   });
   it('accepte une absence ou une inconnue déclarée par l’école, sans les confondre', () => {
     expect(

@@ -17,34 +17,36 @@ async function arriverALEtape1(page: Page, context: BrowserContext) {
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
   await page.getByRole('button', { name: 'Ajouter une école' }).click();
-  await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
   await page.locator('input[type=file]').first().setInputFiles(photo);
   await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
   await expect(page.getByText('Position prise')).toBeVisible();
+  await page.getByLabel('Comment la trouver ?').fill('Face au marché');
 }
 
-/** Ouvre le choix des autres photos, choisit ce que la photo montre, et la dépose. */
+/** v2 (13/11) : les photos en plus se prennent dans le bonus, chacune à sa place (« Photo : Cour (vide) »). */
 async function ajouterUneAutrePhoto(page: Page, role: RegExp) {
-  const ouvrir = page.getByRole('button', { name: /Ajouter d'autres photos/ });
-  if (await ouvrir.isVisible()) await ouvrir.click();
-  await page.getByRole('button', { name: role }).click();
-  await page.getByLabel('Galerie : autre photo').setInputFiles(photo);
+  await page.getByLabel(new RegExp(`^Photo : ${role.source}`)).setInputFiles(photo);
+}
+
+/** De l'étape 2 au bonus : « Suivant », personne rencontrée, « Suivant : le bonus ». */
+async function allerAuBonus(page: Page) {
+  await page.getByRole('button', { name: 'Suivant', exact: true }).click();
+  await page.getByRole('button', { name: 'Personne', exact: true }).click();
+  await page.getByRole('button', { name: 'Suivant : le bonus' }).click();
+  await expect(page.getByRole('heading', { name: 'Le bonus' })).toBeVisible();
+}
+
+async function envoyerDepuisLeBonus(page: Page) {
+  await page.getByRole('button', { name: 'Envoyer la fiche' }).click();
+  await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
 }
 
 /** Du 1/3 à l'envoi : le nom, un niveau, une direction absente (pas de contact), puis « Enregistrer ». */
 async function finirLaFiche(page: Page, nom: string, niveau: string) {
   await page.getByRole('button', { name: 'Suivant' }).click();
-  await page.getByLabel("Nom sur l'enseigne").fill(nom);
-  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+  await page.getByLabel("Nom de l'établissement").fill(nom);
   await niveaux(page).getByRole('button', { name: niveau, exact: true }).click();
-}
-
-async function envoyerLaFiche(page: Page) {
-  await page.getByRole('button', { name: 'Suivant' }).click();
-  await page.getByRole('button', { name: 'Absente' }).click();
-  await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
-  await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 }
 
 interface PhotoGardee {
@@ -105,43 +107,45 @@ function serveur(page: Page) {
 }
 
 test.describe('les photos d’une fiche', () => {
-  test('l’enseigne seule suffit ; trois autres photos au plus, chacune avec ce qu’elle montre, et on peut les retirer', async ({
+  test('l’enseigne seule suffit ; dans le bonus, cinq autres photos au plus, chacune à sa place, et on peut les retirer', async ({
     page,
     context,
   }) => {
     await arriverALEtape1(page, context);
+    await finirLaFiche(page, '[École 1]', 'Primaire');
+    await allerAuBonus(page);
 
-    // Facultatif : rien n'est demandé, mais l'option est proposée en clair.
-    await expect(page.getByRole('region', { name: /Autres photos/ })).toBeVisible();
-    await expect(page.getByText(/0\/3 en plus de l.enseigne/)).toBeVisible();
-    await expect(page.getByText(/panneau ou une affiche qui liste les filières/)).toBeVisible();
+    // Facultatif : deux groupes, la page de l'école et le travail de NTanova (jamais publié).
+    const photos = page.getByRole('region', { name: /Photos en plus/ });
+    await expect(photos).toContainText('0 sur 5');
+    await expect(photos).toContainText('Pour la page de l’école');
+    await expect(photos).toContainText('(facultatif, non publiées)');
 
     await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
-    await expect(page.getByText(/1\/3 en plus de l.enseigne/)).toBeVisible();
+    await expect(photos).toContainText('1 sur 5');
     await ajouterUneAutrePhoto(page, /Prospectus remis par l.école/);
     await ajouterUneAutrePhoto(page, /Autre vue du bâtiment \(sans enfant\)/);
-    await expect(page.getByText(/3\/3 en plus de l.enseigne/)).toBeVisible();
-
-    // Trois photos en plus : plus rien à ajouter.
-    await expect(page.getByRole('button', { name: /Ajouter d'autres photos/ })).toHaveCount(0);
-    await expect(page.getByLabel('Galerie : autre photo')).toHaveCount(0);
-
-    // Chacune garde son rôle, dans l'ordre où elle a été prise.
-    const liste = page.locator('ul.liste-photos li');
-    await expect(liste).toHaveCount(3);
-    await expect(liste.nth(0)).toContainText('Panneau ou affiche des formations');
-    await expect(liste.nth(1)).toContainText('Prospectus');
-    await expect(liste.nth(2)).toContainText('Autre vue du bâtiment');
+    await ajouterUneAutrePhoto(page, /Cour \(vide\)/);
+    await ajouterUneAutrePhoto(page, /Terrain de sport/);
+    await expect(photos).toContainText('5 sur 5');
+    // Cinq photos en plus : plus rien à ajouter.
+    await expect(page.getByLabel(/^Photo : Portail/)).toBeDisabled();
 
     // En retirer une rend la place.
     await page
       .getByRole('button', { name: "Retirer la photo : Prospectus remis par l'école" })
       .click();
-    await expect(page.getByText(/2\/3 en plus de l.enseigne/)).toBeVisible();
-    await expect(page.getByLabel('Galerie : autre photo')).toHaveCount(1);
+    await expect(photos).toContainText('4 sur 5');
+    await expect(page.getByLabel(/^Photo : Portail/)).toBeEnabled();
 
     const gardees = await photosDuTelephone(page);
-    expect(gardees.map((p) => p.role).sort()).toEqual(['building', 'programs_board', 'signboard']);
+    expect(gardees.map((p) => p.role).sort()).toEqual([
+      'building',
+      'courtyard',
+      'programs_board',
+      'signboard',
+      'sports_ground',
+    ]);
   });
 
   test('les photos partent avec la fiche, chacune sous le poids de 200 Ko', async ({
@@ -149,10 +153,12 @@ test.describe('les photos d’une fiche', () => {
     context,
   }) => {
     await arriverALEtape1(page, context);
-    await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
-    await expect(page.getByText(/1\/3 en plus de l.enseigne/)).toBeVisible();
     await finirLaFiche(page, '[École 1]', 'Primaire');
-    await envoyerLaFiche(page);
+    await allerAuBonus(page);
+    await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
+    await expect(page.getByRole('region', { name: /Photos en plus/ })).toContainText('1 sur 5');
+    await envoyerDepuisLeBonus(page);
+    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 
     const recu = await serveur(page);
     expect(recu.releves).toHaveLength(1);
@@ -171,7 +177,7 @@ test.describe('les photos d’une fiche', () => {
     await seConnecter(page, '/relais/');
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
     await page.getByRole('button', { name: 'Ajouter une école' }).click();
-    await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
 
     // Une photo de 3 000 × 2 000 px faite de bruit : le pire cas pour un encodeur.
     const origine = await page.evaluate(async () => {
@@ -222,7 +228,7 @@ test.describe('les photos d’une fiche', () => {
     await seConnecter(page, '/relais/');
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
     await page.getByRole('button', { name: 'Ajouter une école' }).click();
-    await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
 
     await page.locator('input[type=file]').first().setInputFiles(photo);
     await expect(page.getByText('Allègement de la photo…')).toBeVisible();
@@ -231,6 +237,7 @@ test.describe('les photos d’une fiche', () => {
     await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Allègement de la photo…')).toHaveCount(0);
     await expect(page.getByText('Position prise')).toBeVisible();
+    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
     await expect(page.getByRole('button', { name: 'Suivant' })).toBeEnabled();
   });
 });
@@ -242,8 +249,7 @@ test.describe('les séries et filières vues', () => {
   }) => {
     await arriverALEtape1(page, context);
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await page.getByLabel("Nom sur l'enseigne").fill('[Lycée 1]');
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+    await page.getByLabel("Nom de l'établissement").fill('[Lycée 1]');
 
     const bloc = page.getByRole('region', { name: 'Séries et formations' });
     await expect(bloc).toHaveCount(0);
@@ -263,16 +269,16 @@ test.describe('les séries et filières vues', () => {
     context,
   }) => {
     await arriverALEtape1(page, context);
-    await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
-    await expect(page.getByText(/1\/3 en plus de l.enseigne/)).toBeVisible();
     await finirLaFiche(page, '[Lycée 1]', 'Lycée');
-
     const bloc = page.getByRole('region', { name: 'Séries et formations' });
     await bloc.getByLabel(/Précisions sur les séries/).fill('Séries C et D');
     await bloc.getByLabel(/Je les ai prises en photo/).check();
-    // Une photo de panneau est bien dans la fiche : pas de rappel.
-    await expect(page.getByText(/Ajoutez cette photo à l.étape 1\/3/)).toHaveCount(0);
-    await envoyerLaFiche(page);
+    // v2 (13/11) : la photo des programmes se prend dans le bonus, après la rencontre.
+    await expect(bloc).toContainText('Vous ajouterez cette photo dans le bonus');
+    await allerAuBonus(page);
+    await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
+    await envoyerDepuisLeBonus(page);
+    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 
     const [releve] = (await serveur(page)).releves;
     expect(releve).toMatchObject({
@@ -281,24 +287,6 @@ test.describe('les séries et filières vues', () => {
       programmesVus: 'Séries C et D',
       programmesEnPhoto: true,
     });
-  });
-
-  test('« prises en photo » sans photo de panneau : un rappel, sans bloquer', async ({
-    page,
-    context,
-  }) => {
-    await arriverALEtape1(page, context);
-    await finirLaFiche(page, '[Lycée 2]', 'Lycée');
-    const bloc = page.getByRole('region', { name: 'Séries et formations' });
-    await bloc.getByLabel(/Je les ai prises en photo/).check();
-    await expect(page.getByText(/Ajoutez cette photo à l.étape 1\/3/)).toBeVisible();
-    // Le rappel mène à l'étape 1/3, où l'on ajoute la photo.
-    await bloc.getByRole('button', { name: 'Retour à la photo' }).click();
-    await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
-    await ajouterUneAutrePhoto(page, /Prospectus remis par l.école/);
-    await expect(page.getByText(/1\/3 en plus de l.enseigne/)).toBeVisible();
-    await page.getByRole('button', { name: 'Suivant' }).click();
-    await expect(page.getByText(/Ajoutez cette photo à l.étape 1\/3/)).toHaveCount(0);
   });
 });
 
@@ -324,14 +312,17 @@ test.describe('hors ligne', () => {
     await page.locator('input[type=file]').first().setInputFiles(photo);
     await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
     await expect(page.getByText('Position prise')).toBeVisible();
-    await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
-    await expect(page.getByText(/1\/3 en plus de l.enseigne/)).toBeVisible();
+    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
     await finirLaFiche(page, '[École hors ligne]', 'Lycée');
     await page
       .getByRole('region', { name: 'Séries et formations' })
       .getByLabel(/Précisions sur les séries/)
       .fill('Série C');
-    await envoyerLaFicheHorsLigne(page);
+    await allerAuBonus(page);
+    await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
+    await page.getByRole('button', { name: 'Envoyer la fiche' }).click();
+    await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
+    await expect(page.getByText('1 fiche attend le réseau.')).toBeVisible();
 
     // Le téléphone garde la fiche et ses deux photos, dans IndexedDB ...
     const gardees = await photosDuTelephone(page);
@@ -376,6 +367,7 @@ test.describe('hors ligne', () => {
     await page.getByRole('button', { name: 'Ajouter une école' }).click();
     await page.locator('input[type=file]').first().setInputFiles(photo);
     await expect(page.getByText('Position prise')).toBeVisible();
+    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
     const doublon = page.getByRole('region', { name: 'Doublon possible' });
     await expect(doublon).toBeVisible();
     await expect(doublon).toContainText('[École exemple publiée]');
@@ -383,18 +375,11 @@ test.describe('hors ligne', () => {
 
     // Sans réponse, la fiche ne passe pas ; avec elle, oui.
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
     await doublon.getByRole('button', { name: 'Non, une autre' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await expect(page.getByRole('heading', { name: 'Ce qui se voit de la rue' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: "L'établissement" })).toBeVisible();
   });
 });
 
 /** Comme `envoyerLaFiche`, mais sans attendre l'envoi : le téléphone est hors ligne. */
-async function envoyerLaFicheHorsLigne(page: Page) {
-  await page.getByRole('button', { name: 'Suivant' }).click();
-  await page.getByRole('button', { name: 'Absente' }).click();
-  await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
-  await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('1 fiche attend le réseau.')).toBeVisible();
-}

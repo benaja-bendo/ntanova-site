@@ -8,7 +8,7 @@ import type { AgrementEnregistre } from '../../modele/agrement';
 import type { MotDirection } from '../../modele/mot-direction';
 import { lireVueEnsemble } from '../../modele/vue-ensemble';
 import { lireEtatPhotoPublique, ROLES_PUBLIABLES } from '../../modele/photos-publiques';
-import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
+import { listes, niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { lireFormationsVues } from '../../modele/formations-rapides';
 import {
   ErreurDecision,
@@ -66,6 +66,7 @@ const versProgramme = (f: Omit<FormationSaisie, 'cycle'> & { cycle?: string }) =
 
 const versCorrections = (c: CorrectionEcole) => ({
   ...(c.nom !== undefined ? { sign_name: c.nom } : {}),
+  ...(c.sigle !== undefined ? { acronym: c.sigle } : {}),
   ...(c.typeEcole !== undefined ? { school_kind: c.typeEcole } : {}),
   ...(c.niveaux !== undefined ? { levels: c.niveaux } : {}),
   ...(c.programme !== undefined ? { curriculum_note: c.programme } : {}),
@@ -75,6 +76,7 @@ const versCorrections = (c: CorrectionEcole) => ({
 
 const lireCorrections = (c: Record<string, unknown>): CorrectionEcole => ({
   ...(typeof c.sign_name === 'string' ? { nom: c.sign_name } : {}),
+  ...(typeof c.acronym === 'string' ? { sigle: c.acronym } : {}),
   ...(typeof c.school_kind === 'string' ? { typeEcole: typeConnu(c.school_kind) } : {}),
   ...(Array.isArray(c.levels) ? { niveaux: niveauxConnus(c.levels) } : {}),
   ...('curriculum_note' in c ? { programme: c.curriculum_note as string | null } : {}),
@@ -144,6 +146,11 @@ const versFile = (l: LigneFile): ReleveAValider => ({
 
 interface LigneDetail {
   id: string;
+  acronym?: string | null;
+  relay_note?: string | null;
+  seen_equipment?: string[] | null;
+  fence?: 'oui' | 'non' | null;
+  duplicate_of_institution_id?: string | null;
   relay_id: string;
   received_at: string;
   taken_at: string;
@@ -188,7 +195,8 @@ const COLONNES_DETAIL =
   'id, relay_id, received_at, taken_at, kind, sign_name, position, accuracy_m, levels, school_kind, curriculum_note, ' +
   'observed_programs, programs_photographed, observed_formations, landmark, sign_phone, direction_seen, come_back_note, ' +
   'duplicate_answer, corrects_submission_id, outside_batch, in_open_zone, division_id, possible_duplicate, contact_confirmed_at, ' +
-  'contact_role, trial_validated_at, campus_id, relais(prenom), lots(nom, essai), ' +
+  'contact_role, trial_validated_at, campus_id, acronym, relay_note, seen_equipment, fence, duplicate_of_institution_id, ' +
+  'relais(prenom), lots(nom, essai), ' +
   'doublon:campuses!field_submissions_duplicate_of_campus_id_fkey(id, label, institutions(name)), ' +
   'campus:campuses!field_submissions_campus_id_fkey(label, publication, institutions(name), geo_divisions!campuses_division_id_fkey(name))';
 
@@ -485,6 +493,13 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         numeroEnseigne: r.sign_phone,
         direction: r.direction_seen,
         repasser: r.come_back_note,
+        sigle: r.acronym ?? null,
+        remarque: r.relay_note ?? null,
+        vusSurPlace: (r.seen_equipment ?? []).filter((k): k is Valeur<'equipment_key'> =>
+          (listes.equipment_key as readonly string[]).includes(k),
+        ),
+        cloture: r.fence ?? null,
+        autreSiteDe: r.duplicate_of_institution_id ?? null,
         doublonDe: r.doublon
           ? {
               id: r.doublon.id,
@@ -644,8 +659,9 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const corrections = versCorrections(decision.corrections ?? {});
       const avecCorrections = Object.keys(corrections).length > 0;
       const position = decision.position ?? null;
+      const faits = decision.faits ?? [];
       const { data, error } =
-        avecCorrections || position !== null
+        avecCorrections || position !== null || faits.length > 0
         ? await supabase().rpc('accept_reviewed_submission', {
             p_submission: id,
             p_mode: decision.mode ?? null,
@@ -657,6 +673,10 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
             p_changes: corrections,
             // Les deux valeurs ne partent que pour une position saisie : l'appel sans position reste celui d'avant.
             ...(position ? { p_latitude: position.latitude, p_longitude: position.longitude } : {}),
+            // v2 (13/11) : les équipements du bonus gardés par l'administration, écrits comme faits du terrain.
+            ...(faits.length > 0
+              ? { p_facts: faits.map((f) => ({ key: f.cle, value: f.etat })) }
+              : {}),
           })
         : await supabase().rpc('accept_submission', {
             p_submission: id,
