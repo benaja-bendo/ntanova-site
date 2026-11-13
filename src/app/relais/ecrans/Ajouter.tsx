@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   avecPhoto,
   ajouterUnePersonne,
+  basculerCeQuOnVoit,
+  ON_Y_VOIT,
   contactVide,
   demandeLesFormations,
   erreursEtape1,
@@ -184,8 +186,13 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         hauteur: a.hauteur,
         prisLe: new Date().toISOString(),
         envoyee: false,
+        // Lot I : « On y voit » commence sur l'enseigne ; une photo reprise garde ce que le relais avait coché.
+        ...(role === 'signboard' ? { onYVoit: ['signboard' as const] } : {}),
       };
-      modifier((f) => ({ photos: avecPhoto(f, photo).photos }));
+      modifier((f) => {
+        const avant = role === 'signboard' ? photoEnseigne(f)?.onYVoit : undefined;
+        return { photos: avecPhoto(f, avant ? { ...photo, onYVoit: avant } : photo).photos };
+      });
     } catch (e) {
       await journaliser(
         'ajouter-1',
@@ -319,6 +326,14 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
               <Icone nom="photo" taille={32} />
             </div>
           )}
+          {enseigne && (
+            <Choix
+              legende="On y voit"
+              options={ON_Y_VOIT}
+              valeurs={enseigne.onYVoit ?? []}
+              surChoix={(cle) => modifier((f) => ({ photos: basculerCeQuOnVoit(f, cle).photos }))}
+            />
+          )}
           <div className="deux-colonnes">
             <label className="bouton bouton-petit">
               <Icone nom="galerie" />
@@ -418,7 +433,12 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         </section>
 
         {/* v2 (13/11, canevas) : le repère vient avec le lieu, à l'étape 1 ; les puces remplissent le champ. */}
-        <div className="pile-serree">
+        <div className="pile-serree avec-aide">
+          <AideRepliable sujet="le repère">
+            Un lieu que tout le monde connaît, près de l’école&nbsp;: une puce l’écrit en un
+            toucher. Précisez si vous voulez («&nbsp;derrière la pharmacie du rond-point&nbsp;»).
+            Les familles le lisent sous «&nbsp;Où la trouver&nbsp;».
+          </AideRepliable>
           <Champ libelle="Comment la trouver ?" erreur={erreurs.repere}>
             {(a) => (
               <input
@@ -1160,5 +1180,27 @@ function EncartTaches({ fiche }: { fiche: FicheLocale }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+/**
+ * Lot I : la petite aide « (i) » de la planche. Un toucher l'ouvre sous le titre, un autre la referme ; le texte est dans
+ * l'application, il se lit hors ligne.
+ */
+function AideRepliable({ sujet, children }: { sujet: string; children: React.ReactNode }) {
+  const [ouverte, setOuverte] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="bouton-aide-coin"
+        aria-label={`Aide : ${sujet}`}
+        aria-expanded={ouverte}
+        onClick={() => setOuverte((o) => !o)}
+      >
+        <Icone nom="aide" taille={20} />
+      </button>
+      {ouverte && <p className="aide-repliable">{children}</p>}
+    </>
   );
 }

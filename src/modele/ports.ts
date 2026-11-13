@@ -155,6 +155,8 @@ export interface PhotoAEnvoyer {
   largeur: number;
   hauteur: number;
   prisLe: string;
+  /** Lot I : « On y voit » (l'enseigne, le portail, le bâtiment). */
+  onYVoit?: ('signboard' | 'entrance' | 'building')[];
 }
 
 /**
@@ -266,6 +268,8 @@ export interface EcoleACompleter {
   raison?: string | null;
   avantLe?: string | null;
   paieXaf?: number | null;
+  /** Lot I : quand NTanova l'a confiée (« Confiée par NTanova le … »). */
+  confieeLe?: string | null;
 }
 
 /**
@@ -360,6 +364,8 @@ export interface PortRelais {
   enregistrerMonNumeroDePaie(
     operateur: import('./numero-de-paie').OperateurMobileMoney,
     numero: string,
+    /** Lot I : « Au nom de ». */
+    titulaire: string,
   ): Promise<void>;
   /** `POST /releves` */
   envoyerReleve(releve: ReleveAEnvoyer): Promise<Reponse>;
@@ -494,6 +500,8 @@ export interface PhotoVue {
   prisLe: string | null;
   /** L'administration a vérifié qu'elle est publiable (sans enfant, sans nom ni numéro de personne). */
   publiable: boolean;
+  /** Lot I : ce que le relais dit voir dessus (« On y voit »), ou null s'il ne l'a pas dit. */
+  onYVoit?: ('signboard' | 'entrance' | 'building')[] | null;
 }
 
 /** Une formation lue sur une photo, saisie par l'administration. */
@@ -813,6 +821,8 @@ export interface PaiementVu {
   essais: number;
   operateur: string | null;
   numero: string | null;
+  /** Lot I : le nom du titulaire donné par le relais, à comparer avec celui que l'opérateur affiche. */
+  titulaire: string | null;
   payeLe: string | null;
   reference: string | null;
 }
@@ -1104,6 +1114,8 @@ export interface PortAdministration {
     relaisId: string,
     operateur: 'mtn' | 'airtel' | 'autre',
     numero: string,
+    /** Lot I : facultatif ; absent, le nom déjà noté reste. */
+    titulaire?: string | null,
   ): Promise<void>;
 }
 

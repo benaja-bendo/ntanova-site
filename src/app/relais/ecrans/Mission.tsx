@@ -64,7 +64,10 @@ export function Mission({ ecoleId }: { ecoleId: string }) {
           </>
         ) : (
           <>
-            <p className="mention">Confiée par NTanova</p>
+            <p className="mention">
+              Confiée par NTanova
+              {e.confieeLe ? ` le ${jourLong(jourDuCongo(new Date(e.confieeLe)))}` : ''}
+            </p>
             <section className="carte-blanche pile-serree" aria-label="L’école">
               {e.quartier && <p className="surtitre">{e.quartier}</p>}
               <h1 className="intertitre mission-nom" tabIndex={-1}>

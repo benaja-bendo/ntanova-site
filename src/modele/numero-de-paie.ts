@@ -19,7 +19,24 @@ export interface NumeroDePaie {
   operateur: OperateurMobileMoney;
   /** Au format de la base : chiffres, indicatif compris (242…). */
   numero: string;
+  /** Lot I : « Au nom de » — le nom du titulaire, que MTN ou Airtel affiche avant l'envoi. Absent d'un numéro d'avant. */
+  titulaire: string | null;
   majLe: string | null;
+}
+
+/**
+ * Le nom du titulaire, prêt à enregistrer : espaces resserrés, de 2 à 80 caractères. Au Congo, l'opérateur affiche ce nom
+ * avant d'envoyer l'argent : NTanova le compare à celui-ci.
+ */
+export function lireTitulaire(
+  saisie: string,
+): { ok: true; titulaire: string } | { ok: false; erreur: string } {
+  const titulaire = saisie.replace(/\s+/g, ' ').trim();
+  if (titulaire === '')
+    return { ok: false, erreur: 'Écrivez le nom du titulaire, tel que MTN ou Airtel l’affiche.' };
+  if (titulaire.length < 2 || titulaire.length > 80)
+    return { ok: false, erreur: 'Le nom du titulaire fait de 2 à 80 caractères.' };
+  return { ok: true, titulaire };
 }
 
 /** Le numéro prêt à enregistrer, ou ce qui ne va pas, en une phrase. */

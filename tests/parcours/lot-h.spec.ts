@@ -47,6 +47,7 @@ test('« Compte » : le relais ajoute puis change son numéro Mobile Money ; un 
   await paie.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(paie.getByRole('alert')).toContainText('Écrivez le numéro');
   await paie.getByLabel('Numéro').fill('06 123 45 67');
+  await paie.getByLabel('Au nom de').fill('[Titulaire Exemple]');
   await paie.getByRole('button', { name: 'Enregistrer' }).click();
   await expect(paie.getByRole('status')).toContainText('Numéro enregistré');
   await expect(paie).toContainText('MTN');

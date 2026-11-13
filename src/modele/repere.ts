@@ -16,14 +16,13 @@ export interface RepereRapide {
 }
 
 export const REPERES_RAPIDES: readonly RepereRapide[] = [
+  // Lot I (13/11) : les six puces de la planche « Ajouter 1 sur 3 », dans son ordre.
   { cle: 'marche', libelle: 'Marché', phrase: 'Près du marché' },
-  { cle: 'pharmacie', libelle: 'Pharmacie', phrase: 'Près de la pharmacie' },
-  { cle: 'carrefour', libelle: 'Carrefour', phrase: 'Près du carrefour' },
-  { cle: 'rond-point', libelle: 'Rond-point', phrase: 'Près du rond-point' },
   { cle: 'eglise', libelle: 'Église', phrase: 'Près de l’église' },
-  { cle: 'mosquee', libelle: 'Mosquée', phrase: 'Près de la mosquée' },
-  { cle: 'station', libelle: 'Station-service', phrase: 'Près de la station-service' },
-  { cle: 'hopital', libelle: 'Hôpital', phrase: 'Près de l’hôpital' },
+  { cle: 'pharmacie', libelle: 'Pharmacie', phrase: 'Près de la pharmacie' },
+  { cle: 'station', libelle: 'Station', phrase: 'Près de la station-service' },
+  { cle: 'carrefour', libelle: 'Carrefour', phrase: 'Près du carrefour' },
+  { cle: 'ecole', libelle: 'École', phrase: 'Près d’une autre école' },
 ];
 
 /** Pour comparer sans se soucier de la casse, des espaces ni du type d'apostrophe (un clavier de téléphone met ’ ou '). */

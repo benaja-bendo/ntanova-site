@@ -88,6 +88,7 @@ interface PhotoFausse {
   mime: string;
   octets: number;
   publiable: boolean;
+  onYVoit?: ('signboard' | 'entrance' | 'building')[];
 }
 
 /** Une institution et son campus, réunis (le faux serveur n'a qu'un campus par institution, sauf ajout). */
@@ -109,6 +110,8 @@ interface CampusFaux {
   position: { latitude: number; longitude: number } | null;
   divisionId: string | null;
   confieeA: string | null;
+  /** Lot I : quand la mission a été confiée. */
+  confieeLe?: string | null;
   noteMission: string | null;
   genreMission: Valeur<'mission_kind'>;
   /** v2 (13/11) : la tâche, la raison, la date limite et le montant de la mission. */
@@ -193,7 +196,12 @@ const TROIS_PERSONNES = 'Une fiche a trois personnes à contacter au plus.';
 
 interface Etat {
   /** Lot H : le numéro Mobile Money du relais. */
-  numeroDePaie?: { operateur: 'mtn' | 'airtel' | 'autre'; numero: string; majLe: string } | null;
+  numeroDePaie?: {
+    operateur: 'mtn' | 'airtel' | 'autre';
+    numero: string;
+    titulaire?: string | null;
+    majLe: string;
+  } | null;
   /** v2 (13/11) : les demandes faites (« demandé à l'école le … ») et les images des écoles. */
   demandes?: {
     id: string;
@@ -233,7 +241,7 @@ interface Etat {
   messages: Record<string, string>;
   paie: {
     semaines: SemaineFausse[];
-    numeros: Record<string, { operateur: string; numero: string }>;
+    numeros: Record<string, { operateur: string; numero: string; titulaire?: string | null }>;
     deja: string[];
   };
   /** Les relevés qu'un autre relais a envoyés et qui attendent : ils apparaissent dans les lieux connus. */
@@ -673,6 +681,7 @@ const relais: PortRelais = {
           // v2 (13/11) : une mission fictive porte son identifiant ; ce qu'il faut faire, la date et le montant se règlent
           // pour les parcours par `ntanova-faux-mission` (JSON : tache, raison, avantLe, paieXaf).
           missionId: `m-${c.id}`,
+          confieeLe: c.confieeLe ?? null,
           ...(c.detailsMission ?? {}),
           ...(JSON.parse(localStorage.getItem('ntanova-faux-mission') ?? '{}') as Record<
             string,
@@ -698,9 +707,10 @@ const relais: PortRelais = {
   },
   async monNumeroDePaie() {
     await reseau();
-    return lireEtat().numeroDePaie ?? null;
+    const n = lireEtat().numeroDePaie;
+    return n ? { ...n, titulaire: n.titulaire ?? null } : null;
   },
-  async enregistrerMonNumeroDePaie(operateur, numero) {
+  async enregistrerMonNumeroDePaie(operateur, numero, titulaire) {
     await reseau();
     if (lireEtat().statut !== 'actif')
       throw new ErreurRejet('42501', 'Seul un relais actif enregistre son numéro de paie.');
@@ -709,7 +719,18 @@ const relais: PortRelais = {
         '22023',
         'Le numéro s’écrit avec l’indicatif, sans + ni espace (242…).',
       );
-    ecrire((e) => (e.numeroDePaie = { operateur, numero, majLe: new Date().toISOString() }));
+    const nom = titulaire.replace(/\s+/g, ' ').trim();
+    if (nom !== '' && (nom.length < 2 || nom.length > 80))
+      throw new ErreurRejet('22023', 'Le nom du titulaire fait de 2 à 80 caractères.');
+    ecrire(
+      (e) =>
+        (e.numeroDePaie = {
+          operateur,
+          numero,
+          titulaire: nom || e.numeroDePaie?.titulaire || null,
+          majLe: new Date().toISOString(),
+        }),
+    );
   },
   async maPaie() {
     await reseau();
@@ -816,6 +837,7 @@ const relais: PortRelais = {
         id: photo.id,
         releveId,
         role: photo.role,
+        ...(photo.onYVoit ? { onYVoit: photo.onYVoit } : {}),
         mime: photo.mime,
         octets: photo.octets,
         publiable: false,
@@ -1145,6 +1167,7 @@ const admin: PortAdministration = {
         hauteur: 960,
         prisLe: null,
         publiable: p.publiable,
+        onYVoit: p.onYVoit ?? null,
       }));
   },
   async photosDeTravail(id) {
@@ -2075,6 +2098,7 @@ const admin: PortAdministration = {
       if (ecole)
         Object.assign(ecole, {
           confieeA: relaisId,
+          confieeLe: new Date().toISOString(),
           noteMission: note,
           genreMission: genre,
           detailsMission: details ?? null,
@@ -2766,6 +2790,7 @@ const admin: PortAdministration = {
       essais: l.essais,
       operateur: e.paie.numeros[l.relaisId]?.operateur ?? null,
       numero: e.paie.numeros[l.relaisId]?.numero ?? null,
+      titulaire: e.paie.numeros[l.relaisId]?.titulaire ?? null,
       payeLe: semaine.payes[l.relaisId]?.le ?? null,
       reference: semaine.payes[l.relaisId]?.reference ?? null,
     }));
@@ -2782,9 +2807,16 @@ const admin: PortAdministration = {
       if (s) s.payes[relaisId] = { le: new Date().toISOString(), reference: reference.trim() };
     });
   },
-  async enregistrerMobileMoney(relaisId, operateur, numero) {
+  async enregistrerMobileMoney(relaisId, operateur, numero, titulaire) {
     await reseau();
-    ecrire((e) => (e.paie.numeros[relaisId] = { operateur, numero }));
+    ecrire(
+      (e) =>
+        (e.paie.numeros[relaisId] = {
+          operateur,
+          numero,
+          titulaire: titulaire?.trim() || e.paie.numeros[relaisId]?.titulaire || null,
+        }),
+    );
   },
 };
 
