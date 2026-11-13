@@ -602,7 +602,15 @@ function Photos({
               {' · '}
               {Math.round(p.octets / 1000)} Ko
             </figcaption>
-            <div className={v2.actions}>
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+              {peutParaitreSurLeSite(p.role) && (
+                <span className="mr-auto flex flex-col text-sm">
+                  <b className="text-[15px]">Photo publiable</b>
+                  <span className="text-muted-foreground">
+                    Sans enfant ni personne reconnaissable.
+                  </span>
+                </span>
+              )}
               {p.publiable ? (
                 <span className={v2.pastilleSucces}>
                   {peutParaitreSurLeSite(p.role)
@@ -1060,11 +1068,33 @@ function Detail({
             )}
             <div className={ligneFait}>
               <dt className={libelleFait}>Type</dt>
-              <dd>{libelleTypeEcole[detail.typeEcole]}</dd>
+              <dd className="flex items-baseline justify-between gap-3">
+                <span>{libelleTypeEcole[detail.typeEcole]}</span>
+                {nouvelleEcole && !lectureSeule && (
+                  <button
+                    type="button"
+                    className="cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4"
+                    onClick={() => setDemandeCorrection((n) => n + 1)}
+                  >
+                    Corriger<span className="sr-only"> le type</span>
+                  </button>
+                )}
+              </dd>
             </div>
             <div className={ligneFait}>
               <dt className={libelleFait}>Niveaux</dt>
-              <dd>{detail.niveaux.map((n) => libelleNiveau[n]).join(', ') || '—'}</dd>
+              <dd className="flex items-baseline justify-between gap-3">
+                <span>{detail.niveaux.map((n) => libelleNiveau[n]).join(', ') || '—'}</span>
+                {nouvelleEcole && !lectureSeule && (
+                  <button
+                    type="button"
+                    className="cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4"
+                    onClick={() => setDemandeCorrection((n) => n + 1)}
+                  >
+                    Corriger<span className="sr-only"> les niveaux</span>
+                  </button>
+                )}
+              </dd>
             </div>
             {detail.programme && (
               <div className={ligneFait}>
@@ -1477,7 +1507,7 @@ function Detail({
                 </p>
                 <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[15px]">
                   {bilanAvant.lignes.map((l) => (
-                    <li key={l.cle} className={v2.rang}>
+                    <li key={l.cle} className="flex items-start gap-2 [&>svg]:mt-0.5">
                       <Icone nom={iconeDeLaLigne[l.etat]} taille={16} />
                       <span>
                         <b>{l.titre}</b> · {l.texte}
