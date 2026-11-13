@@ -9,12 +9,9 @@ import {
 import { Bandeau } from '@/ui/v2/formulaire';
 import { jour } from '../../ui/composants';
 import { TitreEcran } from './Cadre';
-
-const libelleStatut: Record<RelaisVu['statut'], { texte: string; classe: string }> = {
-  en_attente: { texte: 'À activer', classe: 'etat-attente' },
-  actif: { texte: 'Actif', classe: 'etat-envoye' },
-  suspendu: { texte: 'Suspendu', classe: 'etat-refusee' },
-};
+import { ActionsSecondaires, Bouton, Dialogue } from '@/ui/v2/admin';
+import { cn } from '@/lib/utils';
+import { IconeBas } from '@/ui/shadcn/icones';
 
 /** Lot G : ce qui demande un regard — des fiches renvoyées, une position lente cette semaine ; sinon « Aucun ». */
 export function signauxDuRelais(r: Pick<RelaisVu, 'compteurs'>): string[] {
@@ -28,9 +25,9 @@ export function signauxDuRelais(r: Pick<RelaisVu, 'compteurs'>): string[] {
 
 function SignalDuRelais({ r }: { r: RelaisVu }) {
   const s = signauxDuRelais(r);
-  if (s.length === 0) return <span className={v2.doux}>Aucun</span>;
+  if (s.length === 0) return <span className="text-muted-foreground max-lg:hidden">Aucun</span>;
   return (
-    <span className="relais-signaux">
+    <span className="flex flex-wrap gap-1.5">
       {s.map((x) => (
         <span key={x} className={v2.pastilleAttention}>
           {x}
@@ -55,7 +52,16 @@ export function relaisDeLaSemaine(
   );
 }
 
-function LigneRelais({
+/** « Première connexion hier », « Jamais connecté » : ce que dit la colonne « Compte » (planche). */
+function PastilleCompte({ r }: { r: RelaisVu }) {
+  if (r.statut === 'suspendu') return <span className={v2.pastilleDanger}>Suspendu</span>;
+  if (r.statut === 'en_attente') return <span className={v2.pastilleAttention}>À activer</span>;
+  if (r.compteurs.envoyees === 0) return <span className={v2.pastilleNeutre}>Jamais connecté</span>;
+  return <span className={v2.pastilleSucces}>Actif</span>;
+}
+
+/** Les gestes rares d'un relais (planche : ils ne sont pas dans la ligne) : changer de lot, suspendre, réactiver. */
+function GestesDuRelais({
   r,
   lots,
   admin,
@@ -67,19 +73,17 @@ function LigneRelais({
   surChangement: (texte: string) => void;
 }) {
   // Un relais sans lot (valeur vide) relève où il se trouve : le lot n'est qu'un secteur conseillé. Un nouveau relais
-  // ne commence plus par le lot d'essai (décision du fondateur, 05/11/2026) : ses fiches ne se publieraient jamais, et un
-  // relais qu'on sortait de l'essai envoyait encore des fiches « du lot d'essai ». Le lot d'essai reste dans le menu.
-  const parDefaut = r.lotId ?? '';
-  const [lot, setLot] = useState(parDefaut);
+  // ne commence plus par le lot d'essai (décision du fondateur, 05/11/2026).
+  const [lot, setLot] = useState(r.lotId ?? '');
+  const [ouvert, setOuvert] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
-  const nomLot = lots.find((l) => l.id === r.lotId)?.nom ?? 'Aucun lot';
-
   const agir = async (action: () => Promise<void>, texte: string) => {
     setEnCours(true);
     setErreur(null);
     try {
       await action();
+      setOuvert(false);
       surChangement(texte);
     } catch (e) {
       setErreur(e instanceof ErreurDecision ? e.message : 'La base ne répond pas.');
@@ -87,109 +91,153 @@ function LigneRelais({
       setEnCours(false);
     }
   };
-
   return (
-    <tr>
-      <td>
-        <b>{r.prenom || '[sans prénom]'}</b>
-        {r.email && <span className={v2.mentionEmail}>{r.email}</span>}
-        <span className={v2.mentionBloc}>Première connexion : {jour(r.creeLe)}</span>
-        <span className={v2.mentionBloc}>{nomLot}</span>
-      </td>
-      <td>
-        <span className={`etiquette ${libelleStatut[r.statut].classe}`}>
-          {libelleStatut[r.statut].texte}
-        </span>
-      </td>
-      <td>
-        {r.compteurs.envoyees}
-        {r.compteurs.envoyeesSemaine > 0 && (
-          <span className={v2.doux}> · {r.compteurs.envoyeesSemaine} cette semaine</span>
-        )}
-        <span className={v2.mentionBloc}>
-          {r.compteurs.aValider > 0 && `${r.compteurs.aValider} à valider · `}
-          {r.compteurs.acceptees} acceptée{r.compteurs.acceptees > 1 ? 's' : ''}
-          {r.compteurs.aCorriger > 0 && ` · ${r.compteurs.aCorriger} à corriger`}
-          {r.compteurs.refusees > 0 &&
-            ` · ${r.compteurs.refusees} refusée${r.compteurs.refusees > 1 ? 's' : ''}`}
-        </span>
-      </td>
-      <td>{r.compteurs.contactsConfirmes}</td>
-      <td>
-        <SignalDuRelais r={r} />
-      </td>
-      <td>
-        <div className={v2.actions}>
-          <select
-            className={v2.champ}
-            aria-label={`Lot de ${r.prenom}`}
-            value={lot}
-            onChange={(e) => setLot(e.target.value)}
+    <>
+      <ActionsSecondaires nom={r.prenom || 'ce relais'} discret>
+        <button type="button" onClick={() => setOuvert(true)}>
+          {r.statut === 'actif' ? 'Changer de lot' : 'Choisir son lot et l’activer'}
+        </button>
+        {r.statut === 'actif' ? (
+          <button
+            type="button"
+            className="text-destructive!"
+            disabled={enCours}
+            onClick={() =>
+              void agir(() => admin.suspendreRelais(r.id), `${r.prenom} est suspendu.`)
+            }
           >
-            <option value="">Sans lot</option>
-            {lots.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.nom === l.divisionNom ? l.nom : `${l.nom} — ${l.divisionNom}`}
-              </option>
-            ))}
-          </select>
-          {r.statut === 'actif' ? (
-            <>
-              <button
-                type="button"
-                className={v2.boutonSecondairePetit}
-                disabled={enCours || lot === r.lotId}
-                onClick={() =>
-                  void agir(
-                    () => admin.activerRelais(r.id, lot || null),
-                    `${r.prenom} change de lot.`,
-                  )
-                }
-              >
-                Changer de lot
-              </button>
-              <button
-                type="button"
-                className={v2.boutonRefusPetit}
-                disabled={enCours}
-                onClick={() =>
-                  void agir(() => admin.suspendreRelais(r.id), `${r.prenom} est suspendu.`)
-                }
-              >
-                Suspendre
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={v2.boutonPetit}
-                disabled={enCours}
-                onClick={() =>
-                  void agir(() => admin.activerRelais(r.id, lot || null), `${r.prenom} est actif.`)
-                }
-              >
-                {r.statut === 'suspendu' ? 'Réactiver' : 'Activer'}
-              </button>
-              {/* Un compte inconnu s'écarte : il passe « suspendu », et peut être réactivé plus tard. */}
-              {r.statut === 'en_attente' && (
-                <button
-                  type="button"
-                  className={v2.boutonRefusPetit}
-                  disabled={enCours}
-                  onClick={() =>
-                    void agir(() => admin.suspendreRelais(r.id), `${r.prenom} est écarté.`)
-                  }
-                >
-                  Écarter
-                </button>
-              )}
-            </>
-          )}
-        </div>
-        {erreur && <p className={v2.erreur}>{erreur}</p>}
-      </td>
-    </tr>
+            Suspendre
+          </button>
+        ) : r.statut === 'suspendu' ? (
+          <button
+            type="button"
+            disabled={enCours}
+            onClick={() =>
+              void agir(() => admin.activerRelais(r.id, r.lotId), `${r.prenom} est actif.`)
+            }
+          >
+            Réactiver
+          </button>
+        ) : (
+          // Un compte inconnu s'écarte : il passe « suspendu », et peut être réactivé plus tard.
+          <button
+            type="button"
+            className="text-destructive!"
+            disabled={enCours}
+            onClick={() => void agir(() => admin.suspendreRelais(r.id), `${r.prenom} est écarté.`)}
+          >
+            Écarter ce compte
+          </button>
+        )}
+      </ActionsSecondaires>
+      {erreur && !ouvert && <span className={v2.erreur}>{erreur}</span>}
+      {ouvert && (
+        <Dialogue
+          titre={`Le lot de ${r.prenom}`}
+          variante="confirmation"
+          libelleFermeture="Annuler"
+          occupe={enCours}
+          fermer={() => setOuvert(false)}
+          entete={<h2>Le lot de {r.prenom || 'ce relais'}</h2>}
+        >
+          <label className="flex flex-col gap-1.5 text-sm font-bold">
+            Lot (un secteur conseillé)
+            <select
+              className={v2.champ}
+              aria-label={`Lot de ${r.prenom}`}
+              value={lot}
+              onChange={(e) => setLot(e.target.value)}
+            >
+              <option value="">Sans lot</option>
+              {lots.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.nom === l.divisionNom ? l.nom : `${l.nom} — ${l.divisionNom}`}
+                </option>
+              ))}
+            </select>
+          </label>
+          {erreur && <p className={v2.erreur}>{erreur}</p>}
+          <Bouton
+            enCours={enCours}
+            onClick={() =>
+              void agir(
+                () => admin.activerRelais(r.id, lot || null),
+                r.statut === 'actif' ? `${r.prenom} change de lot.` : `${r.prenom} est actif.`,
+              )
+            }
+          >
+            {r.statut === 'actif' ? 'Changer de lot' : 'Activer'}
+          </Bouton>
+        </Dialogue>
+      )}
+    </>
+  );
+}
+
+/** Une ligne (ordinateur) ou une carte (téléphone) : le relais, son compte, ses fiches, ses contacts, son signal. */
+function LigneRelais({
+  r,
+  lots,
+  admin,
+  surChangement,
+}: {
+  r: RelaisVu;
+  lots: LotVu[];
+  admin: PortAdministration;
+  surChangement: (texte: string) => void;
+}) {
+  const fiches = (
+    <>
+      <b>{r.compteurs.envoyees}</b>
+      {r.compteurs.envoyeesSemaine > 0 && (
+        <span className="text-muted-foreground">
+          {' '}
+          · {r.compteurs.envoyeesSemaine} cette semaine
+        </span>
+      )}
+    </>
+  );
+  return (
+    <div
+      role="row"
+      aria-label={r.prenom || '[sans prénom]'}
+      className="grid items-center border-t border-border lg:grid-cols-[minmax(0,1.4fr)_1fr_1.4fr_1fr_1.4fr_auto] max-lg:grid-cols-[minmax(0,1fr)_auto] max-lg:gap-y-1 max-lg:rounded-xl max-lg:border max-lg:bg-card max-lg:px-4 max-lg:py-3.5"
+    >
+      <div role="cell" className="px-4 py-3.5 max-lg:p-0">
+        <b className="text-[17px]">{r.prenom || '[sans prénom]'}</b>
+        <span className="block text-sm text-muted-foreground lg:hidden">
+          {r.compteurs.envoyees} fiche{r.compteurs.envoyees > 1 ? 's' : ''} envoyée
+          {r.compteurs.envoyees > 1 ? 's' : ''}
+          {r.compteurs.envoyeesSemaine > 0 ? ` · ${r.compteurs.envoyeesSemaine} cette semaine` : ''}
+          {r.compteurs.contactsConfirmes > 0
+            ? ` · ${r.compteurs.contactsConfirmes} contact${r.compteurs.contactsConfirmes > 1 ? 's' : ''} confirmé${r.compteurs.contactsConfirmes > 1 ? 's' : ''}`
+            : ''}
+        </span>
+      </div>
+      <div role="cell" className="px-4 py-3.5 max-lg:hidden">
+        <PastilleCompte r={r} />
+      </div>
+      <div role="cell" className="px-4 py-3.5 max-lg:hidden">
+        {fiches}
+      </div>
+      <div role="cell" className="px-4 py-3.5 max-lg:hidden">
+        {r.compteurs.contactsConfirmes}
+      </div>
+      <div role="cell" className="px-4 py-3.5 max-lg:col-span-2 max-lg:p-0 max-lg:empty:hidden">
+        <SignalDuRelais r={r} />
+      </div>
+      <div
+        role="cell"
+        className="flex items-center justify-end gap-2 px-4 py-3.5 max-lg:col-start-2 max-lg:row-start-1 max-lg:p-0"
+      >
+        {r.compteurs.envoyees > 0 && (
+          <a className="text-[15px] font-bold text-primary underline max-lg:hidden" href="#valider">
+            Voir ses fiches
+          </a>
+        )}
+        <GestesDuRelais r={r} lots={lots} admin={admin} surChangement={surChangement} />
+      </div>
+    </div>
   );
 }
 
@@ -199,45 +247,41 @@ function TableauRelais({
   admin,
   surChangement,
   vide,
+  entete = true,
 }: {
   relais: RelaisVu[];
   lots: LotVu[];
   admin: PortAdministration;
   surChangement: (id: string, texte: string) => void;
   vide: string | null;
+  entete?: boolean;
 }) {
   return (
-    <div className="admin-tableau relais-tableau">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Relais</th>
-            <th scope="col">Compte</th>
-            <th scope="col">Fiches envoyées</th>
-            <th scope="col">Contacts confirmés</th>
-            <th scope="col">Signal</th>
-            <th scope="col">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {relais.map((r) => (
-            <LigneRelais
-              key={`${r.id}-${r.statut}-${r.lotId ?? ''}`}
-              r={r}
-              lots={lots}
-              admin={admin}
-              surChangement={(texte) => surChangement(r.id, texte)}
-            />
-          ))}
-          {vide && (
-            <tr>
-              <td colSpan={6} className={v2.doux}>
-                {vide}
-              </td>
-            </tr>
+    <div role="table" aria-label="Relais" className="flex flex-col max-lg:gap-2.5">
+      {entete && (
+        <div
+          role="row"
+          className="grid bg-muted text-xs font-bold tracking-[0.08em] text-muted-foreground uppercase lg:grid-cols-[minmax(0,1.4fr)_1fr_1.4fr_1fr_1.4fr_auto] max-lg:hidden"
+        >
+          {['Relais', 'Compte', 'Fiches envoyées', 'Contacts confirmés', 'Signal', ''].map(
+            (t, i) => (
+              <div role="columnheader" key={i} className="px-4 py-3">
+                {t || <span className="sr-only">Gestes</span>}
+              </div>
+            ),
           )}
-        </tbody>
-      </table>
+        </div>
+      )}
+      {relais.map((r) => (
+        <LigneRelais
+          key={`${r.id}-${r.statut}-${r.lotId ?? ''}`}
+          r={r}
+          lots={lots}
+          admin={admin}
+          surChangement={(texte) => surChangement(r.id, texte)}
+        />
+      ))}
+      {vide && <p className="m-0 border-t border-border px-4 py-3 text-muted-foreground">{vide}</p>}
     </div>
   );
 }
@@ -254,17 +298,28 @@ export function ListeRelais({
   const [lots, setLots] = useState<LotVu[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
 
   // Un relais sur lequel on vient d'agir reste en vue pendant la visite : il ne file pas dans « autres relais ».
   const [touches, setTouches] = useState<ReadonlySet<string>>(new Set());
-  const enVue = (relais ?? []).filter((r) => relaisDeLaSemaine(r) || touches.has(r.id));
-  const autres = (relais ?? []).filter((r) => !relaisDeLaSemaine(r) && !touches.has(r.id));
+  const aActiver = (relais ?? []).filter((r) => r.statut === 'en_attente');
+  const enVue = (relais ?? []).filter(
+    (r) => r.statut !== 'en_attente' && (relaisDeLaSemaine(r) || touches.has(r.id)),
+  );
+  const autres = (relais ?? []).filter(
+    (r) => r.statut !== 'en_attente' && !relaisDeLaSemaine(r) && !touches.has(r.id),
+  );
   const charger = useCallback(() => {
     Promise.all([admin.relais(), admin.lots()])
       .then(([r, l]) => {
-        // Les comptes à activer d'abord : c'est ce qu'on vient faire ici.
         const ordre = { en_attente: 0, actif: 1, suspendu: 2 } as const;
-        setRelais([...r].sort((a, b) => ordre[a.statut] - ordre[b.statut]));
+        setRelais(
+          [...r].sort(
+            (a, b) =>
+              ordre[a.statut] - ordre[b.statut] ||
+              b.compteurs.envoyeesSemaine - a.compteurs.envoyeesSemaine,
+          ),
+        );
         setLots(l);
         setErreur(null);
         surCompte(r.filter((x) => x.statut === 'en_attente').length);
@@ -281,9 +336,20 @@ export function ListeRelais({
     setAnnonce(texte);
     charger();
   };
+  const activer = async (r: RelaisVu) => {
+    setEnCours(true);
+    try {
+      await admin.activerRelais(r.id, null);
+      surChangement(r.id, `${r.prenom || 'Le relais'} est actif.`);
+    } catch (e) {
+      setErreur(e instanceof ErreurDecision ? e.message : 'La base ne répond pas.');
+    } finally {
+      setEnCours(false);
+    }
+  };
 
   return (
-    <div className={v2.pile}>
+    <>
       <TitreEcran
         titre="Relais"
         regles={
@@ -291,13 +357,12 @@ export function ListeRelais({
             <p>
               Un relais apparaît ici dès sa première connexion, « à activer », avec l’adresse de son
               compte : relie-la à la personne (son message WhatsApp), puis active-la. « Écarter »
-              met de côté un compte que tu ne connais pas. Les lots se gèrent dans l’onglet « Zones
-              ».
+              (dans « ⋯ ») met de côté un compte que tu ne connais pas. Le lot, un secteur
+              conseillé, se change aussi dans « ⋯ ».
             </p>
             <p>
-              Quelqu’un ne peut pas se connecter ? Tant que l’application Google est en mode « test
-              », seules les adresses ajoutées dans Google Cloud (Écran de consentement, Utilisateurs
-              de test) peuvent se connecter. Publier l’application lève cette limite.
+              « Signal » : des fiches renvoyées, ou une position lente cette semaine. Les relais
+              sans envoi cette semaine sont repliés en bas.
             </p>
           </>
         }
@@ -314,43 +379,90 @@ export function ListeRelais({
         </p>
       )}
 
-      <TableauRelais
-        relais={enVue}
-        lots={lots}
-        admin={admin}
-        surChangement={surChangement}
-        vide={
-          relais === null && !erreur
-            ? 'Chargement des relais…'
-            : relais?.length === 0
-              ? 'Aucun relais ne s’est encore connecté.'
-              : enVue.length === 0
-                ? 'Aucun relais n’a envoyé de fiche cette semaine.'
-                : null
-        }
-      />
-      {autres.length > 0 && (
-        <details className="relais-autres">
-          <summary>
-            {autres.length} autre{autres.length > 1 ? 's' : ''} relais, sans envoi cette semaine
-          </summary>
-          <TableauRelais
-            relais={autres}
-            lots={lots}
-            admin={admin}
-            surChangement={surChangement}
-            vide={null}
-          />
-        </details>
-      )}
-      <details className={v2.mentionBloc}>
-        <summary>Quelqu’un ne peut pas se connecter ?</summary>
-        <p className={v2.mention}>
+      {aActiver.map((r) => (
+        <section
+          key={r.id}
+          aria-label={`Compte à activer : ${r.prenom}`}
+          className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border-2 border-ambre bg-attention px-4 py-3.5"
+        >
+          <span className="flex min-w-0 flex-1 flex-col">
+            <b className="font-serif text-xl max-lg:font-sans max-lg:text-lg">
+              {aActiver.length > 1 ? 'Compte à activer' : 'Un compte à activer'}
+            </b>
+            <span className="text-[15px]">
+              Créé {jourRelatif(r.creeLe)}, à relier à une personne
+              {r.email ? ` · ${r.email}` : ''}.
+            </span>
+          </span>
+          <span className="flex items-center gap-1">
+            <Bouton enCours={enCours} texteEnCours="Activation…" onClick={() => void activer(r)}>
+              Activer
+            </Bouton>
+            <GestesDuRelais
+              r={r}
+              lots={lots}
+              admin={admin}
+              surChangement={(texte) => surChangement(r.id, texte)}
+            />
+          </span>
+        </section>
+      ))}
+
+      <h2 className={cn(v2.surtitre, 'lg:hidden')}>Actifs cette semaine</h2>
+      <div className="overflow-hidden rounded-xl border border-border bg-card max-lg:overflow-visible max-lg:border-0 max-lg:bg-transparent">
+        <TableauRelais
+          relais={enVue}
+          lots={lots}
+          admin={admin}
+          surChangement={surChangement}
+          vide={
+            relais === null && !erreur
+              ? 'Chargement des relais…'
+              : relais?.length === 0
+                ? 'Aucun relais ne s’est encore connecté.'
+                : enVue.length === 0
+                  ? 'Aucun relais n’a envoyé de fiche cette semaine.'
+                  : null
+          }
+        />
+        {autres.length > 0 && (
+          <details className="group border-t border-border max-lg:mt-2.5 max-lg:rounded-xl max-lg:border max-lg:bg-card">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-[15px] font-bold text-primary-strong [&::-webkit-details-marker]:hidden max-lg:justify-between max-lg:text-foreground">
+              <IconeBas
+                className="size-5 transition-transform group-open:rotate-180 max-lg:order-last"
+                aria-hidden
+              />
+              {autres.length} autre{autres.length > 1 ? 's' : ''} relais, sans envoi cette semaine
+            </summary>
+            <TableauRelais
+              relais={autres}
+              lots={lots}
+              admin={admin}
+              surChangement={surChangement}
+              vide={null}
+              entete={false}
+            />
+          </details>
+        )}
+      </div>
+      <details className="group">
+        <summary className="cursor-pointer list-none text-[15px] font-bold text-primary-strong underline [&::-webkit-details-marker]:hidden">
+          Quelqu’un ne peut pas se connecter ?
+        </summary>
+        <p className="mt-2 mb-0 text-sm text-muted-foreground">
           Tant que l’application Google est en mode « test », seules les adresses ajoutées dans
           Google Cloud (Écran de consentement, Utilisateurs de test) peuvent se connecter. Publier
           l’application lève cette limite.
         </p>
       </details>
-    </div>
+    </>
   );
+}
+
+/** « hier », « aujourd'hui », sinon « le 30/10 ». */
+function jourRelatif(iso: string): string {
+  const jours = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
+  if (jours <= 0) return 'aujourd’hui';
+  if (jours === 1) return 'hier';
+  return `le ${jour(iso)}`;
 }
