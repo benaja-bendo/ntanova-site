@@ -142,8 +142,11 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
 
     // Un relais la complète et y écrit un autre numéro.
     await ouvrirGestion(ligne, 'Mission');
-    await ligne.getByLabel('À vérifier').fill('Le nom exact');
-    await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
+    await page.locator('article.fiche-admin').getByLabel('À vérifier').fill('Le nom exact');
+    await page
+      .locator('article.fiche-admin')
+      .getByRole('button', { name: 'Confier', exact: true })
+      .click();
     await expect(page.getByRole('status')).toHaveText(/est confiée à/);
     await page.goto('/relais/');
     await expect(page.getByText('À compléter · 1')).toBeVisible({ timeout: 15_000 });

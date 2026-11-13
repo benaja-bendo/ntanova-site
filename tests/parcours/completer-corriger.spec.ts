@@ -43,9 +43,15 @@ async function confier(page: Page, genre: 'verify' | 'locate' | 'complete', cons
   await page.getByRole('link', { name: 'Écoles' }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
   await ouvrirGestion(ligne, 'Mission');
-  await ligne.getByLabel('Ce que le relais doit faire').selectOption(genre);
-  await ligne.getByLabel('À vérifier').fill(consigne);
-  await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
+  await page
+    .locator('article.fiche-admin')
+    .getByLabel('Ce que le relais doit faire')
+    .selectOption(genre);
+  await page.locator('article.fiche-admin').getByLabel('À vérifier').fill(consigne);
+  await page
+    .locator('article.fiche-admin')
+    .getByRole('button', { name: 'Confier', exact: true })
+    .click();
   await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 }
 
@@ -139,9 +145,15 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await page.getByRole('link', { name: 'Écoles' }).click();
     const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
     await ouvrirGestion(ligne, 'Mission');
-    await ligne.getByLabel('Ce que le relais doit faire').selectOption('complete');
-    await ligne.getByLabel('À vérifier').fill('Tout reprendre.');
-    await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
+    await page
+      .locator('article.fiche-admin')
+      .getByLabel('Ce que le relais doit faire')
+      .selectOption('complete');
+    await page.locator('article.fiche-admin').getByLabel('À vérifier').fill('Tout reprendre.');
+    await page
+      .locator('article.fiche-admin')
+      .getByRole('button', { name: 'Confier', exact: true })
+      .click();
     await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
     await page.goto('/relais/');

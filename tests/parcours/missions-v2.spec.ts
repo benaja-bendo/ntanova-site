@@ -10,7 +10,10 @@ async function confierUneMission(page: Page) {
   await page.getByRole('link', { name: 'Écoles' }).click();
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
   await ouvrirGestion(ligne, 'Mission');
-  await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
+  await page
+    .locator('article.fiche-admin')
+    .getByRole('button', { name: 'Confier', exact: true })
+    .click();
   await expect(page.getByRole('status')).toHaveText(/est confiée à/);
   // Ce que la base dit d'une mission écrite par « Compléter » (le faux serveur le lit ici).
   await page.evaluate(() =>

@@ -310,6 +310,16 @@ Canevas « Site NTanova », page « Espace relais » ; base du 13/11 (M2, M9).
   - **Admin, preuve d'un agrément** (volet Agrément) : photo de travail d'un relevé, **fichier téléversé** (réduit dans le navigateur, rangé sous `ecoles/<site>/preuves/`, jamais public : la règle de lecture publique du seau ne lit que `public_campus_media`), document vu, ou dit par l'école (`set_accreditation_evidence`, qui rend le fichier remplacé à effacer ; `remove_campus_accreditation` aussi). La page écrit « vue sur le document » ou « dite par l'école », jamais « reconnue par l'État ».
   - **La migration M10 n'est pas appliquée en production** : elle part avec la mise en ligne, sur ordre du fondateur. Le code lit sans elle (pas de `lines` : les quantités ; pas de `proof_path` : la preuve d'un relevé seulement).
 
+### L'administration v2 (lots 2 à 5 du cahier, 13/11/2026)
+
+Le journal détaillé est `docs/avancement-admin-v2.md`. L'essentiel :
+
+- **Le cadre** (`src/app/admin/Cadre.tsx`) : un seul composant, deux mises en page au seuil de 64 rem. Téléphone : barre du haut (le `h1` de l'écran, l'initiale du compte), barre du bas à cinq cases (Aujourd'hui, À valider, Écoles, Relais, Plus), feuille « Plus » (Zones, Paie, Santé des envois, Règles). Ordinateur : barre de côté avec « Plus rarement » et le compte en bas. **Chaque écran pose son titre par `TitreEcran`** ; ses paragraphes d'aide vont dans `regles` (le tiroir « Règles »), jamais sous le titre.
+- **« Aujourd'hui »** remplace la vue d'ensemble : ce qui t'attend, puis la semaine ; le détail chiffré est replié.
+- **« À valider »** : onglets d'état, liste puis fiche sur téléphone (la liste disparaît quand une fiche est ouverte), barre de décision collée en bas, **« Est-ce une école connue ? »** (`EcoleConnue.tsx`, `similar_schools`) en tête de la fiche.
+- **Écoles** : la fiche d'une école est une page (`#ecoles/fiche/<id>`), plus un tiroir ; la liste groupe les sites d'une même école. Dans les parcours : `ouvrirGestion` ouvre la fiche puis la rubrique ; `retourAuxEcoles`, `ouvrirEcranAdmin` (passe par « Plus » sur téléphone) et `ouvrirRegles` sont dans `tests/parcours/aides.ts`.
+- **Tailwind et shadcn ne sont pas branchés** (écart au cahier, § 4) : le canevas est rendu avec les jetons existants.
+
 ### Le rangement du site public (ticket 146, décision du fondateur du 08/11/2026)
 
 Une référence, deux portes, une carte. Dossier d'architecture et canevas « Écoles et fiches NTanova » : artefacts privés du fondateur ; décision et arbitrages dans le dépôt `ntanova` (`docs/produit/2026-11-08-architecture-du-site-decision.md`).

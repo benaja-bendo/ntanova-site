@@ -6,6 +6,7 @@ import {
   type RelaisVu,
 } from '../../modele/ports';
 import { Bandeau, jour } from '../../ui/composants';
+import { TitreEcran } from './Cadre';
 
 const libelleStatut: Record<RelaisVu['statut'], { texte: string; classe: string }> = {
   en_attente: { texte: 'À activer', classe: 'etat-attente' },
@@ -177,24 +178,24 @@ export function ListeRelais({
 
   return (
     <div className="pile">
-      <div className="admin-titre">
-        <div>
-          <h1>Relais</h1>
-          <p className="texte-doux">
-            Un relais apparaît ici dès sa première connexion, « à activer », avec l’adresse de son
-            compte : relie-la à la personne (son message WhatsApp), puis active-la. « Écarter » met
-            de côté un compte que tu ne connais pas. Les lots se gèrent dans l’onglet « Zones ».
-          </p>
-          <details className="admin-sous-ligne">
-            <summary>Quelqu’un ne peut pas se connecter ?</summary>
-            <p className="mention">
-              Tant que l’application Google est en mode « test », seules les adresses ajoutées dans
-              Google Cloud (Écran de consentement, Utilisateurs de test) peuvent se connecter.
-              Publier l’application lève cette limite.
+      <TitreEcran
+        titre="Relais"
+        regles={
+          <>
+            <p>
+              Un relais apparaît ici dès sa première connexion, « à activer », avec l’adresse de son
+              compte : relie-la à la personne (son message WhatsApp), puis active-la. « Écarter »
+              met de côté un compte que tu ne connais pas. Les lots se gèrent dans l’onglet « Zones
+              ».
             </p>
-          </details>
-        </div>
-      </div>
+            <p>
+              Quelqu’un ne peut pas se connecter ? Tant que l’application Google est en mode « test
+              », seules les adresses ajoutées dans Google Cloud (Écran de consentement, Utilisateurs
+              de test) peuvent se connecter. Publier l’application lève cette limite.
+            </p>
+          </>
+        }
+      />
 
       {erreur && (
         <Bandeau ton="erreur" icone="alerte">
@@ -207,7 +208,7 @@ export function ListeRelais({
         </p>
       )}
 
-      <div className="admin-tableau">
+      <div className="admin-tableau relais-tableau">
         <table>
           <thead>
             <tr>
@@ -249,6 +250,14 @@ export function ListeRelais({
           </tbody>
         </table>
       </div>
+      <details className="admin-sous-ligne">
+        <summary>Quelqu’un ne peut pas se connecter ?</summary>
+        <p className="mention">
+          Tant que l’application Google est en mode « test », seules les adresses ajoutées dans
+          Google Cloud (Écran de consentement, Utilisateurs de test) peuvent se connecter. Publier
+          l’application lève cette limite.
+        </p>
+      </details>
     </div>
   );
 }

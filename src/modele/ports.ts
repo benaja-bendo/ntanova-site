@@ -1028,6 +1028,15 @@ export interface PortAdministration {
   ): Promise<void>;
   /** Lot F : une adresse de lecture (une heure) du fichier d'une preuve, pour l'administration seule. */
   adresseDePreuve(chemin: string): Promise<string | null>;
+  /**
+   * Lot 3 : « Est-ce une école connue ? » : les sites et relevés en attente proches par le nom ou la distance (dix au plus,
+   * les plus sûrs d'abord). Lecture seule. `GET /admin/ecoles-similaires`
+   */
+  ecolesSimilaires(
+    nom: string,
+    position: Point | null,
+    exclureReleve: string | null,
+  ): Promise<import('./fiche-admin').EcoleSimilaire[]>;
   /** Lot F : les formations du supérieur et du technique d'un site, avec leur détail. `GET /admin/ecoles/{id}/formations` */
   formationsDeLEcole(ecoleId: string): Promise<import('./fiche-admin').FormationDuSuperieur[]>;
   /** Lot F : le détail d'une formation, dit par l'école. `PUT /admin/formations/{id}/details` */

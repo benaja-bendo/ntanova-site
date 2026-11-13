@@ -6,6 +6,7 @@ import {
   publierLaZoneTieTie,
   seConnecter,
   uneFicheEnvoyee,
+  ouvrirEcranAdmin,
 } from './aides';
 
 // Audit de l'administration du 06/11/2026 : garder ses repères pendant le défilement, contrôler une photo sans quitter
@@ -75,7 +76,9 @@ test.describe('tableau de bord : compteurs', () => {
     // On arrive directement sur un autre onglet : le nombre d'envois à valider est déjà là.
     await page.goto('/admin/#zones');
     await page.reload();
-    const onglets = page.getByRole('navigation', { name: 'Administration' });
+    const onglets = page
+      .getByRole('navigation', { name: /^(Administration|Navigation)$/ })
+      .locator('visible=true');
     await expect(onglets.getByRole('link', { name: /À valider/ })).toContainText(
       '1 envoi à valider',
     );
@@ -136,7 +139,7 @@ test.describe('tableau de bord : Écoles', () => {
     context,
   }) => {
     await uneEcolePubliee(page, context);
-    await page.getByRole('link', { name: 'Zones' }).click();
+    await ouvrirEcranAdmin(page, 'Zones');
     await choisirLaZone(page, /^Tié-Tié/);
     await expect(page.getByText('1 école · 1 publiée')).toBeVisible();
     await page.getByRole('link', { name: 'Voir les écoles' }).click();
@@ -160,14 +163,14 @@ test.describe('tableau de bord : Écoles', () => {
       .click();
     await expect(page.getByRole('status')).toHaveText(/est à la corbeille.*restaurer/);
     await expect(ligne(page)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Corbeille · 1' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Corbeille\s*1$/ })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Corbeille · 1' }).click();
+    await page.getByRole('button', { name: /^Corbeille\s*1$/ }).click();
     await expect(ligne(page).getByText('À la corbeille', { exact: true })).toBeVisible();
     await expect(ligne(page).getByText(/À la corbeille depuis le/)).toBeVisible();
     // À la corbeille : ni « Publier », ni « Gérer la fiche ».
     await expect(ligne(page).getByRole('button', { name: 'Publier', exact: true })).toHaveCount(0);
-    await expect(ligne(page).getByRole('button', { name: 'Gérer la fiche' })).toHaveCount(0);
+    await expect(ligne(page).getByRole('link', { name: 'Ouvrir la fiche' })).toHaveCount(0);
 
     // Restaurer : une école publiée revient « prête », jamais « publiée » toute seule.
     await ligne(page).getByRole('button', { name: 'Restaurer' }).click();
@@ -181,7 +184,7 @@ test.describe('tableau de bord : Écoles', () => {
     await ligne(page)
       .getByRole('button', { name: /Mettre \[École 1\] à la corbeille/ })
       .click();
-    await page.getByRole('button', { name: 'Corbeille · 1' }).click();
+    await page.getByRole('button', { name: /^Corbeille\s*1$/ }).click();
     await ligne(page).getByRole('button', { name: 'Supprimer définitivement…' }).click();
 
     await expect(ligne(page).getByText(/La suppression emporte/)).toBeVisible();
@@ -202,7 +205,7 @@ test.describe('tableau de bord : Écoles', () => {
 
     await expect(page.getByRole('status')).toHaveText(/supprimée définitivement/);
     await expect(ligne(page)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Corbeille · 0' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Corbeille', exact: true })).toBeVisible();
   });
 });
 
@@ -446,7 +449,8 @@ test.describe('tableau de bord : Zones', () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
     const haut = await arbre.evaluate((e) => e.getBoundingClientRect().top);
     expect(haut).toBeGreaterThanOrEqual(0);
-    expect(haut).toBeLessThan(48);
+    // Admin v2 : l'arbre colle à 24 px du haut, plus son propre bord (48 px au plus).
+    expect(haut).toBeLessThanOrEqual(48);
     await expect(arbre.getByRole('button', { name: /^Loandjili/ })).toBeInViewport();
   });
 
@@ -559,7 +563,7 @@ test.describe('tableau de bord : Zones', () => {
   for (const adresse of ['#zones', '#zones/d-pn-ngoyo', '#zones/d-cg', '#zones/etapes']) {
     test(`« ${adresse} » : la page ne défile pas de côté`, async ({ page }) => {
       await seConnecter(page, `/admin/${adresse}`);
-      await expect(page.locator('main h1')).toBeVisible();
+      await expect(page.locator('h1').locator('visible=true').first()).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Zones', level: 1 })).toBeVisible();
       const [contenu, fenetre] = await page.evaluate(
         () => [document.documentElement.scrollWidth, window.innerWidth] as const,

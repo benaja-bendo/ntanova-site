@@ -8,6 +8,8 @@ import {
   ouvrirLaFiche,
   ouvrirContacts,
   prendrePhotoEtPosition,
+  ficheAdmin,
+  retourAuxEcoles,
 } from './aides';
 test.beforeEach(async ({ page, context }) => {
   await page.addInitScript(() =>
@@ -44,22 +46,25 @@ const seRecouvrent = (a: Rectangle, b: Rectangle) =>
 
 /** La barre de l'administration : en haut sans s'étirer, ou une colonne sur toute la hauteur. */
 async function verifierLaBarre(page: Page, nom: string) {
+  // Admin v2 : sous 1 024 px, une barre en haut (le titre) et une barre en bas à cinq cases ; au-delà, la barre de côté
+  // sur toute la hauteur.
   const fenetre = page.viewportSize();
-  const barre = await page.locator('aside.admin-cote').boundingBox();
-  if (!fenetre || !barre) throw new Error('la barre de l’administration est introuvable');
-  if (fenetre.width <= CHARNIERE_ADMIN) {
-    expect(barre.width, `${nom} : barre sur toute la largeur`).toBeGreaterThanOrEqual(
+  if (!fenetre) throw new Error('fenêtre inconnue');
+  if (fenetre.width < 1024) {
+    const haut = await page.locator('header.admin-haut').boundingBox();
+    const bas = await page.locator('nav.admin-bas').boundingBox();
+    if (!haut || !bas) throw new Error(`${nom} : les barres du téléphone sont introuvables`);
+    expect(haut.width, `${nom} : barre du haut sur toute la largeur`).toBeGreaterThanOrEqual(
       fenetre.width - 1,
     );
-    // Dès la tablette, une ligne (68 px), ou deux (120 px) quand la pastille de « À valider »
-    // élargit les onglets ; plus étroit, la marque, les onglets et le compte passent chacun à la
-    // ligne (155 px), et les cinq onglets passent eux-mêmes sur deux lignes dès qu'ils ne tiennent
-    // plus sur une (203 px : à 360 px ils la remplissent au pixel près, une police un peu plus
-    // large suffit). Avant, la barre s'étirait à 224–280 px au téléphone et à plus de 500 px
-    // sur une tablette.
-    const plafond = fenetre.width >= 768 ? 130 : 215;
-    expect(barre.height, `${nom} : barre du haut sans s’étirer`).toBeLessThanOrEqual(plafond);
+    expect(haut.height, `${nom} : barre du haut sans s’étirer`).toBeLessThanOrEqual(72);
+    expect(bas.height, `${nom} : barre du bas sans s’étirer`).toBeLessThanOrEqual(80);
+    expect(bas.y + bas.height, `${nom} : barre du bas collée en bas`).toBeLessThanOrEqual(
+      fenetre.height + 1,
+    );
   } else {
+    const barre = await page.locator('aside.admin-cote').boundingBox();
+    if (!barre) throw new Error('la barre de l’administration est introuvable');
     expect(barre.width, `${nom} : colonne sur le côté`).toBeLessThanOrEqual(300);
     expect(barre.height, `${nom} : colonne sur toute la hauteur`).toBeGreaterThanOrEqual(
       fenetre.height - 1,
@@ -88,8 +93,8 @@ test.describe('administration', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/');
-    await expect(page.getByRole('heading', { name: 'Vue d’ensemble' })).toBeVisible();
-    await verifierLaBarre(page, 'À valider (vide)');
+    await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeAttached();
+    await verifierLaBarre(page, 'Aujourd’hui');
   });
 
   test('quand les cinq onglets ne tiennent plus sur une ligne (340 px), ils passent sur une deuxième sans étirer la barre', async ({
@@ -98,7 +103,7 @@ test.describe('administration', () => {
     test.skip(info.project.name !== 'android-360', 'une seule fois, au téléphone');
     await seConnecter(page, '/admin/');
     await page.setViewportSize({ width: 340, height: 640 });
-    await expect(page.locator('main h1')).toBeVisible();
+    await expect(page.locator('h1').locator('visible=true').first()).toBeVisible();
     await verifierLaBarre(page, 'à 340 px');
   });
 
@@ -108,7 +113,7 @@ test.describe('administration', () => {
     }) => {
       await seConnecter(page, '/admin/');
       await page.goto(`/admin/#${ecran}`);
-      await expect(page.locator('main h1')).toBeVisible();
+      await expect(page.locator('h1').locator('visible=true').first()).toBeVisible();
       await aucunDefilementDeCote(page, ecran);
       await verifierLaBarre(page, ecran);
     });
@@ -117,9 +122,10 @@ test.describe('administration', () => {
   test('dès la tablette, les tableaux tiennent dans leur cadre', async ({ page }) => {
     test.skip(largeurDe(page) < 768, 'au téléphone, les tableaux défilent dans leur cadre');
     await seConnecter(page, '/admin/');
-    for (const ecran of ['accueil', 'ecoles', 'zones', 'relais', 'sante', 'paie']) {
+    // « Aujourd'hui » (admin v2) n'a plus de tableau à l'écran : son détail est replié.
+    for (const ecran of ['ecoles', 'zones', 'relais', 'sante', 'paie']) {
       await page.goto(`/admin/#${ecran}`);
-      await expect(page.locator('main h1')).toBeVisible();
+      await expect(page.locator('h1').locator('visible=true').first()).toBeVisible();
       await verifierLesTableaux(page, ecran);
     }
   });
@@ -131,11 +137,11 @@ test.describe('administration', () => {
       await page.setViewportSize({ width: largeur, height: 800 });
       for (const ecran of ['accueil', 'ecoles', 'zones', 'relais', 'sante', 'paie']) {
         await page.goto(`/admin/#${ecran}`);
-        await expect(page.locator('main h1')).toBeVisible();
+        await expect(page.locator('h1').locator('visible=true').first()).toBeVisible();
         const nom = `${ecran} à ${largeur} px`;
         await aucunDefilementDeCote(page, nom);
         await verifierLaBarre(page, nom);
-        await verifierLesTableaux(page, nom);
+        if (ecran !== 'accueil') await verifierLesTableaux(page, nom);
       }
     }
   });
@@ -463,7 +469,9 @@ test('administration : accueil et écoles tiennent dans l’écran, gestion et f
   page,
 }) => {
   await seConnecter(page, '/admin/');
-  await expect(page.getByRole('heading', { name: 'Relevés reçus par jour' })).toBeVisible();
+  // Admin v2 : « Aujourd'hui » ; le détail (relevés par jour, zones) est replié.
+  await expect(page.getByRole('heading', { name: 'Aujourd’hui', level: 1 })).toBeAttached();
+  await expect(page.getByRole('region', { name: 'Ce qui t’attend' })).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
@@ -471,34 +479,27 @@ test('administration : accueil et écoles tiennent dans l’écran, gestion et f
   ).toBe(true);
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
-  const gerer = ligne.getByRole('button', { name: 'Gérer la fiche', exact: true });
+  const gerer = ligne.getByRole('link', { name: 'Ouvrir la fiche', exact: true });
   await expect(gerer).toBeVisible();
   expect(
     await page.locator('.ecoles-tableau').evaluate((e) => e.scrollWidth <= e.clientWidth),
   ).toBe(true);
+  // La fiche s'ouvre au clavier, en plein écran, sans défiler de côté.
   await gerer.focus();
   await page.keyboard.press('Enter');
-  const panneau = page.getByRole('dialog', { name: 'Gérer [École à situer]' });
+  const panneau = ficheAdmin(page, '[École à situer]');
   await expect(panneau).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   const boite = await panneau.boundingBox();
   expect(boite!.x).toBeGreaterThanOrEqual(0);
   expect(boite!.x + boite!.width).toBeLessThanOrEqual(largeurDe(page));
   expect(await panneau.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
-  await expect(panneau.getByRole('button', { name: 'Fermer', exact: true })).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  expect(await panneau.evaluate((e) => e.contains(document.activeElement))).toBe(true);
-  await page.keyboard.press('Tab');
-  await expect(panneau.getByRole('button', { name: 'Fermer', exact: true })).toBeFocused();
   await panneau.getByRole('button', { name: 'Contact public', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(1);
-  await panneau.locator('.dialogue-corps').evaluate((e) => (e.scrollTop = e.scrollHeight));
   await expect(
-    panneau.getByRole('heading', { name: '[École à situer]', exact: true }),
-  ).toBeInViewport();
-  await page.keyboard.press('Escape');
+    panneau.getByRole('button', { name: 'Contact public', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await retourAuxEcoles(page);
   await expect(panneau).toHaveCount(0);
-  await expect(gerer).toBeFocused();
   const menu = ligne.locator('summary');
   await menu.focus();
   await page.keyboard.press('Enter');
@@ -524,7 +525,7 @@ test('administration : un enregistrement lent annonce son travail, une panne gar
   await seConnecter(page, '/admin/#ecoles');
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
   await ouvrirGestion(ligne, 'Informations');
-  const panneau = page.getByRole('dialog');
+  const panneau = page.locator('article.fiche-admin');
   await panneau.getByLabel('Nom', { exact: true }).fill('[Nom corrigé]');
   await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '1200'));
   await context.setOffline(true);
@@ -532,15 +533,14 @@ test('administration : un enregistrement lent annonce son travail, une panne gar
   await expect(
     panneau.getByRole('button', { name: 'Enregistrement…', exact: true }),
   ).toBeDisabled();
-  await expect(panneau.getByRole('button', { name: 'Fermer', exact: true })).toBeDisabled();
-  await page.keyboard.press('Escape');
   await expect(panneau).toBeVisible();
   await expect(panneau.getByRole('alert')).toBeVisible();
   await expect(panneau.getByLabel('Nom', { exact: true })).toHaveValue('[Nom corrigé]');
   await expect(panneau.getByRole('button', { name: 'Enregistrer', exact: true })).toBeEnabled();
   await context.setOffline(false);
   await panneau.getByRole('button', { name: 'Enregistrer', exact: true }).click();
-  await expect(panneau).toHaveCount(0);
+  await expect(page.getByRole('status').first()).toContainText('[Nom corrigé]');
+  await retourAuxEcoles(page);
   await expect(page.getByRole('row', { name: /\[Nom corrigé\]/ })).toBeVisible();
 });
 

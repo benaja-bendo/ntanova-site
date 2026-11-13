@@ -180,7 +180,10 @@ export async function textesPeuLisibles(page: Page, selecteur: string): Promise<
   });
 }
 
-/** Ouvre la gestion depuis la liste, sans contourner les contrôles visibles. */
+/**
+ * Ouvre la fiche d'une école depuis la liste (admin v2 : en plein écran, `#ecoles/fiche/<id>`), puis sa rubrique. Le retrait
+ * et la fusion restent dans le menu « ⋯ » de la ligne.
+ */
 export async function ouvrirGestion(ligne: Locator, section: string) {
   if (section === 'retirer' || section === 'fusionner') {
     await ligne.locator('summary').click();
@@ -191,13 +194,32 @@ export async function ouvrirGestion(ligne: Locator, section: string) {
       })
       .click();
   } else {
-    await ligne.getByRole('button', { name: 'Gérer la fiche', exact: true }).click();
-    if (section !== 'Informations')
-      await ligne
-        .getByRole('navigation', { name: 'Sections de la fiche' })
-        .getByRole('button', { name: section, exact: true })
-        .click();
+    const page = ligne.page();
+    // Une fiche déjà ouverte : on revient d'abord à la liste.
+    if (page.url().includes('#ecoles/fiche/')) {
+      await page.evaluate(() => (location.hash = '#ecoles'));
+      await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeAttached();
+    }
+    await ligne.getByRole('link', { name: 'Ouvrir la fiche', exact: true }).click();
+    await page
+      .getByRole('navigation', { name: 'Sections de la fiche' })
+      .getByRole('button', { name: section, exact: true })
+      .click();
   }
+}
+
+/** La fiche d'une école ouverte en plein écran (admin v2). */
+export const ficheAdmin = (page: Page, nom: string) =>
+  page.getByRole('article', { name: `Fiche de ${nom}` });
+
+/** Revient de la fiche d'une école à la liste « Écoles » (flèche de la barre du haut, ou lien sur ordinateur). */
+export async function retourAuxEcoles(page: Page) {
+  await page
+    .getByRole('link', { name: /^(Retour : Écoles|← Écoles)$/ })
+    .locator('visible=true')
+    .first()
+    .click();
+  await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeAttached();
 }
 
 /** Le bloc privé est secondaire ; les parcours de contact l'ouvrent explicitement. */
@@ -218,4 +240,33 @@ export async function choisirLaZone(page: Page, nom: RegExp | string): Promise<v
     .getByRole('region', { name: 'Liste des zones' })
     .getByRole('button', { name: nom })
     .click();
+}
+
+/**
+ * Admin v2 : ouvre un écran par son nom. Aujourd'hui, À valider, Écoles et Relais sont dans la barre (du bas sur téléphone,
+ * de côté sur ordinateur) ; Zones, Paie et Santé des envois, sur téléphone, dans la feuille « Plus ».
+ */
+export async function ouvrirEcranAdmin(page: Page, nom: string) {
+  const direct = page.getByRole('link', { name: nom, exact: true }).locator('visible=true');
+  if ((await direct.count()) === 0) {
+    await page
+      .getByRole('navigation', { name: 'Navigation' })
+      .getByRole('button', { name: 'Plus' })
+      .click();
+  }
+  await page.getByRole('link', { name: nom, exact: true }).locator('visible=true').first().click();
+}
+
+/** Admin v2 : ouvre le tiroir « Règles » de l'écran (le bouton sur ordinateur, « Plus » sur téléphone). */
+export async function ouvrirRegles(page: Page) {
+  const bouton = page.getByRole('button', { name: /^Règles : / }).locator('visible=true');
+  if ((await bouton.count()) > 0) await bouton.first().click();
+  else {
+    await page
+      .getByRole('navigation', { name: 'Navigation' })
+      .getByRole('button', { name: 'Plus' })
+      .click();
+    await page.getByRole('button', { name: 'Règles de cet écran' }).click();
+  }
+  await expect(page.getByRole('dialog', { name: /^Règles : / })).toBeVisible();
 }

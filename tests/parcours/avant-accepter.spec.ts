@@ -117,7 +117,9 @@ test.describe('avant d’accepter, l’écran dit ce qui se passe et ce qui manq
     await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
 
     // L'en-tête ne dit plus « Lot Essai » : c'est le lot de la fiche d'origine, pas celui de la correction.
-    const entete = page.getByRole('region', { name: 'Envoi sélectionné' }).locator('.admin-titre');
+    const entete = page
+      .getByRole('region', { name: 'Envoi sélectionné' })
+      .locator('.avalider-fiche-tete');
     await expect(entete).toContainText('Relevée par');
     await expect(entete).not.toContainText('Lot Essai');
     await expect(avant(page)).toContainText('lot « Essai »');

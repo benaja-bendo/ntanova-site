@@ -55,6 +55,8 @@ import { ErreurDecision } from '../../modele/ports';
 import { Bouton } from '../../ui/actions';
 import { Dialogue } from '../../ui/Dialogue';
 import { SectionRepliable } from '../../ui/SectionRepliable';
+import { TitreEcran } from './Cadre';
+import { EcoleConnue } from './EcoleConnue';
 import { afficherTelephone } from '../../modele/telephone';
 import { libelleEquipement } from '../../modele/equipements-ecole';
 import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
@@ -110,6 +112,11 @@ function Etiquettes({ r }: { r: ReleveAValider }) {
       {r.indiceFormations && <span className="etiquette etat-a-corriger">Formations à saisir</span>}
     </span>
   );
+}
+
+/** La lettre du rond d'une ligne : la première lettre du nom, sans les crochets des exemples. */
+function initialeDe(nom: string): string {
+  return (nom.replace(/^[^\p{L}]+/u, '').charAt(0) || '?').toUpperCase();
 }
 
 /** Depuis quand la fiche attend ; au-delà de 24 heures, elle se voit (ticket #76). */
@@ -184,83 +191,115 @@ export function AValider({
     charger();
   };
 
-  return (
-    <div className="pile">
-      <div className="admin-titre">
-        <div>
-          <h1>À valider</h1>
-          <p className="texte-doux">
-            {releves === null
-              ? 'Chargement…'
-              : `${releves.length} envoi${releves.length > 1 ? 's' : ''} des relais. Rien n'est publié avant ton accord.`}
-          </p>
-        </div>
-        <div className="filtres" role="group" aria-label="Filtrer">
-          {(
-            [
-              ['tout', 'Tout'],
-              ['releve', 'Nouvelles fiches'],
-              ['correction', 'Corrections'],
-              ['contre_visite', 'Contre-visites'],
-              ['renvoyees', 'Renvoyées'],
-              ['decidees', 'Décidées'],
-            ] as const
-          ).map(([valeur, libelle]) => (
+  const renvoyeesN = (decides ?? []).filter((r) => r.statut === 'a_corriger').length;
+  const onglet: 'a_traiter' | 'renvoyees' | 'decidees' =
+    filtre === 'renvoyees' ? 'renvoyees' : filtre === 'decidees' ? 'decidees' : 'a_traiter';
+  const listeEnCours = surLesDecidees ? decidesVisibles : visibles;
+  const rang = selection ? listeEnCours.findIndex((r) => r.id === selection.id) + 1 : 0;
+  const filtresDeLaFile = !surLesDecidees && releves !== null && (
+    <div className="admin-affiner" role="group" aria-label="Affiner la file">
+      {(
+        [
+          ['tout', 'Tout'],
+          ['releve', 'Nouvelles fiches'],
+          ['correction', 'Corrections'],
+          ['contre_visite', 'Contre-visites'],
+        ] as const
+      ).map(([valeur, libelle]) => (
+        <button
+          key={valeur}
+          type="button"
+          className="pastille-choix"
+          aria-pressed={filtre === valeur}
+          onClick={() => setFiltre(valeur)}
+        >
+          {libelle}
+        </button>
+      ))}
+      {relaisProposes.length > 1 && (
+        <label className="admin-affiner-relais">
+          <span className="visuellement-cache">Relais</span>
+          <select
+            className="champ"
+            value={relaisActif ?? ''}
+            onChange={(e) => setRelaisChoisi(e.target.value || null)}
+          >
+            <option value="">Tous les relais</option>
+            {relaisProposes.map((r) => (
+              <option key={r.relais} value={r.relais}>
+                {r.relais} · {r.fiches}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {(
+        [
+          ['sans_position', 'Sans position', indices.sansPosition],
+          ['doublon_possible', 'Doublon possible', indices.doublonPossible],
+        ] as const
+      ).map(
+        ([valeur, libelle, n]) =>
+          (n > 0 || indice === valeur) && (
             <button
               key={valeur}
               type="button"
               className="pastille-choix"
-              aria-pressed={filtre === valeur}
-              onClick={() => setFiltre(valeur)}
+              aria-pressed={indice === valeur}
+              onClick={() => setIndice(indice === valeur ? null : valeur)}
             >
-              {libelle}
+              {libelle} · {n}
             </button>
-          ))}
-        </div>
-      </div>
+          ),
+      )}
+    </div>
+  );
 
-      {!surLesDecidees &&
-        releves !== null &&
-        (relaisProposes.length > 1 || indices.sansPosition > 0 || indices.doublonPossible > 0) && (
-          <div className="admin-affiner" role="group" aria-label="Affiner la file">
-            {relaisProposes.length > 1 && (
-              <label className="admin-affiner-relais">
-                <span className="mention">Relais</span>
-                <select
-                  className="champ"
-                  value={relaisActif ?? ''}
-                  onChange={(e) => setRelaisChoisi(e.target.value || null)}
-                >
-                  <option value="">Tous les relais</option>
-                  {relaisProposes.map((r) => (
-                    <option key={r.relais} value={r.relais}>
-                      {r.relais} · {r.fiches}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {(
-              [
-                ['sans_position', 'Sans position', indices.sansPosition],
-                ['doublon_possible', 'Doublon possible', indices.doublonPossible],
-              ] as const
-            ).map(
-              ([valeur, libelle, n]) =>
-                (n > 0 || indice === valeur) && (
-                  <button
-                    key={valeur}
-                    type="button"
-                    className="pastille-choix"
-                    aria-pressed={indice === valeur}
-                    onClick={() => setIndice(indice === valeur ? null : valeur)}
-                  >
-                    {libelle} · {n}
-                  </button>
-                ),
-            )}
-          </div>
-        )}
+  return (
+    <div className={`pile avalider${selection ? ' avec-fiche' : ''}`}>
+      <TitreEcran
+        titre="À valider"
+        retour={selection ? { libelle: 'À valider', chemin: 'valider' } : null}
+        regles={
+          <>
+            <p>Rien n’est publié avant ton accord : « Accepter » crée l’école sans la publier.</p>
+            <p>
+              La plus ancienne d’abord : la promesse faite aux relais est une validation sous 24 à
+              48 heures. « Renvoyées » : les fiches qui attendent leur relais. « Décidées » se lit
+              sans rien changer.
+            </p>
+            <p>« Refuser » est à l’écart des autres gestes, et n’a jamais de raccourci.</p>
+          </>
+        }
+      />
+
+      <div className="avalider-onglets" role="group" aria-label="État des fiches">
+        {(
+          [
+            ['tout', 'À traiter', releves?.length ?? null, onglet === 'a_traiter'],
+            ['renvoyees', 'Renvoyées', renvoyeesN, onglet === 'renvoyees'],
+            ['decidees', 'Décidées', null, onglet === 'decidees'],
+          ] as const
+        ).map(([valeur, libelle, n, actif]) => (
+          <button
+            key={valeur}
+            type="button"
+            className="onglet-etat"
+            aria-pressed={actif}
+            onClick={() => setFiltre(valeur)}
+          >
+            {libelle}
+            {n !== null && n > 0 && <span className="onglet-compte">{n}</span>}
+          </button>
+        ))}
+        {filtresDeLaFile && <div className="avalider-filtres-larges">{filtresDeLaFile}</div>}
+      </div>
+      {filtresDeLaFile && (
+        <details className="avalider-filtrer">
+          <summary>Filtrer</summary>
+          {filtresDeLaFile}
+        </details>
+      )}
 
       {erreur && (
         <Bandeau ton="erreur" icone="alerte">
@@ -296,23 +335,28 @@ export function AValider({
                     aller(`valider/${r.id}`);
                   }}
                 >
-                  <span className="admin-ligne-tete">
-                    <b>{r.nomEnseigne}</b>
-                    <span className="mention">
-                      {r.decideLe
-                        ? filtre === 'renvoyees'
-                          ? `Renvoyée ${ageDe(r.decideLe, maintenant).texte}`
-                          : jour(r.decideLe)
-                        : ''}
+                  <span className="admin-ligne-rond" aria-hidden="true">
+                    {initialeDe(r.nomEnseigne)}
+                  </span>
+                  <span className="admin-ligne-corps">
+                    <span className="admin-ligne-tete">
+                      <b>{r.nomEnseigne}</b>
+                      <span className="mention">
+                        {r.decideLe
+                          ? filtre === 'renvoyees'
+                            ? `Renvoyée ${ageDe(r.decideLe, maintenant).texte}`
+                            : jour(r.decideLe)
+                          : ''}
+                      </span>
                     </span>
-                  </span>
-                  <span className="mention">
-                    {libelleType[r.type]} · {r.relais}
-                    {r.lot ? ` · Lot ${r.lot}` : ''}
-                  </span>
-                  <span className="admin-etiquettes">
-                    <span className={`etiquette ${classeDecision[r.statut]}`}>
-                      {libelleStatutReleve[r.statut]}
+                    <span className="mention">
+                      {libelleType[r.type]} · {r.relais}
+                      {r.lot ? ` · Lot ${r.lot}` : ''}
+                    </span>
+                    <span className="admin-etiquettes">
+                      <span className={`etiquette ${classeDecision[r.statut]}`}>
+                        {libelleStatutReleve[r.statut]}
+                      </span>
                     </span>
                   </span>
                 </a>
@@ -340,15 +384,20 @@ export function AValider({
                     aller(`valider/${r.id}`);
                   }}
                 >
-                  <span className="admin-ligne-tete">
-                    <b>{r.nomEnseigne}</b>
-                    <AgeDeLaFiche age={ageDe(r.recuLe, maintenant)} />
+                  <span className="admin-ligne-rond" aria-hidden="true">
+                    {initialeDe(r.nomEnseigne)}
                   </span>
-                  <span className="mention">
-                    {libelleType[r.type]} · {r.relais}
-                    {r.lot ? ` · Lot ${r.lot}` : ''}
+                  <span className="admin-ligne-corps">
+                    <span className="admin-ligne-tete">
+                      <b>{r.nomEnseigne}</b>
+                      <AgeDeLaFiche age={ageDe(r.recuLe, maintenant)} />
+                    </span>
+                    <span className="mention">
+                      {libelleType[r.type]} · {r.relais}
+                      {r.lot ? ` · Lot ${r.lot}` : ''}
+                    </span>
+                    <Etiquettes r={r} />
                   </span>
-                  <Etiquettes r={r} />
                 </a>
               </li>
             ))}
@@ -362,8 +411,14 @@ export function AValider({
             id={selection.id}
             lectureSeule={surLesDecidees}
             refusee={(decides ?? []).find((d) => d.id === selection.id)?.statut === 'refuse'}
+            statutDecide={
+              surLesDecidees
+                ? ((decides ?? []).find((d) => d.id === selection.id)?.statut ?? null)
+                : null
+            }
             surDecision={apresDecision}
             surAnnonce={setAnnonce}
+            rang={rang > 0 ? `${rang} sur ${listeEnCours.length}` : null}
           />
         )}
       </div>
@@ -421,18 +476,21 @@ function Photos({
   }
   return (
     <div className="pile-serree">
-      <p className="mention">
-        Effacer l’original ne retire pas les copies déjà publiées sur le site : reconstruis le site
-        après un retrait. Les copies partagées peuvent subsister.
-      </p>
-      {peutMarquer && aDesPubliables && (
+      <details className="aide-repliee">
+        <summary>À savoir sur les photos</summary>
         <p className="mention">
-          <b>Contrôler pour publication.</b> Photo nette, sans enfant ni donnée personnelle. Elle
-          pourra apparaître sur la fiche publiée après la prochaine mise à jour du site.
-          {aDesPrivees &&
-            ' Le panneau des formations et le prospectus restent privés, même contrôlés.'}
+          Effacer l’original ne retire pas les copies déjà publiées sur le site : reconstruis le
+          site après un retrait. Les copies partagées peuvent subsister.
         </p>
-      )}
+        {peutMarquer && aDesPubliables && (
+          <p className="mention">
+            <b>Contrôler pour publication.</b> Photo nette, sans enfant ni donnée personnelle. Elle
+            pourra apparaître sur la fiche publiée après la prochaine mise à jour du site.
+            {aDesPrivees &&
+              ' Le panneau des formations et le prospectus restent privés, même contrôlés.'}
+          </p>
+        )}
+      </details>
       {aMarquer.length > 1 && (
         <div className="admin-actions">
           <button
@@ -562,6 +620,8 @@ function Detail({
   refusee = false,
   surDecision,
   surAnnonce,
+  rang = null,
+  statutDecide = null,
 }: {
   admin: PortAdministration;
   id: string;
@@ -571,6 +631,10 @@ function Detail({
   refusee?: boolean;
   surDecision: (texte: string) => void;
   surAnnonce: (texte: string) => void;
+  /** « 2 sur 15 » : où est cette fiche dans la file. */
+  rang?: string | null;
+  /** Une fiche décidée : sa décision, dite en tête (sur téléphone, la liste n'est plus à l'écran). */
+  statutDecide?: ReleveDecide['statut'] | null;
 }) {
   const [detail, setDetail] = useState<DetailReleve | null>(null);
   const [photos, setPhotos] = useState<PhotoVue[]>([]);
@@ -838,7 +902,7 @@ function Detail({
 
   return (
     <section className="admin-detail" aria-label="Envoi sélectionné">
-      <div className="admin-titre">
+      <div className="avalider-fiche-tete">
         <div>
           <h2>{detail.nomEnseigne}</h2>
           <p className="mention">
@@ -846,8 +910,28 @@ function Detail({
             {detail.lot && !detail.lotDeLaFicheDOrigine ? ` · Lot ${detail.lot}` : ''}
           </p>
         </div>
-        <span className="etiquette etat-attente">{libelleType[detail.type]}</span>
+        <span className="rang">
+          <span className="etiquette etat-attente">{libelleType[detail.type]}</span>
+          {statutDecide && (
+            <span className={`etiquette ${classeDecision[statutDecide]}`}>
+              {libelleStatutReleve[statutDecide]}
+            </span>
+          )}
+          {rang && <span className="mention">{rang}</span>}
+        </span>
       </div>
+
+      {!lectureSeule && detail.type === 'releve' && (
+        <EcoleConnue
+          admin={admin}
+          releveId={detail.id}
+          nom={detail.nomEnseigne}
+          position={detail.position}
+          reponseDuRelais={detail.reponseDoublon}
+          cible={cible}
+          choisir={setCible}
+        />
+      )}
 
       <Photos
         admin={admin}
@@ -1336,9 +1420,14 @@ function Detail({
                 disabled={editionInformations}
                 aria-expanded={mode === 'correction'}
                 onClick={() => setMode(mode === 'correction' ? null : 'correction')}
+                aria-label="Demander une correction"
               >
-                Demander une correction
+                <span className="seulement-tel">Corriger</span>
+                <span className="seulement-ordi">Demander une correction</span>
               </button>
+              <span className="mention admin-consequence">
+                Accepter crée l’école sans la publier.
+              </span>
               <button
                 type="button"
                 className="bouton bouton-secondaire admin-bouton-refus"

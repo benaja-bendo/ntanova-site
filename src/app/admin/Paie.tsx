@@ -9,6 +9,7 @@ import type { LignePaie, PaiementVu, PortAdministration, SemainePaie } from '../
 import { afficherTelephone } from '../../modele/telephone';
 import { Bandeau, Champ, jour } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
+import { TitreEcran } from './Cadre';
 
 type Operateur = 'mtn' | 'airtel' | 'autre';
 const libelleOperateur: Record<Operateur, string> = {
@@ -258,16 +259,16 @@ export function Paie({ admin }: { admin: PortAdministration }) {
 
   return (
     <div className="pile">
-      <div className="admin-titre">
-        <div>
-          <h1>Paie</h1>
-          <p className="texte-doux">
+      <TitreEcran
+        titre="Paie"
+        regles={
+          <p>
             Le vendredi soir. Une fiche acceptée, un contact confirmé, l’essai d’un nouveau relais :
             la base calcule ce qui est dû et ne le compte qu’une fois. Une fiche acceptée après le
             vendredi attend la semaine suivante.
           </p>
-        </div>
-      </div>
+        }
+      />
 
       {erreur && (
         <Bandeau ton="erreur" icone="alerte">

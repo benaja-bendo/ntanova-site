@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
+import { ouvrirLaFiche, seConnecter, uneFicheEnvoyee, ouvrirEcranAdmin } from './aides';
 
 // « Santé des envois » (ticket #77), construit avec le faux serveur : le journal des téléphones, lisible, regroupé,
 // avec une période qui écarte le bruit d'une vieille nuit. L'utilisateur du faux serveur est relais et administrateur.
@@ -66,10 +66,12 @@ test.describe('Santé des envois', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/');
-    await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Aujourd’hui', level: 1 }).locator('visible=true'),
+    ).toBeVisible();
     await poserLeJournal(page);
 
-    await page.getByRole('link', { name: 'Santé', exact: true }).click();
+    await ouvrirEcranAdmin(page, 'Santé des envois');
     await expect(page.getByRole('heading', { name: 'Santé des envois', level: 1 })).toBeVisible();
 
     // Trois lignes identiques : une seule ligne, avec son nombre et l'appareil en clair.
@@ -97,9 +99,11 @@ test.describe('Santé des envois', () => {
 
   test('« tout » rend la vieille nuit, expliquée comme une ancienne version', async ({ page }) => {
     await seConnecter(page, '/admin/');
-    await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Aujourd’hui', level: 1 }).locator('visible=true'),
+    ).toBeVisible();
     await poserLeJournal(page);
-    await page.getByRole('link', { name: 'Santé', exact: true }).click();
+    await ouvrirEcranAdmin(page, 'Santé des envois');
     await expect(page.getByText(/La position est refusée/)).toBeVisible();
 
     await page.getByLabel('Période').selectOption('tout');
@@ -112,8 +116,10 @@ test.describe('Santé des envois', () => {
 
   test('un journal vide le dit', async ({ page }) => {
     await seConnecter(page, '/admin/');
-    await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
-    await page.getByRole('link', { name: 'Santé', exact: true }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Aujourd’hui', level: 1 }).locator('visible=true'),
+    ).toBeVisible();
+    await ouvrirEcranAdmin(page, 'Santé des envois');
     await expect(page.getByText('Aucun signal sur cette période.')).toBeVisible();
   });
 });

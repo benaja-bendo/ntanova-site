@@ -22,9 +22,14 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await expect(ligne.getByText('À situer', { exact: true })).toBeVisible();
   await ouvrirGestion(ligne, 'Mission');
   // Une école sans position : la mission par défaut est de la situer.
-  await expect(ligne.getByLabel('Ce que le relais doit faire')).toHaveValue('locate');
-  await ligne.getByLabel('À vérifier').fill('Le nom exact');
-  await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
+  await expect(
+    page.locator('article.fiche-admin').getByLabel('Ce que le relais doit faire'),
+  ).toHaveValue('locate');
+  await page.locator('article.fiche-admin').getByLabel('À vérifier').fill('Le nom exact');
+  await page
+    .locator('article.fiche-admin')
+    .getByRole('button', { name: 'Confier', exact: true })
+    .click();
   await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
   // Le relais la voit dans « Mon secteur » et la complète.

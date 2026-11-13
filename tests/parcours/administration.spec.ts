@@ -1,4 +1,4 @@
-import { ouvrirContacts } from './aides';
+import { ouvrirContacts, ouvrirEcranAdmin } from './aides';
 import { ouvrirGestion } from './aides';
 import { expect, test } from '@playwright/test';
 import {
@@ -116,7 +116,9 @@ test.describe('administration', () => {
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
     await page.getByRole('button', { name: 'Décidées' }).click();
     await page.getByRole('link', { name: /\[École 1\]/ }).click();
-    await expect(page.getByText('Acceptée', { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByText('Acceptée', { exact: true }).locator('visible=true').first(),
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Accepter la fiche' })).toHaveCount(0);
     await expect(page.getByText(/un refus est définitif/)).toBeVisible();
 
@@ -313,7 +315,7 @@ test.describe('administration', () => {
 
   test('un lot se marque rendu, et se remet en cours', async ({ page }) => {
     await seConnecter(page, '/admin/#valider');
-    await page.getByRole('link', { name: 'Zones' }).click();
+    await ouvrirEcranAdmin(page, 'Zones');
     // Le tableau des lots, pas celui des zones (qui a aussi une ligne « Tié-Tié »).
     const lots = page
       .locator('.admin-tableau')

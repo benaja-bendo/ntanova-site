@@ -1,4 +1,4 @@
-import { ouvrirGestion } from './aides';
+import { ouvrirGestion, retourAuxEcoles } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, publierLaZoneTieTie, uneFicheEnvoyee } from './aides';
 
@@ -44,6 +44,7 @@ test('l’administration corrige le nom, le type, les niveaux et le programme, s
   await formulaire.getByRole('button', { name: 'Enregistrer' }).click();
 
   await expect(page.getByRole('status')).toHaveText(/\[École 1 corrigée\] est modifiée/);
+  await retourAuxEcoles(page);
   const corrigee = page.getByRole('row', { name: /\[École 1 corrigée\]/ });
   await expect(corrigee.getByText('Publique · Primaire, Collège')).toBeVisible();
 
@@ -98,7 +99,7 @@ test('une école retirée du site ne se modifie plus', async ({ page, context })
   await uneEcolePrete(page, context);
   await publierLaZoneTieTie(page);
   await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
-  await expect(ligne(page).getByRole('button', { name: 'Gérer la fiche' })).toBeVisible();
+  await expect(ligne(page).getByRole('link', { name: 'Ouvrir la fiche' })).toBeVisible();
 
   await ouvrirGestion(ligne(page), 'retirer');
   await ligne(page).getByLabel('Motif').selectOption('erreur');

@@ -213,6 +213,10 @@
   --ombre-flottante: 0 1px 2px rgb(20 35 31 / 14%), 0 4px 14px rgb(20 35 31 / 14%);
   --ombre-panneau: 6px 0 20px rgb(20 35 31 / 10%);
   --ombre-tiroir: 0 -6px 24px rgb(20 35 31 / 18%);
+  /* L'administration v2 (13/11) : la barre de décision collée en bas, la feuille « Plus », le filet du compte sur la barre sombre. */
+  --ombre-barre-basse: 0 -4px 12px rgb(20 35 31 / 8%);
+  --ombre-feuille: 0 -6px 24px rgb(20 35 31 / 20%);
+  --filet-sur-sombre: rgb(249 244 236 / 25%);
 
   /* 3. Typographie : échelle pour un écran de 360 px, texte courant à 16 px */
   /* v2 (12/11) : Source Serif 4 700 pour les titres et les noms d'écoles (jamais sous 16 px, jamais sur un bouton) ; */

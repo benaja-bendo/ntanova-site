@@ -18,7 +18,7 @@ export function Dialogue({
   fermer: () => void;
   children: ReactNode;
   integre?: boolean;
-  variante?: 'dialogue' | 'tiroir' | 'confirmation';
+  variante?: 'dialogue' | 'tiroir' | 'confirmation' | 'feuille';
   entete?: ReactNode;
   retourFocus?: HTMLElement | null;
   occupe?: boolean;

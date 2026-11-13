@@ -5,6 +5,8 @@ import {
   publierLaZoneTieTie,
   seConnecter,
   uneFicheEnvoyee,
+  ficheAdmin,
+  retourAuxEcoles,
 } from './aides';
 test.use({ permissions: ['geolocation'] });
 test('photo publique : sélection explicite, relecture et retrait sans badge', async ({
@@ -13,6 +15,8 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
+  // Admin v2 : l'aide des photos est repliée sous « À savoir sur les photos ».
+  await page.getByText('À savoir sur les photos').click();
   await expect(
     page.getByText(/Effacer l’original ne retire pas les copies déjà publiées/),
   ).toBeVisible();
@@ -20,7 +24,7 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
   await ouvrirGestion(ligne, 'Photo publique');
-  const d = page.getByRole('dialog', { name: 'Gérer [École 1]' });
+  const d = ficheAdmin(page, '[École 1]');
   // Aucune enseigne contrôlée : rien à retirer, et la fiche paraîtra sans photo.
   await expect(d).toContainText('Aucune enseigne ni vue du bâtiment contrôlée');
   await expect(d.getByRole('button', { name: 'Retirer la photo publique' })).toHaveCount(0);
@@ -34,12 +38,11 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
   await expect(d).toContainText('Choix prioritaire.');
   // La fiche est « prête », pas publiée : aucune photo n'est dite publique.
   await expect(d).toContainText('Aucune photo n’est publique tant que la fiche n’est pas publiée');
-  await expect(ligne).toContainText('Prête');
-  await expect(ligne).not.toContainText('vérifiée par la direction');
+  await expect(page.locator('article.fiche-admin')).toContainText('Prête');
+  await expect(page.locator('article.fiche-admin')).not.toContainText('vérifiée par la direction');
   expect(await d.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-  await page.keyboard.press('Escape');
+  await retourAuxEcoles(page);
   await expect(d).toHaveCount(0);
-  await expect(ligne.getByRole('button', { name: 'Gérer la fiche', exact: true })).toBeFocused();
   await page.reload();
   await ouvrirGestion(ligne, 'Photo publique');
   await d.getByRole('button', { name: 'Retirer la photo publique' }).click();
@@ -50,7 +53,7 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
 test('sans enseigne acceptée : aucun choix inventé', async ({ page }) => {
   await seConnecter(page, '/admin/#ecoles');
   await ouvrirGestion(page.getByRole('row', { name: /\[École à situer\]/ }), 'Photo publique');
-  await expect(page.getByRole('dialog')).toContainText(
+  await expect(page.locator('article.fiche-admin')).toContainText(
     'Aucune enseigne ni vue du bâtiment issue d’un relevé accepté.',
   );
 });
@@ -58,7 +61,7 @@ test('sans enseigne acceptée : aucun choix inventé', async ({ page }) => {
 
 const MENU = 'summary[aria-label^="Autres actions pour"]';
 const ligne = (page: Page) => page.getByRole('row', { name: /\[École 1\]/ });
-const dialogue = (page: Page) => page.getByRole('dialog', { name: 'Gérer [École 1]' });
+const dialogue = (page: Page) => ficheAdmin(page, '[École 1]');
 const etatFaux = (page: Page) =>
   page.evaluate(
     () =>
@@ -107,6 +110,7 @@ test('contrôler une enseigne la propose au repli automatique, sans promettre pl
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
+  await page.getByText('À savoir sur les photos').click();
   await expect(
     page.getByText(/Contrôler pour publication\. Photo nette, sans enfant ni donnée personnelle/),
   ).toBeVisible();
@@ -189,9 +193,9 @@ test('corbeille puis restauration : aucune photo n’est publiée, le retrait et
       .getByRole('button', { name: /Mettre \[École 1\] à la corbeille/ })
       .click();
     await expect(page.getByRole('status')).toHaveText(/est à la corbeille/);
-    await page.getByRole('button', { name: 'Corbeille · 1' }).click();
+    await page.getByRole('button', { name: /^Corbeille\s*1$/ }).click();
     // À la corbeille, la photo ne se gère plus : ni « Gérer la fiche », ni « Publier ».
-    await expect(ligne(page).getByRole('button', { name: 'Gérer la fiche' })).toHaveCount(0);
+    await expect(ligne(page).getByRole('link', { name: 'Ouvrir la fiche' })).toHaveCount(0);
     await ligne(page).getByRole('button', { name: 'Restaurer' }).click();
     await expect(page.getByRole('status')).toHaveText(/est restaurée/);
     await page.getByRole('button', { name: 'Toutes' }).click();
@@ -205,7 +209,7 @@ test('corbeille puis restauration : aucune photo n’est publiée, le retrait et
   await expect(d).toContainText('La fiche n’est pas publiée : aucune photo n’est publique');
   await expect(d.getByText('Retenue automatiquement')).toHaveCount(0);
   await expect(d.getByText('Contrôlée, candidate automatique.')).toHaveCount(2);
-  await page.keyboard.press('Escape');
+  await retourAuxEcoles(page);
   await expect(d).toHaveCount(0);
 
   // 2. L'administration republie : la photo automatique reparaît, elle n'a pas été perdue.
@@ -217,7 +221,7 @@ test('corbeille puis restauration : aucune photo n’est publiée, le retrait et
   // 3. Un retrait traverse la corbeille : republiée, la fiche reste sans photo.
   await d.getByRole('button', { name: 'Retirer la photo publique' }).click();
   await expect(d).toContainText('Retrait demandé');
-  await page.keyboard.press('Escape');
+  await retourAuxEcoles(page);
   await expect(d).toHaveCount(0);
   await mettreALaCorbeilleEtRestaurer();
   await ligne(page).getByRole('button', { name: 'Publier', exact: true }).click();

@@ -78,16 +78,20 @@ test.describe('l’administration retrouve une fiche renvoyée', () => {
     await renvoyer(page, 'Vérifiez le nom sur l’enseigne.');
 
     await page.goto('/admin/');
-    const carte = page.getByRole('region', { name: 'Renvoyées aux relais' });
+    // Admin v2 : « Aujourd'hui », la carte des fiches renvoyées.
+    const carte = page.getByRole('link', { name: /fiche renvoyée aux relais/ });
     await expect(carte).toContainText('1');
-    await expect(carte).toContainText(/La plus ancienne attend son relais depuis/);
+    await expect(carte).toContainText(/la plus ancienne attend son relais depuis/);
   });
 
   test('rien n’a été renvoyé : l’accueil le dit', async ({ page }) => {
     await seConnecter(page, '/admin/');
-    const carte = page.getByRole('region', { name: 'Renvoyées aux relais' });
+    const carte = page
+      .getByRole('region', { name: 'Ce qui t’attend' })
+      .getByRole('listitem')
+      .filter({ hasText: 'fiche renvoyée aux relais' });
     await expect(carte).toContainText('0');
-    await expect(carte).toContainText('Aucune fiche n’attend son relais.');
+    await expect(carte).toContainText('aucune n’attend son relais');
   });
 });
 

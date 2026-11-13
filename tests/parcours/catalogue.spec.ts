@@ -1,4 +1,4 @@
-import { ouvrirContacts, envoyerSansBonus } from './aides';
+import { ouvrirContacts, envoyerSansBonus, ouvrirEcranAdmin, ouvrirRegles } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { choisirLaZone, seConnecter } from './aides';
 
@@ -221,7 +221,8 @@ test.describe('valider un envoi : photos, formations, acceptation', () => {
     await page.getByRole('button', { name: 'Accepter la fiche' }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
-    await page.getByRole('link', { name: /\[Lycée A annexe\]/ }).click();
+    // Admin v2 : sur téléphone, la fiche suivante s'ouvre seule ; on la rouvre depuis la liste.
+    await ouvrirLEnvoi(page, '[Lycée A annexe]');
     const que = page.getByRole('group', { name: 'Que faire de cette fiche ?' });
     await que.getByRole('button', { name: 'Nouvelle implantation d’une école connue' }).click();
     await page
@@ -464,7 +465,7 @@ test.describe('zones et lots', () => {
   }) => {
     test.setTimeout(60_000);
     await seConnecter(page, '/admin/#valider');
-    await page.getByRole('link', { name: 'Zones' }).click();
+    await ouvrirEcranAdmin(page, 'Zones');
     await expect(page.getByRole('heading', { name: 'Zones', level: 1 })).toBeVisible();
 
     // Loandjili est fermée : un lot ne s'y pose pas, sauf d'entraînement. La zone du volet est déjà choisie.
@@ -504,12 +505,15 @@ test.describe('zones et lots', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/#valider');
-    await page.getByRole('link', { name: 'Zones' }).click();
+    await ouvrirEcranAdmin(page, 'Zones');
     await expect(page.getByRole('heading', { name: 'Zones', level: 1 })).toBeVisible();
     // Les relais peuvent relever partout : le texte ne dit plus que « seule une zone ouverte » le permet.
+    // Admin v2 : cette règle est dans le tiroir « Règles » de l'écran.
+    await ouvrirRegles(page);
     await expect(
       page.getByText(/Les relais peuvent relever partout au Congo-Brazzaville/),
     ).toBeVisible();
+    await page.keyboard.press('Escape');
     await expect(page.getByText(/ne relèvent que dans une zone ouverte/)).toHaveCount(0);
 
     // Loandjili : « Déploiement programmé » au départ, fermée aux relais. Depuis le 08/11/2026 (ticket 146), la carte dessine
@@ -548,7 +552,7 @@ test.describe('zones et lots', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/#valider');
-    await page.getByRole('link', { name: 'Zones' }).click();
+    await ouvrirEcranAdmin(page, 'Zones');
 
     // Sous Tié-Tié, ouverte : la nouvelle zone l'est par héritage, et son adresse vient de son nom.
     await choisirLaZone(page, /^Tié-Tié/);
@@ -603,7 +607,7 @@ test.describe('la paie du vendredi', () => {
     await page.getByRole('button', { name: 'Accepter la fiche' }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
-    await page.getByRole('link', { name: 'Paie' }).click();
+    await ouvrirEcranAdmin(page, 'Paie');
     await expect(page.getByRole('heading', { name: 'Paie' })).toBeVisible();
     const du = page.getByRole('region', { name: 'Ce qui est dû' });
 
@@ -642,7 +646,7 @@ test.describe('la paie du vendredi', () => {
 
   test('on ne clôt qu’un vendredi', async ({ page }) => {
     await seConnecter(page, '/admin/#valider');
-    await page.getByRole('link', { name: 'Paie' }).click();
+    await ouvrirEcranAdmin(page, 'Paie');
     const champ = page.getByLabel('Jusqu’au vendredi');
     const vendredi = await champ.inputValue();
     expect(new Date(`${vendredi}T12:00:00Z`).getUTCDay()).toBe(5);
