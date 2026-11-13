@@ -7,7 +7,7 @@ import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } f
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/ui/shadcn/button';
-import { IconeBas, IconeChargement, IconePoints } from '@/ui/shadcn/icones';
+import { IconeBas, IconeChargement, IconeFermer, IconePoints } from '@/ui/shadcn/icones';
 
 const variantes = {
   principal: 'default',
@@ -99,9 +99,12 @@ export function ActionsSecondaires({
   nom,
   children,
   versLeHaut = false,
+  discret = false,
 }: {
   nom: string;
   children: ReactNode;
+  /** Dans une ligne de tableau : « ⋯ » sans cadre, plus petit. */
+  discret?: boolean;
   /** Dans une barre du bas, le menu s'ouvre au-dessus. */
   versLeHaut?: boolean;
 }) {
@@ -134,7 +137,9 @@ export function ActionsSecondaires({
       <summary
         aria-label={`Autres actions pour ${nom}`}
         className={cn(
-          buttonVariants({ variant: 'quiet', size: 'icon' }),
+          discret
+            ? 'flex size-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground'
+            : buttonVariants({ variant: 'quiet', size: 'icon' }),
           'list-none [&::-webkit-details-marker]:hidden',
         )}
       >
@@ -187,7 +192,7 @@ const dessins = {
     'top-1/2 left-1/2 max-h-[90dvh] w-[min(94vw,40rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl',
   confirmation:
     'top-1/2 left-1/2 max-h-[90dvh] w-[min(94vw,30rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl',
-  tiroir: 'inset-y-0 right-0 h-dvh w-full sm:max-w-xl',
+  tiroir: 'inset-y-0 right-0 h-dvh w-full sm:max-w-2xl',
   feuille: 'inset-x-0 bottom-0 max-h-[90dvh] rounded-t-2xl',
 } as const;
 
@@ -261,14 +266,27 @@ export function Dialogue({
             <div className="flex min-w-0 flex-1 flex-col gap-1 [&_b]:font-serif [&_b]:text-xl [&_h2]:m-0 [&_h2]:font-serif [&_h2]:text-xl">
               {entete}
             </div>
-            <button
-              type="button"
-              disabled={occupe}
-              onClick={fermer}
-              className={buttonVariants({ variant: 'outline', size: 'sm' })}
-            >
-              {libelleFermeture}
-            </button>
+            {/* Planche : la croix ferme un tiroir ou une fenêtre ; une confirmation garde son mot (« Annuler »). */}
+            {variante === 'confirmation' ? (
+              <button
+                type="button"
+                disabled={occupe}
+                onClick={fermer}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                {libelleFermeture}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={occupe}
+                onClick={fermer}
+                aria-label={libelleFermeture}
+                className="-mr-2 flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:opacity-50"
+              >
+                <IconeFermer className="size-5" aria-hidden />
+              </button>
+            )}
           </header>
           <div className="flex flex-col gap-4 px-5 py-4">
             {description && (

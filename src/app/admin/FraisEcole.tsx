@@ -1,26 +1,61 @@
-import { v2 } from '@/ui/v2/classes';
+/**
+ * « Frais par classe » (planche « Frais, avec le prospectus ») : on recopie ce que dit le prospectus, ligne par ligne. À
+ * gauche, le prospectus photographié par un relais (photo de travail, jamais publique) ; à droite, l'année scolaire, la
+ * date de déclaration et le tableau des lignes (cycle, classe, montant, période, inscription, « Illisible ? »). Une ligne
+ * illisible n'est jamais publiée : « Demander … » l'ajoute à ce qui manque, demandée à l'école. Tailwind et shadcn seulement.
+ */
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
+import { v2 } from '@/ui/v2/classes';
+import { Bouton } from '@/ui/v2/admin';
+import { Bandeau } from '@/ui/v2/formulaire';
+import { IconeAjouter, IconeCadenas, IconeFermer, IconeMoins } from '@/ui/shadcn/icones';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
-  avecMemeInscription,
-  francsCFA,
   inscriptionLaPlusFrequente,
-  lireMontant,
   lireFraisEcole,
-  saisieFraisVide,
-  saisieDeFrais,
-  montantFrais,
   periodesFrais,
   type FraisEcole as Frais,
-  type SaisieFrais,
 } from '../../modele/frais-ecole';
 import { libelleNiveau } from '../../modele/libelles';
 import type { Valeur } from '../../modele/listes';
 import type { PhotoVue, PortAdministration } from '../../modele/ports';
-import { Bandeau } from '@/ui/v2/formulaire';
 import { jour } from '../../ui/composants';
-import { Dialogue } from '@/ui/v2/admin';
 import { messageErreur } from './ChampPosition';
+
+/** Une ligne du tableau, telle qu'on la tape. `id` : la ligne enregistrée qu'elle modifie. */
+interface Ligne {
+  cle: string;
+  id: string | null;
+  cycle: string;
+  classe: string;
+  montant: string;
+  periode: string;
+  inscription: string;
+  illisible: boolean;
+}
+
+const montantEnTexte = (f: Frais) =>
+  f.minimum === f.maximum ? String(f.minimum) : `${f.minimum}-${f.maximum}`;
+
+/** « 15000 » ou « 15000-20000 » (une fourchette), espaces permis. */
+function lireMontantOuFourchette(t: string): { minimum: string; maximum: string } {
+  const [a = '', b = ''] = t.split(/\s*[-–à]\s*/);
+  return { minimum: a, maximum: b || a };
+}
+
+let suivante = 0;
+const nouvelle = (cycle = ''): Ligne => ({
+  cle: `n${suivante++}`,
+  id: null,
+  cycle,
+  classe: '',
+  montant: '',
+  periode: 'mois',
+  inscription: '',
+  illisible: false,
+});
+
 export function FraisEcole({
   ecoleId,
   nom,
@@ -28,7 +63,6 @@ export function FraisEcole({
   frais,
   admin,
   fermer,
-  integre = false,
   surOccupation,
   surChangement,
 }: {
@@ -38,24 +72,38 @@ export function FraisEcole({
   frais: Frais[];
   admin: PortAdministration;
   fermer: () => void;
+  /** Toujours dans la fiche depuis la refonte v2 ; gardé pour les appels d'avant. */
   integre?: boolean;
   surOccupation?: (occupe: boolean) => void;
   surChangement: (texte: string) => void;
 }) {
-  const [saisie, setSaisie] = useState(saisieFraisVide);
-  const [id, setId] = useState<string | null>(null);
+  const [lignes, setLignes] = useState<Ligne[]>(() =>
+    frais.length > 0
+      ? frais.map((f) => ({
+          cle: f.id,
+          id: f.id,
+          cycle: f.cycle,
+          classe: f.classe ?? '',
+          montant: montantEnTexte(f),
+          periode: f.periode,
+          inscription: f.inscription === null ? '' : String(f.inscription),
+          illisible: false,
+        }))
+      : [nouvelle(cycles[0] ?? '')],
+  );
+  const [retirees, setRetirees] = useState<string[]>([]);
+  const [annee, setAnnee] = useState(frais[0]?.anneeScolaire ?? '');
+  const [declaresLe, setDeclaresLe] = useState(frais[0]?.declaresLe ?? jourDuCongo());
+  const [note, setNote] = useState(frais[0]?.note ?? '');
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const [prospectus, setProspectus] = useState<PhotoVue[] | null>(null);
+  const [vue, setVue] = useState(0);
+  const [zoom, setZoom] = useState(1);
   useEffect(() => {
     surOccupation?.(enCours);
     return () => surOccupation?.(false);
   }, [enCours, surOccupation]);
-  const champ = (cle: keyof SaisieFrais, valeur: string | boolean | null) =>
-    setSaisie((s) => ({ ...s, [cle]: valeur }));
-  // v2 (13/11) : le prospectus photographié par un relais, à côté du formulaire. Photo de travail : jamais publique ; seules
-  // les lignes recopiées le sont.
-  const [prospectus, setProspectus] = useState<PhotoVue[] | null>(null);
-  const [vue, setVue] = useState(0);
   useEffect(() => {
     let vivant = true;
     void admin
@@ -67,38 +115,72 @@ export function FraisEcole({
     };
   }, [admin, ecoleId]);
   const photo = prospectus?.[vue] ?? null;
-  // « Illisible » : la ligne n'est pas enregistrée ; elle devient un manque précisé, demandé à l'école.
-  const illisible = async () => {
-    const quoi =
-      (saisie.classe ?? '').trim() ||
-      (saisie.cycle ? libelleNiveau[saisie.cycle as Valeur<'niveau'>] : '');
-    if (!quoi) return setErreur('Choisis le cycle (ou écris la classe) de la ligne illisible.');
-    setEnCours(true);
+
+  const changer = (cle: string, champs: Partial<Ligne>) =>
+    setLignes((ls) => ls.map((l) => (l.cle === cle ? { ...l, ...champs } : l)));
+  const retirer = (l: Ligne) => {
+    setLignes((ls) => ls.filter((x) => x.cle !== l.cle));
+    if (l.id) setRetirees((r) => [...r, l.id!]);
+  };
+  const publiables = lignes.filter((l) => !l.illisible);
+  const illisibles = lignes.filter((l) => l.illisible);
+  const nomDeLigne = (l: Ligne) =>
+    l.classe.trim() || (l.cycle ? libelleNiveau[l.cycle as Valeur<'niveau'>] : 'cette ligne');
+
+  const enregistrer = async () => {
     setErreur(null);
+    const saisies = publiables.map((l) => {
+      const { minimum, maximum } = lireMontantOuFourchette(l.montant);
+      return {
+        l,
+        lu: lireFraisEcole({
+          cycle: l.cycle,
+          classe: l.classe,
+          minimum,
+          maximum,
+          periode: l.periode,
+          precisionPeriode: '',
+          inscription: l.inscription,
+          anneeScolaire: annee,
+          declaresLe,
+          note,
+          // Planche : enregistrer les lignes recopiées vaut déclaration de l'école (le prospectus en est la preuve).
+          declarationConfirmee: true,
+          photoPreuve: photo?.id ?? null,
+        }),
+      };
+    });
+    const fautive = saisies.find((x) => !x.lu.frais);
+    if (fautive) return setErreur(`${nomDeLigne(fautive.l)} : ${fautive.lu.erreur}`);
+    setEnCours(true);
     try {
-      await admin.demanderALEcole(ecoleId, 'frais', `Frais ${quoi}, illisible sur le prospectus`);
-      setSaisie(saisieFraisVide());
-      surChangement(`« Frais ${quoi} » s’ajoute à ce qui manque : demandé à l’école.`);
+      for (const id of retirees) await admin.retirerFraisEcole(ecoleId, id);
+      for (const { l, lu } of saisies) await admin.enregistrerFraisEcole(ecoleId, lu.frais!, l.id);
+      setRetirees([]);
+      surChangement(
+        `${saisies.length} ligne${saisies.length > 1 ? 's' : ''} de frais enregistrée${saisies.length > 1 ? 's' : ''} pour ${nom}. Visible à la prochaine mise à jour du site.`,
+      );
+      fermer();
     } catch (e) {
       setErreur(messageErreur(e));
     } finally {
       setEnCours(false);
     }
   };
-  const sauver = async () => {
-    const resultat = lireFraisEcole(saisie);
-    if (!resultat.frais) {
-      setErreur(resultat.erreur);
-      return;
-    }
-    setEnCours(true);
+
+  const demander = async () => {
     setErreur(null);
+    setEnCours(true);
     try {
-      await admin.enregistrerFraisEcole(ecoleId, resultat.frais, id);
-      setId(null);
-      setSaisie(saisieFraisVide());
+      for (const l of illisibles)
+        await admin.demanderALEcole(
+          ecoleId,
+          'frais',
+          `Frais ${nomDeLigne(l)}, illisible sur le prospectus`,
+        );
+      setLignes((ls) => ls.filter((l) => !l.illisible));
       surChangement(
-        `Les frais déclarés de ${nom} sont enregistrés. Reconstruis le site pour publier ce changement.`,
+        `${illisibles.map((l) => `« Frais ${nomDeLigne(l)} »`).join(', ')} : demandé à l’école, ajouté à ce qui manque.`,
       );
     } catch (e) {
       setErreur(messageErreur(e));
@@ -106,376 +188,275 @@ export function FraisEcole({
       setEnCours(false);
     }
   };
-  const retirer = async (f: Frais) => {
-    setEnCours(true);
-    setErreur(null);
-    try {
-      await admin.retirerFraisEcole(ecoleId, f.id);
-      if (id === f.id) {
-        setId(null);
-        setSaisie(saisieFraisVide());
-      }
-      surChangement(
-        `Les frais déclarés de ${nom} sont retirés du catalogue. Reconstruis le site pour les retirer des pages en ligne ; leur historique est conservé.`,
-      );
-    } catch (e) {
-      setErreur(messageErreur(e));
-    } finally {
-      setEnCours(false);
-    }
-  };
+
+  const champ = cn(v2.champ, 'h-10 px-2.5 text-[15px]');
   return (
-    <Dialogue titre={`Frais de ${nom}`} fermer={fermer} integre={integre}>
-      <h3>Frais déclarés par l’école</h3>
-      <p>
-        Saisis les montants et la période communiqués par l’école. Pas de calcul automatique d’un
-        total annuel, ni de badge de confirmation.
-      </p>
-      {frais.length > 0 && (
-        <ul className="admin-frais-liste">
-          {frais.map((f) => (
-            <li key={f.id}>
-              <b>
-                {libelleNiveau[f.cycle]}
-                {f.classe ? ` · ${f.classe}` : ''} · {montantFrais(f)}
-              </b>
-              <p>
-                {f.periode === 'autre' ? f.precisionPeriode : periodesFrais[f.periode]} ·{' '}
-                {f.anneeScolaire ?? 'Année scolaire non précisée'} · déclaration du{' '}
-                {jour(f.declaresLe)}
-              </p>
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+      {/* Le prospectus. */}
+      <section className="flex flex-col gap-2.5" aria-label="Prospectus des frais">
+        <h3 className="m-0 flex flex-wrap items-center justify-between gap-2 font-sans text-base font-bold">
+          Prospectus des frais
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">
+            <IconeCadenas className="size-3.5" aria-hidden />
+            Photo de travail, jamais publique
+          </span>
+        </h3>
+        {photo?.adresse ? (
+          <div
+            className="relative overflow-auto rounded-xl bg-foreground p-4"
+            style={{ maxHeight: 420 }}
+          >
+            <img
+              src={photo.adresse}
+              alt="Le prospectus des frais, pris par un relais"
+              className="mx-auto block w-full origin-top rounded-sm"
+              style={{ transform: `scale(${zoom})` }}
+            />
+            <span className="sticky bottom-0 float-right flex gap-1.5">
               <button
                 type="button"
-                className={v2.boutonSecondaire}
-                disabled={enCours}
-                aria-label={`Modifier les frais de ${libelleNiveau[f.cycle]} · ${f.precisionPeriode ?? periodesFrais[f.periode]} · ${f.anneeScolaire ?? 'année non précisée'}`}
-                onClick={() => {
-                  setId(f.id);
-                  setSaisie(saisieDeFrais(f));
-                  setErreur(null);
-                }}
+                aria-label="Agrandir le prospectus"
+                onClick={() => setZoom((z) => Math.min(3, z + 0.5))}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-md border-0 bg-card p-0 text-foreground"
               >
-                Modifier les frais de {libelleNiveau[f.cycle]}
+                <IconeAjouter className="size-4" aria-hidden />
               </button>
               <button
                 type="button"
-                className={v2.boutonSecondaire}
-                disabled={enCours}
-                aria-label={`Retirer les frais de ${libelleNiveau[f.cycle]} · ${f.precisionPeriode ?? periodesFrais[f.periode]} · ${f.anneeScolaire ?? 'année non précisée'}`}
-                onClick={() => void retirer(f)}
+                aria-label="Réduire le prospectus"
+                onClick={() => setZoom((z) => Math.max(1, z - 0.5))}
+                className="flex size-9 cursor-pointer items-center justify-center rounded-md border-0 bg-card p-0 text-foreground"
               >
-                Retirer les frais de {libelleNiveau[f.cycle]}
+                <IconeMoins className="size-4" aria-hidden />
               </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {frais.length >= 2 && (
-        <MemeInscription
-          frais={frais}
-          enCours={enCours}
-          appliquer={async (montant) => {
-            const aChanger = avecMemeInscription(frais, montant);
-            if (aChanger.length === 0)
-              return surChangement(
-                `Toutes les lignes ont déjà ${francsCFA(montant)} d’inscription.`,
-              );
-            setEnCours(true);
-            setErreur(null);
-            try {
-              // Une ligne à la fois : chacune garde sa preuve, sa formation et sa date ; la base trace chaque modification.
-              for (const f of aChanger) await admin.enregistrerFraisEcole(ecoleId, f, f.id);
-              surChangement(
-                `Inscription de ${francsCFA(montant)} sur ${aChanger.length} ligne${aChanger.length > 1 ? 's' : ''}. Reconstruis le site pour publier ce changement.`,
-              );
-            } catch (e) {
-              setErreur(messageErreur(e));
-            } finally {
-              setEnCours(false);
-            }
-          }}
-        />
-      )}
-      {cycles.length === 0 ? (
-        <p>
-          Renseigne d’abord les cycles enseignés dans « Modifier la fiche » pour ajouter des frais.
-        </p>
-      ) : (
-        <form
-          className={v2.motif}
-          aria-label={`Frais déclarés de ${nom}`}
-          onSubmit={(e) => {
-            e.preventDefault();
-            void sauver();
-          }}
-        >
-          <h4>{id ? 'Modifier la déclaration' : 'Ajouter une déclaration'}</h4>
-          {prospectus && prospectus.length > 0 && photo && (
-            <figure className="admin-prospectus">
-              {photo.adresse && (
-                <img src={photo.adresse} alt="Le prospectus des frais, pris par un relais" />
-              )}
-              <figcaption className={v2.mention}>
-                Prospectus · photo de travail, jamais publique
-                {prospectus.length > 1 && (
-                  <>
-                    {' '}
-                    ·{' '}
-                    <button
-                      type="button"
-                      className={v2.lien}
-                      onClick={() => setVue((vue + 1) % prospectus.length)}
-                    >
-                      Photo suivante ({vue + 1} sur {prospectus.length})
-                    </button>
-                  </>
-                )}
-              </figcaption>
-              <label className={v2.case}>
-                <input
-                  type="checkbox"
-                  checked={saisie.photoPreuve === photo.id}
-                  onChange={(e) => champ('photoPreuve', e.target.checked ? photo.id : null)}
-                />
-                Ligne lue sur ce prospectus
-              </label>
-            </figure>
-          )}
-          {prospectus && prospectus.length === 0 && (
-            <p className={v2.mention}>
-              Pas de prospectus photographié : la ligne se publie « dite par l’école », avec sa
-              date.
-            </p>
-          )}
-          <label className={v2.groupe}>
-            Cycle
-            <select
-              className={v2.champ}
-              value={saisie.cycle}
-              onChange={(e) => champ('cycle', e.target.value)}
-            >
-              <option value="">Choisir</option>
-              {cycles.map((c) => (
-                <option key={c} value={c}>
-                  {libelleNiveau[c]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={v2.groupe}>
-            Classe (facultatif)
+            </span>
+          </div>
+        ) : (
+          <div className="flex aspect-[3/4] items-center justify-center rounded-xl bg-muted p-6 text-center text-sm text-muted-foreground">
+            {prospectus === null
+              ? 'Chargement…'
+              : 'Pas de prospectus photographié : les lignes se publient « dites par l’école », avec leur date.'}
+          </div>
+        )}
+        {photo && (
+          <p className="m-0 text-sm text-muted-foreground">
+            Prise par un relais{photo.prisLe ? ` le ${jour(photo.prisLe)}` : ''}, dans son relevé.
+            {prospectus && prospectus.length > 1 && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className={cn(v2.lien, 'min-h-0 text-sm')}
+                  onClick={() => setVue((vue + 1) % prospectus.length)}
+                >
+                  Photo suivante ({vue + 1} sur {prospectus.length})
+                </button>
+              </>
+            )}
+          </p>
+        )}
+      </section>
+
+      {/* Les lignes. */}
+      <section className="flex min-w-0 flex-col gap-4" aria-label={`Frais déclarés de ${nom}`}>
+        <div className="flex flex-wrap gap-3">
+          <label className="flex flex-col gap-1.5 text-sm font-bold">
+            Année scolaire
             <input
-              className={v2.champ}
-              maxLength={40}
-              placeholder="Ex. : CP1 à CM2, 3e"
-              value={saisie.classe ?? ''}
-              onChange={(e) => champ('classe', e.target.value)}
-            />
-          </label>
-          <label className={v2.groupe}>
-            Montant minimum ou unique (FCFA)
-            <input
-              className={v2.champ}
-              inputMode="numeric"
-              value={saisie.minimum}
-              onChange={(e) => champ('minimum', e.target.value)}
-            />
-          </label>
-          <label className={v2.groupe}>
-            Maximum si fourchette (facultatif, FCFA)
-            <input
-              className={v2.champ}
-              inputMode="numeric"
-              value={saisie.maximum}
-              onChange={(e) => champ('maximum', e.target.value)}
-            />
-          </label>
-          <label className={v2.groupe}>
-            Période
-            <select
-              className={v2.champ}
-              value={saisie.periode}
-              onChange={(e) => champ('periode', e.target.value)}
-            >
-              <option value="">Choisir</option>
-              {Object.entries(periodesFrais).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-          {saisie.periode === 'autre' && (
-            <label className={v2.groupe}>
-              Préciser la période
-              <input
-                className={v2.champ}
-                maxLength={80}
-                value={saisie.precisionPeriode}
-                onChange={(e) => champ('precisionPeriode', e.target.value)}
-              />
-            </label>
-          )}
-          <label className={v2.groupe}>
-            Frais d’inscription (facultatif, FCFA)
-            <input
-              className={v2.champ}
-              inputMode="numeric"
-              value={saisie.inscription}
-              onChange={(e) => champ('inscription', e.target.value)}
-            />
-          </label>
-          <label className={v2.groupe}>
-            Année scolaire (facultatif)
-            <input
-              className={v2.champ}
+              className={cn(champ, 'w-40')}
               maxLength={30}
-              placeholder="Par exemple 2026-2027"
-              value={saisie.anneeScolaire}
-              onChange={(e) => champ('anneeScolaire', e.target.value)}
+              placeholder="2026-2027"
+              value={annee}
+              onChange={(e) => setAnnee(e.target.value)}
             />
           </label>
-          <label className={v2.groupe}>
-            Date de déclaration
+          <label className="flex flex-col gap-1.5 text-sm font-bold">
+            Déclarés par l’école le
             <input
-              className={v2.champ}
+              className={cn(champ, 'w-44')}
               type="date"
               max={jourDuCongo()}
-              value={saisie.declaresLe}
-              onChange={(e) => champ('declaresLe', e.target.value)}
+              value={declaresLe}
+              onChange={(e) => setDeclaresLe(e.target.value)}
             />
           </label>
-          <label className={v2.groupe}>
-            Précision communiquée par l’école (facultatif)
-            <textarea
-              className={v2.champ}
-              maxLength={300}
-              value={saisie.note}
-              onChange={(e) => champ('note', e.target.value)}
-            />
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={saisie.declarationConfirmee}
-              onChange={(e) => champ('declarationConfirmee', e.target.checked)}
-            />{' '}
-            Ces frais ont été communiqués par l’école pour être affichés.
-          </label>
-          <button type="submit" className={v2.bouton} disabled={enCours}>
-            {enCours ? 'Enregistrement…' : 'Enregistrer les frais'}
-          </button>
-          {id && (
-            <button
-              type="button"
-              className={v2.boutonSecondaire}
-              onClick={() => {
-                setId(null);
-                setSaisie(saisieFraisVide());
-              }}
-            >
-              Annuler la modification
-            </button>
-          )}
-          {!id && (
-            <button
-              type="button"
-              className={v2.boutonSecondaire}
-              disabled={enCours}
-              onClick={() => void illisible()}
-            >
-              Illisible : la demander à l’école
-            </button>
-          )}
-          <p className={v2.mention}>
-            Une ligne illisible n’est jamais publiée : elle s’ajoute à ce qui manque.
-          </p>
-        </form>
-      )}
-      {erreur && (
-        <Bandeau ton="erreur" icone="alerte">
-          {erreur}
-        </Bandeau>
-      )}
-      <p className={v2.mention}>
-        Une donnée non communiquée reste vide ; zéro n’est saisi que si l’école l’a déclaré. La
-        modification et le retrait sont tracés et nécessitent une reconstruction du site.
-      </p>
-      <a
-        href="https://github.com/benaja-bendo/ntanova-site/actions/workflows/mise-en-ligne.yml"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Ouvrir la mise à jour du site
-      </a>
-    </Dialogue>
-  );
-}
+        </div>
 
-/**
- * Lot I (planche « Frais par classe ») : « Même inscription sur toutes les lignes ». Un prospectus donne souvent une seule
- * inscription pour plusieurs classes : on la pose partout en un geste, préremplie avec la plus fréquente.
- */
-function MemeInscription({
-  frais,
-  enCours,
-  appliquer,
-}: {
-  frais: Frais[];
-  enCours: boolean;
-  appliquer: (montant: number) => Promise<void>;
-}) {
-  const [ouvert, setOuvert] = useState(false);
-  const [saisie, setSaisie] = useState('');
-  const [erreur, setErreur] = useState<string | null>(null);
-  if (!ouvert)
-    return (
-      <button
-        type="button"
-        className={v2.boutonSecondaire}
-        disabled={enCours}
-        onClick={() => {
-          const m = inscriptionLaPlusFrequente(frais);
-          setSaisie(m === null ? '' : String(m));
-          setErreur(null);
-          setOuvert(true);
-        }}
-      >
-        Même inscription sur toutes les lignes
-      </button>
-    );
-  return (
-    <form
-      className={v2.motif}
-      aria-label="Même inscription sur toutes les lignes"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const montant = lireMontant(saisie);
-        if (montant === null) return setErreur('Indique un montant entier en FCFA.');
-        void appliquer(montant).then(() => setOuvert(false));
-      }}
-    >
-      <label className={v2.groupe}>
-        Inscription pour les {frais.length} lignes (FCFA)
-        <input
-          className={v2.champ}
-          inputMode="numeric"
-          value={saisie}
-          onChange={(e) => {
-            setSaisie(e.target.value);
-            setErreur(null);
-          }}
-        />
-      </label>
-      {erreur && <p className={v2.erreur}>{erreur}</p>}
-      <div className={v2.actions}>
-        <button type="submit" className={v2.bouton} disabled={enCours}>
-          {enCours ? 'Enregistrement…' : 'Appliquer à toutes les lignes'}
-        </button>
-        <button type="button" className={v2.lien} onClick={() => setOuvert(false)}>
-          Annuler
-        </button>
-      </div>
-    </form>
+        {cycles.length === 0 ? (
+          <p className="m-0 text-muted-foreground">
+            Renseigne d’abord les niveaux de l’école (« En bref ») pour ajouter des frais.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3 overflow-x-auto rounded-xl border border-border bg-card p-3">
+            <table className="w-full min-w-[720px] border-collapse text-left text-[15px]">
+              <thead>
+                <tr className="text-xs font-bold tracking-[0.06em] text-muted-foreground uppercase">
+                  <th className="px-2 py-2">Cycle</th>
+                  <th className="px-2 py-2">Classe (facultatif)</th>
+                  <th className="px-2 py-2">Montant</th>
+                  <th className="px-2 py-2">Période</th>
+                  <th className="px-2 py-2">Inscription</th>
+                  <th className="px-2 py-2">Illisible ?</th>
+                  <th className="px-2 py-2">
+                    <span className="sr-only">Retirer</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {lignes.map((l) => (
+                  <tr
+                    key={l.cle}
+                    aria-label={nomDeLigne(l)}
+                    className={cn(
+                      'border-t border-border',
+                      l.illisible && 'shadow-[inset_3px_0_0_var(--erreur)]',
+                    )}
+                  >
+                    <td className="px-2 py-1.5">
+                      <select
+                        aria-label="Cycle"
+                        className={cn(champ, 'w-32')}
+                        value={l.cycle}
+                        onChange={(e) => changer(l.cle, { cycle: e.target.value })}
+                      >
+                        <option value="">Choisir</option>
+                        {cycles.map((c) => (
+                          <option key={c} value={c}>
+                            {libelleNiveau[c]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <input
+                        aria-label="Classe"
+                        className={champ}
+                        maxLength={40}
+                        placeholder="toutes"
+                        value={l.classe}
+                        onChange={(e) => changer(l.cle, { classe: e.target.value })}
+                      />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <input
+                        aria-label="Montant (FCFA)"
+                        className={champ}
+                        inputMode="numeric"
+                        disabled={l.illisible}
+                        placeholder={l.illisible ? 'illisible' : 'FCFA'}
+                        value={l.illisible ? '' : l.montant}
+                        onChange={(e) => changer(l.cle, { montant: e.target.value })}
+                      />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <select
+                        aria-label="Période"
+                        className={cn(champ, 'w-28')}
+                        value={l.periode}
+                        onChange={(e) => changer(l.cle, { periode: e.target.value })}
+                      >
+                        {Object.entries(periodesFrais)
+                          .filter(([k]) => k !== 'autre')
+                          .map(([k, v]) => (
+                            <option key={k} value={k}>
+                              {v.replace('Par ', '')}
+                            </option>
+                          ))}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <input
+                        aria-label="Inscription (FCFA)"
+                        className={champ}
+                        inputMode="numeric"
+                        value={l.inscription}
+                        onChange={(e) => changer(l.cle, { inscription: e.target.value })}
+                      />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <button
+                        type="button"
+                        aria-pressed={l.illisible}
+                        onClick={() => changer(l.cle, { illisible: !l.illisible })}
+                        className="inline-flex min-h-9 cursor-pointer items-center rounded-full border border-input bg-card px-3 font-sans text-sm font-bold text-foreground aria-pressed:border-destructive aria-pressed:bg-danger aria-pressed:text-danger-foreground"
+                      >
+                        Illisible
+                      </button>
+                    </td>
+                    <td className="px-1 py-1.5">
+                      <button
+                        type="button"
+                        aria-label={`Retirer la ligne ${nomDeLigne(l)}`}
+                        onClick={() => retirer(l)}
+                        className="flex size-9 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 text-muted-foreground"
+                      >
+                        <IconeFermer className="size-4" aria-hidden />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setLignes((ls) => [...ls, nouvelle(cycles[0] ?? '')])}
+                className={cn(v2.boutonSecondairePetit, 'border-dashed')}
+              >
+                + Ajouter une ligne
+              </button>
+              {lignes.length >= 2 && (
+                <button
+                  type="button"
+                  className={v2.boutonSecondairePetit}
+                  onClick={() => {
+                    const deja = lignes.find((l) => l.inscription.trim())?.inscription;
+                    const m = deja ?? String(inscriptionLaPlusFrequente(frais) ?? '');
+                    setLignes((ls) => ls.map((l) => ({ ...l, inscription: m })));
+                  }}
+                >
+                  Même inscription sur toutes les lignes
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <label className="flex flex-col gap-1.5 rounded-xl border border-border bg-card p-3 text-sm font-bold">
+          Note (tenue, fournitures…)
+          <input
+            className={champ}
+            maxLength={300}
+            placeholder="Tenue : …"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </label>
+
+        {erreur && (
+          <Bandeau ton="erreur" icone="alerte">
+            <p>{erreur}</p>
+          </Bandeau>
+        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <Bouton
+            enCours={enCours}
+            disabled={publiables.length === 0 && retirees.length === 0}
+            onClick={() => void enregistrer()}
+          >
+            Enregistrer {publiables.length} ligne{publiables.length > 1 ? 's' : ''} publiable
+            {publiables.length > 1 ? 's' : ''}
+          </Bouton>
+          {illisibles.length > 0 && (
+            <Bouton variante="secondaire" disabled={enCours} onClick={() => void demander()}>
+              Demander {illisibles.map(nomDeLigne).join(', ')}
+            </Bouton>
+          )}
+        </div>
+        <p className="m-0 text-sm text-muted-foreground">
+          « Illisible » grise le montant : la ligne n’est pas publiée et s’ajoute aux manques.
+        </p>
+      </section>
+    </div>
   );
 }

@@ -212,10 +212,7 @@ function LigneEcole({
           nom={e.nom}
           numero={e.contactPublic?.numero ?? null}
           admin={admin}
-          surConfier={(t) => {
-            setTache(t ?? '');
-            setMode('mission');
-          }}
+          relais={relais}
           surChangement={signaler}
         />
       )}
@@ -828,6 +825,51 @@ function LigneEcole({
         )}
       </>
     );
+    // Planches : les frais, les nouvelles et les formations du supérieur s'ouvrent en page (le prospectus ou l'aperçu à côté),
+    // les autres rubriques en tiroir.
+    const enPage =
+      mode === 'frais' || mode === 'nouvelles' || mode === 'formations' || mode === 'admission';
+    if (enPage)
+      return (
+        <article aria-label={`${titres[mode]} · ${e.nom}`} className="flex flex-col gap-4">
+          <TitreEcran
+            titre={
+              mode === 'frais'
+                ? 'Frais par classe'
+                : mode === 'nouvelles'
+                  ? 'Une nouvelle'
+                  : titres[mode]
+            }
+            retour={{ libelle: e.nom, chemin: `ecoles/fiche/${e.id}` }}
+            titreHaut={mode === 'frais' ? 'Frais par classe' : titres[mode]}
+          />
+          <nav
+            aria-label="Fil d’Ariane"
+            className="-mt-2 flex flex-wrap items-center gap-1.5 text-[15px] max-lg:hidden"
+          >
+            <a className="font-bold text-primary-strong underline" href="#ecoles">
+              Écoles
+            </a>
+            <span className="text-muted-foreground">›</span>
+            <button
+              type="button"
+              onClick={() => setMode(null)}
+              className="cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-bold text-primary-strong underline"
+            >
+              {e.nom}
+              {e.etiquette ? ` · ${e.etiquette}` : ''}
+            </button>
+            <span className="text-muted-foreground">›</span>
+            <span className="text-muted-foreground">{titres[mode]}</span>
+          </nav>
+          {mode === 'frais' && (
+            <p className="-mt-2 mb-0 text-[15px] text-muted-foreground">
+              Recopie ce que dit le prospectus, ligne par ligne.
+            </p>
+          )}
+          {contenuGestion}
+        </article>
+      );
     return (
       <article aria-label={`Fiche de ${e.nom}`} className="flex flex-col gap-4">
         <TitreEcran

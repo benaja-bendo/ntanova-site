@@ -45,6 +45,20 @@ test('admin : aujourd’hui, à valider, écoles, fiche, relais', async ({ page 
   await page.goto('/admin/#ecoles/fiche/51000000-0000-4000-8000-000000000001');
   await page.waitForLoadState('networkidle');
   await prendre(page, 'admin-fiche-ecole');
+  for (const [ecran, carte] of [
+    ['admin-sur-place', 'Sur place : ouvrir'],
+    ['admin-completer', 'Compléter la fiche'],
+    ['admin-frais', 'Frais : ouvrir'],
+    ['admin-nouvelle', 'Nouvelles : ouvrir'],
+  ] as const) {
+    await page.keyboard.press('Escape');
+    await page.goto('/admin/#ecoles');
+    await page.goto('/admin/#ecoles/fiche/51000000-0000-4000-8000-000000000001');
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: carte }).filter({ visible: true }).first().click();
+    await page.waitForTimeout(400);
+    await prendre(page, ecran);
+  }
 
   for (const [ecran, adresse] of [
     ['admin-relais', '#relais'],

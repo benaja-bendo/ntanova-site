@@ -52,3 +52,4 @@ export const IconePoints = icone('points');
 export const IconePouls = icone('pouls');
 export const IconePersonnes = icone('personnes');
 export const IconeFiltre = icone('filtre');
+export const IconeMoins = icone('moins');
