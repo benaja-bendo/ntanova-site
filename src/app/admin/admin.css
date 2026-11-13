@@ -1553,3 +1553,30 @@ button.admin-zone-bascule:focus-visible {
   color: var(--texte);
   font-weight: 700;
 }
+
+/* v2 (13/11, lot D) : les manques d'une école et ses images, dans le tiroir « Gérer ». */
+.admin-liste-manques,
+.admin-medias {
+  display: grid;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-liste-manques > li,
+.admin-medias > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-2) var(--espace-3);
+  padding: var(--espace-2) 0;
+  border-top: 1px solid var(--trait);
+}
+.admin-medias img {
+  width: 72px;
+  height: 54px;
+  border-radius: var(--rayon-s);
+  object-fit: cover;
+  background: var(--fond-bande);
+}

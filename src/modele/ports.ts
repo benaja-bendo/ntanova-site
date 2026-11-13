@@ -902,7 +902,29 @@ export interface PortAdministration {
     relaisId: string,
     genre: Valeur<'mission_kind'>,
     note: string | null,
+    details?: import('./fiche-admin').DetailsMission,
   ): Promise<void>;
+  /** v2 (13/11) : ce qui manque au site et qui peut le donner. `GET /admin/ecoles/{id}/manques` */
+  manquesDeLEcole(ecoleId: string): Promise<import('./fiche-admin').Manque[]>;
+  /** v2 : note « demandé à l'école le … ». `POST /admin/ecoles/{id}/demandes` */
+  demanderALEcole(
+    ecoleId: string,
+    sujet: Valeur<'request_topic'>,
+    detail: string | null,
+  ): Promise<string>;
+  /** v2 : une demande obtenue ou annulée. `PATCH /admin/demandes/{id}` */
+  fermerDemande(demandeId: string, etat: 'obtenue' | 'annulee'): Promise<void>;
+  /** v2 : les images de l'école (logo, couverture, galerie), publiques ou non. `GET /admin/ecoles/{id}/medias` */
+  mediasDeLEcole(ecoleId: string): Promise<import('./fiche-admin').MediaAdmin[]>;
+  /** v2 : ajoute une image (un fichier réduit dans le navigateur, ou une photo d'un relevé). `POST /admin/ecoles/{id}/medias` */
+  ajouterMedia(ecoleId: string, media: import('./fiche-admin').NouveauMedia): Promise<string>;
+  /** v2 : la légende, le contrôle « sans enfant », la publication. `PATCH /admin/medias/{id}` */
+  modifierMedia(
+    mediaId: string,
+    champs: { legende?: string | null; controle?: boolean; publique?: boolean },
+  ): Promise<void>;
+  /** v2 : retire une image ; ses fichiers envoyés sont effacés du stockage. `DELETE /admin/medias/{id}` */
+  retirerMedia(mediaId: string): Promise<void>;
   reprendreEcole(ecoleId: string): Promise<void>;
   /** Corrige une fiche (brouillon, prête ou publiée) sans repasser par le relais. `PATCH /admin/ecoles/{id}` */
   modifierEcole(ecoleId: string, correction: CorrectionEcole): Promise<void>;

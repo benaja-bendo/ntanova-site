@@ -8,6 +8,7 @@ import type { AgrementEnregistre } from '../../modele/agrement';
 import type { MotDirection } from '../../modele/mot-direction';
 import { lireVueEnsemble } from '../../modele/vue-ensemble';
 import { lireEtatPhotoPublique, ROLES_PUBLIABLES } from '../../modele/photos-publiques';
+import type { Manque, MediaAdmin } from '../../modele/fiche-admin';
 import { listes, niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { lireFormationsVues } from '../../modele/formations-rapides';
 import {
@@ -1199,14 +1200,166 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       };
     },
 
-    async confierEcole(ecoleId, relaisId, genre, note) {
+    async confierEcole(ecoleId, relaisId, genre, note, details) {
       const { error } = await supabase().rpc('assign_mission', {
         p_campus: ecoleId,
         p_relay: relaisId,
         p_kind: genre,
         p_note: note,
+        // v2 (13/11) : seulement ce que l'administration a écrit ; l'appel sans détail reste celui d'avant.
+        ...(details?.paieXaf != null ? { p_pay_xaf: details.paieXaf } : {}),
+        ...(details?.avantLe ? { p_due_on: details.avantLe } : {}),
+        ...(details?.tache ? { p_task: details.tache } : {}),
+        ...(details?.raison ? { p_reason: details.raison } : {}),
       });
       decider(error);
+    },
+
+    async manquesDeLEcole(ecoleId) {
+      const { data, error } = await supabase().rpc('campus_gaps', { p_campus: ecoleId });
+      decider(error);
+      const lignes = (data ?? []) as {
+        topic: string;
+        detail: string | null;
+        who_can: string[] | null;
+        requested_on: string | null;
+        requested_to: string | null;
+        request_id: string | null;
+      }[];
+      const sujet = (v: string) =>
+        (listes.request_topic as readonly string[]).includes(v) ? (v as Manque['sujet']) : 'autre';
+      const cible = (v: string | null) => (v === 'ecole' || v === 'relais' ? v : null);
+      return lignes.map((l) => ({
+        sujet: sujet(l.topic),
+        detail: l.detail,
+        quiPeut: (l.who_can ?? []).flatMap((x) => (cible(x) ? [cible(x)!] : [])),
+        demandeLe: l.requested_on,
+        demandeA: cible(l.requested_to),
+        demandeId: l.request_id,
+      }));
+    },
+
+    async demanderALEcole(ecoleId, sujet, detail) {
+      const { data, error } = await supabase().rpc('record_campus_request', {
+        p_campus: ecoleId,
+        p_topic: sujet,
+        p_detail: detail,
+        p_asked_to: 'ecole',
+      });
+      decider(error);
+      return data as string;
+    },
+
+    async fermerDemande(demandeId, etat) {
+      const { error } = await supabase().rpc('close_campus_request', {
+        p_request: demandeId,
+        p_state: etat,
+      });
+      decider(error);
+    },
+
+    async mediasDeLEcole(ecoleId) {
+      // Le logo est celui de l'école : on le lit par l'école du site.
+      const { data: c, error: e1 } = await supabase()
+        .from('campuses')
+        .select('institution_id')
+        .eq('id', ecoleId)
+        .single();
+      decider(e1);
+      const institution = (c as { institution_id: string } | null)?.institution_id;
+      const { data, error } = await supabase()
+        .from('campus_media')
+        .select('id, kind, subject, caption, storage_path, thumb_path, child_free_checked_at, is_public, source')
+        .or(`campus_id.eq.${ecoleId}${institution ? `,institution_id.eq.${institution}` : ''}`)
+        .order('kind')
+        .order('sort_order');
+      decider(error);
+      const lignes = (data ?? []) as {
+        id: string;
+        kind: MediaAdmin['genre'];
+        subject: MediaAdmin['sujet'];
+        caption: string | null;
+        storage_path: string;
+        thumb_path: string | null;
+        child_free_checked_at: string | null;
+        is_public: boolean;
+        source: MediaAdmin['source'];
+      }[];
+      const chemins = lignes.map((l) => l.thumb_path ?? l.storage_path);
+      const { data: urls } = chemins.length
+        ? await supabase().storage.from(SEAU_PHOTOS).createSignedUrls(chemins, 3600)
+        : { data: [] };
+      const adresses = new Map((urls ?? []).map((u) => [u.path, u.signedUrl]));
+      return lignes.map((l) => ({
+        id: l.id,
+        genre: l.kind,
+        sujet: l.subject,
+        legende: l.caption,
+        adresse: adresses.get(l.thumb_path ?? l.storage_path) ?? null,
+        controleLe: l.child_free_checked_at,
+        publique: l.is_public,
+        source: l.source,
+      }));
+    },
+
+    async ajouterMedia(ecoleId, m) {
+      let fichier: { chemin: string; miniature: string } | null = null;
+      if (m.image) {
+        // Un fichier envoyé se range sous `ecoles/<site>/` ; jamais d'écrasement ; la miniature à côté.
+        const id = crypto.randomUUID();
+        const ext = m.image.mime === 'image/webp' ? 'webp' : 'jpg';
+        const chemin = `ecoles/${ecoleId}/${id}.${ext}`;
+        const miniature = `ecoles/${ecoleId}/${id}-mini.${ext}`;
+        for (const [c, b] of [
+          [chemin, m.image.plein],
+          [miniature, m.image.miniature],
+        ] as const) {
+          const { error } = await supabase()
+            .storage.from(SEAU_PHOTOS)
+            .upload(c, b, { contentType: m.image.mime, upsert: false });
+          if (error)
+            throw new ErreurDecision(`L’image n’a pas pu être envoyée (${error.message}). Réessaie.`);
+        }
+        fichier = { chemin, miniature };
+      }
+      const { data, error } = await supabase().rpc('add_campus_media', {
+        p_campus: ecoleId,
+        p_kind: m.genre,
+        p_subject: m.sujet,
+        p_source_photo: m.photoDuReleve ?? null,
+        p_storage_path: fichier?.chemin ?? null,
+        p_thumb_path: fichier?.miniature ?? null,
+        p_mime: m.image?.mime ?? null,
+        p_width: m.image?.largeur ?? null,
+        p_height: m.image?.hauteur ?? null,
+        p_caption: m.legende,
+        p_checked: m.controle,
+        p_public: m.publique,
+      });
+      if (error && fichier) {
+        // Refusée par la base : les fichiers ne restent pas orphelins dans le stockage.
+        await supabase().storage.from(SEAU_PHOTOS).remove([fichier.chemin, fichier.miniature]);
+      }
+      decider(error);
+      return data as string;
+    },
+
+    async modifierMedia(mediaId, champs) {
+      const { error } = await supabase().rpc('set_campus_media', {
+        p_media: mediaId,
+        ...(champs.legende !== undefined ? { p_caption: champs.legende } : {}),
+        ...(champs.controle !== undefined ? { p_checked: champs.controle } : {}),
+        ...(champs.publique !== undefined ? { p_public: champs.publique } : {}),
+      });
+      decider(error);
+    },
+
+    async retirerMedia(mediaId) {
+      const { data, error } = await supabase().rpc('withdraw_campus_media', { p_media: mediaId });
+      decider(error);
+      // La base rend les fichiers envoyés à effacer (jamais la photo d'un relevé, qui reste au relevé).
+      const chemins = ((data ?? []) as string[]).filter((c) => c.startsWith('ecoles/'));
+      if (chemins.length) await supabase().storage.from(SEAU_PHOTOS).remove(chemins);
     },
 
     async reprendreEcole(ecoleId) {

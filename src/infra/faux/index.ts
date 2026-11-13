@@ -1,3 +1,5 @@
+import { jourDuCongo } from '../../modele/date-declaration';
+import type { DetailsMission, Manque, MediaAdmin } from '../../modele/fiche-admin';
 import { erreursFormulaireEcole, formulaireDe } from '../../modele/correction-ecole';
 import { erreursDeclaration } from '../../modele/declaration-ecole';
 import {
@@ -94,6 +96,8 @@ interface CampusFaux {
   confieeA: string | null;
   noteMission: string | null;
   genreMission: Valeur<'mission_kind'>;
+  /** v2 (13/11) : la tâche, la raison, la date limite et le montant de la mission. */
+  detailsMission?: DetailsMission | null;
   retrait?: {
     motif: Valeur<'motif_retrait'>;
     le: string;
@@ -169,6 +173,17 @@ function personnesDe(e: Etat, releveId: string): [string, ContactFaux][] {
 const TROIS_PERSONNES = 'Une fiche a trois personnes à contacter au plus.';
 
 interface Etat {
+  /** v2 (13/11) : les demandes faites (« demandé à l'école le … ») et les images des écoles. */
+  demandes?: {
+    id: string;
+    campusId: string;
+    sujet: Valeur<'request_topic'>;
+    detail: string | null;
+    le: string;
+    a: Valeur<'request_target'>;
+    etat: Valeur<'request_state'>;
+  }[];
+  medias?: (MediaAdmin & { campusId: string })[];
   /** v2 (13/11) : les « Je n'ai pas pu » reçus, pour les parcours. */
   missionsPasPu?: { missionId: string; motif: string; note: string | null }[];
   utilisateur: { id: string; email: string } | null;
@@ -611,6 +626,7 @@ const relais: PortRelais = {
           // v2 (13/11) : une mission fictive porte son identifiant ; ce qu'il faut faire, la date et le montant se règlent
           // pour les parcours par `ntanova-faux-mission` (JSON : tache, raison, avantLe, paieXaf).
           missionId: `m-${c.id}`,
+          ...(c.detailsMission ?? {}),
           ...(JSON.parse(localStorage.getItem('ntanova-faux-mission') ?? '{}') as Record<
             string,
             unknown
@@ -1857,7 +1873,7 @@ const admin: PortAdministration = {
       if (correction.numeroEnseigne !== undefined) ecole.numeroEnseigne = correction.numeroEnseigne;
     });
   },
-  async confierEcole(ecoleId, relaisId, genre, note) {
+  async confierEcole(ecoleId, relaisId, genre, note, details) {
     await reseau();
     const e = lireEtat();
     const actif = relaisId === MOI ? e.statut === 'actif' : e.autreRelais.statut === 'actif';
@@ -1865,7 +1881,132 @@ const admin: PortAdministration = {
     ecrire((etat) => {
       const ecole = etat.campus[ecoleId];
       if (ecole)
-        Object.assign(ecole, { confieeA: relaisId, noteMission: note, genreMission: genre });
+        Object.assign(ecole, {
+          confieeA: relaisId,
+          noteMission: note,
+          genreMission: genre,
+          detailsMission: details ?? null,
+        });
+    });
+  },
+  // v2 (13/11) : comme `campus_gaps` : logo, photos, frais, contact, puis les demandes précisées ; « demandé le … ».
+  async manquesDeLEcole(ecoleId) {
+    await reseau();
+    const e = lireEtat();
+    const c = e.campus[ecoleId];
+    if (!c) throw new ErreurDecision('École introuvable.');
+    const ouvertes = (e.demandes ?? []).filter(
+      (d) => d.campusId === ecoleId && d.etat === 'ouverte',
+    );
+    const medias = (e.medias ?? []).filter((m) => m.campusId === ecoleId);
+    const calcules: Manque['sujet'][] = [
+      ...(medias.some((m) => m.genre === 'logo') ? [] : (['logo'] as const)),
+      ...(medias.some((m) => m.genre === 'gallery') ? [] : (['photos'] as const)),
+      ...((c.frais ?? []).length > 0 ? [] : (['frais'] as const)),
+      ...(c.contactPublic ? [] : (['contact'] as const)),
+    ];
+    const qui = (s: Manque['sujet']): Manque['quiPeut'] =>
+      s === 'logo' ? ['ecole'] : s === 'contact' ? ['ecole', 'relais'] : ['ecole', 'relais'];
+    return [
+      ...calcules.map((sujet) => {
+        const d = ouvertes.find((x) => x.sujet === sujet && !x.detail);
+        return {
+          sujet,
+          detail: null,
+          quiPeut: qui(sujet),
+          demandeLe: d?.le ?? null,
+          demandeA: d?.a ?? null,
+          demandeId: d?.id ?? null,
+        };
+      }),
+      ...ouvertes
+        .filter((d) => d.detail)
+        .map((d) => ({
+          sujet: d.sujet,
+          detail: d.detail,
+          quiPeut: qui(d.sujet),
+          demandeLe: d.le,
+          demandeA: d.a,
+          demandeId: d.id,
+        })),
+    ];
+  },
+  async demanderALEcole(ecoleId, sujet, detail) {
+    await reseau();
+    if (sujet === 'autre' && !detail?.trim())
+      throw new ErreurDecision('Dis ce qui est demandé (et précise « autre »), et à qui.');
+    const id = crypto.randomUUID();
+    ecrire((e) => {
+      e.demandes = [
+        ...(e.demandes ?? []),
+        { id, campusId: ecoleId, sujet, detail, le: jourDuCongo(), a: 'ecole', etat: 'ouverte' },
+      ];
+    });
+    return id;
+  },
+  async fermerDemande(demandeId, etat) {
+    await reseau();
+    let trouvee = false;
+    ecrire((e) => {
+      for (const d of e.demandes ?? [])
+        if (d.id === demandeId && d.etat === 'ouverte') {
+          d.etat = etat;
+          trouvee = true;
+        }
+    });
+    if (!trouvee) throw new ErreurDecision('Cette demande est déjà fermée.');
+  },
+  async mediasDeLEcole(ecoleId) {
+    await reseau();
+    return (lireEtat().medias ?? [])
+      .filter((m) => m.campusId === ecoleId)
+      .map((m) => ({ ...m, campusId: undefined }) as MediaAdmin);
+  },
+  async ajouterMedia(ecoleId, m) {
+    await reseau();
+    const deja = (lireEtat().medias ?? []).filter((x) => x.campusId === ecoleId);
+    if (m.genre === 'logo' && deja.some((x) => x.genre === 'logo'))
+      throw new ErreurDecision('Cette école a déjà un logo : retire-le d’abord.');
+    if (m.genre === 'cover' && deja.some((x) => x.genre === 'cover'))
+      throw new ErreurDecision('Ce site a déjà une couverture : retire-la d’abord.');
+    if (m.genre === 'gallery' && deja.filter((x) => x.genre === 'gallery').length >= 12)
+      throw new ErreurDecision('Douze images au plus dans la galerie.');
+    if (m.publique && !m.controle)
+      throw new ErreurDecision('Une image non contrôlée ne se publie pas.');
+    const id = crypto.randomUUID();
+    ecrire((e) => {
+      e.medias = [
+        ...(e.medias ?? []),
+        {
+          id,
+          campusId: ecoleId,
+          genre: m.genre,
+          sujet: m.sujet,
+          legende: m.legende,
+          adresse: '/relais/icone-512.png',
+          controleLe: m.controle ? new Date().toISOString() : null,
+          publique: m.publique,
+          source: m.photoDuReleve ? 'terrain' : 'administration',
+        },
+      ];
+    });
+    return id;
+  },
+  async modifierMedia(mediaId, champs) {
+    await reseau();
+    ecrire((e) => {
+      const m = (e.medias ?? []).find((x) => x.id === mediaId);
+      if (!m) return;
+      if (champs.legende !== undefined) m.legende = champs.legende;
+      if (champs.controle !== undefined)
+        m.controleLe = champs.controle ? new Date().toISOString() : null;
+      if (champs.publique !== undefined) m.publique = champs.publique && m.controleLe !== null;
+    });
+  },
+  async retirerMedia(mediaId) {
+    await reseau();
+    ecrire((e) => {
+      e.medias = (e.medias ?? []).filter((m) => m.id !== mediaId);
     });
   },
   async reprendreEcole(ecoleId) {

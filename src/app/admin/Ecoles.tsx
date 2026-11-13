@@ -2,6 +2,8 @@ import { ChampsFiche } from './ChampsFiche';
 import { Dialogue } from '../../ui/Dialogue';
 import { ActionsSecondaires, BadgePublication, Bouton } from '../../ui/actions';
 import { PhotoPublique } from './PhotoPublique';
+import { ImagesEcole } from './ImagesEcole';
+import { ManquesEcole } from './ManquesEcole';
 import { dateLongue } from '../../modele/pointe-noire';
 import { EquipementsEcole } from './EquipementsEcole';
 import { FraisEcole } from './FraisEcole';
@@ -95,6 +97,11 @@ function LigneEcole({
   const gestion = useRef<HTMLButtonElement>(null);
   const [relaisId, setRelaisId] = useState(e.confiee?.relaisId ?? relais[0]?.id ?? '');
   const [note, setNote] = useState(e.confiee?.note ?? '');
+  // v2 (13/11) : ce qu'il faut faire, pourquoi, la date limite et la paie de la mission (fixée par NTanova en la confiant).
+  const [tache, setTache] = useState('');
+  const [raison, setRaison] = useState('');
+  const [avantLe, setAvantLe] = useState('');
+  const [paie, setPaie] = useState('');
   const [genre, setGenre] = useState<Valeur<'mission_kind'>>(
     e.confiee?.genre ?? (e.aSituer ? 'locate' : 'verify'),
   );
@@ -112,6 +119,8 @@ function LigneEcole({
     | 'contact-public'
     | 'agrement'
     | 'mot-direction'
+    | 'completer'
+    | 'images'
     | 'inscriptions'
     | null
   >(null);
@@ -159,6 +168,7 @@ function LigneEcole({
     setMode(section);
   };
   const sections = [
+    ['completer', 'À compléter'],
     ['modifier', 'Informations'],
     ['situer', 'Position'],
     ['contact-public', 'Contact public'],
@@ -168,6 +178,7 @@ function LigneEcole({
     ['agrement', 'Agrément'],
     ['mot-direction', 'Mot de la direction'],
     ['photo-publique', 'Photo publique'],
+    ['images', 'Images'],
     ['mission', 'Mission'],
   ] as const;
   const confirmation =
@@ -380,6 +391,22 @@ function LigneEcole({
               <p ref={zoneRetour} className="bandeau bandeau-envoye">
                 {retour}
               </p>
+            )}
+            {mode === 'completer' && (
+              <ManquesEcole
+                ecoleId={e.id}
+                nom={e.nom}
+                numero={e.contactPublic?.numero ?? null}
+                admin={admin}
+                surConfier={(t) => {
+                  setTache(t ?? '');
+                  setMode('mission');
+                }}
+                surChangement={signaler}
+              />
+            )}
+            {mode === 'images' && (
+              <ImagesEcole ecoleId={e.id} admin={admin} surChangement={signaler} />
             )}
             {mode === 'photo-publique' && (
               <PhotoPublique
@@ -655,8 +682,19 @@ function LigneEcole({
                 onSubmit={(ev) => {
                   ev.preventDefault();
                   if (!relaisId) return;
+                  const paieXaf = paie.trim() === '' ? null : Number(paie.replace(/\s/g, ''));
+                  if (paieXaf !== null && (!Number.isInteger(paieXaf) || paieXaf < 0)) {
+                    setErreur('La paie est un nombre entier de FCFA, ou rien.');
+                    return;
+                  }
                   void agir(
-                    () => admin.confierEcole(e.id, relaisId, genre, note.trim() || null),
+                    () =>
+                      admin.confierEcole(e.id, relaisId, genre, note.trim() || null, {
+                        tache: tache.trim() || null,
+                        raison: raison.trim() || null,
+                        avantLe: avantLe || null,
+                        paieXaf,
+                      }),
                     `${e.nom} est confiée à ${prenom}.`,
                   );
                 }}
@@ -712,6 +750,55 @@ function LigneEcole({
                           placeholder="Ex. : le nom sur l’enseigne, le repère…"
                           value={note}
                           onChange={(ev) => setNote(ev.target.value)}
+                        />
+                      )}
+                    </Champ>
+                    <Champ libelle="Ce qu’il devra faire" facultatif aide="Une phrase, vouvoyée.">
+                      {(a) => (
+                        <input
+                          {...a}
+                          className="champ"
+                          maxLength={300}
+                          placeholder="Ex. : photographier le prospectus des frais, en entier."
+                          value={tache}
+                          onChange={(ev) => setTache(ev.target.value)}
+                        />
+                      )}
+                    </Champ>
+                    <Champ libelle="Pourquoi" facultatif>
+                      {(a) => (
+                        <input
+                          {...a}
+                          className="champ"
+                          maxLength={300}
+                          value={raison}
+                          onChange={(ev) => setRaison(ev.target.value)}
+                        />
+                      )}
+                    </Champ>
+                    <Champ libelle="Avant le" facultatif>
+                      {(a) => (
+                        <input
+                          {...a}
+                          className="champ"
+                          type="date"
+                          value={avantLe}
+                          onChange={(ev) => setAvantLe(ev.target.value)}
+                        />
+                      )}
+                    </Champ>
+                    <Champ
+                      libelle="Paie de la mission (FCFA)"
+                      facultatif
+                      aide="Payée à la place de la fiche qui la termine."
+                    >
+                      {(a) => (
+                        <input
+                          {...a}
+                          className="champ"
+                          inputMode="numeric"
+                          value={paie}
+                          onChange={(ev) => setPaie(ev.target.value)}
                         />
                       )}
                     </Champ>
