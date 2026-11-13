@@ -149,7 +149,7 @@
 
 .progression-barres {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -161,6 +161,10 @@
 
 .progression-barres span.faite {
   background: var(--marque);
+}
+
+.progression-barres span.bonus:not(.faite) {
+  background: var(--statut-attention-fond);
 }
 
 .progression-ligne {
@@ -481,4 +485,54 @@
   gap: var(--espace-2);
   margin: 0;
   padding-left: var(--espace-5);
+}
+
+/* v2 (13/11) : « Déjà sur NTanova ? », une liste d'écoles connues à toucher, et le bonus en photos. */
+.liste-ecoles-connues,
+.liste-photos-bonus {
+  display: grid;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ecole-connue {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  width: 100%;
+  min-height: var(--cible-principale);
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid var(--trait-fort);
+  border-radius: var(--rayon-s);
+  background: var(--fond-releve);
+  color: var(--texte);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.ecole-connue-texte {
+  display: grid;
+  min-width: 0;
+}
+.sigle-rond {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--marque-appuyee);
+  color: var(--texte-sur-marque);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.titre-groupe {
+  margin: 0;
+  font-family: var(--police-interface);
+  font-size: var(--taille-courante);
+  font-weight: 700;
 }

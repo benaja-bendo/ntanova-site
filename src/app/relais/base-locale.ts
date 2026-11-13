@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import type { FicheLocale } from '../../modele/fiche';
 import type {
   EcoleACompleter,
+  EcoleDuPays,
   EcoleProche,
   ErreurAEnvoyer,
   Lot,
@@ -22,6 +23,8 @@ export interface Memoire {
   /** Les zones ouvertes aux relais : ce que l'écran dit à un relais qui n'a pas de secteur. */
   zones: string[];
   ecoles: EcoleProche[];
+  /** v2 (13/11) : toutes les écoles du pays, en léger, pour « Même nom, ailleurs » et « Un autre site de… ». */
+  ecolesDuPays: EcoleDuPays[];
   releves: ReleveRecu[];
   /** Les écoles confiées au relais, à situer et compléter sur place. */
   aCompleter: EcoleACompleter[];

@@ -1,4 +1,4 @@
-import { ouvrirGestion } from './aides';
+import { ouvrirGestion, envoyerSansBonus } from './aides';
 import { expect, test } from '@playwright/test';
 import { seConnecter } from './aides';
 
@@ -42,14 +42,14 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await expect(encart).toContainText('Le nom exact');
   await page.locator('input[type=file]').first().setInputFiles(photo);
   await expect(page.getByText('Position prise')).toBeVisible();
+  await page.getByLabel('Comment la trouver ?').fill('Face au marché');
   await expect(page.getByText('Est-ce la même école ?')).toHaveCount(0);
   await page.getByRole('button', { name: 'Suivant' }).click();
-  await expect(page.getByLabel("Nom sur l'enseigne")).toHaveValue('[École à situer]');
-  await page.getByLabel("Nom sur l'enseigne").fill('[École à situer, nom exact]');
-  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+  await expect(page.getByLabel("Nom de l'établissement")).toHaveValue('[École à situer]');
+  await page.getByLabel("Nom de l'établissement").fill('[École à situer, nom exact]');
   await page.getByRole('button', { name: 'Suivant' }).click();
-  await page.getByRole('button', { name: 'Absente' }).click();
-  await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+  await page.getByRole('button', { name: 'Personne', exact: true }).click();
+  await envoyerSansBonus(page);
   await page.getByRole('link', { name: 'Mon secteur' }).click();
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/À compléter/)).toHaveCount(0);

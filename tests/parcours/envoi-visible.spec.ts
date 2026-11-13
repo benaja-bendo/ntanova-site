@@ -190,6 +190,6 @@ test.describe('une photo qui ne se relit plus', () => {
     expect((await serveur(page)).noms).toEqual([]);
 
     await fiche.getByRole('button', { name: 'Modifier' }).click();
-    await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
   });
 });

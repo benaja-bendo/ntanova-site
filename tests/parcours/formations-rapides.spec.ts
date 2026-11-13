@@ -1,12 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter } from './aides';
+import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter, envoyerSansBonus } from './aides';
 
 // Cocher les séries et les filières, sans clavier ; le repère en un toucher ; les brouillons d'avant (audit de la fiche
 // relais, 08/11/2026). Construit avec le faux serveur. Ce que le relais coche préremplit « À valider » : rien ne se publie seul.
 
 test.use({ permissions: ['geolocation'] });
 
-const ETAPE2 = 'Ce qui se voit de la rue';
+const ETAPE2 = "L'établissement";
 
 /** Ouvre la saisie d'une école, prend la photo et la position, passe à l'étape 2/3. */
 async function ouvrirEtape2(page: Page, context: import('@playwright/test').BrowserContext) {
@@ -19,7 +19,7 @@ async function ouvrirEtape2(page: Page, context: import('@playwright/test').Brow
 }
 
 const suivant = (page: Page) => page.getByRole('button', { name: 'Suivant' });
-const champRepere = (page: Page) => page.getByLabel(/Qu.y a-t-il juste à côté/);
+const champRepere = (page: Page) => page.getByLabel('Comment la trouver ?');
 const pastille = (page: Page, nom: string | RegExp) =>
   page.getByRole('button', { name: nom, exact: typeof nom === 'string' });
 
@@ -30,8 +30,7 @@ test.describe('les séries du lycée se cochent', () => {
   }) => {
     test.setTimeout(120_000);
     await ouvrirEtape2(page, context);
-    await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
-    await pastille(page, 'Marché').click();
+    await page.getByLabel("Nom de l'établissement").fill('[École 1]');
     await pastille(page, 'Lycée').click();
 
     const series = page.getByRole('group', { name: /Séries du lycée/ });
@@ -50,7 +49,7 @@ test.describe('les séries du lycée se cochent', () => {
     await page.getByLabel('Sa fonction').selectOption('promoteur');
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 123 45 61');
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await envoyerSansBonus(page);
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 
     // Le faux serveur a reçu les séries, dans l'ordre où le relais les a touchées, et le texte libre.
@@ -85,7 +84,7 @@ test.describe('les filières du supérieur se cochent sans clavier', () => {
     context,
   }) => {
     await ouvrirEtape2(page, context);
-    await page.getByLabel("Nom sur l'enseigne").fill('[Institut 1]');
+    await page.getByLabel("Nom de l'établissement").fill('[Institut 1]');
     await pastille(page, 'Supérieur').click();
 
     const bloc = page.getByRole('region', { name: 'Filières : Supérieur' });
@@ -146,30 +145,22 @@ test.describe('les filières du supérieur se cochent sans clavier', () => {
   });
 });
 
-test.describe('le repère se répond en un toucher', () => {
-  test('il est sous le nom ; une puce l’écrit, une seconde s’ajoute, la même l’efface', async ({
+// v2 (13/11, canevas « Espace relais ») : le repère vient avec le lieu, à l'étape 1 « Photo et lieu », sous la position.
+test.describe('le repère se répond en un toucher, à l’étape 1', () => {
+  /** L'étape 1 avec la photo et la position, sans repère. */
+  async function ouvrirEtape1(page: Page, context: import('@playwright/test').BrowserContext) {
+    await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
+    await seConnecter(page, '/relais/');
+    await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+    await prendrePhotoEtPosition(page, null);
+  }
+
+  test('« Comment la trouver ? » : une puce l’écrit, une seconde s’ajoute, la même l’efface', async ({
     page,
     context,
   }) => {
-    await ouvrirEtape2(page, context);
-    // Sous le nom de l'enseigne, avant les niveaux (il était le 6ᵉ champ sur 7).
-    const ordre = await page.evaluate(() => {
-      const nom = document.querySelector('input[id]:not([type=hidden])');
-      const champs = [...document.querySelectorAll('label')].map(
-        (l) => l.textContent?.trim() ?? '',
-      );
-      return { premier: nom !== null, champs };
-    });
-    expect(ordre.premier).toBe(true);
-    expect(ordre.champs.findIndex((t) => /Nom sur l.enseigne/.test(t))).toBeLessThan(
-      ordre.champs.findIndex((t) => /Qu.y a-t-il juste à côté/.test(t)),
-    );
-    expect(ordre.champs.findIndex((t) => /Qu.y a-t-il juste à côté/.test(t))).toBeLessThan(
-      ordre.champs.findIndex((t) => /Numéro écrit sur l.enseigne/.test(t)),
-    );
-    // Plus d'étiquette « facultatif » qui invite à sauter le champ.
-    await expect(page.getByText('Les familles s’en servent pour trouver l’école')).toBeVisible();
-
+    await ouvrirEtape1(page, context);
+    await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
     await pastille(page, 'Marché').click();
     await expect(champRepere(page)).toHaveValue('Près du marché');
     await pastille(page, 'Pharmacie').click();
@@ -182,53 +173,47 @@ test.describe('le repère se répond en un toucher', () => {
     page,
     context,
   }) => {
-    await ouvrirEtape2(page, context);
-    await page.getByLabel("Nom sur l'enseigne").fill('[École sans repère]');
+    await ouvrirEtape1(page, context);
     await suivant(page).click();
-    // La relance est dite au-dessus de « Suivant », et on reste à l'étape 2/3.
+    // La relance est dite au-dessus de « Suivant », et on reste à l'étape 1.
     await expect(page.getByRole('region', { name: 'Un repère aide' })).toContainText(
       'Un repère aide les familles',
     );
-    await expect(page.getByRole('heading', { name: ETAPE2 })).toBeVisible();
-    // « Ajouter un repère » mène au champ.
+    await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
     await page.getByRole('button', { name: 'Ajouter un repère' }).click();
     await expect(champRepere(page)).toBeFocused();
-    // Une fois écrit, la relance s'efface et « Suivant » passe sans autre question.
     await pastille(page, 'Carrefour').click();
     await expect(page.getByRole('region', { name: 'Un repère aide' })).toHaveCount(0);
     await suivant(page).click();
-    await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: ETAPE2 })).toBeVisible();
   });
 
   test('le repère reste facultatif : « Continuer sans », ou le second « Suivant », passent ; la relance ne se répète pas', async ({
     page,
     context,
   }) => {
-    await ouvrirEtape2(page, context);
-    await page.getByLabel("Nom sur l'enseigne").fill('[École sans repère 2]');
+    await ouvrirEtape1(page, context);
     await suivant(page).click();
     await expect(page.getByRole('region', { name: 'Un repère aide' })).toBeVisible();
     await page.getByRole('button', { name: 'Continuer sans' }).click();
-    await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
-
-    // Revenir à l'étape 2 ne répète pas la relance : une seule par fiche.
-    await page.getByRole('button', { name: /Retour à l'étape 2/ }).click();
     await expect(page.getByRole('heading', { name: ETAPE2 })).toBeVisible();
+    // Revenir à l'étape 1 ne répète pas la relance : une seule par fiche.
+    await page.getByRole('button', { name: /Retour à l'étape 1/ }).click();
+    await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
     await suivant(page).click();
     await expect(page.getByRole('region', { name: 'Un repère aide' })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: ETAPE2 })).toBeVisible();
   });
 
   test('le second « Suivant » passe aussi, sans cliquer sur la relance', async ({
     page,
     context,
   }) => {
-    await ouvrirEtape2(page, context);
-    await page.getByLabel("Nom sur l'enseigne").fill('[École sans repère 3]');
+    await ouvrirEtape1(page, context);
     await suivant(page).click();
     await expect(page.getByRole('region', { name: 'Un repère aide' })).toBeVisible();
     await suivant(page).click();
-    await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: ETAPE2 })).toBeVisible();
   });
 });
 
@@ -239,7 +224,7 @@ test.describe('un brouillon écrit avant le 09/11/2026 ne casse pas', () => {
   }) => {
     test.setTimeout(120_000);
     await ouvrirEtape2(page, context);
-    await page.getByLabel("Nom sur l'enseigne").fill('[Lycée d’avant]');
+    await page.getByLabel("Nom de l'établissement").fill('[Lycée d’avant]');
     await pastille(page, 'Lycée').click();
 
     // Le brouillon, tel que l'ancienne version le gardait : du texte libre dans `programmesVus`, et **pas** de
@@ -274,16 +259,15 @@ test.describe('un brouillon écrit avant le 09/11/2026 ne casse pas', () => {
     const series = page.getByRole('group', { name: /Séries du lycée/ });
     await expect(series.getByRole('button', { pressed: true })).toHaveCount(0);
 
-    // Il se poursuit : le relais coche une série, écrit un repère, passe à l'étape 3/3, et la fiche part.
+    // Il se poursuit : le relais coche une série, passe à l'étape 3/3, et la fiche part (le repère est à l'étape 1).
     await series.getByRole('button', { name: 'Série C', exact: true }).click();
-    await pastille(page, 'Église').click();
     await suivant(page).click();
-    await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'La rencontre' })).toBeVisible();
     await page.getByRole('button', { name: 'Oui', exact: true }).click();
     await page.getByLabel('Sa fonction').selectOption('promoteur');
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 123 45 62');
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await envoyerSansBonus(page);
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     await expect
       .poll(() =>

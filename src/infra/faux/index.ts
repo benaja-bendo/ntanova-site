@@ -485,6 +485,26 @@ const relais: PortRelais = {
       .map((d) => d.nom)
       .sort((a, b) => a.localeCompare(b, 'fr'));
   },
+  // v2 (13/11) : la liste nationale ; une école homonyme ailleurs, à deux sites, pour « Même nom, ailleurs ».
+  async ecolesDuPays() {
+    await reseau();
+    return [
+      {
+        id: '10000000-0000-4000-8000-000000000001',
+        nom: '[École exemple publiée]',
+        sigle: 'EEP',
+        ville: 'Pointe-Noire',
+        sites: 1,
+      },
+      {
+        id: '10000000-0000-4000-8000-0000000000aa',
+        nom: '[Groupe scolaire Les Palmiers]',
+        sigle: 'GSLP',
+        ville: 'Brazzaville',
+        sites: 2,
+      },
+    ];
+  },
   async lieuxConnus() {
     await reseau();
     const e = lireEtat();
@@ -495,6 +515,9 @@ const relais: PortRelais = {
         latitude: -4.79105,
         longitude: 11.925,
         genre: 'campus' as const,
+        sigle: 'EEP',
+        institutionId: '10000000-0000-4000-8000-000000000001',
+        sites: 1,
       },
       ...Object.values(e.campus)
         .filter((c) => c.position && c.publication !== 'retiree')
@@ -666,8 +689,8 @@ const relais: PortRelais = {
     if (photo.role === 'signboard' && siennes.some((p) => p.role === 'signboard')) {
       throw new Error('23505 : une fiche n’a qu’une photo d’enseigne');
     }
-    if (photo.role !== 'signboard' && siennes.filter((p) => p.role !== 'signboard').length >= 3) {
-      throw new ErreurRejet('22023', 'Au plus trois photos en plus de l’enseigne.');
+    if (photo.role !== 'signboard' && siennes.filter((p) => p.role !== 'signboard').length >= 5) {
+      throw new ErreurRejet('22023', 'Au plus cinq photos en plus de l’enseigne.');
     }
     if (photo.octets >= 200_000) throw new Error('photo trop lourde');
     ecrire((s) => {
@@ -956,6 +979,11 @@ const admin: PortAdministration = {
       numeroEnseigne: r.numeroEnseigne,
       direction: r.direction,
       repasser: r.repasser,
+      sigle: r.sigle ?? null,
+      remarque: r.remarque ?? null,
+      vusSurPlace: r.vusSurPlace ?? [],
+      cloture: r.cloture ?? null,
+      autreSiteDe: r.autreSiteDe ?? null,
       doublonDe:
         r.doublonDe && e.campus[r.doublonDe]
           ? { id: r.doublonDe, nom: e.campus[r.doublonDe]?.nom ?? '' }

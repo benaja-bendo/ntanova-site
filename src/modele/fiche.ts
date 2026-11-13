@@ -55,7 +55,21 @@ export interface PhotoLocale {
 }
 
 /** L'enseigne est la seule photo obligatoire ; on peut en ajouter trois autres au plus. */
-export const PHOTOS_FACULTATIVES_MAX = 3;
+/**
+ * Cinq photos au plus en plus de l'enseigne (base du 13/11, M2) : des lieux vides pour la page de l'école, et des photos de
+ * travail pour NTanova (prospectus, affiche d'inscription, programmes), jamais publiées (règle écrite dans la base).
+ */
+export const PHOTOS_FACULTATIVES_MAX = 5;
+
+/** Les photos du bonus, en deux groupes (canevas « Espace relais », 12/11) : ce qui peut paraître, et ce qui reste à NTanova. */
+export const ROLES_POUR_LA_PAGE = [
+  'building',
+  'courtyard',
+  'room_empty',
+  'sports_ground',
+  'entrance',
+] as const;
+export const ROLES_DE_TRAVAIL = ['brochure', 'enrollment_poster', 'programs_board'] as const;
 
 /** Les niveaux pour lesquels l'enseigne ou un panneau annonce des séries, des filières ou des formations. */
 export const NIVEAUX_AVEC_FORMATIONS: readonly Valeur<'niveau'>[] = [
@@ -133,6 +147,21 @@ export interface FicheLocale {
   formationsVues?: FormationSaisie[];
   repere: string;
   numeroEnseigne: string;
+  /** v2 (13/11) : le sigle écrit sur l'enseigne (« CSLP »), facultatif. Absent des fiches d'avant. */
+  sigle?: string;
+  /**
+   * v2 (13/11) : la réponse à « Déjà sur NTanova ? » quand le relais dit « un autre site de [école] » : l'école choisie,
+   * comme un indice pour l'administration. Absent des fiches d'avant.
+   */
+  autreSiteDe?: { institutionId: string; nom: string } | null;
+
+  // Le bonus (v2, 13/11) : facultatif, il ne bloque jamais l'envoi et n'est pas payé.
+  /** Les équipements vus sur place : « vu » seulement, jamais « absent ». */
+  vusSurPlace?: Valeur<'equipment_key'>[];
+  /** La clôture se voit de la rue : oui, non, ou rien (pas vu). */
+  cloture?: 'oui' | 'non' | null;
+  /** Une remarque libre du relais (« Inscriptions ouvertes »), privée. */
+  remarque?: string;
 
   // 3/3 : la direction (privé)
   direction: Valeur<'direction_vue'> | null;
@@ -514,7 +543,23 @@ export function versReleve(fiche: FicheLocale): ReleveAEnvoyer {
     numeroEnseigne: normaliserTelephone(fiche.numeroEnseigne),
     direction: fiche.direction,
     repasser: fiche.direction === 'absente' ? vide(fiche.repasser) : null,
+    sigle: vide(fiche.sigle ?? ''),
+    remarque: vide(fiche.remarque ?? ''),
+    vusSurPlace: [...new Set(fiche.vusSurPlace ?? [])],
+    cloture: fiche.cloture ?? null,
+    autreSiteDe:
+      fiche.reponseDoublon === 'autre_site' ? (fiche.autreSiteDe?.institutionId ?? null) : null,
   };
+}
+
+/** Le bonus est commencé : un équipement vu, la clôture dite, une remarque ou une photo en plus. */
+export function bonusCommence(fiche: FicheLocale): boolean {
+  return (
+    (fiche.vusSurPlace ?? []).length > 0 ||
+    (fiche.cloture ?? null) !== null ||
+    (fiche.remarque ?? '').trim() !== '' ||
+    photosFacultatives(fiche).length > 0
+  );
 }
 
 /** Les photos qui attendent encore d'être envoyées, l'enseigne d'abord. */

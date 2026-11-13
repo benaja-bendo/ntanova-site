@@ -240,3 +240,15 @@ describe('la fiche courte', () => {
     );
   });
 });
+
+// Lot B (13/11) : la règle des équipements du code suit celle de la base (M2) ; mêmes cas que `releve_bonus.test.sql`.
+import { constatDuTerrainPermis } from '../../src/modele/equipements-ecole';
+describe('ce que le terrain peut affirmer', () => {
+  it('« vu » pour tout équipement, « absent » seulement pour la clôture', () => {
+    expect(constatDuTerrainPermis('bibliotheque', 'present')).toBe(true);
+    expect(constatDuTerrainPermis('cantine', 'present')).toBe(true);
+    expect(constatDuTerrainPermis('cloture', 'absent')).toBe(true);
+    expect(constatDuTerrainPermis('cantine', 'absent')).toBe(false);
+    expect(constatDuTerrainPermis('eau', 'non_precise')).toBe(false);
+  });
+});

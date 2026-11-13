@@ -4,6 +4,7 @@ import type { MultiPolygone } from '../../modele/geo';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   EcoleACompleter,
+  EcoleDuPays,
   EcoleProche,
   Lot,
   MaPaie,
@@ -84,6 +85,9 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         name: string;
         latitude: number;
         longitude: number;
+        acronym?: string | null;
+        institution_id?: string | null;
+        sites?: number | null;
       }>(await supabase().rpc('known_places_for_me'));
       return lignes.map((l) => ({
         id: l.id,
@@ -91,6 +95,26 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         latitude: l.latitude,
         longitude: l.longitude,
         genre: l.kind === 'campus' ? 'campus' : 'releve',
+        sigle: l.acronym ?? null,
+        institutionId: l.institution_id ?? null,
+        sites: l.sites ?? 1,
+      }));
+    },
+
+    async ecolesDuPays(): Promise<EcoleDuPays[]> {
+      const lignes = lireListe<{
+        id: string;
+        name: string;
+        acronym: string | null;
+        city: string | null;
+        sites: number;
+      }>(await supabase().rpc('known_institutions_for_me'));
+      return lignes.map((l) => ({
+        id: l.id,
+        nom: l.name,
+        sigle: l.acronym,
+        ville: l.city,
+        sites: l.sites,
       }));
     },
 
@@ -307,6 +331,12 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
           sign_phone: r.numeroEnseigne,
           direction_seen: r.direction,
           come_back_note: r.repasser,
+          // v2 (13/11) : seulement ce que le relais a rempli, pour qu'un relevé sans bonus parte exactement comme avant.
+          ...(r.sigle ? { acronym: r.sigle } : {}),
+          ...(r.remarque ? { relay_note: r.remarque } : {}),
+          ...(r.vusSurPlace && r.vusSurPlace.length > 0 ? { seen_equipment: r.vusSurPlace } : {}),
+          ...(r.cloture ? { fence: r.cloture } : {}),
+          ...(r.autreSiteDe ? { duplicate_of_institution_id: r.autreSiteDe } : {}),
         }),
         DELAI_APPEL_MS,
       );

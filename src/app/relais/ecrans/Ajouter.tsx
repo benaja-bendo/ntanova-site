@@ -11,14 +11,8 @@ import {
   nouvelleContreVisite,
   nouvelleCorrection,
   nouvelleFiche,
-  peutAjouterPhoto,
   photoEnseigne,
-  PHOTOS_FACULTATIVES_MAX,
-  photosFacultatives,
-  sansPhoto,
   retirerUnePersonne,
-  versAutresPersonnes,
-  versContact,
   type ContactSaisi,
   type Erreurs,
   type FicheLocale,
@@ -40,12 +34,11 @@ import {
   libelleDirection,
   libelleFonction,
   libelleNiveau,
-  libelleRolePhotoCourt,
   libelleTypeEcole,
 } from '../../../modele/libelles';
 import { brouillonDuCompte } from '../actions-fiches';
 import { base, lireMemoire } from '../base-locale';
-import { aller, useRelais } from '../contexte';
+import { aller } from '../contexte';
 import { Bandeau, Champ, Choix, EnteteEtape, Icone } from '../composants';
 import { journaliser } from '../journal';
 import { alleger, PhotoTropLourde } from '../photo';
@@ -56,14 +49,12 @@ import { aideDePrecision, lireErreurPosition } from '../../../modele/aide-positi
 import { environnementActuel, etatDeLAutorisation } from '../environnement';
 import { useReprisePosition } from '../reprise-position';
 import { PhotosRecues, PositionRecue, VoirSurLaCarte } from './DejaRecu';
+import { Bonus, EnvoyerSansBonus } from './Bonus';
+import { DejaSurNTanova } from './DejaSurNTanova';
+import { useEnregistrer, type Modifier } from './fiche-en-cours';
 
 /** Les fiches qui ont déjà eu leur relance sur le repère (l'étape 2/3 en fait une seule par fiche). */
 const fichesDejaRelancees = new Set<string>();
-
-/** Change des champs de la fiche en cours ; une fonction reçoit la fiche à jour (deux photos qui se suivent ne s'écrasent pas). */
-type Modifier = (
-  champs: Partial<FicheLocale> | ((fiche: FicheLocale) => Partial<FicheLocale>),
-) => void;
 
 /** Crée la fiche en cours si besoin, puis la garde dans le téléphone à chaque changement. */
 function useFicheEnCours(): [FicheLocale | null, Modifier] {
@@ -99,12 +90,13 @@ function useFicheEnCours(): [FicheLocale | null, Modifier] {
   return [fiche, modifier];
 }
 
-export function Ajouter({ etape }: { etape: 1 | 2 | 3 }) {
+export function Ajouter({ etape }: { etape: 1 | 2 | 3 | 4 }) {
   const [fiche, modifier] = useFicheEnCours();
   if (!fiche) return <div className="ecran" aria-busy="true" />;
   if (etape === 1) return <Etape1 fiche={fiche} modifier={modifier} />;
   if (etape === 2) return <Etape2 fiche={fiche} modifier={modifier} />;
-  return <Etape3 fiche={fiche} modifier={modifier} />;
+  if (etape === 3) return <Etape3 fiche={fiche} modifier={modifier} />;
+  return <Bonus fiche={fiche} modifier={modifier} />;
 }
 
 function PiedEtape({ children }: { children: React.ReactNode }) {
@@ -158,12 +150,8 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   const arret = useRef<() => void>(() => {});
   const monte = useRef(true);
 
-  const [autresOuvert, setAutresOuvert] = useState(false);
   // Des photos en cours d'allègement : « Suivant » attend qu'elles soient gardées, sinon la fiche partirait sans elles.
   const [allegement, setAllegement] = useState(0);
-  const [rolePhoto, setRolePhoto] = useState<'programs_board' | 'brochure' | 'building'>(
-    'programs_board',
-  );
 
   // Un aperçu par photo : les fichiers sont dans le téléphone (IndexedDB), jamais envoyés pour s'afficher.
   const apercus = useMemo(
@@ -178,7 +166,6 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
     [apercus],
   );
   const enseigne = photoEnseigne(fiche);
-  const autres = photosFacultatives(fiche);
 
   /** Allège la photo (moins de 200 Ko), puis la garde dans le téléphone avec son rôle. */
   const prendrePhoto = async (fichier: File | undefined, role: PhotoLocale['role']) => {
@@ -284,17 +271,27 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const champRepere = useRef<HTMLInputElement>(null);
+  // Une seule relance sur le repère **par fiche**, jamais un blocage : le deuxième « Suivant » passe quoi qu'il arrive,
+  // et revenir à l'étape 1 depuis la 2 ne la répète pas.
+  const [relanceRepere, setRelanceRepere] = useState(false);
   const suivant = () => {
     const e = erreursEtape1(fiche);
     setErreurs(e);
-    if (Object.keys(e).length === 0) aller('ajouter/2');
+    if (Object.keys(e).length > 0) return;
+    if (repereManquant(fiche.repere) && !fichesDejaRelancees.has(fiche.id)) {
+      fichesDejaRelancees.add(fiche.id);
+      setRelanceRepere(true);
+      return;
+    }
+    aller('ajouter/2');
   };
 
   const precision = fiche.precisionM ?? mesure?.precisionM ?? null;
 
   return (
     <div className="ecran">
-      <EnteteEtape etape={1} titre="Photo et position" retour="lot" type={fiche.type} />
+      <EnteteEtape etape={1} titre="Photo et lieu" retour="lot" type={fiche.type} />
       <main className="contenu-relais">
         <EncartTaches fiche={fiche} />
 
@@ -361,90 +358,6 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           )}
         </section>
 
-        <section className="carte-blanche pile-serree" aria-labelledby="autres-photos">
-          <h2 id="autres-photos" className="titre-section">
-            Autres photos <span className="mention">facultatif</span>
-          </h2>
-          {autres.length > 0 && (
-            <ul className="liste-photos">
-              {autres.map((p) => (
-                <li key={p.id} className="photo-ajoutee">
-                  {apercus[p.id] && <img src={apercus[p.id]} alt={libelleRolePhotoCourt[p.role]} />}
-                  <span>{libelleRolePhotoCourt[p.role]}</span>
-                  <button
-                    type="button"
-                    className="lien lien-discret"
-                    aria-label={`Retirer la photo : ${libelleRolePhotoCourt[p.role]}`}
-                    onClick={() => modifier((f) => ({ photos: sansPhoto(f, p.id).photos }))}
-                  >
-                    Retirer
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {peutAjouterPhoto(fiche) && !autresOuvert && (
-            <button
-              type="button"
-              className="bouton bouton-secondaire bouton-petit"
-              onClick={() => setAutresOuvert(true)}
-            >
-              + Ajouter d'autres photos (max {PHOTOS_FACULTATIVES_MAX})
-            </button>
-          )}
-          {peutAjouterPhoto(fiche) && autresOuvert && (
-            <>
-              <Choix
-                legende="Que montre cette photo ?"
-                options={(['programs_board', 'brochure', 'building'] as const).map((r) => ({
-                  valeur: r,
-                  libelle: libelleRolePhotoCourt[r],
-                }))}
-                valeurs={[rolePhoto]}
-                surChoix={setRolePhoto}
-                colonnes={1}
-              />
-              <div className="deux-colonnes">
-                <label className="bouton bouton-petit">
-                  <Icone nom="galerie" />
-                  Galerie
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="cache"
-                    aria-label="Galerie : autre photo"
-                    onChange={(e) => {
-                      void prendrePhoto(e.target.files?.[0], rolePhoto);
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-                <label className="bouton bouton-secondaire bouton-petit">
-                  <Icone nom="photo" />
-                  Appareil photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="cache"
-                    aria-label="Appareil photo : autre photo"
-                    onChange={(e) => {
-                      void prendrePhoto(e.target.files?.[0], rolePhoto);
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-              </div>
-            </>
-          )}
-          <p className="mention">
-            {autres.length}/{PHOTOS_FACULTATIVES_MAX} en plus de l'enseigne. Un panneau ou une
-            affiche qui liste les filières, un prospectus remis par l'école, une autre vue du
-            bâtiment (toujours sans enfant). Un prospectus, oui : jamais une liste d'élèves ni un
-            bulletin.
-          </p>
-        </section>
-
         <section className="carte-blanche pile-serree">
           <h2 className="titre-section">La position, devant l'entrée</h2>
           {fiche.dejaRecu && <PositionRecue fiche={fiche} />}
@@ -504,114 +417,9 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           )}
         </section>
 
-        {fiche.type !== 'contre_visite' && fiche.doublonPropose && (
-          <section className="bandeau bandeau-attente pile-serree" aria-label="Doublon possible">
-            <p>
-              <b>Une école est déjà relevée à 40&nbsp;m&nbsp;:</b> {fiche.doublonPropose.nom}.
-              Est-ce la même&nbsp;?
-            </p>
-            <Choix
-              legende="Est-ce la même école ?"
-              options={[
-                { valeur: 'la_meme', libelle: 'Oui, la même' },
-                { valeur: 'une_autre', libelle: 'Non, une autre' },
-              ]}
-              valeurs={fiche.reponseDoublon ? [fiche.reponseDoublon] : []}
-              surChoix={(v) => modifier({ reponseDoublon: v })}
-              colonnes={2}
-              erreur={erreurs.reponseDoublon}
-            />
-          </section>
-        )}
-
-        <BoutonAbandonner fiche={fiche} />
-      </main>
-      <PiedEtape>
-        <BoutonSuivant surClic={suivant} occupe={allegement > 0} />
-      </PiedEtape>
-    </div>
-  );
-}
-
-// 2/3 : ce qui se voit de la rue -----------------------------------------------
-
-function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier }) {
-  const [erreurs, setErreurs] = useState<Erreurs>({});
-  // Un numéro congolais a 9 chiffres après +242 : le relais est prévenu, sans être bloqué (ticket #95).
-  const numeroSuspect = numeroCongolaisSuspect(normaliserTelephone(fiche.numeroEnseigne));
-  const champRepere = useRef<HTMLInputElement>(null);
-  // Une seule relance sur le repère **par fiche**, jamais un blocage : le deuxième « Suivant » passe quoi qu'il arrive,
-  // et revenir à l'étape 2 depuis la 3 ne la répète pas.
-  const [relanceRepere, setRelanceRepere] = useState(false);
-  const suivant = () => {
-    const e = erreursEtape2(fiche);
-    setErreurs(e);
-    if (Object.keys(e).length > 0) return;
-    if (repereManquant(fiche.repere) && !fichesDejaRelancees.has(fiche.id)) {
-      fichesDejaRelancees.add(fiche.id);
-      setRelanceRepere(true);
-      return;
-    }
-    aller('ajouter/3');
-  };
-  const basculerNiveau = (n: Valeur<'niveau'>) => {
-    const retire = fiche.niveaux.includes(n);
-    modifier({
-      niveaux: retire
-        ? fiche.niveaux.filter((x) => x !== n)
-        : listes.niveau.filter((x) => x === n || fiche.niveaux.includes(x)),
-      // Décocher un niveau retire ses séries et filières : la base refuse d'accepter une filière orpheline.
-      ...(retire
-        ? { formationsVues: sansLesFormationsDuCycle(lireFormationsVues(fiche.formationsVues), n) }
-        : {}),
-    });
-  };
-
-  return (
-    <div className="ecran">
-      <EnteteEtape
-        etape={2}
-        titre="Ce qui se voit de la rue"
-        retour="ajouter/1"
-        type={fiche.type}
-      />
-      <main className="contenu-relais">
-        <Bandeau ton="public" icone="oeil">
-          <p>
-            <b>Public.</b> Ces informations paraîtront sur la fiche. Notez seulement ce qui est
-            écrit ou visible depuis la rue.
-          </p>
-        </Bandeau>
-
-        {fiche.taches && (
-          <p className="mention">
-            {fiche.taches.informations
-              ? 'Ces informations viennent de la fiche de NTanova. Vérifiez-les sur place et corrigez ce qui est faux.'
-              : 'Ces informations viennent de la fiche. Corrigez-les seulement si elles sont fausses.'}
-          </p>
-        )}
-
-        <Champ libelle="Nom sur l'enseigne" erreur={erreurs.nomEnseigne}>
-          {(a) => (
-            <input
-              {...a}
-              className="champ"
-              type="text"
-              autoComplete="off"
-              placeholder="Ex. : Complexe scolaire [Nom]"
-              value={fiche.nomEnseigne}
-              onChange={(e) => modifier({ nomEnseigne: e.target.value })}
-            />
-          )}
-        </Champ>
-
-        {/* Le repère remonte sous le nom (audit du 08/11/2026) : il était le 6ᵉ champ sur 7, tout en bas de l'étape. */}
+        {/* v2 (13/11, canevas) : le repère vient avec le lieu, à l'étape 1 ; les puces remplissent le champ. */}
         <div className="pile-serree">
-          <Champ
-            libelle="Qu’y a-t-il juste à côté ?"
-            aide="Les familles s’en servent pour trouver l’école. Touchez un repère, ou écrivez le vôtre."
-            erreur={erreurs.repere}
-          >
+          <Champ libelle="Comment la trouver ?" erreur={erreurs.repere}>
             {(a) => (
               <input
                 {...a}
@@ -637,6 +445,138 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             }}
           />
         </div>
+
+        {fiche.type !== 'contre_visite' && fiche.doublonPropose && (
+          <section className="bandeau bandeau-attente pile-serree" aria-label="Doublon possible">
+            <p>
+              <b>Une école est déjà relevée à 40&nbsp;m&nbsp;:</b> {fiche.doublonPropose.nom}.
+              Est-ce la même&nbsp;?
+            </p>
+            <Choix
+              legende="Est-ce la même école ?"
+              options={[
+                { valeur: 'la_meme', libelle: 'Oui, la même' },
+                { valeur: 'une_autre', libelle: 'Non, une autre' },
+              ]}
+              valeurs={fiche.reponseDoublon ? [fiche.reponseDoublon] : []}
+              surChoix={(v) => modifier({ reponseDoublon: v })}
+              colonnes={2}
+              erreur={erreurs.reponseDoublon}
+            />
+          </section>
+        )}
+
+        <BoutonAbandonner fiche={fiche} />
+      </main>
+      <PiedEtape>
+        {relanceRepere && repereManquant(fiche.repere) && (
+          <section className="bandeau bandeau-attente pile-serree" aria-label="Un repère aide">
+            <p>
+              <b>Un repère aide les familles.</b> Même un seul mot (le marché, la pharmacie) les
+              aide à trouver l’école.
+            </p>
+            <div className="ligne-boutons">
+              <button
+                type="button"
+                className="bouton bouton-secondaire bouton-petit"
+                onClick={() => {
+                  champRepere.current?.scrollIntoView({ block: 'center' });
+                  champRepere.current?.focus();
+                }}
+              >
+                Ajouter un repère
+              </button>
+              <button
+                type="button"
+                className="bouton bouton-secondaire bouton-petit"
+                onClick={() => aller('ajouter/2')}
+              >
+                Continuer sans
+              </button>
+            </div>
+          </section>
+        )}
+        <BoutonSuivant surClic={suivant} occupe={allegement > 0} />
+      </PiedEtape>
+    </div>
+  );
+}
+
+// 2/3 : ce qui se voit de la rue -----------------------------------------------
+
+function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier }) {
+  const [erreurs, setErreurs] = useState<Erreurs>({});
+  // Un numéro congolais a 9 chiffres après +242 : le relais est prévenu, sans être bloqué (ticket #95).
+  const numeroSuspect = numeroCongolaisSuspect(normaliserTelephone(fiche.numeroEnseigne));
+  const suivant = () => {
+    const e = erreursEtape2(fiche);
+    setErreurs(e);
+    if (Object.keys(e).length > 0) return;
+    aller('ajouter/3');
+  };
+  const basculerNiveau = (n: Valeur<'niveau'>) => {
+    const retire = fiche.niveaux.includes(n);
+    modifier({
+      niveaux: retire
+        ? fiche.niveaux.filter((x) => x !== n)
+        : listes.niveau.filter((x) => x === n || fiche.niveaux.includes(x)),
+      // Décocher un niveau retire ses séries et filières : la base refuse d'accepter une filière orpheline.
+      ...(retire
+        ? { formationsVues: sansLesFormationsDuCycle(lireFormationsVues(fiche.formationsVues), n) }
+        : {}),
+    });
+  };
+
+  return (
+    <div className="ecran">
+      <EnteteEtape etape={2} titre="L'établissement" retour="ajouter/1" type={fiche.type} />
+      <main className="contenu-relais">
+        <Bandeau ton="public" icone="oeil">
+          <p>
+            <b>Public.</b> Ces informations paraîtront sur la fiche. Notez seulement ce qui est
+            écrit ou visible depuis la rue.
+          </p>
+        </Bandeau>
+
+        {fiche.taches && (
+          <p className="mention">
+            {fiche.taches.informations
+              ? 'Ces informations viennent de la fiche de NTanova. Vérifiez-les sur place et corrigez ce qui est faux.'
+              : 'Ces informations viennent de la fiche. Corrigez-les seulement si elles sont fausses.'}
+          </p>
+        )}
+
+        <Champ libelle="Nom de l'établissement" erreur={erreurs.nomEnseigne}>
+          {(a) => (
+            <input
+              {...a}
+              className="champ"
+              type="text"
+              autoComplete="off"
+              placeholder="Ex. : Complexe scolaire [Nom]"
+              value={fiche.nomEnseigne}
+              onChange={(e) => modifier({ nomEnseigne: e.target.value })}
+            />
+          )}
+        </Champ>
+
+        {fiche.type === 'releve' && <DejaSurNTanova fiche={fiche} modifier={modifier} />}
+
+        <Champ libelle="Sigle" facultatif>
+          {(a) => (
+            <input
+              {...a}
+              className="champ"
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              maxLength={20}
+              placeholder="Ex. : CSLP"
+              value={fiche.sigle ?? ''}
+              onChange={(e) => modifier({ sigle: e.target.value })}
+            />
+          )}
+        </Champ>
 
         <Choix
           legende="Niveaux écrits sur l'enseigne"
@@ -682,11 +622,9 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             </label>
             {fiche.programmesEnPhoto &&
               !fiche.photos.some((p) => p.role === 'programs_board' || p.role === 'brochure') && (
-                <p className="message-attention">
-                  Ajoutez cette photo à l'étape 1/3 («&nbsp;+ Ajouter d'autres photos&nbsp;»).{' '}
-                  <button type="button" className="lien" onClick={() => aller('ajouter/1')}>
-                    Retour à la photo
-                  </button>
+                <p className="mention">
+                  Vous ajouterez cette photo dans le bonus («&nbsp;Programmes&nbsp;»), après la
+                  rencontre.
                 </p>
               )}
           </section>
@@ -757,33 +695,6 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         <BoutonAbandonner fiche={fiche} />
       </main>
       <PiedEtape>
-        {relanceRepere && repereManquant(fiche.repere) && (
-          <section className="bandeau bandeau-attente pile-serree" aria-label="Un repère aide">
-            <p>
-              <b>Un repère aide les familles.</b> Même un seul mot (le marché, la pharmacie) les
-              aide à trouver l’école.
-            </p>
-            <div className="ligne-boutons">
-              <button
-                type="button"
-                className="bouton bouton-secondaire bouton-petit"
-                onClick={() => {
-                  champRepere.current?.scrollIntoView({ block: 'center' });
-                  champRepere.current?.focus();
-                }}
-              >
-                Ajouter un repère
-              </button>
-              <button
-                type="button"
-                className="bouton bouton-secondaire bouton-petit"
-                onClick={() => aller('ajouter/3')}
-              >
-                Continuer sans
-              </button>
-            </div>
-          </section>
-        )}
         <BoutonSuivant surClic={suivant} />
       </PiedEtape>
     </div>
@@ -793,7 +704,6 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 // 3/3 : la direction --------------------------------------------------------------
 
 function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier }) {
-  const { synchroniser } = useRelais();
   const [erreurs, setErreurs] = useState<Erreurs>({});
   const contact = fiche.contact ?? contactVide();
   const modifierContact = (champs: Partial<ContactSaisi>) =>
@@ -809,32 +719,57 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   const choisirDirection = (direction: Valeur<'direction_vue'>) =>
     modifier({ direction, contact: direction === 'absente' ? null : contact });
 
-  const enregistrer = async () => {
+  const enregistrerLaFiche = useEnregistrer(fiche);
+  const valider = (): boolean => {
     const e = erreursEtape3(fiche);
     setErreurs(e);
-    if (Object.keys(e).length > 0) return;
-    const prete: FicheLocale = {
-      ...fiche,
-      contact: fiche.direction === 'absente' ? null : fiche.contact,
-      autresPersonnes: fiche.direction === 'vue' ? autres : [],
-      etat: 'a_envoyer',
-      envoyes: {
-        releve: false,
-        photo: false,
-        contact: versContact(fiche) === null && versAutresPersonnes(fiche).length === 0,
-      },
-      // Une fiche modifiée repart comme neuve : ni refus, ni essais ratés d'avant.
-      rejet: null,
-      essais: 0,
-    };
-    await base.fiches.put(prete);
-    aller('fiches', true);
-    synchroniser();
+    return Object.keys(e).length === 0;
   };
+  return (
+    <EcranEtape3
+      fiche={fiche}
+      modifier={modifier}
+      erreurs={erreurs}
+      contact={contact}
+      modifierContact={modifierContact}
+      autres={autres}
+      modifierAutre={modifierAutre}
+      choixDeLaDirection={choixDeLaDirection}
+      choisirDirection={choisirDirection}
+      valider={valider}
+      enregistrer={enregistrerLaFiche}
+    />
+  );
+}
 
+function EcranEtape3({
+  fiche,
+  modifier,
+  erreurs,
+  contact,
+  modifierContact,
+  autres,
+  modifierAutre,
+  choixDeLaDirection,
+  choisirDirection,
+  valider,
+  enregistrer,
+}: {
+  fiche: FicheLocale;
+  modifier: Modifier;
+  erreurs: Erreurs;
+  contact: ContactSaisi;
+  modifierContact: (champs: Partial<ContactSaisi>) => void;
+  autres: NonNullable<FicheLocale['autresPersonnes']>;
+  modifierAutre: (id: string, champs: Partial<ContactSaisi>) => void;
+  choixDeLaDirection: boolean;
+  choisirDirection: (d: Valeur<'direction_vue'>) => void;
+  valider: () => boolean;
+  enregistrer: () => Promise<void>;
+}) {
   return (
     <div className="ecran">
-      <EnteteEtape etape={3} titre="La direction" retour="ajouter/2" type={fiche.type} />
+      <EnteteEtape etape={3} titre="La rencontre" retour="ajouter/2" type={fiche.type} />
       <main className="contenu-relais">
         <Bandeau ton="prive" icone="cadenas">
           <p>
@@ -865,7 +800,7 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
               </Bandeau>
             )}
             <Choix
-              legende="Avez-vous vu la direction ?"
+              legende="Avez-vous parlé à quelqu’un de l’école ?"
               options={listes.direction_vue.map((d) => ({
                 valeur: d,
                 libelle: libelleDirection[d],
@@ -936,19 +871,6 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
             {fiche.direction === 'absente' && (
               <>
-                <Champ libelle="Quand repasser ?" facultatif>
-                  {(a) => (
-                    <input
-                      {...a}
-                      className="champ"
-                      type="text"
-                      autoComplete="off"
-                      placeholder="Ex. : lundi matin, avant 10 h"
-                      value={fiche.repasser}
-                      onChange={(e) => modifier({ repasser: e.target.value })}
-                    />
-                  )}
-                </Champ>
                 <p className="mention">
                   La fiche part quand même. Vous repasserez voir la direction.
                 </p>
@@ -977,13 +899,34 @@ function Etape3({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           </>
         )}
 
+        <Champ libelle="Remarque" facultatif>
+          {(a) => (
+            <textarea
+              {...a}
+              className="champ"
+              rows={2}
+              maxLength={300}
+              placeholder="Ex. : inscriptions ouvertes"
+              value={fiche.remarque ?? ''}
+              onChange={(e) => modifier({ remarque: e.target.value })}
+            />
+          )}
+        </Champ>
+
         <BoutonAbandonner fiche={fiche} />
       </main>
       <PiedEtape>
-        <button type="button" className="bouton bouton-large" onClick={() => void enregistrer()}>
-          <Icone nom="coche" />
-          Enregistrer la fiche
+        <button
+          type="button"
+          className="bouton bouton-large"
+          onClick={() => {
+            if (valider()) aller('ajouter/bonus');
+          }}
+        >
+          Suivant : le bonus
+          <Icone nom="suivant" />
         </button>
+        <EnvoyerSansBonus avant={valider} enregistrer={enregistrer} />
       </PiedEtape>
     </div>
   );

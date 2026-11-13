@@ -287,6 +287,16 @@ Canevas « Site NTanova », page « Fiche d'école » ; base du 13/11 (M3 à M8)
 - **Frais** : une ligne par classe (`level_label`) ou par cycle ; « Lus sur le prospectus » seulement si toutes les lignes en viennent, sinon « Dits par l'école le … » (décision du 13/11 : une ligne dite par l'école se publie sans photo). Les frais d'une formation du supérieur se lisent sur la formation, avec « Autorisation : pas encore vue par NTanova » tant qu'aucune référence n'est saisie.
 - **Une seule mise en page** : sur téléphone, les colonnes s'effacent (`display: contents`) et les blocs suivent l'ordre du canevas (`o-…`) ; à 64 rem, deux colonnes dans le même ordre.
 
+### Le relevé du relais, v2 (ticket 165, lot B, 13/11/2026)
+
+Canevas « Site NTanova », page « Espace relais » ; base du 13/11 (M2, M9).
+
+- **Quatre temps** : « Photo et lieu » (la photo, la position, **le repère « Comment la trouver ? »** et sa relance unique), « L'établissement » (nom, **« Déjà sur NTanova ? »**, **sigle**, type, niveaux, formations, numéro), « La rencontre » (« Avez-vous parlé à quelqu'un de l'école ? » oui, personne, refus ; « Quand repasser ? » est retiré ; **remarque**), puis **le bonus** (`#ajouter/bonus`), facultatif et non payé : ce que le relais a vu (« vu » seulement), la clôture (oui, non, pas vu), **cinq photos au plus en plus de l'enseigne** (lieux vides pour la page, photos de travail pour NTanova). « Envoyer maintenant » depuis l'étape 3 ouvre « Envoyer sans le bonus ? », « Ajouter le bonus » en premier.
+- **« Déjà sur NTanova ? »** tourne **dans le téléphone, hors ligne** (`src/modele/deja-sur-ntanova.ts`, la règle de `school_name_core` et de `pg_trgm`, testée contre les cas pgTAP) sur `ecoles` et `ecolesDuPays` (gardés par `actualiser`). Deux groupes : « Près d'ici » (500 m), « Même nom, ailleurs » (ressemblance 0,45). La réponse (`duplicate_answer`, `duplicate_of_institution_id`) est un indice : elle ne fusionne rien et ne bloque jamais l'envoi. L'alerte « à 40 m » de l'étape 1 reste.
+- **Ce qui part** : seulement ce que le relais a rempli (`acronym`, `relay_note`, `seen_equipment`, `fence`, `duplicate_of_institution_id`) : un relevé sans bonus part exactement comme avant. Aucune nouvelle version de la base du téléphone : les champs nouveaux sont facultatifs dans la fiche.
+- **« À valider »** montre le sigle et « Le bonus du relais » : chaque équipement vu, coché « gardé » par défaut ; l'acceptation l'écrit comme fait du terrain (`p_facts`) et le sigle remplit celui de la nouvelle école. **La règle des équipements du code suit celle de la base** (`constatDuTerrainPermis` : « vu » pour tout, « absent » seulement pour la clôture).
+- Écart au canevas : la vignette de l'enseigne à côté du nom, la loupe et la comparaison des deux photos dans « Vous la reconnaissez ? » ne sont pas faites (le téléphone ne garde pas les photos des écoles connues) ; le sigle tient lieu d'image.
+
 ### Le rangement du site public (ticket 146, décision du fondateur du 08/11/2026)
 
 Une référence, deux portes, une carte. Dossier d'architecture et canevas « Écoles et fiches NTanova » : artefacts privés du fondateur ; décision et arbitrages dans le dépôt `ntanova` (`docs/produit/2026-11-08-architecture-du-site-decision.md`).

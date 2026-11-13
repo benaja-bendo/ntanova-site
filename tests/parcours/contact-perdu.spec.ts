@@ -1,4 +1,4 @@
-import { ouvrirContacts } from './aides';
+import { ouvrirContacts, envoyerSansBonus } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
 
@@ -64,14 +64,16 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     );
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await expect(page.getByRole('group', { name: 'Avez-vous vu la direction ?' })).toBeVisible();
+    await expect(
+      page.getByRole('group', { name: 'Avez-vous parlé à quelqu’un de l’école ?' }),
+    ).toBeVisible();
     await expect(page.getByText(/n['’]est pas arrivé chez NTanova/)).toBeVisible();
     await expect(page.getByText('Rien à refaire ici.')).toHaveCount(0);
 
     await page.getByLabel('Sa fonction').selectOption('directeur');
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 765 43 21');
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 
@@ -107,7 +109,9 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await expect(page.getByText('Rien à refaire ici.')).toBeVisible();
-    await expect(page.getByRole('group', { name: 'Avez-vous vu la direction ?' })).toHaveCount(0);
+    await expect(
+      page.getByRole('group', { name: 'Avez-vous parlé à quelqu’un de l’école ?' }),
+    ).toHaveCount(0);
   });
 });
 

@@ -1,4 +1,4 @@
-import { ouvrirContacts } from './aides';
+import { ouvrirContacts, envoyerSansBonus } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter } from './aides';
 
@@ -16,8 +16,7 @@ async function jusquALaDirection(page: Page, context: BrowserContext) {
   ).toBeVisible();
   await prendrePhotoEtPosition(page);
   await page.getByRole('button', { name: 'Suivant' }).click();
-  await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
-  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+  await page.getByLabel("Nom de l'établissement").fill('[École 1]');
   await page.getByRole('button', { name: 'Primaire' }).click();
   await page.getByRole('button', { name: 'Suivant' }).click();
   await page.getByRole('button', { name: 'Oui', exact: true }).click();
@@ -60,7 +59,7 @@ test.describe('le relais note plusieurs personnes', () => {
     await expect(page.getByRole('button', { name: 'Ajouter une autre personne' })).toHaveCount(0);
     await expect(page.getByText('Trois personnes au plus par fiche.')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     await expect.poll(() => contactsDuServeur(page)).toBe(3);
@@ -83,10 +82,11 @@ test.describe('le relais note plusieurs personnes', () => {
     test.setTimeout(90_000);
     await jusquALaDirection(page, context);
     await page.getByRole('button', { name: 'Ajouter une autre personne' }).click();
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    // Les erreurs se disent avant la fenêtre « Envoyer sans le bonus ? » : elle ne s'ouvre pas.
+    await page.getByRole('button', { name: 'Envoyer maintenant' }).click();
     await expect(autre(page, 1).getByText('Choisissez sa fonction.')).toBeVisible();
     // La fiche n'est pas enregistrée : on reste à l'étape 3/3.
-    await expect(page.getByRole('button', { name: 'Enregistrer la fiche' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Envoyer maintenant' })).toBeVisible();
 
     await autre(page, 1).getByLabel('Sa fonction').selectOption('directeur');
     await autre(page, 1).getByRole('button', { name: 'Retirer cette personne' }).click();
@@ -100,7 +100,7 @@ test.describe('le relais note plusieurs personnes', () => {
   }) => {
     test.setTimeout(90_000);
     await jusquALaDirection(page, context);
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     await expect.poll(() => contactsDuServeur(page)).toBe(1);

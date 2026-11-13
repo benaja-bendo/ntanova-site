@@ -1,4 +1,4 @@
-import { ouvrirGestion } from './aides';
+import { ouvrirGestion, envoyerSansBonus } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter } from './aides';
 
@@ -21,15 +21,16 @@ async function allerALEtape2(page: Page, context: BrowserContext) {
   await page.getByRole('button', { name: 'Ajouter une école' }).click();
   await page.locator('input[type=file]').first().setInputFiles(photo);
   await expect(page.getByText('Position prise')).toBeVisible();
+  await page.getByLabel('Comment la trouver ?').fill('Face au marché');
   await page.getByRole('button', { name: 'Suivant' }).click();
-  await expect(page.getByRole('heading', { name: 'Ce qui se voit de la rue' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: "L'établissement" })).toBeVisible();
 }
 
 /** De l'étape 2/3 à l'envoi : direction absente (pas de contact), puis la fiche part. */
 async function finirEtEnvoyer(page: Page) {
   await page.getByRole('button', { name: 'Suivant' }).click();
-  await page.getByRole('button', { name: 'Absente' }).click();
-  await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+  await page.getByRole('button', { name: 'Personne', exact: true }).click();
+  await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 }
@@ -133,8 +134,7 @@ test.describe('étape 2/3 du relais : de la crèche au supérieur', () => {
     context,
   }) => {
     await allerALEtape2(page, context);
-    await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+    await page.getByLabel("Nom de l'établissement").fill('[École 1]');
     await finirEtEnvoyer(page);
 
     const [recu] = await relevesRecus(page);
@@ -151,8 +151,7 @@ test.describe('étape 2/3 du relais : de la crèche au supérieur', () => {
     context,
   }) => {
     await allerALEtape2(page, context);
-    await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+    await page.getByLabel("Nom de l'établissement").fill('[École 1]');
     for (const niveau of ['Crèche ou garderie', 'Technique ou professionnel', 'Autre formation']) {
       await niveaux(page).getByRole('button', { name: niveau, exact: true }).click();
     }
@@ -216,23 +215,23 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     await seConnecter(page, '/relais/');
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
     await page.getByRole('button', { name: 'Ajouter une école' }).click();
-    await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
     await page.locator('input[type=file]').first().setInputFiles(photo);
     // La photo est allégée puis gardée dans le téléphone avant que le brouillon ne soit relu après un rechargement.
     await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
     await expect(page.getByText('Position prise')).toBeVisible();
+    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
 
     await oublierLeProgramme(page);
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
     await page.getByRole('button', { name: 'Suivant' }).click();
 
     await expect(page.getByLabel(/Programme, langues ou autre mention écrite/)).toHaveValue('');
-    await page.getByLabel("Nom sur l'enseigne").fill('[École 1]');
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+    await page.getByLabel("Nom de l'établissement").fill('[École 1]');
     await page.getByLabel(/Programme, langues ou autre mention écrite/).fill('Bilingue');
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'La rencontre' })).toBeVisible();
   });
 
   test('la contre-visite d’une école dont le type ou le niveau est inconnu de ce téléphone passe l’étape 2/3', async ({
@@ -267,6 +266,7 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     await page.getByRole('button', { name: 'Compléter' }).click();
     await page.locator('input[type=file]').first().setInputFiles(photo);
     await expect(page.getByText('Position prise')).toBeVisible();
+    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
     await page.getByRole('button', { name: 'Suivant' }).click();
 
     // Ce que la version connaît est repris ; le reste devient « Pas indiqué ».
@@ -279,8 +279,7 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     ).toHaveAttribute('aria-pressed', 'true');
 
     // Et l'étape ne se referme pas en silence. L'école n'a pas de repère : sans lui, « Suivant » fait d'abord sa relance.
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'La rencontre' })).toBeVisible();
   });
 });

@@ -16,7 +16,8 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
   await ouvrirGestion(ligne, 'Équipements');
   const d = page.getByRole('dialog', { name: 'Gérer [École 1]' }),
     f = d.getByRole('form');
-  await f.getByRole('combobox', { name: 'Équipement', exact: true }).selectOption('cloture');
+  // v2 (13/11) : le terrain peut dire « vu » pour tout, « absent » seulement pour la clôture.
+  await f.getByRole('combobox', { name: 'Équipement', exact: true }).selectOption('cantine');
   await f.getByRole('combobox', { name: 'État', exact: true }).selectOption('absent');
   await f.getByRole('combobox', { name: 'Source', exact: true }).selectOption('terrain');
   await f
@@ -24,7 +25,7 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
     .fill(new Date(Date.now() - 86400000).toISOString().slice(0, 10));
   await f.getByRole('checkbox').check();
   await f.getByRole('button', { name: 'Enregistrer l’équipement' }).click();
-  await expect(d).toContainText('Le terrain atteste seulement un élément réellement visible');
+  await expect(d).toContainText('Une absence ne se dit que pour la clôture');
   await f.getByRole('combobox', { name: 'État', exact: true }).selectOption('present');
   await f.getByRole('button', { name: 'Enregistrer l’équipement' }).click();
   await expect(page.getByRole('status')).toContainText('Reconstruis le site');
@@ -40,7 +41,7 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
   await expect(ligne.getByRole('button', { name: 'Gérer la fiche', exact: true })).toBeFocused();
   await page.reload();
   await ouvrirGestion(ligne, 'Équipements');
-  await d.getByRole('button', { name: 'Modifier Clôture', exact: true }).click();
+  await d.getByRole('button', { name: 'Modifier Cantine', exact: true }).click();
   await expect(f.getByRole('combobox', { name: 'Source', exact: true })).toHaveValue('terrain');
   await expect(f.getByRole('checkbox')).not.toBeChecked();
   await f.getByRole('combobox', { name: 'Source', exact: true }).selectOption('ecole');
@@ -48,7 +49,7 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
   await f.getByRole('checkbox').check();
   await f.getByRole('button', { name: 'Enregistrer l’équipement' }).click();
   await expect(d.getByRole('list')).toContainText('Non précisé par l’école');
-  await d.getByRole('button', { name: 'Retirer Clôture', exact: true }).click();
+  await d.getByRole('button', { name: 'Retirer Cantine', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('retiré du catalogue');
   await expect(d.getByRole('list')).toHaveCount(0);
 });

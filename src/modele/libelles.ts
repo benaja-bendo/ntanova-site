@@ -63,7 +63,7 @@ export const libelleFonctionCourt: Record<Valeur<'fonction_direction'>, string> 
 
 export const libelleDirection: Record<Valeur<'direction_vue'>, string> = {
   vue: 'Oui',
-  absente: 'Absente',
+  absente: 'Personne',
   refus: 'Refus',
 };
 

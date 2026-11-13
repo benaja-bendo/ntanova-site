@@ -6,6 +6,7 @@ import {
   prendrePhotoEtPosition,
   seConnecter,
   uneFicheEnvoyee,
+  envoyerSansBonus,
 } from './aides';
 
 // Corriger une fiche : le relais revoit ce que NTanova a reçu, ses photos et sa position sur une carte, et une photo
@@ -167,7 +168,7 @@ test.describe('corriger une fiche : ce que NTanova a déjà reçu', () => {
     await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Mon secteur' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     // La photo est arrivée chez NTanova.
@@ -261,7 +262,7 @@ test.describe('une photo exigée qui n’est plus dans le téléphone', () => {
 
     // « Modifier » ramène à la photo, qui est exigée de nouveau.
     await fiche.getByRole('button', { name: 'Modifier' }).click();
-    await expect(page.getByRole('heading', { name: 'Photo et position' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await expect(page.getByText("Ajoutez la photo de l'enseigne.")).toBeVisible();
   });

@@ -93,7 +93,7 @@ export function EnteteEtape({
   retour,
   type,
 }: {
-  etape: 1 | 2 | 3;
+  etape: 1 | 2 | 3 | 4;
   titre: string;
   retour: string;
   type: FicheLocale['type'];
@@ -110,12 +110,18 @@ export function EnteteEtape({
           <Icone nom="retour" taille={22} />
         </button>
         <span className="entete-etape-titre">{titreDeLEcran(type)}</span>
-        <span className="entete-etape-compte">{etape}/3</span>
+        <span className="entete-etape-compte">{etape === 4 ? 'Bonus' : `${etape}/3`}</span>
       </header>
       <div className="progression">
         <div className="progression-barres" aria-hidden="true">
-          {[1, 2, 3].map((n) => (
-            <span key={n} className={n <= etape ? 'faite' : undefined} />
+          {/* v2 (13/11) : le bonus se voit dès l'étape 1, quatrième case jaune pâle ; il reste facultatif. */}
+          {[1, 2, 3, 4].map((n) => (
+            <span
+              key={n}
+              className={
+                [n <= etape ? 'faite' : '', n === 4 ? 'bonus' : ''].join(' ').trim() || undefined
+              }
+            />
           ))}
         </div>
         <div className="progression-ligne">

@@ -1,4 +1,4 @@
-import { ouvrirContacts } from './aides';
+import { ouvrirContacts, envoyerSansBonus } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { choisirLaZone, seConnecter } from './aides';
 
@@ -30,17 +30,10 @@ async function envoyerUnLycee(page: Page, nom: string) {
   await page.locator('input[type=file]').first().setInputFiles(photo);
   await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
   await expect(page.getByText('Position prise')).toBeVisible();
-  await page.getByRole('button', { name: /Ajouter d'autres photos/ }).click();
-  await page.getByRole('button', { name: /Panneau ou affiche des formations/ }).click();
-  await page.getByLabel('Galerie : autre photo').setInputFiles(photo);
-  await expect(page.getByText(/1\/3 en plus de l.enseigne/)).toBeVisible();
-  await page.getByRole('button', { name: /Prospectus remis par l.école/ }).click();
-  await page.getByLabel('Galerie : autre photo').setInputFiles(photo);
-  await expect(page.getByText(/2\/3 en plus de l.enseigne/)).toBeVisible();
+  await page.getByLabel('Comment la trouver ?').fill('Face au marché');
   await page.getByRole('button', { name: 'Suivant' }).click();
 
-  await page.getByLabel("Nom sur l'enseigne").fill(nom);
-  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+  await page.getByLabel("Nom de l'établissement").fill(nom);
   await niveaux(page).getByRole('button', { name: 'Lycée', exact: true }).click();
   const series = page.getByRole('region', { name: 'Séries et formations' });
   await series.getByLabel(/Précisions sur les séries/).fill('Séries C et D');
@@ -48,7 +41,12 @@ async function envoyerUnLycee(page: Page, nom: string) {
   await page.getByRole('button', { name: 'Suivant' }).click();
 
   await direction(page);
-  await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+  // v2 (13/11) : le panneau et le prospectus se prennent dans le bonus.
+  await page.getByRole('button', { name: 'Suivant : le bonus' }).click();
+  await page.getByLabel(/^Photo : Panneau ou affiche des formations/).setInputFiles(photo);
+  await page.getByLabel(/^Photo : Prospectus remis par l.école/).setInputFiles(photo);
+  await expect(page.getByRole('region', { name: /Photos en plus/ })).toContainText('2 sur 5');
+  await page.getByRole('button', { name: 'Envoyer la fiche' }).click();
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
   await page.getByRole('link', { name: 'Mon secteur' }).click();
@@ -60,13 +58,13 @@ async function envoyerUneFicheCourte(page: Page, nom: string) {
   await page.locator('input[type=file]').first().setInputFiles(photo);
   await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
   await expect(page.getByText('Position prise')).toBeVisible();
+  await page.getByLabel('Comment la trouver ?').fill('Face au marché');
   await page.getByRole('button', { name: 'Suivant' }).click();
-  await page.getByLabel("Nom sur l'enseigne").fill(nom);
-  await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+  await page.getByLabel("Nom de l'établissement").fill(nom);
   await niveaux(page).getByRole('button', { name: 'Primaire', exact: true }).click();
   await page.getByRole('button', { name: 'Suivant' }).click();
-  await page.getByRole('button', { name: 'Absente' }).click();
-  await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+  await page.getByRole('button', { name: 'Personne', exact: true }).click();
+  await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
   await page.getByRole('link', { name: 'Mon secteur' }).click();
@@ -336,15 +334,15 @@ test.describe('le pont avec la direction', () => {
     await page.locator('input[type=file]').first().setInputFiles(photo);
     await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
     await expect(page.getByText('Position prise')).toBeVisible();
+    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
     await page.getByRole('button', { name: 'Suivant' }).click();
-    await page.getByLabel("Nom sur l'enseigne").fill('[École sans accord]');
-    await page.getByLabel(/Qu.y a-t-il juste à côté/).fill('Face au marché');
+    await page.getByLabel("Nom de l'établissement").fill('[École sans accord]');
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Oui', exact: true }).click();
     await page.getByLabel('Sa fonction').selectOption('directeur');
     // La case « accepte que NTanova lui écrive » reste décochée : le numéro ne peut pas être noté.
     await expect(page.getByLabel(/Son WhatsApp/)).toBeDisabled();
-    await page.getByRole('button', { name: 'Enregistrer la fiche' }).click();
+    await envoyerSansBonus(page);
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 
     await ouvrirLEnvoi(page, '[École sans accord]');
