@@ -46,7 +46,10 @@ test.describe('les séries du lycée se cochent', () => {
 
     await suivant(page).click();
     await page.getByRole('button', { name: 'Oui', exact: true }).click();
-    await page.getByLabel('Sa fonction').selectOption('promoteur');
+    await page
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Promoteur', exact: true })
+      .click();
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 123 45 61');
     await envoyerSansBonus(page);
@@ -264,7 +267,10 @@ test.describe('un brouillon écrit avant le 09/11/2026 ne casse pas', () => {
     await suivant(page).click();
     await expect(page.getByRole('heading', { name: 'La rencontre' })).toBeVisible();
     await page.getByRole('button', { name: 'Oui', exact: true }).click();
-    await page.getByLabel('Sa fonction').selectOption('promoteur');
+    await page
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Promoteur', exact: true })
+      .click();
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 123 45 62');
     await envoyerSansBonus(page);

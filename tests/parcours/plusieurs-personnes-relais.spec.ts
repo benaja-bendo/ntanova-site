@@ -18,7 +18,10 @@ async function jusquALaDirection(page: Page, context: BrowserContext) {
   await page.getByRole('button', { name: 'Primaire' }).click();
   await page.getByRole('button', { name: 'Suivant' }).click();
   await page.getByRole('button', { name: 'Oui', exact: true }).click();
-  await page.getByLabel('Sa fonction').selectOption('promoteur');
+  await page
+    .getByRole('group', { name: 'Qui ?' })
+    .getByRole('button', { name: 'Promoteur', exact: true })
+    .click();
   await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
   await page.getByLabel(/Son WhatsApp/).fill('06 111 11 11');
 }
@@ -45,13 +48,19 @@ test.describe('le relais note plusieurs personnes', () => {
 
     await page.getByRole('button', { name: 'Ajouter une autre personne' }).click();
     const premiere = autre(page, 1);
-    await premiere.getByLabel('Sa fonction').selectOption('autre');
+    await premiere
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Autre fonction', exact: true })
+      .click();
     await premiere.getByLabel(/Quelle fonction/).fill('enseignant');
     await premiere.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await premiere.getByLabel(/Son WhatsApp/).fill('06 222 22 22');
 
     await page.getByRole('button', { name: 'Ajouter une autre personne' }).click();
-    await autre(page, 2).getByLabel('Sa fonction').selectOption('secretariat');
+    await autre(page, 2)
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Secrétariat', exact: true })
+      .click();
 
     // Trois personnes, la direction comprise : plus d'ajout.
     await expect(page.getByRole('button', { name: 'Ajouter une autre personne' })).toHaveCount(0);
@@ -86,7 +95,10 @@ test.describe('le relais note plusieurs personnes', () => {
     // La fiche n'est pas enregistrée : on reste à l'étape 3/3.
     await expect(page.getByRole('button', { name: 'Envoyer maintenant' })).toBeVisible();
 
-    await autre(page, 1).getByLabel('Sa fonction').selectOption('directeur');
+    await autre(page, 1)
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Directeur', exact: true })
+      .click();
     await autre(page, 1).getByRole('button', { name: 'Retirer cette personne' }).click();
     await expect(autre(page, 1)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Ajouter une autre personne' })).toBeVisible();

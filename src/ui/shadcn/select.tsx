@@ -2,7 +2,11 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
+import {
+  IconeBas as ChevronDownIcon,
+  IconeFait as CheckIcon,
+  IconeHaut as ChevronUpIcon,
+} from '@/ui/shadcn/icones';
 import { Select as SelectPrimitive } from 'radix-ui';
 
 function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {

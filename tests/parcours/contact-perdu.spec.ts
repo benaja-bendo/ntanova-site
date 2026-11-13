@@ -70,7 +70,10 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     await expect(page.getByText(/n['’]est pas arrivé chez NTanova/)).toBeVisible();
     await expect(page.getByText('Rien à refaire ici.')).toHaveCount(0);
 
-    await page.getByLabel('Sa fonction').selectOption('directeur');
+    await page
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Directeur', exact: true })
+      .click();
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 765 43 21');
     await envoyerSansBonus(page);

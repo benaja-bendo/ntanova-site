@@ -1,4 +1,3 @@
-import { ConfirmationAction } from '../../../ui/ConfirmationAction';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   avecPhoto,
@@ -34,14 +33,44 @@ import type { EcoleACompleter, ReleveRecu } from '../../../modele/ports';
 import { normaliserTelephone, numeroCongolaisSuspect } from '../../../modele/telephone';
 import {
   libelleDirection,
-  libelleFonction,
+  libelleFonctionCourt,
   libelleNiveau,
   libelleTypeEcole,
 } from '../../../modele/libelles';
 import { brouillonDuCompte } from '../actions-fiches';
 import { base, lireMemoire } from '../base-locale';
 import { aller } from '../contexte';
-import { Bandeau, Champ, Choix, EnteteEtape, Icone } from '../composants';
+import { EnteteEtape } from '../composants';
+import { Badge } from '@/ui/shadcn/badge';
+import { Button } from '@/ui/shadcn/button';
+import {
+  IconeAlerte,
+  IconeCamera,
+  IconeAgrandir,
+  IconeChargement,
+  IconeFait,
+  IconeGalerie,
+  IconeInfo,
+  IconeLieu,
+  IconeOeil,
+  IconeRepere,
+} from '@/ui/shadcn/icones';
+import { PiedFixe } from '../cadre';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/ui/shadcn/dialog';
+import { DisqueCycle, Segments, TitreAvecAide } from '../choix';
+import { CYCLES } from '../../../modele/carte/cycles';
+import { Bande, Confirmer } from '../etats';
+import { MiniCarte } from '../mini-carte';
+import {
+  Bandeau,
+  Case,
+  Champ,
+  Choix,
+  Erreur,
+  Icone,
+  classeBouton,
+  classeChamp,
+} from '../formulaire';
 import { journaliser } from '../journal';
 import { alleger, PhotoTropLourde } from '../photo';
 import { mesurerPosition, type ErreurPosition, type Mesure } from '../position';
@@ -50,7 +79,7 @@ import { FormationsRapides } from './FormationsRapides';
 import { aideDePrecision, lireErreurPosition } from '../../../modele/aide-position';
 import { environnementActuel, etatDeLAutorisation } from '../environnement';
 import { useReprisePosition } from '../reprise-position';
-import { PhotosRecues, PositionRecue, VoirSurLaCarte } from './DejaRecu';
+import { PhotosRecues, PositionRecue } from './DejaRecu';
 import { Bonus, EnvoyerSansBonus } from './Bonus';
 import { DejaSurNTanova } from './DejaSurNTanova';
 import { useEnregistrer, type Modifier } from './fiche-en-cours';
@@ -102,13 +131,13 @@ export function Ajouter({ etape }: { etape: 1 | 2 | 3 | 4 }) {
 }
 
 function PiedEtape({ children }: { children: React.ReactNode }) {
-  return <div className="pied-etape">{children}</div>;
+  return <PiedFixe>{children}</PiedFixe>;
 }
 
 /**
  * Abandonner la fiche en cours, à chaque étape : elle est effacée du téléphone. Une fiche rouverte pour être
  * modifiée l'est aussi (elle n'a pas encore été reçue par NTanova) ; l'école confiée au relais, elle, revient
- * dans « Mon secteur ».
+ * dans les missions.
  */
 function BoutonAbandonner({ fiche }: { fiche: FicheLocale }) {
   const abandonner = async () => {
@@ -116,12 +145,12 @@ function BoutonAbandonner({ fiche }: { fiche: FicheLocale }) {
     aller('missions', true);
   };
   return (
-    <ConfirmationAction
+    <Confirmer
       libelle="Abandonner cette fiche"
       titre="Abandonner cette fiche ?"
       description="Ce qui a été saisi sera effacé du téléphone. Cette action est définitive."
       confirmer="Oui, abandonner la fiche"
-      classe="lien lien-discret"
+      enCours="Suppression…"
       surConfirmer={abandonner}
     />
   );
@@ -129,10 +158,15 @@ function BoutonAbandonner({ fiche }: { fiche: FicheLocale }) {
 
 function BoutonSuivant({ surClic, occupe = false }: { surClic: () => void; occupe?: boolean }) {
   return (
-    <button type="button" className="bouton bouton-large" onClick={surClic} disabled={occupe}>
-      Suivant
-      <Icone nom="suivant" />
-    </button>
+    <Button
+      size="xl"
+      className="w-full"
+      onClick={surClic}
+      disabled={occupe}
+      aria-busy={occupe || undefined}
+    >
+      {occupe ? 'Préparation de la photo…' : 'Suivant'}
+    </Button>
   );
 }
 
@@ -296,34 +330,96 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
   const precision = fiche.precisionM ?? mesure?.precisionM ?? null;
 
+  const libellePrendre =
+    fiche.position || fiche.dejaRecu?.position ? 'Reprendre' : 'Prendre la position';
+
   return (
     <div className="ecran">
       <EnteteEtape etape={1} titre="Photo et lieu" retour="missions" type={fiche.type} />
-      <main className="contenu-relais">
+      <main className="flex flex-1 flex-col gap-[18px] px-4 py-3.5">
         <EncartTaches fiche={fiche} />
 
-        <section className="carte-blanche pile-serree">
-          <h2 className="titre-section">
-            La photo de l'enseigne {!photoExigee && <span className="mention">facultatif</span>}
-          </h2>
+        <section className="flex flex-col gap-2.5" aria-label="La photo de l'école">
+          <TitreAvecAide
+            titre={
+              <>
+                La photo de l’école{' '}
+                {!photoExigee && (
+                  <span className="font-sans text-sm font-normal text-muted-foreground">
+                    (facultatif)
+                  </span>
+                )}
+              </>
+            }
+            libelleAide="Aide : la photo"
+            aide={
+              <p>
+                Cadrez l’enseigne et l’entrée, sans enfant. Le plus sûr&nbsp;: photographiez avec
+                l’appareil du téléphone, puis choisissez la photo dans la galerie.
+              </p>
+            }
+          />
           {fiche.dejaRecu ? (
             <PhotosRecues fiche={fiche} />
           ) : (
             !photoExigee &&
             !enseigne && (
-              <p className="mention">
-                NTanova a déjà la photo de l'enseigne. Reprenez-la seulement si elle est fausse.
+              <p className="m-0 text-[13px] text-muted-foreground">
+                NTanova a déjà la photo de l’enseigne. Reprenez-la seulement si elle est fausse.
               </p>
             )
           )}
           {enseigne && apercus[enseigne.id] ? (
-            <div className="apercu-photo">
-              <img src={apercus[enseigne.id]} alt="La photo de l'enseigne" />
-              <span className="etiquette-photo">Allégée pour l'envoi</span>
+            <div className="relative h-[170px] overflow-hidden rounded-lg bg-border">
+              <img
+                src={apercus[enseigne.id]}
+                alt="La photo de l'enseigne"
+                className="size-full object-cover"
+              />
+              <span className="absolute bottom-2 left-2 rounded-full bg-card px-2.5 py-0.5 text-[13px] font-bold">
+                Votre photo
+              </span>
+              <label
+                className={classeBouton({
+                  variant: 'ghost',
+                  className: 'absolute right-2 bottom-2 bg-card shadow-sm',
+                })}
+              >
+                <IconeCamera />
+                Reprendre
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => void prendrePhoto(e.target.files?.[0], 'signboard')}
+                />
+              </label>
             </div>
           ) : (
-            <div className="apercu-vide">
-              <Icone nom="photo" taille={32} />
+            <div className="flex h-[170px] flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-input bg-muted">
+              <IconeGalerie className="size-8 text-muted-foreground" />
+              <div className="flex gap-2">
+                <label className={classeBouton({ size: 'default' })}>
+                  <IconeCamera />
+                  Appareil photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={(e) => void prendrePhoto(e.target.files?.[0], 'signboard')}
+                  />
+                </label>
+                <label className={classeBouton({ variant: 'outline' })}>
+                  Galerie
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(e) => void prendrePhoto(e.target.files?.[0], 'signboard')}
+                  />
+                </label>
+              </div>
             </div>
           )}
           {enseigne && (
@@ -334,127 +430,113 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
               surChoix={(cle) => modifier((f) => ({ photos: basculerCeQuOnVoit(f, cle).photos }))}
             />
           )}
-          <div className="deux-colonnes">
-            <label className="bouton bouton-petit">
-              <Icone nom="galerie" />
-              Galerie
-              <input
-                type="file"
-                accept="image/*"
-                className="cache"
-                onChange={(e) => void prendrePhoto(e.target.files?.[0], 'signboard')}
-              />
-            </label>
-            <label className="bouton bouton-secondaire bouton-petit">
-              <Icone nom="photo" />
-              Appareil photo
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="cache"
-                onChange={(e) => void prendrePhoto(e.target.files?.[0], 'signboard')}
-              />
-            </label>
-          </div>
-          <p className="mention">
-            Le plus sûr&nbsp;: photographiez avec l'appareil du téléphone, puis choisissez la photo
-            dans la galerie. Cadrez l'enseigne et l'entrée, sans enfant.
-          </p>
           {allegement > 0 && (
-            <p className="mention" role="status">
-              Allègement de la photo…
+            <p className="m-0 flex items-center gap-2 text-sm text-muted-foreground" role="status">
+              <IconeChargement className="size-4 animate-spin motion-reduce:animate-none" />
+              Préparation de la photo…
             </p>
           )}
-          {(erreurPhoto ?? erreurs.photo) && (
-            <p className="message-erreur" role="alert">
-              {erreurPhoto ?? erreurs.photo}
-            </p>
-          )}
+          {(erreurPhoto ?? erreurs.photo) && <Erreur>{erreurPhoto ?? erreurs.photo}</Erreur>}
         </section>
 
-        <section className="carte-blanche pile-serree">
-          <h2 className="titre-section">La position, devant l'entrée</h2>
-          {fiche.dejaRecu && <PositionRecue fiche={fiche} />}
-          {recherche && (
-            <p className="rang" aria-live="polite">
-              <span className="roue" aria-hidden="true" />
-              Recherche de la position
-              {mesure ? ` · précision ${Math.round(mesure.precisionM)} m` : '…'}
-            </p>
-          )}
-          {!recherche && fiche.position && precision !== null && (
-            <>
-              <p className="rang">
-                <Icone nom="coche" taille={16} />
-                <span>
-                  <b>Position prise</b> · précision {Math.round(precision)}&nbsp;m
-                </span>
+        <section className="flex flex-col gap-2.5" aria-label="La position, devant l'entrée">
+          <TitreAvecAide
+            titre="La position, devant l’entrée"
+            libelleAide="Aide : la position"
+            aide={
+              <p>
+                Placez-vous devant l’entrée, à découvert. La position dit aux familles où est
+                l’école sur la carte.
               </p>
-              {precision > PRECISION_SUFFISANTE_M && (
-                <p className="message-attention">
-                  La précision est faible. Placez-vous devant l'entrée, à découvert, puis reprenez
+            }
+          />
+          {fiche.dejaRecu && <PositionRecue fiche={fiche} />}
+          {erreurPosition ? (
+            <AidePosition erreur={erreurPosition} surReessayer={prendrePosition} />
+          ) : (
+            <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-card">
+              {fiche.position && !recherche && (
+                <MiniCarte position={fiche.position} libelle="La position prise" />
+              )}
+              <div className="flex min-h-[64px] items-center gap-3 px-3 py-2.5">
+                {recherche ? (
+                  <IconeChargement className="size-5 animate-spin text-primary motion-reduce:animate-none" />
+                ) : fiche.position ? (
+                  <IconeFait className="size-5 text-primary" />
+                ) : (
+                  <IconeLieu className="size-5 text-muted-foreground" />
+                )}
+                <span className="flex min-w-0 flex-1 flex-col" aria-live="polite">
+                  {recherche ? (
+                    <>
+                      <b>Recherche de la position…</b>
+                      {mesure && (
+                        <span className="text-[13px] text-muted-foreground">
+                          précision {Math.round(mesure.precisionM)}&nbsp;m
+                        </span>
+                      )}
+                    </>
+                  ) : fiche.position && precision !== null ? (
+                    <>
+                      <b>Position prise</b>
+                      <span className="text-[13px] text-muted-foreground">
+                        à {Math.round(precision)}&nbsp;m près
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-[15px] text-muted-foreground">
+                      {positionAttendue
+                        ? 'Pas encore de position.'
+                        : 'NTanova connaît déjà la position. Reprenez-la seulement si elle est fausse.'}
+                    </span>
+                  )}
+                </span>
+                {!recherche && (
+                  <Button variant="quiet" size="sm" onClick={prendrePosition}>
+                    {libellePrendre}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+          {!recherche &&
+            fiche.position &&
+            precision !== null &&
+            precision > PRECISION_SUFFISANTE_M && (
+              <Bande ton="attention" icone={<IconeAlerte />}>
+                <p>
+                  La précision est faible. Placez-vous devant l’entrée, à découvert, puis reprenez
                   la position.
                 </p>
-              )}
-              {aideDePrecision(precision, environnement) && (
-                <p className="message-attention">{aideDePrecision(precision, environnement)}</p>
-              )}
-              <VoirSurLaCarte
-                position={fiche.position}
-                precisionM={precision}
-                legende="Position prise maintenant"
-              />
-            </>
-          )}
-          {erreurPosition && (
-            <AidePosition erreur={erreurPosition} surReessayer={prendrePosition} />
-          )}
-          {!positionAttendue && !fiche.position && !recherche && !erreurPosition && (
-            <p className="mention">
-              NTanova connaît déjà la position de cette école. Reprenez-la seulement si elle est
-              fausse.
-            </p>
-          )}
-          {!recherche && !erreurPosition && (
-            <button
-              type="button"
-              className="bouton bouton-secondaire bouton-petit"
-              onClick={prendrePosition}
-            >
-              {fiche.position || fiche.dejaRecu?.position
-                ? 'Reprendre la position'
-                : 'Prendre la position'}
-            </button>
+              </Bande>
+            )}
+          {!recherche && precision !== null && aideDePrecision(precision, environnement) && (
+            <Bande ton="attention" icone={<IconeInfo />}>
+              <p>{aideDePrecision(precision, environnement)}</p>
+            </Bande>
           )}
           {erreurPosition && !fiche.position && (
-            <p className="mention">Sans position, vous pouvez continuer&nbsp;: NTanova le verra.</p>
+            <p className="m-0 text-[13px] text-muted-foreground">
+              Sans position, vous pouvez continuer&nbsp;: NTanova le verra.
+            </p>
           )}
         </section>
 
         {/* v2 (13/11, canevas) : le repère vient avec le lieu, à l'étape 1 ; les puces remplissent le champ. */}
-        <div className="pile-serree avec-aide">
-          <AideRepliable sujet="le repère">
-            Un lieu que tout le monde connaît, près de l’école&nbsp;: une puce l’écrit en un
-            toucher. Précisez si vous voulez («&nbsp;derrière la pharmacie du rond-point&nbsp;»).
-            Les familles le lisent sous «&nbsp;Où la trouver&nbsp;».
-          </AideRepliable>
-          <Champ libelle="Comment la trouver ?" erreur={erreurs.repere}>
-            {(a) => (
-              <input
-                {...a}
-                ref={champRepere}
-                className="champ"
-                type="text"
-                autoComplete="off"
-                placeholder="Ex. : face au marché, derrière la pharmacie"
-                value={fiche.repere}
-                onChange={(e) => modifier({ repere: e.target.value })}
-              />
-            )}
-          </Champ>
+        <section className="flex flex-col gap-2.5" aria-label="Comment la trouver">
+          <TitreAvecAide
+            titre="Comment la trouver&nbsp;?"
+            libelleAide="Aide : le repère"
+            aide={
+              <p>
+                Un repère que tout le quartier connaît, pour trouver l’entrée sans adresse. Touchez
+                un mot, puis complétez.
+              </p>
+            }
+          />
           <Choix
             legende="Repères rapides"
+            cacherLegende
             options={REPERES_RAPIDES.map((r) => ({ valeur: r.cle, libelle: r.libelle }))}
             valeurs={REPERES_RAPIDES.filter((r) => repereCoche(fiche.repere, r.phrase)).map(
               (r) => r.cle,
@@ -464,13 +546,24 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
               if (r) modifier({ repere: basculerRepere(fiche.repere, r.phrase) });
             }}
           />
-        </div>
+          <input
+            ref={champRepere}
+            aria-label="Comment la trouver ?"
+            aria-invalid={!!erreurs.repere}
+            className={classeChamp}
+            type="text"
+            autoComplete="off"
+            placeholder="Ex. : face au marché, derrière la pharmacie"
+            value={fiche.repere}
+            onChange={(e) => modifier({ repere: e.target.value })}
+          />
+          {erreurs.repere && <Erreur>{erreurs.repere}</Erreur>}
+        </section>
 
         {fiche.type !== 'contre_visite' && fiche.doublonPropose && (
-          <section className="bandeau bandeau-attente pile-serree" aria-label="Doublon possible">
+          <Bande ton="attention" icone={<IconeAlerte />}>
             <p>
               <b>Une école est déjà relevée à 40&nbsp;m&nbsp;:</b> {fiche.doublonPropose.nom}.
-              Est-ce la même&nbsp;?
             </p>
             <Choix
               legende="Est-ce la même école ?"
@@ -483,38 +576,38 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
               colonnes={2}
               erreur={erreurs.reponseDoublon}
             />
-          </section>
+          </Bande>
         )}
 
         <BoutonAbandonner fiche={fiche} />
       </main>
       <PiedEtape>
         {relanceRepere && repereManquant(fiche.repere) && (
-          <section className="bandeau bandeau-attente pile-serree" aria-label="Un repère aide">
+          <Bande
+            ton="attention"
+            icone={<IconeRepere />}
+            action={
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    champRepere.current?.scrollIntoView({ block: 'center' });
+                    champRepere.current?.focus();
+                  }}
+                >
+                  Ajouter un repère
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => aller('ajouter/2')}>
+                  Continuer sans
+                </Button>
+              </>
+            }
+          >
             <p>
-              <b>Un repère aide les familles.</b> Même un seul mot (le marché, la pharmacie) les
-              aide à trouver l’école.
+              <b>Un repère aide les familles.</b> Même un seul mot (le marché, la pharmacie).
             </p>
-            <div className="ligne-boutons">
-              <button
-                type="button"
-                className="bouton bouton-secondaire bouton-petit"
-                onClick={() => {
-                  champRepere.current?.scrollIntoView({ block: 'center' });
-                  champRepere.current?.focus();
-                }}
-              >
-                Ajouter un repère
-              </button>
-              <button
-                type="button"
-                className="bouton bouton-secondaire bouton-petit"
-                onClick={() => aller('ajouter/2')}
-              >
-                Continuer sans
-              </button>
-            </div>
-          </section>
+          </Bande>
         )}
         <BoutonSuivant surClic={suivant} occupe={allegement > 0} />
       </PiedEtape>
@@ -550,16 +643,13 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
   return (
     <div className="ecran">
       <EnteteEtape etape={2} titre="L'établissement" retour="ajouter/1" type={fiche.type} />
-      <main className="contenu-relais">
-        <Bandeau ton="public" icone="oeil">
-          <p>
-            <b>Public.</b> Ces informations paraîtront sur la fiche. Notez seulement ce qui est
-            écrit ou visible depuis la rue.
-          </p>
-        </Bandeau>
-
+      <main className="flex flex-1 flex-col gap-[18px] px-4 py-3.5">
+        <p className="m-0 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+          <IconeOeil className="size-4" />
+          Public&nbsp;: notez seulement ce qui se voit de la rue.
+        </p>
         {fiche.taches && (
-          <p className="mention">
+          <p className="m-0 text-[13px] text-muted-foreground">
             {fiche.taches.informations
               ? 'Ces informations viennent de la fiche de NTanova. Vérifiez-les sur place et corrigez ce qui est faux.'
               : 'Ces informations viennent de la fiche. Corrigez-les seulement si elles sont fausses.'}
@@ -568,15 +658,18 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
         <Champ libelle="Nom de l'établissement" erreur={erreurs.nomEnseigne}>
           {(a) => (
-            <input
-              {...a}
-              className="champ"
-              type="text"
-              autoComplete="off"
-              placeholder="Ex. : Complexe scolaire [Nom]"
-              value={fiche.nomEnseigne}
-              onChange={(e) => modifier({ nomEnseigne: e.target.value })}
-            />
+            <div className="flex gap-2">
+              <VignetteEnseigne fiche={fiche} />
+              <input
+                {...a}
+                className={classeChamp}
+                type="text"
+                autoComplete="off"
+                placeholder="Tel qu’il est écrit"
+                value={fiche.nomEnseigne}
+                onChange={(e) => modifier({ nomEnseigne: e.target.value })}
+              />
+            </div>
           )}
         </Champ>
 
@@ -586,7 +679,7 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           {(a) => (
             <input
               {...a}
-              className="champ"
+              className={classeChamp}
               type="text"
               autoComplete="off"
               autoCapitalize="characters"
@@ -599,16 +692,35 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         </Champ>
 
         <Choix
-          legende="Niveaux écrits sur l'enseigne"
+          legende="Type"
+          options={(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => ({
+            valeur: t,
+            libelle: libelleTypeEcole[t],
+          }))}
+          valeurs={[fiche.typeEcole]}
+          surChoix={(t) => modifier({ typeEcole: t })}
+          colonnes={2}
+          erreur={erreurs.typeEcole}
+        />
+
+        <Choix
+          legende="Niveaux affichés"
           options={listes.niveau.map((n) => ({ valeur: n, libelle: libelleNiveau[n] }))}
           valeurs={fiche.niveaux}
           surChoix={basculerNiveau}
           colonnes={2}
           erreur={erreurs.niveaux}
+          avant={(n) => {
+            const l = CYCLES.find((c) => c.cycle === n)?.lettre;
+            return l ? <DisqueCycle lettre={l} /> : null;
+          }}
         />
 
         {demandeLesFormations(fiche.niveaux) && (
-          <section className="carte-blanche pile-serree" aria-label="Séries et formations">
+          <section
+            className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3.5"
+            aria-label="Séries et formations"
+          >
             <FormationsRapides
               niveaux={fiche.niveaux}
               formations={lireFormationsVues(fiche.formationsVues, fiche.niveaux)}
@@ -623,7 +735,7 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
               {(a) => (
                 <input
                   {...a}
-                  className="champ"
+                  className={classeChamp}
                   type="text"
                   autoComplete="off"
                   placeholder="Ex. : séries C et D, BTS gestion"
@@ -632,7 +744,7 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
                 />
               )}
             </Champ>
-            <label className="case">
+            <label className="flex cursor-pointer items-start gap-3 text-[15px] [&>input]:mt-0.5 [&>input]:size-[22px] [&>input]:shrink-0 [&>input]:accent-[var(--marque)]">
               <input
                 type="checkbox"
                 checked={fiche.programmesEnPhoto ?? false}
@@ -642,31 +754,13 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
             </label>
             {fiche.programmesEnPhoto &&
               !fiche.photos.some((p) => p.role === 'programs_board' || p.role === 'brochure') && (
-                <p className="mention">
+                <p className="m-0 text-[13px] text-muted-foreground">
                   Vous ajouterez cette photo dans le bonus («&nbsp;Programmes&nbsp;»), après la
                   rencontre.
                 </p>
               )}
           </section>
         )}
-
-        <div className="pile-serree">
-          <Choix
-            legende="Type d'école"
-            options={(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => ({
-              valeur: t,
-              libelle: libelleTypeEcole[t],
-            }))}
-            valeurs={[fiche.typeEcole]}
-            surChoix={(t) => modifier({ typeEcole: t })}
-            colonnes={2}
-            erreur={erreurs.typeEcole}
-          />
-          <p className="mention">
-            <b>Pas indiqué</b>&nbsp;: rien d'écrit. <b>Autre</b>&nbsp;: c'est écrit mais ça ne
-            rentre pas, dites-le dans la ligne du dessous.
-          </p>
-        </div>
 
         <Champ
           libelle="Programme, langues ou autre mention écrite"
@@ -676,7 +770,7 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           {(a) => (
             <input
               {...a}
-              className="champ"
+              className={classeChamp}
               type="text"
               autoComplete="off"
               placeholder="Ex. : français-congolais, bilingue"
@@ -695,7 +789,7 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           {(a) => (
             <input
               {...a}
-              className="champ"
+              className={classeChamp}
               type="tel"
               inputMode="tel"
               autoComplete="off"
@@ -706,7 +800,10 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           )}
         </Champ>
         {numeroSuspect && (
-          <p className="message-attention" role="status">
+          <p
+            className="m-0 rounded-md bg-attention px-3 py-2.5 text-sm text-attention-foreground"
+            role="status"
+          >
             Ce numéro a {numeroSuspect.chiffres} chiffres après +242 : un numéro congolais en a 9.
             Relisez-le sur l’enseigne.
           </p>
@@ -718,6 +815,36 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         <BoutonSuivant surClic={suivant} />
       </PiedEtape>
     </div>
+  );
+}
+
+/** La photo de l'enseigne en vignette, à côté du nom : on recopie le nom en la regardant ; un toucher l'agrandit. */
+function VignetteEnseigne({ fiche }: { fiche: FicheLocale }) {
+  const photo = photoEnseigne(fiche);
+  const adresse = useMemo(() => (photo?.blob ? URL.createObjectURL(photo.blob) : null), [photo]);
+  useEffect(() => () => void (adresse && URL.revokeObjectURL(adresse)), [adresse]);
+  if (!adresse)
+    return (
+      <span className="flex size-[52px] shrink-0 items-center justify-center rounded-md bg-border text-muted-foreground">
+        <IconeGalerie className="size-5" />
+      </span>
+    );
+  return (
+    <Dialog>
+      <DialogTrigger
+        aria-label="Voir votre photo en grand"
+        className="relative size-[52px] shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0 outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+      >
+        <img src={adresse} alt="" className="size-full rounded-md object-cover" />
+        <span className="absolute -right-1 -bottom-1 flex size-[22px] items-center justify-center rounded-full border border-border bg-card text-foreground">
+          <IconeAgrandir className="size-3" />
+        </span>
+      </DialogTrigger>
+      <DialogContent className="p-2">
+        <DialogTitle className="sr-only">Votre photo de l’enseigne</DialogTitle>
+        <img src={adresse} alt="Votre photo de l’enseigne" className="w-full rounded-md" />
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -790,16 +917,17 @@ function EcranEtape3({
   return (
     <div className="ecran">
       <EnteteEtape etape={3} titre="La rencontre" retour="ajouter/2" type={fiche.type} />
-      <main className="contenu-relais">
-        <Bandeau ton="prive" icone="cadenas">
-          <p>
-            <b>Privé.</b> Seul NTanova voit cette partie. Elle s'efface du téléphone une fois
-            envoyée.
-          </p>
-        </Bandeau>
+      <main className="flex flex-1 flex-col gap-[18px] px-4 py-3.5">
+        <p className="m-0 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+          <Icone nom="cadenas" taille={16} />
+          Privé&nbsp;: seul NTanova voit cette partie.
+        </p>
 
         {!choixDeLaDirection && (
-          <section className="carte-blanche pile-serree" aria-label="Rien à refaire">
+          <section
+            className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3.5"
+            aria-label="Rien à refaire"
+          >
             <p>
               <b>Rien à refaire ici.</b>{' '}
               {fiche.type === 'correction'
@@ -819,33 +947,55 @@ function EcranEtape3({
                 </p>
               </Bandeau>
             )}
-            <Choix
-              legende="Avez-vous parlé à quelqu’un de l’école ?"
-              options={listes.direction_vue.map((d) => ({
-                valeur: d,
-                libelle: libelleDirection[d],
-              }))}
-              valeurs={fiche.direction ? [fiche.direction] : []}
-              surChoix={choisirDirection}
-              colonnes={3}
-              erreur={erreurs.direction}
-            />
+            <section className="flex flex-col gap-2" aria-label="La rencontre">
+              <TitreAvecAide
+                titre="Avez-vous parlé à quelqu’un de l’école&nbsp;?"
+                libelleAide="Aide : la rencontre"
+                aide={
+                  <>
+                    <p>
+                      Cette partie est privée&nbsp;: seul NTanova la voit, et elle s’efface du
+                      téléphone une fois envoyée.
+                    </p>
+                    <p className="mt-2">
+                      À dire&nbsp;: «&nbsp;Votre numéro ne sera jamais publié. NTanova vous écrira
+                      au sujet de la fiche de l’école, et l’effacera si vous le demandez.&nbsp;»
+                    </p>
+                  </>
+                }
+              />
+              <Segments
+                legende="Avez-vous parlé à quelqu’un de l’école ?"
+                options={listes.direction_vue.map((d) => ({
+                  valeur: d,
+                  libelle: libelleDirection[d],
+                }))}
+                valeur={fiche.direction}
+                surChoix={choisirDirection}
+              />
+              {erreurs.direction && <Erreur>{erreurs.direction}</Erreur>}
+            </section>
 
             {fiche.direction === 'vue' && (
               <>
-                <ChampsContact
-                  contact={contact}
-                  modifierContact={modifierContact}
-                  erreurs={erreurs}
-                />
+                <section
+                  aria-label="La personne"
+                  className="flex flex-col gap-3.5 rounded-lg border border-border bg-card p-3.5"
+                >
+                  <ChampsContact
+                    contact={contact}
+                    modifierContact={modifierContact}
+                    erreurs={erreurs}
+                  />
+                </section>
                 {autres.map((p, i) => (
                   <div
                     key={p.id}
-                    className="pile-serree"
+                    className="flex flex-col gap-3.5 rounded-lg border border-border bg-card p-3.5"
                     role="group"
                     aria-label={`Autre personne ${i + 1}`}
                   >
-                    <h3 className="rang">Une autre personne</h3>
+                    <h3 className="m-0 font-serif text-lg font-bold">Une autre personne</h3>
                     <ChampsContact
                       contact={p}
                       modifierContact={(champs) => modifierAutre(p.id, champs)}
@@ -853,7 +1003,7 @@ function EcranEtape3({
                     />
                     <button
                       type="button"
-                      className="lien"
+                      className={classeBouton({ variant: 'link' })}
                       onClick={() =>
                         modifier({
                           autresPersonnes: retirerUnePersonne(fiche, p.id).autresPersonnes ?? [],
@@ -865,10 +1015,14 @@ function EcranEtape3({
                   </div>
                 ))}
                 {autres.length + 1 < PERSONNES_MAX ? (
-                  <div className="pile-serree">
+                  <div className="flex flex-col gap-2.5">
                     <button
                       type="button"
-                      className="bouton bouton-secondaire"
+                      className={classeBouton({
+                        variant: 'outline',
+                        size: 'lg',
+                        className: 'w-full',
+                      })}
                       onClick={() =>
                         modifier({
                           autresPersonnes:
@@ -878,20 +1032,18 @@ function EcranEtape3({
                     >
                       Ajouter une autre personne
                     </button>
-                    <p className="mention">
-                      Un secrétariat, un propriétaire, un enseignant… Chacune donne son accord.
-                      Notez son numéro devant elle : ne l’envoyez jamais par WhatsApp.
-                    </p>
                   </div>
                 ) : (
-                  <p className="mention">Trois personnes au plus par fiche.</p>
+                  <p className="m-0 text-[13px] text-muted-foreground">
+                    Trois personnes au plus par fiche.
+                  </p>
                 )}
               </>
             )}
 
             {fiche.direction === 'absente' && (
               <>
-                <p className="mention">
+                <p className="m-0 text-[13px] text-muted-foreground">
                   La fiche part quand même. Vous repasserez voir la direction.
                 </p>
               </>
@@ -903,7 +1055,7 @@ function EcranEtape3({
                   {(a) => (
                     <textarea
                       {...a}
-                      className="champ"
+                      className={classeChamp}
                       rows={3}
                       placeholder="Ex. : la direction ne veut pas apparaître"
                       value={contact.note}
@@ -911,7 +1063,7 @@ function EcranEtape3({
                     />
                   )}
                 </Champ>
-                <p className="mention">
+                <p className="m-0 text-[13px] text-muted-foreground">
                   NTanova lit chaque refus avant de publier quoi que ce soit.
                 </p>
               </>
@@ -921,12 +1073,12 @@ function EcranEtape3({
 
         <Champ libelle="Remarque" facultatif>
           {(a) => (
-            <textarea
+            <input
               {...a}
-              className="champ"
-              rows={2}
+              className={classeChamp}
+              type="text"
               maxLength={300}
-              placeholder="Ex. : inscriptions ouvertes"
+              placeholder="Ex. : inscriptions ouvertes jusqu’au 30"
               value={fiche.remarque ?? ''}
               onChange={(e) => modifier({ remarque: e.target.value })}
             />
@@ -938,13 +1090,12 @@ function EcranEtape3({
       <PiedEtape>
         <button
           type="button"
-          className="bouton bouton-large"
+          className={classeBouton({ size: 'xl', className: 'w-full' })}
           onClick={() => {
             if (valider()) aller('ajouter/bonus');
           }}
         >
           Suivant : le bonus
-          <Icone nom="suivant" />
         </button>
         <EnvoyerSansBonus avant={valider} enregistrer={enregistrer} />
       </PiedEtape>
@@ -977,34 +1128,25 @@ export function ChampsContact({
 }) {
   return (
     <>
-      <Champ libelle="Sa fonction" erreur={erreurs.fonction}>
-        {(a) => (
-          <select
-            {...a}
-            className="champ"
-            value={contact.fonction ?? ''}
-            onChange={(e) =>
-              modifierContact({
-                fonction: (e.target.value || null) as Valeur<'fonction_direction'> | null,
-              })
-            }
-          >
-            <option value="">Choisir</option>
-            {listes.fonction_direction.map((f) => (
-              <option key={f} value={f}>
-                {libelleFonction[f]}
-              </option>
-            ))}
-          </select>
-        )}
-      </Champ>
+      <Choix
+        legende="Qui ?"
+        petites
+        options={listes.fonction_direction.map((f) => ({
+          valeur: f,
+          libelle:
+            libelleFonctionCourt[f].charAt(0).toUpperCase() + libelleFonctionCourt[f].slice(1),
+        }))}
+        valeurs={contact.fonction ? [contact.fonction] : []}
+        surChoix={(f) => modifierContact({ fonction: contact.fonction === f ? null : f })}
+        erreur={erreurs.fonction}
+      />
 
       {contact.fonction === 'autre' && (
         <Champ libelle="Quelle fonction ?" facultatif erreur={erreurs.precision}>
           {(a) => (
             <input
               {...a}
-              className="champ"
+              className={classeChamp}
               type="text"
               autoComplete="off"
               placeholder="Ex. : propriétaire, enseignant"
@@ -1015,33 +1157,11 @@ export function ChampsContact({
         </Champ>
       )}
 
-      <section className="carte-blanche pile-serree">
-        <label className="case">
-          <input
-            type="checkbox"
-            checked={contact.accord}
-            onChange={(e) =>
-              modifierContact({
-                accord: e.target.checked,
-                accordLe: e.target.checked ? new Date().toISOString() : null,
-                whatsapp: e.target.checked ? contact.whatsapp : '',
-              })
-            }
-          />
-          La personne accepte que NTanova lui écrive sur WhatsApp
-        </label>
-        <p className="mention">
-          À lui dire&nbsp;: «&nbsp;Votre numéro ne sera jamais publié. NTanova vous écrira au sujet
-          de la fiche de l'école, et l'effacera si vous le demandez.&nbsp;»
-        </p>
-        <p className="message-attention">Sans son accord, ne notez pas son numéro.</p>
-      </section>
-
       <Champ libelle="Son nom" facultatif erreur={erreurs.nom}>
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={classeChamp}
             type="text"
             autoComplete="off"
             placeholder="M. ou Mme [Nom]"
@@ -1053,13 +1173,13 @@ export function ChampsContact({
       <Champ
         libelle="Son WhatsApp"
         facultatif
-        aide={contact.accord ? undefined : 'Seulement avec son accord (case ci-dessus).'}
+        aide={contact.accord ? undefined : 'Seulement avec son accord (case ci-dessous).'}
         erreur={erreurs.whatsapp}
       >
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={classeChamp}
             type="tel"
             inputMode="tel"
             autoComplete="off"
@@ -1070,6 +1190,18 @@ export function ChampsContact({
           />
         )}
       </Champ>
+      <Case
+        checked={contact.accord}
+        onChange={(coche) =>
+          modifierContact({
+            accord: coche,
+            accordLe: coche ? new Date().toISOString() : null,
+            whatsapp: coche ? contact.whatsapp : '',
+          })
+        }
+      >
+        <b>La personne accepte que NTanova lui écrive sur WhatsApp</b>
+      </Case>
     </>
   );
 }
@@ -1154,10 +1286,12 @@ function EncartTaches({ fiche }: { fiche: FicheLocale }) {
   ];
   return (
     <section
-      className="carte-blanche pile-serree encart-taches"
+      className="flex flex-col gap-2.5 rounded-lg border-2 border-primary bg-card p-3.5"
       aria-label="À faire sur cette école"
     >
-      <p className="surtitre">À faire sur cette école</p>
+      <p className="m-0 text-xs font-bold tracking-[0.08em] text-muted-foreground uppercase">
+        À faire sur cette école
+      </p>
       <p>
         <b>
           {fiche.type === 'correction' ? 'Corriger' : 'Compléter'}&nbsp;: {fiche.nomEnseigne}.
@@ -1165,42 +1299,23 @@ function EncartTaches({ fiche }: { fiche: FicheLocale }) {
         {taches.titre}
       </p>
       {taches.consigne && (
-        <p className="message-ntanova">
+        <p className="m-0 rounded-md bg-attention px-3 py-2.5 text-sm">
           <b>NTanova&nbsp;:</b> {taches.consigne}
         </p>
       )}
-      <ul className="liste-taches">
+      <ul className="m-0 flex list-none flex-col p-0">
         {lignes.map((l) => (
-          <li key={l.nom}>
+          <li
+            key={l.nom}
+            className="flex items-center justify-between gap-2 border-t border-border py-2 first:border-t-0"
+          >
             <span>{l.nom}</span>
-            <span className={`etiquette ${l.faire ? 'etat-attente' : 'etat-verifiee'}`}>
+            <Badge variant={l.faire ? 'attention' : 'succes'} className="text-xs">
               {l.faire ? l.a : l.fait}
-            </span>
+            </Badge>
           </li>
         ))}
       </ul>
     </section>
-  );
-}
-
-/**
- * Lot I : la petite aide « (i) » de la planche. Un toucher l'ouvre sous le titre, un autre la referme ; le texte est dans
- * l'application, il se lit hors ligne.
- */
-function AideRepliable({ sujet, children }: { sujet: string; children: React.ReactNode }) {
-  const [ouverte, setOuverte] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        className="bouton-aide-coin"
-        aria-label={`Aide : ${sujet}`}
-        aria-expanded={ouverte}
-        onClick={() => setOuverte((o) => !o)}
-      >
-        <Icone nom="aide" taille={20} />
-      </button>
-      {ouverte && <p className="aide-repliable">{children}</p>}
-    </>
   );
 }

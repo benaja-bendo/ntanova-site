@@ -262,7 +262,10 @@ test.describe('après « À repasser »', () => {
     await expect(page.getByText(/^À repasser/)).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'J’ai revu la direction' }).click();
     await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
-    await page.getByLabel('Sa fonction').selectOption('promoteur');
+    await page
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Promoteur', exact: true })
+      .click();
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 123 45 69');
     await page.getByRole('button', { name: 'Envoyer le contact' }).click();

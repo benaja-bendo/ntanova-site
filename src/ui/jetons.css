@@ -23,6 +23,7 @@
   /* Teintes pâles des états, et un rouge lisible pour le texte (5,5:1) */
   --vert-pale: #dae7e4;
   --jaune-pale: #fcedcd;
+  --jaune-texte: #8a5a00; /* le mot « Bonus » sur blanc : 6,1:1 */
   --rouge-pale: #f9ddd8;
   --rouge-texte: #a44533;
 

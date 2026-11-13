@@ -50,6 +50,7 @@
   --color-neutre: var(--statut-neutre-fond);
   --color-neutre-foreground: var(--statut-neutre-texte);
   --color-ambre: var(--ambre);
+  --color-bonus: var(--jaune-texte);
 
   --color-cycle-m: var(--cycle-maternelle);
   --color-cycle-p: var(--cycle-primaire);

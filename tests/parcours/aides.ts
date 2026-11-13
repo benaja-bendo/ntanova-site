@@ -49,7 +49,7 @@ export async function attendreLaLecture(page: Page) {
 
 /** Lot H : la carte d'une mission sur l'accueil (« Vos missions »). */
 export const carteDeMission = (page: Page) =>
-  page.getByRole('region', { name: 'Vos missions' }).locator('a.carte-mission');
+  page.getByRole('region', { name: 'Vos missions' }).getByRole('link');
 
 /** Lot H : depuis l'accueil, ouvre la mission (la première), puis « Prendre la photo » (la contre-visite commence). */
 export async function commencerLaMission(page: Page) {
@@ -87,7 +87,10 @@ export async function ajouterUneEcole(
   await page.getByRole('button', { name: 'Suivant' }).click();
 
   await page.getByRole('button', { name: 'Oui', exact: true }).click();
-  await page.getByLabel('Sa fonction').selectOption('promoteur');
+  await page
+    .getByRole('group', { name: 'Qui ?' })
+    .getByRole('button', { name: 'Promoteur', exact: true })
+    .click();
   await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
   await page.getByLabel(/Son WhatsApp/).fill(`06 123 45 6${n}`);
   await envoyerSansBonus(page);

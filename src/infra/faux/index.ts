@@ -45,6 +45,7 @@ import { distanceMetres, type Point } from '../../modele/geo';
 import { messageManquant } from '../../modele/decision';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { prochainVendredi } from '../../modele/paie';
+import { etatDesPlanches } from './scenario-planches';
 import {
   ErreurDecision,
   ErreurRejet,
@@ -195,6 +196,8 @@ function personnesDe(e: Etat, releveId: string): [string, ContactFaux][] {
 const TROIS_PERSONNES = 'Une fiche a trois personnes à contacter au plus.';
 
 interface Etat {
+  /** Le scénario « planches » : les missions faites de la semaine, payées à leur montant (le faux ne les ferme pas). */
+  paieMissions?: { tarifXaf: number; nombre: number }[];
   /** Lot H : le numéro Mobile Money du relais. */
   numeroDePaie?: {
     operateur: 'mtn' | 'airtel' | 'autre';
@@ -387,7 +390,14 @@ const etatInitial = (): Etat => ({
 
 function lireEtat(): Etat {
   const garde = localStorage.getItem(CLE);
-  return garde ? { ...etatInitial(), ...(JSON.parse(garde) as Partial<Etat>) } : etatInitial();
+  if (garde) return { ...etatInitial(), ...(JSON.parse(garde) as Partial<Etat>) };
+  // `ntanova-faux-scenario` = « planches » : les états des planches v2, pour les captures comparées.
+  if (localStorage.getItem('ntanova-faux-scenario') === 'planches') {
+    const depart = etatInitial();
+    const scenario = etatDesPlanches() as unknown as Partial<Etat>;
+    return { ...depart, ...scenario, campus: { ...depart.campus, ...scenario.campus } };
+  }
+  return etatInitial();
 }
 
 function ecrire(modifier: (etat: Etat) => void): void {
@@ -780,6 +790,8 @@ const relais: PortRelais = {
         );
       })
       .map((r) => r.id);
+    const missions = e.paieMissions ?? [];
+    const enMissions = missions.reduce((t, m) => t + m.tarifXaf * m.nombre, 0);
     return {
       acquis: {
         vendredi,
@@ -787,11 +799,15 @@ const relais: PortRelais = {
         fiches: ligne?.fiches ?? 0,
         contacts: ligne?.contacts ?? 0,
         essais: ligne?.essais ?? 0,
-        totalXaf: ligne?.totalXaf ?? 0,
+        missions: missions.reduce((t, m) => t + m.nombre, 0),
+        totalXaf: (ligne?.totalXaf ?? 0) + enMissions,
         nonPayables,
         payeLe: null,
         reference: null,
-        lignes: factureFausse(ligne?.fiches ?? 0, ligne?.contacts ?? 0, ligne?.essais ?? 0, payees),
+        lignes: [
+          ...factureFausse(ligne?.fiches ?? 0, ligne?.contacts ?? 0, ligne?.essais ?? 0, payees),
+          ...missions.map((m) => ({ genre: 'mission' as const, ...m, fiches: [] })),
+        ],
       },
       historique,
       numeroConnu: MOI in e.paie.numeros,

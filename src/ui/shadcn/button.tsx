@@ -20,8 +20,9 @@ const buttonVariants = cva(
           'border border-input bg-card text-foreground active:bg-muted [@media(hover:hover)]:hover:bg-muted',
         destructive:
           'border border-destructive bg-card text-destructive active:bg-danger [@media(hover:hover)]:hover:bg-danger',
-        ghost: 'text-foreground active:bg-muted [@media(hover:hover)]:hover:bg-muted',
-        link: 'h-auto px-0 text-primary underline underline-offset-4',
+        ghost:
+          'border-0 bg-transparent text-foreground active:bg-muted [@media(hover:hover)]:hover:bg-muted',
+        link: 'h-auto border-0 bg-transparent px-0 text-primary underline underline-offset-4',
       },
       size: {
         sm: 'h-10 px-3 text-sm',

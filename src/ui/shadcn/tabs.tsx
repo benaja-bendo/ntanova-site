@@ -17,7 +17,7 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimi
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        'flex w-full items-stretch overflow-x-auto border-b border-border bg-card [scrollbar-width:none]',
+        'flex w-full items-stretch gap-3.5 overflow-x-auto border-b border-border bg-card px-3 [scrollbar-width:none]',
         className,
       )}
       {...props}
@@ -30,7 +30,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        'inline-flex h-12 flex-none cursor-pointer items-center gap-1.5 border-0 bg-transparent px-2.5 font-sans text-[15px] font-bold whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset data-[state=active]:text-primary-strong data-[state=active]:shadow-[inset_0_-3px_0_var(--marque)]',
+        'inline-flex h-11 flex-none cursor-pointer items-center gap-1 border-0 bg-transparent px-1 font-sans text-sm font-bold whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset data-[state=active]:text-primary-strong data-[state=active]:shadow-[inset_0_-3px_0_var(--marque)]',
         className,
       )}
       {...props}

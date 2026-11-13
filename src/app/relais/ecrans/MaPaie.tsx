@@ -18,7 +18,6 @@ import { Card } from '@/ui/shadcn/card';
 import { IconeAlerte, IconeAttente, IconeOuvrir } from '@/ui/shadcn/icones';
 import { lireMemoire, useRequete } from '../base-locale';
 import { BarreDuBas, EnTete, Surtitre } from '../cadre';
-import { jour } from '../composants';
 import { ChargementEcran, EtatVide } from '../etats';
 
 const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -51,7 +50,7 @@ export function MaPaie() {
             {pasComptees.length > 0 && (
               <a
                 href="#fiches"
-                className="flex min-h-12 items-center gap-3 rounded-lg bg-attention px-4 py-3 text-[15px] text-attention-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+                className="flex min-h-12 items-center gap-3 rounded-lg bg-attention px-4 py-3 text-sm text-attention-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
               >
                 <IconeAttente className="size-5 shrink-0" aria-hidden />
                 <span className="flex-1">
@@ -155,15 +154,7 @@ function Semaine({ ligne, premiere }: { ligne: LigneDeMaPaie; premiere: boolean 
     >
       <span className="flex min-w-0 flex-1 flex-col">
         <b className="text-[17px]">{majuscule(vendrediLong(ligne.vendredi))}</b>
-        <span className="text-[15px] text-muted-foreground">
-          {[
-            resume,
-            ligne.etat === 'paye' && ligne.payeLe ? `payé le ${jour(ligne.payeLe)}` : null,
-            ligne.reference ? `réf. ${ligne.reference}` : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </span>
+        <span className="text-[15px] text-muted-foreground">{resume}</span>
       </span>
       <span className="flex flex-col items-end gap-1">
         <b className="text-[17px]">{chiffres(ligne.totalXaf)}</b>

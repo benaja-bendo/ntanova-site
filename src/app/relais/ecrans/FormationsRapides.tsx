@@ -24,7 +24,7 @@ import {
 import { libelleDiplome, libelleNiveau, libelleSerie } from '../../../modele/libelles';
 import type { Valeur } from '../../../modele/listes';
 import type { FormationSaisie } from '../../../modele/ports';
-import { Champ, Choix } from '../composants';
+import { Champ, Choix, classeBouton, classeChamp } from '../formulaire';
 
 const CYCLES_A_FILIERES = ['technique', 'superieur', 'autre_formation'] as const;
 
@@ -38,7 +38,7 @@ export function FormationsRapides({
   surChangement: (liste: FormationSaisie[]) => void;
 }) {
   return (
-    <div className="pile-serree" data-testid="formations-rapides">
+    <div className="flex flex-col gap-2.5" data-testid="formations-rapides">
       {niveaux.includes('lycee') && (
         <Choix
           legende="Séries du lycée : touchez celles qui sont écrites"
@@ -96,11 +96,13 @@ function FilieresDuCycle({
 
   return (
     <section
-      className="carte-blanche pile-serree"
+      className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3.5"
       aria-label={`Filières : ${libelleNiveau[cycle]}`}
       data-cycle={cycle}
     >
-      <p className="surtitre">Filières · {libelleNiveau[cycle]}</p>
+      <p className="m-0 text-xs font-bold tracking-[0.08em] text-muted-foreground uppercase">
+        Filières · {libelleNiveau[cycle]}
+      </p>
       <Choix
         legende="1. Le diplôme écrit sur le panneau"
         options={diplomes.map((d) => ({ valeur: d, libelle: libelleDiplome[d] }))}
@@ -114,17 +116,25 @@ function FilieresDuCycle({
         surChoix={toucherDomaine}
       />
       {!toutVoir && (
-        <button type="button" className="lien" onClick={() => setToutVoir(true)}>
+        <button
+          type="button"
+          className={classeBouton({ variant: 'link' })}
+          onClick={() => setToutVoir(true)}
+        >
           Plus de domaines
         </button>
       )}
 
       {autre === null ? (
-        <button type="button" className="lien" onClick={() => setAutre('')}>
+        <button
+          type="button"
+          className={classeBouton({ variant: 'link' })}
+          onClick={() => setAutre('')}
+        >
           + Autre filière…
         </button>
       ) : (
-        <div className="pile-serree">
+        <div className="flex flex-col gap-2.5">
           <Champ
             libelle="Autre filière"
             aide={`Un mot ou deux, avec le diplôme en cours (${libelleDiplome[diplome]}). Ex. : Pâtisserie.`}
@@ -132,7 +142,7 @@ function FilieresDuCycle({
             {(a) => (
               <input
                 {...a}
-                className="champ"
+                className={classeChamp}
                 type="text"
                 autoComplete="off"
                 maxLength={100}
@@ -149,7 +159,7 @@ function FilieresDuCycle({
           </Champ>
           <button
             type="button"
-            className="bouton bouton-secondaire bouton-petit"
+            className={classeBouton({ variant: 'outline', size: 'sm' })}
             disabled={autre.trim() === ''}
             onClick={ajouterLibre}
           >
@@ -159,8 +169,8 @@ function FilieresDuCycle({
       )}
 
       {notees.length > 0 && (
-        <div className="pile-serree">
-          <p className="mention">
+        <div className="flex flex-col gap-2.5">
+          <p className="m-0 text-[13px] text-muted-foreground">
             <b>
               {notees.length} filière{notees.length > 1 ? 's' : ''} notée
               {notees.length > 1 ? 's' : ''}
@@ -168,7 +178,7 @@ function FilieresDuCycle({
             · touchez-en une pour la retirer
           </p>
           <div
-            className="choix-ligne"
+            className="flex flex-wrap gap-2"
             role="group"
             aria-label={`Filières notées : ${libelleNiveau[cycle]}`}
           >
@@ -176,7 +186,7 @@ function FilieresDuCycle({
               <button
                 key={f.titre}
                 type="button"
-                className="pastille-choix"
+                className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border-2 border-primary bg-succes px-3 font-sans text-sm font-bold text-primary-strong outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
                 aria-pressed="true"
                 aria-label={`Retirer : ${f.titre}`}
                 onClick={() => surChangement(basculerFormation(formations, f))}

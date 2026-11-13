@@ -1,26 +1,47 @@
 /**
- * Le registre des icônes des écrans shadcn (règle du 12/11 : un seul registre, une seule grammaire). Lucide (licence ISC) :
- * contour, grille de 24, trait de 2, extrémités et angles arrondis. Chaque icône est importée une à une : seules celles-ci
- * partent dans l'application. Une donnée, une icône, toujours la même ; toujours avec un mot, sauf fermer, chercher,
- * revenir et agrandir (avec un nom accessible).
+ * Les icônes nommées des écrans shadcn, tirées du registre unique (`@/ui/icones/registre`, SVG copiés d'icones.js.org).
+ * Une donnée, une icône, toujours la même.
  */
-export {
-  ArrowUp as IconeEnvoi,
-  Check as IconeFait,
-  ChevronLeft as IconeRetour,
-  ChevronRight as IconeOuvrir,
-  CircleHelp as IconeAide,
-  Clock as IconeAttente,
-  CreditCard as IconePaie,
-  FileText as IconeFiche,
-  Info as IconeInfo,
-  ListChecks as IconeMissions,
-  Loader2 as IconeChargement,
-  Pencil as IconeCorriger,
-  Plus as IconeAjouter,
-  Smartphone as IconeTelephone,
-  TriangleAlert as IconeAlerte,
-  User as IconeCompte,
-  WifiOff as IconeHorsLigne,
-  X as IconeRefus,
-} from 'lucide-react';
+import { icone } from '@/ui/icones/Icone';
+
+export const IconeEnvoi = icone('envoi');
+export const IconeFait = icone('coche');
+export const IconeRetour = icone('retour');
+export const IconeOuvrir = icone('suite');
+export const IconeBas = icone('bas');
+export const IconeHaut = icone('haut');
+export const IconeFermer = icone('croix');
+export const IconeAide = icone('aide');
+export const IconeAttente = icone('attente');
+export const IconePaie = icone('paie');
+export const IconeFiche = icone('fiche');
+export const IconeInfo = icone('info');
+export const IconeMissions = icone('missions');
+export const IconeChargement = icone('chargement');
+export const IconeCorriger = icone('corriger');
+export const IconeAjouter = icone('plus');
+export const IconeTelephone = icone('telephone');
+export const IconeAlerte = icone('alerte');
+export const IconeCompte = icone('compte');
+export const IconeHorsLigne = icone('horsLigne');
+export const IconeRefus = icone('croix');
+export const IconeCadenas = icone('cadenas');
+export const IconeNuage = icone('nuage');
+export const IconeAller = icone('aller');
+export const IconeCamera = icone('camera');
+export const IconeGalerie = icone('galerie');
+export const IconeLieu = icone('lieu');
+export const IconeRepere = icone('repere');
+export const IconeSignal = icone('signal');
+export const IconeDeconnexion = icone('deconnexion');
+export const IconeMessage = icone('message');
+export const IconeChercher = icone('chercher');
+export const IconeEtoile = icone('etoile');
+export const IconeCorbeille = icone('corbeille');
+export const IconeReprendre = icone('reprendre');
+export const IconeProspectus = icone('prospectus');
+export const IconeOuvrirAilleurs = icone('ouvrirAilleurs');
+export const IconeOeil = icone('oeil');
+export const IconeAgrandir = icone('agrandir');
+export const IconeOeilBarre = icone('oeilBarre');
+export const IconeSansEnfant = icone('sansEnfant');

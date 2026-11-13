@@ -40,7 +40,6 @@
     "clsx": "^2.1.1",
     "cn": "^0.5.2",
     "dexie": "^4.4.7",
-    "lucide-react": "^1.72.0",
     "maplibre-gl": "6.16.0",
     "pmtiles": "4.5.0",
     "radix-ui": "^1.8.1",

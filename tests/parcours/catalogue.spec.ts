@@ -22,7 +22,10 @@ const niveaux = (page: Page) => page.getByRole('group', { name: "Niveaux écrits
 /** Le relais saisit la direction : vue, promoteur, d'accord pour WhatsApp. */
 async function direction(page: Page) {
   await page.getByRole('button', { name: 'Oui', exact: true }).click();
-  await page.getByLabel('Sa fonction').selectOption('promoteur');
+  await page
+    .getByRole('group', { name: 'Qui ?' })
+    .getByRole('button', { name: 'Promoteur', exact: true })
+    .click();
   await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
   await page.getByLabel(/Son WhatsApp/).fill('06 123 45 61');
 }
@@ -344,7 +347,10 @@ test.describe('le pont avec la direction', () => {
     await page.getByLabel("Nom de l'établissement").fill('[École sans accord]');
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Oui', exact: true }).click();
-    await page.getByLabel('Sa fonction').selectOption('directeur');
+    await page
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Directeur', exact: true })
+      .click();
     // La case « accepte que NTanova lui écrive » reste décochée : le numéro ne peut pas être noté.
     await expect(page.getByLabel(/Son WhatsApp/)).toBeDisabled();
     await envoyerSansBonus(page);

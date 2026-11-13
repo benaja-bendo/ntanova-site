@@ -18,7 +18,10 @@ import {
 } from '../../../modele/deja-sur-ntanova';
 import { photoEnseigne, type FicheLocale } from '../../../modele/fiche';
 import { lireMemoire, useRequete } from '../base-locale';
-import { Icone } from '../composants';
+import { Icone, classeBouton, classeChamp } from '../formulaire';
+import { cn } from '@/lib/utils';
+import { IconeAjouter, IconeChercher, IconeOuvrir } from '@/ui/shadcn/icones';
+import { TitreAvecAide } from '../choix';
 import { useRelais } from '../contexte';
 import type { Modifier } from './fiche-en-cours';
 
@@ -79,19 +82,35 @@ export function DejaSurNTanova({ fiche, modifier }: { fiche: FicheLocale; modifi
 
   if (nom.length < 3) return null;
   return (
-    <section className="carte-blanche pile-serree" aria-labelledby="deja-sur-ntanova">
-      <h2 id="deja-sur-ntanova" className="titre-section">
-        Déjà sur NTanova&nbsp;?
-      </h2>
+    <section
+      className="flex flex-col overflow-hidden rounded-lg border border-border bg-card"
+      aria-labelledby="deja-sur-ntanova"
+    >
+      <div className="px-3 py-1">
+        <TitreAvecAide
+          niveau="b"
+          titre={<span id="deja-sur-ntanova">Déjà sur NTanova&nbsp;?</span>}
+          libelleAide="Aide : les écoles déjà connues"
+          aide={
+            <p>
+              Les écoles que NTanova connaît déjà, près d’ici ou du même nom. Touchez-en une si vous
+              la reconnaissez&nbsp;: rien n’est fusionné, NTanova vérifie.
+            </p>
+          }
+        />
+      </div>
       {lieux === undefined && pays === undefined ? null : connues.length === 0 ? (
-        <p className="mention">
+        <p className="m-0 border-t border-border px-3 py-2.5 text-[13px] text-muted-foreground">
           La liste des écoles n’est pas encore sur ce téléphone&nbsp;: NTanova vérifiera.
         </p>
       ) : null}
 
       {reponse && (
-        <p className="rang" role="status">
-          <Icone nom="coche" taille={16} />
+        <p
+          className="m-0 flex items-center gap-2 border-t border-border bg-succes px-3 py-2.5 text-[15px] text-succes-foreground"
+          role="status"
+        >
+          <Icone nom="coche" taille={18} />
           <span>{reponse}</span>
         </p>
       )}
@@ -152,17 +171,20 @@ export function DejaSurNTanova({ fiche, modifier }: { fiche: FicheLocale; modifi
         />
       )}
 
-      <div className="pile-serree">
+      <div className="flex flex-col">
         <button
           type="button"
-          className="lien"
+          aria-expanded={recherche !== null}
+          className={ligneBouton}
           onClick={() => setRecherche(recherche === null ? '' : null)}
         >
-          Un autre site d’une école connue
+          <IconeChercher className="size-5 text-muted-foreground" />
+          <b className="flex-1">Un autre site d’une école connue</b>
+          <IconeOuvrir className="size-5" />
         </button>
         <button
           type="button"
-          className="lien"
+          className={cn(ligneBouton, 'text-primary')}
           onClick={() =>
             repondre({
               reponseDoublon: fiche.doublonPropose ? 'une_autre' : null,
@@ -170,10 +192,54 @@ export function DejaSurNTanova({ fiche, modifier }: { fiche: FicheLocale; modifi
             })
           }
         >
-          Aucune&nbsp;: c’est une nouvelle école
+          <IconeAjouter className="size-5" />
+          <b>Aucune&nbsp;: c’est une nouvelle école</b>
         </button>
       </div>
     </section>
+  );
+}
+
+const ligneBouton =
+  'flex min-h-[52px] w-full cursor-pointer items-center gap-2.5 border-0 border-t border-border bg-card px-3 text-left font-sans text-base text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset';
+
+/** Le rond du sigle d'une école connue (un cercle, parce qu'il nomme). */
+function RondSigle({ sigle, nom }: { sigle: string | null | undefined; nom: string }) {
+  const texte = sigle ?? nom.replace(/^\[/, '').charAt(0);
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-strong font-serif font-bold text-primary-foreground',
+        texte.length > 3 ? 'text-[13px]' : 'text-[15px]',
+      )}
+    >
+      {texte}
+    </span>
+  );
+}
+
+/** Une école connue, sur une ligne : le rond du sigle, le nom, où elle est ; le chevron dit qu'elle s'ouvre. */
+function LigneEcole({
+  nom,
+  sigle,
+  detail,
+  onClick,
+}: {
+  nom: string;
+  sigle: string | null | undefined;
+  detail: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className={cn(ligneBouton, 'min-h-14 py-2')} onClick={onClick}>
+      <RondSigle sigle={sigle} nom={nom} />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <b>{nom}</b>
+        <span className="text-[13px] text-muted-foreground">{detail}</span>
+      </span>
+      <IconeOuvrir className="size-5" />
+    </button>
   );
 }
 
@@ -189,20 +255,14 @@ function Groupe({
   choisir: (p: Proposition) => void;
 }) {
   return (
-    <div className="pile-serree">
-      <h3 className="rang">{titre}</h3>
-      <ul className="liste-ecoles-connues">
+    <div className="flex flex-col">
+      <h3 className="m-0 border-t border-border px-3 pt-2.5 pb-1 text-xs font-bold tracking-[0.06em] text-muted-foreground uppercase">
+        {titre}
+      </h3>
+      <ul className="m-0 list-none p-0">
         {liste.map((p) => (
           <li key={p.id}>
-            <button type="button" className="ecole-connue" onClick={() => choisir(p)}>
-              <span className="sigle-rond" aria-hidden="true">
-                {p.sigle ?? p.nom.replace(/^\[/, '').charAt(0)}
-              </span>
-              <span className="ecole-connue-texte">
-                <b>{p.nom}</b>
-                <span className="mention">{ligne(p)}</span>
-              </span>
-            </button>
+            <LigneEcole nom={p.nom} sigle={p.sigle} detail={ligne(p)} onClick={() => choisir(p)} />
           </li>
         ))}
       </ul>
@@ -226,14 +286,19 @@ function Reconnue({
 }) {
   const designee = { ecoleId: ecole.campus ? ecole.id : null, nom: ecole.nom };
   return (
-    <section className="bandeau bandeau-attente pile-serree" aria-label="Vous la reconnaissez ?">
+    <section
+      className="flex flex-col gap-3 border-t border-border bg-attention px-3 py-3 text-[15px] text-attention-foreground [&_p]:m-0"
+      aria-label="Vous la reconnaissez ?"
+    >
       <p>
         <b>NTanova connaît déjà</b> {ecole.nom}
         {proche?.distanceM != null ? `, ${distanceEnMots(proche.distanceM)}` : ''}. Vous la
         reconnaissez&nbsp;?
       </p>
-      {proche && memeEndroitPossible(proche) && <p className="mention">Même endroit possible.</p>}
-      <div className="cote-a-cote">
+      {proche && memeEndroitPossible(proche) && (
+        <p className="m-0 text-[13px] text-muted-foreground">Même endroit possible.</p>
+      )}
+      <div className="grid grid-cols-2 gap-3 [&_figure]:m-0 [&_figure]:flex [&_figure]:flex-col [&_figure]:gap-1 [&_figcaption]:text-[13px] [&_figcaption]:font-bold">
         <figure>
           <VignetteConnue chemin={ecole.vignette ?? null} sigle={ecole.sigle} nom={ecole.nom} />
           <figcaption>Sur NTanova</figcaption>
@@ -243,11 +308,11 @@ function Reconnue({
           <figcaption>Votre photo</figcaption>
         </figure>
       </div>
-      <div className="pile-serree">
+      <div className="flex flex-col gap-2.5">
         {ecole.campus && (
           <button
             type="button"
-            className="bouton bouton-secondaire"
+            className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
             onClick={() =>
               repondre({ reponseDoublon: 'la_meme', doublonPropose: designee, autreSiteDe: null })
             }
@@ -258,7 +323,7 @@ function Reconnue({
         {ecole.institutionId && (
           <button
             type="button"
-            className="bouton bouton-secondaire"
+            className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
             onClick={() =>
               repondre({
                 reponseDoublon: 'autre_site',
@@ -271,7 +336,7 @@ function Reconnue({
         )}
         <button
           type="button"
-          className="bouton bouton-secondaire"
+          className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
           onClick={() =>
             repondre({ reponseDoublon: 'autre_ecole', doublonPropose: designee, autreSiteDe: null })
           }
@@ -280,14 +345,18 @@ function Reconnue({
         </button>
         <button
           type="button"
-          className="bouton bouton-secondaire"
+          className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
           onClick={() =>
             repondre({ reponseDoublon: 'ne_sait_pas', doublonPropose: designee, autreSiteDe: null })
           }
         >
           Je ne sais pas
         </button>
-        <button type="button" className="lien lien-discret" onClick={fermer}>
+        <button
+          type="button"
+          className={classeBouton({ variant: 'link', className: 'text-muted-foreground' })}
+          onClick={fermer}
+        >
           Fermer
         </button>
       </div>
@@ -324,18 +393,27 @@ function VignetteConnue({
   if (adresse)
     return (
       <img
-        className="vignette-comparee"
+        className={vignette}
         src={adresse}
         alt={`La photo de ${nom} sur NTanova`}
         onError={() => setAdresse(null)}
       />
     );
   return (
-    <span className="vignette-comparee vignette-sigle" role="img" aria-label={`Sigle de ${nom}`}>
+    <span
+      className={cn(
+        vignette,
+        'flex items-center justify-center bg-primary-strong font-serif text-2xl font-bold text-primary-foreground',
+      )}
+      role="img"
+      aria-label={`Sigle de ${nom}`}
+    >
       {sigle ?? nom.replace(/^\[/, '').charAt(0)}
     </span>
   );
 }
+
+const vignette = 'block aspect-[4/3] w-full rounded-md object-cover';
 
 function PhotoDuRelais({ photo }: { photo: Blob | null }) {
   const adresse = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo]);
@@ -346,9 +424,16 @@ function PhotoDuRelais({ photo }: { photo: Blob | null }) {
     [adresse],
   );
   return adresse ? (
-    <img className="vignette-comparee" src={adresse} alt="Votre photo de l’enseigne" />
+    <img className={vignette} src={adresse} alt="Votre photo de l’enseigne" />
   ) : (
-    <span className="vignette-comparee vignette-vide">Pas de photo</span>
+    <span
+      className={cn(
+        vignette,
+        'flex items-center justify-center bg-muted text-sm text-muted-foreground',
+      )}
+    >
+      Pas de photo
+    </span>
   );
 }
 
@@ -371,11 +456,11 @@ function Chercher({
   }, [ecoles]);
   const resultats = chercherUneEcole(texte, uniques);
   return (
-    <section className="pile-serree" aria-label="Un autre site de quelle école ?">
-      <label className="champ-groupe">
+    <section className="flex flex-col gap-2.5" aria-label="Un autre site de quelle école ?">
+      <label className="flex flex-col gap-1.5 border-t border-border px-3 pt-3 text-sm font-bold">
         <span>Un autre site de quelle école&nbsp;?</span>
         <input
-          className="champ"
+          className={classeChamp}
           type="search"
           autoComplete="off"
           placeholder="Son nom ou son sigle"
@@ -384,23 +469,19 @@ function Chercher({
         />
       </label>
       {texte.trim().length >= 2 && resultats.length === 0 && (
-        <p className="mention">Aucune école de ce nom sur ce téléphone.</p>
+        <p className="m-0 px-3 text-[13px] text-muted-foreground">
+          Aucune école de ce nom sur ce téléphone.
+        </p>
       )}
-      <ul className="liste-ecoles-connues">
+      <ul className="m-0 list-none p-0">
         {resultats.map((e) => (
           <li key={e.institutionId}>
-            <button type="button" className="ecole-connue" onClick={() => choisir(e)}>
-              <span className="sigle-rond" aria-hidden="true">
-                {e.sigle ?? e.nom.replace(/^\[/, '').charAt(0)}
-              </span>
-              <span className="ecole-connue-texte">
-                <b>{e.nom}</b>
-                <span className="mention">
-                  {[e.lieu, `${e.sites} site${e.sites > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}{' '}
-                  · En faire son {e.sites + 1}e site
-                </span>
-              </span>
-            </button>
+            <LigneEcole
+              nom={e.nom}
+              sigle={e.sigle}
+              detail={`${[e.lieu, `${e.sites} site${e.sites > 1 ? 's' : ''}`].filter(Boolean).join(' · ')} · En faire son ${e.sites + 1}e site`}
+              onClick={() => choisir(e)}
+            />
           </li>
         ))}
       </ul>

@@ -1,7 +1,13 @@
-/** Les composants propres à l'espace relais ; les composants partagés sont dans src/ui/. */
+/**
+ * Les composants propres à l'espace relais (v2, planches du 13/11) ; le cadre des écrans principaux est dans `cadre.tsx`.
+ */
 import { titreDeLEcran, type FicheLocale } from '../../modele/fiche';
-import { Bandeau, Icone } from '../../ui/composants';
-import { aller, useEnLigne, useAdresse } from './contexte';
+import { cn } from '@/lib/utils';
+import { Button } from '@/ui/shadcn/button';
+import { IconeNuage, IconeRetour } from '@/ui/shadcn/icones';
+import { BarreDuBas, EnTete, HorsLigne } from './cadre';
+import { aller } from './contexte';
+import { Bande } from './etats';
 
 /**
  * Une nouvelle version de l'application est prête. Le relais recharge quand il le décide : la page ne se recharge
@@ -9,86 +15,43 @@ import { aller, useEnLigne, useAdresse } from './contexte';
  */
 export function BandeauVersion() {
   return (
-    <div className="bandeau-version" role="status">
-      <Bandeau ton="attente" icone="nuage">
+    <div className="fixed inset-x-0 bottom-[76px] z-30 mx-auto max-w-[40rem] px-4" role="status">
+      <Bande
+        ton="attention"
+        icone={<IconeNuage />}
+        className="shadow-lg"
+        action={
+          <Button variant="outline" size="sm" onClick={() => location.reload()}>
+            Recharger
+          </Button>
+        }
+      >
         <p>
           <b>Nouvelle version prête.</b> Rechargez quand vous le pouvez. Vos fiches restent sur le
           téléphone.
         </p>
-        <button
-          type="button"
-          className="bouton bouton-secondaire bouton-petit"
-          onClick={() => location.reload()}
-        >
-          Recharger
-        </button>
-      </Bandeau>
+      </Bande>
     </div>
   );
 }
 
-export function PastilleReseau() {
-  const enLigne = useEnLigne();
-  return enLigne ? (
-    <span className="pastille-reseau">
-      <span className="point-en-ligne" />
-      En ligne
-    </span>
-  ) : (
-    <span className="pastille-reseau hors-ligne">
-      <Icone nom="horsLigne" taille={14} />
-      Hors ligne
-    </span>
-  );
+/** L'en-tête d'un écran principal (le titre est le h1 de l'écran). */
+export function Entete({ titre }: { titre: string; principal?: boolean }) {
+  return <EnTete titre={titre} />;
 }
 
-/** `principal` : le titre est celui de l'écran (h1), comme « Mes fiches ». */
-export function Entete({ titre, principal = false }: { titre: string; principal?: boolean }) {
-  const Titre = principal ? 'h1' : 'span';
-  return (
-    <header className="entete-relais">
-      <span className="entete-marque">
-        <img src="/favicon.svg" alt="" width={30} height={23} />
-        <Titre
-          className="entete-titre"
-          tabIndex={principal ? -1 : undefined}
-          data-retour-liste={principal || undefined}
-        >
-          {titre}
-        </Titre>
-      </span>
-      <PastilleReseau />
-    </header>
-  );
-}
-
+/** La barre du bas. */
 export function Navigation() {
-  const [ecranLu = 'missions'] = useAdresse();
-  // `#lot` (l'ancien « Mon secteur ») et `#mission/…` sont l'onglet « Missions ».
-  const ecran = ['lot', 'mission'].includes(ecranLu) ? 'missions' : ecranLu;
-  const onglets = [
-    { chemin: 'missions', libelle: 'Missions', icone: 'mission' as const },
-    { chemin: 'fiches', libelle: 'Mes fiches', icone: 'fiche' as const },
-    { chemin: 'paie', libelle: 'Ma paie', icone: 'piece' as const },
-    { chemin: 'compte', libelle: 'Compte', icone: 'personne' as const },
-  ];
-  return (
-    <nav className="navigation-relais" aria-label="Espace relais">
-      {onglets.map((o) => (
-        <a
-          key={o.chemin}
-          href={`#${o.chemin}`}
-          aria-current={ecran === o.chemin ? 'page' : undefined}
-        >
-          <Icone nom={o.icone} taille={22} />
-          {o.libelle}
-        </a>
-      ))}
-    </nav>
-  );
+  return <BarreDuBas />;
 }
 
-/** L'en-tête des trois étapes d'une fiche : « Ajouter une école », « Corriger une fiche » ou « Compléter une école ». */
+/** Les quatre étapes d'une fiche, nommées sous la barre (planche « Relais · étape 1 »). */
+const ETAPES = ['Photo et lieu', 'L’établissement', 'La rencontre', 'Bonus'] as const;
+
+/**
+ * L'en-tête des étapes d'une fiche : « AJOUTER UNE ÉCOLE » (ou « Corriger une fiche », « Compléter une école ») au-dessus
+ * du titre de l'étape, « 2 sur 3 » à droite, puis quatre barres et leurs noms ; la quatrième, le bonus, est jaune pâle.
+ */
 export function EnteteEtape({
   etape,
   titre,
@@ -101,41 +64,68 @@ export function EnteteEtape({
   type: FicheLocale['type'];
 }) {
   return (
-    <>
-      <header className="entete-etape">
+    <header className="sticky top-0 z-10 flex flex-col gap-1.5 border-b border-border bg-card px-3 pt-2 pb-2.5">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
-          className="bouton-icone"
           aria-label={etape === 1 ? 'Retour aux missions' : `Retour à l'étape ${etape - 1}`}
           onClick={() => aller(retour)}
+          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
         >
-          <Icone nom="retour" taille={22} />
+          <IconeRetour className="size-[22px]" />
         </button>
-        <span className="entete-etape-titre">{titreDeLEcran(type)}</span>
-        <span className="entete-etape-compte">{etape === 4 ? 'Bonus' : `${etape}/3`}</span>
-      </header>
-      <div className="progression">
-        <div className="progression-barres" aria-hidden="true">
-          {/* v2 (13/11) : le bonus se voit dès l'étape 1, quatrième case jaune pâle ; il reste facultatif. */}
-          {[1, 2, 3, 4].map((n) => (
-            <span
-              key={n}
-              className={
-                [n <= etape ? 'faite' : '', n === 4 ? 'bonus' : ''].join(' ').trim() || undefined
-              }
-            />
-          ))}
-        </div>
-        <div className="progression-ligne">
-          <h1>{titre}</h1>
-          <span className="garde">
-            <Icone nom="coche" taille={14} />
-            Gardé sur le téléphone
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="text-xs font-bold tracking-[0.06em] text-muted-foreground uppercase">
+            {titreDeLEcran(type)}
           </span>
-        </div>
+          <h1 className="m-0 font-serif text-xl leading-tight font-bold" tabIndex={-1}>
+            {titre}
+          </h1>
+        </span>
+        <HorsLigne />
+        {etape === 4 ? (
+          <span className="rounded-full bg-attention px-2.5 py-0.5 text-sm font-bold">Bonus</span>
+        ) : (
+          <span className="text-sm font-bold text-muted-foreground">{etape} sur 3</span>
+        )}
       </div>
-    </>
+      <div className="grid grid-cols-4 gap-1.5 px-1" aria-hidden>
+        {ETAPES.map((nom, i) => (
+          <span
+            key={nom}
+            className={cn(
+              'h-[5px] rounded-full',
+              i + 1 <= etape
+                ? i === 3
+                  ? 'bg-jaune'
+                  : 'bg-primary'
+                : i === 3
+                  ? 'bg-attention'
+                  : 'bg-border',
+            )}
+          />
+        ))}
+      </div>
+      <ol className="m-0 grid list-none grid-cols-4 gap-1.5 p-0 px-1" aria-label="Les étapes">
+        {ETAPES.map((nom, i) => (
+          <li
+            key={nom}
+            aria-current={i + 1 === etape ? 'step' : undefined}
+            className={cn(
+              'truncate text-[11px] font-bold',
+              i === 3
+                ? 'text-bonus'
+                : i + 1 <= etape
+                  ? 'text-primary-strong'
+                  : 'text-muted-foreground',
+            )}
+          >
+            {nom}
+          </li>
+        ))}
+      </ol>
+    </header>
   );
 }
 
-export { Bandeau, Champ, Choix, heure, Icone, jour, type NomIcone } from '../../ui/composants';
+export { heure, jour } from '../../ui/composants';

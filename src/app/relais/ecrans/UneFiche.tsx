@@ -5,7 +5,6 @@
  * vient de ce que le téléphone garde : l'écran marche hors ligne.
  */
 import { appartientAuCompte } from '../../../modele/compte';
-import { libelleStatutReleve } from '../../../modele/libelles';
 import {
   ceQuiManqueEncore,
   ceQuiVientDuReleve,
@@ -14,16 +13,22 @@ import {
 } from '../../../modele/ma-fiche';
 import { francs, paieDeLaFiche, vendrediLong } from '../../../modele/paie';
 import { base, compteConnecte, lireMemoire, useRequete } from '../base-locale';
-import { Entete, Icone, jour, Navigation } from '../composants';
-import { commencerCorrection } from './Ajouter';
-import { useState } from 'react';
-
-const classeEtape = {
-  faite: 'etape-faite',
-  en_cours: 'etape-en-cours',
-  a_venir: 'etape-a-venir',
-  arretee: 'etape-arretee',
-} as const;
+import { jour } from '../composants';
+import { aller } from '../contexte';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/ui/shadcn/badge';
+import { Button } from '@/ui/shadcn/button';
+import {
+  IconeAttente,
+  IconeCorriger,
+  IconeFait,
+  IconeOuvrirAilleurs,
+  IconeRefus,
+  IconeTelephone,
+} from '@/ui/shadcn/icones';
+import { BarreDuBas, EnTeteRetour } from '../cadre';
+import { Bande, ChargementEcran, EtatVide } from '../etats';
+import { GestesDeLaFiche } from './MesFiches';
 
 export function UneFiche({ releveId }: { releveId: string }) {
   const recus = useRequete(() => lireMemoire('releves'));
@@ -35,39 +40,50 @@ export function UneFiche({ releveId }: { releveId: string }) {
       appartientAuCompte(f, compte),
     );
   });
-  const [avis, setAvis] = useState<string | null>(null);
 
   if (recus === undefined || paie === undefined || locales === undefined)
-    return <div className="ecran" aria-busy="true" />;
+    return <ChargementEcran titre="Une de mes fiches" />;
   const recu = (recus ?? []).find((r) => r.id === releveId);
   const locale = locales.find((f) => f.id === releveId);
 
   if (!recu) {
     return (
       <div className="ecran">
-        <Entete titre="Une de mes fiches" principal />
-        <main className="contenu-relais pile-serree">
+        <EnTeteRetour
+          titre={locale ? locale.nomEnseigne || 'Fiche sans nom' : 'Une de mes fiches'}
+          sousTitre={
+            locale
+              ? locale.etat === 'refusee'
+                ? 'Refusée par la base'
+                : 'Sur le téléphone'
+              : undefined
+          }
+          retour="fiches"
+          libelleRetour="Retour à mes fiches"
+        />
+        <main className="flex flex-1 flex-col gap-3.5 px-4 py-3.5">
           {locale ? (
             <>
-              <h2 className="intertitre">{locale.nomEnseigne || 'Fiche sans nom'}</h2>
-              <p>
-                <span className="etiquette etat-telephone">
-                  {locale.etat === 'refusee' ? 'Refusée par la base' : 'Sur le téléphone'}
-                </span>
-              </p>
-              <p className="texte-doux">
-                NTanova ne l’a pas encore reçue. Elle part dès que le téléphone capte&nbsp;; son
-                détail s’affiche ensuite ici.
-              </p>
+              <Bande ton="neutre" icone={<IconeTelephone />}>
+                <p>
+                  <b>NTanova ne l’a pas encore reçue.</b> Elle part dès que le téléphone
+                  capte&nbsp;; son détail s’affiche ensuite ici.
+                </p>
+              </Bande>
+              <GestesDeLaFiche id={locale.id} />
             </>
           ) : (
-            <p>Cette fiche n’est plus dans votre liste.</p>
+            <EtatVide
+              titre="Cette fiche n’est plus dans votre liste."
+              action={
+                <Button variant="outline" onClick={() => aller('fiches')}>
+                  Retour à mes fiches
+                </Button>
+              }
+            />
           )}
-          <a className="bouton bouton-secondaire" href="#fiches">
-            Retour à mes fiches
-          </a>
         </main>
-        <Navigation />
+        <BarreDuBas />
       </div>
     );
   }
@@ -80,127 +96,159 @@ export function UneFiche({ releveId }: { releveId: string }) {
   // Une correction partie du téléphone : la fiche reste « à corriger » chez NTanova jusqu'à sa décision.
   const corrigee = locales.some((f) => f.corrigeReleveId === recu.id);
   const enLigne = recu.statut === 'accepte' && recu.pageEnLigne != null;
-
-  const corriger = async () => {
-    if ((await commencerCorrection(recu, recus ?? [])) === 'brouillon_existant')
-      setAvis(
-        'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Reprendre la fiche en cours »).',
-      );
-  };
+  const paieTexte = phraseDeLaPaie(recu.statut, sesPaies, paie === null);
 
   return (
     <div className="ecran">
-      <Entete titre="Une de mes fiches" principal />
-      <main className="contenu-relais pile-serree">
-        <a className="lien lien-discret" href="#fiches">
-          ← Mes fiches
-        </a>
-        <div className="fiche-relais-tete">
-          <h2 className="intertitre">{recu.nomEnseigne}</h2>
-          <span className="mention">{jour(recu.prisLe)}</span>
-        </div>
-
-        <ol className="etapes-fiche" aria-label="Où en est la fiche">
+      <EnTeteRetour
+        titre={recu.nomEnseigne}
+        sousTitre={`Relevée ${quandCourt(recu.prisLe)}`}
+        retour="fiches"
+        libelleRetour="Retour à mes fiches"
+      />
+      <main className="flex flex-1 flex-col gap-3.5 px-4 py-3.5">
+        <ol
+          aria-label="Le parcours de la fiche"
+          className="m-0 grid list-none grid-cols-3 rounded-lg border border-border bg-card px-2 py-3.5"
+        >
           {etapes.map((e) => (
-            <li key={e.cle} className={classeEtape[e.etat]}>
-              {e.etat === 'faite' && <Icone nom="coche" />}
-              <span>{e.libelle}</span>
+            <li key={e.cle} className="flex flex-col items-center gap-1 text-center">
+              <span
+                aria-hidden
+                className={cn(
+                  'flex size-7 items-center justify-center rounded-full',
+                  e.etat === 'faite' && 'bg-primary text-primary-foreground',
+                  e.etat === 'en_cours' && 'border-2 border-primary bg-card text-primary',
+                  e.etat === 'a_venir' && 'border-2 border-border bg-card',
+                  e.etat === 'arretee' && 'bg-destructive text-blanc',
+                )}
+              >
+                {e.etat === 'faite' && <IconeFait className="size-4 [stroke-width:2.6]" />}
+                {e.etat === 'en_cours' && <IconeAttente className="size-4" />}
+                {e.etat === 'arretee' && <IconeRefus className="size-4 [stroke-width:2.6]" />}
+              </span>
+              <b className={cn('text-sm', e.etat === 'a_venir' && 'text-muted-foreground')}>
+                {e.libelle}
+              </b>
             </li>
           ))}
         </ol>
-        <p className="mention">
-          {recu.statut === 'a_valider'
-            ? 'NTanova relit votre fiche.'
-            : enLigne
-              ? 'La page de l’école est en ligne.'
-              : recu.statut === 'accepte'
-                ? 'Acceptée : NTanova la publiera avec les autres écoles de la zone.'
-                : libelleStatutReleve[recu.statut]}
-        </p>
 
         {raison && (
-          <p className="message-ntanova">
-            <b>NTanova&nbsp;:</b> {raison}
-          </p>
-        )}
-        {avis && (
-          <p className="message-attention" role="status">
-            {avis}
-          </p>
+          <Bande
+            ton={recu.statut === 'refuse' ? 'danger' : 'attention'}
+            icone={recu.statut === 'refuse' ? <IconeRefus /> : <IconeCorriger />}
+          >
+            <p>
+              <b>NTanova&nbsp;:</b> «&nbsp;{raison}&nbsp;»
+            </p>
+          </Bande>
         )}
         {recu.statut === 'a_corriger' && corrigee && (
-          <p>
-            <span className="etiquette etat-envoye">Correction envoyée</span>
-          </p>
+          <Badge variant="neutre" className="self-start">
+            Correction envoyée
+          </Badge>
         )}
-        {recu.statut === 'a_corriger' && !corrigee && (
-          <button type="button" className="bouton" onClick={() => void corriger()}>
-            Corriger la fiche
-          </button>
-        )}
+        {!(recu.statut === 'a_corriger' && corrigee) && <GestesDeLaFiche id={recu.id} />}
         {enLigne && (
-          <a
-            className="bouton bouton-secondaire"
-            href={`/ecoles/${recu.pageEnLigne}/`}
-            target="_blank"
-            rel="noopener"
-          >
-            Voir la page de l’école
-          </a>
+          <Button variant="outline" size="lg" className="w-full" asChild>
+            <a href={`/ecoles/${recu.pageEnLigne}/`} target="_blank" rel="noopener">
+              <IconeOuvrirAilleurs />
+              Voir la page de l’école
+            </a>
+          </Button>
         )}
 
-        <section className="carte-blanche pile-serree" aria-label="Ce qui vient de mon relevé">
-          <p className="surtitre-doux">Ce qui vient de mon relevé</p>
-          <dl className="fiche-relais-contenu">
+        <section
+          aria-labelledby="titre-releve"
+          className="flex flex-col rounded-lg border border-border bg-card px-3.5 pt-3 pb-1"
+        >
+          <h2 id="titre-releve" className="m-0 pb-1.5 font-serif text-lg font-bold">
+            {enLigne ? 'Sur la page, grâce à vous' : 'Ce qui vient de mon relevé'}
+          </h2>
+          <dl className="m-0">
             {contenu.map((c) => (
-              <div key={c.libelle}>
-                <dt>{c.libelle}</dt>
-                <dd>{c.valeur}</dd>
+              <div
+                key={c.libelle}
+                className="flex items-start gap-2.5 border-t border-border py-2.5"
+              >
+                <IconeFait className="mt-[3px] size-[18px] text-primary [stroke-width:2.4]" />
+                <span className="flex flex-col">
+                  <dt className="font-bold">{c.libelle}</dt>
+                  <dd className="m-0 text-[13px] text-muted-foreground">{c.valeur}</dd>
+                </span>
               </div>
             ))}
           </dl>
         </section>
 
         {manques.length > 0 && (
-          <section className="carte-blanche pile-serree" aria-label="Ce qui manque encore">
-            <p className="surtitre-doux">Ce qui manque encore</p>
-            <ul className="liste-manques">
+          <section
+            aria-labelledby="titre-manques"
+            className="flex flex-col rounded-lg border border-border bg-card px-3.5 pt-3 pb-1"
+          >
+            <h2 id="titre-manques" className="m-0 pb-1.5 font-serif text-lg font-bold">
+              Ce qui manque encore
+            </h2>
+            <ul className="m-0 list-none p-0">
               {manques.map((m) => (
-                <li key={m}>{m}</li>
+                <li key={m} className="flex items-start gap-2.5 border-t border-border py-2.5">
+                  <span
+                    aria-hidden
+                    className="mx-[5px] mt-2 size-2 shrink-0 rounded-full bg-ambre"
+                  />
+                  <b>{m}</b>
+                </li>
               ))}
             </ul>
-            <p className="mention">
-              Si vous repassez devant, NTanova pourra vous confier ces éléments en mission.
-            </p>
           </section>
         )}
 
-        <section className="carte-blanche pile-serree" aria-label="Ce qu’elle rapporte">
-          <p className="surtitre-doux">Ce qu’elle rapporte</p>
-          <p>{phraseDeLaPaie(recu.statut, sesPaies, paie === null)}</p>
-        </section>
+        <div
+          className={cn(
+            'flex justify-between gap-2.5 rounded-md px-3.5 py-3 text-[15px]',
+            sesPaies ? 'bg-succes text-succes-foreground' : 'bg-muted text-foreground',
+          )}
+        >
+          <span>{paieTexte.texte}</span>
+          {paieTexte.montant && (
+            <b className="whitespace-nowrap tabular-nums">{paieTexte.montant}</b>
+          )}
+        </div>
       </main>
-      <Navigation />
+      <BarreDuBas />
     </div>
   );
+}
+
+/** « le 3 novembre », « aujourd'hui », « hier ». */
+function quandCourt(date: string): string {
+  const j = jour(date);
+  return /^(Aujourd|Hier)/.test(j) ? j.charAt(0).toLowerCase() + j.slice(1) : `le ${j}`;
 }
 
 function phraseDeLaPaie(
   statut: string,
   p: ReturnType<typeof paieDeLaFiche>,
   paieInconnue: boolean,
-): string {
+): { texte: string; montant: string | null } {
   if (p) {
+    const montant = francs(p.montantXaf);
     const quoi = p.genres.includes('mission') ? 'La mission' : 'Cette fiche';
     if (p.etat === 'paye')
-      return `${quoi} : ${francs(p.montantXaf)}, payés${p.payeLe ? ` le ${jour(p.payeLe)}` : ''}.`;
+      return { texte: `${quoi} : payée${p.payeLe ? ` le ${jour(p.payeLe)}` : ''}`, montant };
     if (p.etat === 'a_payer')
-      return `${quoi} : ${francs(p.montantXaf)}, à payer (semaine du ${vendrediLong(p.vendredi)} close).`;
-    return `${quoi} : ${francs(p.montantXaf)}, à payer ${vendrediLong(p.vendredi)} si rien ne change.`;
+      return { texte: `${quoi} : à payer (semaine du ${vendrediLong(p.vendredi)} close)`, montant };
+    return { texte: `Comptée dans la paie du ${vendrediLong(p.vendredi)}`, montant };
   }
-  if (paieInconnue) return 'La paie s’affiche dès que le téléphone capte.';
-  if (statut === 'refuse') return 'Une fiche refusée n’est pas payée.';
+  if (paieInconnue)
+    return { texte: 'La paie s’affiche dès que le téléphone capte.', montant: null };
+  if (statut === 'refuse') return { texte: 'Une fiche refusée n’est pas payée.', montant: null };
   if (statut === 'accepte')
-    return 'Elle ne figure dans aucune ligne de paie (lot d’essai, correction, ou école déjà relevée par un autre relais).';
-  return 'Elle sera payée si NTanova l’accepte.';
+    return {
+      texte:
+        'Elle ne figure dans aucune ligne de paie (lot d’essai, correction, ou école déjà relevée par un autre relais).',
+      montant: null,
+    };
+  return { texte: 'Elle sera payée si NTanova l’accepte.', montant: null };
 }

@@ -12,8 +12,13 @@ import { libelleNiveau } from '../../../modele/libelles';
 import type { Valeur } from '../../../modele/listes';
 import { francs } from '../../../modele/paie';
 import { lireMemoire, useRequete } from '../base-locale';
-import { Icone, PastilleReseau } from '../composants';
 import { aller } from '../contexte';
+import { cn } from '@/lib/utils';
+import { Button } from '@/ui/shadcn/button';
+import { IconeAlerte, IconeAller, IconeRepere } from '@/ui/shadcn/icones';
+import { EnTeteRetour, PiedFixe, Surtitre } from '../cadre';
+import { Bande, ChargementEcran, EtatVide } from '../etats';
+import { MiniCarte } from '../mini-carte';
 import { commencerContreVisite } from './Ajouter';
 import { PasPu } from './MonLot';
 
@@ -32,139 +37,143 @@ const jourLong = (j: string): string =>
 export function Mission({ ecoleId }: { ecoleId: string }) {
   const ecoles = useRequete(() => lireMemoire('aCompleter'));
   const [avis, setAvis] = useState<string | null>(null);
-  if (ecoles === undefined) return <div className="ecran" aria-busy="true" />;
+  if (ecoles === undefined) return <ChargementEcran titre="Une mission" />;
   const e = ecoles.find((x) => x.id === ecoleId);
+  const retard = !!e?.avantLe && jourDuCongo() > e.avantLe;
 
   return (
     <div className="ecran">
-      <header className="entete-etape">
-        <button
-          type="button"
-          className="bouton-icone"
-          aria-label="Retour aux missions"
-          onClick={() => aller('missions')}
-        >
-          <Icone nom="retour" taille={22} />
-        </button>
-        <span className="entete-etape-titre">Une mission</span>
-        <PastilleReseau />
-      </header>
-      <main className="contenu-relais pile-serree">
-        {!e ? (
-          <>
-            <h1 className="titre-ecran" tabIndex={-1}>
-              Mission terminée
-            </h1>
-            <p>
-              Cette mission n’est plus sur le téléphone : elle est faite, ou NTanova l’a retirée.
-            </p>
-            <button type="button" className="bouton" onClick={() => aller('missions')}>
-              Retour aux missions
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="mention">
-              Confiée par NTanova
-              {e.confieeLe ? ` le ${jourLong(jourDuCongo(new Date(e.confieeLe)))}` : ''}
-            </p>
-            <section className="carte-blanche pile-serree" aria-label="L’école">
-              {e.quartier && <p className="surtitre">{e.quartier}</p>}
-              <h1 className="intertitre mission-nom" tabIndex={-1}>
-                {e.nom}
-              </h1>
-              <p className="texte-doux">
-                {[
-                  e.etiquette,
-                  e.niveaux.map((n) => libelleNiveau[n as Valeur<'niveau'>] ?? n).join(', '),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
-              {(e.repere || e.quartier) && (
-                <p>
-                  {e.repere && <b>{e.repere}</b>}
-                  {e.repere && e.quartier ? ' · ' : ''}
-                  {e.quartier}
-                </p>
-              )}
+      <EnTeteRetour
+        titre="Une mission"
+        retour="missions"
+        libelleRetour="Retour aux missions"
+        sousTitre={
+          e
+            ? `Confiée par NTanova${e.confieeLe ? ` le ${jourLong(jourDuCongo(new Date(e.confieeLe)))}` : ''}`
+            : undefined
+        }
+      />
+      {!e ? (
+        <main className="flex flex-1 flex-col gap-3.5 px-4 py-3.5">
+          <EtatVide
+            titre="Mission terminée"
+            action={
+              <Button variant="outline" onClick={() => aller('missions')}>
+                Retour aux missions
+              </Button>
+            }
+          >
+            Cette mission n’est plus sur le téléphone : elle est faite, ou NTanova l’a retirée.
+          </EtatVide>
+        </main>
+      ) : (
+        <>
+          <main className="flex flex-1 flex-col gap-3.5 px-4 py-3.5">
+            <section
+              aria-label="L’école"
+              className="flex flex-col overflow-hidden rounded-lg border border-border bg-card"
+            >
+              {e.position && <MiniCarte position={e.position} libelle="L’école sur le plan" />}
+              <div className="flex flex-col gap-1 px-3.5 py-3">
+                <h2 className="m-0 font-serif text-lg leading-snug font-bold">{e.nom}</h2>
+                <span className="text-[13px] text-muted-foreground">
+                  {[
+                    e.etiquette,
+                    e.niveaux.map((n) => libelleNiveau[n as Valeur<'niveau'>] ?? n).join(', '),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+                {(e.repere || e.quartier) && (
+                  <span className="flex items-center gap-1.5 text-[15px]">
+                    <IconeRepere className="size-[18px] text-primary" />
+                    <span>
+                      {e.repere && <b>{e.repere}</b>}
+                      {e.repere && e.quartier ? ' · ' : ''}
+                      {e.quartier}
+                    </span>
+                  </span>
+                )}
+              </div>
               {e.position && (
-                <a
-                  className="bouton bouton-secondaire"
-                  href={lienGoogleMaps(e.position)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Icone nom="carte" />Y aller
-                </a>
+                <div className="px-3.5 pb-3.5">
+                  <Button variant="outline" size="lg" className="w-full" asChild>
+                    <a href={lienGoogleMaps(e.position)} target="_blank" rel="noopener noreferrer">
+                      <IconeAller />Y aller
+                    </a>
+                  </Button>
+                </div>
               )}
             </section>
 
-            <section className="carte-blanche pile-serree" aria-label="Ce qu’il faut faire">
-              <h2 className="surtitre-doux">Ce qu’il faut faire</h2>
-              <p>
-                <b>{e.tache ?? consigne[e.genre]}</b>
-              </p>
-              {e.raison && <p className="texte-doux">Pourquoi&nbsp;: {e.raison}</p>}
+            <section
+              aria-label="Ce qu’il faut faire"
+              className="flex flex-col gap-2 rounded-lg border-2 border-primary bg-card p-3.5"
+            >
+              <Surtitre>Ce qu’il faut faire</Surtitre>
+              <b className="text-[17px]">{e.tache ?? consigne[e.genre]}</b>
+              {e.raison && <p className="m-0 text-[15px]">Pourquoi&nbsp;: {e.raison}</p>}
               {texteDestineAuRelais(e.note) && (
-                <p className="texte-doux">À vérifier&nbsp;: {texteDestineAuRelais(e.note)}</p>
+                <p className="m-0 text-[15px]">À vérifier&nbsp;: {texteDestineAuRelais(e.note)}</p>
               )}
               {(e.avantLe || e.paieXaf) && (
-                <dl className="mission-chiffres">
+                <dl className="m-0 flex flex-col gap-2 border-t border-border pt-2 text-[15px]">
                   {e.avantLe && (
-                    <div>
-                      <dt>Avant le</dt>
-                      <dd className={jourDuCongo() > e.avantLe ? 'en-retard' : undefined}>
+                    <div className="flex justify-between gap-2.5">
+                      <dt className="text-muted-foreground">Avant le</dt>
+                      <dd className={cn('m-0 font-bold', retard && 'text-destructive')}>
                         {jourLong(e.avantLe)}
-                        {jourDuCongo() > e.avantLe ? ' · en retard' : ''}
+                        {retard ? ' · en retard' : ''}
                       </dd>
                     </div>
                   )}
                   {e.paieXaf ? (
-                    <div>
-                      <dt>Paie de la mission</dt>
-                      <dd>{francs(e.paieXaf)}</dd>
+                    <div className="flex justify-between gap-2.5">
+                      <dt className="text-muted-foreground">Paie de la mission</dt>
+                      <dd className="m-0 font-bold tabular-nums">{francs(e.paieXaf)}</dd>
                     </div>
                   ) : null}
                 </dl>
               )}
             </section>
 
-            <section className="carte-blanche pile-serree" aria-label="À dire en entrant">
-              <h2 className="surtitre-doux">À dire en entrant</h2>
-              <p>{PHRASE_DE_MISSION}</p>
+            <section
+              aria-label="À dire en entrant"
+              className="flex flex-col gap-1.5 rounded-lg bg-muted p-3.5"
+            >
+              <b>À dire en entrant</b>
+              <p className="m-0 text-[15px]">{PHRASE_DE_MISSION}</p>
             </section>
 
-            {avis && (
-              <p className="message-attention" role="status">
-                {avis}
-              </p>
-            )}
             {e.missionId && <PasPu missionId={e.missionId} apres={() => aller('missions')} />}
-            <div className="barre-mission">
-              <button
-                type="button"
-                className="bouton bouton-large"
-                onClick={() =>
-                  void commencerContreVisite(e).then((issue) =>
-                    setAvis(
-                      issue === 'ok'
-                        ? null
-                        : 'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Reprendre la fiche en cours »).',
-                    ),
-                  )
-                }
-              >
-                <Icone nom="photo" />
-                Prendre la photo
-              </button>
-              <p className="mention">
-                La fiche s’ouvre sur la photo et la position ; l’école est déjà connue.
-              </p>
-            </div>
-          </>
-        )}
-      </main>
+          </main>
+          <PiedFixe>
+            {avis && (
+              <Bande ton="attention" role="status" icone={<IconeAlerte />}>
+                <p>{avis}</p>
+              </Bande>
+            )}
+            <Button
+              size="xl"
+              className="w-full"
+              onClick={() =>
+                void commencerContreVisite(e).then((issue) =>
+                  setAvis(
+                    issue === 'ok'
+                      ? null
+                      : 'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Reprendre la fiche en cours »).',
+                  ),
+                )
+              }
+            >
+              Prendre la photo
+            </Button>
+            <span className="text-center text-[13px] text-muted-foreground">
+              La fiche s’ouvre sur la photo et la position ; l’école est déjà connue.
+            </span>
+          </PiedFixe>
+        </>
+      )}
     </div>
   );
 }
