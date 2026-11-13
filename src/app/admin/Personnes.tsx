@@ -106,14 +106,14 @@ export function Personnes({
         {detail.direction === 'refus' && personnes.length > 0 && <p>La direction a refusé.</p>}
 
         {personnes.length > 0 && (
-          <ul className="pile admin-personnes" aria-label="Personnes à contacter">
+          <ul className="m-0 flex list-none flex-col gap-3 p-0" aria-label="Personnes à contacter">
             {personnes.map((c) => (
               <li key={c.id} className={v2.pileSerree}>
                 {plusieurs && <h4 className={v2.rang}>{libellePersonne(c)}</h4>}
                 {c.releveId && c.releveId !== id && (
                   <p className={v2.mention}>Ce contact est arrivé avec la fiche d’origine.</p>
                 )}
-                <dl className="admin-champs">
+                <dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-2 text-[15px] [&_dd]:m-0 [&_dd]:font-bold [&_dt]:text-sm [&_dt]:text-muted-foreground">
                   {c.fonction && (
                     <>
                       <dt>Fonction</dt>

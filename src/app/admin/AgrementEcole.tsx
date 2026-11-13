@@ -109,7 +109,7 @@ export function AgrementEcole({
           rien. Cette ligne cite un document : ni badge, ni garantie de NTanova.
         </p>
         {agrements.length > 0 && (
-          <ul className="admin-frais-liste">
+          <ul className="m-0 flex list-none flex-col gap-2.5 p-0 [&>li]:flex [&>li]:flex-col [&>li]:gap-1.5 [&>li]:rounded-lg [&>li]:border [&>li]:border-border [&>li]:p-3 [&_p]:m-0">
             {agrements.map((a) => (
               <li key={a.id}>
                 <b>

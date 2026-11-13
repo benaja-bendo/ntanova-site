@@ -187,7 +187,7 @@ export function Formations({
             )}
             {siennes.length > 0 && (
               <ul
-                className="admin-liste"
+                className="m-0 flex list-none flex-col gap-2 p-0"
                 aria-label={`Formations notées : ${libelleNiveau[cycle]}`}
               >
                 {siennes.map((f) => (

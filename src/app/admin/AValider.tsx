@@ -756,7 +756,7 @@ function Detail({
 
   if (!detail) {
     return (
-      <section className="admin-detail" aria-busy={!erreur}>
+      <section className="flex-1 p-4" aria-busy={!erreur}>
         {erreur ? <p className={v2.erreur}>{erreur}</p> : <p>Chargement…</p>}
       </section>
     );

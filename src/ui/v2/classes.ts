@@ -1,6 +1,6 @@
 /**
  * Les classes Tailwind des pièces simples des écrans v2 (refonte, lot 2), nommées une fois : ce qui s'écrivait avant
- * `className="bouton bouton-secondaire"` ou `className="mention"` (composants.css, admin.css) s'écrit
+ * `className="bouton bouton-secondaire"` ou `className="mention"` (composants.css, l'ancien admin.css) s'écrit
  * `className={v2.boutonSecondaire}` ou `className={v2.mention}`. Couleurs du thème seulement (les jetons).
  */
 import { cn } from '@/lib/utils';

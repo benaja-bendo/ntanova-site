@@ -121,7 +121,7 @@ export function FormationsSuperieur({
           les informations de l’école.
         </p>
       ) : (
-        <ul className="admin-frais-liste">
+        <ul className="m-0 flex list-none flex-col gap-2.5 p-0 [&>li]:flex [&>li]:flex-col [&>li]:gap-1.5 [&>li]:rounded-lg [&>li]:border [&>li]:border-border [&>li]:p-3 [&_p]:m-0">
           {formations.map((f) => (
             <li key={f.id} className={v2.pileSerree}>
               <b>

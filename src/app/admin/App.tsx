@@ -17,7 +17,6 @@ import { Paie } from './Paie';
 import { Sante } from './Sante';
 import { Aujourdhui } from './Aujourdhui';
 import { Zones } from './Zones';
-import './admin.css';
 import '@/ui/shadcn/theme.css';
 
 type Acces = 'verification' | 'admin' | 'refuse' | 'erreur';

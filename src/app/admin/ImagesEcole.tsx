@@ -118,7 +118,7 @@ export function ImagesEcole({
                     : 'Pas d’image dans la galerie : la rubrique « Photos » n’existe pas sur la page.'}
               </p>
             ) : (
-              <ul className="admin-medias">
+              <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 [&_img]:aspect-[4/3] [&_img]:w-full [&_img]:rounded-md [&_img]:object-cover">
                 {liste.map((m) => (
                   <li key={m.id}>
                     {m.adresse && (

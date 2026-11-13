@@ -3,10 +3,11 @@
  * navigateur intégré (WhatsApp…), où Google refuse la connexion. Partagé par
  * l'espace relais et l'administration.
  */
+import { buttonVariants } from '@/ui/shadcn/button';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { PUBLIC_GOOGLE_CLIENT_ID } from 'astro:env/client';
 import type { PortSession } from '../../modele/ports';
-import { Icone } from '../../ui/composants';
+import { Icone } from '@/ui/v2/formulaire';
 import { afficherBoutonGoogle, lienChrome, navigateurIntegre } from './google';
 
 function abonnerReseau(rappel: () => void) {
@@ -73,11 +74,11 @@ export function BoutonGoogle({
 
   if (integre) {
     return (
-      <div className="pile">
-        <a className="bouton" href={lienChrome()}>
+      <div className="flex flex-col gap-4">
+        <a className={buttonVariants({ size: 'xl' })} href={lienChrome()}>
           Ouvrir dans Chrome
         </a>
-        <p className="mention centre">
+        <p className="m-0 text-center text-sm text-muted-foreground">
           Google refuse la connexion dans WhatsApp. Ouvrez la page dans Chrome, puis connectez-vous.
         </p>
       </div>
@@ -85,23 +86,27 @@ export function BoutonGoogle({
   }
   if (!enLigne) {
     return (
-      <p className="bandeau bandeau-attente">
+      <p className="m-0 flex items-start gap-2.5 rounded-md bg-attention px-3 py-2.5 text-sm text-attention-foreground">
         <Icone nom="horsLigne" />
         {horsLigne}
       </p>
     );
   }
   return (
-    <div className="pile">
+    <div className="flex flex-col gap-4">
       {faux ? (
-        <button type="button" className="bouton" onClick={() => void connecter('faux', 'faux')}>
+        <button
+          type="button"
+          className={buttonVariants({ size: 'xl' })}
+          onClick={() => void connecter('faux', 'faux')}
+        >
           Continuer avec mon compte Google
         </button>
       ) : (
         <div ref={zone} className="zone-google" aria-busy={attente} />
       )}
       {(erreur ?? erreurConfiguration) && (
-        <p className="message-erreur centre" role="alert">
+        <p className="m-0 text-center text-sm font-bold text-destructive" role="alert">
           {erreur ?? erreurConfiguration}
         </p>
       )}
