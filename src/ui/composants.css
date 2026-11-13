@@ -8,10 +8,10 @@
   min-height: var(--cible-principale);
   padding: var(--espace-3) var(--espace-5);
   border: 2px solid var(--marque);
-  border-radius: var(--rayon-pilule);
+  border-radius: var(--rayon-s);
   background: var(--marque);
   color: var(--texte-sur-marque);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-courante);
   font-weight: 700;
   line-height: 1.2;
@@ -20,10 +20,21 @@
   cursor: pointer;
 }
 
-.bouton:hover,
+/* Le survol n'existe qu'avec une souris (v2, 12/11) : au doigt, l'appui seul répond, d'un pixel de course. */
+@media (hover: hover) {
+  .bouton:hover {
+    background: var(--marque-appuyee);
+    border-color: var(--marque-appuyee);
+  }
+  .bouton-secondaire:hover {
+    background: var(--vert-pale);
+    color: var(--marque-appuyee);
+  }
+}
 .bouton:active {
   background: var(--marque-appuyee);
   border-color: var(--marque-appuyee);
+  transform: translateY(1px);
 }
 
 .bouton:disabled,
@@ -39,7 +50,6 @@
   color: var(--marque);
 }
 
-.bouton-secondaire:hover,
 .bouton-secondaire:active {
   background: var(--vert-pale);
   color: var(--marque-appuyee);
@@ -132,8 +142,8 @@
 .surtitre,
 .surtitre-doux {
   margin: 0;
-  color: var(--erreur);
-  font-family: var(--police-titre);
+  color: var(--texte-doux);
+  font-family: var(--police-interface);
   font-size: var(--taille-mention);
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -229,14 +239,14 @@ label.bouton {
 
 .champ-groupe label,
 .choix legend {
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-secondaire);
   font-weight: 700;
 }
 
 .facultatif {
   color: var(--texte-doux);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .champ:disabled {
@@ -320,9 +330,9 @@ textarea.champ {
   align-items: flex-start;
   gap: var(--espace-3);
   min-height: var(--cible-min);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-secondaire);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .case input {
@@ -352,7 +362,7 @@ textarea.champ {
 }
 
 .bandeau-titre {
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-courante);
   font-weight: 700;
 }
@@ -704,7 +714,7 @@ textarea.champ {
   content: '−';
 }
 .section-repliable-titre {
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-weight: 700;
   color: var(--marque);
 }

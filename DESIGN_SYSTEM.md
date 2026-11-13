@@ -1,6 +1,6 @@
 # Système de design NTanova (v2)
 
-> **Cible décidée par le fondateur le 12/11/2026.** Ce fichier décrit le code. Les lignes marquées **v2** ne sont vraies qu'une fois le ticket « jetons v2 » fusionné ; d'ici là, `src/ui/jetons.css` et `src/ui/composants.css` font foi. Lire ce fichier avant de créer ou de modifier un composant.
+> **Cible décidée par le fondateur le 12/11/2026.** Ce fichier décrit le code. Les lignes marquées **v2** sont vraies depuis le lot A du ticket 165 (13/11), sauf Tailwind et shadcn, branchés au lot B. Lire ce fichier avant de créer ou de modifier un composant.
 
 ## 1. Les règles qui tiennent tout
 

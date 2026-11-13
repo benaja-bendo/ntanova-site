@@ -40,6 +40,24 @@ import Icone from './Icone.astro';
 import InscriptionsEcole from './InscriptionsEcole.astro';
 import LigneAgrement from './LigneAgrement.astro';
 import MotDirectionEcole from './MotDirectionEcole.astro';
+import AdmissionEcole from './fiche/AdmissionEcole.astro';
+import FraisDeLaFiche from './fiche/FraisDeLaFiche.astro';
+import GalerieEcole from './fiche/GalerieEcole.astro';
+import NouvellesEcole from './fiche/NouvellesEcole.astro';
+import SitesEcole from './fiche/SitesEcole.astro';
+import { libelleHoraire } from '../modele/libelles';
+import {
+  admissionAMontrer,
+  cheminMedia,
+  dossiersOuverts,
+  estDuSuperieur,
+  ficheCourte,
+  ligneDIdentite,
+  lignesDeFraisDeLEcole,
+  nouvellesAMontrer,
+  rondDeLEcole,
+  rubriquesDeLaFiche,
+} from '../modele/vitrine';
 
 interface Props {
   e: EcolePubliee;
@@ -118,6 +136,48 @@ const hote = new URL(lienCourt(e), Astro.site ?? Astro.url).host;
 
 // La prochaine date limite annoncée : calculée à la construction, elle disparaît une fois passée.
 const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
+
+// v2 (13/11, canevas « Fiche d'école ») ------------------------------------------------------------------------------------
+// Une rubrique sans donnée n'existe pas : ni bloc, ni lien dans la barre des rubriques. Une fiche « courte » (le nom, les
+// niveaux, le lieu) porte une seule carte sobre en bas, « Vous êtes de l'école ? » (décision du fondateur du 13/11).
+const aujourdhui = jourDuCongo();
+const superieur = estDuSuperieur(e);
+const rond = rondDeLEcole(e);
+const suiteIdentite = ligneDIdentite({ ...e, etiquette: null }, 1);
+const couverture = e.medias?.couverture ?? null;
+const galerie = e.medias?.galerie ?? [];
+// La photo d'enseigne d'avant (choisie ou retenue d'office) : seule, dans « Photos », quand l'école n'a ni couverture ni galerie.
+const photoSeule = !couverture && galerie.length === 0 ? (e.photo ?? null) : null;
+const nouvelles = nouvellesAMontrer(e.nouvelles ?? [], aujourdhui);
+const admission = admissionAMontrer(e.admission, aujourdhui) ? (e.admission ?? null) : null;
+const ouverts = dossiersOuverts(e.admission, aujourdhui);
+const fraisEcole = lignesDeFraisDeLEcole(e.frais ?? []);
+const horaires = e.horaires ?? [];
+const equipements = e.equipements ?? [];
+const avecMot = confirmee && !!e.motDirection;
+// L'ancre « L'école » se pose sur le premier bloc présent de la rubrique.
+const premierDeLEcole = avecMot
+  ? 'mot'
+  : aSavoir
+    ? 'savoir'
+    : inscription
+      ? 'inscription'
+      : equipements.length > 0
+        ? 'equipements'
+        : null;
+const ancre = (bloc: string) => (premierDeLEcole === bloc ? 'ecole' : undefined);
+const rubriques = rubriquesDeLaFiche({
+  ecole: premierDeLEcole !== null,
+  formations: e.formations.length > 0,
+  admission: !!admission,
+  photos: galerie.length > 0 || !!photoSeule,
+  frais: fraisEcole.length > 0,
+  nouvelles: nouvelles.length > 0,
+});
+const courte = ficheCourte(e);
+const lienPhotos = `${lienEcole(e)}photos/`;
+const joursRestants = (n: number) =>
+  n <= 0 ? 'Dernier jour.' : n === 1 ? 'Plus qu’un jour.' : `Plus que ${n} jours.`;
 ---
 
 <article class="cadre page fiche">
@@ -136,16 +196,49 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
 
   <div class="fiche-entete">
     <div class="fiche-couverture">
-      <CouvertureEcole lettre={lettreEcole} />
+      {couverture ? (
+        <img
+          class="couverture-photo"
+          src={cheminMedia(couverture, 'couverture')}
+          alt={`Vue de ${e.nom}`}
+          width="720"
+          height="300"
+          decoding="async"
+          fetchpriority="high"
+        />
+      ) : (
+        <CouvertureEcole lettre={lettreEcole} />
+      )}
     </div>
 
     <div class="fiche-tete">
       <div class="fiche-identite">
-        <span class={`${classeDisque(lettreEcole)} disque-fiche`} aria-hidden="true">
-          {lettreEcole}
-        </span>
+        {rond.genre === 'logo' ? (
+          <span class="rond-ecole rond-logo">
+            <img
+              src={cheminMedia(rond.media, 'logo')}
+              alt={`Logo de ${e.nom}`}
+              width="76"
+              height="76"
+            />
+          </span>
+        ) : rond.genre === 'sigle' ? (
+          <span class="rond-ecole rond-sigle" aria-hidden="true">
+            {rond.texte}
+          </span>
+        ) : (
+          <span class={`${classeDisque(lettreEcole)} disque-fiche`} aria-hidden="true">
+            {lettreEcole}
+          </span>
+        )}
         <h1>{e.nom}</h1>
-        {e.etiquette && <p class="etiquette-campus">{e.etiquette}</p>}
+        {(e.etiquette || suiteIdentite) && (
+          <p class="fiche-ligne">
+            {e.etiquette && <span class="etiquette-campus">{e.etiquette}</span>}
+            {e.etiquette && suiteIdentite && ' · '}
+            {suiteIdentite}
+          </p>
+        )}
         <p class="fiche-lieu">
           <Icone nom="lieu" />
           <span>
@@ -155,7 +248,7 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
         </p>
         {e.agrement && <LigneAgrement agrement={e.agrement} />}
 
-        {(puces.length > 0 || typeSeLit || rythme) && (
+        {(puces.length > 0 || typeSeLit || rythme || horaires.length > 0) && (
           <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
             {puces.map((p) => (
               <li class="etiquette-niveau">
@@ -166,33 +259,11 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
               </li>
             ))}
             {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
+            {horaires.map((h) => (
+              <li class="etiquette-type">{libelleHoraire[h]}</li>
+            ))}
             {rythme && <li class="etiquette-type">{rythme}</li>}
           </ul>
-        )}
-
-        {autres.length > 0 && (
-          <details class="sites-ecole">
-            <summary>Changer de site</summary>
-            <section class="autres" aria-label="Autres implantations">
-              <h2>Autres sites</h2>
-              <p class="texte-doux">Sites publiés dans l’annuaire</p>
-              <ul>
-                {autres.map((a) => (
-                  <li>
-                    <a href={lienEcole(a)}>
-                      <b>{a.etiquette ?? a.nom}</b>
-                      <span class="texte-doux">
-                        {ligneDeLieu(a.quartier, a.divisionNoms)}
-                        {a.niveaux.length > 0
-                          ? ` · ${a.niveaux.map((n) => libelleNiveau[n]).join(', ')}`
-                          : ''}
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </details>
         )}
 
         <div class="preuves" aria-label="Sources de la fiche">
@@ -250,38 +321,92 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
     </div>
   </div>
 
+  <SitesEcole e={e} autres={autres} superieur={superieur} />
+
+  {rubriques.length > 0 && (
+    <nav class="rubriques" aria-label="Aller à une rubrique">
+      {rubriques.map((r) => (
+        <a href={`#${r.ancre}`}>{r.titre}</a>
+      ))}
+    </nav>
+  )}
+
+  {/* Sur téléphone, une seule colonne dans l'ordre du canevas (`o-…`) ; à partir de 64 rem, deux colonnes. */}
   <div class="fiche-corps">
     <div class="fiche-principale">
-      {confirmee && e.motDirection && <MotDirectionEcole mot={e.motDirection} />}
+      {e.formations.length > 0 && (
+        <div class="o-1">
+          <FormationsEcole e={e} />
+        </div>
+      )}
+      {admission && (
+        <div class="o-2">
+          <AdmissionEcole admission={admission} formations={e.formations} aujourdhui={aujourdhui} />
+        </div>
+      )}
+      {avecMot && (
+        <div class="o-3" id={ancre('mot')}>
+          <MotDirectionEcole mot={e.motDirection!} />
+        </div>
+      )}
       {aSavoir && !confirmee && (
-        <section class="a-savoir" aria-label="À savoir">
+        <section class="a-savoir o-4" aria-label="À savoir" id={ancre('savoir')}>
           <h2 class="titre-ordinateur">À savoir</h2>
           <ProprietesEcole e={e} diplomes={diplomes} />
         </section>
       )}
-
-      <FormationsEcole e={e} />
-      {inscription && <InscriptionsEcole inscription={inscription} />}
-      <EquipementsEcole equipements={e.equipements ?? []} />
-
-      {e.photo && (
-        <section class="photos" aria-label="Photos">
+      {inscription && (
+        <div class="o-5" id={ancre('inscription')}>
+          <InscriptionsEcole inscription={inscription} />
+        </div>
+      )}
+      {equipements.length > 0 && (
+        <div class="o-6">
+          <EquipementsEcole equipements={equipements} id={ancre('equipements')} />
+        </div>
+      )}
+      {galerie.length > 0 && (
+        <div class="o-7">
+          <GalerieEcole galerie={galerie} nom={e.nom} lienPhotos={lienPhotos} />
+        </div>
+      )}
+      {photoSeule && (
+        <section class="photos o-7" id="photos" aria-label="Photos">
           <h2>Photos</h2>
-          <PhotoEcole photo={e.photo} nom={e.nom} />
+          <PhotoEcole photo={photoSeule} nom={e.nom} />
         </section>
+      )}
+      {nouvelles.length > 0 && (
+        <div class="o-9">
+          <NouvellesEcole nouvelles={nouvelles} />
+        </div>
       )}
     </div>
 
     <div class="fiche-cote">
+      {ouverts && (
+        <section class="dossiers-ouverts o-0" aria-label="Dossiers ouverts">
+          <b>Dossiers ouverts jusqu’au {dateLongue(ouverts.jusquau)}</b>
+          <p>
+            {joursRestants(ouverts.joursRestants)} La date vient de l’école&nbsp;: vérifiez-la avant
+            de vous déplacer.
+          </p>
+        </section>
+      )}
       {aSavoir && confirmee && (
-        <section class="contact" aria-label="Contact">
-          <h2 class="titre-ordinateur">Contact</h2>
+        <section class="contact o-4" aria-label="Contact" id={avecMot ? undefined : 'ecole'}>
+          <h2>Contact</h2>
           <ProprietesEcole e={e} diplomes={diplomes} />
         </section>
       )}
+      {fraisEcole.length > 0 && (
+        <div class="o-8">
+          <FraisDeLaFiche frais={fraisEcole} />
+        </div>
+      )}
 
       {(e.repere || lienSurLaCarte) && (
-        <section class="bloc ou" aria-label="Où est l'école">
+        <section class="bloc ou o-10" aria-label="Où est l'école">
           <h2>{titreOuTrouver(e.nom)}</h2>
           {e.repere && (
             <p class="apercu-repere">
@@ -299,8 +424,21 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
         </section>
       )}
 
-      {!confirmee && (
-        <aside class="ecoles-appel">
+      {!confirmee && courte && (
+        <aside class="ecoles-appel ecoles-appel-court o-11">
+          <h2>Vous êtes de l’école&nbsp;?</h2>
+          <p>
+            Complétez cette fiche&nbsp;: photos, frais, contact. Rien n’est publié sans votre
+            accord.
+          </p>
+          <a class="bouton" href={confirmer ?? '/pour-les-ecoles/'}>
+            <Icone nom="bulle" />
+            Compléter cette fiche
+          </a>
+        </aside>
+      )}
+      {!confirmee && !courte && (
+        <aside class="ecoles-appel o-11">
           <h2>{invitationDirection(e.nom)}</h2>
           <p>
             Confirmez sa fiche avec nous&nbsp;: la date de votre accord y paraîtra. Ajoutez vos
@@ -315,7 +453,7 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
         </aside>
       )}
 
-      <div class="liens-fiche">
+      <div class="liens-fiche o-12">
         {confirmee && (
           <a href={confirmer ?? '/pour-les-ecoles/'}>
             <Icone nom="bulle" />
@@ -331,7 +469,7 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
       </div>
 
       {/* Ticket 147 : l'identifiant NTanova, permanent, et le lien court, la seule forme courte (`/ecoles/<identifiant>/`). */}
-      <div class="identifiant">
+      <div class="identifiant o-13">
         <p>
           Identifiant NTanova&nbsp;: <b>{e.numero}</b>
         </p>
@@ -548,12 +686,146 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
   }
 
   /* Sur téléphone, les blocs se suivent. Le titre d'« À savoir » et de « Contact » ne sert qu'en colonnes. */
-  .fiche-corps,
+  /*
+   * v2 (13/11) : un seul HTML. Sur téléphone, les deux colonnes s'effacent (`display: contents`) et les blocs suivent l'ordre du
+   * canevas (`o-…`) ; à partir de 64 rem, chaque colonne reprend sa grille, dans le même ordre.
+   */
+  .fiche-corps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-5);
+    min-width: 0;
+  }
   .fiche-principale,
   .fiche-cote {
+    display: contents;
+  }
+  .o-0 {
+    order: 0;
+  }
+  .o-1 {
+    order: 1;
+  }
+  .o-2 {
+    order: 2;
+  }
+  .o-3 {
+    order: 3;
+  }
+  .o-4 {
+    order: 4;
+  }
+  .o-5 {
+    order: 5;
+  }
+  .o-6 {
+    order: 6;
+  }
+  .o-7 {
+    order: 7;
+  }
+  .o-8 {
+    order: 8;
+  }
+  .o-9 {
+    order: 9;
+  }
+  .o-10 {
+    order: 10;
+  }
+  .o-11 {
+    order: 11;
+  }
+  .o-12 {
+    order: 12;
+  }
+  .o-13 {
+    order: 13;
+  }
+  [id] {
+    scroll-margin-top: 3.5rem;
+  }
+
+  /* La couverture photographiée : la même place que la couverture dessinée, recadrée. */
+  .couverture-photo {
+    width: 100%;
+    height: 168px;
+    object-fit: cover;
+    background: var(--fond-bande);
+  }
+  /* Le rond de l'école : son logo, sinon son sigle sur le vert foncé (décision du 12/11). */
+  .rond-ecole {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    overflow: hidden;
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px var(--fond);
+    background: var(--fond-releve);
+  }
+  .rond-sigle {
+    padding: var(--espace-1);
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+    font-family: var(--police-titre);
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .rond-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .fiche-ligne {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  /* La barre des rubriques : des ancres de la même page ; elle reste en haut au défilement et défile seule de côté. */
+  .rubriques {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    gap: var(--espace-5);
+    margin-inline: calc(var(--espace-4) * -1);
+    padding: 0 var(--espace-4);
+    overflow-x: auto;
+    border-block: 1px solid var(--trait);
+    background: var(--fond);
+  }
+  .rubriques a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--texte-doux);
+    font-family: var(--police-interface);
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  @media (hover: hover) {
+    .rubriques a:hover {
+      color: var(--marque);
+    }
+  }
+  .dossiers-ouverts {
     display: grid;
-    gap: var(--espace-4);
-    min-width: 0;
+    gap: var(--espace-2);
+    padding: var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--statut-attention-fond);
+    color: var(--statut-attention-texte);
+  }
+  .dossiers-ouverts b {
+    font-size: var(--taille-intertitre);
+  }
+  .ecoles-appel-court {
+    background: var(--vert-pale);
   }
   .titre-ordinateur {
     display: none;
@@ -644,46 +916,6 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
     min-height: var(--cible-min);
   }
 
-  .sites-ecole {
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-m);
-    background: var(--fond-releve);
-  }
-  .sites-ecole summary {
-    min-height: var(--cible-min);
-    padding: var(--espace-3) var(--espace-4);
-    color: var(--marque);
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .sites-ecole summary:focus-visible {
-    outline: var(--epaisseur-focus) solid var(--focus);
-    outline-offset: 2px;
-  }
-  .autres {
-    display: grid;
-    gap: var(--espace-3);
-    padding: 0 var(--espace-4) var(--espace-4);
-  }
-  .autres ul {
-    display: grid;
-    gap: var(--espace-2);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .autres a {
-    display: grid;
-    gap: var(--espace-1);
-    min-height: var(--cible-min);
-    color: var(--texte);
-    text-decoration: none;
-  }
-  .autres a:hover b {
-    color: var(--marque);
-    text-decoration: underline;
-  }
-
   /* À partir de 48 rem : la couverture en bandeau arrondi, les actions à droite du nom. */
   @media (min-width: 48rem) {
     .fiche {
@@ -719,6 +951,22 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
       font-size: 2.25rem;
       box-shadow: 0 0 0 6px var(--fond);
     }
+    .rond-ecole {
+      width: 84px;
+      height: 84px;
+      box-shadow: 0 0 0 6px var(--fond);
+    }
+    .rond-sigle {
+      font-size: 1.375rem;
+    }
+    .couverture-photo {
+      height: 220px;
+      border-radius: var(--rayon-l);
+    }
+    .rubriques {
+      margin-inline: 0;
+      padding: 0;
+    }
     .fiche-lieu {
       font-size: var(--taille-intertitre);
     }
@@ -749,9 +997,10 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
     }
   }
 
-  /* À partir de 64 rem : deux colonnes ; « À savoir » passe sous les photos, comme sur la maquette. */
+  /* À partir de 64 rem : deux colonnes, chacune dans l'ordre du canevas. */
   @media (min-width: 64rem) {
     .fiche-corps {
+      display: grid;
       grid-template-columns: minmax(0, 1fr) 20rem;
       gap: var(--espace-6);
       align-items: start;
@@ -764,8 +1013,12 @@ const inscription = prochaineInscription(e.inscriptions ?? [], jourDuCongo());
     .fiche-cote .titre-ordinateur {
       font-size: var(--taille-intertitre);
     }
-    .a-savoir {
-      order: 1;
+    .fiche-principale,
+    .fiche-cote {
+      display: grid;
+      align-content: start;
+      gap: var(--espace-5);
+      min-width: 0;
     }
     .identifiant {
       padding: var(--espace-3) var(--espace-4);

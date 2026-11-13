@@ -161,6 +161,61 @@ export const libelleRythme: Record<Valeur<'study_rhythm'>, string> = {
   weekend: 'Cours du week-end',
 };
 
+/** v2 (13/11) : le moment des cours d'un site, dit par l'école (« Le matin »). */
+export const libelleHoraire: Record<Valeur<'study_shift'>, string> = {
+  matin: 'Le matin',
+  apres_midi: 'L’après-midi',
+  journee: 'Toute la journée',
+  soir: 'Le soir',
+};
+
+/** v2 (13/11) : la langue d'enseignement d'un site. */
+export const libelleLangue: Record<Valeur<'teaching_language'>, string> = {
+  francais: 'Français',
+  anglais: 'Anglais',
+  lingala: 'Lingala',
+  kituba: 'Kituba',
+  autre: 'Autre langue',
+};
+
+/** v2 (13/11) : ce que montre une image publique d'une école. */
+export const libelleSujetMedia: Record<Valeur<'media_subject'>, string> = {
+  logo: 'Logo',
+  enseigne: 'Enseigne',
+  portail: 'Portail',
+  batiment: 'Bâtiment',
+  cour: 'Cour',
+  salle: 'Salle',
+  terrain: 'Terrain',
+  activite: 'Activité',
+  autre: 'Photo',
+};
+
+/** v2 (13/11) : le genre d'une nouvelle. */
+export const libelleGenreNouvelle: Record<Valeur<'post_kind'>, string> = {
+  evenement: 'Événement',
+  inscriptions: 'Inscriptions',
+  vie_ecole: 'Vie de l’école',
+  autre: 'Autre',
+};
+
+/** v2 (13/11) : comment une formation du supérieur choisit ses étudiants. */
+export const libelleSelection: Record<Valeur<'selection_kind'>, string> = {
+  dossier: 'Dossier',
+  entretien: 'Entretien',
+  dossier_entretien: 'Dossier et entretien',
+  concours: 'Concours',
+  autre: 'Autre sélection',
+};
+
+/** v2 (13/11) : les étapes du calendrier d'admission. */
+export const libelleEtapeAdmission: Record<Valeur<'admission_step'>, string> = {
+  dossiers: 'Dossiers',
+  selection: 'Concours ou entretien',
+  resultats: 'Résultats',
+  rentree: 'Rentrée',
+};
+
 /** Ce que montre une photo, dans les mots du relais. */
 export const libelleRolePhoto: Record<Valeur<'photo_role'>, string> = {
   signboard: "L'enseigne ou l'entrée",

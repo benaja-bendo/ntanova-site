@@ -198,7 +198,7 @@ test.describe('site public', () => {
       await expect(
         page.getByRole('heading', { name: '[Groupe scolaire Exemple]', level: 1 }),
       ).toBeVisible();
-      await expect(page.getByText('Campus du quartier', { exact: true })).toBeVisible();
+      await expect(page.locator('.etiquette-campus')).toHaveText('Campus du quartier');
       await expect(page.getByText(/Confirmée par la direction · 4 nov. 2026/)).toBeVisible();
       // Le lieu, du plus fin au plus large, sans répéter Pointe-Noire (ville et département).
       await expect(page.locator('.fiche-lieu')).toHaveText(
@@ -214,17 +214,16 @@ test.describe('site public', () => {
         '/ecoles/?serie=c',
       );
       // L'autre implantation de la même école.
-      await page.locator('.sites-ecole summary').click();
-      const autres = page.getByRole('region', { name: 'Autres implantations' });
-      await autres.getByRole('link', { name: /Campus de Mongo-Mpoukou/ }).click();
+      // v2 (13/11) : « Les 2 sites de l'école », une carte par site.
+      const sites = page.getByRole('region', { name: 'Les sites de l’école' });
+      await sites.getByRole('link', { name: /Campus de Mongo-Mpoukou/ }).click();
       await expect(page).toHaveURL(/\/ecoles\/groupe-scolaire-exemple-904316\/$/);
       await expect(
         page.getByText('Campus de Mongo-Mpoukou', { exact: true }).first(),
       ).toBeVisible();
-      await page.locator('.sites-ecole summary').click();
       await expect(
         page
-          .getByRole('region', { name: 'Autres implantations' })
+          .getByRole('region', { name: 'Les sites de l’école' })
           .getByRole('link', { name: /Campus du quartier/ }),
       ).toBeVisible();
     });

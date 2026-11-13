@@ -22,7 +22,7 @@ const SITE: Record<string, string> = {
   'relais/manifest.webmanifest': '{}',
   'relais/icone-192.png': 'png',
   'favicon.svg': '<svg/>',
-  'polices/poppins-latin-700-normal.woff2': 'police',
+  'polices/source-serif-4-latin-700-normal.woff2': 'police',
   // Ce que le relais charge : la page, son îlot, son moteur React, un morceau commun, un adaptateur appelé à la demande
   // (`import()`), et ce que cet adaptateur importe à son tour.
   '_astro/App.rel1.css': '.relais{}',
@@ -95,7 +95,7 @@ describe('ce que le service worker du relais garde pour le hors ligne', () => {
         '/_astro/commun.cm1.js',
         '/_astro/adaptateur.ad1.js',
         '/_astro/erreurs.er1.js',
-        '/polices/poppins-latin-700-normal.woff2',
+        '/polices/source-serif-4-latin-700-normal.woff2',
         '/favicon.svg',
         '/relais/manifest.webmanifest',
         '/relais/icone-192.png',
@@ -148,7 +148,7 @@ describe('la version du service worker du relais', () => {
       'import"./erreurs.er1.js";export const a=2;',
     ],
     ['ce que cet adaptateur importe', '_astro/erreurs.er1.js', 'export const e=2;'],
-    ['une police', 'polices/poppins-latin-700-normal.woff2', 'autre police'],
+    ['une police', 'polices/source-serif-4-latin-700-normal.woff2', 'autre police'],
     ['l’icône', 'relais/icone-192.png', 'autre icône'],
     [
       'la page du guide',

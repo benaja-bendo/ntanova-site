@@ -35,6 +35,13 @@
   --gris-fond: #f7f8f6; /* le fond des pages : encre 15,3:1, encre-75 7,0:1, vert 7,4:1 */
   --gris-bande: #eef1ee; /* la bande d'une section : encre-75 6,6:1, vert 6,9:1 */
   --gris-filet: #e3e6e3; /* filets décoratifs */
+  /*
+   * Le système de design v2 (arbitrage du fondateur du 12/11/2026) : la pierre, plus chaude, remplace les gris du 03/11
+   * pour le fond des écrans. Le fond de la carte interactive (--gris-terre, --fond-de-carte-…) ne change pas.
+   */
+  --pierre: #f8f6f2; /* fond des écrans : encre 15,1:1, encre-75 6,9:1, vert 7,3:1, rouge-texte 5,6:1 */
+  --pierre-bande: #efece6; /* bande d'une section, badge neutre : encre-75 6,4:1 */
+  --pierre-filet: #e6e2da; /* filet décoratif */
   /* Les preuves d'une fiche */
   --bleu-ardoise: #2f5d8a; /* « déclaré par l'école » : 6,5:1 sur le fond, 6,9:1 sur blanc */
   --gris-vide: #6b716c; /* « pas encore relevé », en texte : 4,7:1 sur le fond, 5,0:1 sur blanc */
@@ -64,19 +71,30 @@
   --jaune-avenue: #f6d27d;
 
   /* 2. Rôles : les composants n'utilisent que ceux-ci */
-  --fond: var(--gris-fond);
+  --fond: var(--pierre);
   --fond-releve: var(--blanc);
-  --fond-bande: var(--gris-bande);
+  --fond-bande: var(--pierre-bande);
   --texte: var(--encre);
   --texte-doux: var(--encre-75);
-  --trait: var(--gris-filet);
-  --trait-fort: var(--encre-50);
+  --trait: var(--pierre-filet); /* décoratif : il ne porte aucun sens */
+  --trait-fort: var(--encre-75); /* le bord qui porte du sens (champ, case) : 7,5:1 sur blanc */
   --marque: var(--vert);
   --marque-appuyee: var(--vert-profond);
   --texte-sur-marque: var(--creme);
   --accent: var(--jaune);
   --focus: var(--vert-profond);
+  --focus-sur-marque: var(--jaune); /* 6,2:1 sur le vert profond */
   --erreur: var(--rouge-texte);
+
+  /* Les statuts doux (v2) : des alias, aucune valeur nouvelle. Vert, jaune, rouge gardent le même sens partout. */
+  --statut-succes-fond: var(--vert-pale);
+  --statut-succes-texte: var(--vert-profond); /* 8,9:1 */
+  --statut-attention-fond: var(--jaune-pale);
+  --statut-attention-texte: var(--encre); /* 14,1:1 */
+  --statut-danger-fond: var(--rouge-pale);
+  --statut-danger-texte: var(--rouge-texte); /* 4,7:1 */
+  --statut-neutre-fond: var(--pierre-bande);
+  --statut-neutre-texte: var(--encre-75); /* 6,4:1 */
 
   /*
    * Les preuves d'une fiche publique (ticket #99) : confirmée par la direction, vue sur place par un
@@ -197,7 +215,10 @@
   --ombre-tiroir: 0 -6px 24px rgb(20 35 31 / 18%);
 
   /* 3. Typographie : échelle pour un écran de 360 px, texte courant à 16 px */
-  --police-titre: 'Poppins', system-ui, sans-serif;
+  /* v2 (12/11) : Source Serif 4 700 pour les titres et les noms d'écoles (jamais sous 16 px, jamais sur un bouton) ; */
+  /* Nunito Sans 700 pour l'interface (boutons, libellés, onglets, badges, navigation), 400 et 700 pour le texte. */
+  --police-titre: 'Source Serif 4', Georgia, serif;
+  --police-interface: 'Nunito Sans', system-ui, sans-serif;
   --police-texte: 'Nunito Sans', system-ui, sans-serif;
   --taille-mention: 0.75rem; /* 12 px */
   --taille-secondaire: 0.875rem; /* 14 px */
@@ -224,11 +245,12 @@
   --espace-6: 2rem; /* 32 */
   --espace-7: 3rem; /* 48 */
 
-  /* Rayons */
-  --rayon-s: 8px;
-  --rayon-m: 16px;
-  --rayon-l: 24px;
-  --rayon-pilule: 999px;
+  /* Rayons (v2) : la forme dit la fonction. Rectangle on agit, pilule ça qualifie, carte ça contient. */
+  --rayon-xs: 4px;
+  --rayon-s: 8px; /* boutons, champs, choix d'un formulaire */
+  --rayon-m: 12px; /* cartes, bandeaux, bulles, fenêtres */
+  --rayon-l: 16px; /* tiroirs, photos */
+  --rayon-pilule: 999px; /* badges d'état et puces de filtre seulement */
 
   /* Cibles à toucher */
   --cible-min: 44px;
@@ -236,9 +258,18 @@
   --hauteur-champ: 52px;
   --hauteur-pastille: 32px;
   --ecart-cibles: 8px;
+  --cible-dense: 36px; /* administration, à la souris ; 44 px dès que le pointeur est un doigt */
+  --duree: 120ms;
 
   /* Mise en page : une ligne de texte ne dépasse jamais 36 rem ; une page publique, 75 rem (planche ordinateur) */
   --largeur-texte: 36rem;
   --largeur-page: 75rem;
   --epaisseur-focus: 3px;
+}
+
+/* Sur une surface verte, le focus passe au jaune (v2). */
+.admin-cote,
+.bandeau-prive,
+.sur-marque {
+  --focus: var(--focus-sur-marque);
 }

@@ -3,6 +3,8 @@
 // et dd n'ont pas l'attribut de cette feuille, d'où `:global`.
 import type { EcolePubliee } from '../modele/ports';
 import { libelleProgramme } from '../modele/presentation-fiche';
+import { libelleLangue } from '../modele/libelles';
+import { siteWebLisible } from '../modele/vitrine';
 import ContactEcole from './ContactEcole.astro';
 interface Props {
   e: EcolePubliee;
@@ -19,6 +21,22 @@ const { e, diplomes } = Astro.props;
     </>
   )}
   <ContactEcole contact={e.contactPublic ?? null} enseigne={e.numeroEnseigne} />
+  {(e.langues ?? []).length > 0 && (
+    <>
+      <dt>{(e.langues ?? []).length > 1 ? 'Langues' : 'Langue'}</dt>
+      <dd>{(e.langues ?? []).map((l) => libelleLangue[l]).join(', ')}</dd>
+    </>
+  )}
+  {e.siteWeb && (
+    <>
+      <dt>Site web</dt>
+      <dd>
+        <a class="lien-cible" href={e.siteWeb} rel="nofollow noopener">
+          {siteWebLisible(e.siteWeb)}
+        </a>
+      </dd>
+    </>
+  )}
   {diplomes && (
     <>
       <dt>Diplômes</dt>
@@ -50,6 +68,11 @@ const { e, diplomes } = Astro.props;
     margin: 0;
     font-weight: 700;
     overflow-wrap: anywhere;
+  }
+  .lien-cible {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
   }
   .proprietes :global(dt:first-of-type),
   .proprietes :global(dt:first-of-type + dd) {

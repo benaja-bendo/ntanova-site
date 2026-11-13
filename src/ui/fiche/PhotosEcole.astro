@@ -1,0 +1,78 @@
+---
+// Toutes les photos d'une école (v2 du 13/11), en vignettes : la page a son propre budget de 200 Ko. Chaque photo a été
+// contrôlée par l'administration avant d'être publique ; aucune photo de travail (prospectus, programmes) n'y est.
+import { lienEcole } from '../../modele/geo-divisions';
+import { libelleSujetMedia } from '../../modele/libelles';
+import type { EcolePubliee } from '../../modele/ports';
+import { cheminMedia } from '../../modele/vitrine';
+interface Props {
+  e: EcolePubliee;
+}
+const { e } = Astro.props;
+const galerie = e.medias?.galerie ?? [];
+---
+
+<section class="cadre page photos-ecole">
+  <a class="retour" href={lienEcole(e)}>
+    ‹ {e.nom}
+  </a>
+  <h1>Les photos</h1>
+  <ul>
+    {galerie.map((m) => (
+      <li>
+        <figure>
+          <img
+            src={cheminMedia(m, 'vignette')}
+            alt={`${m.legende ?? libelleSujetMedia[m.sujet]}, ${e.nom}`}
+            width="400"
+            height="300"
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption>{m.legende ?? libelleSujetMedia[m.sujet]}</figcaption>
+        </figure>
+      </li>
+    ))}
+  </ul>
+  <p class="doux">Photos contrôlées par NTanova : aucun enfant, aucune personne reconnaissable.</p>
+</section>
+
+<style>
+  .photos-ecole {
+    display: grid;
+    gap: var(--espace-4);
+    padding-block: var(--espace-4) var(--espace-7);
+  }
+  .retour {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    font-weight: 700;
+  }
+  ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  figure {
+    display: grid;
+    gap: var(--espace-1);
+    margin: 0;
+  }
+  img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--rayon-m);
+    background: var(--fond-bande);
+  }
+  figcaption,
+  .doux {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+</style>

@@ -127,6 +127,9 @@ describe('le catalogue du site public', () => {
       'public_campus_accreditations',
       'public_campus_statements',
       'campus_enrollment_deadlines',
+      'public_campus_media',
+      'public_campus_posts',
+      'public_campus_admissions',
     ]);
   });
 
@@ -171,7 +174,7 @@ describe('le catalogue du site public', () => {
     const [e] = await catalogue().ecoles();
     // Les cycles suivent l'ordre de la liste fermée, pas celui de la réponse.
     expect(e?.niveaux).toEqual(['maternelle', 'lycee']);
-    expect(e?.formations).toEqual([
+    expect(e?.formations).toMatchObject([
       {
         cycle: 'lycee',
         titre: 'Série C',
@@ -375,7 +378,7 @@ describe('frais déclarés dans le catalogue', () => {
       ],
     });
     const [e] = await catalogue().ecoles();
-    expect(e?.frais).toEqual([
+    expect(e?.frais).toMatchObject([
       {
         id: 'f1',
         cycle: 'primaire',

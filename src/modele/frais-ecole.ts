@@ -20,6 +20,10 @@ export interface FraisASaisir {
 }
 export interface FraisEcole extends FraisASaisir {
   id: string;
+  /** v2 (13/11) : la classe (« CM2 », « 6e à 4e ») quand la ligne en précise une ; la formation du supérieur ; la preuve. */
+  classe?: string | null;
+  formationId?: string | null;
+  preuve?: 'declaration' | 'prospectus';
 }
 export interface SaisieFrais {
   cycle: string;

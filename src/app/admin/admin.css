@@ -43,7 +43,7 @@
   border-radius: var(--rayon-pilule);
   background: var(--accent);
   color: var(--texte);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-mention);
   font-weight: 700;
 }
@@ -74,7 +74,7 @@
   padding: 0 var(--espace-3);
   border-radius: var(--rayon-s);
   color: var(--texte-sur-marque);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-secondaire);
   font-weight: 700;
   text-decoration: none;
@@ -393,7 +393,7 @@
   padding: var(--espace-3) var(--espace-4);
   background: var(--fond);
   color: var(--texte-doux);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-mention);
   letter-spacing: 0.06em;
   text-align: left;
@@ -464,14 +464,14 @@
 .admin-chiffre-titre {
   margin: 0;
   color: var(--texte-doux);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-secondaire);
   font-weight: 700;
 }
 
 .admin-chiffre-valeur {
   margin: 0;
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-titre-page);
   font-weight: 700;
   line-height: var(--interligne-titre);
@@ -737,7 +737,7 @@
   padding: 0 var(--espace-4);
   border-radius: var(--rayon-pilule);
   color: var(--texte-doux);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-secondaire);
   font-weight: 700;
   text-decoration: none;
@@ -1024,7 +1024,7 @@ button.admin-zone-bascule:focus-visible {
 }
 
 .admin-stat b {
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-titre-page);
   line-height: var(--interligne-titre);
 }
@@ -1125,7 +1125,7 @@ button.admin-zone-bascule:focus-visible {
   border: 2px solid var(--trait-fort);
   border-radius: var(--rayon-m);
   background: var(--fond-releve);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-secondaire);
   font-weight: 600;
   text-align: center;
@@ -1319,7 +1319,7 @@ button.admin-zone-bascule:focus-visible {
   display: flex;
   align-items: center;
   min-height: var(--cible-min);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1529,7 +1529,7 @@ button.admin-zone-bascule:focus-visible {
 
 .admin-numero legend {
   padding: 0 var(--espace-2);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-weight: 600;
 }
 

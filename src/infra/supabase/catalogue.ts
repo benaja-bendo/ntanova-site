@@ -6,6 +6,8 @@ import { versFrais, type LigneFrais } from './frais';
 import type { MultiPolygone } from '../../modele/geo';
 import { sansRepetition } from '../../modele/geo-divisions';
 import type { DateInscription } from '../../modele/inscriptions';
+import { listes } from '../../modele/listes';
+import type { AdmissionPublique, MediaPublic, MediasEcole, NouvellePublique } from '../../modele/vitrine';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import type {
   DivisionPublique,
@@ -118,6 +120,30 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
       if(!r.ok) throw new Error(`Photo publique illisible (${r.status}).`);
       return new Uint8Array(await r.arrayBuffer());
     },
+    async lireMedia(id, miniature) {
+      if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Image publique inconnue.');
+      // Une image de la galerie, du logo ou de la couverture ; sinon celle d'une nouvelle, servie sous l'identifiant de la nouvelle.
+      const [m] = await lireTout<{ storage_path: string; thumb_path: string | null }>(
+        `public_campus_media?select=storage_path,thumb_path&id=eq.${id}`,
+      );
+      const [n] = m
+        ? []
+        : await lireTout<{ media_path: string | null; media_thumb_path: string | null }>(
+            `public_campus_posts?select=media_path,media_thumb_path&id=eq.${id}`,
+          );
+      const source = m
+        ? { plein: m.storage_path, mini: m.thumb_path }
+        : n?.media_path
+          ? { plein: n.media_path, mini: n.media_thumb_path }
+          : null;
+      if (!source) throw new Error('Image non publiée.');
+      const chemin = (miniature && source.mini) || source.plein;
+      const r = await fetch(`${url}/storage/v1/object/releves/${chemin}`, {
+        headers: { apikey: cle, Authorization: `Bearer ${cle}` },
+      });
+      if (!r.ok) throw new Error(`Image publique illisible (${r.status}).`);
+      return new Uint8Array(await r.arrayBuffer());
+    },
     divisions: lireDivisions,
 
     async domaines(): Promise<DomainePublic[]> {
@@ -158,7 +184,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
     },
 
     async ecoles(): Promise<EcolePubliee[]> {
-      const [campus, cycles, formations, frais, equipements, photos, agrements, mots, dates] = await Promise.all([
+      const [campus, cycles, formations, frais, equipements, photos, agrements, mots, dates, medias, nouvelles, admissions] = await Promise.all([
         lireTout<{
           id: string;
           institution_id: string;
@@ -187,6 +213,11 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           origin: string;
           school_declared_on: string | null;
           public_number: number;
+          institution_acronym?: string | null;
+          founded_year?: number | null;
+          website_url?: string | null;
+          shifts?: string[] | null;
+          teaching_languages?: string[] | null;
         }>('public_campuses?select=*&order=id'),
         lireTout<{ campus_id: string; cycle: string }>(
           'public_campus_cycles?select=campus_id,cycle&order=campus_id,cycle',
@@ -201,6 +232,11 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           diploma: Valeur<'diploma_kind'> | null;
           rhythms: Valeur<'study_rhythm'>[];
           program_id: string;
+          duration_years?: number | string | null;
+          admission_level?: string | null;
+          selection?: string | null;
+          application_fee_xaf?: number | null;
+          diploma_issuer?: string | null;
         }>('public_campus_programs?select=*&order=campus_id,cycle,title'),
         lireTout<LigneFrais>('campus_fees?select=*&order=id'),
         lireTout<LigneEquipement>('campus_facts?select=*&order=id'),
@@ -212,7 +248,103 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
         lireTout<{ id: string; campus_id: string; school_year: string; deadline: string; declared_on: string }>(
           'campus_enrollment_deadlines?select=id,campus_id,school_year,deadline,declared_on&order=campus_id,deadline',
         ),
+        lireTout<{
+          id: string;
+          campus_id: string | null;
+          institution_id: string | null;
+          kind: string;
+          subject: string;
+          caption: string | null;
+          sort_order: number;
+          taken_at: string | null;
+        }>('public_campus_media?select=id,campus_id,institution_id,kind,subject,caption,sort_order,taken_at&order=sort_order,id'),
+        lireTout<{
+          id: string;
+          campus_id: string;
+          kind: string;
+          title: string;
+          body: string;
+          published_on: string;
+          provided_by_school: boolean;
+          media_path: string | null;
+          media_caption: string | null;
+        }>('public_campus_posts?select=id,campus_id,kind,title,body,published_on,provided_by_school,media_path,media_caption&order=published_on.desc,id'),
+        lireTout<{
+          campus_id: string;
+          school_year: string;
+          documents: string[];
+          where_to_apply: string | null;
+          on_site_only: boolean;
+          declared_on: string;
+          steps: { step: string; starts_on: string; ends_on: string | null }[];
+        }>('public_campus_admissions?select=*&order=campus_id,school_year'),
       ]);
+
+      // v2 (13/11) : les images publiques. Une valeur inconnue (ajoutée à la base après la dernière mise en ligne) se lit
+      // « autre », jamais une erreur ; le logo appartient à l'école, la couverture et la galerie au site.
+      const sujet = (v: string): MediaPublic['sujet'] =>
+        (listes.media_subject as readonly string[]).includes(v) ? (v as MediaPublic['sujet']) : 'autre';
+      const versMedia = (m: (typeof medias)[number]): MediaPublic => ({
+        id: m.id,
+        sujet: sujet(m.subject),
+        legende: m.caption,
+        prisLe: m.taken_at,
+      });
+      const logoDe = new Map<string, MediaPublic>();
+      const mediasDe = new Map<string, MediasEcole>();
+      for (const m of medias) {
+        if (m.kind === 'logo' && m.institution_id) {
+          logoDe.set(m.institution_id, versMedia(m));
+          continue;
+        }
+        if (!m.campus_id) continue;
+        const d = mediasDe.get(m.campus_id) ?? { logo: null, couverture: null, galerie: [] };
+        if (m.kind === 'cover') d.couverture = versMedia(m);
+        else if (m.kind === 'gallery') d.galerie.push(versMedia(m));
+        mediasDe.set(m.campus_id, d);
+      }
+      const nouvellesDe = new Map<string, NouvellePublique[]>();
+      const genreNouvelle = (v: string): NouvellePublique['genre'] =>
+        (listes.post_kind as readonly string[]).includes(v) ? (v as NouvellePublique['genre']) : 'autre';
+      for (const n of nouvelles)
+        nouvellesDe.set(n.campus_id, [
+          ...(nouvellesDe.get(n.campus_id) ?? []),
+          {
+            id: n.id,
+            genre: genreNouvelle(n.kind),
+            titre: n.title,
+            texte: n.body,
+            publieeLe: n.published_on,
+            fournieParLEcole: n.provided_by_school,
+            // L'image d'une nouvelle se sert sous l'identifiant de la nouvelle (la vue ne donne pas celui de l'image).
+            media: n.media_path
+              ? { id: n.id, sujet: 'activite', legende: n.media_caption, prisLe: null }
+              : null,
+          },
+        ]);
+      // L'admission la plus récente du site (une par année scolaire) ; ses étapes inconnues se laissent de côté.
+      const admissionDe = new Map<string, AdmissionPublique>();
+      for (const a of admissions) {
+        const etapes = (a.steps ?? [])
+          .filter((x) => (listes.admission_step as readonly string[]).includes(x.step))
+          .map((x) => ({ etape: x.step as AdmissionPublique['etapes'][number]['etape'], debut: x.starts_on, fin: x.ends_on }));
+        const deja = admissionDe.get(a.campus_id);
+        if (deja && deja.anneeScolaire.localeCompare(a.school_year) > 0) continue;
+        admissionDe.set(a.campus_id, {
+          anneeScolaire: a.school_year,
+          pieces: a.documents ?? [],
+          ouDeposer: a.where_to_apply,
+          surPlaceSeulement: a.on_site_only,
+          declareeLe: a.declared_on,
+          etapes,
+        });
+      }
+      const parmi = <K extends 'study_shift' | 'teaching_language'>(cle: K, valeurs: string[] | null | undefined) =>
+        (valeurs ?? []).filter((v): v is (typeof listes)[K][number] => (listes[cle] as readonly string[]).includes(v));
+      const selection = (v: string | null | undefined) =>
+        v && (listes.selection_kind as readonly string[]).includes(v)
+          ? (v as (typeof listes.selection_kind)[number])
+          : null;
 
       const versAgrement = (a: LigneAgrementPublic): AgrementPublic => ({
         genre: a.kind,
@@ -254,6 +386,12 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
             diplome: f.diploma,
             rythmes: f.rhythms,
             agrement: agrementDeLaFiliere.get(f.program_id) ?? null,
+            id: f.program_id,
+            dureeAnnees: f.duration_years == null ? null : Number(f.duration_years),
+            niveauDemande: f.admission_level ?? null,
+            selection: selection(f.selection),
+            fraisDossier: f.application_fee_xaf ?? null,
+            delivrePar: f.diploma_issuer ?? null,
           },
         ]);
       }
@@ -296,6 +434,17 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
             misAJourLe: e.updated_at,
             origine: e.origin,
             declareeLe: e.school_declared_on,
+            sigle: e.institution_acronym ?? null,
+            fondeeEn: e.founded_year ?? null,
+            siteWeb: e.website_url ?? null,
+            horaires: parmi('study_shift', e.shifts),
+            langues: parmi('teaching_language', e.teaching_languages),
+            medias: {
+              ...(mediasDe.get(e.id) ?? { couverture: null, galerie: [] }),
+              logo: logoDe.get(e.institution_id) ?? null,
+            },
+            nouvelles: nouvellesDe.get(e.id) ?? [],
+            admission: admissionDe.get(e.id) ?? null,
           };
         })
         .sort((a, b) => a.nom.localeCompare(b.nom, 'fr') || a.slug.localeCompare(b.slug));

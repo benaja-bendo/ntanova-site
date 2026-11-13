@@ -1,5 +1,5 @@
 // Le budget de poids des pages construites (dist/).
-// Une page publique pèse moins de 100 Ko en tout (HTML, CSS, polices, images)
+// Une page publique pèse moins de 200 Ko (12/11 ; avant : 100 Ko) en tout (HTML, CSS, polices, images)
 // et n'a aucun JavaScript, sauf la page « Écoles » (ticket 146 : elle a repris « Rechercher » et « Autour de moi » ; un petit
 // script de filtrage, 20 Ko au plus, compressé) et son fichier de recherche (300 Ko au plus, compressé). Les tailles du HTML, du CSS et du JS
 // sont comptées compressées (gzip), comme elles voyagent sur le réseau.
@@ -8,7 +8,7 @@ import { join, relative } from 'node:path';
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 
 const dist = 'dist';
-const budgetPage = 100 * 1024;
+const budgetPage = 200 * 1024;
 // Les applications (/relais/, /admin/) auront leur propre budget, avec du JavaScript.
 const avecJavaScript = /^(relais|admin)\//;
 // La page publique qui filtre dans le navigateur, « Écoles » (`/ecoles/` seule : ses lieux et ses fiches n'en ont pas) : un

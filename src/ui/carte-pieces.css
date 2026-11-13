@@ -30,7 +30,7 @@
   border-radius: 50%;
   background: var(--cycle, var(--carte-epingle-neutre));
   color: var(--cycle-lettre);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-mention);
   font-weight: 700;
   line-height: 1;

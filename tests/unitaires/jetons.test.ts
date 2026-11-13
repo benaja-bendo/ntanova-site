@@ -29,9 +29,13 @@ function contraste(a: string, b: string): number {
 }
 
 describe('le fond et les filets', () => {
-  it('le fond de page est le neutre froid, plus la crème', () => {
-    expect(jeton('fond')).toBe('#f7f8f6');
-    expect(jeton('trait')).toBe('#e3e6e3');
+  it('le fond de page est la pierre du système v2 (12/11), plus le neutre froid', () => {
+    expect(jeton('fond')).toBe('#f8f6f2');
+    expect(jeton('trait')).toBe('#e6e2da');
+  });
+
+  it('le bord qui porte du sens se lit sur blanc (v2 : 7,5:1, était 3,4:1)', () => {
+    expect(contraste(jeton('trait-fort'), jeton('fond-releve'))).toBeGreaterThanOrEqual(7);
   });
 
   it('les textes restent lisibles sur le fond et sur la bande', () => {

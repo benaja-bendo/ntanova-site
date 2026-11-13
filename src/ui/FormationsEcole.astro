@@ -1,7 +1,7 @@
 ---
-// Les filières d'une école et ses frais (canevas du 08/11/2026, ticket 148) : une ligne par filière, en colonnes sur ordinateur.
-// Les pastilles de filtre sont des boutons radio : aucun JavaScript. La base range les frais par cycle, pas par filière : ils
-// restent sous la liste.
+// Les filières d'une école (canevas du 08/11/2026, ticket 148) : une ligne par filière, en colonnes sur ordinateur. Les pastilles
+// de filtre sont des boutons radio : aucun JavaScript. v2 (13/11) : les frais ont leur rubrique (`fiche/FraisDeLaFiche`) ; une
+// formation du supérieur porte ici sa durée, ses frais et, toujours, où en est son autorisation.
 import { lienFacette } from '../modele/recherche';
 import { libelleDiplome, libelleNiveau, libelleSerie } from '../modele/libelles';
 import { listes } from '../modele/listes';
@@ -16,7 +16,8 @@ import {
 } from '../modele/presentation-fiche';
 import { NIVEAUX_AVEC_FORMATIONS } from '../modele/fiche';
 import { lienWhatsApp } from '../modele/whatsapp';
-import FraisEcole from './FraisEcole.astro';
+import { francsCFA, montantFrais } from '../modele/frais-ecole';
+import { periodeCourte } from '../modele/presentation-fiche';
 import Icone from './Icone.astro';
 import LigneAgrement from './LigneAgrement.astro';
 
@@ -25,6 +26,9 @@ interface Props {
 }
 const { e } = Astro.props;
 const frais = e.frais ?? [];
+const fraisDe = (f: FormationPublique) =>
+  f.id ? frais.find((x) => x.formationId === f.id) : undefined;
+const superieur = (f: FormationPublique) => f.cycle === 'superieur' || f.cycle === 'technique';
 
 // Les formations, cycle par cycle (dans l'ordre de la liste des cycles).
 const parCycle = listes.niveau
@@ -35,14 +39,7 @@ const cyclesSansFormation = e.niveaux.filter(
   (n) => NIVEAUX_AVEC_FORMATIONS.includes(n) && !e.formations.some((f) => f.cycle === n),
 );
 const cycles = parCycle.map((c) => c.cycle);
-const annees = [...new Set(frais.map((f) => f.anneeScolaire))];
-const annee = annees.length === 1 ? annees[0] : null;
-const sousTitre = [
-  parCycle.length > 0 ? compteDesFormations(e.formations.length, cycles) : null,
-  annee ? `année ${annee}` : null,
-]
-  .filter(Boolean)
-  .join(' · ');
+const sousTitre = parCycle.length > 0 ? compteDesFormations(e.formations.length, cycles) : '';
 
 // Filtrer n'a de sens que dans une seule liste : sinon un titre de cycle resterait seul, sans ligne dessous.
 const filtres = parCycle.length === 1 ? filtresDesFormations(e.formations) : [];
@@ -63,9 +60,9 @@ const serieDansLeTitre = (f: FormationPublique) =>
 ---
 
 {parCycle.length > 0 ? (
-  <section class="formations" aria-label="Formations">
+  <section class="formations" id="formations" aria-label="Formations">
     <div class="tete">
-      <h2>{titreDesFormations(cycles, frais.length > 0)}</h2>
+      <h2>{titreDesFormations(cycles, false)}</h2>
       {sousTitre && <p>{sousTitre}</p>}
     </div>
     <div class="corps">
@@ -132,6 +129,27 @@ const serieDansLeTitre = (f: FormationPublique) =>
                       </span>
                     )}
                     {f.agrement && <LigneAgrement agrement={f.agrement} filiere />}
+                    {(f.dureeAnnees || fraisDe(f) || f.delivrePar) && (
+                      <span class="filiere-detail">
+                        {[
+                          f.dureeAnnees
+                            ? `${f.dureeAnnees.toLocaleString('fr-FR')} an${f.dureeAnnees >= 2 ? 's' : ''}`
+                            : null,
+                          fraisDe(f)
+                            ? `${montantFrais(fraisDe(f)!)} ${periodeCourte(fraisDe(f)!)}`
+                            : null,
+                          fraisDe(f)?.inscription != null
+                            ? `inscription ${francsCFA(fraisDe(f)!.inscription!)}`
+                            : null,
+                          f.delivrePar ? `diplôme délivré par ${f.delivrePar}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    )}
+                    {superieur(f) && !f.agrement && (
+                      <span class="filiere-detail">Autorisation : pas encore vue par NTanova</span>
+                    )}
                   </div>
                   <div class="filiere-sous">
                     <span>
@@ -163,7 +181,6 @@ const serieDansLeTitre = (f: FormationPublique) =>
     {cyclesSansFormation.length > 0 && (
       <p class="doux">Les filières de certains niveaux ne sont pas encore renseignées.</p>
     )}
-    <FraisEcole frais={frais} />
     {avecContact && (
       <p class="note">
         <Icone nom="bulle" />
@@ -171,9 +188,7 @@ const serieDansLeTitre = (f: FormationPublique) =>
       </p>
     )}
   </section>
-) : (
-  <FraisEcole frais={frais} titre="Frais" />
-)}
+) : null}
 
 <style>
   .formations {
@@ -183,6 +198,11 @@ const serieDansLeTitre = (f: FormationPublique) =>
   .tete {
     display: grid;
     gap: var(--espace-1);
+  }
+  .filiere-detail {
+    display: block;
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
   }
   .tete p,
   .doux {

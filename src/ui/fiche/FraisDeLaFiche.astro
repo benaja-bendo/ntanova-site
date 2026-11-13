@@ -1,0 +1,93 @@
+---
+// « Frais » (v2 du 13/11) : une ligne par classe ou par cycle, puis l'inscription, puis la source. Une ligne publiée vient de
+// l'école, avec sa date : sur le prospectus photographié, ou dite par l'école sans photo (décision du fondateur du 13/11).
+// Une ligne illisible n'existe pas ici : elle reste une demande, côté administration. Les frais d'une formation du supérieur
+// se lisent sur sa formation ; ce bloc ne garde que les lignes de l'école.
+import { francsCFA, montantFrais, type FraisEcole } from '../../modele/frais-ecole';
+import { dateLongue } from '../../modele/pointe-noire';
+import {
+  anneeDesFrais,
+  inscriptionDesFrais,
+  libelleLigneDeFrais,
+  lignesDeFraisDeLEcole,
+  sourceDesFrais,
+} from '../../modele/vitrine';
+import { periodeCourte } from '../../modele/presentation-fiche';
+interface Props {
+  frais: FraisEcole[];
+}
+const lignes = lignesDeFraisDeLEcole(Astro.props.frais);
+const annee = anneeDesFrais(lignes);
+const inscription = inscriptionDesFrais(lignes);
+const source = sourceDesFrais(lignes);
+const notes = [...new Set(lignes.map((f) => f.note).filter((n): n is string => !!n))];
+---
+
+{lignes.length > 0 && (
+  <section class="frais-fiche" id="frais" aria-label="Frais déclarés par l’école">
+    <div class="tete">
+      <h2>Frais</h2>
+      {annee && <span>année {annee}</span>}
+    </div>
+    <ul class="lignes-fiche">
+      {lignes.map((f) => (
+        <li>
+          <span>{libelleLigneDeFrais(f)}</span>
+          <b>
+            {montantFrais(f)} {periodeCourte(f)}
+          </b>
+        </li>
+      ))}
+      {inscription && (
+        <li>
+          <span class="avec-precision">
+            Inscription
+            {inscription.min !== inscription.max && <span>selon le cycle</span>}
+          </span>
+          <b>
+            {inscription.min === inscription.max
+              ? francsCFA(inscription.min)
+              : `${new Intl.NumberFormat('fr-FR').format(inscription.min)} à ${francsCFA(inscription.max)}`}
+          </b>
+        </li>
+      )}
+    </ul>
+    {notes.map((n) => (
+      <p class="doux">{n}</p>
+    ))}
+    {source && (
+      <p class="doux">
+        {source.surProspectus
+          ? `Lus sur le prospectus de l’école, déclarés le ${dateLongue(source.declaresLe)}.`
+          : `Dits par l’école le ${dateLongue(source.declaresLe)}.`}{' '}
+        À confirmer avec elle.
+      </p>
+    )}
+  </section>
+)}
+
+<style>
+  .frais-fiche {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .tete {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--espace-1) var(--espace-3);
+  }
+  .tete span,
+  .doux,
+  .avec-precision span {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .avec-precision {
+    display: grid;
+  }
+  b {
+    text-align: end;
+  }
+</style>
