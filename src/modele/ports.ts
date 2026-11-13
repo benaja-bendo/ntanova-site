@@ -66,6 +66,11 @@ export interface EcoleProche extends Point {
   sigle?: string | null;
   institutionId?: string | null;
   sites?: number;
+  /**
+   * Lot F (13/11) : le chemin de la vignette publique de l'école (jamais une photo privée), pour « Vous la reconnaissez ? ».
+   * Le téléphone garde le chemin, jamais l'image : elle se charge seulement quand il capte.
+   */
+  vignette?: string | null;
 }
 
 /** v2 (13/11) : la liste nationale légère des écoles, gardée par le téléphone pour « Même nom, ailleurs ». */
@@ -123,6 +128,11 @@ export interface ReleveRecu {
    * le contact (ticket #94). Absent des lignes gardées avant la mise à jour du téléphone.
    */
   corrigeReleveId?: string | null;
+  /**
+   * Lot F (13/11) : le numéro public de l'école quand sa page est en ligne (`/ecoles/<numéro>/`), sinon nul. Absent d'une
+   * lecture d'avant la mise à jour : lu comme « pas en ligne ».
+   */
+  pageEnLigne?: number | null;
 }
 
 /**
@@ -274,10 +284,23 @@ export interface LigneDeMaPaie {
   /** v2 (13/11) : les missions faites, payées à leur montant (la fiche qui les ferme n'est pas payée en plus). */
   missions?: number;
   totalXaf: number;
+  /**
+   * Lot F (13/11) : une ligne par genre et par tarif (« 2 × 500 FCFA »), avec les fiches qu'elle paie. Absente d'une base
+   * d'avant la migration M10, ou d'une paie gardée par le téléphone avant la mise à jour : l'écran dit alors les quantités.
+   */
+  lignes?: LigneDeFacture[];
   /** Fiches acceptées mais non payables (une école déjà relevée par un autre relais). */
   nonPayables: number;
   payeLe: string | null;
   reference: string | null;
+}
+
+/** Une ligne de la paie : le genre, le tarif unitaire, la quantité, et les fiches qu'elle paie (aucune pour l'essai). */
+export interface LigneDeFacture {
+  genre: 'fiche' | 'mission' | 'contact' | 'essai';
+  tarifXaf: number;
+  nombre: number;
+  fiches: string[];
 }
 
 /** La paie du relais connecté, en lecture seule : jamais le numéro Mobile Money, seulement si NTanova l'a. */
@@ -316,6 +339,11 @@ export interface PortRelais {
    * pas encore appliquée) : l'écran dit alors seulement quels rôles sont arrivés. `GET /moi/releves/{id}/photos`
    */
   mesPhotos(releveId: string): Promise<PhotoRecue[]>;
+  /**
+   * Lot F (13/11) : une adresse de lecture temporaire (dix minutes) de la vignette publique d'une école connue, ou nul si
+   * elle ne se lit pas. Jamais gardée. `GET /vignettes/{chemin}`
+   */
+  adresseDeVignette(chemin: string): Promise<string | null>;
   /** Les écoles confiées au relais (ses missions ouvertes). `GET /moi/missions` */
   mesMissions(): Promise<EcoleACompleter[]>;
   /** v2 (13/11) : `POST /moi/missions/{id}/pas-pu`, « Je n'ai pas pu » : la mission se ferme sans paie, avec son motif. */
@@ -986,7 +1014,27 @@ export interface PortAdministration {
   retirerFraisEcole(ecoleId: string, id: string): Promise<void>;
   /** Ajoute ou remplace l'agrément de l'établissement ou d'une filière : une ligne par école et par filière. */
   enregistrerAgrement(ecoleId: string, agrement: AgrementASaisir): Promise<string>;
+  /** Retire l'agrément ; le fichier de sa preuve, s'il y en a un, est effacé du stockage. */
   retirerAgrement(id: string): Promise<void>;
+  /**
+   * Lot F (13/11) : la preuve d'un agrément : une photo de travail d'un relevé, un fichier téléversé (réduit dans le
+   * navigateur, rangé sous `ecoles/<site>/preuves/`, jamais public), le document vu, ou dit par l'école. Le fichier remplacé
+   * est effacé. `PUT /admin/agrements/{id}/preuve`
+   */
+  enregistrerPreuveAgrement(
+    ecoleId: string,
+    agrementId: string,
+    preuve: import('./fiche-admin').PreuveASaisir,
+  ): Promise<void>;
+  /** Lot F : une adresse de lecture (une heure) du fichier d'une preuve, pour l'administration seule. */
+  adresseDePreuve(chemin: string): Promise<string | null>;
+  /** Lot F : les formations du supérieur et du technique d'un site, avec leur détail. `GET /admin/ecoles/{id}/formations` */
+  formationsDeLEcole(ecoleId: string): Promise<import('./fiche-admin').FormationDuSuperieur[]>;
+  /** Lot F : le détail d'une formation, dit par l'école. `PUT /admin/formations/{id}/details` */
+  enregistrerDetailsFormation(
+    formationId: string,
+    details: import('./fiche-admin').DetailsFormation,
+  ): Promise<void>;
   /** `mot` nul : le retrait. */
   enregistrerMotDirection(ecoleId: string, mot: AccordMotDirection | null): Promise<void>;
   enregistrerDateInscription(
@@ -1129,6 +1177,8 @@ export interface FormationPublique {
   selection?: Valeur<'selection_kind'> | null;
   fraisDossier?: number | null;
   delivrePar?: string | null;
+  /** Lot F : le jour où l'école a dit ce détail (« d'après l'école, le [date] »). */
+  detailsDitsLe?: string | null;
 }
 
 /** Un campus publié, tel que le site public le montre : une implantation d'une institution. */

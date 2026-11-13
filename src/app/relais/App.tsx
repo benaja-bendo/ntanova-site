@@ -21,6 +21,7 @@ import {
 } from './ecrans/Connexion';
 import { MaPaie } from './ecrans/MaPaie';
 import { MesFiches } from './ecrans/MesFiches';
+import { UneFiche } from './ecrans/UneFiche';
 import { MonLot } from './ecrans/MonLot';
 import { PremiersPas } from './ecrans/PremiersPas';
 import type { BilanEnvoi } from '../../modele/envoi';
@@ -38,6 +39,7 @@ function Ecrans() {
     const n = etape === '2' ? 2 : etape === '3' ? 3 : etape === 'bonus' ? 4 : 1;
     return <Ajouter key={n} etape={n} />;
   }
+  if (ecran === 'fiches' && etape) return <UneFiche key={etape} releveId={etape} />;
   if (ecran === 'fiches') return <MesFiches />;
   if (ecran === 'paie') return <MaPaie />;
   if (ecran === 'compte') return <Compte />;

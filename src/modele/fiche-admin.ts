@@ -159,3 +159,90 @@ export function erreurDuCalendrier(a: AdmissionASaisir): string | null {
   if (a.pieces.length > 10) return 'Dix pièces au plus.';
   return null;
 }
+
+// Lot F (13/11) : le détail des formations du supérieur ---------------------------------------------------------------------------
+
+/**
+ * Le détail d'une formation, dit par l'école (planche « Sup · formation ») : durée, niveau demandé, sélection, frais de
+ * dossier, « Diplôme délivré par » (mot exact à confirmer auprès d'une école, choix C6). Tout est facultatif ; ce qui est
+ * dit porte la date où l'école l'a dit. Mêmes règles que `set_program_details`.
+ */
+export interface DetailsFormation {
+  dureeAnnees: number | null;
+  niveauDemande: string | null;
+  selection: Valeur<'selection_kind'> | null;
+  fraisDossier: number | null;
+  delivrePar: string | null;
+  /** Le jour où l'école l'a dit ; obligatoire dès qu'un détail est rempli. */
+  ditLe: string | null;
+}
+
+export interface FormationDuSuperieur {
+  id: string;
+  titre: string;
+  cycle: Valeur<'niveau'>;
+  details: DetailsFormation;
+}
+
+export const detailsVides = (): DetailsFormation => ({
+  dureeAnnees: null,
+  niveauDemande: null,
+  selection: null,
+  fraisDossier: null,
+  delivrePar: null,
+  ditLe: null,
+});
+
+export function sansDetail(d: DetailsFormation): boolean {
+  return (
+    d.dureeAnnees === null &&
+    !d.niveauDemande?.trim() &&
+    d.selection === null &&
+    d.fraisDossier === null &&
+    !d.delivrePar?.trim()
+  );
+}
+
+/** Ce qui ne va pas, en une phrase, ou nul. */
+export function erreurDesDetails(d: DetailsFormation, aujourdHui: string): string | null {
+  if (
+    d.dureeAnnees !== null &&
+    !(d.dureeAnnees >= 0.5 && d.dureeAnnees <= 8 && (d.dureeAnnees * 2) % 1 === 0)
+  )
+    return 'La durée se dit en années, de 0,5 à 8 (par demi-année).';
+  if (d.niveauDemande && d.niveauDemande.trim().length > 80)
+    return 'Le niveau demandé tient en 80 caractères.';
+  if (d.fraisDossier !== null && !(Number.isInteger(d.fraisDossier) && d.fraisDossier >= 0))
+    return 'Les frais de dossier sont un montant en FCFA, sans virgule.';
+  if (d.delivrePar && d.delivrePar.trim().length > 120)
+    return '« Diplôme délivré par » tient en 120 caractères.';
+  if (!sansDetail(d) && (!d.ditLe || !/^\d{4}-\d{2}-\d{2}$/.test(d.ditLe) || d.ditLe > aujourdHui))
+    return 'Indique le jour où l’école l’a dit (pas une date future).';
+  return null;
+}
+
+// Lot F : la preuve d'une autorisation ---------------------------------------------------------------------------------------------
+
+/** Ce qui prouve la référence d'un agrément : la photo du document, le document vu sur place, ou l'école qui le dit. */
+export type GenrePreuve = 'photo' | 'document_vu' | 'dit_ecole';
+
+export const libelleGenrePreuve: Record<GenrePreuve, string> = {
+  photo: 'Photo du document',
+  document_vu: 'Document vu sur place',
+  dit_ecole: 'Dit par l’école, sans document',
+};
+
+export interface PreuveAgrement {
+  genre: GenrePreuve;
+  /** La photo d'un relevé accepté (photo de travail). */
+  photoId: string | null;
+  /** Le fichier téléversé par l'administration (sous `ecoles/<site>/preuves/`), jamais public. */
+  chemin: string | null;
+}
+
+/** Ce que l'admin envoie : une photo de relevé, ou un fichier à téléverser, ou rien (document vu, dit par l'école). */
+export interface PreuveASaisir {
+  genre: GenrePreuve;
+  photoId?: string | null;
+  image?: ImagePreparee | null;
+}

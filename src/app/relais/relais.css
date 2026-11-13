@@ -543,3 +543,142 @@
   align-items: center;
   gap: var(--espace-1) var(--espace-3);
 }
+
+/* Lot F : « Une de mes fiches ». Les trois étapes sur une ligne, puis le contenu du relevé et ce qui manque encore. */
+.lien-fiche {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.etapes-fiche {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.etapes-fiche li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-1);
+  min-height: 2.5rem;
+  border-radius: 8px;
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+  text-align: center;
+}
+.etapes-fiche .etape-faite {
+  background: var(--statut-succes-fond);
+  color: var(--statut-succes-texte);
+}
+.etapes-fiche .etape-en-cours {
+  background: var(--statut-attention-fond);
+  color: var(--texte);
+}
+.etapes-fiche .etape-a-venir {
+  border: 1px dashed var(--trait-fort);
+  color: var(--texte-doux);
+}
+.etapes-fiche .etape-arretee {
+  background: var(--rouge-pale);
+  color: var(--rouge-texte);
+}
+.fiche-relais-contenu {
+  display: grid;
+  gap: var(--espace-2);
+  margin: 0;
+}
+.fiche-relais-contenu div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 40%) 1fr;
+  gap: var(--espace-3);
+}
+.fiche-relais-contenu dt {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}
+.fiche-relais-contenu dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.liste-manques {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.liste-manques li {
+  padding: var(--espace-1) var(--espace-3);
+  border: 1px dashed var(--trait-fort);
+  border-radius: 999px;
+  font-size: var(--taille-secondaire);
+}
+/* « Ma paie » : une ligne de facture, « 2 × 500 FCFA » à gauche, le sous-total à droite. */
+.facture {
+  display: grid;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.facture li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 var(--espace-3);
+  align-items: baseline;
+}
+.facture .facture-calcul {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}
+.facture .facture-sous-total {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.facture .facture-total {
+  padding-top: var(--espace-2);
+  border-top: 1px solid var(--trait-fort);
+}
+/* Lot F : « Vous la reconnaissez ? », les deux photos côte à côte (« Sur NTanova », « Votre photo »). */
+.cote-a-cote {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espace-3);
+}
+.cote-a-cote figure {
+  display: grid;
+  gap: var(--espace-1);
+  margin: 0;
+}
+.cote-a-cote figcaption {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+  text-align: center;
+}
+.vignette-comparee {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--rayon-s);
+  object-fit: cover;
+  background: var(--fond-bande);
+}
+.vignette-sigle {
+  background: var(--marque-appuyee);
+  color: var(--texte-sur-marque);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.vignette-vide {
+  border: 1px dashed var(--trait-fort);
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}

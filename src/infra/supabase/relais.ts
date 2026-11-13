@@ -6,6 +6,7 @@ import type {
   EcoleACompleter,
   EcoleDuPays,
   EcoleProche,
+  LigneDeFacture,
   Lot,
   MaPaie,
   PhotoRecue,
@@ -88,6 +89,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         acronym?: string | null;
         institution_id?: string | null;
         sites?: number | null;
+        photo_path?: string | null;
       }>(await supabase().rpc('known_places_for_me'));
       return lignes.map((l) => ({
         id: l.id,
@@ -98,7 +100,15 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         sigle: l.acronym ?? null,
         institutionId: l.institution_id ?? null,
         sites: l.sites ?? 1,
+        vignette: l.photo_path ?? null,
       }));
+    },
+
+    async adresseDeVignette(chemin) {
+      // Seule une vignette publique se lit (règle du seau : `public_campus_media` ou `public_campus_photos`) ; une
+      // adresse de dix minutes, jamais gardée.
+      const { data, error } = await supabase().storage.from('releves').createSignedUrl(chemin, 600);
+      return error || !data?.signedUrl ? null : data.signedUrl;
     },
 
     async ecolesDuPays(): Promise<EcoleDuPays[]> {
@@ -159,6 +169,17 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         photo_roles: Valeur<'photo_role'>[];
         corrects_submission_id?: string | null;
       }>(await supabase().rpc('my_submissions'));
+      // Lot F : les pages en ligne de ses écoles (la vue publique, que tout connecté lit) ; une erreur ne bloque rien.
+      const campus = [...new Set(lignes.map((r) => r.campus_id).filter((c): c is string => c !== null))];
+      const enLigne = new Map<string, number>();
+      if (campus.length > 0) {
+        const { data } = await supabase()
+          .from('public_campuses')
+          .select('id, public_number')
+          .in('id', campus);
+        for (const c of (data ?? []) as { id: string; public_number: number }[])
+          enLigne.set(c.id, c.public_number);
+      }
       return lignes.map((r) => ({
         id: r.id,
         type: r.kind,
@@ -189,6 +210,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         photos: r.photo_roles,
         aContact: r.has_contact,
         corrigeReleveId: r.corrects_submission_id ?? null,
+        pageEnLigne: r.campus_id ? (enLigne.get(r.campus_id) ?? null) : null,
       }));
     },
 
@@ -290,7 +312,15 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         has_payment_details: boolean;
         paid_at: string | null;
         reference: string | null;
+        /** Lot F (M10) : absente d'une base d'avant la migration. */
+        lines?: { kind: string; unit_xaf: number; count: number; submissions?: string[] | null }[] | null;
       }>(await supabase().rpc('my_payout'));
+      const genres: Record<string, LigneDeFacture['genre']> = {
+        submission: 'fiche',
+        mission: 'mission',
+        contact: 'contact',
+        trial_bundle: 'essai',
+      };
       const ligne = (l: (typeof lignes)[number]) => ({
         vendredi: l.friday,
         etat: l.state,
@@ -302,6 +332,17 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         nonPayables: l.not_payable,
         payeLe: l.paid_at,
         reference: l.reference,
+        ...(Array.isArray(l.lines)
+          ? {
+              lignes: l.lines.flatMap((x) => {
+                const genre = genres[x.kind];
+                // Un genre inconnu (ajouté à la base après cette version) ne s'invente pas : le total le compte déjà.
+                return genre
+                  ? [{ genre, tarifXaf: x.unit_xaf, nombre: x.count, fiches: x.submissions ?? [] }]
+                  : [];
+              }),
+            }
+          : {}),
       });
       const acquis = lignes.find((l) => l.state === 'acquis');
       return {

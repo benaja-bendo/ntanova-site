@@ -30,6 +30,7 @@ interface LigneAgrementPublic {
   issued_on: string;
   source_label: string;
   source_url: string | null;
+  evidence?: 'photo' | 'document_vu' | 'dit_ecole' | null;
 }
 
 /**
@@ -237,6 +238,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           selection?: string | null;
           application_fee_xaf?: number | null;
           diploma_issuer?: string | null;
+          details_declared_on?: string | null;
         }>('public_campus_programs?select=*&order=campus_id,cycle,title'),
         lireTout<LigneFrais>('campus_fees?select=*&order=id'),
         lireTout<LigneEquipement>('campus_facts?select=*&order=id'),
@@ -353,6 +355,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
         delivreLe: a.issued_on,
         sourceTexte: a.source_label,
         sourceLien: a.source_url,
+        preuve: a.evidence ?? null,
       });
       const agrementDeLEcole = new Map(
         agrements.filter((a) => a.program_id === null).map((a) => [a.campus_id, versAgrement(a)]),
@@ -392,6 +395,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
             selection: selection(f.selection),
             fraisDossier: f.application_fee_xaf ?? null,
             delivrePar: f.diploma_issuer ?? null,
+            detailsDitsLe: f.details_declared_on ?? null,
           },
         ]);
       }

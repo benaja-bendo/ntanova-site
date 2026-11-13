@@ -7,7 +7,7 @@
  * Tout se calcule dans le téléphone, hors ligne, sur ce qu'il garde (`ecoles`, `ecolesDuPays`). La réponse part avec la fiche
  * comme un indice : le relais ne tranche jamais, rien n'est fusionné, l'envoi n'est jamais bloqué.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   chercherUneEcole,
   distanceEnMots,
@@ -16,12 +16,16 @@ import {
   type EcoleConnue,
   type Proposition,
 } from '../../../modele/deja-sur-ntanova';
-import type { FicheLocale } from '../../../modele/fiche';
+import { photoEnseigne, type FicheLocale } from '../../../modele/fiche';
 import { lireMemoire, useRequete } from '../base-locale';
 import { Icone } from '../composants';
+import { useRelais } from '../contexte';
 import type { Modifier } from './fiche-en-cours';
 
-type Choisie = Pick<EcoleConnue, 'id' | 'nom' | 'sigle' | 'institutionId' | 'sites'> & {
+type Choisie = Pick<
+  EcoleConnue,
+  'id' | 'nom' | 'sigle' | 'institutionId' | 'sites' | 'vignette'
+> & {
   campus: boolean;
 };
 
@@ -43,6 +47,7 @@ export function DejaSurNTanova({ fiche, modifier }: { fiche: FicheLocale; modifi
           sites: l.sites ?? 1,
           lieu: null,
           position: { latitude: l.latitude, longitude: l.longitude },
+          vignette: l.vignette ?? null,
           campus: l.genre !== 'releve',
         })),
       ...(pays ?? []).map((p) => ({
@@ -126,6 +131,7 @@ export function DejaSurNTanova({ fiche, modifier }: { fiche: FicheLocale; modifi
       {choisie && (
         <Reconnue
           ecole={choisie}
+          photoDuRelais={photoEnseigne(fiche)?.blob ?? null}
           proche={propositions?.presDIci.find((p) => p.id === choisie.id)}
           repondre={repondre}
           fermer={() => setChoisie(null)}
@@ -207,11 +213,13 @@ function Groupe({
 /** « Vous la reconnaissez ? » : le même endroit d'abord ; jamais de fusion, seulement un indice pour NTanova. */
 function Reconnue({
   ecole,
+  photoDuRelais,
   proche,
   repondre,
   fermer,
 }: {
   ecole: Choisie;
+  photoDuRelais: Blob | null;
   proche: Proposition | undefined;
   repondre: (champs: Partial<FicheLocale>) => void;
   fermer: () => void;
@@ -225,6 +233,16 @@ function Reconnue({
         reconnaissez&nbsp;?
       </p>
       {proche && memeEndroitPossible(proche) && <p className="mention">Même endroit possible.</p>}
+      <div className="cote-a-cote">
+        <figure>
+          <VignetteConnue chemin={ecole.vignette ?? null} sigle={ecole.sigle} nom={ecole.nom} />
+          <figcaption>Sur NTanova</figcaption>
+        </figure>
+        <figure>
+          <PhotoDuRelais photo={photoDuRelais} />
+          <figcaption>Votre photo</figcaption>
+        </figure>
+      </div>
       <div className="pile-serree">
         {ecole.campus && (
           <button
@@ -274,6 +292,63 @@ function Reconnue({
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * Lot F (13/11) : la vignette publique de l'école connue. Hors ligne, ou si elle ne se charge pas, son sigle dans le rond
+ * vert (comme sur sa page) : le téléphone ne garde jamais l'image, seulement son chemin.
+ */
+function VignetteConnue({
+  chemin,
+  sigle,
+  nom,
+}: {
+  chemin: string | null;
+  sigle: string | null | undefined;
+  nom: string;
+}) {
+  const { adaptateurs } = useRelais();
+  const [adresse, setAdresse] = useState<string | null>(null);
+  useEffect(() => {
+    if (!chemin || !navigator.onLine) return;
+    let vivant = true;
+    adaptateurs.relais
+      .adresseDeVignette(chemin)
+      .then((a) => vivant && setAdresse(a))
+      .catch(() => vivant && setAdresse(null));
+    return () => {
+      vivant = false;
+    };
+  }, [adaptateurs, chemin]);
+  if (adresse)
+    return (
+      <img
+        className="vignette-comparee"
+        src={adresse}
+        alt={`La photo de ${nom} sur NTanova`}
+        onError={() => setAdresse(null)}
+      />
+    );
+  return (
+    <span className="vignette-comparee vignette-sigle" role="img" aria-label={`Sigle de ${nom}`}>
+      {sigle ?? nom.replace(/^\[/, '').charAt(0)}
+    </span>
+  );
+}
+
+function PhotoDuRelais({ photo }: { photo: Blob | null }) {
+  const adresse = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo]);
+  useEffect(
+    () => () => {
+      if (adresse) URL.revokeObjectURL(adresse);
+    },
+    [adresse],
+  );
+  return adresse ? (
+    <img className="vignette-comparee" src={adresse} alt="Votre photo de l’enseigne" />
+  ) : (
+    <span className="vignette-comparee vignette-vide">Pas de photo</span>
   );
 }
 

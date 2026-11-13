@@ -18,6 +18,8 @@ export interface AgrementPublic {
   /** Où se trouve le document, en mots : toujours renseigné, même sans lien. */
   sourceTexte: string;
   sourceLien: string | null;
+  /** Lot F : comment NTanova connaît la référence (la page dit « vue sur le document » ou « dite par l'école »). */
+  preuve?: 'photo' | 'document_vu' | 'dit_ecole' | null;
 }
 
 export interface AgrementASaisir extends AgrementPublic {
@@ -29,6 +31,15 @@ export interface AgrementASaisir extends AgrementPublic {
 
 export interface AgrementEnregistre extends AgrementASaisir {
   id: string;
+  /** Lot F : la preuve, avec sa photo ou son fichier (jamais publics). */
+  preuveDetail?: import('./fiche-admin').PreuveAgrement | null;
+}
+
+/** Lot F : ce que la page publique ajoute à la référence, jamais « reconnue par l'État ». */
+export function preuveEnMots(preuve: AgrementPublic['preuve']): string | null {
+  if (preuve === 'photo' || preuve === 'document_vu') return 'vue sur le document';
+  if (preuve === 'dit_ecole') return 'dite par l’école, document pas encore vu';
+  return null;
 }
 
 export const LIEN_HTTPS = /^https:\/\/\S+$/;
