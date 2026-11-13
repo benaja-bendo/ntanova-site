@@ -10,8 +10,8 @@ test.use({ permissions: ['geolocation'] });
 
 const photo = new URL('./fichiers/enseigne.jpg', import.meta.url).pathname;
 
-const niveaux = (page: Page) => page.getByRole('group', { name: "Niveaux écrits sur l'enseigne" });
-const types = (page: Page) => page.getByRole('group', { name: "Type d'école" });
+const niveaux = (page: Page) => page.getByRole('group', { name: 'Niveaux affichés' });
+const types = (page: Page) => page.getByRole('group', { name: 'Type', exact: true });
 
 /** Le relais est connecté et arrive à l'étape 2/3 d'une nouvelle fiche. */
 async function allerALEtape2(page: Page, context: BrowserContext) {
@@ -32,7 +32,7 @@ async function finirEtEnvoyer(page: Page) {
   await page.getByRole('button', { name: 'Personne', exact: true }).click();
   await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
 }
 
 /** Les relevés que le faux serveur a reçus. */
@@ -199,7 +199,7 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     // Le téléphone d'un relais qui a fait cette fiche avant la mise à jour n'a pas de « programme ».
     await oublierLeProgramme(page);
     await context.setOffline(false);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 20_000 });
 
     const [recu] = await relevesRecus(page);
     expect(recu).toMatchObject({ nomEnseigne: '[École 1]', programme: null });

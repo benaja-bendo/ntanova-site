@@ -56,14 +56,14 @@ export function DisqueCycle({ lettre, taille = 20 }: { lettre: string; taille?: 
   return (
     <span
       aria-hidden
+      data-lettre={lettre}
       style={{ width: taille, height: taille, fontSize: Math.round(taille * 0.55) }}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full font-bold text-blanc',
+        // La lettre est dessinée par la feuille (contenu généré) : elle ne s'ajoute pas au nom du bouton.
+        'inline-flex shrink-0 items-center justify-center rounded-full font-bold text-blanc before:content-[attr(data-lettre)]',
         couleurDuCycle[lettre] ?? 'bg-cycle-s',
       )}
-    >
-      {lettre}
-    </span>
+    />
   );
 }
 

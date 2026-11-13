@@ -6,6 +6,7 @@ import { base, compteConnecte, garder, lireMemoire, useRequete } from '../base-l
 import { jourDuCongo } from '../../../modele/date-declaration';
 import { aller, useEnLigne, useRelais } from '../contexte';
 import { heure } from '../composants';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/ui/shadcn/badge';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
@@ -339,6 +340,7 @@ const MOTIFS: { valeur: Valeur<'mission_blocker'>; libelle: string }[] = [
  */
 export function PasPu({ missionId, apres }: { missionId: string; apres?: () => void }) {
   const { synchroniser } = useRelais();
+  const [ouvert, setOuvert] = useState(false);
   const [motif, setMotif] = useState<Valeur<'mission_blocker'> | null>(null);
   const [note, setNote] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
@@ -354,53 +356,68 @@ export function PasPu({ missionId, apres }: { missionId: string; apres?: () => v
     apres?.();
   };
   return (
-    <details className="group rounded-lg border border-border bg-card px-3.5 py-3">
-      <summary className="flex min-h-7 cursor-pointer list-none items-center gap-2 font-bold outline-none focus-visible:ring-[3px] focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-        <IconeOuvrir className="size-4 transition-transform group-open:rotate-90 motion-reduce:transition-none" />
+    <section
+      className="rounded-lg border border-border bg-card px-3.5 py-3"
+      aria-label="Je n’ai pas pu"
+    >
+      <button
+        type="button"
+        aria-expanded={ouvert}
+        onClick={() => setOuvert((o) => !o)}
+        className="flex min-h-7 w-full cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left font-sans text-base font-bold text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+      >
+        <IconeOuvrir
+          className={cn(
+            'size-4 transition-transform motion-reduce:transition-none',
+            ouvert && 'rotate-90',
+          )}
+        />
         Je n’ai pas pu
-      </summary>
-      <div className="flex flex-col gap-3 pt-3">
-        <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-          <legend className="mb-2 p-0 text-[15px]">Qu’est-ce qui vous a empêché&nbsp;?</legend>
-          <div className="flex flex-wrap gap-1.5">
-            {MOTIFS.map((m) => (
-              <Pastille
-                key={m.valeur}
-                choisie={motif === m.valeur}
-                onClick={() => {
-                  setMotif(m.valeur);
-                  setErreur(null);
-                }}
-              >
-                {m.libelle}
-              </Pastille>
-            ))}
-          </div>
-        </fieldset>
-        {motif === 'autre' && (
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="pas-pu-note">En quelques mots</Label>
-            <Input
-              id="pas-pu-note"
-              type="text"
-              maxLength={200}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </div>
-        )}
-        {erreur && (
-          <p className="m-0 text-sm font-bold text-destructive" role="alert">
-            {erreur}
+      </button>
+      {ouvert && (
+        <div className="flex flex-col gap-3 pt-3">
+          <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+            <legend className="mb-2 p-0 text-[15px]">Qu’est-ce qui vous a empêché&nbsp;?</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {MOTIFS.map((m) => (
+                <Pastille
+                  key={m.valeur}
+                  choisie={motif === m.valeur}
+                  onClick={() => {
+                    setMotif(m.valeur);
+                    setErreur(null);
+                  }}
+                >
+                  {m.libelle}
+                </Pastille>
+              ))}
+            </div>
+          </fieldset>
+          {motif === 'autre' && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pas-pu-note">En quelques mots</Label>
+              <Input
+                id="pas-pu-note"
+                type="text"
+                maxLength={200}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
+          )}
+          {erreur && (
+            <p className="m-0 text-sm font-bold text-destructive" role="alert">
+              {erreur}
+            </p>
+          )}
+          <p className="m-0 text-[13px] text-muted-foreground">
+            La mission se ferme, sans paie. NTanova lit le motif.
           </p>
-        )}
-        <p className="m-0 text-[13px] text-muted-foreground">
-          La mission se ferme, sans paie. NTanova lit le motif.
-        </p>
-        <Button variant="outline" className="self-start" onClick={() => void fermer()}>
-          Fermer la mission
-        </Button>
-      </div>
-    </details>
+          <Button variant="outline" className="self-start" onClick={() => void fermer()}>
+            Fermer la mission
+          </Button>
+        </div>
+      )}
+    </section>
   );
 }

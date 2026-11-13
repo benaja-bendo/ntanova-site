@@ -123,7 +123,7 @@ export async function uneFicheEnvoyee(
   // tomber en panne de réseau juste après).
   await attendreLaLecture(page);
   await ajouterUneEcole(page, 1, options);
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
   // Le faux serveur a bien reçu le relevé, la photo et le contact.
   await expect
     .poll(() =>
@@ -308,4 +308,20 @@ export async function ouvrirRegles(page: Page) {
     await page.getByRole('button', { name: 'Règles de cet écran' }).click();
   }
   await expect(page.getByRole('dialog', { name: /^Règles : / })).toBeVisible();
+}
+
+/** v2 (planche « Mes fiches ») : la ligne d'une fiche dans la liste (son état, sa phrase, son badge ; aucun geste). */
+export const ligneDeFiche = (page: Page, nom: string) => page.locator(`li[data-fiche="${nom}"]`);
+
+/**
+ * v2 : les gestes d'une fiche (Corriger, Réessayer, Modifier, Retirer du téléphone…) sont dans la fiche, pas dans la liste.
+ * Ouvre la fiche depuis « Mes fiches » et rend l'écran de la fiche.
+ */
+export async function ouvrirMaFiche(page: Page, nom: string): Promise<Locator> {
+  if (!(await page.getByRole('heading', { level: 1, name: nom }).isVisible())) {
+    if (!(await ligneDeFiche(page, nom).isVisible())) await page.goto('/relais/#fiches');
+    await ligneDeFiche(page, nom).getByRole('link').click();
+  }
+  await expect(page.getByRole('heading', { level: 1, name: nom })).toBeVisible();
+  return page.getByRole('main');
 }

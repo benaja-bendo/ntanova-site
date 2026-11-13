@@ -47,7 +47,7 @@ test('les fiches et le brouillon d’avant la mise à jour prennent le compte du
   await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 25_000 });
 
   // Le compte que le téléphone a gardé : la mise à jour le reprend pour les fiches d'avant.
   const profil = await page.evaluate(
@@ -115,7 +115,7 @@ test('les fiches et le brouillon d’avant la mise à jour prennent le compte du
 
   // La nouvelle application ouvre la base, la met à jour, reprend le brouillon et envoie la fiche.
   await telephone.goto('/relais/');
-  await expect(telephone.getByText('Tout est envoyé.')).toBeVisible({ timeout: 25_000 });
+  await expect(telephone.getByText('Tout est envoyé')).toBeVisible({ timeout: 25_000 });
   await expect(
     telephone.getByRole('button', { name: 'Reprendre la fiche en cours' }),
   ).toBeVisible();

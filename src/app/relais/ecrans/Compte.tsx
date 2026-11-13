@@ -20,6 +20,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/ui/shadcn/alert-dialog';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
@@ -130,6 +131,7 @@ export function Compte() {
                 href={lienNTanova}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="Écrire à NTanova sur WhatsApp"
                 className="flex min-h-[72px] items-center gap-3 px-4 py-3 text-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset"
               >
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -149,16 +151,12 @@ export function Compte() {
           )}
         </section>
 
-        <AlertDialog open={demande} onOpenChange={(o) => !o && setDemande(false)}>
-          <Button
-            variant="destructive"
-            size="lg"
-            className="w-full"
-            disabled={!reste}
-            onClick={() => setDemande(true)}
-          >
-            Se déconnecter
-          </Button>
+        <AlertDialog open={demande} onOpenChange={setDemande}>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="lg" className="w-full" disabled={!reste}>
+              Se déconnecter
+            </Button>
+          </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Se déconnecter&nbsp;?</AlertDialogTitle>
@@ -314,11 +312,10 @@ function NumeroDePaie() {
             void enregistrer();
           }}
         >
-          <GroupeDeChoix legende="Mobile Money" unique>
+          <GroupeDeChoix legende="Mobile Money">
             {OPERATEURS.map((o) => (
               <ChoixRectangle
                 key={o.valeur}
-                role="radio"
                 choisi={operateur === o.valeur}
                 onClick={() => {
                   setOperateur(o.valeur);

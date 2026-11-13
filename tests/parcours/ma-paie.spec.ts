@@ -24,10 +24,10 @@ test('le relais lit ce qui lui est acquis, la semaine close, puis le paiement av
   await expect(page.getByRole('heading', { name: 'Ma paie' })).toBeVisible();
   await expect(acquis(page)).toContainText('0 FCFA');
   await expect(acquis(page)).toContainText('Rien d’acquis pour le moment');
-  await expect(page.getByRole('region', { name: 'Mes fiches' })).toContainText(/Envoyées\s*:\s*1/);
-  await expect(page.getByRole('region', { name: 'Mes fiches' })).toContainText(/Acceptées\s*:\s*0/);
+  // v2 (planche « Ma paie ») : ce qui n'est pas encore compté se dit en une bande.
+  await expect(page.getByRole('link', { name: /Pas comptées/ })).toContainText('1 en attente');
   // NTanova n'a pas encore son numéro Mobile Money : il le sait.
-  await expect(page.getByText(/n’a pas encore votre numéro Mobile Money/)).toBeVisible();
+  await expect(page.getByText('Votre numéro Mobile Money manque.')).toBeVisible();
 
   // L'administration confirme la fonction de la direction et accepte la fiche.
   await ouvrirLaFiche(page);
@@ -40,12 +40,12 @@ test('le relais lit ce qui lui est acquis, la semaine close, puis le paiement av
   // Le relais lit ce qui lui est acquis : une fiche acceptée et un contact confirmé. Les montants viennent de la base.
   await page.goto('/relais/#paie');
   await expect(acquis(page)).toContainText('800 FCFA', { timeout: 15_000 });
-  await expect(acquis(page)).toContainText('1 fiche acceptée');
-  await expect(acquis(page)).toContainText('1 contact de direction confirmé');
-  await expect(acquis(page)).toContainText(/vendredi \d+ \p{L}+/u);
-  // Un acquis n'est pas une promesse : le relais le lit.
-  await expect(acquis(page)).toContainText(/si rien ne change/);
-  await expect(page.getByRole('region', { name: 'Mes fiches' })).toContainText(/Acceptées\s*:\s*1/);
+  // v2 : la facture de la planche, une ligne par genre (« Fiches acceptées · 1 × 500 · 500 »).
+  await expect(acquis(page)).toContainText('Fiches acceptées');
+  await expect(acquis(page)).toContainText('1 × 500');
+  await expect(acquis(page)).toContainText('Contact de direction');
+  await expect(acquis(page)).toContainText(/À payer vendredi \d+ \p{L}+/u);
+  await expect(page.getByRole('link', { name: /Pas comptées/ })).toHaveCount(0);
   await expect(semaines(page)).toContainText('Aucune semaine close pour le moment');
 
   // L'administration note le numéro Mobile Money, puis clôt la semaine.
@@ -61,10 +61,11 @@ test('le relais lit ce qui lui est acquis, la semaine close, puis le paiement av
 
   // La semaine close est « à payer » ; ce qui est clos n'est plus « acquis » ; le numéro n'est plus réclamé.
   await page.goto('/relais/#paie');
-  await expect(semaines(page)).toContainText('800 FCFA', { timeout: 15_000 });
+  // v2 : les semaines se lisent en chiffres, comme la planche (« 800 »).
+  await expect(semaines(page)).toContainText('800', { timeout: 15_000 });
   await expect(semaines(page)).toContainText('À payer');
   await expect(acquis(page)).toContainText('0 FCFA');
-  await expect(page.getByText(/n’a pas encore votre numéro Mobile Money/)).toHaveCount(0);
+  await expect(page.getByText('Votre numéro Mobile Money manque.')).toHaveCount(0);
 
   // L'administration note le paiement avec sa référence : le relais la lit.
   await page.goto('/admin/');
@@ -76,8 +77,7 @@ test('le relais lit ce qui lui est acquis, la semaine close, puis le paiement av
   await expect(page.getByRole('status')).toHaveText(/noté payé \(référence MM-0001\)/);
 
   await page.goto('/relais/#paie');
-  await expect(semaines(page)).toContainText('Payé', { timeout: 15_000 });
-  await expect(semaines(page)).toContainText('MM-0001');
+  await expect(semaines(page)).toContainText('réf. MM-0001', { timeout: 15_000 });
   await expect(semaines(page)).not.toContainText('À payer');
 });
 

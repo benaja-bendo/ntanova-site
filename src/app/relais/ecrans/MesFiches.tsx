@@ -230,8 +230,13 @@ function rang(l: Ligne): number {
 /** La phrase sous le nom : ce que NTanova a dit, sinon ce qui se passe. */
 function phraseDe(l: Ligne, payees: ReadonlySet<string> = new Set()): string {
   if (l.message) return `NTanova : « ${l.message} »`;
+  if (l.repasser) return `À repasser : ${l.repasser}`;
+  if (l.peutAjouterLeContact) return 'À repasser : la direction était absente';
+  if (l.contact?.libelle === 'Reçu · à confirmer')
+    return 'Contact de la direction : Reçu · à confirmer';
   if (l.refus) return l.refus.titre;
   if (l.echec) return l.echec;
+  if (l.essaisRates !== null) return `L'envoi a échoué ${l.essaisRates} fois de suite`;
   if (l.surTelephone)
     return l.fiche.libelle.startsWith('Envoi')
       ? l.fiche.libelle.replace('Envoi ·', 'Envoi en cours ·')
@@ -255,6 +260,7 @@ function quand(date: string): string {
 /** Le mot du badge, court comme sur la planche. */
 function badgeTexteDe(l: Ligne): string {
   if (l.enLigne) return 'En ligne';
+  if (l.refus || l.fiche.classe === 'etat-refusee') return 'Refusée';
   if (l.surTelephone) return l.fiche.libelle.startsWith('Envoi') ? 'Envoi' : 'Sur le téléphone';
   if (l.fiche.classe === 'etat-attente') return 'En attente';
   if (l.fiche.classe === 'etat-verifiee') return 'Acceptée';
@@ -382,6 +388,9 @@ export function MesFiches() {
             );
           })}
         </ul>
+        <div className="px-4 py-3 empty:hidden">
+          <EtatEnvoi calme="seul" />
+        </div>
       </main>
       <BarreDuBas />
     </div>

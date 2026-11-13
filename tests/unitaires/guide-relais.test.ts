@@ -216,18 +216,22 @@ describe('les phrases communes avec l’application', () => {
   });
 
   it('« Jamais » est la liste de l’application', () => {
-    const phrase = /<b>Jamais&nbsp;:<\/b>(.*?)<\/p>/s.exec(monLot)?.[1];
+    // v2 (13/11) : la liste est un tableau de phrases, une par ligne barrée d'une croix.
+    const liste = /Jamais<\/Surtitre>[\s\S]*?\{\[([\s\S]*?)\]\.map/.exec(monLot)?.[1];
     expect(
-      phrase,
-      'la liste est introuvable dans MonLot.tsx : ce test est à mettre à jour',
+      liste,
+      'la liste est introuvable dans Aide.tsx : ce test est à mettre à jour',
     ).toBeDefined();
-    const parties = morceaux(jsx(phrase ?? ''), /[.,]/);
+    const phrase = [...(liste ?? '').matchAll(/'([^']+)'/g)]
+      .map((m) => (m[1] ?? '').charAt(0).toLowerCase() + (m[1] ?? '').slice(1))
+      .join(' ');
+    const parties = morceaux(jsx(phrase), /[.,]/);
     expect(parties.length).toBe(4);
     for (const partie of parties) expect(tout, `« ${partie} »`).toContain(partie);
   });
 
   it('« À lui dire » est la phrase de l’application', () => {
-    const phrase = /À lui dire&nbsp;: «&nbsp;(.*?)&nbsp;»/s.exec(ajouter)?.[1];
+    const phrase = /À (?:lui )?dire&nbsp;: «&nbsp;(.*?)&nbsp;»/s.exec(ajouter)?.[1];
     expect(
       phrase,
       'la phrase est introuvable dans Ajouter.tsx : ce test est à mettre à jour',

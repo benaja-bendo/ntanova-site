@@ -91,7 +91,7 @@ test.describe('espace relais', () => {
     expect((await serveur(page)).releves).toBe(0);
 
     await context.setOffline(false);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 20_000 });
 
     const recu = await serveur(page);
     expect(recu.releves).toBe(3);
@@ -104,7 +104,9 @@ test.describe('espace relais', () => {
     expect(await telephone(page)).toEqual({ fiches: 3, photos: 0, contacts: 0 });
 
     await page.getByRole('link', { name: 'Mes fiches' }).click();
-    await expect(page.getByText('À valider par NTanova')).toHaveCount(3);
+    await expect(
+      page.locator('li[data-fiche]').getByText('En attente', { exact: true }),
+    ).toHaveCount(3);
     await expect(page.getByText('06 123')).toHaveCount(0);
   });
 
@@ -162,8 +164,8 @@ test.describe('espace relais', () => {
     page,
   }) => {
     await seConnecter(page, '/relais/');
-    // Lot H : la phrase est dans l'aide, à un toucher de l'accueil (« Quoi dire en entrant »).
-    await page.getByRole('link', { name: /Quoi dire en entrant/ }).click();
+    // Lot H : la phrase est dans l'aide, à un toucher de l'accueil (le « ? » de l'en-tête).
+    await page.getByRole('link', { name: 'Aide', exact: true }).click();
     const phrase = page.getByRole('region', { name: 'À dire en entrant' });
     // Le lot du faux serveur s'appelle « Tié-Tié » : la phrase ne le reprend plus. Un lot fin portera un nom
     // de lot, et un relais sans lot ne doit pas se voir répondre « Pointe-Noire ».
@@ -175,14 +177,21 @@ test.describe('espace relais', () => {
     );
     await expect(phrase).not.toContainText('Pointe-Noire');
     await expect(phrase).not.toContainText('Tié-Tié');
-    // La ligne « Jamais » ne change pas.
-    await expect(phrase).toContainText(
-      'Jamais : se dire parent, dire que le site est déjà connu, promettre quelque chose, photographier un enfant.',
-    );
+    // La liste « Jamais » ne change pas (v2 : une ligne par interdit).
+    const jamais = page.getByRole('region', { name: 'Jamais' });
+    for (const interdit of [
+      'Se dire parent.',
+      'Dire que le site est déjà connu.',
+      'Promettre quelque chose.',
+      'Photographier un enfant.',
+    ])
+      await expect(jamais).toContainText(interdit);
 
     await page.getByRole('button', { name: 'Retour' }).click();
     await page.getByRole('button', { name: 'Ajouter une école' }).click();
-    await expect(page.locator('.entete-etape-titre')).toHaveText('Ajouter une école');
+    await expect(
+      page.getByRole('banner').getByText('Ajouter une école', { exact: true }),
+    ).toBeVisible();
   });
 
   test('sans accord, le numéro ne peut pas être noté', async ({ page }) => {

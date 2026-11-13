@@ -154,7 +154,9 @@ function Semaine({ ligne, premiere }: { ligne: LigneDeMaPaie; premiere: boolean 
     >
       <span className="flex min-w-0 flex-1 flex-col">
         <b className="text-[17px]">{majuscule(vendrediLong(ligne.vendredi))}</b>
-        <span className="text-[15px] text-muted-foreground">{resume}</span>
+        <span className="text-[15px] text-muted-foreground">
+          {[resume, ligne.reference ? `réf. ${ligne.reference}` : null].filter(Boolean).join(' · ')}
+        </span>
       </span>
       <span className="flex flex-col items-end gap-1">
         <b className="text-[17px]">{chiffres(ligne.totalXaf)}</b>

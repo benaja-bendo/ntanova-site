@@ -26,10 +26,10 @@ test('« Une de mes fiches » : son état, ce qui vient du relevé, ce qui manqu
   // Elle s'ouvre depuis « Mes fiches ».
   await page.getByRole('link', { name: 'Mes fiches' }).click();
   await page.getByRole('link', { name: '[École 1]' }).click();
-  await expect(page.getByRole('heading', { name: 'Une de mes fiches' })).toBeVisible();
+  // v2 (planche « Une de mes fiches ») : le nom de l'école est le titre, les étapes en trois ronds.
+  await expect(page.getByRole('heading', { level: 1, name: '[École 1]' })).toBeVisible();
   const etapes = page.getByRole('list', { name: 'Où en est la fiche' });
   await expect(etapes).toContainText('Envoyée');
-  await expect(page.getByText('NTanova relit votre fiche.')).toBeVisible();
   const releve = page.getByRole('region', { name: 'Ce qui vient de mon relevé' });
   await expect(releve).toContainText('[École 1]');
   await expect(releve).toContainText('Face au marché');
@@ -53,20 +53,20 @@ test('« Une de mes fiches » : son état, ce qui vient du relevé, ce qui manqu
 
   // « Mes fiches » gagne le filtre « En ligne ».
   await page.goto('/relais/#fiches');
-  await expect(page.getByRole('button', { name: 'En ligne · 1' })).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'En ligne · 1' }).click();
+  await expect(page.getByRole('tab', { name: /En ligne\s*1/ })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('tab', { name: /En ligne\s*1/ }).click();
   await expect(page.getByRole('link', { name: '[École 1]' })).toBeVisible();
 
   // Hors ligne, la fiche s'ouvre quand même : tout vient du téléphone.
   await context.setOffline(true);
   await page.getByRole('link', { name: '[École 1]' }).click();
-  await expect(page.getByText('La page de l’école est en ligne.')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Où en est la fiche' })).toContainText('En ligne');
   await expect(page.getByRole('link', { name: 'Voir la page de l’école' })).toHaveAttribute(
     'href',
     '/ecoles/158427/',
   );
   await expect(page.getByRole('region', { name: 'Ce qu’elle rapporte' })).toContainText(
-    /Cette fiche : 500\sFCFA, à payer vendredi/,
+    /Comptée dans la paie du vendredi \d+ \p{L}+\s*500\sFCFA/u,
   );
   await context.setOffline(false);
 
@@ -75,9 +75,10 @@ test('« Une de mes fiches » : son état, ce qui vient du relevé, ce qui manqu
   const detail = page
     .getByRole('region', { name: 'Acquis' })
     .getByRole('list', { name: 'Le détail' });
-  await expect(detail).toContainText('1 fiche acceptée');
-  await expect(detail).toContainText(/1 × 500\sFCFA/);
-  await expect(detail).toContainText(/Total\s*500\sFCFA/);
+  // v2 : la facture de la planche, « Fiches acceptées · 1 × 500 · 500 », le total en tête.
+  await expect(detail).toContainText('Fiches acceptées');
+  await expect(detail).toContainText('1 × 500');
+  await expect(page.getByRole('region', { name: 'Acquis' })).toContainText(/500\sFCFA/);
 });
 
 test('« Une de mes fiches » : la raison de NTanova quand elle demande une correction, et le bouton pour corriger', async ({
@@ -100,9 +101,7 @@ test('« Une de mes fiches » : la raison de NTanova quand elle demande une corr
   await expect(page.getByRole('list', { name: 'Où en est la fiche' })).toContainText('À corriger', {
     timeout: 15_000,
   });
-  await expect(page.locator('.message-ntanova')).toContainText(
-    'Reprenez la photo de l’enseigne, elle est floue.',
-  );
+  await expect(page.getByText(/Reprenez la photo de l’enseigne, elle est floue\./)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
 });
 

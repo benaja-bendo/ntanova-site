@@ -14,6 +14,7 @@ import {
 import { francs, paieDeLaFiche, vendrediLong } from '../../../modele/paie';
 import { base, compteConnecte, lireMemoire, useRequete } from '../base-locale';
 import { jour } from '../composants';
+import { libelleFonctionCourt } from '../../../modele/libelles';
 import { aller } from '../contexte';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/ui/shadcn/badge';
@@ -108,7 +109,7 @@ export function UneFiche({ releveId }: { releveId: string }) {
       />
       <main className="flex flex-1 flex-col gap-3.5 px-4 py-3.5">
         <ol
-          aria-label="Le parcours de la fiche"
+          aria-label="Où en est la fiche"
           className="m-0 grid list-none grid-cols-3 rounded-lg border border-border bg-card px-2 py-3.5"
         >
           {etapes.map((e) => (
@@ -167,7 +168,17 @@ export function UneFiche({ releveId }: { releveId: string }) {
             {enLigne ? 'Sur la page, grâce à vous' : 'Ce qui vient de mon relevé'}
           </h2>
           <dl className="m-0">
-            {contenu.map((c) => (
+            {[
+              ...contenu,
+              ...(recu.contactConfirmeLe
+                ? [
+                    {
+                      libelle: 'Le contact de la direction',
+                      valeur: `Confirmé · ${recu.contactFonction ? libelleFonctionCourt[recu.contactFonction] : ''}`,
+                    },
+                  ]
+                : []),
+            ].map((c) => (
               <div
                 key={c.libelle}
                 className="flex items-start gap-2.5 border-t border-border py-2.5"
@@ -204,7 +215,8 @@ export function UneFiche({ releveId }: { releveId: string }) {
           </section>
         )}
 
-        <div
+        <section
+          aria-label="Ce qu’elle rapporte"
           className={cn(
             'flex justify-between gap-2.5 rounded-md px-3.5 py-3 text-[15px]',
             sesPaies ? 'bg-succes text-succes-foreground' : 'bg-muted text-foreground',
@@ -214,7 +226,7 @@ export function UneFiche({ releveId }: { releveId: string }) {
           {paieTexte.montant && (
             <b className="whitespace-nowrap tabular-nums">{paieTexte.montant}</b>
           )}
-        </div>
+        </section>
       </main>
       <BarreDuBas />
     </div>

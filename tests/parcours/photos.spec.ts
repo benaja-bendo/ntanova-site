@@ -9,7 +9,7 @@ test.use({ permissions: ['geolocation'] });
 
 const photo = new URL('./fichiers/enseigne.jpg', import.meta.url).pathname;
 
-const niveaux = (page: Page) => page.getByRole('group', { name: "Niveaux écrits sur l'enseigne" });
+const niveaux = (page: Page) => page.getByRole('group', { name: 'Niveaux affichés' });
 
 /** Connecté, sur Ajouter 1/3, avec la photo de l'enseigne prise et la position lue. */
 async function arriverALEtape1(page: Page, context: BrowserContext) {
@@ -158,7 +158,7 @@ test.describe('les photos d’une fiche', () => {
     await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
     await expect(page.getByRole('region', { name: /Photos en plus/ })).toContainText('1 sur 5');
     await envoyerDepuisLeBonus(page);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
 
     const recu = await serveur(page);
     expect(recu.releves).toHaveLength(1);
@@ -231,11 +231,11 @@ test.describe('les photos d’une fiche', () => {
     await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
 
     await page.locator('input[type=file]').first().setInputFiles(photo);
-    await expect(page.getByText('Allègement de la photo…')).toBeVisible();
+    await expect(page.getByText('Préparation de la photo…')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Suivant' })).toBeDisabled();
 
     await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('Allègement de la photo…')).toHaveCount(0);
+    await expect(page.getByText('Préparation de la photo…')).toHaveCount(0);
     await expect(page.getByText('Position prise')).toBeVisible();
     await page.getByLabel('Comment la trouver ?').fill('Face au marché');
     await expect(page.getByRole('button', { name: 'Suivant' })).toBeEnabled();
@@ -278,7 +278,7 @@ test.describe('les séries et filières vues', () => {
     await allerAuBonus(page);
     await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
     await envoyerDepuisLeBonus(page);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
 
     const [releve] = (await serveur(page)).releves;
     expect(releve).toMatchObject({
@@ -336,7 +336,7 @@ test.describe('hors ligne', () => {
     expect((await serveur(page)).releves).toHaveLength(0);
 
     await context.setOffline(false);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 20_000 });
     const recu = await serveur(page);
     expect(recu.releves).toHaveLength(1);
     expect(recu.photos).toHaveLength(2);

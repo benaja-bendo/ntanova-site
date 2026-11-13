@@ -88,7 +88,7 @@ test('le bonus : ce qui a été vu, la clôture, des photos en plus ; tout part 
   await expect(page.getByRole('heading', { name: /Photos en plus/ })).toContainText('1 sur 5');
   await page.getByRole('button', { name: 'Envoyer la fiche' }).click();
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
   const recu = await page.evaluate(() => {
     const e = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
       releves: Record<string, Record<string, unknown>>;
@@ -133,5 +133,5 @@ test('une fiche sans bonus part comme avant, par « Envoyer sans bonus »', asyn
   await page.getByRole('button', { name: 'Personne', exact: true }).click();
   await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
 });

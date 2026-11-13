@@ -161,7 +161,7 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     await page.getByRole('button', { name: 'Personne', exact: true }).click();
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
 
     // L'administration compare : le numéro n'est pas sur la photo.
     await page.goto('/admin/#valider');

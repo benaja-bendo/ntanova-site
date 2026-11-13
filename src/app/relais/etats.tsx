@@ -2,7 +2,7 @@
  * Les états que les planches ne dessinent pas (chargement, vide), avec les mêmes formes qu'elles : un cadre d'écran, des
  * cartes qui respirent, jamais un message brut. Tailwind et shadcn seulement.
  */
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -12,6 +12,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/ui/shadcn/alert-dialog';
 import { Button } from '@/ui/shadcn/button';
 import { BarreDuBas, EnTete } from './cadre';
@@ -78,6 +79,7 @@ export function Bande({
   action,
   role,
   className,
+  region,
 }: {
   ton: keyof typeof tons;
   icone?: ReactNode;
@@ -85,9 +87,13 @@ export function Bande({
   action?: ReactNode;
   role?: 'status' | 'alert' | undefined;
   className?: string;
+  /** Une bande qu'on retrouve par son nom (« Doublon possible ») : elle devient une région nommée. */
+  region?: string;
 }) {
+  const Element = region ? 'section' : 'div';
   return (
-    <div
+    <Element
+      aria-label={region}
       role={role}
       className={cn(
         'flex flex-col gap-2.5 rounded-md px-3 py-2.5 text-sm [&_p]:m-0',
@@ -100,7 +106,7 @@ export function Bande({
         <div className="flex min-w-0 flex-1 flex-col gap-1">{children}</div>
       </div>
       {action && <div className="flex flex-wrap gap-2 pl-[30px]">{action}</div>}
-    </div>
+    </Element>
   );
 }
 
@@ -131,33 +137,43 @@ export function Confirmer({
   const [ouverte, setOuverte] = useState(false);
   const [occupe, setOccupe] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const fait = useRef(false);
   const agir = async () => {
     setOccupe(true);
     setErreur(null);
     try {
       const raison = await surConfirmer();
       if (raison) setErreur(raison);
-      else setOuverte(false);
+      else {
+        fait.current = true;
+        setOuverte(false);
+      }
     } catch {
-      setErreur('Le geste n’a pas abouti. Réessayez.');
+      setErreur('L’action n’a pas abouti. Réessayez.');
     } finally {
       setOccupe(false);
     }
   };
   return (
     <AlertDialog open={ouverte} onOpenChange={(o) => !occupe && setOuverte(o)}>
-      <Button
-        variant={declencheur === 'contour' ? 'destructive' : 'ghost'}
-        size="lg"
-        className={declencheur === 'contour' ? 'w-full' : 'self-center text-destructive'}
-        onClick={() => {
-          setErreur(null);
-          setOuverte(true);
+      <AlertDialogTrigger asChild>
+        <Button
+          variant={declencheur === 'contour' ? 'destructive' : 'ghost'}
+          size="lg"
+          className={declencheur === 'contour' ? 'w-full' : 'self-center text-destructive'}
+          onClick={() => setErreur(null)}
+        >
+          {libelle}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent
+        onCloseAutoFocus={(e) => {
+          // Le geste a abouti (la fiche n'existe plus) : le focus va au titre de l'écran, pas au bouton disparu.
+          if (!fait.current) return;
+          e.preventDefault();
+          document.querySelector<HTMLElement>('[data-retour-liste]')?.focus();
         }}
       >
-        {libelle}
-      </Button>
-      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{titre}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>

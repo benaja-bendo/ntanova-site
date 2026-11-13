@@ -53,7 +53,7 @@ test.describe('les séries du lycée se cochent', () => {
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 123 45 61');
     await envoyerSansBonus(page);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
 
     // Le faux serveur a reçu les séries, dans l'ordre où le relais les a touchées, et le texte libre.
     await expect
@@ -274,7 +274,7 @@ test.describe('un brouillon écrit avant le 09/11/2026 ne casse pas', () => {
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 123 45 62');
     await envoyerSansBonus(page);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
     await expect
       .poll(() =>
         page.evaluate(() => {

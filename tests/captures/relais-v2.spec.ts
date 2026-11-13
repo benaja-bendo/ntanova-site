@@ -24,7 +24,8 @@ const prendre = async (page: Page, ecran: string) => {
   await page.setViewportSize(taille);
 };
 
-test.beforeEach(async ({ page, context }) => {
+test.beforeEach(async ({ page, context }, info) => {
+  if (info.title.startsWith('relais : états')) return;
   await context.addInitScript(() => localStorage.setItem('ntanova-faux-scenario', 'planches'));
   // Pointe-Noire, Loandjili : la mini-carte dessine l'arrondissement.
   await context.setGeolocation({ latitude: -4.757, longitude: 11.899, accuracy: 8 });
@@ -99,4 +100,20 @@ test('relais : les étapes et le bonus', async ({ page }) => {
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Suivant : le bonus' }).click();
   await prendre(page, 'r-bonus');
+});
+
+test('relais : états non dessinés (connexion, lecture lente)', async ({ page, context }) => {
+  await context.addInitScript(() => localStorage.setItem('ntanova-faux-scenario', 'planches'));
+  await page.goto('/relais/');
+  await expect(
+    page.getByRole('button', { name: 'Continuer avec mon compte Google' }),
+  ).toBeVisible();
+  await prendre(page, 'r-connexion');
+  await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
+  await attendreLaLecture(page);
+  await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '6000'));
+  await page.goto('/relais/#paie');
+  await page.evaluate(() => indexedDB.deleteDatabase('ntanova-relais'));
+  await page.reload();
+  await prendre(page, 'r-chargement');
 });

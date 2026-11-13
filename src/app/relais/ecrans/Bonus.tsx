@@ -268,14 +268,15 @@ function PhotosEnPlus({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="photos-en-plus">
-      <div className="flex items-baseline justify-between">
-        <h2 id="photos-en-plus" className="m-0 font-serif text-[19px] leading-tight font-bold">
-          Photos en plus
-        </h2>
-        <span className="text-[15px] text-muted-foreground tabular-nums">
+      <h2
+        id="photos-en-plus"
+        className="m-0 flex items-baseline justify-between font-serif text-[19px] leading-tight font-bold"
+      >
+        Photos en plus
+        <span className="font-sans text-[15px] font-normal text-muted-foreground tabular-nums">
           {autres.length} sur {PHOTOS_FACULTATIVES_MAX}
         </span>
-      </div>
+      </h2>
       <a
         href="#aide/regles"
         className="flex items-center gap-2 text-[15px] font-bold text-destructive no-underline"

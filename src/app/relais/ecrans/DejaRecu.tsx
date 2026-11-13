@@ -149,7 +149,11 @@ export function VoirSurLaCarte({
       {ouverte && <CartePosition position={position} precisionM={precisionM} legende={legende} />}
       <button
         type="button"
-        className={classeBouton({ variant: 'outline', size: 'sm' })}
+        className={classeBouton({
+          variant: 'ghost',
+          size: 'sm',
+          className: 'self-start text-primary',
+        })}
         aria-expanded={ouverte}
         onClick={() => setOuverte((o) => !o)}
       >

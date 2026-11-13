@@ -94,7 +94,7 @@ test('Ajouter 1 sur 3 : « On y voit » sous la photo, les six repères et leur 
   await expect(aide).toHaveAttribute('aria-expanded', 'false');
   await aide.click();
   await expect(aide).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByText('Un lieu que tout le monde connaît')).toBeVisible();
+  await expect(page.getByText('Un repère que tout le quartier connaît')).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,

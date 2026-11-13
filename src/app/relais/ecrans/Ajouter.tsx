@@ -79,7 +79,7 @@ import { FormationsRapides } from './FormationsRapides';
 import { aideDePrecision, lireErreurPosition } from '../../../modele/aide-position';
 import { environnementActuel, etatDeLAutorisation } from '../environnement';
 import { useReprisePosition } from '../reprise-position';
-import { PhotosRecues, PositionRecue } from './DejaRecu';
+import { PhotosRecues, PositionRecue, VoirSurLaCarte } from './DejaRecu';
 import { Bonus, EnvoyerSansBonus } from './Bonus';
 import { DejaSurNTanova } from './DejaSurNTanova';
 import { useEnregistrer, type Modifier } from './fiche-en-cours';
@@ -165,7 +165,7 @@ function BoutonSuivant({ surClic, occupe = false }: { surClic: () => void; occup
       disabled={occupe}
       aria-busy={occupe || undefined}
     >
-      {occupe ? 'Préparation de la photo…' : 'Suivant'}
+      Suivant
     </Button>
   );
 }
@@ -492,12 +492,28 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
                   )}
                 </span>
                 {!recherche && (
-                  <Button variant="quiet" size="sm" onClick={prendrePosition}>
+                  <Button
+                    variant="quiet"
+                    size="sm"
+                    aria-label={
+                      fiche.position || fiche.dejaRecu?.position
+                        ? 'Reprendre la position'
+                        : undefined
+                    }
+                    onClick={prendrePosition}
+                  >
                     {libellePrendre}
                   </Button>
                 )}
               </div>
             </div>
+          )}
+          {!recherche && fiche.position && (
+            <VoirSurLaCarte
+              position={fiche.position}
+              precisionM={precision}
+              legende="Position prise maintenant"
+            />
           )}
           {!recherche &&
             fiche.position &&
@@ -561,7 +577,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         </section>
 
         {fiche.type !== 'contre_visite' && fiche.doublonPropose && (
-          <Bande ton="attention" icone={<IconeAlerte />}>
+          <Bande ton="attention" region="Doublon possible" icone={<IconeAlerte />}>
             <p>
               <b>Une école est déjà relevée à 40&nbsp;m&nbsp;:</b> {fiche.doublonPropose.nom}.
             </p>
@@ -585,6 +601,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
         {relanceRepere && repereManquant(fiche.repere) && (
           <Bande
             ton="attention"
+            region="Un repère aide"
             icone={<IconeRepere />}
             action={
               <>
@@ -702,6 +719,10 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           colonnes={2}
           erreur={erreurs.typeEcole}
         />
+        <p className="-mt-3 mb-0 text-[13px] text-muted-foreground">
+          <b>Pas indiqué</b>&nbsp;: rien d'écrit. <b>Autre</b>&nbsp;: c'est écrit mais ça ne rentre
+          pas&nbsp;; dites-le plus bas.
+        </p>
 
         <Choix
           legende="Niveaux affichés"
@@ -959,7 +980,7 @@ function EcranEtape3({
                     </p>
                     <p className="mt-2">
                       À dire&nbsp;: «&nbsp;Votre numéro ne sera jamais publié. NTanova vous écrira
-                      au sujet de la fiche de l’école, et l’effacera si vous le demandez.&nbsp;»
+                      au sujet de la fiche de l'école, et l'effacera si vous le demandez.&nbsp;»
                     </p>
                   </>
                 }

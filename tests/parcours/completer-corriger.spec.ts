@@ -1,4 +1,4 @@
-import { commencerLaMission, envoyerSansBonus, ouvrirContacts } from './aides';
+import { commencerLaMission, envoyerSansBonus, ouvrirContacts, ouvrirMaFiche } from './aides';
 import { ouvrirGestion } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter, uneFicheEnvoyee } from './aides';
@@ -82,7 +82,9 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await commencerLaMission(page);
 
     // L'encart dit ce qui est demandé, avec la consigne de NTanova.
-    await expect(page.locator('.entete-etape-titre')).toHaveText('Compléter une école');
+    await expect(
+      page.getByRole('banner').getByText('Compléter une école', { exact: true }),
+    ).toBeVisible();
     await expect(encart(page)).toContainText('Confirmer les séries.');
     await expect(encart(page).getByText('Photo de l’enseigne')).toBeVisible();
     await expect(encart(page)).toContainText('Déjà chez NTanova');
@@ -106,7 +108,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await envoyerSansBonus(page);
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
 
     // Chez NTanova : un second relevé, sans nouvelle photo ni nouveau contact.
     await expect
@@ -133,7 +135,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await page.getByRole('button', { name: 'Personne', exact: true }).click();
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
     expect(await serveur(page)).toMatchObject({ photos: 1 });
   });
 
@@ -172,9 +174,11 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await uneFicheEnvoyee(page, context);
     await renvoyer(page, 'position_imprecise', 'Placez-vous devant l’entrée.');
 
-    await page.goto('/relais/#fiches');
+    await ouvrirMaFiche(page, '[École 1]');
     await page.getByRole('button', { name: 'Corriger la fiche' }).click();
-    await expect(page.locator('.entete-etape-titre')).toHaveText('Corriger une fiche');
+    await expect(
+      page.getByRole('banner').getByText('Corriger une fiche', { exact: true }),
+    ).toBeVisible();
     await expect(encart(page)).toContainText('Placez-vous devant l’entrée.');
     await expect(encart(page)).toContainText('Déjà chez NTanova');
 
@@ -197,7 +201,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await envoyerSansBonus(page);
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
     await expect
       .poll(async () => (await serveur(page)).releves.sort())
       .toEqual(['correction', 'releve']);
@@ -217,7 +221,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await uneFicheEnvoyee(page, context);
     await renvoyer(page, 'photo_floue', 'La photo est floue, reprenez-la de face.');
 
-    await page.goto('/relais/#fiches');
+    await ouvrirMaFiche(page, '[École 1]');
     await page.getByRole('button', { name: 'Corriger la fiche' }).click();
     await expect(encart(page)).toContainText('La photo est floue, reprenez-la de face.');
     await expect(encart(page)).toContainText('À prendre');
@@ -233,7 +237,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
     await expect.poll(async () => (await serveur(page)).photos).toBe(2);
   });
 });
@@ -254,12 +258,14 @@ test.describe('après « À repasser »', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Personne', exact: true }).click();
     await envoyerSansBonus(page);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
     expect(await serveur(page)).toMatchObject({ contacts: 0 });
 
     // « À repasser » a maintenant un geste : le relais a revu la direction.
     // v2 (13/11) : « Quand repasser ? » est retiré de l'étape 3 ; « À repasser » reste, sans note.
     await expect(page.getByText(/^À repasser/)).toBeVisible({ timeout: 15_000 });
+    // v2 : le geste est dans la fiche.
+    await ouvrirMaFiche(page, '[École 1]');
     await page.getByRole('button', { name: 'J’ai revu la direction' }).click();
     await expect(page.getByRole('heading', { name: 'La direction' })).toBeVisible();
     await page

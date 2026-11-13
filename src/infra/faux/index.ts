@@ -388,6 +388,15 @@ const etatInitial = (): Etat => ({
   autresReleves: [],
 });
 
+// `?scenario=planches` dans l'adresse (serveur local du fondateur) : on repart des états des planches v2.
+if (
+  typeof location !== 'undefined' &&
+  new URLSearchParams(location.search).get('scenario') === 'planches'
+) {
+  localStorage.setItem('ntanova-faux-scenario', 'planches');
+  localStorage.removeItem(CLE);
+}
+
 function lireEtat(): Etat {
   const garde = localStorage.getItem(CLE);
   if (garde) return { ...etatInitial(), ...(JSON.parse(garde) as Partial<Etat>) };

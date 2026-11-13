@@ -1,4 +1,4 @@
-import { ouvrirContacts, ouvrirEcranAdmin } from './aides';
+import { ouvrirContacts, ouvrirEcranAdmin, ouvrirMaFiche } from './aides';
 import { ouvrirGestion } from './aides';
 import { expect, test } from '@playwright/test';
 import {
@@ -52,7 +52,12 @@ test.describe('administration', () => {
     ).toBeVisible();
 
     await page.goto('/relais/#fiches');
-    await expect(page.getByText('Acceptée')).toBeVisible({ timeout: 15_000 });
+    // v2 : la liste dit « En ligne » ; la fiche ouverte dit ses étapes, dont « Acceptée ».
+    await expect(page.getByText('En ligne', { exact: true }).last()).toBeVisible({
+      timeout: 15_000,
+    });
+    await ouvrirMaFiche(page, '[École 1]');
+    await expect(page.getByRole('list', { name: 'Où en est la fiche' })).toContainText('Acceptée');
     await expect(page.getByText('Confirmé · promoteur')).toBeVisible();
   });
 
@@ -71,11 +76,14 @@ test.describe('administration', () => {
     await expect(page.getByText('La photo est floue, reprenez-la de face.')).toBeVisible({
       timeout: 15_000,
     });
+    await ouvrirMaFiche(page, '[École 1]');
     await expect(page.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
 
     // L'écran dit ce que le relais fait : il corrige une fiche, il n'ajoute pas une école.
     await page.getByRole('button', { name: 'Corriger la fiche' }).click();
-    await expect(page.locator('.entete-etape-titre')).toHaveText('Corriger une fiche');
+    await expect(
+      page.getByRole('banner').getByText('Corriger une fiche', { exact: true }),
+    ).toBeVisible();
   });
 
   test('une école publiée se retire avec un motif, puis se republie', async ({ page, context }) => {

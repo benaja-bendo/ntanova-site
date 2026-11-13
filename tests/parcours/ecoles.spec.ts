@@ -41,7 +41,9 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await expect(page.getByText(/La situer/)).toBeVisible();
   await page.getByRole('button', { name: 'Prendre la photo' }).click();
   // L'écran dit ce que le relais fait, avec un mot qu'il connaît : « Compléter », comme le bouton qu'il vient de toucher.
-  await expect(page.locator('.entete-etape-titre')).toHaveText('Compléter une école');
+  await expect(
+    page.getByRole('banner').getByText('Compléter une école', { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/Compléter\s*: \[École à situer\]/)).toBeVisible();
   // Pour « situer », l'encart dit ce qui manque, d'après ce que NTanova sait de l'école (ticket #55, PR 4).
   const encart = page.getByRole('region', { name: 'À faire sur cette école' });
@@ -58,7 +60,7 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.getByRole('button', { name: 'Personne', exact: true }).click();
   await envoyerSansBonus(page);
   await page.getByRole('link', { name: 'Missions' }).click();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/À compléter/)).toHaveCount(0);
 
   // L'administration la situe et la publie.
