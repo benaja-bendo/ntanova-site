@@ -6,6 +6,7 @@ import { ImagesEcole } from './ImagesEcole';
 import { ManquesEcole } from './ManquesEcole';
 import { NouvellesEcole } from './NouvellesEcole';
 import { AdmissionEcole } from './AdmissionEcole';
+import { FormationsSuperieur } from './FormationsSuperieur';
 import { dateLongue } from '../../modele/pointe-noire';
 import { EquipementsEcole } from './EquipementsEcole';
 import { FraisEcole } from './FraisEcole';
@@ -126,6 +127,7 @@ function LigneEcole({
     | 'rattacher'
     | 'nouvelles'
     | 'admission'
+    | 'formations'
     | 'inscriptions'
     | null
   >(null);
@@ -194,6 +196,7 @@ function LigneEcole({
     ['images', 'Images'],
     ['nouvelles', 'Nouvelles'],
     ['admission', 'Admission'],
+    ['formations', 'Formations du supérieur'],
     ['mission', 'Mission'],
   ] as const;
   const confirmation =
@@ -390,7 +393,12 @@ function LigneEcole({
                       (etat !== 'retiree' || !['modifier', 'situer', 'mission'].includes(cle)) &&
                       // L'admission ne concerne que le supérieur et le technique.
                       (cle !== 'admission' ||
-                        e.niveaux.some((n) => n === 'superieur' || n === 'technique')),
+                        e.niveaux.some((n) => n === 'superieur' || n === 'technique')) &&
+                      // Lot F : le détail des formations, pour le supérieur, le technique et les autres formations.
+                      (cle !== 'formations' ||
+                        e.niveaux.some(
+                          (n) => n === 'superieur' || n === 'technique' || n === 'autre_formation',
+                        )),
                   )
                   .map(([cle, libelle]) => (
                     <button
@@ -433,6 +441,9 @@ function LigneEcole({
             )}
             {mode === 'admission' && (
               <AdmissionEcole ecoleId={e.id} admin={admin} surChangement={signaler} />
+            )}
+            {mode === 'formations' && (
+              <FormationsSuperieur ecoleId={e.id} admin={admin} surChangement={signaler} />
             )}
             {mode === 'images' && (
               <ImagesEcole ecoleId={e.id} admin={admin} surChangement={signaler} />

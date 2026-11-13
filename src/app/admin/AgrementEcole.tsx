@@ -6,9 +6,13 @@ import {
   type AgrementEnregistre,
 } from '../../modele/agrement';
 import { jourDuCongo } from '../../modele/date-declaration';
-import { libelleGenreAgrement } from '../../modele/libelles';
+import { libelleGenreAgrement, libelleRolePhotoCourt } from '../../modele/libelles';
+import { libelleGenrePreuve, type GenrePreuve } from '../../modele/fiche-admin';
 import { listes } from '../../modele/listes';
-import type { PortAdministration } from '../../modele/ports';
+import type { PhotoVue, PortAdministration } from '../../modele/ports';
+import { Bouton } from '../../ui/actions';
+import { ImageIllisible, preparerImage } from '../commun/image';
+import { Champ } from '../../ui/composants';
 import { Dialogue } from '../../ui/Dialogue';
 import { dateLongue } from '../../modele/pointe-noire';
 import { Bandeau } from '../../ui/composants';
@@ -145,6 +149,13 @@ export function AgrementEcole({
                 >
                   Retirer : {cible(a)}
                 </button>
+                <PreuveDeLAgrement
+                  ecoleId={ecoleId}
+                  agrement={a}
+                  cible={cible(a)}
+                  admin={admin}
+                  surChangement={surChangement}
+                />
               </li>
             ))}
           </ul>
@@ -275,5 +286,188 @@ export function AgrementEcole({
         <p className="mention">Visible après la prochaine mise à jour du site.</p>
       </form>
     </Dialogue>
+  );
+}
+
+/**
+ * Lot F (13/11) : la preuve d'un agrément. La photo du document (une photo de travail d'un relevé, ou un fichier téléversé
+ * ici), le document vu sur place, ou ce que dit l'école sans document. La photo reste privée : la page écrit seulement « vue
+ * sur le document » ou « dite par l'école », jamais « reconnue par l'État ».
+ */
+function PreuveDeLAgrement({
+  ecoleId,
+  agrement,
+  cible,
+  admin,
+  surChangement,
+}: {
+  ecoleId: string;
+  agrement: AgrementEnregistre;
+  cible: string;
+  admin: PortAdministration;
+  surChangement: (texte: string) => void;
+}) {
+  const actuelle = agrement.preuveDetail ?? null;
+  const [ouverte, setOuverte] = useState(false);
+  const [genre, setGenre] = useState<GenrePreuve | ''>(actuelle?.genre ?? '');
+  const [photos, setPhotos] = useState<PhotoVue[] | null>(null);
+  const [photoId, setPhotoId] = useState<string>(actuelle?.photoId ?? '');
+  const [fichier, setFichier] = useState<File | null>(null);
+  const [apercu, setApercu] = useState<string | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+
+  useEffect(() => {
+    if (!ouverte || genre !== 'photo' || photos) return;
+    let vivant = true;
+    void admin
+      .photosDeTravail(ecoleId)
+      .then((p) => vivant && setPhotos(p))
+      .catch(() => vivant && setPhotos([]));
+    return () => {
+      vivant = false;
+    };
+  }, [admin, ecoleId, genre, ouverte, photos]);
+  useEffect(() => {
+    if (!ouverte || !actuelle?.chemin) return;
+    let vivant = true;
+    void admin
+      .adresseDePreuve(actuelle.chemin)
+      .then((a) => vivant && setApercu(a))
+      .catch(() => vivant && setApercu(null));
+    return () => {
+      vivant = false;
+    };
+  }, [admin, actuelle?.chemin, ouverte]);
+
+  const sauver = async () => {
+    if (!genre) return setErreur('Choisis ce qui prouve la référence.');
+    if (genre === 'photo' && !fichier && !photoId && !actuelle?.chemin)
+      return setErreur('Choisis la photo du document parmi celles des relevés, ou ajoute-la.');
+    setEnCours(true);
+    setErreur(null);
+    try {
+      // Garder le fichier déjà envoyé : on renvoie seulement ce qui change.
+      if (genre === 'photo' && !fichier && !photoId && actuelle?.chemin) {
+        setOuverte(false);
+        return;
+      }
+      const image = genre === 'photo' && fichier ? await preparerImage(fichier) : null;
+      await admin.enregistrerPreuveAgrement(ecoleId, agrement.id, {
+        genre,
+        photoId: genre === 'photo' && !image ? photoId || null : null,
+        image,
+      });
+      setOuverte(false);
+      setFichier(null);
+      surChangement(`Preuve de l’agrément (${cible}) enregistrée. Elle reste privée.`);
+    } catch (e) {
+      setErreur(e instanceof ImageIllisible ? e.message : messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <div className="pile-serree">
+      <p className="mention">
+        Preuve :{' '}
+        {actuelle
+          ? `${libelleGenrePreuve[actuelle.genre]}${actuelle.chemin ? ' (photo ajoutée ici)' : actuelle.photoId ? ' (photo d’un relevé)' : ''}`
+          : 'pas encore dite'}
+      </p>
+      {!ouverte ? (
+        <button
+          type="button"
+          className="bouton bouton-secondaire"
+          onClick={() => {
+            setOuverte(true);
+            setErreur(null);
+          }}
+        >
+          Preuve : {cible}
+        </button>
+      ) : (
+        <fieldset className="pile-serree" aria-label={`Preuve de l’agrément : ${cible}`}>
+          <legend>Ce qui prouve la référence</legend>
+          {(Object.keys(libelleGenrePreuve) as GenrePreuve[]).map((g) => (
+            <label key={g} className="case">
+              <input
+                type="radio"
+                name={`preuve-${agrement.id}`}
+                checked={genre === g}
+                onChange={() => setGenre(g)}
+              />
+              {libelleGenrePreuve[g]}
+            </label>
+          ))}
+          {genre === 'photo' && (
+            <>
+              {apercu && (
+                <a href={apercu} target="_blank" rel="noopener">
+                  Voir la photo déjà ajoutée
+                </a>
+              )}
+              {photos === null ? (
+                <p aria-busy="true">Chargement des photos de travail…</p>
+              ) : photos.length > 0 ? (
+                <div className="pile-serree" role="radiogroup" aria-label="Photo d’un relevé">
+                  {photos.map((p) => (
+                    <label key={p.id} className="case">
+                      <input
+                        type="radio"
+                        name={`photo-preuve-${agrement.id}`}
+                        checked={photoId === p.id}
+                        onChange={() => {
+                          setPhotoId(p.id);
+                          setFichier(null);
+                        }}
+                      />
+                      {p.adresse && <img src={p.adresse} alt="" width={64} height={48} />}
+                      {libelleRolePhotoCourt[p.role]}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p className="mention">Aucune photo de travail dans les relevés de ce site.</p>
+              )}
+              <Champ libelle="Ou ajouter la photo du document" facultatif>
+                {(a) => (
+                  <input
+                    {...a}
+                    className="champ"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(ev) => {
+                      setFichier(ev.target.files?.[0] ?? null);
+                      setPhotoId('');
+                    }}
+                  />
+                )}
+              </Champ>
+              <p className="mention">Photo de travail : jamais publiée.</p>
+            </>
+          )}
+          {erreur && (
+            <Bandeau ton="erreur" icone="alerte">
+              {erreur}
+            </Bandeau>
+          )}
+          <div className="admin-actions">
+            <Bouton type="button" enCours={enCours} onClick={() => void sauver()}>
+              Enregistrer la preuve
+            </Bouton>
+            <button
+              type="button"
+              className="bouton bouton-secondaire"
+              disabled={enCours}
+              onClick={() => setOuverte(false)}
+            >
+              Annuler
+            </button>
+          </div>
+        </fieldset>
+      )}
+    </div>
   );
 }

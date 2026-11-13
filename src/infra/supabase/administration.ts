@@ -250,6 +250,10 @@ interface LigneAgrement {
   source_label: string;
   source_url: string | null;
   checked_on: string;
+  /** M8 et M10 : la preuve ; absentes d'une base d'avant ces migrations. */
+  evidence?: 'photo' | 'document_vu' | 'dit_ecole' | null;
+  proof_photo_id?: string | null;
+  proof_path?: string | null;
 }
 
 interface LigneDateInscription {
@@ -269,6 +273,10 @@ const versAgrement = (a: LigneAgrement): AgrementEnregistre => ({
   sourceTexte: a.source_label,
   sourceLien: a.source_url,
   controleLe: a.checked_on,
+  preuve: a.evidence ?? null,
+  preuveDetail: a.evidence
+    ? { genre: a.evidence, photoId: a.proof_photo_id ?? null, chemin: a.proof_path ?? null }
+    : null,
 });
 
 const versMot = (ligne: LigneCampus['campus_statements']): MotDirection | null => {
@@ -1681,7 +1689,86 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       return data as string;
     },
     async retirerAgrement(id) {
-      const { error } = await supabase().rpc('remove_campus_accreditation', { p_accreditation: id });
+      const { data, error } = await supabase().rpc('remove_campus_accreditation', { p_accreditation: id });
+      decider(error);
+      // M10 : la base rend le fichier de la preuve ; un échec d'effacement laisse un fichier privé, jamais une erreur.
+      if (typeof data === 'string' && data) await supabase().storage.from(SEAU_PHOTOS).remove([data]);
+    },
+    async enregistrerPreuveAgrement(ecoleId, agrementId, preuve) {
+      let chemin: string | null = null;
+      if (preuve.image) {
+        const ext = preuve.image.mime === 'image/webp' ? 'webp' : 'jpg';
+        chemin = `ecoles/${ecoleId}/preuves/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase()
+          .storage.from(SEAU_PHOTOS)
+          .upload(chemin, preuve.image.plein, { contentType: preuve.image.mime, upsert: false });
+        if (error)
+          throw new ErreurDecision(`La photo n’a pas pu être envoyée (${error.message}). Réessaie.`);
+      }
+      const { data, error } = await supabase().rpc('set_accreditation_evidence', {
+        p_accreditation: agrementId,
+        p_evidence: preuve.genre,
+        p_proof_photo: preuve.genre === 'photo' && !chemin ? (preuve.photoId ?? null) : null,
+        p_proof_path: chemin,
+      });
+      if (error && chemin) await supabase().storage.from(SEAU_PHOTOS).remove([chemin]);
+      decider(error);
+      if (typeof data === 'string' && data) await supabase().storage.from(SEAU_PHOTOS).remove([data]);
+    },
+    async adresseDePreuve(chemin) {
+      const { data, error } = await supabase().storage.from(SEAU_PHOTOS).createSignedUrl(chemin, 3600);
+      return error || !data?.signedUrl ? null : data.signedUrl;
+    },
+    async formationsDeLEcole(ecoleId) {
+      // Les cycles du site qui ont des formations, puis leurs formations avec leur détail (M8).
+      const { data, error } = await supabase()
+        .from('campus_cycles')
+        .select(
+          'cycle, campus_programs(id, title, duration_years, admission_level, selection, application_fee_xaf, diploma_issuer, details_declared_on)',
+        )
+        .eq('campus_id', ecoleId)
+        .in('cycle', ['superieur', 'technique', 'autre_formation']);
+      decider(error);
+      return ((data ?? []) as unknown as {
+        cycle: Valeur<'niveau'>;
+        campus_programs: {
+          id: string;
+          title: string;
+          duration_years: number | string | null;
+          admission_level: string | null;
+          selection: Valeur<'selection_kind'> | null;
+          application_fee_xaf: number | null;
+          diploma_issuer: string | null;
+          details_declared_on: string | null;
+        }[];
+      }[])
+        .flatMap((c) =>
+          c.campus_programs.map((p) => ({
+            id: p.id,
+            titre: p.title,
+            cycle: c.cycle,
+            details: {
+              dureeAnnees: p.duration_years == null ? null : Number(p.duration_years),
+              niveauDemande: p.admission_level,
+              selection: p.selection,
+              fraisDossier: p.application_fee_xaf,
+              delivrePar: p.diploma_issuer,
+              ditLe: p.details_declared_on,
+            },
+          })),
+        )
+        .sort((x, y) => x.titre.localeCompare(y.titre, 'fr'));
+    },
+    async enregistrerDetailsFormation(formationId, d) {
+      const { error } = await supabase().rpc('set_program_details', {
+        p_program: formationId,
+        p_duration_years: d.dureeAnnees,
+        p_admission_level: d.niveauDemande?.trim() || null,
+        p_selection: d.selection,
+        p_application_fee_xaf: d.fraisDossier,
+        p_diploma_issuer: d.delivrePar?.trim() || null,
+        p_declared_on: d.ditLe,
+      });
       decider(error);
     },
     async enregistrerMotDirection(ecoleId, mot) {

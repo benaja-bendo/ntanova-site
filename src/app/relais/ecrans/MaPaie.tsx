@@ -1,4 +1,4 @@
-import { compteDesFiches, detailDeLaPaie, francs, vendrediLong } from '../../../modele/paie';
+import { compteDesFiches, factureDeLaPaie, francs, vendrediLong } from '../../../modele/paie';
 import type { LigneDeMaPaie } from '../../../modele/ports';
 import { lireMemoire, useRequete } from '../base-locale';
 import { Entete, jour, Navigation } from '../composants';
@@ -66,8 +66,36 @@ export function MaPaie() {
   );
 }
 
+/**
+ * Lot F (13/11) : la paie comme une facture claire, une ligne par genre et par tarif (« 2 fiches acceptées · 2 × 500 FCFA ·
+ * 1 000 FCFA »), puis le total. Une paie gardée avant la mise à jour n'a pas les tarifs : les quantités seules.
+ */
+function Facture({ ligne }: { ligne: LigneDeMaPaie }) {
+  const lignes = factureDeLaPaie(ligne);
+  if (lignes.length === 0) return null;
+  return (
+    <ul className="facture" aria-label="Le détail">
+      {lignes.map((l) => (
+        <li key={l.libelle}>
+          <span>{l.libelle}</span>
+          <span className="facture-sous-total">
+            {l.sousTotal !== null ? francs(l.sousTotal) : ''}
+          </span>
+          {l.calcul && <span className="facture-calcul">{l.calcul}</span>}
+        </li>
+      ))}
+      {lignes.some((l) => l.sousTotal !== null) && (
+        <li className="facture-total">
+          <b>Total</b>
+          <span className="facture-sous-total">{francs(ligne.totalXaf)}</span>
+        </li>
+      )}
+    </ul>
+  );
+}
+
 function Acquis({ ligne }: { ligne: LigneDeMaPaie }) {
-  const detail = detailDeLaPaie(ligne);
+  const detail = factureDeLaPaie(ligne);
   return (
     <section className="carte-blanche pile-serree" aria-label="Acquis">
       <p className="surtitre-doux">
@@ -77,11 +105,7 @@ function Acquis({ ligne }: { ligne: LigneDeMaPaie }) {
       </p>
       <span className="intertitre">{francs(ligne.totalXaf)}</span>
       {detail.length > 0 ? (
-        <ul className="liste-taches">
-          {detail.map((d) => (
-            <li key={d}>{d}</li>
-          ))}
-        </ul>
+        <Facture ligne={ligne} />
       ) : (
         <p className="texte-doux">
           Rien d’acquis pour le moment. Une fiche acceptée par NTanova est payée ; un contact de la
@@ -104,14 +128,18 @@ function Acquis({ ligne }: { ligne: LigneDeMaPaie }) {
 }
 
 function Semaine({ ligne }: { ligne: LigneDeMaPaie }) {
-  const detail = detailDeLaPaie(ligne);
+  const detail = factureDeLaPaie(ligne);
   return (
     <div className="pile-serree">
       <div className="fiche-relais-tete">
         <b>{vendrediLong(ligne.vendredi)}</b>
         <span>{francs(ligne.totalXaf)}</span>
       </div>
-      {detail.length > 0 && <p className="mention">{detail.join(' · ')}</p>}
+      {detail.some((d) => d.sousTotal !== null) ? (
+        <Facture ligne={ligne} />
+      ) : (
+        detail.length > 0 && <p className="mention">{detail.map((d) => d.libelle).join(' · ')}</p>
+      )}
       {ligne.etat === 'paye' ? (
         <p>
           <span className="etiquette etat-verifiee">Payé</span>{' '}

@@ -1,11 +1,14 @@
+import { photoExemple } from './photo-exemple';
 import { jourDuCongo } from '../../modele/date-declaration';
 import type {
   AdmissionASaisir,
+  DetailsFormation,
   DetailsMission,
   Manque,
   MediaAdmin,
   NouvelleAdmin,
 } from '../../modele/fiche-admin';
+import { detailsVides, erreurDesDetails, sansDetail } from '../../modele/fiche-admin';
 import { erreursFormulaireEcole, formulaireDe } from '../../modele/correction-ecole';
 import { erreursDeclaration } from '../../modele/declaration-ecole';
 import {
@@ -121,6 +124,8 @@ interface CampusFaux {
   repere?: string | null;
   numeroEnseigne?: string | null;
   formations?: FormationSaisie[];
+  /** Lot F : le détail des formations du supérieur, par filière (`cycle|titre`, l'identifiant du faux). */
+  detailsFormations?: Record<string, DetailsFormation>;
   verifieeLe?: string | null;
   reference?: string | null;
 }
@@ -402,6 +407,15 @@ function etatPhotoFaux(e: Etat, ecoleId: string): EtatPhotoPublique {
   return { mode, choisieId: typeof choix === 'string' ? choix : null, publiee, retenueId };
 }
 
+/** Les lignes de la paie du faux serveur, aux tarifs qu'il applique (500 la fiche, 300 le contact, 1 500 l'essai). */
+function factureFausse(fiches: number, contacts: number, essais: number, ids: string[]) {
+  return [
+    { genre: 'fiche' as const, tarifXaf: 500, nombre: fiches, fiches: ids.slice(0, fiches) },
+    { genre: 'contact' as const, tarifXaf: 300, nombre: contacts, fiches: [] },
+    { genre: 'essai' as const, tarifXaf: 1500, nombre: essais, fiches: [] },
+  ].filter((l) => l.nombre > 0);
+}
+
 async function reseau(): Promise<void> {
   // 50 ms ; un parcours peut ralentir la réponse (`ntanova-faux-latence`, en ms) pour
   // rejouer une 3G qui traîne.
@@ -543,6 +557,8 @@ const relais: PortRelais = {
         sigle: 'EEP',
         institutionId: '10000000-0000-4000-8000-000000000001',
         sites: 1,
+        // Lot F : sa vignette publique, comme `known_places_for_me` la rend (un chemin, jamais l'image).
+        vignette: 'ecoles/20000000-0000-4000-8000-000000000001/couverture-vignette.webp',
       },
       ...Object.values(e.campus)
         .filter((c) => c.position && c.publication !== 'retiree')
@@ -589,8 +605,21 @@ const relais: PortRelais = {
         photos: rolesDesPhotos(e, [r.id]),
         aContact: personnesDe(e, r.id).length > 0,
         corrigeReleveId: r.corrigeReleveId ?? null,
+        // Lot F : une école publiée a sa page. Le faux catalogue n'en a que trois : on renvoie à la fiche « complète »
+        // (n° 158427), pour que le lien s'ouvre sur le site construit avec le faux.
+        pageEnLigne: d?.ecoleId && e.campus[d.ecoleId]?.publication === 'publiee' ? 158427 : null,
       };
     });
+  },
+  async adresseDeVignette(chemin) {
+    await reseau();
+    // `ntanova-faux-vignette` = « cassee » : une adresse qui ne se charge pas (le repli sur le sigle se vérifie) ;
+    // « aucune » : la base ne la donne pas.
+    const reglage = localStorage.getItem('ntanova-faux-vignette');
+    if (reglage === 'aucune' || !chemin.startsWith('ecoles/')) return null;
+    return reglage === 'cassee'
+      ? '/vignette-introuvable.webp'
+      : URL.createObjectURL(new Blob([photoExemple()], { type: 'image/jpeg' }));
   },
   async mesPhotos(releveId) {
     await reseau();
@@ -687,9 +716,24 @@ const relais: PortRelais = {
             nonPayables: 0,
             payeLe: paye?.le ?? null,
             reference: paye?.reference ?? null,
+            // Le faux serveur ne garde pas les fiches d'une semaine close : les quantités et les tarifs seulement.
+            lignes: factureFausse(l.fiches, l.contacts, l.essais, []),
           },
         ];
       });
+    // Les fiches de l'acquis, comme `payable_items_for` : acceptées, payables, hors essai, pas déjà payées.
+    const payees = Object.values(e.releves)
+      .filter((r) => {
+        const d = e.decisions[r.id];
+        return (
+          d?.statut === 'accepte' &&
+          d.payable &&
+          r.type !== 'correction' &&
+          !lotDe(r.lotId, e).essai &&
+          !e.paie.deja.includes(`${r.id}|fiche`)
+        );
+      })
+      .map((r) => r.id);
     return {
       acquis: {
         vendredi,
@@ -701,6 +745,7 @@ const relais: PortRelais = {
         nonPayables,
         payeLe: null,
         reference: null,
+        lignes: factureFausse(ligne?.fiches ?? 0, ligne?.contacts ?? 0, ligne?.essais ?? 0, payees),
       },
       historique,
       numeroConnu: MOI in e.paie.numeros,
@@ -2382,10 +2427,74 @@ const admin: PortAdministration = {
       const campus = e.campus[ecoleId]!;
       campus.agrements = [
         ...(campus.agrements ?? []).filter((a) => a.id !== id),
-        { ...resultat.agrement!, id },
+        // Comme la base : modifier la référence garde sa preuve.
+        {
+          ...resultat.agrement!,
+          id,
+          preuve: deja?.preuve ?? null,
+          preuveDetail: deja?.preuveDetail ?? null,
+        },
       ];
     });
     return id;
+  },
+  async enregistrerPreuveAgrement(ecoleId, agrementId, preuve) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    const a = c?.agrements?.find((x) => x.id === agrementId);
+    if (!c || !a) throw new ErreurDecision('Agrément introuvable.');
+    if (preuve.genre !== 'photo' && (preuve.photoId || preuve.image))
+      throw new ErreurDecision(
+        'La preuve est une photo du document (d’un relevé ou téléversée), le document vu sur place, ou l’école qui le dit.',
+      );
+    if (preuve.genre === 'photo' && !preuve.photoId && !preuve.image)
+      throw new ErreurDecision('Choisis la photo du document, ou ajoute-la.');
+    // Le faux serveur ne garde pas le fichier : il garde son chemin, comme la base.
+    const chemin = preuve.image ? `ecoles/${ecoleId}/preuves/${crypto.randomUUID()}.webp` : null;
+    ecrire((e) => {
+      const x = e.campus[ecoleId]!.agrements!.find((y) => y.id === agrementId)!;
+      x.preuve = preuve.genre;
+      x.preuveDetail = {
+        genre: preuve.genre,
+        photoId: chemin ? null : (preuve.photoId ?? null),
+        chemin,
+      };
+    });
+  },
+  async adresseDePreuve(chemin) {
+    await reseau();
+    return chemin.includes('/preuves/') ? '/relais/icone-512.png' : null;
+  },
+  async formationsDeLEcole(ecoleId) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    return (c?.formations ?? [])
+      .filter((f) => ['superieur', 'technique', 'autre_formation'].includes(f.cycle))
+      .map((f) => {
+        const id = `${f.cycle}|${f.titre}`;
+        return {
+          id,
+          titre: f.titre,
+          cycle: f.cycle,
+          details: c?.detailsFormations?.[id] ?? detailsVides(),
+        };
+      });
+  },
+  async enregistrerDetailsFormation(formationId, d) {
+    await reseau();
+    const erreur = erreurDesDetails(d, jourDuCongo());
+    if (erreur) throw new ErreurDecision(erreur);
+    const c = Object.values(lireEtat().campus).find((x) =>
+      (x.formations ?? []).some((f) => `${f.cycle}|${f.titre}` === formationId),
+    );
+    if (!c) throw new ErreurDecision('Formation introuvable.');
+    ecrire((e) => {
+      const campus = e.campus[c.id]!;
+      campus.detailsFormations = {
+        ...(campus.detailsFormations ?? {}),
+        [formationId]: sansDetail(d) ? detailsVides() : d,
+      };
+    });
   },
   async retirerAgrement(id) {
     await reseau();

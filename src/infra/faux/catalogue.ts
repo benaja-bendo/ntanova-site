@@ -694,6 +694,7 @@ const ECOLES: EcolePubliee[] = [
         selection: 'dossier',
         fraisDossier: 15000,
         delivrePar: '[L’établissement]',
+        detailsDitsLe: '2026-11-05',
         agrement: {
           genre: 'agrement',
           precision: null,
@@ -701,6 +702,7 @@ const ECOLES: EcolePubliee[] = [
           delivreLe: '2024-01-15',
           sourceTexte: '[Journal officiel]',
           sourceLien: null,
+          preuve: 'photo',
         },
       },
       formation('superieur', 'Licence en gestion', 'gestion', null, 'licence', ['soir', 'weekend']),

@@ -66,6 +66,8 @@ export interface EcoleConnue {
   /** La ville ou le quartier, pour la ligne sous le nom. */
   lieu: string | null;
   position: Point | null;
+  /** Lot F : le chemin de sa vignette publique, chargée seulement quand le téléphone capte. */
+  vignette?: string | null;
 }
 
 export interface Proposition extends EcoleConnue {

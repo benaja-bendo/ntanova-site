@@ -4,6 +4,7 @@
  */
 
 import type { Valeur } from './listes';
+import type { LigneDeFacture } from './ports';
 
 /** Le fuseau de Brazzaville et de Pointe-Noire (UTC+1, pas d'heure d'été) : la semaine se clôt là-bas. */
 const FUSEAU = 'Africa/Brazzaville';
@@ -99,4 +100,88 @@ export function compteDesFiches(
     aCorriger: de('a_corriger'),
     refusees: de('refuse'),
   };
+}
+
+// Lot F (13/11) : la paie comme une facture claire, « N × tarif = sous-total » ----------------------------------------------------
+
+/** Une ligne de facture, prête à écrire : « 2 fiches acceptées », « 2 × 500 FCFA », « 1 000 FCFA ». */
+export interface LigneEcrite {
+  libelle: string;
+  /** « 2 × 500 FCFA » ; nul quand la base n'a pas dit le tarif (paie gardée avant la mise à jour). */
+  calcul: string | null;
+  sousTotal: number | null;
+}
+
+const libelleDeLaLigne = (genre: LigneDeFacture['genre'], n: number): string =>
+  genre === 'fiche'
+    ? `${n} fiche${s(n)} acceptée${s(n)}`
+    : genre === 'mission'
+      ? `${n} mission${s(n)} faite${s(n)}`
+      : genre === 'contact'
+        ? `${n} contact${s(n)} de direction confirmé${s(n)}`
+        : 'L’essai validé';
+
+/**
+ * Les lignes de la paie, façon facture : une par genre et par tarif, dans l'ordre fiches, missions, contacts, essai. Sans
+ * le détail de la base (paie gardée par le téléphone avant la mise à jour), les quantités seules, comme avant.
+ */
+export function factureDeLaPaie(ligne: {
+  fiches: number;
+  contacts: number;
+  essais: number;
+  missions?: number;
+  lignes?: readonly LigneDeFacture[];
+}): LigneEcrite[] {
+  if (!ligne.lignes)
+    return detailDeLaPaie(ligne).map((libelle) => ({ libelle, calcul: null, sousTotal: null }));
+  const ordre: LigneDeFacture['genre'][] = ['fiche', 'mission', 'contact', 'essai'];
+  return [...ligne.lignes]
+    .filter((l) => l.nombre > 0)
+    .sort((a, b) => ordre.indexOf(a.genre) - ordre.indexOf(b.genre) || b.tarifXaf - a.tarifXaf)
+    .map((l) => ({
+      libelle: libelleDeLaLigne(l.genre, l.nombre),
+      calcul: l.genre === 'essai' && l.nombre === 1 ? null : `${l.nombre} × ${francs(l.tarifXaf)}`,
+      sousTotal: l.nombre * l.tarifXaf,
+    }));
+}
+
+/** Ce qu'une fiche rapporte, d'après la paie : acquis pour vendredi, à payer, ou payé. Nul si elle n'est dans aucune ligne. */
+export interface PaieDUneFiche {
+  montantXaf: number;
+  etat: 'acquis' | 'a_payer' | 'paye';
+  vendredi: string;
+  payeLe: string | null;
+  /** « fiche » : la fiche elle-même ; « mission » : la mission qu'elle ferme ; « contact » : le contact confirmé. */
+  genres: LigneDeFacture['genre'][];
+}
+
+export function paieDeLaFiche(
+  paie: {
+    acquis: {
+      vendredi: string;
+      etat: 'acquis' | 'a_payer' | 'paye';
+      payeLe: string | null;
+      lignes?: readonly LigneDeFacture[];
+    };
+    historique: readonly {
+      vendredi: string;
+      etat: 'acquis' | 'a_payer' | 'paye';
+      payeLe: string | null;
+      lignes?: readonly LigneDeFacture[];
+    }[];
+  },
+  releveId: string,
+): PaieDUneFiche | null {
+  for (const semaine of [paie.acquis, ...paie.historique]) {
+    const siennes = (semaine.lignes ?? []).filter((l) => l.fiches.includes(releveId));
+    if (siennes.length === 0) continue;
+    return {
+      montantXaf: siennes.reduce((t, l) => t + l.tarifXaf, 0),
+      etat: semaine.etat,
+      vendredi: semaine.vendredi,
+      payeLe: semaine.payeLe,
+      genres: siennes.map((l) => l.genre),
+    };
+  }
+  return null;
 }

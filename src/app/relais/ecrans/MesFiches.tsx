@@ -46,6 +46,8 @@ interface Ligne {
   recu: ReleveRecu | null;
   /** La direction était absente et son contact n'est pas arrivé : le relais peut l'ajouter. */
   peutAjouterLeContact: boolean;
+  /** Lot F : la page de l'école est en ligne. */
+  enLigne: boolean;
 }
 
 const classeStatut: Record<ReleveRecu['statut'], string> = {
@@ -104,6 +106,7 @@ function depuisTelephone(f: FicheLocale): Ligne {
     ...gestesDe(f),
     recu: null,
     peutAjouterLeContact: false,
+    enLigne: false,
   };
 }
 
@@ -157,10 +160,11 @@ function depuisServeur(
     ...gestes,
     recu: r,
     peutAjouterLeContact: r.direction === 'absente' && !r.aContact && r.statut !== 'refuse',
+    enLigne: r.statut === 'accepte' && r.pageEnLigne != null,
   };
 }
 
-type Filtre = 'toutes' | 'a_corriger' | 'a_repasser' | 'telephone';
+type Filtre = 'toutes' | 'a_corriger' | 'a_repasser' | 'telephone' | 'en_ligne';
 
 const avisDesGestes: Record<Exclude<IssueDeLAction, 'ok'>, string> = {
   en_cours: "L'envoi de cette fiche est en cours. Réessayez dans un instant.",
@@ -195,6 +199,7 @@ export function MesFiches() {
     a_corriger: lignes.filter((l) => l.aCorriger).length,
     a_repasser: lignes.filter((l) => l.repasser).length,
     telephone: lignes.filter((l) => l.surTelephone).length,
+    en_ligne: lignes.filter((l) => l.enLigne).length,
   };
   const visibles = lignes.filter((l) =>
     filtre === 'a_corriger'
@@ -203,13 +208,16 @@ export function MesFiches() {
         ? l.repasser
         : filtre === 'telephone'
           ? l.surTelephone
-          : true,
+          : filtre === 'en_ligne'
+            ? l.enLigne
+            : true,
   );
   const filtres: { valeur: Filtre; libelle: string }[] = [
     { valeur: 'toutes', libelle: 'Toutes' },
     { valeur: 'a_corriger', libelle: `À corriger · ${compte.a_corriger}` },
     { valeur: 'a_repasser', libelle: `À repasser · ${compte.a_repasser}` },
     { valeur: 'telephone', libelle: `Sur le téléphone · ${compte.telephone}` },
+    { valeur: 'en_ligne', libelle: `En ligne · ${compte.en_ligne}` },
   ];
 
   const apres = (issue: IssueDeLAction) => setAvis(issue === 'ok' ? null : avisDesGestes[issue]);
@@ -268,7 +276,11 @@ export function MesFiches() {
         {visibles.map((l) => (
           <article key={l.id} className="carte-blanche fiche-relais">
             <div className="fiche-relais-tete">
-              <h2>{l.nom}</h2>
+              <h2>
+                <a className="lien-fiche" href={`#fiches/${l.id}`}>
+                  {l.nom}
+                </a>
+              </h2>
               <span className="mention">{jour(l.date)}</span>
             </div>
             <dl className="fiche-relais-etats">
@@ -276,6 +288,14 @@ export function MesFiches() {
               <dd>
                 <span className={`etiquette ${l.fiche.classe}`}>{l.fiche.libelle}</span>
               </dd>
+              {l.enLigne && (
+                <>
+                  <dt>Page</dt>
+                  <dd>
+                    <span className="etiquette etat-verifiee">En ligne</span>
+                  </dd>
+                </>
+              )}
               {l.contact && (
                 <>
                   <dt>Contact</dt>
