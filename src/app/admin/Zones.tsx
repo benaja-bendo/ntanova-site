@@ -15,25 +15,23 @@ import type { DivisionVue, LotVu, PortAdministration, RelaisVu } from '../../mod
 import {
   SEUIL_OUVERTURE_LARGE,
   ancetresDe,
-  groupesDeLArbre,
   lignesDeLArbre,
   libelleEtat,
   phraseDuResume,
   resumeDesZones,
   surLaCarte,
-  zonesAReplierPourTout,
   zonesDessous,
   type EtatCarte,
 } from '../../modele/zones-admin';
 import { libelleDeploiement } from '../../modele/etat-zone';
-import { Bandeau, Champ, Icone } from '@/ui/v2/formulaire';
+import { Bandeau } from '@/ui/v2/formulaire';
+import { cn } from '@/lib/utils';
+import { IconeAjouter, IconeBas, IconeChercher, IconeOuvrir } from '@/ui/shadcn/icones';
 import { jour } from '../../ui/composants';
-import { Bouton } from '@/ui/v2/admin';
-import { Dialogue } from '@/ui/v2/admin';
+import { Bouton, Dialogue } from '@/ui/v2/admin';
 import { aller, useAdresse } from '../commun/adresse';
 import { messageErreur } from './ChampPosition';
-import { VueParEtape } from './ZonesEtapes';
-import { AjouterDivision } from './ZonesFormulaires';
+import { AjouterDivision, NouveauLot } from './ZonesFormulaires';
 import { VoletDeZone } from './ZonesVolet';
 import { TitreEcran } from './Cadre';
 
@@ -59,8 +57,8 @@ export function Zones({ admin }: { admin: PortAdministration }) {
   const [suppressionEnCours, setSuppressionEnCours] = useState(false);
   const [erreurSuppression, setErreurSuppression] = useState<string | null>(null);
   const [enCoursLot, setEnCoursLot] = useState(false);
+  const [lotsOuverts, setLotsOuverts] = useState(false);
   const [, sous] = useAdresse();
-  const vue = sous === 'etapes' ? 'etapes' : 'arbre';
 
   const charger = useCallback(() => {
     Promise.all([admin.divisions(), admin.lots(), admin.relais()])
@@ -93,7 +91,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
     return resultat;
   }, [divisions]);
 
-  const choisie = vue === 'arbre' ? ((divisions ?? []).find((d) => d.id === sous) ?? null) : null;
+  const choisie = (divisions ?? []).find((d) => d.id === sous) ?? null;
 
   // Une zone choisie par son adresse, ou depuis l'autre vue, se montre dans la liste même quand celle-ci défile.
   const idChoisie = choisie?.id;
@@ -101,7 +99,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
   useEffect(() => {
     if (!idChoisie) return;
     document
-      .querySelector('.admin-arbre [aria-current="true"]')
+      .querySelector('[aria-label="Liste des zones"] [aria-current="true"]')
       ?.scrollIntoView({ block: 'nearest' });
   }, [idChoisie, chargee]);
 
@@ -214,8 +212,8 @@ export function Zones({ admin }: { admin: PortAdministration }) {
   };
 
   const noeudRetour = retour && (
-    <div className="admin-retour">
-      <p className={v2.bandeSucces} role="status">
+    <div className="flex flex-wrap items-center gap-2">
+      <p className={cn(v2.bandeSucces, 'flex-1')} role="status">
         {retour.texte}
       </p>
       {retour.annuler && (
@@ -254,56 +252,38 @@ export function Zones({ admin }: { admin: PortAdministration }) {
       return apres;
     });
 
-  const toutDeplier = () => {
-    setRepliees(new Set());
-    setGroupesOuverts(new Set(groupesDeLArbre(divisions ?? [])));
-  };
-
-  const toutReplier = () => {
-    setRepliees(zonesAReplierPourTout(divisions ?? []));
-    setGroupesOuverts(new Set());
-  };
-
-  const recherchee = recherche.trim() !== '';
+  // La pastille d'une zone (planche) : verte « Relevé en cours », jaune « Déploiement programmé », creuse sinon.
+  const pastille = (d: DivisionVue) =>
+    !surLaCarte(d)
+      ? 'border-2 border-input bg-transparent'
+      : d.deploiement === 'actif'
+        ? 'bg-primary'
+        : 'border-2 border-foreground bg-jaune';
+  const retrait = (n: number) => ({ paddingLeft: `${0.5 + n * 1.1}rem` }) as CSSProperties;
 
   return (
-    <div className={v2.pile}>
+    <>
       <TitreEcran
         titre="Zones"
+        retour={choisie ? { libelle: 'Zones', chemin: 'zones' } : null}
+        titreHaut={choisie?.nom ?? null}
         regles={
-          <p>
-            Où NTanova envoie des relais, et ce que les familles voient sur la carte. Les relais
-            peuvent relever partout au Congo-Brazzaville : « ouverte » dit seulement où l’on en
-            envoie, jamais où il leur est interdit de relever.
-          </p>
+          <>
+            <p>
+              Où NTanova envoie des relais, et ce que les familles voient sur la carte. Les relais
+              peuvent relever partout au Congo-Brazzaville : « ouverte » dit seulement où l’on en
+              envoie, jamais où il leur est interdit de relever.
+            </p>
+            <p>{divisions && phraseDuResume(resumeDesZones(divisions))}</p>
+          </>
         }
         actions={
-          <>
-            <div className="admin-vues" role="group" aria-label="Affichage des zones">
-              <a
-                className="admin-vue"
-                href="#zones"
-                aria-current={vue === 'arbre' ? 'true' : undefined}
-                onClick={(e) => {
-                  e.preventDefault();
-                  aller('zones');
-                }}
-              >
-                Arbre
-              </a>
-              <a
-                className="admin-vue"
-                href="#zones/etapes"
-                aria-current={vue === 'etapes' ? 'true' : undefined}
-                onClick={(e) => {
-                  e.preventDefault();
-                  aller('zones/etapes');
-                }}
-              >
-                Par étape
-              </a>
-            </div>
-          </>
+          <span className="max-lg:hidden">
+            <Bouton onClick={() => setAjout(true)}>
+              <IconeAjouter className="size-5" aria-hidden />
+              Ajouter une zone
+            </Bouton>
+          </span>
         }
       />
 
@@ -319,157 +299,143 @@ export function Zones({ admin }: { admin: PortAdministration }) {
         </p>
       )}
 
-      {divisions !== null && vue === 'etapes' && (
-        <>
-          {noeudRetour}
-          <VueParEtape
-            divisions={divisions}
-            occupee={occupee}
-            surEtat={(z, etat) => void regler(z, etat)}
-            surChoix={choisir}
-          />
-        </>
-      )}
-
-      {divisions !== null && vue === 'arbre' && (
-        <div className={`admin-zones-deux${choisie ? ' avec-selection' : ''}`}>
-          <section className="admin-arbre" aria-label="Liste des zones">
-            <Champ libelle="Chercher une zone">
-              {(a) => (
+      {divisions !== null && (
+        <div className="flex items-start gap-5">
+          <section
+            className={cn(
+              'flex w-full flex-col gap-3 lg:sticky lg:top-6 lg:w-[300px] lg:shrink-0',
+              choisie && 'max-lg:hidden',
+            )}
+            aria-label="Liste des zones"
+          >
+            <div className="flex items-center gap-2">
+              <label className="relative flex-1">
+                <span className="sr-only">Chercher une zone</span>
+                <IconeChercher
+                  className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden
+                />
                 <input
-                  {...a}
-                  className={v2.champ}
+                  className={cn(v2.champ, 'h-12 pl-11')}
                   type="search"
                   autoComplete="off"
+                  placeholder="Chercher une zone"
                   value={recherche}
                   onChange={(ev) => setRecherche(ev.target.value)}
                 />
-              )}
-            </Champ>
-            <div className="admin-arbre-outils">
-              <button type="button" className={v2.boutonPetit} onClick={() => setAjout(true)}>
-                <Icone nom="plus" taille={16} />
-                Ajouter une zone
+              </label>
+              <button
+                type="button"
+                aria-label="Ajouter une zone"
+                onClick={() => setAjout(true)}
+                className={cn(v2.bouton, 'size-12 px-0 lg:hidden')}
+              >
+                <IconeAjouter className="size-6" aria-hidden />
               </button>
             </div>
-            <div className="admin-arbre-entete">
-              <p className="mention admin-arbre-resume">
-                {phraseDuResume(resumeDesZones(divisions))}
-              </p>
-              {!recherchee && (
-                <div
-                  className="admin-arbre-plier"
-                  role="group"
-                  aria-label="Déplier ou replier l’arbre"
-                >
-                  <button type="button" className={v2.boutonSecondairePetit} onClick={toutDeplier}>
-                    Tout déplier
-                  </button>
-                  <button type="button" className={v2.boutonSecondairePetit} onClick={toutReplier}>
-                    Tout replier
-                  </button>
-                </div>
-              )}
-            </div>
-            <ul className="admin-arbre-liste">
+            <ul className="m-0 flex max-h-[calc(100dvh-12rem)] list-none flex-col overflow-y-auto rounded-xl border border-border bg-card p-0 max-lg:max-h-none">
               {lignes.map((l) =>
                 l.type === 'groupe' ? (
-                  <li key={l.id}>
+                  <li key={l.id} className="border-t border-border first:border-t-0">
                     <button
                       type="button"
-                      className="admin-zone-groupe"
-                      style={{ '--retrait': l.indent } as CSSProperties}
+                      style={retrait(l.indent)}
                       aria-expanded={l.ouvert}
                       onClick={() => basculerGroupe(l.id)}
+                      className="flex min-h-14 w-full cursor-pointer items-center gap-2.5 border-0 bg-transparent py-2 pr-3 text-left font-sans text-foreground"
                     >
-                      <span
-                        className={`admin-chevron${l.ouvert ? ' est-ouvert' : ''}`}
-                        aria-hidden="true"
-                      >
-                        <Icone nom="suivant" taille={14} />
-                      </span>
-                      <span className="admin-zone-texte">
-                        <b>{l.nombre > 1 ? `${l.nombre} autres zones` : '1 autre zone'}</b>
-                        <small>Aucune école, rien sur la carte</small>
+                      <IconeOuvrir
+                        className={cn(
+                          'size-4 shrink-0 transition-transform',
+                          l.ouvert && 'rotate-90',
+                        )}
+                        aria-hidden
+                      />
+                      <span className="flex flex-col">
+                        <b className="text-[15px]">
+                          {l.nombre > 1 ? `${l.nombre} autres zones` : '1 autre zone'}
+                        </b>
+                        <small className="text-[13px] text-muted-foreground">
+                          Aucune école, rien sur la carte
+                        </small>
                       </span>
                     </button>
                   </li>
                 ) : (
                   <li
                     key={l.zone.id}
-                    className="admin-zone-rang"
-                    style={{ '--retrait': l.indent } as CSSProperties}
+                    className="flex items-center border-t border-border first:border-t-0"
+                    style={retrait(l.indent)}
                   >
                     {l.dessous > 0 ? (
                       <button
                         type="button"
-                        className="admin-zone-bascule"
                         aria-expanded={l.deplie}
                         aria-label={l.deplie ? 'Replier' : 'Déplier'}
                         aria-describedby={`zone-nom-${l.zone.id}`}
                         onClick={() => basculerZone(l.zone.id)}
+                        className="flex size-8 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-foreground"
                       >
-                        <span
-                          className={`admin-chevron${l.deplie ? ' est-ouvert' : ''}`}
-                          aria-hidden="true"
-                        >
-                          <Icone nom="suivant" taille={14} />
-                        </span>
+                        <IconeBas
+                          className={cn('size-4 transition-transform', !l.deplie && '-rotate-90')}
+                          aria-hidden
+                        />
                       </button>
                     ) : (
-                      <span className="admin-zone-bascule est-vide" aria-hidden="true" />
+                      <span className="size-8 shrink-0" aria-hidden="true" />
                     )}
                     <button
                       type="button"
-                      className="admin-zone-ligne"
                       aria-current={choisie?.id === l.zone.id ? 'true' : undefined}
                       onClick={() => choisir(l.zone)}
+                      className="flex min-h-14 min-w-0 flex-1 cursor-pointer items-center gap-2.5 border-0 bg-transparent py-2 pr-3 text-left font-sans text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring aria-[current=true]:bg-succes aria-[current=true]:shadow-[inset_0_0_0_2px_var(--marque)]"
                     >
                       <span
-                        className={`admin-pastille-etat admin-pastille-${
-                          surLaCarte(l.zone) ? (l.zone.deploiement ?? 'aucun') : 'sans'
-                        }`}
+                        className={cn('size-3 shrink-0 rounded-full', pastille(l.zone))}
                         aria-hidden="true"
                       />
-                      <span className="admin-zone-texte">
-                        <b id={`zone-nom-${l.zone.id}`}>{l.zone.nom}</b>
-                        <small>
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <b id={`zone-nom-${l.zone.id}`} className="text-[15px]">
+                          {l.zone.nom}
+                        </b>
+                        <small className="text-[13px] leading-snug text-muted-foreground">
                           {libelleGenreDivision[l.zone.genre]}
                           {l.dansGroupe && l.zone.parentId && parId.get(l.zone.parentId)
                             ? ` · ${parId.get(l.zone.parentId)?.nom}`
                             : ''}
                           {surLaCarte(l.zone) ? ` · ${libelleEtat(l.zone.deploiement)}` : ''}
-                          {l.dessous > 0 && !l.deplie
-                            ? ` · ${l.dessous} ${l.dessous > 1 ? 'zones cachées' : 'zone cachée'}`
-                            : ''}
                         </small>
                       </span>
-                      <span className={`admin-nombre${l.zone.ecoles === 0 ? ' est-nul' : ''}`}>
+                      <span
+                        className={cn(
+                          'font-serif text-lg font-bold',
+                          l.zone.ecoles === 0 && 'text-muted-foreground',
+                        )}
+                      >
                         {l.zone.ecoles}
                       </span>
                     </button>
                   </li>
                 ),
               )}
+              {recherche.trim() !== '' && lignes.length === 0 && (
+                <li className="px-4 py-3 text-muted-foreground">Aucune zone ne s’appelle ainsi.</li>
+              )}
             </ul>
-            {recherche.trim() !== '' && lignes.length === 0 && (
-              <p className={v2.doux}>Aucune zone ne s’appelle ainsi.</p>
-            )}
+            {
+              <button
+                type="button"
+                onClick={() => setLotsOuverts(true)}
+                className="self-start border-0 bg-transparent p-0 font-sans text-sm text-muted-foreground underline"
+              >
+                Les lots (secteurs conseillés) · {lots.length}
+              </button>
+            }
           </section>
 
           {choisie ? (
-            <div className="admin-zone-detail">
-              <a
-                className="lien admin-retour-liste"
-                href="#zones"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setRetour(null);
-                  aller('zones');
-                }}
-              >
-                ← Toutes les zones
-              </a>
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              {noeudRetour}
               <VoletDeZone
                 zone={choisie}
                 divisions={divisions}
@@ -477,7 +443,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                 ouvertePar={ouvertePar}
                 occupee={occupee === choisie.id}
                 admin={admin}
-                retour={noeudRetour}
+                retour={null}
                 surEtat={(etat) => void regler(choisie, etat)}
                 surOuverture={(ouverte) => demanderOuverture(choisie, ouverte)}
                 surFait={surFait}
@@ -485,9 +451,9 @@ export function Zones({ admin }: { admin: PortAdministration }) {
               />
             </div>
           ) : (
-            <div className="admin-volet-invite">
+            <div className="flex min-w-0 flex-1 flex-col gap-3 max-lg:hidden">
               {noeudRetour}
-              <p className="texte-doux admin-invite-texte">
+              <p className="m-0 rounded-xl border border-dashed border-input p-6 text-muted-foreground">
                 Choisis une zone : tu y règles ce que voient les familles sur la carte et où NTanova
                 envoie des relais.
               </p>
@@ -496,19 +462,21 @@ export function Zones({ admin }: { admin: PortAdministration }) {
         </div>
       )}
 
-      {divisions !== null && (
-        <>
-          <h2>Les lots</h2>
+      {lotsOuverts && divisions !== null && (
+        <Dialogue
+          titre="Les lots"
+          variante="tiroir"
+          fermer={() => setLotsOuverts(false)}
+          entete={<h2>Les lots (secteurs conseillés)</h2>}
+        >
           <div className={v2.tableau}>
             <table>
               <thead>
                 <tr>
                   <th scope="col">Lot</th>
                   <th scope="col">Zone</th>
-                  <th scope="col">À rendre</th>
                   <th scope="col">Rendu</th>
-                  <th scope="col">Relais actifs</th>
-                  <th scope="col">Note</th>
+                  <th scope="col">Relais</th>
                 </tr>
               </thead>
               <tbody>
@@ -516,9 +484,11 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                   <tr key={l.id}>
                     <td>
                       <b>{l.nom}</b>
+                      {l.essai && (
+                        <span className={v2.mentionBloc}>Entraînement : jamais publié</span>
+                      )}
                     </td>
                     <td>{cheminLisible(l.divisionId, divisions)}</td>
-                    <td>{l.aRendreLe ? jour(l.aRendreLe) : '—'}</td>
                     <td>
                       {l.essai ? (
                         '—'
@@ -527,7 +497,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                           Rendu le {jour(l.renduLe)}{' '}
                           <button
                             type="button"
-                            className={v2.boutonSecondairePetit}
+                            className={cn(v2.lien, 'min-h-0 text-sm')}
                             disabled={enCoursLot}
                             onClick={() => void rendre(l, false)}
                           >
@@ -546,27 +516,25 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                       )}
                     </td>
                     <td>{relais.filter((r) => r.lotId === l.id && r.statut === 'actif').length}</td>
-                    <td className={v2.mention}>
-                      {l.essai
-                        ? 'Entraînement : ses fiches ne sont jamais publiées.'
-                        : 'Toute la zone.'}
-                      {!ouvertePar.get(l.divisionId) &&
-                        !l.essai &&
-                        ' La zone est fermée : ouvre-la pour que les relais puissent envoyer.'}
-                    </td>
                   </tr>
                 ))}
-                {lots.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className={v2.doux}>
-                      Aucun lot.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
-        </>
+          <details className={v2.plie}>
+            <summary>Créer un lot</summary>
+            <NouveauLot
+              divisions={divisions}
+              estOuverte={(id) => ouvertePar.get(id) != null}
+              admin={admin}
+              surFait={(texte: string) => {
+                setLotsOuverts(false);
+                surFait(texte);
+              }}
+              zoneInitiale={choisie?.id ?? ''}
+            />
+          </details>
+        </Dialogue>
       )}
 
       {ajout && divisions !== null && (
@@ -654,6 +622,6 @@ export function Zones({ admin }: { admin: PortAdministration }) {
           </div>
         </Dialogue>
       )}
-    </div>
+    </>
   );
 }
