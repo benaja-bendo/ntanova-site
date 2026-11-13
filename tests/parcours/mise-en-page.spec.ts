@@ -505,6 +505,9 @@ test('administration : accueil et écoles tiennent dans l’écran, gestion et f
   await expect(
     ligne.getByRole('button', { name: 'Confier à un relais', exact: true }),
   ).toBeVisible();
+  // v2 (13/11) : « C'est un site de… » vient en premier dans le menu « ⋯ ».
+  await page.keyboard.press('Tab');
+  await expect(ligne.getByRole('button', { name: 'C’est un site de…', exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(
     ligne.getByRole('button', { name: 'Confier à un relais', exact: true }),

@@ -17,6 +17,9 @@ export interface FraisASaisir {
   anneeScolaire: string | null;
   declaresLe: string;
   note: string | null;
+  /** v2 (13/11) : la classe (« CM2 ») ; la photo du prospectus qui prouve la ligne (photo de travail, jamais publique). */
+  classe?: string | null;
+  photoPreuve?: string | null;
 }
 export interface FraisEcole extends FraisASaisir {
   id: string;
@@ -36,6 +39,9 @@ export interface SaisieFrais {
   declaresLe: string;
   note: string;
   declarationConfirmee: boolean;
+  /** v2 (13/11) : la classe, facultative ; la photo du prospectus quand la ligne y a été lue. */
+  classe?: string;
+  photoPreuve?: string | null;
 }
 export const saisieFraisVide = (): SaisieFrais => ({
   cycle: '',
@@ -48,6 +54,8 @@ export const saisieFraisVide = (): SaisieFrais => ({
   declaresLe: '',
   note: '',
   declarationConfirmee: false,
+  classe: '',
+  photoPreuve: null,
 });
 export const saisieDeFrais = (f: FraisEcole): SaisieFrais => ({
   ...f,
@@ -58,6 +66,8 @@ export const saisieDeFrais = (f: FraisEcole): SaisieFrais => ({
   anneeScolaire: f.anneeScolaire ?? '',
   note: f.note ?? '',
   declarationConfirmee: false,
+  classe: f.classe ?? '',
+  photoPreuve: f.photoPreuve ?? null,
 });
 function entier(s: string): number | null {
   const n = s.trim().replace(/[\s\u00a0\u202f]/g, '');
@@ -92,9 +102,10 @@ export function lireFraisEcole(
   else if (
     s.anneeScolaire.trim().length > 30 ||
     s.precisionPeriode.trim().length > 80 ||
-    s.note.trim().length > 300
+    s.note.trim().length > 300 ||
+    (s.classe ?? '').trim().length > 40
   )
-    erreur = 'Raccourcis l’année scolaire, la période ou la précision.';
+    erreur = 'Raccourcis l’année scolaire, la période, la classe ou la précision.';
   return {
     erreur,
     frais: erreur
@@ -109,6 +120,8 @@ export function lireFraisEcole(
           anneeScolaire: s.anneeScolaire.trim() || null,
           declaresLe: s.declaresLe,
           note: s.note.trim() || null,
+          classe: (s.classe ?? '').trim() || null,
+          photoPreuve: s.photoPreuve ?? null,
         },
   };
 }

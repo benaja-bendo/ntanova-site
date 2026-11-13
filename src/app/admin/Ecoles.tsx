@@ -2,6 +2,10 @@ import { ChampsFiche } from './ChampsFiche';
 import { Dialogue } from '../../ui/Dialogue';
 import { ActionsSecondaires, BadgePublication, Bouton } from '../../ui/actions';
 import { PhotoPublique } from './PhotoPublique';
+import { ImagesEcole } from './ImagesEcole';
+import { ManquesEcole } from './ManquesEcole';
+import { NouvellesEcole } from './NouvellesEcole';
+import { AdmissionEcole } from './AdmissionEcole';
 import { dateLongue } from '../../modele/pointe-noire';
 import { EquipementsEcole } from './EquipementsEcole';
 import { FraisEcole } from './FraisEcole';
@@ -95,6 +99,11 @@ function LigneEcole({
   const gestion = useRef<HTMLButtonElement>(null);
   const [relaisId, setRelaisId] = useState(e.confiee?.relaisId ?? relais[0]?.id ?? '');
   const [note, setNote] = useState(e.confiee?.note ?? '');
+  // v2 (13/11) : ce qu'il faut faire, pourquoi, la date limite et la paie de la mission (fixée par NTanova en la confiant).
+  const [tache, setTache] = useState('');
+  const [raison, setRaison] = useState('');
+  const [avantLe, setAvantLe] = useState('');
+  const [paie, setPaie] = useState('');
   const [genre, setGenre] = useState<Valeur<'mission_kind'>>(
     e.confiee?.genre ?? (e.aSituer ? 'locate' : 'verify'),
   );
@@ -112,6 +121,11 @@ function LigneEcole({
     | 'contact-public'
     | 'agrement'
     | 'mot-direction'
+    | 'completer'
+    | 'images'
+    | 'rattacher'
+    | 'nouvelles'
+    | 'admission'
     | 'inscriptions'
     | null
   >(null);
@@ -148,6 +162,14 @@ function LigneEcole({
   };
 
   const autres = ecoles.filter((x) => x.id !== e.id && x.publication !== 'retiree');
+  // v2 (13/11) : « C'est un site de… » : une ligne par école (pas par site), jamais celle de ce site.
+  const ecolesCibles = [
+    ...new Map(
+      autres.filter((x) => x.institutionId !== e.institutionId).map((x) => [x.institutionId, x]),
+    ).values(),
+  ].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  const [ecoleCible, setEcoleCible] = useState('');
+  const seul = !ecoles.some((x) => x.id !== e.id && x.institutionId === e.institutionId);
   const prenom = relais.find((r) => r.id === relaisId)?.prenom ?? '';
 
   const ouvrir = (section: NonNullable<typeof mode>, bouton: HTMLElement) => {
@@ -159,6 +181,7 @@ function LigneEcole({
     setMode(section);
   };
   const sections = [
+    ['completer', 'À compléter'],
     ['modifier', 'Informations'],
     ['situer', 'Position'],
     ['contact-public', 'Contact public'],
@@ -168,6 +191,9 @@ function LigneEcole({
     ['agrement', 'Agrément'],
     ['mot-direction', 'Mot de la direction'],
     ['photo-publique', 'Photo publique'],
+    ['images', 'Images'],
+    ['nouvelles', 'Nouvelles'],
+    ['admission', 'Admission'],
     ['mission', 'Mission'],
   ] as const;
   const confirmation =
@@ -294,6 +320,11 @@ function LigneEcole({
           {etat !== 'corbeille' && (
             <ActionsSecondaires nom={e.nom}>
               {etat !== 'retiree' && (
+                <Bouton variante="discret" onClick={(ev) => ouvrir('rattacher', ev.currentTarget)}>
+                  C’est un site de…
+                </Bouton>
+              )}
+              {etat !== 'retiree' && (
                 <Bouton variante="discret" onClick={(ev) => ouvrir('mission', ev.currentTarget)}>
                   {e.confiee ? 'Mission en cours…' : 'Confier à un relais'}
                 </Bouton>
@@ -356,7 +387,10 @@ function LigneEcole({
                 {sections
                   .filter(
                     ([cle]) =>
-                      etat !== 'retiree' || !['modifier', 'situer', 'mission'].includes(cle),
+                      (etat !== 'retiree' || !['modifier', 'situer', 'mission'].includes(cle)) &&
+                      // L'admission ne concerne que le supérieur et le technique.
+                      (cle !== 'admission' ||
+                        e.niveaux.some((n) => n === 'superieur' || n === 'technique')),
                   )
                   .map(([cle, libelle]) => (
                     <button
@@ -380,6 +414,28 @@ function LigneEcole({
               <p ref={zoneRetour} className="bandeau bandeau-envoye">
                 {retour}
               </p>
+            )}
+            {mode === 'completer' && (
+              <ManquesEcole
+                ecoleId={e.id}
+                nom={e.nom}
+                numero={e.contactPublic?.numero ?? null}
+                admin={admin}
+                surConfier={(t) => {
+                  setTache(t ?? '');
+                  setMode('mission');
+                }}
+                surChangement={signaler}
+              />
+            )}
+            {mode === 'nouvelles' && (
+              <NouvellesEcole ecoleId={e.id} admin={admin} surChangement={signaler} />
+            )}
+            {mode === 'admission' && (
+              <AdmissionEcole ecoleId={e.id} admin={admin} surChangement={signaler} />
+            )}
+            {mode === 'images' && (
+              <ImagesEcole ecoleId={e.id} admin={admin} surChangement={signaler} />
             )}
             {mode === 'photo-publique' && (
               <PhotoPublique
@@ -608,6 +664,78 @@ function LigneEcole({
               </form>
             )}
 
+            {mode === 'rattacher' && (
+              <form
+                className="admin-motif pile-serree"
+                aria-label={`Rattacher ${e.nom} à une autre école`}
+                onSubmit={(ev) => {
+                  ev.preventDefault();
+                  const cible = ecolesCibles.find((x) => x.institutionId === ecoleCible);
+                  if (!cible) return;
+                  void agir(
+                    () =>
+                      admin
+                        .rattacherSite(e.id, cible.institutionId)
+                        .then((r) =>
+                          r.ancienneSupprimee
+                            ? signaler(
+                                `Ce site est maintenant un site de ${cible.nom}. L’ancienne école, sans autre site, est supprimée (notée au journal).`,
+                              )
+                            : undefined,
+                        ),
+                    `Ce site est maintenant un site de ${cible.nom}. Son adresse publique ne change pas.`,
+                  );
+                }}
+              >
+                <h3>C’est un site de…</h3>
+                <Champ libelle="L’école">
+                  {(a) => (
+                    <select
+                      {...a}
+                      className="champ"
+                      value={ecoleCible}
+                      onChange={(ev) => setEcoleCible(ev.target.value)}
+                    >
+                      <option value="">Choisir</option>
+                      {ecolesCibles.map((x) => (
+                        <option key={x.institutionId} value={x.institutionId}>
+                          {x.nom}
+                          {x.division ? ` · ${x.division}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Champ>
+                <p className="mention">
+                  Le site garde son adresse publique.
+                  {seul
+                    ? ' Son école actuelle n’a pas d’autre site : ce qui manque à l’école choisie (sigle, année, site web, logo, mot de la direction) lui est donné, puis elle est supprimée.'
+                    : ' Son école actuelle garde ses autres sites.'}
+                </p>
+                {erreur && /logo|mot de la direction/.test(erreur) && (
+                  <div className="bandeau bandeau-attente pile-serree" role="alert">
+                    <p>
+                      <b>{erreur}</b> Garde celui qui vaut : retire l’autre dans sa fiche, puis
+                      reviens ici.
+                    </p>
+                    <button
+                      type="button"
+                      className="bouton bouton-secondaire"
+                      onClick={() => {
+                        setErreur(null);
+                        setMode(/logo/.test(erreur) ? 'images' : 'mot-direction');
+                      }}
+                    >
+                      {/logo/.test(erreur) ? 'Voir le logo de ce site' : 'Voir le mot de ce site'}
+                    </button>
+                  </div>
+                )}
+                <Bouton type="submit" enCours={enCours} disabled={!ecoleCible}>
+                  Rattacher ce site
+                </Bouton>
+              </form>
+            )}
+
             {mode === 'fusionner' && (
               <form
                 className="admin-motif"
@@ -655,8 +783,19 @@ function LigneEcole({
                 onSubmit={(ev) => {
                   ev.preventDefault();
                   if (!relaisId) return;
+                  const paieXaf = paie.trim() === '' ? null : Number(paie.replace(/\s/g, ''));
+                  if (paieXaf !== null && (!Number.isInteger(paieXaf) || paieXaf < 0)) {
+                    setErreur('La paie est un nombre entier de FCFA, ou rien.');
+                    return;
+                  }
                   void agir(
-                    () => admin.confierEcole(e.id, relaisId, genre, note.trim() || null),
+                    () =>
+                      admin.confierEcole(e.id, relaisId, genre, note.trim() || null, {
+                        tache: tache.trim() || null,
+                        raison: raison.trim() || null,
+                        avantLe: avantLe || null,
+                        paieXaf,
+                      }),
                     `${e.nom} est confiée à ${prenom}.`,
                   );
                 }}
@@ -712,6 +851,55 @@ function LigneEcole({
                           placeholder="Ex. : le nom sur l’enseigne, le repère…"
                           value={note}
                           onChange={(ev) => setNote(ev.target.value)}
+                        />
+                      )}
+                    </Champ>
+                    <Champ libelle="Ce qu’il devra faire" facultatif aide="Une phrase, vouvoyée.">
+                      {(a) => (
+                        <input
+                          {...a}
+                          className="champ"
+                          maxLength={300}
+                          placeholder="Ex. : photographier le prospectus des frais, en entier."
+                          value={tache}
+                          onChange={(ev) => setTache(ev.target.value)}
+                        />
+                      )}
+                    </Champ>
+                    <Champ libelle="Pourquoi" facultatif>
+                      {(a) => (
+                        <input
+                          {...a}
+                          className="champ"
+                          maxLength={300}
+                          value={raison}
+                          onChange={(ev) => setRaison(ev.target.value)}
+                        />
+                      )}
+                    </Champ>
+                    <Champ libelle="Avant le" facultatif>
+                      {(a) => (
+                        <input
+                          {...a}
+                          className="champ"
+                          type="date"
+                          value={avantLe}
+                          onChange={(ev) => setAvantLe(ev.target.value)}
+                        />
+                      )}
+                    </Champ>
+                    <Champ
+                      libelle="Paie de la mission (FCFA)"
+                      facultatif
+                      aide="Payée à la place de la fiche qui la termine."
+                    >
+                      {(a) => (
+                        <input
+                          {...a}
+                          className="champ"
+                          inputMode="numeric"
+                          value={paie}
+                          onChange={(ev) => setPaie(ev.target.value)}
                         />
                       )}
                     </Champ>
