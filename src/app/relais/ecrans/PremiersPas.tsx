@@ -25,7 +25,7 @@ import { PRECISION_SUFFISANTE_M } from '../../../modele/geo';
 import { avecMessage } from '../../../modele/whatsapp';
 import { garder, lireMemoire, oublier } from '../base-locale';
 import { Entete, Navigation } from '../composants';
-import { Bandeau, classeBouton } from '../formulaire';
+import { Bandeau, classeBouton } from '@/ui/v2/formulaire';
 import { aller, useRelais } from '../contexte';
 import { environnementActuel, etatDeLAutorisation } from '../environnement';
 import { journaliser } from '../journal';

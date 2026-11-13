@@ -57,7 +57,7 @@ import {
 } from '@/ui/shadcn/icones';
 import { PiedFixe } from '../cadre';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/ui/shadcn/dialog';
-import { DisqueCycle, Segments, TitreAvecAide } from '../choix';
+import { DisqueCycle, Segments, TitreAvecAide } from '@/ui/v2/choix';
 import { CYCLES } from '../../../modele/carte/cycles';
 import { Bande, Confirmer } from '../etats';
 import { MiniCarte } from '../mini-carte';
@@ -70,7 +70,7 @@ import {
   Icone,
   classeBouton,
   classeChamp,
-} from '../formulaire';
+} from '@/ui/v2/formulaire';
 import { journaliser } from '../journal';
 import { alleger, PhotoTropLourde } from '../photo';
 import { mesurerPosition, type ErreurPosition, type Mesure } from '../position';

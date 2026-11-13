@@ -8,6 +8,7 @@ import type { Utilisateur } from '../../modele/ports';
 import { obtenirAdaptateurs, type Adaptateurs } from '../../infra/index';
 import { useAdresse } from '../commun/adresse';
 import { Cadre, type Onglet } from './Cadre';
+import { Button } from '@/ui/shadcn/button';
 import { BoutonGoogle } from '../commun/BoutonGoogle';
 import { AValider } from './AValider';
 import { Ecoles } from './Ecoles';
@@ -17,17 +18,20 @@ import { Sante } from './Sante';
 import { Aujourdhui } from './Aujourdhui';
 import { Zones } from './Zones';
 import './admin.css';
+import '@/ui/shadcn/theme.css';
 
 type Acces = 'verification' | 'admin' | 'refuse' | 'erreur';
 
 function Accueil({ children }: { children: React.ReactNode }) {
   return (
-    <div className="admin-accueil">
-      <main className="pile">
-        <div className="admin-marque">
+    <div className="min-h-dvh bg-background px-4 py-10 font-sans text-foreground">
+      <main className="mx-auto flex max-w-[36rem] flex-col gap-4 [&_h1]:m-0 [&_h1]:font-serif [&_h1]:text-[32px] [&_h1]:text-primary-strong [&_p]:m-0">
+        <div className="flex items-center gap-2 font-serif text-xl font-bold">
           <img src="/favicon.svg" alt="" width={40} height={31} />
           <span>NTanova</span>
-          <span className="admin-badge">admin</span>
+          <span className="rounded-full bg-jaune px-2 py-0.5 font-sans text-xs font-bold">
+            admin
+          </span>
         </div>
         {children}
       </main>
@@ -99,13 +103,13 @@ export default function App() {
   };
 
   if (!adaptateurs || utilisateur === undefined)
-    return <div className="admin-accueil" aria-busy="true" />;
+    return <div className="min-h-dvh bg-background" aria-busy="true" />;
 
   if (utilisateur === null) {
     return (
       <Accueil>
         <h1>Administration</h1>
-        <p className="texte-doux">
+        <p className="text-muted-foreground">
           Connecte-toi avec le compte Google inscrit comme administrateur.
         </p>
         <BoutonGoogle
@@ -137,9 +141,9 @@ export default function App() {
             <p>Vérifie le réseau, puis recharge la page.</p>
           </>
         )}
-        <button type="button" className="lien" onClick={() => void changerDeCompte()}>
+        <Button variant="link" className="self-start" onClick={() => void changerDeCompte()}>
           Changer de compte
-        </button>
+        </Button>
       </Accueil>
     );
   }
@@ -168,7 +172,7 @@ export default function App() {
   ];
   const rares: Onglet[] = [
     { chemin: 'zones', libelle: 'Zones', compte: null },
-    { chemin: 'paie', libelle: 'Paie', compte: null },
+    { chemin: 'paie', libelle: 'Paie', compte: null, detail: 'vendredi' },
     { chemin: 'sante', libelle: 'Santé des envois', compte: null },
   ];
 

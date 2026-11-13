@@ -7,7 +7,7 @@
  * chez NTanova (`mesPhotos`, adresses d'une heure). Quand elles ne se lisent pas (pas de réseau, règle de la base pas
  * encore appliquée), l'écran dit seulement quels rôles sont arrivés.
  */
-import { classeBouton } from '../formulaire';
+import { classeBouton } from '@/ui/v2/formulaire';
 import { useEffect, useState } from 'react';
 import type { FicheLocale } from '../../../modele/fiche';
 import type { Point } from '../../../modele/geo';

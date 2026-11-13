@@ -4,7 +4,7 @@
  * règle dans les Réglages de l'iPhone, pas par un cadenas à gauche de l'adresse. Un bouton relance la mesure ; elle se
  * relance aussi toute seule quand le relais revient des réglages (`reprise-position.ts`).
  */
-import { classeBouton } from '../formulaire';
+import { classeBouton } from '@/ui/v2/formulaire';
 import { useMemo } from 'react';
 import type { ErreurPosition } from '../../../modele/geo';
 import { aideDePosition, messageDeSupport } from '../../../modele/aide-position';

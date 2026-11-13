@@ -18,10 +18,10 @@ import {
 } from '../../../modele/deja-sur-ntanova';
 import { photoEnseigne, type FicheLocale } from '../../../modele/fiche';
 import { lireMemoire, useRequete } from '../base-locale';
-import { Icone, classeBouton, classeChamp } from '../formulaire';
+import { Icone, classeBouton, classeChamp } from '@/ui/v2/formulaire';
 import { cn } from '@/lib/utils';
 import { IconeAjouter, IconeChercher, IconeOuvrir } from '@/ui/shadcn/icones';
-import { TitreAvecAide } from '../choix';
+import { TitreAvecAide } from '@/ui/v2/choix';
 import { useRelais } from '../contexte';
 import type { Modifier } from './fiche-en-cours';
 

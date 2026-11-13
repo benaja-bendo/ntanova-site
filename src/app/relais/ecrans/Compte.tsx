@@ -35,7 +35,7 @@ import {
   IconeSignal,
 } from '@/ui/shadcn/icones';
 import { BarreDuBas, EnTete, LigneLien } from '../cadre';
-import { ChoixRectangle, GroupeDeChoix } from '../choix';
+import { ChoixRectangle, GroupeDeChoix } from '@/ui/v2/choix';
 import { Bande, Ebauche } from '../etats';
 import { aller, useEnLigne, useRelais } from '../contexte';
 import { journaliser } from '../journal';

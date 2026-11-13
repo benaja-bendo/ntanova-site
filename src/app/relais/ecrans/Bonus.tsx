@@ -31,7 +31,7 @@ import {
 import { Button } from '@/ui/shadcn/button';
 import { aller } from '../contexte';
 import { EnteteEtape } from '../composants';
-import { Choix } from '../formulaire';
+import { Choix } from '@/ui/v2/formulaire';
 import { cn } from '@/lib/utils';
 import {
   IconeAjouter,
@@ -42,7 +42,7 @@ import {
   IconeSansEnfant,
 } from '@/ui/shadcn/icones';
 import { PiedFixe } from '../cadre';
-import { Segments, TitreAvecAide } from '../choix';
+import { Segments, TitreAvecAide } from '@/ui/v2/choix';
 import { Bande } from '../etats';
 import { journaliser } from '../journal';
 import { alleger, PhotoTropLourde } from '../photo';

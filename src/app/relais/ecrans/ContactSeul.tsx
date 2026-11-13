@@ -9,7 +9,7 @@ import {
 import { ajouterLeContact } from '../actions-fiches';
 import { lireMemoire, useRequete } from '../base-locale';
 import { Entete, Navigation } from '../composants';
-import { Bandeau, Icone, classeBouton } from '../formulaire';
+import { Bandeau, Icone, classeBouton } from '@/ui/v2/formulaire';
 import { aller, useRelais } from '../contexte';
 import { ChampsContact } from './Ajouter';
 

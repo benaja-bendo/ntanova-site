@@ -3,7 +3,7 @@ import { avecMessage } from '../../../modele/whatsapp';
 import { BoutonGoogle as BoutonCommun } from '../../commun/BoutonGoogle';
 import { base, useRequete } from '../base-locale';
 import { useRelais } from '../contexte';
-import { Icone, classeBouton } from '../formulaire';
+import { Icone, classeBouton } from '@/ui/v2/formulaire';
 import { journaliser } from '../journal';
 
 /** Le bouton de connexion de l'espace relais. */

@@ -23,7 +23,7 @@ import {
 } from '@/ui/shadcn/icones';
 import { BarreDuBas, PastilleEnLigne, Surtitre } from '../cadre';
 import { Bande, Ebauche, EtatVide } from '../etats';
-import { Pastille } from '../choix';
+import { Pastille } from '@/ui/v2/choix';
 import { BoutonGoogle } from './Connexion';
 import { commencerCorrection } from './Ajouter';
 import { missionsDeLAccueil, semaineDuRelais } from '../../../modele/accueil-relais';

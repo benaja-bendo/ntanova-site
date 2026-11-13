@@ -24,7 +24,7 @@ import {
 import { libelleDiplome, libelleNiveau, libelleSerie } from '../../../modele/libelles';
 import type { Valeur } from '../../../modele/listes';
 import type { FormationSaisie } from '../../../modele/ports';
-import { Champ, Choix, classeBouton, classeChamp } from '../formulaire';
+import { Champ, Choix, classeBouton, classeChamp } from '@/ui/v2/formulaire';
 
 const CYCLES_A_FILIERES = ['technique', 'superieur', 'autre_formation'] as const;
 

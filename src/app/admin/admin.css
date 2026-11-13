@@ -394,14 +394,13 @@
   }
 }
 
-.admin-titre h2,
-.admin-contenu h2 {
+:where(.admin-titre, .admin-contenu) h2 {
   margin: 0;
   font-family: var(--police-titre);
   font-size: var(--taille-titre-fiche);
 }
 
-.admin-contenu h3 {
+:where(.admin-contenu) h3 {
   margin: 0;
   font-family: var(--police-titre);
   font-size: var(--taille-courante);

@@ -9,7 +9,7 @@ import { buttonVariants } from '@/ui/shadcn/button';
 import { Icone as IconeV2 } from '@/ui/icones/Icone';
 import type { NomIcone } from '@/ui/icones/registre';
 import { ChoixRectangle, Pastille } from './choix';
-import { Bande } from './etats';
+import { Bande } from './bande';
 
 /** Le dessin d'un champ texte (shadcn `Input`), pour les `<input>` et `<select>` écrits à la main. */
 export const classeChamp =
