@@ -234,6 +234,11 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         verification_state: string;
         photo_roles: Valeur<'photo_role'>[];
         contact_confirmed: boolean;
+        mission_id?: string | null;
+        task?: string | null;
+        reason?: string | null;
+        due_on?: string | null;
+        pay_xaf?: number | null;
       }>(await supabase().rpc('my_missions'));
       return lignes.map((m) => ({
         id: m.campus_id,
@@ -254,7 +259,21 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         etatVerification: m.verification_state,
         photos: m.photo_roles ?? [],
         contactConfirme: m.contact_confirmed ?? false,
+        missionId: m.mission_id ?? null,
+        tache: m.task ?? null,
+        raison: m.reason ?? null,
+        avantLe: m.due_on ?? null,
+        paieXaf: m.pay_xaf ?? null,
       }));
+    },
+
+    async missionPasPu(missionId, motif, note) {
+      const { error } = await avecDelai(
+        supabase().rpc('mission_not_done', { p_mission: missionId, p_reason: motif, p_note: note }),
+        DELAI_APPEL_MS,
+      );
+      // Rejouable : une mission déjà fermée répond P0002, que la file traite comme « plus à faire ».
+      traduire(error);
     },
 
     async maPaie(): Promise<MaPaie> {
@@ -266,6 +285,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         contacts: number;
         trial_bundles: number;
         total_xaf: number;
+        missions?: number | null;
         not_payable: number;
         has_payment_details: boolean;
         paid_at: string | null;
@@ -277,6 +297,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         fiches: l.submissions,
         contacts: l.contacts,
         essais: l.trial_bundles,
+        missions: l.missions ?? 0,
         totalXaf: l.total_xaf,
         nonPayables: l.not_payable,
         payeLe: l.paid_at,

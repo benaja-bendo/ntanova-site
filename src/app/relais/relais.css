@@ -536,3 +536,10 @@
   font-size: var(--taille-courante);
   font-weight: 700;
 }
+
+.ligne-mission {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-1) var(--espace-3);
+}

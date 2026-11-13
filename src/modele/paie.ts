@@ -59,10 +59,13 @@ export function detailDeLaPaie(ligne: {
   fiches: number;
   contacts: number;
   essais: number;
+  missions?: number;
 }): string[] {
   const lignes: string[] = [];
   if (ligne.fiches > 0)
     lignes.push(`${ligne.fiches} fiche${s(ligne.fiches)} acceptée${s(ligne.fiches)}`);
+  const missions = ligne.missions ?? 0;
+  if (missions > 0) lignes.push(`${missions} mission${s(missions)} faite${s(missions)}`);
   if (ligne.contacts > 0) {
     lignes.push(
       `${ligne.contacts} contact${s(ligne.contacts)} de direction confirmé${s(ligne.contacts)}`,

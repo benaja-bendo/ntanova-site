@@ -247,6 +247,15 @@ export interface EcoleACompleter {
   photos: Valeur<'photo_role'>[];
   /** Le contact de la direction est déjà confirmé. */
   contactConfirme: boolean;
+  /**
+   * v2 (13/11) : la mission elle-même, quand NTanova l'a écrite (« Compléter ») : son identifiant, ce qu'il faut faire et
+   * pourquoi, la date limite, et le montant fixé par NTanova en la confiant. Absents d'une mission d'avant.
+   */
+  missionId?: string | null;
+  tache?: string | null;
+  raison?: string | null;
+  avantLe?: string | null;
+  paieXaf?: number | null;
 }
 
 /**
@@ -262,6 +271,8 @@ export interface LigneDeMaPaie {
   contacts: number;
   /** 1 quand l'essai (trois fiches validées) est dû. */
   essais: number;
+  /** v2 (13/11) : les missions faites, payées à leur montant (la fiche qui les ferme n'est pas payée en plus). */
+  missions?: number;
   totalXaf: number;
   /** Fiches acceptées mais non payables (une école déjà relevée par un autre relais). */
   nonPayables: number;
@@ -307,6 +318,12 @@ export interface PortRelais {
   mesPhotos(releveId: string): Promise<PhotoRecue[]>;
   /** Les écoles confiées au relais (ses missions ouvertes). `GET /moi/missions` */
   mesMissions(): Promise<EcoleACompleter[]>;
+  /** v2 (13/11) : `POST /moi/missions/{id}/pas-pu`, « Je n'ai pas pu » : la mission se ferme sans paie, avec son motif. */
+  missionPasPu(
+    missionId: string,
+    motif: Valeur<'mission_blocker'>,
+    note: string | null,
+  ): Promise<void>;
   /** Sa paie : ce qui lui est acquis, et les semaines closes. `GET /moi/paie` */
   maPaie(): Promise<MaPaie>;
   /** `POST /releves` */

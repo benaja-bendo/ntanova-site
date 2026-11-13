@@ -3,9 +3,11 @@ import type { Valeur } from '../../../modele/listes';
 import { appartientAuCompte, duBrouillon } from '../../../modele/compte';
 import { texteDestineAuRelais } from '../../../modele/consigne';
 import { phraseDuBilan } from '../../../modele/envoi';
-import { base, compteConnecte, lireMemoire, useRequete } from '../base-locale';
+import { base, compteConnecte, garder, lireMemoire, useRequete } from '../base-locale';
+import { jourDuCongo } from '../../../modele/date-declaration';
+import { francs } from '../../../modele/paie';
 import { aller, useEnLigne, useRelais } from '../contexte';
-import { Bandeau, Entete, heure, Icone, Navigation } from '../composants';
+import { Bandeau, Champ, Choix, Entete, heure, Icone, Navigation } from '../composants';
 import { BoutonGoogle } from './Connexion';
 import { commencerContreVisite } from './Ajouter';
 
@@ -228,7 +230,11 @@ function ACompleter() {
       .filter((f) => appartientAuCompte(f, compte))
       .map((f) => f.doublonPropose?.ecoleId);
   });
-  const restantes = ecoles.filter((e) => !enCours?.includes(e.id));
+  // v2 (13/11) : une mission dite « Je n'ai pas pu » quitte la liste tout de suite, même hors ligne.
+  const pasPu = useRequete(async () => (await lireMemoire('missionsPasPu')) ?? []) ?? [];
+  const restantes = ecoles.filter(
+    (e) => !enCours?.includes(e.id) && !pasPu.some((m) => m.missionId === e.missionId),
+  );
   if (restantes.length === 0) return null;
   return (
     <section className="carte-blanche pile-serree" aria-label="À compléter">
@@ -250,7 +256,20 @@ function ACompleter() {
             <span className="mention a-completer-ligne">
               {[e.quartier, e.repere].filter(Boolean).join(' · ') || 'Quartier inconnu'}
             </span>
-            <span className="mention a-completer-ligne">{consigne[e.genre]}</span>
+            <span className="mention a-completer-ligne">{e.tache ?? consigne[e.genre]}</span>
+            {e.raison && (
+              <span className="mention a-completer-ligne">Pourquoi&nbsp;: {e.raison}</span>
+            )}
+            {(e.avantLe || e.paieXaf) && (
+              <span className="a-completer-ligne ligne-mission">
+                {e.avantLe && (
+                  <span className={enRetard(e.avantLe) ? 'etiquette etat-a-corriger' : 'mention'}>
+                    {enRetard(e.avantLe) ? 'En retard · ' : ''}avant le {jourLong(e.avantLe)}
+                  </span>
+                )}
+                {e.paieXaf ? <b>{francs(e.paieXaf)}</b> : null}
+              </span>
+            )}
             {texteDestineAuRelais(e.note) && (
               <span className="mention a-completer-ligne">
                 À vérifier : {texteDestineAuRelais(e.note)}
@@ -272,8 +291,91 @@ function ACompleter() {
           >
             Compléter
           </button>
+          {e.missionId && <PasPu missionId={e.missionId} />}
         </div>
       ))}
+    </section>
+  );
+}
+
+/** Une date limite passée, au jour de Pointe-Noire. */
+const enRetard = (jourLimite: string): boolean => jourDuCongo() > jourLimite;
+const jourLong = (j: string): string =>
+  new Date(`${j}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+
+const MOTIFS: { valeur: Valeur<'mission_blocker'>; libelle: string }[] = [
+  { valeur: 'ferme', libelle: 'Fermé' },
+  { valeur: 'pas_de_prospectus', libelle: 'Pas de prospectus' },
+  { valeur: 'refus', libelle: 'Refus' },
+  { valeur: 'autre', libelle: 'Autre' },
+];
+
+/**
+ * « Je n'ai pas pu » (v2, 13/11) : le motif, une précision pour « Autre », puis la mission se ferme sans paie. Le geste est
+ * gardé sur le téléphone et part avec le prochain envoi : il marche hors ligne.
+ */
+function PasPu({ missionId }: { missionId: string }) {
+  const { synchroniser } = useRelais();
+  const [ouvert, setOuvert] = useState(false);
+  const [motif, setMotif] = useState<Valeur<'mission_blocker'> | null>(null);
+  const [note, setNote] = useState('');
+  const [erreur, setErreur] = useState<string | null>(null);
+  if (!ouvert)
+    return (
+      <button type="button" className="lien lien-discret" onClick={() => setOuvert(true)}>
+        Je n’ai pas pu
+      </button>
+    );
+  const fermer = async () => {
+    if (!motif) return setErreur('Dites ce qui vous a empêché.');
+    if (motif === 'autre' && !note.trim()) return setErreur('Précisez « autre » en quelques mots.');
+    const file = (await lireMemoire('missionsPasPu')) ?? [];
+    await garder('missionsPasPu', [
+      ...file.filter((m) => m.missionId !== missionId),
+      { missionId, motif, note: note.trim() || null, le: new Date().toISOString() },
+    ]);
+    synchroniser();
+  };
+  return (
+    <section className="pile-serree" aria-label="Je n’ai pas pu">
+      <Choix
+        legende="Qu’est-ce qui vous a empêché ?"
+        options={MOTIFS}
+        valeurs={motif ? [motif] : []}
+        surChoix={(v) => {
+          setMotif(v);
+          setErreur(null);
+        }}
+        colonnes={2}
+      />
+      {motif === 'autre' && (
+        <Champ libelle="En quelques mots">
+          {(a) => (
+            <input
+              {...a}
+              className="champ"
+              type="text"
+              maxLength={200}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          )}
+        </Champ>
+      )}
+      {erreur && (
+        <p className="message-erreur" role="alert">
+          {erreur}
+        </p>
+      )}
+      <p className="mention">La mission se ferme, sans paie. NTanova lit le motif.</p>
+      <div className="ligne-boutons">
+        <button type="button" className="bouton bouton-petit" onClick={() => void fermer()}>
+          Fermer la mission
+        </button>
+        <button type="button" className="lien" onClick={() => setOuvert(false)}>
+          Annuler
+        </button>
+      </div>
     </section>
   );
 }
