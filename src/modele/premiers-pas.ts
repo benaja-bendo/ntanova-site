@@ -107,3 +107,44 @@ export function messageDeSupportPremiersPas(env: Environnement, t: ResultatsTest
 export function testsTermines(t: ResultatsTests): boolean {
   return t.position !== undefined && t.photo !== undefined && t.connexion !== undefined;
 }
+
+export interface BilanDesTests {
+  titre: string;
+  echec: boolean;
+  lignes: { libelle: 'Position' | 'Photo' | 'Réseau'; etat: 'bon' | 'mauvais' | 'non_teste' }[];
+}
+
+/**
+ * Lot H, « Compte › Mon téléphone est prêt » : les trois tests sur une ligne. Le titre dit le premier test qui a échoué ;
+ * sans test, il invite à tester. `null` : jamais testé sur ce téléphone.
+ */
+export function bilanDesTests(t: ResultatsTests | null): BilanDesTests {
+  const position = !t?.position
+    ? 'non_teste'
+    : t.position.ok && verdictPosition(t.position.precisionM).bon
+      ? 'bon'
+      : 'mauvais';
+  const photo = !t?.photo
+    ? 'non_teste'
+    : verdictPhoto({ octets: t.photo.octets, relue: t.photo.ok }).bon
+      ? 'bon'
+      : 'mauvais';
+  const reseau = !t?.connexion
+    ? 'non_teste'
+    : verdictConnexion(t.connexion).bon
+      ? 'bon'
+      : 'mauvais';
+  const lignes: BilanDesTests['lignes'] = [
+    { libelle: 'Position', etat: position },
+    { libelle: 'Photo', etat: photo },
+    { libelle: 'Réseau', etat: reseau },
+  ];
+  const rate = lignes.find((l) => l.etat === 'mauvais');
+  if (rate) {
+    const quoi = { Position: 'La position', Photo: 'La photo', Réseau: 'Le réseau' }[rate.libelle];
+    return { titre: `${quoi} ne marche pas`, echec: true, lignes };
+  }
+  if (lignes.every((l) => l.etat === 'bon'))
+    return { titre: 'Mon téléphone est prêt', echec: false, lignes };
+  return { titre: 'Mon téléphone n’est pas encore testé', echec: false, lignes };
+}

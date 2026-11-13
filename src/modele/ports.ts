@@ -354,6 +354,13 @@ export interface PortRelais {
   ): Promise<void>;
   /** Sa paie : ce qui lui est acquis, et les semaines closes. `GET /moi/paie` */
   maPaie(): Promise<MaPaie>;
+  /** Lot H : son numéro Mobile Money (le sien seulement), ou null. `my_payment_details` */
+  monNumeroDePaie(): Promise<import('./numero-de-paie').NumeroDePaie | null>;
+  /** Lot H : pose ou change son numéro Mobile Money. `set_my_payment_details` */
+  enregistrerMonNumeroDePaie(
+    operateur: import('./numero-de-paie').OperateurMobileMoney,
+    numero: string,
+  ): Promise<void>;
   /** `POST /releves` */
   envoyerReleve(releve: ReleveAEnvoyer): Promise<Reponse>;
   /** Dépose le fichier au chemin `<relevé>/<photo>.<webp|jpg>`, puis l'enregistre. `PUT /photos/{releve}/{photo}` */

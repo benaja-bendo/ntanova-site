@@ -63,9 +63,11 @@ export function Entete({ titre, principal = false }: { titre: string; principal?
 }
 
 export function Navigation() {
-  const [ecran = 'lot'] = useAdresse();
+  const [ecranLu = 'missions'] = useAdresse();
+  // `#lot` (l'ancien « Mon secteur ») et `#mission/…` sont l'onglet « Missions ».
+  const ecran = ['lot', 'mission'].includes(ecranLu) ? 'missions' : ecranLu;
   const onglets = [
-    { chemin: 'lot', libelle: 'Mon secteur', icone: 'carte' as const },
+    { chemin: 'missions', libelle: 'Missions', icone: 'mission' as const },
     { chemin: 'fiches', libelle: 'Mes fiches', icone: 'fiche' as const },
     { chemin: 'paie', libelle: 'Ma paie', icone: 'piece' as const },
     { chemin: 'compte', libelle: 'Compte', icone: 'personne' as const },
@@ -104,7 +106,7 @@ export function EnteteEtape({
         <button
           type="button"
           className="bouton-icone"
-          aria-label={etape === 1 ? 'Retour à mon secteur' : `Retour à l'étape ${etape - 1}`}
+          aria-label={etape === 1 ? 'Retour aux missions' : `Retour à l'étape ${etape - 1}`}
           onClick={() => aller(retour)}
         >
           <Icone nom="retour" taille={22} />

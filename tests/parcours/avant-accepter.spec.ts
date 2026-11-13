@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter, uneFicheEnvoyee } from './aides';
+import {
+  attendreLaLecture,
+  ouvrirLaFiche,
+  prendrePhotoEtPosition,
+  seConnecter,
+  uneFicheEnvoyee,
+} from './aides';
 
 // « Avant d'accepter » (ticket #95), construit avec le faux serveur. Le fondateur ne savait pas « pourquoi il ne pouvait
 // pas publier » la correction d'ESTAM : le bouton était actif, rien ne bloquait, et l'écran ne le disait pas.
@@ -134,9 +140,7 @@ test.describe('un numéro congolais qui se lit mal, côté relais', () => {
     test.setTimeout(90_000);
     await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
     await seConnecter(page, '/relais/');
-    await expect(
-      page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-    ).toBeVisible();
+    await attendreLaLecture(page);
     await prendrePhotoEtPosition(page);
     await page.getByRole('button', { name: 'Suivant' }).click();
 

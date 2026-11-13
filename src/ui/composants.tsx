@@ -77,6 +77,19 @@ const traits = {
       <path d="M4.2 8h.1M11.7 8h.1" />
     </>
   ),
+  // Lot H : « Missions » (une liste cochée) et l'aide (un point d'interrogation dans un rond).
+  mission: (
+    <>
+      <path d="M6 4h7M6 8h7M6 12h7" />
+      <path d="M2.5 4l.8.8L4.6 3.4M2.5 8l.8.8 1.3-1.4M2.5 12l.8.8 1.3-1.4" />
+    </>
+  ),
+  aide: (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M6.3 6.3a1.8 1.8 0 113 1.4c-.7.4-1.3.8-1.3 1.6M8 11.3v.2" />
+    </>
+  ),
   personne: (
     <>
       <circle cx="8" cy="5.4" r="2.6" />

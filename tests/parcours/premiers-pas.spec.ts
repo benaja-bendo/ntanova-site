@@ -10,7 +10,9 @@ const photo = new URL('./fichiers/enseigne.jpg', import.meta.url).pathname;
 async function ouvrirLesPremiersPas(page: Page) {
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-  await page.getByRole('button', { name: 'Tester mon téléphone' }).click();
+  // Lot H : les tests du téléphone sont dans « Compte » (« Mon téléphone est prêt »), plus sur l'accueil.
+  await page.goto('/relais/#compte');
+  await page.getByRole('region', { name: 'Mon téléphone' }).getByRole('button').click();
   await expect(page.getByRole('heading', { name: 'Tester mon téléphone' })).toBeVisible();
 }
 
@@ -37,34 +39,22 @@ function codesDuJournal(page: Page) {
 const sectionDe = (page: Page, nom: string) => page.getByRole('region', { name: nom });
 
 test.describe('les premiers pas', () => {
-  test('la carte est sur « Mon secteur », elle mène aux tests, et « Passer » la fait disparaître', async ({
+  test('lot H : « Compte » dit que le téléphone n’est pas testé, et mène aux tests ; « Passer » ramène aux missions', async ({
     page,
   }) => {
     await seConnecter(page, '/relais/');
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    const carte = sectionDe(page, 'Premiers pas');
-    await expect(carte).toContainText('facultatif');
-    await carte.getByRole('button', { name: 'Tester mon téléphone' }).click();
-
+    // Plus de carte « Premiers pas » sur l'accueil (planche « Relais · Missions »).
+    await expect(sectionDe(page, 'Premiers pas')).toHaveCount(0);
+    await page.getByRole('link', { name: 'Compte' }).click();
+    const telephone = sectionDe(page, 'Mon téléphone');
+    await expect(telephone).toContainText('Mon téléphone n’est pas encore testé');
+    await telephone.getByRole('button', { name: 'Tester' }).click();
+    await expect(page.getByRole('heading', { name: 'Tester mon téléphone' })).toBeVisible();
     // Rien d'obligatoire : « J'ai terminé » attend les trois tests, « Passer » est toujours là.
     await expect(page.getByRole('button', { name: 'J’ai terminé' })).toBeDisabled();
     await page.getByRole('button', { name: 'Passer ces tests' }).click();
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    await expect(sectionDe(page, 'Premiers pas')).toHaveCount(0);
-    // Elle ne revient pas.
-    await page.reload();
-    await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    await expect(sectionDe(page, 'Premiers pas')).toHaveCount(0);
-  });
-
-  test('« Compte » permet de les refaire quand on veut', async ({ page }) => {
-    await seConnecter(page, '/relais/');
-    await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    await page.getByRole('link', { name: 'Compte' }).click();
-    await sectionDe(page, 'Mon téléphone')
-      .getByRole('button', { name: 'Tester mon téléphone' })
-      .click();
-    await expect(page.getByRole('heading', { name: 'Tester mon téléphone' })).toBeVisible();
   });
 
   test('la position refusée : l’aide du téléphone, le journal, puis le test se relance tout seul', async ({
@@ -183,6 +173,11 @@ test.describe('les premiers pas', () => {
     await expect(page.getByRole('link', { name: 'Écrire à NTanova sur WhatsApp' })).toHaveCount(0);
     await page.getByRole('button', { name: 'J’ai terminé' }).click();
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    await expect(sectionDe(page, 'Premiers pas')).toHaveCount(0);
+    // Lot H : « Compte » le dit, les trois tests sur une ligne.
+    await page.goto('/relais/#compte');
+    const telephone = sectionDe(page, 'Mon téléphone');
+    await expect(telephone).toContainText('Mon téléphone est prêt');
+    await expect(telephone.getByRole('listitem')).toHaveText(['Position', 'Photo', 'Réseau']);
+    await expect(telephone.getByRole('button', { name: 'Refaire' })).toBeVisible();
   });
 });

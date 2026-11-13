@@ -1,7 +1,13 @@
 // Le relevé v2 (ticket 165, lot B, 13/11/2026) : « Déjà sur NTanova ? » hors ligne, le sigle, le bonus et la confirmation
 // « Envoyer sans le bonus ? » ; l'administration relit le bonus et le garde à l'acceptation.
 import { expect, test, type Page } from '@playwright/test';
-import { envoyerSansBonus, ouvrirLaFiche, prendrePhotoEtPosition, seConnecter } from './aides';
+import {
+  attendreLaLecture,
+  envoyerSansBonus,
+  ouvrirLaFiche,
+  prendrePhotoEtPosition,
+  seConnecter,
+} from './aides';
 
 test.use({ permissions: ['geolocation'] });
 
@@ -12,10 +18,11 @@ async function etape2(page: Page, context: import('@playwright/test').BrowserCon
   await context.setGeolocation({ latitude: -4.79123, longitude: 11.925, accuracy: 8 });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+  // Une vingtaine de mètres de l'école publiée : une fois la lecture gardée, « Doublon possible » s'affiche toujours.
+  await attendreLaLecture(page);
   await prendrePhotoEtPosition(page);
   const doublon = page.getByRole('region', { name: 'Doublon possible' });
-  if (await doublon.isVisible())
-    await doublon.getByRole('button', { name: 'Non, une autre' }).click();
+  await doublon.getByRole('button', { name: 'Non, une autre' }).click();
   await page.getByRole('button', { name: 'Suivant' }).click();
   await expect(page.getByRole('heading', { name: "L'établissement" })).toBeVisible();
 }

@@ -22,7 +22,9 @@ import {
 import { MaPaie } from './ecrans/MaPaie';
 import { MesFiches } from './ecrans/MesFiches';
 import { UneFiche } from './ecrans/UneFiche';
-import { MonLot } from './ecrans/MonLot';
+import { Accueil } from './ecrans/MonLot';
+import { Mission } from './ecrans/Mission';
+import { Aide } from './ecrans/Aide';
 import { PremiersPas } from './ecrans/PremiersPas';
 import type { BilanEnvoi } from '../../modele/envoi';
 import { bilanDuDernierEnvoi } from './file-envoi';
@@ -34,7 +36,7 @@ import './relais.css';
 const INTERVALLE_MS = 3 * 60_000;
 
 function Ecrans() {
-  const [ecran = 'lot', etape] = useAdresse();
+  const [ecran = 'missions', etape] = useAdresse();
   if (ecran === 'ajouter') {
     const n = etape === '2' ? 2 : etape === '3' ? 3 : etape === 'bonus' ? 4 : 1;
     return <Ajouter key={n} etape={n} />;
@@ -45,7 +47,11 @@ function Ecrans() {
   if (ecran === 'compte') return <Compte />;
   if (ecran === 'premiers-pas') return <PremiersPas />;
   if (ecran === 'contact' && etape) return <ContactSeul key={etape} releveId={etape} />;
-  return <MonLot />;
+  if (ecran === 'mission' && etape) return <Mission key={etape} ecoleId={etape} />;
+  if (ecran === 'aide')
+    return <Aide sujet={etape === 'regles' || etape === 'paie' ? etape : 'entrer'} />;
+  // L'accueil : `#missions` ; `#lot` (l'ancien « Mon secteur ») y mène aussi.
+  return <Accueil />;
 }
 
 export default function App({ lienNTanova }: { lienNTanova: string | null }) {
@@ -115,7 +121,7 @@ export default function App({ lienNTanova }: { lienNTanova: string | null }) {
   // Après « Se déconnecter » (la session est déjà fermée) : l'écran de connexion, sur l'écran d'accueil, sans état
   // du compte d'avant. Aucune fiche n'est touchée.
   const surDeconnexion = useCallback(() => {
-    aller('lot');
+    aller('missions');
     setEnvoi(null);
     setBilan(null);
     setPremiereLecture(false);

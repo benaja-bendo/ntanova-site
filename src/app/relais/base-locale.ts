@@ -47,6 +47,8 @@ export interface Memoire {
   dernierEnvoi: string;
   /** Le jour où le relais a fini (ou passé) ses premiers pas (ticket #79) : la carte « Premiers pas » ne revient plus. */
   premiersPas: string;
+  /** Lot H : les derniers résultats de « Tester mon téléphone », lus dans « Compte ». */
+  testsDuTelephone: import('../../modele/premiers-pas').ResultatsTests;
   /** Une photo de test, le temps de vérifier qu'elle se relit : effacée aussitôt, jamais envoyée. */
   testPhoto: Blob;
 }

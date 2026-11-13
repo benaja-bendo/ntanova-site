@@ -3,6 +3,7 @@
 // d'un agrément côté admin, et ce que la page publique en dit. Construit avec le faux serveur.
 import { expect, test, type Page } from '@playwright/test';
 import {
+  attendreLaLecture,
   ouvrirGestion,
   ouvrirLaFiche,
   prendrePhotoEtPosition,
@@ -110,10 +111,11 @@ async function reconnaitre(page: Page, context: import('@playwright/test').Brows
   await context.setGeolocation({ latitude: -4.79123, longitude: 11.925, accuracy: 8 });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+  // Une vingtaine de mètres de l'école publiée : une fois la lecture gardée, « Doublon possible » s'affiche toujours.
+  await attendreLaLecture(page);
   await prendrePhotoEtPosition(page);
   const doublon = page.getByRole('region', { name: 'Doublon possible' });
-  if (await doublon.isVisible())
-    await doublon.getByRole('button', { name: 'Non, une autre' }).click();
+  await doublon.getByRole('button', { name: 'Non, une autre' }).click();
   await page.getByRole('button', { name: 'Suivant' }).click();
   await page.getByLabel("Nom de l'établissement").fill('[École exemple]');
   const deja = page.getByRole('region', { name: /Déjà sur NTanova/ });

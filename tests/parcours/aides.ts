@@ -47,6 +47,17 @@ export async function attendreLaLecture(page: Page) {
     .toBe(true);
 }
 
+/** Lot H : la carte d'une mission sur l'accueil (« Vos missions »). */
+export const carteDeMission = (page: Page) =>
+  page.getByRole('region', { name: 'Vos missions' }).locator('a.carte-mission');
+
+/** Lot H : depuis l'accueil, ouvre la mission (la première), puis « Prendre la photo » (la contre-visite commence). */
+export async function commencerLaMission(page: Page) {
+  await expect(carteDeMission(page).first()).toBeVisible({ timeout: 15_000 });
+  await carteDeMission(page).first().click();
+  await page.getByRole('button', { name: 'Prendre la photo' }).click();
+}
+
 /** v2 (13/11) : depuis l'étape 3, « Envoyer maintenant » puis « Envoyer sans bonus » (la fenêtre de confirmation). */
 export async function envoyerSansBonus(page: Page) {
   await page.getByRole('button', { name: 'Envoyer maintenant' }).click();
@@ -81,7 +92,7 @@ export async function ajouterUneEcole(
   await page.getByLabel(/Son WhatsApp/).fill(`06 123 45 6${n}`);
   await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await page.getByRole('link', { name: 'Mon secteur' }).click();
+  await page.getByRole('link', { name: 'Missions' }).click();
 }
 
 /**
@@ -107,9 +118,7 @@ export async function uneFicheEnvoyee(
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
   // Le secteur est gardé dans le téléphone avec le reste de la lecture : on attend qu'il y soit (le téléphone peut
   // tomber en panne de réseau juste après).
-  await expect(
-    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-  ).toBeVisible();
+  await attendreLaLecture(page);
   await ajouterUneEcole(page, 1, options);
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
   // Le faux serveur a bien reçu le relevé, la photo et le contact.

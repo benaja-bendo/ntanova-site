@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { ajouterUneEcole, seConnecter } from './aides';
+import { ajouterUneEcole, attendreLaLecture, seConnecter } from './aides';
 
 // La file d'envoi dit ce qu'elle fait (ticket #74). Construit avec le faux serveur. Deux réglages du faux serveur, dans
 // `localStorage` du navigateur :
@@ -40,9 +40,7 @@ function serveur(page: Page) {
 async function ouvrirLEspace(page: Page, context: BrowserContext) {
   await context.setGeolocation({ latitude: -4.7982, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
-  await expect(
-    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-  ).toBeVisible();
+  await attendreLaLecture(page);
 }
 
 const carte = (page: Page, nom: string) => page.getByRole('article').filter({ hasText: nom });

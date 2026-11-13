@@ -192,6 +192,8 @@ function personnesDe(e: Etat, releveId: string): [string, ContactFaux][] {
 const TROIS_PERSONNES = 'Une fiche a trois personnes à contacter au plus.';
 
 interface Etat {
+  /** Lot H : le numéro Mobile Money du relais. */
+  numeroDePaie?: { operateur: 'mtn' | 'airtel' | 'autre'; numero: string; majLe: string } | null;
   /** v2 (13/11) : les demandes faites (« demandé à l'école le … ») et les images des écoles. */
   demandes?: {
     id: string;
@@ -693,6 +695,21 @@ const relais: PortRelais = {
       e.missionsPasPu = [...(e.missionsPasPu ?? []), { missionId, motif, note }];
     });
     if (!trouvee) throw new ErreurRejet('P0002', 'Mission introuvable ou déjà fermée.');
+  },
+  async monNumeroDePaie() {
+    await reseau();
+    return lireEtat().numeroDePaie ?? null;
+  },
+  async enregistrerMonNumeroDePaie(operateur, numero) {
+    await reseau();
+    if (lireEtat().statut !== 'actif')
+      throw new ErreurRejet('42501', 'Seul un relais actif enregistre son numéro de paie.');
+    if (!/^[1-9][0-9]{7,14}$/.test(numero))
+      throw new ErreurRejet(
+        '22023',
+        'Le numéro s’écrit avec l’indicatif, sans + ni espace (242…).',
+      );
+    ecrire((e) => (e.numeroDePaie = { operateur, numero, majLe: new Date().toISOString() }));
   },
   async maPaie() {
     await reseau();

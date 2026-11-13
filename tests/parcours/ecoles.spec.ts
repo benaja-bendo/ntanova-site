@@ -1,4 +1,4 @@
-import { ouvrirGestion, envoyerSansBonus } from './aides';
+import { carteDeMission, envoyerSansBonus, ouvrirGestion } from './aides';
 import { expect, test } from '@playwright/test';
 import { seConnecter } from './aides';
 
@@ -32,12 +32,14 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
     .click();
   await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
-  // Le relais la voit dans « Mon secteur » et la complète.
+  // Le relais la voit dans « Vos missions » (lot H), ouvre la mission et la complète.
   await page.goto('/relais/');
-  await expect(page.getByText('À compléter · 1')).toBeVisible({ timeout: 15_000 });
+  await expect(carteDeMission(page)).toHaveCount(1, { timeout: 15_000 });
+  await expect(carteDeMission(page)).toContainText('À situer');
+  await carteDeMission(page).click();
   await expect(page.getByText('À vérifier : Le nom exact')).toBeVisible();
-  await expect(page.getByText(/Passez la situer/)).toBeVisible();
-  await page.getByRole('button', { name: 'Compléter' }).click();
+  await expect(page.getByText(/La situer/)).toBeVisible();
+  await page.getByRole('button', { name: 'Prendre la photo' }).click();
   // L'écran dit ce que le relais fait, avec un mot qu'il connaît : « Compléter », comme le bouton qu'il vient de toucher.
   await expect(page.locator('.entete-etape-titre')).toHaveText('Compléter une école');
   await expect(page.getByText(/Compléter\s*: \[École à situer\]/)).toBeVisible();
@@ -55,7 +57,7 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.getByRole('button', { name: 'Suivant' }).click();
   await page.getByRole('button', { name: 'Personne', exact: true }).click();
   await envoyerSansBonus(page);
-  await page.getByRole('link', { name: 'Mon secteur' }).click();
+  await page.getByRole('link', { name: 'Missions' }).click();
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/À compléter/)).toHaveCount(0);
 
