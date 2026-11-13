@@ -1,4 +1,4 @@
-import { ouvrirContacts, envoyerSansBonus } from './aides';
+import { attendreLaLecture, envoyerSansBonus, ouvrirContacts } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter } from './aides';
 
@@ -11,9 +11,7 @@ test.use({ permissions: ['geolocation'] });
 async function jusquALaDirection(page: Page, context: BrowserContext) {
   await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
-  await expect(
-    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-  ).toBeVisible();
+  await attendreLaLecture(page);
   await prendrePhotoEtPosition(page);
   await page.getByRole('button', { name: 'Suivant' }).click();
   await page.getByLabel("Nom de l'établissement").fill('[École 1]');
@@ -60,7 +58,7 @@ test.describe('le relais note plusieurs personnes', () => {
     await expect(page.getByText('Trois personnes au plus par fiche.')).toBeVisible();
 
     await envoyerSansBonus(page);
-    await page.getByRole('link', { name: 'Mon secteur' }).click();
+    await page.getByRole('link', { name: 'Missions' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     await expect.poll(() => contactsDuServeur(page)).toBe(3);
 
@@ -101,7 +99,7 @@ test.describe('le relais note plusieurs personnes', () => {
     test.setTimeout(90_000);
     await jusquALaDirection(page, context);
     await envoyerSansBonus(page);
-    await page.getByRole('link', { name: 'Mon secteur' }).click();
+    await page.getByRole('link', { name: 'Missions' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     await expect.poll(() => contactsDuServeur(page)).toBe(1);
   });

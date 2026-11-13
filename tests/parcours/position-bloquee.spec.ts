@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { seConnecter } from './aides';
+import { attendreLaLecture, seConnecter } from './aides';
 
 // La position est bloquée : le relais lit quoi faire sur SON téléphone (ticket #72). Construit avec le faux serveur ;
 // la position n'est pas autorisée au départ (le navigateur de test la refuse), et le test l'autorise ensuite comme le
@@ -20,9 +20,7 @@ const APP_IPHONE =
 /** Ouvre « Ajouter une école » : le téléphone demande tout de suite la position. */
 async function ouvrirLEtape1(page: Page) {
   await seConnecter(page, '/relais/');
-  await expect(
-    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-  ).toBeVisible();
+  await attendreLaLecture(page);
   await page.getByRole('button', { name: 'Ajouter une école' }).click();
   await expect(page.getByRole('heading', { name: 'Photo et lieu' })).toBeVisible();
 }

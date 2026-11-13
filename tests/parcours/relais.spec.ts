@@ -57,9 +57,7 @@ test.describe('espace relais', () => {
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
     // Le secteur et les écoles connues sont gardés dans le téléphone, pour servir hors ligne : on attend qu'ils y
     // soient avant de couper le réseau.
-    await expect(
-      page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-    ).toBeVisible();
+    await attendreLaLecture(page);
 
     // L'application est gardée dans le téléphone : elle s'ouvre sans réseau.
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
@@ -124,9 +122,7 @@ test.describe('espace relais', () => {
     }) => {
       await context.setGeolocation({ latitude: -4.79, longitude, accuracy: 8 });
       await seConnecter(page, '/relais/');
-      await expect(
-        page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-      ).toBeVisible();
+      await attendreLaLecture(page);
       await prendrePhotoEtPosition(page);
       await expect(page.getByText(/hors de votre/)).toHaveCount(0);
       await expect(page.getByText(/dans votre/)).toHaveCount(0);
@@ -136,7 +132,7 @@ test.describe('espace relais', () => {
     });
   }
 
-  test('un relais sans secteur voit les zones ouvertes, relève une école et reçoit l’alerte à 40 m sans réseau', async ({
+  test('un relais sans secteur voit ses missions, relève une école et reçoit l’alerte à 40 m sans réseau', async ({
     page,
     context,
   }) => {
@@ -145,24 +141,16 @@ test.describe('espace relais', () => {
     await context.setGeolocation({ latitude: -4.79123, longitude: 11.925, accuracy: 8 });
     await page.addInitScript(() => localStorage.setItem('ntanova-faux-sans-secteur', '1'));
     await seConnecter(page, '/relais/');
-    const secteur = page.getByRole('region', { name: 'Mon secteur' });
-    await expect(secteur).toContainText('Pas de secteur conseillé');
-    // À défaut de secteur, l'écran dit simplement où relever : partout. Plus de liste de zones (audit du 08/11/2026 :
-    // des doublons, des départements et des quartiers mélangés, et une limite que la collecte n'a pas).
-    await expect(secteur).toContainText(
-      'Relevez les écoles là où vous êtes, partout au Congo-Brazzaville',
-    );
-    await expect(secteur).not.toContainText('Zones ouvertes');
-    await expect(secteur).not.toContainText('Aucun lot');
+    // Lot H (décision du fondateur du 13/11) : plus de « Mon secteur » ; l'accueil dit les missions, et on relève partout.
+    await expect(page.getByRole('region', { name: 'Mon secteur' })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Vos missions' })).toBeVisible();
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
     await attendreLaLecture(page);
 
     await context.setOffline(true);
     await page.reload();
     await expect(page.getByText('Hors ligne', { exact: true })).toBeVisible();
-    await expect(secteur).toContainText(
-      'Relevez les écoles là où vous êtes, partout au Congo-Brazzaville',
-    );
+    await expect(page.getByRole('region', { name: 'Vos missions' })).toBeVisible();
 
     await prendrePhotoEtPosition(page);
     const doublon = page.getByRole('region', { name: 'Doublon possible' });
@@ -174,6 +162,8 @@ test.describe('espace relais', () => {
     page,
   }) => {
     await seConnecter(page, '/relais/');
+    // Lot H : la phrase est dans l'aide, à un toucher de l'accueil (« Quoi dire en entrant »).
+    await page.getByRole('link', { name: /Quoi dire en entrant/ }).click();
     const phrase = page.getByRole('region', { name: 'À dire en entrant' });
     // Le lot du faux serveur s'appelle « Tié-Tié » : la phrase ne le reprend plus. Un lot fin portera un nom
     // de lot, et un relais sans lot ne doit pas se voir répondre « Pointe-Noire ».
@@ -190,6 +180,7 @@ test.describe('espace relais', () => {
       'Jamais : se dire parent, dire que le site est déjà connu, promettre quelque chose, photographier un enfant.',
     );
 
+    await page.getByRole('button', { name: 'Retour' }).click();
     await page.getByRole('button', { name: 'Ajouter une école' }).click();
     await expect(page.locator('.entete-etape-titre')).toHaveText('Ajouter une école');
   });
@@ -218,7 +209,7 @@ test.describe('espace relais', () => {
     await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
     const navigation = page.getByRole('navigation', { name: 'Espace relais' });
     for (const [ecran, onglet] of [
-      ['lot', 'Mon secteur'],
+      ['missions', 'Missions'],
       ['fiches', 'Mes fiches'],
       ['paie', 'Ma paie'],
       ['compte', 'Compte'],

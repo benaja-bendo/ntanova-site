@@ -310,6 +310,12 @@ Canevas « Site NTanova », page « Espace relais » ; base du 13/11 (M2, M9).
   - **Admin, preuve d'un agrément** (volet Agrément) : photo de travail d'un relevé, **fichier téléversé** (réduit dans le navigateur, rangé sous `ecoles/<site>/preuves/`, jamais public : la règle de lecture publique du seau ne lit que `public_campus_media`), document vu, ou dit par l'école (`set_accreditation_evidence`, qui rend le fichier remplacé à effacer ; `remove_campus_accreditation` aussi). La page écrit « vue sur le document » ou « dite par l'école », jamais « reconnue par l'État ».
   - **La migration M10 n'est pas appliquée en production** : elle part avec la mise en ligne, sur ordre du fondateur. Le code lit sans elle (pas de `lines` : les quantités ; pas de `proof_path` : la preuve d'un relevé seulement).
 
+### L'espace relais, lot H (13/11/2026)
+
+- **L'accueil est « Missions »** (`Accueil` dans `src/app/relais/ecrans/MonLot.tsx`, modèle `src/modele/accueil-relais.ts`) : le bouton « Ajouter une école », « Vos missions » (les fiches renvoyées, puis les missions de NTanova, la plus pressée d'abord), « Cette semaine » (envoyées, acceptées, en attente, sur 7 jours), « Tout est envoyé » en bas, « Quoi dire en entrant ». **« Mon secteur » est retiré** (décision du fondateur du 13/11 : on relève partout) ; seul le lot d'entraînement se dit encore. Route `#missions` (`#lot` y mène encore). Les tests du téléphone sont dans « Compte », plus sur l'accueil.
+- **Une mission** (`#mission/<site>`, `Mission.tsx`) : tâche, raison, date, paie, la phrase, « Prendre la photo » (la contre-visite), « Je n'ai pas pu ». **L'aide** (`#aide/entrer|regles|paie`, `Aide.tsx`), lisible hors ligne. **Compte** : « Pour recevoir la paie » (`my_payment_details` / `set_my_payment_details`, M12 : le relais actif ne lit et n'écrit que **sa** ligne de `prive.relay_payment_details`), « Mon téléphone est prêt » (mémoire `testsDuTelephone`, `bilanDesTests`).
+- **Dans les parcours** : `attendreLaLecture(page)` remplace l'attente de « Mon secteur › Tié-Tié » ; `carteDeMission(page)` et `commencerLaMission(page)` (aides) ouvrent une mission depuis l'accueil.
+
 ### L'administration v2 (lots 2 à 5 du cahier, 13/11/2026)
 
 Le journal détaillé est `docs/avancement-admin-v2.md`. L'essentiel :

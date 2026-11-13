@@ -1,4 +1,4 @@
-import { ouvrirContacts, envoyerSansBonus } from './aides';
+import { attendreLaLecture, envoyerSansBonus, ouvrirContacts } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
 
@@ -74,7 +74,7 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 765 43 21');
     await envoyerSansBonus(page);
-    await page.getByRole('link', { name: 'Mon secteur' }).click();
+    await page.getByRole('link', { name: 'Missions' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 
     // Le contact est arrivé, sur la correction : deux relevés, la photo de l'original, un contact.
@@ -120,9 +120,7 @@ test.describe('une photo qui ne part pas', () => {
     test.setTimeout(90_000);
     await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
     await seConnecter(page, '/relais/');
-    await expect(
-      page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-    ).toBeVisible();
+    await attendreLaLecture(page);
 
     // Le navigateur échoue à envoyer la photo (« Load failed » sur iPhone) : le relevé et le contact partent quand même.
     await page.evaluate(() => localStorage.setItem('ntanova-faux-reseau-photo', '1'));

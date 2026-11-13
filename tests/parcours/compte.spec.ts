@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { ajouterUneEcole, seConnecter } from './aides';
+import { ajouterUneEcole, attendreLaLecture, seConnecter } from './aides';
 
 // L'onglet « Compte » et les fiches d'un téléphone partagé (ticket #55, PR 6), construits avec le faux serveur.
 //   - le relais se déconnecte sans perdre une fiche, et l'avertissement dit ce qui reste sur le téléphone ;
@@ -91,9 +91,7 @@ function deposerLaFicheDUnAutre(page: Page, etat: 'a_envoyer' | 'brouillon') {
 async function ouvrirLEspace(page: Page, context: BrowserContext) {
   await context.setGeolocation({ latitude: -4.7982, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
-  await expect(
-    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-  ).toBeVisible();
+  await attendreLaLecture(page);
 }
 
 const navigation = (page: Page) => page.getByRole('navigation', { name: 'Espace relais' });

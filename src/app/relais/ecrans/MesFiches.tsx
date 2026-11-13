@@ -170,7 +170,7 @@ const avisDesGestes: Record<Exclude<IssueDeLAction, 'ok'>, string> = {
   en_cours: "L'envoi de cette fiche est en cours. Réessayez dans un instant.",
   partie: 'Cette fiche vient de partir : NTanova l’a reçue.',
   brouillon_existant:
-    'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Mon secteur », « Reprendre la fiche en cours »).',
+    'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Reprendre la fiche en cours »).',
 };
 
 export function MesFiches() {

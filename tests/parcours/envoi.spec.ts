@@ -1,5 +1,11 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { ajouterUneEcole, prendrePhotoEtPosition, seConnecter, envoyerSansBonus } from './aides';
+import {
+  ajouterUneEcole,
+  attendreLaLecture,
+  envoyerSansBonus,
+  prendrePhotoEtPosition,
+  seConnecter,
+} from './aides';
 
 // La file d'envoi de l'espace relais (ticket #55, PR 2), construite avec le faux serveur. Deux réglages du
 // faux serveur, dans `localStorage` du navigateur, rejouent ce que la vraie base répond :
@@ -49,9 +55,7 @@ function fichesDuTelephone(page: Page) {
 async function ouvrirLEspace(page: Page, context: BrowserContext) {
   await context.setGeolocation({ latitude: -4.7982, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
-  await expect(
-    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-  ).toBeVisible();
+  await attendreLaLecture(page);
 }
 
 const carte = (page: Page, nom: string) => page.getByRole('article').filter({ hasText: nom });

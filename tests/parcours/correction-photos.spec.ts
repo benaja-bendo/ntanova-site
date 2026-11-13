@@ -2,11 +2,12 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { adresseDeTuile, grilleDeTuiles, ZOOM_DE_POSITION } from '../../src/modele/tuiles';
 import {
   ajouterUneEcole,
+  attendreLaLecture,
+  envoyerSansBonus,
   ouvrirLaFiche,
   prendrePhotoEtPosition,
   seConnecter,
   uneFicheEnvoyee,
-  envoyerSansBonus,
 } from './aides';
 
 // Corriger une fiche : le relais revoit ce que NTanova a reçu, ses photos et sa position sur une carte, et une photo
@@ -169,7 +170,7 @@ test.describe('corriger une fiche : ce que NTanova a déjà reçu', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await envoyerSansBonus(page);
-    await page.getByRole('link', { name: 'Mon secteur' }).click();
+    await page.getByRole('link', { name: 'Missions' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     // La photo est arrivée chez NTanova.
     await expect.poll(async () => (await serveur(page)).photos).toBe(1);
@@ -181,9 +182,7 @@ test.describe('la carte d’une position qu’on vient de prendre', () => {
     const demandees = await surveillerLesTuiles(context);
     await context.setGeolocation({ latitude: -4.7982, longitude: 11.9, accuracy: 8 });
     await seConnecter(page, '/relais/');
-    await expect(
-      page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-    ).toBeVisible();
+    await attendreLaLecture(page);
     await prendrePhotoEtPosition(page);
 
     // Rien n'est demandé à OpenStreetMap tant que le relais n'ouvre pas la carte : le réseau mobile se paie.
@@ -210,9 +209,7 @@ test.describe('une photo exigée qui n’est plus dans le téléphone', () => {
     test.setTimeout(90_000);
     await context.setGeolocation({ latitude: -4.7982, longitude: 11.9, accuracy: 8 });
     await seConnecter(page, '/relais/');
-    await expect(
-      page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-    ).toBeVisible();
+    await attendreLaLecture(page);
 
     // Le faux serveur est en panne : la fiche attend dans la file, avec sa photo.
     await page.evaluate(() => localStorage.setItem('ntanova-faux-panne', '1'));

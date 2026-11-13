@@ -1,4 +1,4 @@
-import { ouvrirContacts, envoyerSansBonus } from './aides';
+import { commencerLaMission, envoyerSansBonus, ouvrirContacts } from './aides';
 import { ouvrirGestion } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter, uneFicheEnvoyee } from './aides';
@@ -79,8 +79,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await confier(page, 'complete', 'Confirmer les séries.');
 
     await page.goto('/relais/');
-    await expect(page.getByText('À compléter · 1')).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: 'Compléter' }).click();
+    await commencerLaMission(page);
 
     // L'encart dit ce qui est demandé, avec la consigne de NTanova.
     await expect(page.locator('.entete-etape-titre')).toHaveText('Compléter une école');
@@ -106,7 +105,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await expect(page.getByText('Avez-vous parlé à quelqu’un de l’école ?')).toHaveCount(0);
     await envoyerSansBonus(page);
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-    await page.getByRole('link', { name: 'Mon secteur' }).click();
+    await page.getByRole('link', { name: 'Missions' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 
     // Chez NTanova : un second relevé, sans nouvelle photo ni nouveau contact.
@@ -126,15 +125,14 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await confier(page, 'complete', 'Revoir la direction.');
 
     await page.goto('/relais/');
-    await expect(page.getByText('À compléter · 1')).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: 'Compléter' }).click();
+    await commencerLaMission(page);
     await expect(encart(page)).toContainText('Déjà chez NTanova');
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await expect(page.getByText('Avez-vous parlé à quelqu’un de l’école ?')).toBeVisible();
     await page.getByRole('button', { name: 'Personne', exact: true }).click();
     await envoyerSansBonus(page);
-    await page.getByRole('link', { name: 'Mon secteur' }).click();
+    await page.getByRole('link', { name: 'Missions' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     expect(await serveur(page)).toMatchObject({ photos: 1 });
   });
@@ -157,8 +155,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
     await page.goto('/relais/');
-    await expect(page.getByText('À compléter · 1')).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: 'Compléter' }).click();
+    await commencerLaMission(page);
     await expect(encart(page).getByText('Photo de l’enseigne')).toBeVisible();
     await expect(encart(page)).toContainText('À prendre');
     await page.getByRole('button', { name: 'Suivant' }).click();
@@ -199,7 +196,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await expect(page.getByText(/contact de la direction est déjà parti/)).toBeVisible();
     await envoyerSansBonus(page);
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-    await page.getByRole('link', { name: 'Mon secteur' }).click();
+    await page.getByRole('link', { name: 'Missions' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     await expect
       .poll(async () => (await serveur(page)).releves.sort())
@@ -235,7 +232,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await envoyerSansBonus(page);
-    await page.getByRole('link', { name: 'Mon secteur' }).click();
+    await page.getByRole('link', { name: 'Missions' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
     await expect.poll(async () => (await serveur(page)).photos).toBe(2);
   });

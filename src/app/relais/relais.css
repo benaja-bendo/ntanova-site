@@ -682,3 +682,242 @@
   color: var(--texte-doux);
   font-size: var(--taille-secondaire);
 }
+
+/* Lot H (13/11) : l'accueil « Missions », une mission, l'aide et le compte (planches de l'espace relais). */
+.entete-accueil .entete-marque {
+  min-width: 0;
+}
+
+.entete-accueil .entete-titre {
+  overflow: hidden;
+  font-size: var(--taille-intertitre);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entete-accueil .pastille-reseau {
+  white-space: nowrap;
+}
+
+.entete-gestes {
+  flex: none;
+}
+
+.entete-gestes {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+.surtitre-ligne {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin: 0;
+  color: var(--texte-doux);
+  font-family: var(--police-interface);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.surtitre-ligne .texte-doux,
+.surtitre-ligne .lien {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.carte-mission {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  padding: var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  color: var(--texte);
+  text-decoration: none;
+}
+
+a.carte-mission {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.carte-a-corriger {
+  border: 2px solid var(--rouge);
+}
+
+.carte-mission-corps {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espace-1);
+  min-width: 0;
+}
+
+.carte-mission-nom {
+  font-family: var(--police-titre);
+}
+
+.carte-mission p {
+  margin: 0;
+}
+
+.carte-mission > .bouton {
+  align-self: flex-start;
+}
+
+.semaine-relais {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--espace-2);
+  margin: 0;
+}
+
+.semaine-relais div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.semaine-relais dd {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.semaine-relais dt {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}
+
+.ligne-aide,
+.liste-liens a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  min-height: var(--cible-min);
+  padding: var(--espace-3) 0;
+  color: var(--texte);
+  text-decoration: none;
+}
+
+.ligne-aide > span,
+.liste-liens a > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.liste-liens {
+  display: flex;
+  flex-direction: column;
+}
+
+.liste-liens a + a {
+  border-top: 1px solid var(--trait);
+}
+
+.mission-chiffres {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+.mission-chiffres dt {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}
+
+.mission-chiffres dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.mission-chiffres .en-retard {
+  color: var(--erreur);
+}
+
+.barre-mission {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+}
+
+.liste-aide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  margin: 0;
+  padding-left: var(--espace-4);
+}
+
+.compte-identite {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+}
+
+.compte-rond {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--marque-appuyee);
+  color: var(--texte-sur-marque);
+  font-family: var(--police-titre);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.paie-numero {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--espace-3);
+  margin: 0;
+}
+
+.paie-numero dt {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}
+
+.paie-numero dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.titre-echec > span:first-child {
+  color: var(--erreur);
+}
+
+.tests-telephone {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tests-telephone li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+}
+
+.tests-telephone .mauvais {
+  color: var(--erreur);
+}
+
+.tests-telephone .non_teste {
+  color: var(--texte-doux);
+}

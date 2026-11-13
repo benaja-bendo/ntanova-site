@@ -200,14 +200,15 @@ describe('les phrases communes avec l’application', () => {
       .map((x) => x.trim())
       .filter(Boolean);
 
-  const monLot = lire('src/app/relais/ecrans/MonLot.tsx');
+  // Lot H : la phrase et la liste « Jamais » sont dans l'aide du relais (« Quoi dire en entrant »).
+  const monLot = lire('src/app/relais/ecrans/Aide.tsx');
   const ajouter = lire('src/app/relais/ecrans/Ajouter.tsx');
 
   it('« À dire en entrant » est la phrase de l’application', () => {
     const phrase = /«&nbsp;(Bonjour\..*?)&nbsp;»/s.exec(monLot)?.[1];
     expect(
       phrase,
-      'la phrase est introuvable dans MonLot.tsx : ce test est à mettre à jour',
+      'la phrase est introuvable dans Aide.tsx : ce test est à mettre à jour',
     ).toBeDefined();
     const parties = morceaux(jsx(phrase ?? ''), /\|/);
     expect(parties.length).toBeGreaterThan(0);

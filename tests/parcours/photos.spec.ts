@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { seConnecter } from './aides';
+import { attendreLaLecture, seConnecter } from './aides';
 
 // Chantier 2 : les photos d'une fiche (l'enseigne seule suffit, trois autres au plus), les séries lues sur un
 // panneau, des photos allégées à moins de 200 Ko, et un téléphone qui garde tout dans IndexedDB, hors ligne
@@ -299,9 +299,7 @@ test.describe('hors ligne', () => {
     await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
     await seConnecter(page, '/relais/');
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    await expect(
-      page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-    ).toBeVisible();
+    await attendreLaLecture(page);
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
     await context.setOffline(true);
@@ -355,9 +353,7 @@ test.describe('hors ligne', () => {
     await context.setGeolocation({ latitude: -4.79123, longitude: 11.925, accuracy: 8 });
     await seConnecter(page, '/relais/');
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    await expect(
-      page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-    ).toBeVisible();
+    await attendreLaLecture(page);
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
     await context.setOffline(true);

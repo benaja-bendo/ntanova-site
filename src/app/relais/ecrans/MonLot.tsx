@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import type { Valeur } from '../../../modele/listes';
 import { appartientAuCompte, duBrouillon } from '../../../modele/compte';
-import { texteDestineAuRelais } from '../../../modele/consigne';
 import { phraseDuBilan } from '../../../modele/envoi';
 import { base, compteConnecte, garder, lireMemoire, useRequete } from '../base-locale';
 import { jourDuCongo } from '../../../modele/date-declaration';
-import { francs } from '../../../modele/paie';
 import { aller, useEnLigne, useRelais } from '../contexte';
-import { Bandeau, Champ, Choix, Entete, heure, Icone, Navigation } from '../composants';
+import { Bandeau, Champ, Choix, heure, Icone, Navigation, PastilleReseau } from '../composants';
 import { BoutonGoogle } from './Connexion';
-import { commencerContreVisite } from './Ajouter';
+import { commencerCorrection } from './Ajouter';
+import { missionsDeLAccueil, semaineDuRelais } from '../../../modele/accueil-relais';
 
-/** L'état de la file d'envoi, en tête de « Mon secteur » et de « Mes fiches ». */
-export function EtatEnvoi() {
+/**
+ * L'état de la file d'envoi, sur l'accueil et dans « Mes fiches ». `calme` : `montrer` (par défaut) dit aussi « Tout est
+ * envoyé » ; `cacher` ne dit que ce qui attend ou a échoué (en tête de l'accueil) ; `seul` ne dit que « Tout est envoyé »,
+ * quand c'est vrai (en bas de l'accueil, comme sur la planche).
+ */
+export function EtatEnvoi({ calme = 'montrer' }: { calme?: 'montrer' | 'cacher' | 'seul' } = {}) {
   const { envoi, bilan, synchroniser } = useRelais();
   const enLigne = useEnLigne();
   // Tant que le téléphone n'a pas compté les fiches en attente, on ne dit rien :
@@ -30,6 +33,7 @@ export function EtatEnvoi() {
   const dernierEnvoi = useRequete(() => lireMemoire('dernierEnvoi'));
 
   if (envoi === 'reconnecter') {
+    if (calme === 'seul') return null;
     return (
       <Bandeau ton="erreur" icone="cadenas">
         <p>
@@ -41,8 +45,9 @@ export function EtatEnvoi() {
     );
   }
   if (enAttente === undefined || refusees === undefined) {
-    return <div className="bandeau-reserve" aria-hidden="true" />;
+    return calme === 'seul' ? null : <div className="bandeau-reserve" aria-hidden="true" />;
   }
+  if (calme === 'seul' && (enAttente > 0 || refusees > 0)) return null;
   const refus =
     refusees > 0 ? (
       <Bandeau ton="erreur" icone="alerte">
@@ -103,6 +108,7 @@ export function EtatEnvoi() {
   }
   // Une fiche refusée n'est pas envoyée : « Tout est envoyé » ne s'affiche pas tant qu'il y en a une.
   if (refus) return refus;
+  if (calme === 'cacher') return null;
   return (
     <Bandeau ton="envoye" icone="coche">
       <p>
@@ -112,68 +118,65 @@ export function EtatEnvoi() {
   );
 }
 
-export function MonLot() {
+/**
+ * L'accueil (lot H, planche « Relais · Missions ») : le bouton d'abord, puis ce qui attend le relais (ses fiches renvoyées,
+ * les missions de NTanova), sa semaine, et « Quoi dire en entrant ». « Mon secteur » est parti (décision du fondateur du
+ * 13/11 : on relève partout au Congo-Brazzaville) ; seul le lot d'entraînement se dit encore.
+ */
+export function Accueil() {
   const profil = useRequete(() => lireMemoire('profil'));
   const lot = useRequete(() => lireMemoire('lot'));
-  const releves = useRequete(() => lireMemoire('releves')) ?? [];
-  // `null` : les premiers pas ne sont pas faits ; `undefined` : la lecture n'est pas finie (la carte ne clignote pas).
-  const premiersPas = useRequete(async () => (await lireMemoire('premiersPas')) ?? null);
-  const brouillon = useRequete(async () => {
-    const compte = await compteConnecte();
-    return duBrouillon(await base.fiches.where('etat').equals('brouillon').toArray(), compte);
+  // La semaine se compte au moment de la lecture (l'heure ne se lit pas pendant le rendu).
+  const lecture = useRequete(async () => {
+    const r = await lireMemoire('releves');
+    return { releves: r, semaine: semaineDuRelais(r ?? [], Date.now()) };
   });
+  const releves = lecture?.releves;
+  const ecoles = useRequete(() => lireMemoire('aCompleter'));
+  const pasPu = useRequete(async () => (await lireMemoire('missionsPasPu')) ?? []);
+  const telephone = useRequete(async () => {
+    const compte = await compteConnecte();
+    const toutes = await base.fiches.toArray();
+    return {
+      locales: toutes.filter((f) => appartientAuCompte(f, compte)),
+      brouillon: duBrouillon(toutes, compte),
+    };
+  });
+  const [avis, setAvis] = useState<string | null>(null);
+  const locales = telephone?.locales;
+  const brouillon = telephone?.brouillon;
+  // Une école dont la contre-visite est déjà sur le téléphone, ou une mission dite « Je n'ai pas pu », n'attend plus.
+  const enCours = new Set(
+    (locales ?? []).filter((f) => f.type === 'contre_visite').map((f) => f.doublonPropose?.ecoleId),
+  );
+  const restantes = (ecoles ?? []).filter(
+    (e) => !enCours.has(e.id) && !(pasPu ?? []).some((m) => m.missionId === e.missionId),
+  );
+  const corrigees = new Set(
+    (locales ?? []).map((f) => f.corrigeReleveId).filter((x): x is string => !!x),
+  );
+  const missions = missionsDeLAccueil(releves ?? [], restantes, corrigees, jourDuCongo());
+  const semaine = lecture?.semaine ?? { envoyees: 0, acceptees: 0, enAttente: 0 };
+  const lu = lecture !== undefined && ecoles !== undefined;
 
   return (
     <div className="ecran">
-      <Entete titre="Espace relais" />
+      <header className="entete-relais entete-accueil">
+        <span className="entete-marque">
+          <img src="/favicon.svg" alt="" width={30} height={23} />
+          <h1 className="entete-titre" tabIndex={-1} data-retour-liste>
+            Bonjour {profil?.prenom || ''}
+          </h1>
+        </span>
+        <span className="entete-gestes">
+          <PastilleReseau />
+          <a className="bouton-icone" href="#aide/entrer" aria-label="Aide">
+            <Icone nom="aide" taille={22} />
+          </a>
+        </span>
+      </header>
       <main className="contenu-relais">
-        <h1 className="titre-ecran" tabIndex={-1} data-retour-liste>
-          Bonjour {profil?.prenom || ''}
-        </h1>
-        <EtatEnvoi />
-
-        {premiersPas === null && (
-          <section className="carte-blanche pile-serree" aria-label="Premiers pas">
-            <p className="surtitre-doux">Premiers pas</p>
-            <p>
-              Avant votre première fiche, deux minutes pour vérifier la position, la photo et la
-              connexion de votre téléphone. Rien n’est envoyé, et c’est facultatif.
-            </p>
-            <button
-              type="button"
-              className="bouton bouton-secondaire"
-              onClick={() => aller('premiers-pas')}
-            >
-              Tester mon téléphone
-            </button>
-          </section>
-        )}
-
-        <section className="carte-blanche pile-serree" aria-label="Mon secteur">
-          <p className="surtitre-doux">
-            Mon secteur
-            {lot?.aRendreLe ? ` · à rendre le ${lot.aRendreLe.split('-').reverse().join('/')}` : ''}
-          </p>
-          <span className="intertitre">{lot ? lot.nom : 'Pas de secteur conseillé'}</span>
-          <span className="texte-doux">
-            {releves.length} fiche{releves.length > 1 ? 's' : ''} reçue
-            {releves.length > 1 ? 's' : ''} par NTanova
-          </span>
-          {lot ? (
-            !lot.essai && (
-              <span className="texte-doux">
-                Ce secteur est un conseil, pas une limite&nbsp;: une école que vous croisez ailleurs
-                se relève aussi.
-              </span>
-            )
-          ) : (
-            // Plus de liste de zones (audit du 08/11/2026) : elle avait des doublons, mélangeait départements et
-            // quartiers, et se lisait comme une limite alors que la collecte est autorisée partout au Congo-Brazzaville.
-            <span className="texte-doux">
-              Relevez les écoles là où vous êtes, partout au Congo-Brazzaville.
-            </span>
-          )}
-        </section>
+        <EtatEnvoi calme="cacher" />
 
         {lot?.essai && (
           <Bandeau ton="attente" icone="alerte">
@@ -183,125 +186,102 @@ export function MonLot() {
           </Bandeau>
         )}
 
-        <ACompleter />
-
         <button type="button" className="bouton bouton-large" onClick={() => aller('ajouter/1')}>
           <Icone nom="plus" />
           {brouillon ? 'Reprendre la fiche en cours' : 'Ajouter une école'}
         </button>
 
-        <section className="carte-blanche pile-serree" aria-label="À dire en entrant">
-          <p className="surtitre">À dire en entrant</p>
-          <p>
-            «&nbsp;Bonjour. Nous relevons les écoles du quartier pour un annuaire en ligne destiné
-            aux familles. Nous venons de relever votre école, avec ce qui se voit de la rue. Pour
-            que sa fiche soit juste et que l'établissement puisse la corriger si besoin, nous
-            voulons la faire valider par la direction&nbsp;: à qui pouvons-nous nous
-            adresser&nbsp;?&nbsp;»
-          </p>
-          <p className="interdits">
-            <b>Jamais&nbsp;:</b> se dire parent, dire que le site est déjà connu, promettre quelque
-            chose, photographier un enfant.
-          </p>
+        <section className="pile-serree missions-accueil" aria-label="Vos missions">
+          <h2 className="surtitre-ligne">
+            <span>Vos missions</span>
+            {lu && <span className="texte-doux">{missions.length} à faire</span>}
+          </h2>
+          {avis && (
+            <p className="message-attention" role="status">
+              {avis}
+            </p>
+          )}
+          {lu && missions.length === 0 && (
+            <p className="carte-blanche texte-doux">
+              Rien n’attend pour l’instant. Ajoutez les écoles que vous croisez, partout au
+              Congo-Brazzaville.
+            </p>
+          )}
+          {missions.map((m) =>
+            m.genre === 'a_corriger' ? (
+              <article key={`c-${m.id}`} className="carte-mission carte-a-corriger">
+                <p className="rang">
+                  <span className="etiquette etat-a-corriger">{m.etiquette}</span>
+                  <b className="carte-mission-nom">{m.nom}</b>
+                </p>
+                <p>{m.texte}</p>
+                <button
+                  type="button"
+                  className="bouton bouton-secondaire bouton-petit"
+                  onClick={() => {
+                    const recu = (releves ?? []).find((r) => r.id === m.id);
+                    if (!recu) return;
+                    void commencerCorrection(recu, releves ?? []).then((issue) =>
+                      setAvis(
+                        issue === 'brouillon_existant'
+                          ? 'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Reprendre la fiche en cours »).'
+                          : null,
+                      ),
+                    );
+                  }}
+                >
+                  Corriger la fiche
+                </button>
+              </article>
+            ) : (
+              <a key={`m-${m.id}`} className="carte-mission" href={`#mission/${m.id}`}>
+                <span className="carte-mission-corps">
+                  <span className={`etiquette ${m.enRetard ? 'etat-a-corriger' : 'etat-attente'}`}>
+                    {m.etiquette}
+                  </span>
+                  <b className="carte-mission-nom">{m.nom}</b>
+                  <span className="texte-doux">{m.texte}</span>
+                </span>
+                <Icone nom="suivant" />
+              </a>
+            ),
+          )}
         </section>
+
+        {lu && (
+          <section className="carte-blanche pile-serree" aria-label="Cette semaine">
+            <h2 className="surtitre-doux">Cette semaine</h2>
+            <dl className="semaine-relais">
+              <div>
+                <dt>envoyées</dt>
+                <dd>{semaine.envoyees}</dd>
+              </div>
+              <div>
+                <dt>acceptées</dt>
+                <dd>{semaine.acceptees}</dd>
+              </div>
+              <div>
+                <dt>en attente</dt>
+                <dd>{semaine.enAttente}</dd>
+              </div>
+            </dl>
+          </section>
+        )}
+
+        <EtatEnvoi calme="seul" />
+
+        <a className="ligne-aide" href="#aide/entrer">
+          <span>
+            <b>Quoi dire en entrant</b>
+            <span className="texte-doux">la phrase, et ce qu’on ne fait jamais</span>
+          </span>
+          <Icone nom="suivant" />
+        </a>
       </main>
       <Navigation />
     </div>
   );
 }
-
-/**
- * Les écoles que NTanova confie au relais : déjà enregistrées, à vérifier, à situer ou à compléter sur place.
- * Une école dont la contre-visite est déjà sur le téléphone n'y figure plus.
- */
-const consigne: Record<Valeur<'mission_kind'>, string> = {
-  verify:
-    'Passez vérifier cette école sur place : le nom écrit, le repère, la photo de l’enseigne.',
-  locate: 'Passez la situer : photo, position de l’entrée, et ce qui manque.',
-  complete: 'Passez compléter sa fiche : ce qui manque, les séries ou filières, une photo.',
-};
-
-function ACompleter() {
-  const [avis, setAvis] = useState<string | null>(null);
-  const ecoles = useRequete(() => lireMemoire('aCompleter')) ?? [];
-  const enCours = useRequete(async () => {
-    const compte = await compteConnecte();
-    return (await base.fiches.where('type').equals('contre_visite').toArray())
-      .filter((f) => appartientAuCompte(f, compte))
-      .map((f) => f.doublonPropose?.ecoleId);
-  });
-  // v2 (13/11) : une mission dite « Je n'ai pas pu » quitte la liste tout de suite, même hors ligne.
-  const pasPu = useRequete(async () => (await lireMemoire('missionsPasPu')) ?? []) ?? [];
-  const restantes = ecoles.filter(
-    (e) => !enCours?.includes(e.id) && !pasPu.some((m) => m.missionId === e.missionId),
-  );
-  if (restantes.length === 0) return null;
-  return (
-    <section className="carte-blanche pile-serree" aria-label="À compléter">
-      <p className="surtitre">À compléter · {restantes.length}</p>
-      <p className="mention">
-        NTanova connaît déjà ces écoles. Passez-les voir : on vous dit pour chacune ce qu’il faut
-        faire.
-      </p>
-      {avis && (
-        <p className="message-attention" role="status">
-          {avis}
-        </p>
-      )}
-      {restantes.map((e) => (
-        <div key={e.id} className="a-completer">
-          <div>
-            <b>{e.nom}</b>
-            {e.etiquette && <span className="mention a-completer-ligne">{e.etiquette}</span>}
-            <span className="mention a-completer-ligne">
-              {[e.quartier, e.repere].filter(Boolean).join(' · ') || 'Quartier inconnu'}
-            </span>
-            <span className="mention a-completer-ligne">{e.tache ?? consigne[e.genre]}</span>
-            {e.raison && (
-              <span className="mention a-completer-ligne">Pourquoi&nbsp;: {e.raison}</span>
-            )}
-            {(e.avantLe || e.paieXaf) && (
-              <span className="a-completer-ligne ligne-mission">
-                {e.avantLe && (
-                  <span className={enRetard(e.avantLe) ? 'etiquette etat-a-corriger' : 'mention'}>
-                    {enRetard(e.avantLe) ? 'En retard · ' : ''}avant le {jourLong(e.avantLe)}
-                  </span>
-                )}
-                {e.paieXaf ? <b>{francs(e.paieXaf)}</b> : null}
-              </span>
-            )}
-            {texteDestineAuRelais(e.note) && (
-              <span className="mention a-completer-ligne">
-                À vérifier : {texteDestineAuRelais(e.note)}
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            className="bouton bouton-secondaire bouton-petit"
-            onClick={() =>
-              void commencerContreVisite(e).then((issue) =>
-                setAvis(
-                  issue === 'ok'
-                    ? null
-                    : 'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Reprendre la fiche en cours »).',
-                ),
-              )
-            }
-          >
-            Compléter
-          </button>
-          {e.missionId && <PasPu missionId={e.missionId} />}
-        </div>
-      ))}
-    </section>
-  );
-}
-
-/** Une date limite passée, au jour de Pointe-Noire. */
-const enRetard = (jourLimite: string): boolean => jourDuCongo() > jourLimite;
-const jourLong = (j: string): string =>
-  new Date(`${j}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
 
 const MOTIFS: { valeur: Valeur<'mission_blocker'>; libelle: string }[] = [
   { valeur: 'ferme', libelle: 'Fermé' },
@@ -314,7 +294,7 @@ const MOTIFS: { valeur: Valeur<'mission_blocker'>; libelle: string }[] = [
  * « Je n'ai pas pu » (v2, 13/11) : le motif, une précision pour « Autre », puis la mission se ferme sans paie. Le geste est
  * gardé sur le téléphone et part avec le prochain envoi : il marche hors ligne.
  */
-function PasPu({ missionId }: { missionId: string }) {
+export function PasPu({ missionId, apres }: { missionId: string; apres?: () => void }) {
   const { synchroniser } = useRelais();
   const [ouvert, setOuvert] = useState(false);
   const [motif, setMotif] = useState<Valeur<'mission_blocker'> | null>(null);
@@ -335,6 +315,7 @@ function PasPu({ missionId }: { missionId: string }) {
       { missionId, motif, note: note.trim() || null, le: new Date().toISOString() },
     ]);
     synchroniser();
+    apres?.();
   };
   return (
     <section className="pile-serree" aria-label="Je n’ai pas pu">

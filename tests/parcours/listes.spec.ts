@@ -1,4 +1,4 @@
-import { ouvrirGestion, envoyerSansBonus } from './aides';
+import { attendreLaLecture, commencerLaMission, envoyerSansBonus, ouvrirGestion } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter } from './aides';
 
@@ -187,9 +187,7 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
     await seConnecter(page, '/relais/');
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    await expect(
-      page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-    ).toBeVisible();
+    await attendreLaLecture(page);
     await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
     await context.setOffline(true);
@@ -265,8 +263,7 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     });
 
     await page.goto('/relais/');
-    await expect(page.getByText('À compléter · 1')).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: 'Compléter' }).click();
+    await commencerLaMission(page);
     await page.locator('input[type=file]').first().setInputFiles(photo);
     await expect(page.getByText('Position prise')).toBeVisible();
     await page.getByLabel('Comment la trouver ?').fill('Face au marché');

@@ -55,6 +55,10 @@ export function PremiersPas() {
 
   const noter = (suite: Partial<ResultatsTests>) => {
     setResultats((avant) => ({ ...avant, ...suite }));
+    // Lot H : « Compte » dit le dernier résultat de chaque test (« Mon téléphone est prêt », ou ce qui a échoué).
+    void lireMemoire('testsDuTelephone').then((avant) =>
+      garder('testsDuTelephone', { ...(avant ?? {}), ...suite }),
+    );
     // Le journal part avec la prochaine synchronisation : le résultat se lit chez NTanova.
     synchroniser();
   };
@@ -145,7 +149,7 @@ export function PremiersPas() {
 
   const terminer = async () => {
     await garder('premiersPas', new Date().toISOString());
-    aller('lot');
+    aller('missions');
   };
 
   const p = resultats.position;

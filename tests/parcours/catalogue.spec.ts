@@ -1,4 +1,10 @@
-import { ouvrirContacts, envoyerSansBonus, ouvrirEcranAdmin, ouvrirRegles } from './aides';
+import {
+  attendreLaLecture,
+  envoyerSansBonus,
+  ouvrirContacts,
+  ouvrirEcranAdmin,
+  ouvrirRegles,
+} from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { choisirLaZone, seConnecter } from './aides';
 
@@ -49,7 +55,7 @@ async function envoyerUnLycee(page: Page, nom: string) {
   await page.getByRole('button', { name: 'Envoyer la fiche' }).click();
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('link', { name: 'Mon secteur' }).click();
+  await page.getByRole('link', { name: 'Missions' }).click();
 }
 
 /** Une fiche courte : l'enseigne seule, un niveau, pas de contact. */
@@ -67,16 +73,14 @@ async function envoyerUneFicheCourte(page: Page, nom: string) {
   await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
   await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('link', { name: 'Mon secteur' }).click();
+  await page.getByRole('link', { name: 'Missions' }).click();
 }
 
 async function relaisConnecte(page: Page, context: BrowserContext, latitude = -4.8) {
   await context.setGeolocation({ latitude, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-  await expect(
-    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-  ).toBeVisible();
+  await attendreLaLecture(page);
 }
 
 async function ouvrirLEnvoi(page: Page, nom: string) {

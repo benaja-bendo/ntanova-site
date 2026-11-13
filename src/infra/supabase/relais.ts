@@ -15,6 +15,7 @@ import type {
   ReleveRecu,
 } from '../../modele/ports';
 import { avecDelai, lire, lireListe, traduire } from './erreurs';
+import type { OperateurMobileMoney } from '../../modele/numero-de-paie';
 
 /** Les limites de temps d'un envoi : un appel ordinaire, puis une photo (plus lourde, sur un réseau mobile). */
 const DELAI_APPEL_MS = 30_000;
@@ -287,6 +288,22 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         avantLe: m.due_on ?? null,
         paieXaf: m.pay_xaf ?? null,
       }));
+    },
+
+    async monNumeroDePaie() {
+      const lignes = lireListe<{ operator: OperateurMobileMoney; msisdn: string; updated_at: string }>(
+        await avecDelai(supabase().rpc('my_payment_details'), DELAI_APPEL_MS),
+      );
+      const l = lignes[0];
+      return l ? { operateur: l.operator, numero: l.msisdn, majLe: l.updated_at } : null;
+    },
+
+    async enregistrerMonNumeroDePaie(operateur, numero) {
+      const { error } = await avecDelai(
+        supabase().rpc('set_my_payment_details', { p_operator: operateur, p_msisdn: numero }),
+        DELAI_APPEL_MS,
+      );
+      traduire(error);
     },
 
     async missionPasPu(missionId, motif, note) {

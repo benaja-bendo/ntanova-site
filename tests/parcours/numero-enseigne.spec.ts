@@ -1,10 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  commencerLaMission,
+  envoyerSansBonus,
   ouvrirGestion,
   ouvrirLaFiche,
   seConnecter,
   uneFicheEnvoyee,
-  envoyerSansBonus,
 } from './aides';
 
 // Le numéro écrit sur l'enseigne est publié tel quel, avec un bouton « Appeler », dès que l'école l'est. Le 06/11/2026,
@@ -149,8 +150,7 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
       .click();
     await expect(page.getByRole('status')).toHaveText(/est confiée à/);
     await page.goto('/relais/');
-    await expect(page.getByText('À compléter · 1')).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: 'Compléter' }).click();
+    await commencerLaMission(page);
     await page.locator('input[type=file]').first().setInputFiles(photo);
     await expect(page.getByText('Position prise')).toBeVisible();
     await page.getByLabel('Comment la trouver ?').fill('Face au marché');
@@ -160,7 +160,7 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Personne', exact: true }).click();
     await envoyerSansBonus(page);
-    await page.getByRole('link', { name: 'Mon secteur' }).click();
+    await page.getByRole('link', { name: 'Missions' }).click();
     await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
 
     // L'administration compare : le numéro n'est pas sur la photo.

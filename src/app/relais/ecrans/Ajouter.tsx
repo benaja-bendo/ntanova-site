@@ -111,7 +111,7 @@ function PiedEtape({ children }: { children: React.ReactNode }) {
 function BoutonAbandonner({ fiche }: { fiche: FicheLocale }) {
   const abandonner = async () => {
     await base.fiches.delete(fiche.id);
-    aller('lot', true);
+    aller('missions', true);
   };
   return (
     <ConfirmationAction
@@ -291,7 +291,7 @@ function Etape1({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
 
   return (
     <div className="ecran">
-      <EnteteEtape etape={1} titre="Photo et lieu" retour="lot" type={fiche.type} />
+      <EnteteEtape etape={1} titre="Photo et lieu" retour="missions" type={fiche.type} />
       <main className="contenu-relais">
         <EncartTaches fiche={fiche} />
 

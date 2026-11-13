@@ -84,7 +84,7 @@ export function UneFiche({ releveId }: { releveId: string }) {
   const corriger = async () => {
     if ((await commencerCorrection(recu, recus ?? [])) === 'brouillon_existant')
       setAvis(
-        'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Mon secteur », « Reprendre la fiche en cours »).',
+        'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Reprendre la fiche en cours »).',
       );
   };
 

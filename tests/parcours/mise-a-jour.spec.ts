@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ajouterUneEcole, seConnecter } from './aides';
+import { ajouterUneEcole, attendreLaLecture, seConnecter } from './aides';
 
 // Un téléphone qui a des fiches en attente le jour où l'application change : rien ne se perd. La base du téléphone passe
 // de la version 2 (une photo par fiche) à la version 3 (jusqu'à quatre photos, des séries ou filières) ; une fiche d'avant,
@@ -17,9 +17,7 @@ test('une fiche faite avant la mise à jour, avec sa photo unique, part quand le
   await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-  await expect(
-    page.getByRole('region', { name: 'Mon secteur' }).getByText(/Tié-Tié/),
-  ).toBeVisible();
+  await attendreLaLecture(page);
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
   // Une fiche faite sans réseau : elle attend dans le téléphone.
