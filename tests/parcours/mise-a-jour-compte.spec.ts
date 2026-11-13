@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { seConnecter } from './aides';
+import { seConnecter, toutEstEnvoye } from './aides';
 
 // La base du téléphone passe de la version 3 à la version 4 (ticket #55, PR 6) : chaque fiche est liée au compte qui
 // l'a commencée. Un téléphone qui a des fiches le jour de la mise à jour ne perd rien :
@@ -47,7 +47,7 @@ test('les fiches et le brouillon d’avant la mise à jour prennent le compte du
   await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/relais/');
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 25_000 });
+  await toutEstEnvoye(page, 25_000);
 
   // Le compte que le téléphone a gardé : la mise à jour le reprend pour les fiches d'avant.
   const profil = await page.evaluate(
@@ -115,7 +115,7 @@ test('les fiches et le brouillon d’avant la mise à jour prennent le compte du
 
   // La nouvelle application ouvre la base, la met à jour, reprend le brouillon et envoie la fiche.
   await telephone.goto('/relais/');
-  await expect(telephone.getByText('Tout est envoyé')).toBeVisible({ timeout: 25_000 });
+  await toutEstEnvoye(telephone, 25_000);
   await expect(
     telephone.getByRole('button', { name: 'Reprendre la fiche en cours' }),
   ).toBeVisible();

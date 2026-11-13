@@ -5,6 +5,7 @@ import {
   ligneDeFiche,
   ouvrirMaFiche,
   seConnecter,
+  toutEstEnvoye,
 } from './aides';
 
 // La file d'envoi dit ce qu'elle fait (ticket #74). Construit avec le faux serveur. Deux réglages du faux serveur, dans
@@ -84,7 +85,7 @@ test.describe('une erreur de connexion sur une fiche', () => {
     await regler(page, 'ntanova-faux-reseau-photo', null);
     await page.getByRole('button', { name: 'Envoyer maintenant' }).click();
     await expect.poll(async () => (await serveur(page)).photos).toBe(2);
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
   });
 
   test('est gardée dans le journal, avec l’étape et ce que le navigateur a dit', async ({
@@ -140,7 +141,7 @@ test.describe('« Envoyer maintenant »', () => {
     await regler(page, 'ntanova-faux-latence', '50');
     await regler(page, 'ntanova-faux-reseau-photo', null);
     await page.getByRole('button', { name: 'Envoyer maintenant' }).click();
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 20_000 });
+    await toutEstEnvoye(page, 20_000);
     expect((await serveur(page)).photos).toBe(1);
   });
 });

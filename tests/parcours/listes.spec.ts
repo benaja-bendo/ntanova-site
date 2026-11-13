@@ -1,4 +1,10 @@
-import { attendreLaLecture, commencerLaMission, envoyerSansBonus, ouvrirGestion } from './aides';
+import {
+  attendreLaLecture,
+  commencerLaMission,
+  envoyerSansBonus,
+  ouvrirGestion,
+  toutEstEnvoye,
+} from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter } from './aides';
 
@@ -32,7 +38,7 @@ async function finirEtEnvoyer(page: Page) {
   await page.getByRole('button', { name: 'Personne', exact: true }).click();
   await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page, 15_000);
 }
 
 /** Les relevés que le faux serveur a reçus. */
@@ -108,7 +114,8 @@ test.describe('étape 2/3 du relais : de la crèche au supérieur', () => {
       'false',
     );
 
-    // Les deux cases de sortie s'expliquent, et la ligne de programme les attend.
+    // Les deux cases de sortie s'expliquent dans le (i) de « Type » (planche : aucune aide sous un champ).
+    await page.getByRole('button', { name: 'Aide : le type' }).click();
     await expect(page.getByText(/Pas indiqué\s*: rien d'écrit/)).toBeVisible();
     await expect(page.getByText(/Autre\s*: c'est écrit mais ça ne rentre pas/)).toBeVisible();
     await expect(page.getByLabel(/Programme, langues ou autre mention écrite/)).toBeVisible();
@@ -199,7 +206,7 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     // Le téléphone d'un relais qui a fait cette fiche avant la mise à jour n'a pas de « programme ».
     await oublierLeProgramme(page);
     await context.setOffline(false);
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 20_000 });
+    await toutEstEnvoye(page, 20_000);
 
     const [recu] = await relevesRecus(page);
     expect(recu).toMatchObject({ nomEnseigne: '[École 1]', programme: null });

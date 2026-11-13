@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ajouterUneEcole, attendreLaLecture, prendrePhotoEtPosition, seConnecter } from './aides';
+import {
+  ajouterUneEcole,
+  attendreLaLecture,
+  prendrePhotoEtPosition,
+  seConnecter,
+  toutEstEnvoye,
+} from './aides';
 
 // L'espace relais, construit avec le faux serveur (PUBLIC_ADAPTATEUR=faux) : le
 // faux serveur vit dans le navigateur et refuse tout quand le téléphone est hors ligne.
@@ -91,7 +97,7 @@ test.describe('espace relais', () => {
     expect((await serveur(page)).releves).toBe(0);
 
     await context.setOffline(false);
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 20_000 });
+    await toutEstEnvoye(page, 20_000);
 
     const recu = await serveur(page);
     expect(recu.releves).toBe(3);

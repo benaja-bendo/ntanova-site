@@ -52,7 +52,6 @@ import {
   IconeGalerie,
   IconeInfo,
   IconeLieu,
-  IconeOeil,
   IconeRepere,
 } from '@/ui/shadcn/icones';
 import { PiedFixe } from '../cadre';
@@ -61,16 +60,7 @@ import { DisqueCycle, Segments, TitreAvecAide } from '@/ui/v2/choix';
 import { CYCLES } from '../../../modele/carte/cycles';
 import { Bande, Confirmer } from '../etats';
 import { MiniCarte } from '../mini-carte';
-import {
-  Bandeau,
-  Case,
-  Champ,
-  Choix,
-  Erreur,
-  Icone,
-  classeBouton,
-  classeChamp,
-} from '@/ui/v2/formulaire';
+import { Bandeau, Case, Champ, Choix, Erreur, classeBouton, classeChamp } from '@/ui/v2/formulaire';
 import { journaliser } from '../journal';
 import { alleger, PhotoTropLourde } from '../photo';
 import { mesurerPosition, type ErreurPosition, type Mesure } from '../position';
@@ -661,10 +651,6 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
     <div className="ecran">
       <EnteteEtape etape={2} titre="L'établissement" retour="ajouter/1" type={fiche.type} />
       <main className="flex flex-1 flex-col gap-[18px] px-4 py-3.5">
-        <p className="m-0 flex items-center gap-1.5 text-[13px] text-muted-foreground">
-          <IconeOeil className="size-4" />
-          Public&nbsp;: notez seulement ce qui se voit de la rue.
-        </p>
         {fiche.taches && (
           <p className="m-0 text-[13px] text-muted-foreground">
             {fiche.taches.informations
@@ -708,21 +694,31 @@ function Etape2({ fiche, modifier }: { fiche: FicheLocale; modifier: Modifier })
           )}
         </Champ>
 
-        <Choix
-          legende="Type"
-          options={(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => ({
-            valeur: t,
-            libelle: libelleTypeEcole[t],
-          }))}
-          valeurs={[fiche.typeEcole]}
-          surChoix={(t) => modifier({ typeEcole: t })}
-          colonnes={2}
-          erreur={erreurs.typeEcole}
-        />
-        <p className="-mt-3 mb-0 text-[13px] text-muted-foreground">
-          <b>Pas indiqué</b>&nbsp;: rien d'écrit. <b>Autre</b>&nbsp;: c'est écrit mais ça ne rentre
-          pas&nbsp;; dites-le plus bas.
-        </p>
+        <div className="flex flex-col gap-2">
+          <TitreAvecAide
+            niveau="b"
+            titre="Type"
+            libelleAide="Aide : le type"
+            aide={
+              <p>
+                Notez seulement ce qui se voit de la rue. <b>Pas indiqué</b>&nbsp;: rien d'écrit.{' '}
+                <b>Autre</b>&nbsp;: c'est écrit mais ça ne rentre pas&nbsp;; dites-le plus bas.
+              </p>
+            }
+          />
+          <Choix
+            legende="Type"
+            cacherLegende
+            options={(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => ({
+              valeur: t,
+              libelle: libelleTypeEcole[t],
+            }))}
+            valeurs={[fiche.typeEcole]}
+            surChoix={(t) => modifier({ typeEcole: t })}
+            colonnes={2}
+            erreur={erreurs.typeEcole}
+          />
+        </div>
 
         <Choix
           legende="Niveaux affichés"
@@ -939,11 +935,6 @@ function EcranEtape3({
     <div className="ecran">
       <EnteteEtape etape={3} titre="La rencontre" retour="ajouter/2" type={fiche.type} />
       <main className="flex flex-1 flex-col gap-[18px] px-4 py-3.5">
-        <p className="m-0 flex items-center gap-1.5 text-[13px] text-muted-foreground">
-          <Icone nom="cadenas" taille={16} />
-          Privé&nbsp;: seul NTanova voit cette partie.
-        </p>
-
         {!choixDeLaDirection && (
           <section
             className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3.5"

@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { attendreLaLecture, seConnecter } from './aides';
+import { attendreLaLecture, seConnecter, toutEstEnvoye } from './aides';
 
 // Chantier 2 : les photos d'une fiche (l'enseigne seule suffit, trois autres au plus), les séries lues sur un
 // panneau, des photos allégées à moins de 200 Ko, et un téléphone qui garde tout dans IndexedDB, hors ligne
@@ -158,7 +158,7 @@ test.describe('les photos d’une fiche', () => {
     await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
     await expect(page.getByRole('region', { name: /Photos en plus/ })).toContainText('1 sur 5');
     await envoyerDepuisLeBonus(page);
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
 
     const recu = await serveur(page);
     expect(recu.releves).toHaveLength(1);
@@ -278,7 +278,7 @@ test.describe('les séries et filières vues', () => {
     await allerAuBonus(page);
     await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
     await envoyerDepuisLeBonus(page);
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
 
     const [releve] = (await serveur(page)).releves;
     expect(releve).toMatchObject({
@@ -336,7 +336,7 @@ test.describe('hors ligne', () => {
     expect((await serveur(page)).releves).toHaveLength(0);
 
     await context.setOffline(false);
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 20_000 });
+    await toutEstEnvoye(page, 20_000);
     const recu = await serveur(page);
     expect(recu.releves).toHaveLength(1);
     expect(recu.photos).toHaveLength(2);

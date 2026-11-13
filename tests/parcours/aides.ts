@@ -123,7 +123,7 @@ export async function uneFicheEnvoyee(
   // tomber en panne de réseau juste après).
   await attendreLaLecture(page);
   await ajouterUneEcole(page, 1, options);
-  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page);
   // Le faux serveur a bien reçu le relevé, la photo et le contact.
   await expect
     .poll(() =>
@@ -324,4 +324,16 @@ export async function ouvrirMaFiche(page: Page, nom: string): Promise<Locator> {
   }
   await expect(page.getByRole('heading', { level: 1, name: nom })).toBeVisible();
   return page.getByRole('main');
+}
+
+/**
+ * Attend que tout soit parti. Planche v2 : « Tout est envoyé » se lit sur l'accueil (Missions), jamais dans « Mes fiches » ;
+ * on y passe le temps de le lire, puis on revient sur l'écran d'avant.
+ */
+export async function toutEstEnvoye(page: Page, timeout = 15_000) {
+  const avant = await page.evaluate(() => location.hash);
+  const surLAccueil = ['', '#', '#missions', '#lot'].includes(avant);
+  if (!surLAccueil) await page.evaluate(() => (location.hash = '#missions'));
+  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout });
+  if (!surLAccueil) await page.evaluate((h) => (location.hash = h), avant);
 }

@@ -1,4 +1,4 @@
-import { carteDeMission, envoyerSansBonus, ouvrirGestion } from './aides';
+import { carteDeMission, envoyerSansBonus, ouvrirGestion, toutEstEnvoye } from './aides';
 import { expect, test } from '@playwright/test';
 import { seConnecter } from './aides';
 
@@ -60,7 +60,7 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.getByRole('button', { name: 'Personne', exact: true }).click();
   await envoyerSansBonus(page);
   await page.getByRole('link', { name: 'Missions' }).click();
-  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page, 15_000);
   await expect(page.getByText(/À compléter/)).toHaveCount(0);
 
   // L'administration la situe et la publie.

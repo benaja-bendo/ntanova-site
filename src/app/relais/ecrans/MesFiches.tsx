@@ -388,9 +388,6 @@ export function MesFiches() {
             );
           })}
         </ul>
-        <div className="px-4 py-3 empty:hidden">
-          <EtatEnvoi calme="seul" />
-        </div>
       </main>
       <BarreDuBas />
     </div>

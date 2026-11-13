@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ajouterUneEcole, attendreLaLecture, seConnecter } from './aides';
+import { ajouterUneEcole, attendreLaLecture, seConnecter, toutEstEnvoye } from './aides';
 
 // Un téléphone qui a des fiches en attente le jour où l'application change : rien ne se perd. La base du téléphone passe
 // de la version 2 (une photo par fiche) à la version 3 (jusqu'à quatre photos, des séries ou filières) ; une fiche d'avant,
@@ -102,7 +102,7 @@ test('une fiche faite avant la mise à jour, avec sa photo unique, part quand le
 
   // La nouvelle application ouvre la base, la met à jour, et envoie la fiche avec sa photo, comme une fiche d'aujourd'hui.
   await telephone.goto('/relais/');
-  await expect(telephone.getByText('Tout est envoyé')).toBeVisible({ timeout: 25_000 });
+  await toutEstEnvoye(telephone, 25_000);
   const recu = await telephone.evaluate(() => {
     const etat = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
       releves?: Record<string, { nomEnseigne: string }>;

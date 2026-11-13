@@ -1,4 +1,10 @@
-import { commencerLaMission, envoyerSansBonus, ouvrirContacts, ouvrirMaFiche } from './aides';
+import {
+  commencerLaMission,
+  envoyerSansBonus,
+  ouvrirContacts,
+  ouvrirMaFiche,
+  toutEstEnvoye,
+} from './aides';
 import { ouvrirGestion } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter, uneFicheEnvoyee } from './aides';
@@ -108,7 +114,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await envoyerSansBonus(page);
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
 
     // Chez NTanova : un second relevé, sans nouvelle photo ni nouveau contact.
     await expect
@@ -135,7 +141,7 @@ test.describe('compléter une école que NTanova connaît déjà', () => {
     await page.getByRole('button', { name: 'Personne', exact: true }).click();
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
     expect(await serveur(page)).toMatchObject({ photos: 1 });
   });
 
@@ -201,7 +207,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await envoyerSansBonus(page);
     await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
     await expect
       .poll(async () => (await serveur(page)).releves.sort())
       .toEqual(['correction', 'releve']);
@@ -237,7 +243,7 @@ test.describe('corriger une fiche que NTanova renvoie', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
     await expect.poll(async () => (await serveur(page)).photos).toBe(2);
   });
 });
@@ -258,7 +264,7 @@ test.describe('après « À repasser »', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Personne', exact: true }).click();
     await envoyerSansBonus(page);
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
     expect(await serveur(page)).toMatchObject({ contacts: 0 });
 
     // « À repasser » a maintenant un geste : le relais a revu la direction.

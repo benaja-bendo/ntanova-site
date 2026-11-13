@@ -4,6 +4,7 @@ import {
   ouvrirContacts,
   ouvrirEcranAdmin,
   ouvrirRegles,
+  toutEstEnvoye,
 } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { choisirLaZone, seConnecter } from './aides';
@@ -57,7 +58,7 @@ async function envoyerUnLycee(page: Page, nom: string) {
   await expect(page.getByRole('region', { name: /Photos en plus/ })).toContainText('2 sur 5');
   await page.getByRole('button', { name: 'Envoyer la fiche' }).click();
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page, 15_000);
   await page.getByRole('link', { name: 'Missions' }).click();
 }
 
@@ -75,7 +76,7 @@ async function envoyerUneFicheCourte(page: Page, nom: string) {
   await page.getByRole('button', { name: 'Personne', exact: true }).click();
   await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page, 15_000);
   await page.getByRole('link', { name: 'Missions' }).click();
 }
 
@@ -354,7 +355,7 @@ test.describe('le pont avec la direction', () => {
     // La case « accepte que NTanova lui écrive » reste décochée : le numéro ne peut pas être noté.
     await expect(page.getByLabel(/Son WhatsApp/)).toBeDisabled();
     await envoyerSansBonus(page);
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
 
     await ouvrirLEnvoi(page, '[École sans accord]');
     const pont = page.getByRole('region', { name: 'Écrire à la direction' });

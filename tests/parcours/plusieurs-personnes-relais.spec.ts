@@ -1,4 +1,4 @@
-import { attendreLaLecture, envoyerSansBonus, ouvrirContacts } from './aides';
+import { attendreLaLecture, envoyerSansBonus, ouvrirContacts, toutEstEnvoye } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter } from './aides';
 
@@ -68,7 +68,7 @@ test.describe('le relais note plusieurs personnes', () => {
 
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
     await expect.poll(() => contactsDuServeur(page)).toBe(3);
 
     // L'administration lit les trois personnes.
@@ -112,7 +112,7 @@ test.describe('le relais note plusieurs personnes', () => {
     await jusquALaDirection(page, context);
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
     await expect.poll(() => contactsDuServeur(page)).toBe(1);
   });
 });

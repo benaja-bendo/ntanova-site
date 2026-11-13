@@ -1,4 +1,10 @@
-import { attendreLaLecture, envoyerSansBonus, ouvrirContacts, ouvrirMaFiche } from './aides';
+import {
+  attendreLaLecture,
+  envoyerSansBonus,
+  ouvrirContacts,
+  ouvrirMaFiche,
+  toutEstEnvoye,
+} from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
 
@@ -78,7 +84,7 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     await page.getByLabel(/Son WhatsApp/).fill('06 765 43 21');
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
 
     // Le contact est arrivé, sur la correction : deux relevés, la photo de l'original, un contact.
     await expect.poll(() => serveur(page)).toEqual([2, 1, 1]);

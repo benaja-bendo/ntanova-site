@@ -10,6 +10,7 @@ import {
   uneFicheEnvoyee,
   ligneDeFiche,
   ouvrirMaFiche,
+  toutEstEnvoye,
 } from './aides';
 
 // Corriger une fiche : le relais revoit ce que NTanova a reçu, ses photos et sa position sur une carte, et une photo
@@ -175,7 +176,7 @@ test.describe('corriger une fiche : ce que NTanova a déjà reçu', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
     // La photo est arrivée chez NTanova.
     await expect.poll(async () => (await serveur(page)).photos).toBe(1);
   });
