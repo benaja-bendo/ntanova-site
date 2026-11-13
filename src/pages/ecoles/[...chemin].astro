@@ -25,12 +25,15 @@ import {
 import { cheminImagePartage, donneesEcole, preuveDePartage } from '../../modele/partage';
 import { lienWhatsApp } from '../../modele/whatsapp';
 import FicheEcole from '../../ui/FicheEcole.astro';
+import PhotosEcole from '../../ui/fiche/PhotosEcole.astro';
+import { VIGNETTES_SUR_LA_FICHE } from '../../modele/vitrine';
 import HubDivision from '../../ui/HubDivision.astro';
 import PagePublique from '../../ui/PagePublique.astro';
 
 type Cas =
   | { genre: 'zone'; cle: string }
   | { genre: 'ecole'; cle: string }
+  | { genre: 'photos'; cle: string }
   | { genre: 'renvoi'; vers: string };
 
 export const getStaticPaths = (async () => {
@@ -56,6 +59,10 @@ export const getStaticPaths = (async () => {
       poserPage(p.chemin.join('/'), { genre: 'zone', cle: p.adresse.join('/') });
   }
   for (const e of ecoles) poserPage(sousEcoles(lienEcole(e)), { genre: 'ecole', cle: e.id });
+  // v2 (13/11) : toutes les photos d'une école, quand la fiche n'en montre qu'une partie (« Voir les N »).
+  for (const e of ecoles)
+    if ((e.medias?.galerie.length ?? 0) > VIGNETTES_SUR_LA_FICHE)
+      poserPage(`${sousEcoles(lienEcole(e))}/photos`, { genre: 'photos', cle: e.id });
 
   // Les renvois, chacun en un seul saut vers l'adresse d'aujourd'hui.
   const parNumero = new Map(ecoles.map((e) => [e.numero, e]));
@@ -114,6 +121,8 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 
 const page = cas.genre === 'zone' ? site.arbre.parAdresse.get(cas.cle) : undefined;
 const e = cas.genre === 'ecole' ? site.ecoles.find((x) => x.id === cas.cle) : undefined;
+const ecoleDesPhotos =
+  cas.genre === 'photos' ? site.ecoles.find((x) => x.id === cas.cle) : undefined;
 const zone = e ? site.arbre.parId.get(e.divisionId) : undefined;
 // Le lieu de la fiche dans ses phrases (description, message « Confirmer cette fiche ») : « Loandjili, Pointe-Noire ». Une fiche
 // rattachée au pays lui-même n'a pas de lieu plus fin : le nom du pays, plutôt qu'une phrase vide.
@@ -169,6 +178,14 @@ const confirmer =
     nonIndexee={ecolesSous(page).length === 0}
   >
     <HubDivision page={page} manque={manque} />
+  </PagePublique>
+) : ecoleDesPhotos ? (
+  <PagePublique
+    titre={`Photos · ${ecoleDesPhotos.nom} · NTanova`}
+    description={`Les photos de ${ecoleDesPhotos.nom}, contrôlées par NTanova.`}
+    whatsapp={whatsapp}
+  >
+    <PhotosEcole e={ecoleDesPhotos} />
   </PagePublique>
 ) : e && zone ? (
   <PagePublique

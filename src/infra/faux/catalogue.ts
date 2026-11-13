@@ -1,4 +1,6 @@
 import { photoExemple } from './photo-exemple';
+import { jourDuCongo } from '../../modele/date-declaration';
+import { decaler, type MediaPublic } from '../../modele/vitrine';
 import type {
   DivisionPublique,
   DomainePublic,
@@ -214,6 +216,25 @@ const formation = (
   rythmes,
 });
 
+/** v2 (13/11) : une image publique fictive ; toutes servent la même enseigne dessinée (`photoExemple`). */
+const media = (
+  n: number,
+  sujet: MediaPublic['sujet'],
+  legende: string | null = null,
+): MediaPublic => ({
+  id: `95000000-0000-4000-8000-${String(n).padStart(12, '0')}`,
+  sujet,
+  legende,
+  prisLe: '2026-11-03',
+});
+const MEDIAS_FAUX = new Set<string>();
+const retenir = <T extends { id: string } | null>(m: T): T => {
+  if (m) MEDIAS_FAUX.add(m.id);
+  return m;
+};
+// L'admission fictive se cale sur le jour de la construction : les dossiers sont ouverts depuis dix jours, pour douze encore.
+const aujourdhui = jourDuCongo();
+
 type Brouillon = Omit<
   EcolePubliee,
   | 'divisionId'
@@ -412,6 +433,130 @@ const ECOLES: EcolePubliee[] = [
     etat: 'verifiee',
     verifieeLe: '2026-11-04',
     contactPublic: { numero: '242060000005', accordLe: '2026-11-04' },
+    // v2 (13/11) : la fiche complète. Logo, couverture, cinq photos, deux nouvelles, frais par classe, profil dit par l'école.
+    sigle: 'GSE',
+    fondeeEn: 2009,
+    siteWeb: 'https://exemple.cg/',
+    horaires: ['matin'],
+    langues: ['francais'],
+    medias: {
+      logo: retenir(media(1, 'logo')),
+      couverture: retenir(media(2, 'batiment')),
+      galerie: [
+        retenir(media(3, 'enseigne')),
+        retenir(media(4, 'cour', '[La cour]')),
+        retenir(media(5, 'salle', '[La salle informatique]')),
+        retenir(media(6, 'terrain')),
+        retenir(media(7, 'batiment')),
+      ],
+    },
+    nouvelles: [
+      {
+        id: '96000000-0000-4000-8000-000000000001',
+        genre: 'evenement',
+        titre: '[Portes ouvertes le samedi]',
+        texte: '[Visite des classes et inscriptions pour la rentrée.]',
+        publieeLe: decaler(aujourdhui, -5),
+        fournieParLEcole: true,
+        media: retenir({
+          id: '96000000-0000-4000-8000-000000000001',
+          sujet: 'activite',
+          legende: null,
+          prisLe: null,
+        }),
+      },
+      {
+        id: '96000000-0000-4000-8000-000000000002',
+        genre: 'vie_ecole',
+        titre: '[Tournoi de football inter-classes]',
+        texte: '[Une ou deux phrases remises par l’école.]',
+        publieeLe: decaler(aujourdhui, -20),
+        fournieParLEcole: false,
+        media: null,
+      },
+      {
+        id: '96000000-0000-4000-8000-000000000003',
+        genre: 'evenement',
+        titre: '[Une fête passée depuis longtemps]',
+        texte: '[Elle ne paraît plus.]',
+        publieeLe: decaler(aujourdhui, -90),
+        fournieParLEcole: true,
+        media: null,
+      },
+    ],
+    equipements: [
+      {
+        id: '83000000-0000-4000-8000-000000000011',
+        cle: 'cantine',
+        precision: null,
+        etat: 'present',
+        source: 'terrain',
+        constateLe: '2026-11-03',
+        note: null,
+      },
+      {
+        id: '83000000-0000-4000-8000-000000000012',
+        cle: 'informatique',
+        precision: null,
+        etat: 'present',
+        source: 'terrain',
+        constateLe: '2026-11-03',
+        note: null,
+      },
+      {
+        id: '83000000-0000-4000-8000-000000000013',
+        cle: 'electricite',
+        precision: null,
+        etat: 'present',
+        source: 'ecole',
+        constateLe: '2026-11-04',
+        note: null,
+      },
+    ],
+    frais: [
+      {
+        id: '73000000-0000-4000-8000-000000000011',
+        cycle: 'maternelle',
+        classe: null,
+        minimum: 15000,
+        maximum: 15000,
+        periode: 'mois',
+        precisionPeriode: null,
+        inscription: 10000,
+        anneeScolaire: '2026-2027',
+        declaresLe: '2026-11-04',
+        note: null,
+        preuve: 'prospectus',
+      },
+      {
+        id: '73000000-0000-4000-8000-000000000012',
+        cycle: 'primaire',
+        classe: 'CP1 à CM2',
+        minimum: 20000,
+        maximum: 20000,
+        periode: 'mois',
+        precisionPeriode: null,
+        inscription: 10000,
+        anneeScolaire: '2026-2027',
+        declaresLe: '2026-11-04',
+        note: null,
+        preuve: 'prospectus',
+      },
+      {
+        id: '73000000-0000-4000-8000-000000000013',
+        cycle: 'college',
+        classe: '6e à 4e',
+        minimum: 25000,
+        maximum: 25000,
+        periode: 'mois',
+        precisionPeriode: null,
+        inscription: 15000,
+        anneeScolaire: '2026-2027',
+        declaresLe: '2026-11-04',
+        note: 'Tenue non comprise.',
+        preuve: 'declaration',
+      },
+    ],
     // Une fiche confirmée : référence sans lien, mot de la direction, une date passée et une à venir.
     agrement: {
       genre: 'autorisation_ouverture',
@@ -475,6 +620,38 @@ const ECOLES: EcolePubliee[] = [
     slug: 'institut-superieur-exemple',
     numero: '527064',
     nom: '[Institut supérieur Exemple]',
+    // v2 (13/11) : le supérieur. Sigle, admission en cours, détail des formations et leurs frais.
+    sigle: 'ISE',
+    admission: {
+      anneeScolaire: '2026-2027',
+      pieces: ['[Le bac ou le relevé de notes]', '[Un acte de naissance]', '[4 photos d’identité]'],
+      ouDeposer: '[Au secrétariat, du lundi au vendredi.]',
+      surPlaceSeulement: true,
+      declareeLe: '2026-11-04',
+      etapes: [
+        { etape: 'dossiers', debut: decaler(aujourdhui, -10), fin: decaler(aujourdhui, 12) },
+        { etape: 'selection', debut: decaler(aujourdhui, 20), fin: null },
+        { etape: 'resultats', debut: decaler(aujourdhui, 30), fin: null },
+        { etape: 'rentree', debut: decaler(aujourdhui, 60), fin: null },
+      ],
+    },
+    frais: [
+      {
+        id: '73000000-0000-4000-8000-000000000021',
+        cycle: 'superieur',
+        classe: null,
+        formationId: '97000000-0000-4000-8000-000000000001',
+        minimum: 450000,
+        maximum: 450000,
+        periode: 'annee',
+        precisionPeriode: null,
+        inscription: 50000,
+        anneeScolaire: '2026-2027',
+        declaresLe: '2026-11-04',
+        note: null,
+        preuve: 'declaration',
+      },
+    ],
     etiquette: null,
     quartier: null,
     typeEcole: 'privee',
@@ -511,6 +688,12 @@ const ECOLES: EcolePubliee[] = [
           'jour',
           'soir',
         ]),
+        id: '97000000-0000-4000-8000-000000000001',
+        dureeAnnees: 2,
+        niveauDemande: '[Bac, toutes séries]',
+        selection: 'dossier',
+        fraisDossier: 15000,
+        delivrePar: '[L’établissement]',
         agrement: {
           genre: 'agrement',
           precision: null,
@@ -574,6 +757,10 @@ const ECOLES: EcolePubliee[] = [
 ];
 
 export const catalogueFaux: PortCatalogue = {
+  async lireMedia(id) {
+    if (!MEDIAS_FAUX.has(id)) throw new Error('Image inconnue.');
+    return photoExemple();
+  },
   async lirePhotoPublique(id) {
     if (
       !['93000000-0000-4000-8000-000000000001', '93000000-0000-4000-8000-000000000002'].includes(id)

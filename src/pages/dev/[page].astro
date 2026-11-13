@@ -21,6 +21,10 @@ import InscriptionsEcole from '../../ui/InscriptionsEcole.astro';
 import LigneAgrement from '../../ui/LigneAgrement.astro';
 import MotDirectionEcole from '../../ui/MotDirectionEcole.astro';
 import PagePublique from '../../ui/PagePublique.astro';
+import EquipementsEcole from '../../ui/EquipementsEcole.astro';
+import AdmissionEcole from '../../ui/fiche/AdmissionEcole.astro';
+import FraisDeLaFiche from '../../ui/fiche/FraisDeLaFiche.astro';
+import NouvellesEcole from '../../ui/fiche/NouvellesEcole.astro';
 // Les pièces de la page carte : les mêmes feuilles que celles de /carte/, jamais une copie.
 import '../../ui/carte-pieces.css';
 
@@ -310,6 +314,120 @@ const autour = arrondissementsDessines.map((a) => ({
           anneeScolaire: '2026-2027',
           limite: '2026-12-15',
           declareeLe: '2026-11-05',
+        }}
+      />
+    </div>
+
+    <h2 id="fiche-v2">Les rubriques de la fiche v2 (13/11)</h2>
+    <p>Chacune disparaît sans donnée : aucun état vide n’est dessiné.</p>
+    <div style="display: grid; gap: var(--espace-5); max-width: var(--largeur-texte)">
+      <EquipementsEcole
+        equipements={[
+          {
+            id: 'a',
+            cle: 'cantine',
+            precision: null,
+            etat: 'present',
+            source: 'terrain',
+            constateLe: '2026-11-03',
+            note: null,
+          },
+          {
+            id: 'b',
+            cle: 'electricite',
+            precision: null,
+            etat: 'present',
+            source: 'ecole',
+            constateLe: '2026-11-04',
+            note: null,
+          },
+          {
+            id: 'c',
+            cle: 'eau',
+            precision: null,
+            etat: 'absent',
+            source: 'ecole',
+            constateLe: '2026-11-04',
+            note: null,
+          },
+          {
+            id: 'd',
+            cle: 'transport',
+            precision: null,
+            etat: 'non_precise',
+            source: 'ecole',
+            constateLe: '2026-11-04',
+            note: null,
+          },
+        ]}
+      />
+      <FraisDeLaFiche
+        frais={[
+          {
+            id: 'f1',
+            cycle: 'maternelle',
+            classe: null,
+            minimum: 15000,
+            maximum: 15000,
+            periode: 'mois',
+            precisionPeriode: null,
+            inscription: 10000,
+            anneeScolaire: '2026-2027',
+            declaresLe: '2026-11-04',
+            note: null,
+            preuve: 'prospectus',
+          },
+          {
+            id: 'f2',
+            cycle: 'primaire',
+            classe: 'CP1 à CM2',
+            minimum: 20000,
+            maximum: 22000,
+            periode: 'mois',
+            precisionPeriode: null,
+            inscription: 15000,
+            anneeScolaire: '2026-2027',
+            declaresLe: '2026-11-04',
+            note: '[Tenue non comprise.]',
+            preuve: 'prospectus',
+          },
+        ]}
+      />
+      <NouvellesEcole
+        nouvelles={[
+          {
+            id: 'n1',
+            genre: 'evenement',
+            titre: '[Portes ouvertes]',
+            texte: '[Visite des classes.]',
+            publieeLe: '2026-11-08',
+            fournieParLEcole: true,
+            media: null,
+          },
+          {
+            id: 'n2',
+            genre: 'vie_ecole',
+            titre: '[Tournoi]',
+            texte: '[Écrite par NTanova.]',
+            publieeLe: '2026-11-01',
+            fournieParLEcole: false,
+            media: null,
+          },
+        ]}
+      />
+      <AdmissionEcole
+        aujourdhui="2026-11-13"
+        formations={[]}
+        admission={{
+          anneeScolaire: '2026-2027',
+          pieces: ['[Un acte de naissance]'],
+          ouDeposer: '[Au secrétariat.]',
+          surPlaceSeulement: true,
+          declareeLe: '2026-11-04',
+          etapes: [
+            { etape: 'dossiers', debut: '2026-11-01', fin: '2026-11-30' },
+            { etape: 'rentree', debut: '2027-01-05', fin: null },
+          ],
         }}
       />
     </div>

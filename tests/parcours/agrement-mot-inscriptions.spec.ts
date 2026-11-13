@@ -21,7 +21,7 @@ test('fiche confirmée : la référence sans lien, le mot daté, la prochaine da
   const inscriptions = page.getByRole('region', { name: 'Inscriptions' });
   await expect(inscriptions.getByRole('heading')).toHaveText('Inscriptions 2030-2031');
   await expect(inscriptions).toContainText('Date limite annoncée : 15 décembre 2030');
-  await expect(inscriptions).toContainText('Déclarée par l’établissement le 4 novembre 2026');
+  await expect(inscriptions).toContainText('Annoncée par l’école le 4 novembre 2026');
   await expect(page.locator('main')).not.toContainText('Ouvertes jusqu');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
 });

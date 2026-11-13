@@ -181,16 +181,15 @@ test.describe('les informations utiles au premier écran', () => {
     });
     const page = await contexte.newPage();
     await page.goto(CONFIRMEE);
-    const choix = page.locator('details.sites-ecole');
-    await expect(choix.locator('summary')).toHaveText('Changer de site');
-    const nom = await page.locator('h1').boundingBox();
-    const position = await choix.boundingBox();
+    // v2 (13/11, canevas) : « Les 2 sites de l'école », des cartes juste après les actions, celle où l'on est d'abord.
+    const sites = page.getByRole('region', { name: 'Les sites de l’école' });
+    await expect(sites.getByRole('heading')).toHaveText('Les 2 sites de l’école');
     const actions = await page.locator('.fiche-actions').boundingBox();
-    expect(position!.y).toBeGreaterThan(nom!.y);
-    expect(position!.y).toBeLessThan(actions!.y);
-    await choix.locator('summary').click();
-    await expect(choix).toContainText('Sites publiés dans l’annuaire');
-    await choix.getByRole('link', { name: /Campus de Mongo-Mpoukou/ }).click();
+    const position = await sites.boundingBox();
+    expect(position!.y).toBeGreaterThan(actions!.y);
+    await expect(sites.getByRole('link').first()).toContainText('Vous êtes ici');
+    await expect(sites.getByRole('link').nth(1)).toContainText('4,2 km');
+    await sites.getByRole('link', { name: /Campus de Mongo-Mpoukou/ }).click();
     await expect(page.locator('.etiquette-campus')).toHaveText('Campus de Mongo-Mpoukou');
     await contexte.close();
   });

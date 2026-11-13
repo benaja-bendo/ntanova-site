@@ -1,0 +1,149 @@
+---
+// « Les 2 sites de l'école » (v2 du 13/11) : une carte par site publié, celle où l'on est d'abord (« Vous êtes ici »), les autres
+// avec leur distance quand les deux positions sont connues. Une école à un seul site n'a pas ce bloc. Aucun JavaScript : les
+// cartes défilent de côté dans leur bande, jamais la page.
+import { lettresDesCycles } from '../../modele/carte/cycles';
+import { distanceMetres } from '../../modele/geo';
+import { ligneDeLieu, lienEcole } from '../../modele/geo-divisions';
+import type { EcolePubliee } from '../../modele/ports';
+import { etendueDesNiveaux } from '../../modele/vitrine';
+interface Props {
+  e: EcolePubliee;
+  autres: EcolePubliee[];
+  superieur: boolean;
+}
+const { e, autres, superieur } = Astro.props;
+const sites = [e, ...autres];
+const distance = (a: EcolePubliee): string | null => {
+  if (a === e || e.latitude === null || e.longitude === null) return null;
+  if (a.latitude === null || a.longitude === null) return null;
+  const m = distanceMetres(
+    { latitude: e.latitude, longitude: e.longitude },
+    { latitude: a.latitude, longitude: a.longitude },
+  );
+  return m < 1000
+    ? `${Math.round(m / 10) * 10} m`
+    : `${(m / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km`;
+};
+const titre = (s: EcolePubliee) => s.etiquette ?? etendueDesNiveaux(s.niveaux) ?? s.nom;
+---
+
+{autres.length > 0 && (
+  <section
+    class="sites-ecole"
+    aria-label={superieur ? 'Les campus de l’école' : 'Les sites de l’école'}
+  >
+    <h2 class="sites-titre">
+      {superieur ? `Les ${sites.length} campus` : `Les ${sites.length} sites de l’école`}
+    </h2>
+    <ul class="sites-bande">
+      {sites.map((s) => (
+        <li>
+          <a
+            class:list={['site', { ici: s === e }]}
+            href={lienEcole(s)}
+            aria-current={s === e ? 'page' : undefined}
+          >
+            <span class="site-tete">
+              <b>{titre(s)}</b>
+              {s === e ? (
+                <span class="ici-pastille">Vous êtes ici</span>
+              ) : (
+                <span class="voir">Voir ce site ›</span>
+              )}
+            </span>
+            <span class="site-lieu">
+              {[ligneDeLieu(s.quartier, s.divisionNoms), distance(s)].filter(Boolean).join(' · ')}
+            </span>
+            {s.niveaux.length > 0 && (
+              <span class="site-cycles" aria-label={etendueDesNiveaux(s.niveaux) ?? ''}>
+                {[...lettresDesCycles(s.niveaux)].map((l) => (
+                  <span class={`disque c-${l}`} aria-hidden="true">
+                    {l}
+                  </span>
+                ))}
+              </span>
+            )}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
+
+<style>
+  .sites-ecole {
+    display: grid;
+    gap: var(--espace-2);
+    min-width: 0;
+  }
+  .sites-titre {
+    font-family: var(--police-interface);
+    font-size: var(--taille-courante);
+  }
+  .sites-bande {
+    display: flex;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0 0 var(--espace-1);
+    overflow-x: auto;
+    list-style: none;
+  }
+  .site {
+    box-sizing: border-box;
+    display: grid;
+    gap: var(--espace-1);
+    width: 14rem;
+    min-height: 100%;
+    padding: var(--espace-3);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .site.ici {
+    border: 2px solid var(--marque);
+  }
+  .site-tete {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-1) var(--espace-2);
+  }
+  .ici-pastille {
+    padding: 1px var(--espace-2);
+    border-radius: var(--rayon-pilule);
+    background: var(--marque);
+    color: var(--texte-sur-marque);
+    font-size: var(--taille-mention);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .voir {
+    color: var(--marque);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .site-lieu {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .site-cycles {
+    display: flex;
+    gap: var(--espace-1);
+  }
+  .site-cycles .disque {
+    width: 22px;
+    height: 22px;
+    font-size: var(--taille-mention);
+  }
+  @media (hover: hover) {
+    .site:not(.ici):hover b {
+      color: var(--marque);
+      text-decoration: underline;
+    }
+  }
+</style>

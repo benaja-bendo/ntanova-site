@@ -57,11 +57,17 @@ test('fiche publique : observé, déclaré absent et non précisé restent disti
 }) => {
   await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
   const b = page.getByRole('region', { name: 'Équipements et infrastructures' });
-  await expect(b).toContainText('Observé sur place');
-  await expect(b).toContainText('Observation du 3 novembre 2026.');
-  await expect(b).toContainText('Absence déclarée par l’école');
-  await expect(b).toContainText('Non précisé par l’école');
-  await expect(b).toContainText('Déclaration du 3 novembre 2026.');
+  // v2 (13/11) : « Sur place », une ligne par équipement, et à droite qui l'affirme et quand.
+  await expect(b.getByRole('heading')).toHaveText('Sur place');
+  await expect(b.getByRole('listitem').filter({ hasText: 'Clôture' })).toContainText(
+    'vu sur place le 3 nov. 2026',
+  );
+  await expect(b.getByRole('listitem').filter({ hasText: 'Cantine' })).toContainText(
+    'absent, d’après l’école (3 nov. 2026)',
+  );
+  await expect(b.getByRole('listitem').filter({ hasText: 'Eau' })).toContainText(
+    'non précisé par l’école (3 nov. 2026)',
+  );
   await expect(b).not.toContainText('Non renseignés :');
   await expect(b).not.toContainText('Confirmée par la direction');
 });

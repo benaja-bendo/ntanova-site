@@ -350,8 +350,15 @@ test.describe('site public', () => {
       const mesures = await page.locator('article.fiche').evaluate((el) => {
         const cadre = el.getBoundingClientRect(),
           style = getComputedStyle(el);
-        const principale = el.querySelector('.fiche-principale')!.getBoundingClientRect();
-        const cote = el.querySelector('.fiche-cote')!.getBoundingClientRect();
+        // v2 (13/11) : sur téléphone les colonnes s'effacent (`display: contents`) ; on mesure alors le corps de la fiche.
+        const colonne = (sel: string) => {
+          const c = el.querySelector(sel)!;
+          return getComputedStyle(c).display === 'contents'
+            ? el.querySelector('.fiche-corps')!.getBoundingClientRect()
+            : c.getBoundingClientRect();
+        };
+        const principale = colonne('.fiche-principale');
+        const cote = colonne('.fiche-cote');
         return {
           gauche: cadre.left + parseFloat(style.paddingLeft),
           droite: cadre.right - parseFloat(style.paddingRight),
@@ -942,12 +949,25 @@ for (const [cas, chemin] of [
       // À l'échelle de la page : au triple, une fiche longue dépasse les 8 192 px du rendu logiciel de ce fichier.
       scale: 'css',
     });
-    const cote = await page.locator('.fiche-cote').boundingBox();
-    const principal = await page.locator('.fiche-principale').boundingBox();
-    // Le côté (où la trouver, contact, identifiant) suit la fiche sur téléphone, passe à droite sur ordinateur.
-    if (page.viewportSize()!.width < 1024)
-      expect(cote!.y).toBeGreaterThan(principal!.y + principal!.height - 1);
-    else expect(cote!.x).toBeGreaterThan(principal!.x + principal!.width);
+    // v2 (13/11) : sur téléphone, une seule colonne dans l'ordre du canevas (`o-…`) ; sur ordinateur, le côté à droite.
+    if (page.viewportSize()!.width < 1024) {
+      const blocs = await page.locator('.fiche-corps [class*="o-"]').evaluateAll((els) =>
+        els
+          .map((e) => ({
+            rang: Number(/\bo-(\d+)\b/.exec(e.className)?.[1] ?? -1),
+            y: e.getBoundingClientRect().top,
+          }))
+          .filter((b) => b.rang >= 0)
+          .sort((a, b) => a.y - b.y)
+          .map((b) => b.rang),
+      );
+      expect(blocs.length).toBeGreaterThan(2);
+      expect(blocs).toEqual([...blocs].sort((a, b) => a - b));
+    } else {
+      const cote = await page.locator('.fiche-cote').boundingBox();
+      const principal = await page.locator('.fiche-principale').boundingBox();
+      expect(cote!.x).toBeGreaterThan(principal!.x + principal!.width);
+    }
     if (cas === 'terrain partiel') {
       await expect(page.locator('.proprietes dt')).toContainText(['Langue d’enseignement']);
       await expect(page.locator('.proprietes dd')).toContainText(['Français']);
@@ -956,10 +976,11 @@ for (const [cas, chemin] of [
       await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toHaveCount(0);
     }
     if (cas === 'plusieurs sites') {
-      await page.locator('.sites-ecole summary').click();
-      const autres = page.getByRole('region', { name: 'Autres implantations' });
-      await expect(autres.getByRole('link')).toContainText('Campus de Mongo-Mpoukou');
-      await autres.getByRole('link').click();
+      // v2 (13/11) : « Les 2 sites de l'école », une carte par site, celle où l'on est d'abord.
+      const sites = page.getByRole('region', { name: 'Les sites de l’école' });
+      await expect(sites.getByRole('link')).toHaveCount(2);
+      await expect(sites.getByRole('link').first()).toHaveAttribute('aria-current', 'page');
+      await sites.getByRole('link', { name: /Campus de Mongo-Mpoukou/ }).click();
       await expect(page.locator('.etiquette-campus')).toHaveText('Campus de Mongo-Mpoukou');
     }
     if (cas === 'fiche complète') {

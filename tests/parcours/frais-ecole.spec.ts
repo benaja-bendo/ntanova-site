@@ -64,10 +64,14 @@ test('fiche publique : fourchette, période, date et inconnues, sans total annue
   await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
   const bloc = page.getByRole('region', { name: 'Frais déclarés par l’école' });
   await expect(bloc).toContainText(/25\s*000 à 30\s*000 FCFA/);
-  await expect(bloc).toContainText('Par mois');
-  await expect(bloc).toContainText('Année scolaire non précisée');
-  await expect(bloc).toContainText('Frais d’inscription : non communiqués');
-  await expect(bloc).toContainText('Déclarés par l’école le 3 novembre 2026.');
+  // v2 (13/11) : une ligne par cycle ou par classe ; rien n'est écrit de ce que l'école n'a pas dit (ni année, ni inscription).
+  await expect(bloc.getByRole('listitem')).toHaveText([
+    /^Primaire\s*25\s*000 à 30\s*000 FCFA \/ mois$/,
+  ]);
+  await expect(bloc).not.toContainText('Inscription');
+  await expect(bloc).not.toContainText('année');
+  await expect(bloc).toContainText('Tenue non comprise.');
+  await expect(bloc).toContainText('Dits par l’école le 3 novembre 2026. À confirmer avec elle.');
   await expect(bloc).not.toContainText(/300\s*000|360\s*000|Confirmée par la direction/);
 });
 test('sans déclaration de frais : état vide honnête', async ({ page }) => {

@@ -3,7 +3,7 @@
 .surtitre-public {
   margin: 0;
   color: var(--erreur);
-  font-family: var(--police-titre);
+  font-family: var(--police-interface);
   font-size: var(--taille-mention);
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -89,7 +89,7 @@
 
   .ecoles-appel-large .appel-surtitre {
     color: var(--accent);
-    font-family: var(--police-titre);
+    font-family: var(--police-interface);
     font-size: var(--taille-mention);
     font-weight: 700;
     letter-spacing: 0.14em;
@@ -182,4 +182,30 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--espace-3);
+}
+
+/*
+ * v2 (13/11) : une liste de lignes dans une carte blanche, séparées d'un filet (« Sur place », « Frais », « Contact » de la
+ * fiche). Le libellé à gauche, la valeur ou la source à droite ; sur un écran étroit, la valeur passe dessous.
+ */
+.lignes-fiche {
+  display: grid;
+  margin: 0;
+  padding: var(--espace-1) var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+.lignes-fiche > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-1) var(--espace-3);
+  padding: var(--espace-2) 0;
+}
+.lignes-fiche > li + li {
+  border-top: 1px solid var(--trait);
 }

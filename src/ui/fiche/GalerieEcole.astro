@@ -1,0 +1,129 @@
+---
+// « Photos » (v2 du 13/11) : trois vignettes au plus sur la fiche, la première en grand ; au-delà, « Voir les N » mène à la
+// page des photos de l'école (une page statique de plus, sous son propre budget). Chaque image a été contrôlée par
+// l'administration (aucun enfant, aucune personne reconnaissable) ; aucune photo de travail n'entre ici.
+import { libelleSujetMedia } from '../../modele/libelles';
+import { VIGNETTES_SUR_LA_FICHE, cheminMedia, type MediaPublic } from '../../modele/vitrine';
+interface Props {
+  galerie: MediaPublic[];
+  nom: string;
+  /** La page de toutes les photos, quand il y en a plus que la fiche n'en montre. */
+  lienPhotos: string;
+}
+const { galerie, nom, lienPhotos } = Astro.props;
+const montrees = galerie.slice(0, VIGNETTES_SUR_LA_FICHE);
+const reste = galerie.length - montrees.length;
+const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
+---
+
+{galerie.length > 0 && (
+  <section class="galerie" id="photos" aria-label="Photos">
+    <div class="tete">
+      <h2>Photos</h2>
+      {reste > 0 && <a href={lienPhotos}>Voir les {galerie.length}</a>}
+    </div>
+    <ul class:list={['tuiles', `tuiles-${montrees.length}`]}>
+      {montrees.map((m, i) => (
+        <li>
+          <img
+            src={cheminMedia(m, 'vignette')}
+            alt={`${libelle(m)}, ${nom}`}
+            width="400"
+            height="300"
+            loading="lazy"
+            decoding="async"
+          />
+          <span class="etiquette-photo">{libelle(m)}</span>
+          {i === montrees.length - 1 && reste > 0 && (
+            <a class="plus" href={lienPhotos} aria-label={`Voir les ${galerie.length} photos`}>
+              +{reste}
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
+
+<style>
+  .galerie {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .tete {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--espace-3);
+  }
+  .tete a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .tuiles {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .tuiles-2 {
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: 9rem;
+  }
+  .tuiles-3 {
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: 5rem 5rem;
+  }
+  .tuiles-3 li:first-child {
+    grid-row: span 2;
+  }
+  .tuiles-1 {
+    grid-auto-rows: 12rem;
+  }
+  li {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--rayon-m);
+    background: var(--fond-bande);
+  }
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .etiquette-photo,
+  .plus {
+    position: absolute;
+    padding: 0 var(--espace-2);
+    border-radius: var(--rayon-pilule);
+    font-size: var(--taille-mention);
+    font-weight: 700;
+  }
+  .etiquette-photo {
+    left: var(--espace-1);
+    bottom: var(--espace-1);
+    background: var(--fond-releve);
+    color: var(--texte);
+  }
+  .plus {
+    right: var(--espace-1);
+    top: var(--espace-1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--cible-min);
+    min-height: var(--cible-min);
+    background: var(--texte);
+    color: var(--texte-sur-marque);
+    text-decoration: none;
+  }
+  @media (min-width: 64rem) {
+    .tuiles-3 {
+      grid-template-rows: 7rem 7rem;
+    }
+  }
+</style>

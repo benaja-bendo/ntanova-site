@@ -1,0 +1,83 @@
+---
+// « Nouvelles » (v2 du 13/11) : les trois plus récentes, publiées par l'administration avec l'accord daté de l'école. Le
+// surtitre dit d'où elle vient : « Nouvelle de l'école » si l'école l'a fournie, sinon « Nouvelle ». Sans nouvelle, la
+// rubrique n'existe pas.
+import { dateLongue } from '../../modele/pointe-noire';
+import { cheminMedia, surtitreNouvelle, type NouvellePublique } from '../../modele/vitrine';
+interface Props {
+  nouvelles: NouvellePublique[];
+}
+const { nouvelles } = Astro.props;
+---
+
+{nouvelles.length > 0 && (
+  <section class="nouvelles" id="nouvelles" aria-label="Nouvelles">
+    <h2>Nouvelles</h2>
+    {nouvelles.map((n) => (
+      <article class="nouvelle">
+        {n.media && (
+          <img
+            src={cheminMedia(n.media, 'vignette')}
+            alt={n.media.legende ?? ''}
+            width="76"
+            height="76"
+            loading="lazy"
+            decoding="async"
+          />
+        )}
+        <div class="nouvelle-texte">
+          <span class="surtitre-nouvelle">
+            {surtitreNouvelle(n)} · {dateLongue(n.publieeLe)}
+          </span>
+          <h3>{n.titre}</h3>
+          <p>{n.texte}</p>
+        </div>
+      </article>
+    ))}
+  </section>
+)}
+
+<style>
+  .nouvelles {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .nouvelle {
+    display: flex;
+    gap: var(--espace-3);
+    padding: var(--espace-3);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  img {
+    flex: none;
+    width: 76px;
+    height: 76px;
+    border-radius: var(--rayon-s);
+    background: var(--fond-bande);
+    object-fit: cover;
+  }
+  .nouvelle-texte {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .surtitre-nouvelle {
+    color: var(--texte-doux);
+    font-size: var(--taille-mention);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  h3 {
+    font-family: var(--police-interface);
+    font-size: var(--taille-courante);
+    overflow-wrap: anywhere;
+  }
+  p {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+    overflow-wrap: anywhere;
+  }
+</style>

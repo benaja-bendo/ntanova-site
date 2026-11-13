@@ -1,6 +1,6 @@
 ---
-// La date limite des inscriptions (ticket 148). Le site est statique : « Date limite annoncée » reste vrai quel que soit le jour où
-// on la lit, et la date passée disparaît à la construction suivante.
+// La date limite des inscriptions (ticket 148 ; v2 du 13/11 : un bandeau jaune pâle, comme sur le canevas). Le site est
+// statique : la date passée disparaît à la construction suivante.
 import type { DateInscription } from '../modele/inscriptions';
 import { dateLongue } from '../modele/pointe-noire';
 
@@ -15,16 +15,22 @@ const { inscription } = Astro.props;
   <p>
     Date limite annoncée&nbsp;: <strong>{dateLongue(inscription.limite)}</strong>
   </p>
-  <p class="declaree">Déclarée par l’établissement le {dateLongue(inscription.declareeLe)}</p>
+  <p class="declaree">Annoncée par l’école le {dateLongue(inscription.declareeLe)}.</p>
 </section>
 
 <style>
   .inscriptions {
     display: grid;
     gap: var(--espace-1);
+    padding: var(--espace-3) var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--statut-attention-fond);
+    color: var(--statut-attention-texte);
+  }
+  .inscriptions h2 {
+    font-size: var(--taille-intertitre);
   }
   .declaree {
-    color: var(--preuve-ecole);
     font-size: var(--taille-secondaire);
   }
 </style>

@@ -133,3 +133,10 @@ export function obtenirPhotoPublique(id: string): Promise<Uint8Array> {
   }
   return photo;
 }
+
+/** v2 (13/11) : les octets d'une image publique d'une école (logo, couverture, galerie, nouvelle), à la construction. */
+export async function obtenirMedia(id: string, miniature: boolean): Promise<Uint8Array> {
+  const c = await obtenirCatalogue();
+  if (!c.lireMedia) throw new Error('Lecture des images publiques indisponible.');
+  return c.lireMedia(id, miniature);
+}

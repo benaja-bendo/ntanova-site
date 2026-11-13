@@ -1,0 +1,175 @@
+---
+// « Admission » (v2 du 13/11, planche « Supérieur : après un clic sur Admission ») : le calendrier, l'admission par formation,
+// les pièces, où déposer. Tout vient de l'école, avec sa date. Le calendrier se calcule au jour de la construction : l'étape
+// « en cours » est celle d'aujourd'hui ; une admission dont toutes les étapes sont passées ne paraît plus.
+import { libelleEtapeAdmission, libelleSelection } from '../../modele/libelles';
+import { dateCourte, dateLongue } from '../../modele/pointe-noire';
+import type { FormationPublique } from '../../modele/ports';
+import { calendrierAMontrer, type AdmissionPublique } from '../../modele/vitrine';
+import { francsCFA } from '../../modele/frais-ecole';
+interface Props {
+  admission: AdmissionPublique;
+  formations: FormationPublique[];
+  aujourdhui: string;
+}
+const { admission: a, formations, aujourdhui } = Astro.props;
+const calendrier = calendrierAMontrer(a, aujourdhui);
+const parFormation = formations.filter(
+  (f) => f.niveauDemande || f.selection || f.fraisDossier != null,
+);
+const quand = (debut: string, fin: string | null) =>
+  fin && fin !== debut ? `du ${dateCourte(debut)} au ${dateCourte(fin)}` : dateCourte(debut);
+---
+
+<section class="admission" id="admission" aria-label="Admission">
+  <div class="tete">
+    <h2>Admission · {a.anneeScolaire}</h2>
+    <span>Déclarée par l’école le {dateLongue(a.declareeLe)}</span>
+  </div>
+  {calendrier.length > 0 && (
+    <ol class="calendrier" aria-label="Le calendrier">
+      {calendrier.map((x, i) => (
+        <li class:list={[x.etat]} aria-current={x.etat === 'en_cours' ? 'step' : undefined}>
+          <span class="rang">
+            {i + 1}
+            {x.etat === 'en_cours' && ' · en cours'}
+            {x.etat === 'passee' && ' · passée'}
+          </span>
+          <b>{libelleEtapeAdmission[x.etape]}</b>
+          <span>{quand(x.debut, x.fin)}</span>
+        </li>
+      ))}
+    </ol>
+  )}
+  {parFormation.length > 0 && (
+    <>
+      <h3>Par formation</h3>
+      <ul class="lignes-fiche par-formation">
+        {parFormation.map((f) => (
+          <li>
+            <b>{f.titre}</b>
+            <span>
+              {[
+                f.niveauDemande,
+                f.selection ? libelleSelection[f.selection] : null,
+                f.fraisDossier != null ? `frais de dossier : ${francsCFA(f.fraisDossier)}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  )}
+  {(a.pieces.length > 0 || a.ouDeposer || a.surPlaceSeulement) && (
+    <div class="cartes">
+      {a.pieces.length > 0 && (
+        <div class="carte-admission">
+          <h3>Pièces à fournir</h3>
+          <ul class="pieces">
+            {a.pieces.map((p) => (
+              <li>{p}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {(a.ouDeposer || a.surPlaceSeulement) && (
+        <div class="carte-admission">
+          <h3>Où déposer le dossier</h3>
+          {a.ouDeposer && <p>{a.ouDeposer}</p>}
+          {a.surPlaceSeulement && (
+            <p class="sur-place">
+              Dossiers reçus sur place uniquement, d’après l’école le {dateLongue(a.declareeLe)}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )}
+</section>
+
+<style>
+  .admission {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .tete {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--espace-1) var(--espace-3);
+  }
+  .tete span {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  h3 {
+    font-family: var(--police-interface);
+    font-size: var(--taille-courante);
+  }
+  .calendrier {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .calendrier li {
+    display: grid;
+    gap: 2px;
+    padding: var(--espace-3);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .calendrier li.en_cours {
+    border: 2px solid var(--accent);
+    background: var(--statut-attention-fond);
+  }
+  .calendrier li.passee {
+    color: var(--texte-doux);
+  }
+  .rang {
+    font-size: var(--taille-mention);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .calendrier li span:last-child,
+  .par-formation span {
+    font-size: var(--taille-secondaire);
+  }
+  .par-formation span {
+    color: var(--texte-doux);
+  }
+  .cartes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: var(--espace-3);
+  }
+  .carte-admission {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-2);
+    padding: var(--espace-3) var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .pieces {
+    display: grid;
+    gap: var(--espace-1);
+    margin: 0;
+    padding-left: 1.1rem;
+  }
+  .sur-place {
+    padding: var(--espace-2) var(--espace-3);
+    border-radius: var(--rayon-s);
+    background: var(--fond-bande);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+</style>

@@ -178,3 +178,14 @@ export const messageFiliere = (titre: string): string =>
 /** Le message prêt du bouton WhatsApp de la fiche. */
 export const messageEcole = (nom: string): string =>
   `Bonjour, je vous contacte depuis NTanova au sujet de ${nom} : `;
+
+/** v2 (13/11) : la période d'un montant, en court (« / mois ») ; une période « autre » dit sa précision. */
+export function periodeCourte(f: {
+  periode: 'mois' | 'trimestre' | 'annee' | 'autre';
+  precisionPeriode: string | null;
+}): string {
+  if (f.periode === 'mois') return '/ mois';
+  if (f.periode === 'trimestre') return '/ trimestre';
+  if (f.periode === 'annee') return '/ an';
+  return f.precisionPeriode ? `· ${f.precisionPeriode}` : '';
+}

@@ -1028,11 +1028,28 @@ export interface FormationPublique {
   rythmes: Valeur<'study_rhythm'>[];
   /** La référence officielle de cette filière, quand l'administration l'a saisie. */
   agrement?: AgrementPublic | null;
+  /** v2 (13/11) : l'identifiant de la formation (ses frais s'y rattachent) et son détail, dit par l'école. */
+  id?: string;
+  dureeAnnees?: number | null;
+  niveauDemande?: string | null;
+  selection?: Valeur<'selection_kind'> | null;
+  fraisDossier?: number | null;
+  delivrePar?: string | null;
 }
 
 /** Un campus publié, tel que le site public le montre : une implantation d'une institution. */
 export interface EcolePubliee {
   photo?: import('./photos-publiques').PhotoPublique | null;
+  /** v2 (13/11) : ce qui est commun à l'école (tous ses sites) et le profil du site, dits par l'école. */
+  sigle?: string | null;
+  fondeeEn?: number | null;
+  siteWeb?: string | null;
+  horaires?: Valeur<'study_shift'>[];
+  langues?: Valeur<'teaching_language'>[];
+  /** Le logo (de l'école), la couverture et la galerie (du site) : seulement les images publiques, contrôlées. */
+  medias?: import('./vitrine').MediasEcole;
+  nouvelles?: import('./vitrine').NouvellePublique[];
+  admission?: import('./vitrine').AdmissionPublique | null;
   /** La référence officielle de l'établissement, quand l'administration l'a saisie. */
   agrement?: AgrementPublic | null;
   /** Le mot de la direction : seulement sur une fiche confirmée. */
@@ -1092,6 +1109,8 @@ export interface EcolePubliee {
 /** Lu à la construction du site : les pages publiques n'appellent jamais la base. */
 export interface PortCatalogue {
   lirePhotoPublique?(id: string): Promise<Uint8Array>;
+  /** v2 (13/11) : les octets d'une image publique ; `miniature` lit la miniature quand l'administration en a posé une. */
+  lireMedia?(id: string, miniature: boolean): Promise<Uint8Array>;
   /** `GET /public/divisions` */
   divisions(): Promise<DivisionPublique[]>;
   /** `GET /public/ecoles` */

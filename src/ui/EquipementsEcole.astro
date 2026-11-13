@@ -1,76 +1,61 @@
 ---
-import {
-  etatPublicEquipement,
-  groupesEquipementsPublics,
-  nomEquipement,
-  type Equipement,
-} from '../modele/equipements-ecole';
-import { dateLongue } from '../modele/pointe-noire';
-import Icone from './Icone.astro';
+// « Sur place » (v2 du 13/11, canevas « Fiche d'école ») : une ligne par équipement, et à droite qui l'affirme et quand. Ce
+// qui est absent ou non précisé selon l'école reste distinct de ce qui a été vu : rien ne se lit comme présent par défaut.
+import { nomEquipement, type Equipement } from '../modele/equipements-ecole';
+import { dateCourte } from '../modele/pointe-noire';
 interface Props {
   equipements: Equipement[];
+  /** L'ancre de la rubrique « L'école », quand ce bloc est le premier de la rubrique. */
+  id?: string | undefined;
 }
-const { equipements } = Astro.props;
-// Une pastille par équipement, rangées par état, source et date : ce qui est absent ou non précisé ne se lit jamais comme présent.
-const groupes = groupesEquipementsPublics(equipements);
-const provenance = (source: string) =>
-  source === 'terrain' ? 'Observation' : source === 'ecole' ? 'Déclaration' : 'Information';
+const { equipements, id } = Astro.props;
+// Ce qui a été vu d'abord, puis ce que l'école dit avoir, puis le reste : les exceptions se lisent en dernier, chacune nommée.
+const rang = (e: Equipement) =>
+  e.etat === 'present' ? (e.source === 'terrain' ? 0 : 1) : e.etat === 'absent' ? 2 : 3;
+const lignes = [...equipements].sort(
+  (a, b) => rang(a) - rang(b) || nomEquipement(a).localeCompare(nomEquipement(b), 'fr'),
+);
+const source = (e: Equipement): string => {
+  if (e.source === 'terrain') return `vu sur place le ${dateCourte(e.constateLe)}`;
+  if (e.etat === 'present') return `dit par l’école le ${dateCourte(e.constateLe)}`;
+  if (e.etat === 'absent') return `absent, d’après l’école (${dateCourte(e.constateLe)})`;
+  return `non précisé par l’école (${dateCourte(e.constateLe)})`;
+};
 ---
 
-{equipements.length > 0 && (
-  <section class="equipements-ecole" aria-label="Équipements et infrastructures">
-    <h2>Équipements</h2>
-    {groupes.map((g) => (
-      <div class="groupe">
-        <ul>
-          {g.liste.map((e) => (
-            <li class="etiquette-type">
-              {g.etat === 'present' && <Icone nom="coche" />}
-              {g.etat === 'absent' && <Icone nom="croix" />}
-              {nomEquipement(e)}
-            </li>
-          ))}
-        </ul>
-        <p class="source">
-          {etatPublicEquipement(g)} · {provenance(g.source)} du {dateLongue(g.constateLe)}.
-        </p>
-        {g.liste.map(
-          (e) =>
-            e.note && (
-              <p>
-                {nomEquipement(e)}&nbsp;: {e.note}
-              </p>
-            ),
-        )}
-      </div>
-    ))}
+{lignes.length > 0 && (
+  <section class="equipements-ecole" aria-label="Équipements et infrastructures" id={id}>
+    <h2>Sur place</h2>
+    <ul class="lignes-fiche">
+      {lignes.map((e) => (
+        <li class:list={[{ absent: e.etat !== 'present' }]}>
+          <span class="nom">
+            <b>{nomEquipement(e)}</b>
+            {e.note && <span class="note">{e.note}</span>}
+          </span>
+          <span class="source">{source(e)}</span>
+        </li>
+      ))}
+    </ul>
   </section>
 )}
 <style>
-  .equipements-ecole,
-  .groupe {
+  .equipements-ecole {
     display: grid;
     gap: var(--espace-2);
   }
-  .equipements-ecole {
-    gap: var(--espace-3);
+  .nom {
+    display: grid;
   }
-  ul {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--espace-2);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .etiquette-type :global(.ico) {
-    color: var(--marque);
-  }
-  p {
-    margin: 0;
+  .note,
+  .source {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
   }
   .source {
-    color: var(--preuve-ecole);
-    font-size: var(--taille-secondaire);
+    text-align: end;
+  }
+  .absent b {
+    font-weight: 400;
   }
 </style>

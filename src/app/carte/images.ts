@@ -94,7 +94,7 @@ function dessinerEpingle(
   ctx.stroke();
   if (lettre) {
     ctx.fillStyle = jeton('cycle-lettre');
-    ctx.font = `700 17px ${jeton('police-titre')}`;
+    ctx.font = `700 17px ${jeton('police-interface')}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(lettre, cx, cy + 1);
