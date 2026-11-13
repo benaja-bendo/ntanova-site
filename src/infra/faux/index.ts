@@ -1,4 +1,4 @@
-import { photoExemple } from './photo-exemple';
+import { photoExemple, photoExempleAdresse } from './photo-exemple';
 import { jourDuCongo } from '../../modele/date-declaration';
 import type {
   AdmissionASaisir,
@@ -46,6 +46,7 @@ import { messageManquant } from '../../modele/decision';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { prochainVendredi } from '../../modele/paie';
 import { etatDesPlanches } from './scenario-planches';
+import { etatDesPlanchesAdmin } from './scenario-admin';
 import {
   ErreurDecision,
   ErreurRejet,
@@ -90,6 +91,8 @@ interface PhotoFausse {
   octets: number;
   publiable: boolean;
   onYVoit?: ('signboard' | 'entrance' | 'building')[];
+  /** Scénario « admin » : l'enseigne fictive dessinée au lieu de l'icône. */
+  exemple?: boolean;
 }
 
 /** Une institution et son campus, réunis (le faux serveur n'a qu'un campus par institution, sauf ajout). */
@@ -196,6 +199,9 @@ function personnesDe(e: Etat, releveId: string): [string, ContactFaux][] {
 const TROIS_PERSONNES = 'Une fiche a trois personnes à contacter au plus.';
 
 interface Etat {
+  /** Le scénario « admin » : le relais de chaque fiche, et la liste des relais de l'administration. */
+  relaisDesReleves?: Record<string, string>;
+  relaisDeLAdmin?: Awaited<ReturnType<PortAdministration['relais']>>;
   /** Le scénario « planches » : les missions faites de la semaine, payées à leur montant (le faux ne les ferme pas). */
   paieMissions?: { tarifXaf: number; nombre: number }[];
   /** Lot H : le numéro Mobile Money du relais. */
@@ -391,9 +397,12 @@ const etatInitial = (): Etat => ({
 // `?scenario=planches` dans l'adresse (serveur local du fondateur) : on repart des états des planches v2.
 if (
   typeof location !== 'undefined' &&
-  new URLSearchParams(location.search).get('scenario') === 'planches'
+  ['planches', 'admin'].includes(new URLSearchParams(location.search).get('scenario') ?? '')
 ) {
-  localStorage.setItem('ntanova-faux-scenario', 'planches');
+  localStorage.setItem(
+    'ntanova-faux-scenario',
+    new URLSearchParams(location.search).get('scenario') ?? '',
+  );
   localStorage.removeItem(CLE);
 }
 
@@ -405,6 +414,10 @@ function lireEtat(): Etat {
     const depart = etatInitial();
     const scenario = etatDesPlanches() as unknown as Partial<Etat>;
     return { ...depart, ...scenario, campus: { ...depart.campus, ...scenario.campus } };
+  }
+  // `ntanova-faux-scenario` = « admin » : les états des planches de l'administration.
+  if (localStorage.getItem('ntanova-faux-scenario') === 'admin') {
+    return { ...etatInitial(), ...(etatDesPlanchesAdmin() as unknown as Partial<Etat>) };
   }
   return etatInitial();
 }
@@ -944,7 +957,7 @@ function ligneDe(r: ReleveAEnvoyer, e: Etat) {
     recuLe: r.prisLe,
     type: r.type,
     nomEnseigne: r.nomEnseigne,
-    relais: '[Prénom]',
+    relais: e.relaisDesReleves?.[r.id] ?? '[Prénom]',
     // Comme la base : un relais sans secteur n'a pas de lot (le faux serveur retombait sur le premier lot).
     lot: r.lotId ? lot.nom : null,
     essai: lot.essai,
@@ -1186,7 +1199,7 @@ const admin: PortAdministration = {
       .map((p) => ({
         id: p.id,
         role: p.role,
-        adresse: '/relais/icone-512.png',
+        adresse: p.exemple ? photoExempleAdresse : '/relais/icone-512.png',
         octets: p.octets,
         largeur: 1280,
         hauteur: 960,
@@ -1702,6 +1715,7 @@ const admin: PortAdministration = {
   async relais() {
     await reseau();
     const e = lireEtat();
+    if (e.relaisDeLAdmin) return e.relaisDeLAdmin;
     const siennes = Object.values(e.releves);
     const d = (id: string) => e.decisions[id]?.statut ?? 'a_valider';
     return [

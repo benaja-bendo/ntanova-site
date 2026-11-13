@@ -8,7 +8,7 @@ const port = portDesParcours();
 
 export default defineConfig({
   testDir: 'tests/captures',
-  testMatch: /(relais-)?v2\.spec\.ts/,
+  testMatch: /(relais-|admin-)?v2\.spec\.ts/,
   reporter: 'list',
   workers: 2,
   use: { baseURL: `http://127.0.0.1:${port}`, permissions: ['geolocation'] },
