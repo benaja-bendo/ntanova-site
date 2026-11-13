@@ -1,5 +1,6 @@
+import { v2 } from '@/ui/v2/classes';
 import { useEffect, useState } from 'react';
-import { Dialogue } from '../../ui/Dialogue';
+import { Dialogue } from '@/ui/v2/admin';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
   lireAccordContactPublic,
@@ -9,7 +10,8 @@ import { libelleFonction } from '../../modele/libelles';
 import { listes } from '../../modele/listes';
 import type { PortAdministration } from '../../modele/ports';
 import { afficherTelephone } from '../../modele/telephone';
-import { Bandeau, jour } from '../../ui/composants';
+import { Bandeau } from '@/ui/v2/formulaire';
+import { jour } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
 
 export function ContactPublic({
@@ -73,7 +75,7 @@ export function ContactPublic({
   return (
     <Dialogue titre={`Contact public de ${nom}`} fermer={fermer} integre={integre}>
       <form
-        className="admin-motif"
+        className={v2.motif}
         aria-label={`Contact public de ${nom}`}
         onSubmit={(ev) => {
           ev.preventDefault();
@@ -90,29 +92,33 @@ export function ContactPublic({
             Enregistré : {afficherTelephone(contact.numero)} · accord du {jour(contact.accordLe)}
           </p>
         )}
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Numéro public
           <input
-            className="champ"
+            className={v2.champ}
             type="tel"
             autoComplete="off"
             value={numero}
             onChange={(e) => setNumero(e.target.value)}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Date de l’accord de publication
           <input
-            className="champ"
+            className={v2.champ}
             type="date"
             max={jourDuCongo()}
             value={accordLe}
             onChange={(e) => setAccordLe(e.target.value)}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Fonction de la personne ayant autorisé la publication
-          <select className="champ" value={fonction} onChange={(e) => setFonction(e.target.value)}>
+          <select
+            className={v2.champ}
+            value={fonction}
+            onChange={(e) => setFonction(e.target.value)}
+          >
             <option value="">Choisir</option>
             {listes.fonction_direction.map((f) => (
               <option key={f} value={f}>
@@ -121,9 +127,9 @@ export function ContactPublic({
             ))}
           </select>
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Canal de l’accord
-          <select className="champ" value={canal} onChange={(e) => setCanal(e.target.value)}>
+          <select className={v2.champ} value={canal} onChange={(e) => setCanal(e.target.value)}>
             <option value="">Choisir</option>
             <option value="whatsapp">WhatsApp</option>
             <option value="appel">Appel</option>
@@ -144,12 +150,12 @@ export function ContactPublic({
             {erreur}
           </Bandeau>
         )}
-        <button className="bouton" type="submit" disabled={enCours}>
+        <button className={v2.bouton} type="submit" disabled={enCours}>
           {enCours ? 'Enregistrement…' : 'Enregistrer le contact public'}
         </button>
         {contact && (
           <button
-            className="bouton bouton-secondaire admin-bouton-refus"
+            className={v2.boutonRefus}
             type="button"
             disabled={enCours}
             onClick={() => void agir(true)}
@@ -157,7 +163,7 @@ export function ContactPublic({
             Retirer le contact public
           </button>
         )}
-        <p className="mention">
+        <p className={v2.mention}>
           Ajout, modification et retrait apparaissent après reconstruction du site. Le contact privé
           et le numéro lu sur l’enseigne ne sont pas modifiés ici.
         </p>
@@ -168,7 +174,7 @@ export function ContactPublic({
         >
           Ouvrir la mise à jour du site
         </a>
-        <p className="mention">
+        <p className={v2.mention}>
           Choisis essai pour vérifier, puis production pour rendre le changement visible aux
           familles.
         </p>

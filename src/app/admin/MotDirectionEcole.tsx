@@ -1,12 +1,13 @@
+import { v2 } from '@/ui/v2/classes';
 import { useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import { libelleFonction } from '../../modele/libelles';
 import { listes } from '../../modele/listes';
 import { LONGUEUR_MAX_MOT, lireMotDirection, type MotDirection } from '../../modele/mot-direction';
 import type { PortAdministration } from '../../modele/ports';
-import { Dialogue } from '../../ui/Dialogue';
+import { Dialogue } from '@/ui/v2/admin';
 import { dateLongue } from '../../modele/pointe-noire';
-import { Bandeau } from '../../ui/composants';
+import { Bandeau } from '@/ui/v2/formulaire';
 import { messageErreur } from './ChampPosition';
 
 /** Le mot de la direction (ticket 148) : une parole de l'école, telle qu'elle l'a remise, avec un accord daté, gardé en privé. */
@@ -73,7 +74,7 @@ export function MotDirectionEcole({
   return (
     <Dialogue titre={`Mot de la direction de ${nom}`} fermer={fermer} integre={integre}>
       <form
-        className="admin-motif"
+        className={v2.motif}
         aria-label={`Mot de la direction de ${nom}`}
         onSubmit={(ev) => {
           ev.preventDefault();
@@ -91,29 +92,33 @@ export function MotDirectionEcole({
           </Bandeau>
         )}
         {mot && <p>Enregistré : mot du {dateLongue(mot.ditLe)}</p>}
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Le mot ({texte.trim().length} / {LONGUEUR_MAX_MOT})
           <textarea
-            className="champ"
+            className={v2.champ}
             rows={4}
             maxLength={LONGUEUR_MAX_MOT}
             value={texte}
             onChange={(e) => setTexte(e.target.value)}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Date du mot
           <input
-            className="champ"
+            className={v2.champ}
             type="date"
             max={jourDuCongo()}
             value={ditLe}
             onChange={(e) => setDitLe(e.target.value)}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Fonction de la personne qui a donné son accord
-          <select className="champ" value={fonction} onChange={(e) => setFonction(e.target.value)}>
+          <select
+            className={v2.champ}
+            value={fonction}
+            onChange={(e) => setFonction(e.target.value)}
+          >
             <option value="">Choisir</option>
             {listes.fonction_direction.map((f) => (
               <option key={f} value={f}>
@@ -122,9 +127,9 @@ export function MotDirectionEcole({
             ))}
           </select>
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Canal de l’accord
-          <select className="champ" value={canal} onChange={(e) => setCanal(e.target.value)}>
+          <select className={v2.champ} value={canal} onChange={(e) => setCanal(e.target.value)}>
             <option value="">Choisir</option>
             <option value="whatsapp">WhatsApp</option>
             <option value="appel">Appel</option>
@@ -141,12 +146,12 @@ export function MotDirectionEcole({
             {erreur}
           </Bandeau>
         )}
-        <button className="bouton" type="submit" disabled={enCours}>
+        <button className={v2.bouton} type="submit" disabled={enCours}>
           {enCours ? 'Enregistrement…' : 'Enregistrer le mot'}
         </button>
         {mot && (
           <button
-            className="bouton bouton-secondaire admin-bouton-refus"
+            className={v2.boutonRefus}
             type="button"
             disabled={enCours}
             onClick={() => void agir(true)}
@@ -154,7 +159,7 @@ export function MotDirectionEcole({
             Retirer le mot
           </button>
         )}
-        <p className="mention">Visible après la prochaine mise à jour du site.</p>
+        <p className={v2.mention}>Visible après la prochaine mise à jour du site.</p>
       </form>
     </Dialogue>
   );

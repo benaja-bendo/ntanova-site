@@ -1,3 +1,4 @@
+import { v2 } from '@/ui/v2/classes';
 import { useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
@@ -13,8 +14,9 @@ import {
 } from '../../modele/equipements-ecole';
 import { listes } from '../../modele/listes';
 import type { PortAdministration } from '../../modele/ports';
-import { Bandeau, jour } from '../../ui/composants';
-import { Dialogue } from '../../ui/Dialogue';
+import { Bandeau } from '@/ui/v2/formulaire';
+import { jour } from '../../ui/composants';
+import { Dialogue } from '@/ui/v2/admin';
 import { messageErreur } from './ChampPosition';
 export function EquipementsEcole({
   ecoleId,
@@ -101,7 +103,7 @@ export function EquipementsEcole({
               </p>
               <button
                 type="button"
-                className="bouton bouton-secondaire"
+                className={v2.boutonSecondaire}
                 disabled={enCours}
                 onClick={() => {
                   setId(e.id);
@@ -113,7 +115,7 @@ export function EquipementsEcole({
               </button>
               <button
                 type="button"
-                className="bouton bouton-secondaire"
+                className={v2.boutonSecondaire}
                 disabled={enCours}
                 onClick={() => void retirer(e)}
               >
@@ -124,7 +126,7 @@ export function EquipementsEcole({
         </ul>
       )}
       <form
-        className="admin-motif"
+        className={v2.motif}
         aria-label={`Équipement de ${nom}`}
         onSubmit={(e) => {
           e.preventDefault();
@@ -132,10 +134,10 @@ export function EquipementsEcole({
         }}
       >
         <h4>{id ? 'Modifier une information' : 'Ajouter une information'}</h4>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Équipement
           <select
-            className="champ"
+            className={v2.champ}
             value={saisie.cle}
             onChange={(e) => champ('cle', e.target.value)}
           >
@@ -148,20 +150,20 @@ export function EquipementsEcole({
           </select>
         </label>
         {saisie.cle === 'autre' && (
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Préciser cet autre équipement
             <input
-              className="champ"
+              className={v2.champ}
               maxLength={80}
               value={saisie.precision}
               onChange={(e) => champ('precision', e.target.value)}
             />
           </label>
         )}
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           État
           <select
-            className="champ"
+            className={v2.champ}
             value={saisie.etat}
             onChange={(e) => champ('etat', e.target.value)}
           >
@@ -173,10 +175,10 @@ export function EquipementsEcole({
             ))}
           </select>
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Source
           <select
-            className="champ"
+            className={v2.champ}
             value={saisie.source}
             onChange={(e) => {
               champ('source', e.target.value);
@@ -188,25 +190,25 @@ export function EquipementsEcole({
             <option value="terrain">Observation de terrain</option>
           </select>
         </label>
-        <p className="mention">
+        <p className={v2.mention}>
           Depuis la rue : clôture, terrain de sport ou autre élément visible précisé. La présence
           d’un réseau ou d’un véhicule ne prouve pas un service d’eau, d’électricité ou de
           transport.
         </p>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Date de déclaration ou d’observation
           <input
-            className="champ"
+            className={v2.champ}
             type="date"
             max={jourDuCongo()}
             value={saisie.constateLe}
             onChange={(e) => champ('constateLe', e.target.value)}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Précision (facultatif)
           <textarea
-            className="champ"
+            className={v2.champ}
             maxLength={300}
             value={saisie.note}
             onChange={(e) => champ('note', e.target.value)}
@@ -222,13 +224,13 @@ export function EquipementsEcole({
             ? 'Ce constat a été réellement observé sur place, sans déduire ce qui n’est pas visible.'
             : 'Cette information a été communiquée par l’école pour être affichée.'}
         </label>
-        <button type="submit" className="bouton" disabled={enCours}>
+        <button type="submit" className={v2.bouton} disabled={enCours}>
           {enCours ? 'Enregistrement…' : 'Enregistrer l’équipement'}
         </button>
         {id && (
           <button
             type="button"
-            className="bouton bouton-secondaire"
+            className={v2.boutonSecondaire}
             onClick={() => {
               setId(null);
               setSaisie(saisieEquipementVide());
@@ -243,7 +245,7 @@ export function EquipementsEcole({
           {erreur}
         </Bandeau>
       )}
-      <p className="mention">
+      <p className={v2.mention}>
         Ces informations ne donnent aucun badge et ne publient pas l’école. Modification et retrait
         sont tracés ; reconstruis le site après chaque changement.
       </p>

@@ -7,6 +7,7 @@
  * l'administration, 07/11/2026). Une seconde vue range les zones par étape de la carte. Ouvrir une zone n'est pas annoncer
  * une couverture : le site n'affiche que ce qui est publié.
  */
+import { v2 } from '@/ui/v2/classes';
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { cheminLisible } from '../../modele/geo-divisions';
 import { libelleGenreDivision } from '../../modele/libelles';
@@ -25,9 +26,10 @@ import {
   type EtatCarte,
 } from '../../modele/zones-admin';
 import { libelleDeploiement } from '../../modele/etat-zone';
-import { Bandeau, Champ, Icone, jour } from '../../ui/composants';
-import { Bouton } from '../../ui/actions';
-import { Dialogue } from '../../ui/Dialogue';
+import { Bandeau, Champ, Icone } from '@/ui/v2/formulaire';
+import { jour } from '../../ui/composants';
+import { Bouton } from '@/ui/v2/admin';
+import { Dialogue } from '@/ui/v2/admin';
 import { aller, useAdresse } from '../commun/adresse';
 import { messageErreur } from './ChampPosition';
 import { VueParEtape } from './ZonesEtapes';
@@ -213,13 +215,13 @@ export function Zones({ admin }: { admin: PortAdministration }) {
 
   const noeudRetour = retour && (
     <div className="admin-retour">
-      <p className="bandeau bandeau-envoye" role="status">
+      <p className={v2.bandeSucces} role="status">
         {retour.texte}
       </p>
       {retour.annuler && (
         <button
           type="button"
-          className="bouton bouton-secondaire bouton-petit"
+          className={v2.boutonSecondairePetit}
           onClick={() => void retour.annuler?.()}
         >
           Annuler
@@ -265,7 +267,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
   const recherchee = recherche.trim() !== '';
 
   return (
-    <div className="pile">
+    <div className={v2.pile}>
       <TitreEcran
         titre="Zones"
         regles={
@@ -312,7 +314,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
       )}
 
       {divisions === null && !erreur && (
-        <p aria-busy="true" className="texte-doux">
+        <p aria-busy="true" className={v2.doux}>
           Chargement des zones…
         </p>
       )}
@@ -336,7 +338,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
               {(a) => (
                 <input
                   {...a}
-                  className="champ"
+                  className={v2.champ}
                   type="search"
                   autoComplete="off"
                   value={recherche}
@@ -345,7 +347,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
               )}
             </Champ>
             <div className="admin-arbre-outils">
-              <button type="button" className="bouton bouton-petit" onClick={() => setAjout(true)}>
+              <button type="button" className={v2.boutonPetit} onClick={() => setAjout(true)}>
                 <Icone nom="plus" taille={16} />
                 Ajouter une zone
               </button>
@@ -360,18 +362,10 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                   role="group"
                   aria-label="Déplier ou replier l’arbre"
                 >
-                  <button
-                    type="button"
-                    className="bouton bouton-secondaire bouton-petit"
-                    onClick={toutDeplier}
-                  >
+                  <button type="button" className={v2.boutonSecondairePetit} onClick={toutDeplier}>
                     Tout déplier
                   </button>
-                  <button
-                    type="button"
-                    className="bouton bouton-secondaire bouton-petit"
-                    onClick={toutReplier}
-                  >
+                  <button type="button" className={v2.boutonSecondairePetit} onClick={toutReplier}>
                     Tout replier
                   </button>
                 </div>
@@ -459,7 +453,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
               )}
             </ul>
             {recherche.trim() !== '' && lignes.length === 0 && (
-              <p className="texte-doux">Aucune zone ne s’appelle ainsi.</p>
+              <p className={v2.doux}>Aucune zone ne s’appelle ainsi.</p>
             )}
           </section>
 
@@ -505,7 +499,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
       {divisions !== null && (
         <>
           <h2>Les lots</h2>
-          <div className="admin-tableau">
+          <div className={v2.tableau}>
             <table>
               <thead>
                 <tr>
@@ -533,7 +527,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                           Rendu le {jour(l.renduLe)}{' '}
                           <button
                             type="button"
-                            className="bouton bouton-secondaire bouton-petit"
+                            className={v2.boutonSecondairePetit}
                             disabled={enCoursLot}
                             onClick={() => void rendre(l, false)}
                           >
@@ -543,7 +537,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                       ) : (
                         <button
                           type="button"
-                          className="bouton bouton-secondaire bouton-petit"
+                          className={v2.boutonSecondairePetit}
                           disabled={enCoursLot}
                           onClick={() => void rendre(l, true)}
                         >
@@ -552,7 +546,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                       )}
                     </td>
                     <td>{relais.filter((r) => r.lotId === l.id && r.statut === 'actif').length}</td>
-                    <td className="mention">
+                    <td className={v2.mention}>
                       {l.essai
                         ? 'Entraînement : ses fiches ne sont jamais publiées.'
                         : 'Toute la zone.'}
@@ -564,7 +558,7 @@ export function Zones({ admin }: { admin: PortAdministration }) {
                 ))}
                 {lots.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="texte-doux">
+                    <td colSpan={6} className={v2.doux}>
                       Aucun lot.
                     </td>
                   </tr>
@@ -608,18 +602,18 @@ export function Zones({ admin }: { admin: PortAdministration }) {
           description="La suppression est définitive."
           entete={<h2>Supprimer {aSupprimer.nom} ?</h2>}
         >
-          <div className="pile-serree">
+          <div className={v2.pileSerree}>
             <p>
               <b>{cheminLisible(aSupprimer.id, divisions)}</b> est vide : elle disparaît de
               l’administration et du site à la prochaine mise à jour. C’est définitif, mais tu peux
               la rajouter avec la même adresse.
             </p>
             {erreurSuppression && (
-              <p className="message-erreur" role="alert">
+              <p className={v2.erreur} role="alert">
                 {erreurSuppression}
               </p>
             )}
-            <div className="choix-ligne">
+            <div className={v2.ligneChoix}>
               <Bouton
                 variante="danger"
                 disabled={suppressionEnCours}
@@ -641,12 +635,12 @@ export function Zones({ admin }: { admin: PortAdministration }) {
           description={`${aConfirmer.nom} contient ${zonesDessous(aConfirmer, divisions ?? []).length} autres zones : elles s’ouvrent toutes avec elle.`}
           entete={<h2>Ouvrir {aConfirmer.nom} aux relais ?</h2>}
         >
-          <div className="pile-serree">
+          <div className={v2.pileSerree}>
             <p>
               Cela ouvre <b>{zonesDessous(aConfirmer, divisions ?? []).length} zones</b>. Tu pourras
               refermer {aConfirmer.nom} d’un coup, ou ouvrir zone par zone à la place.
             </p>
-            <div className="choix-ligne">
+            <div className={v2.ligneChoix}>
               <Bouton
                 onClick={() => {
                   const d = aConfirmer;

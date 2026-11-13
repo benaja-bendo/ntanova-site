@@ -2,6 +2,7 @@
  * Les zones par étape de la carte : « pas encore couverte », « déploiement programmé », « relevé en cours ». Activer une
  * zone se fait en un bouton sur sa carte : la même chose que le volet de zone, vue de plus haut.
  */
+import { v2 } from '@/ui/v2/classes';
 import { useState } from 'react';
 import {
   etapesDeLaCarte,
@@ -75,14 +76,14 @@ function CarteDeZone({
             {parent ? ` · ${parent.nom}` : ''}
           </small>
         </button>
-        <span className="mention">{phraseDesEcoles(zone)}</span>
+        <span className={v2.mention}>{phraseDesEcoles(zone)}</span>
       </div>
       {herite && (
-        <span className="mention">
+        <span className={v2.mention}>
           Sur la carte par ce qu’elle contient (« {libelleEtat(herite)} »).
         </span>
       )}
-      <div className="admin-actions">
+      <div className={v2.actions}>
         {gestesDe(zone.deploiement).map((g) => (
           <button
             key={g.libelle}
@@ -131,7 +132,7 @@ export function VueParEtape({
               <h3 id={`etape-${cle}`}>{libelleEtat(e.etat)}</h3>
               <span className="admin-nombre">{nombre}</span>
             </header>
-            <p className="mention">{description[cle]}</p>
+            <p className={v2.mention}>{description[cle]}</p>
             <ul className="admin-cartes">
               {e.zones.map((z) => (
                 <CarteDeZone

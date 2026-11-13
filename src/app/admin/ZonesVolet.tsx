@@ -3,6 +3,7 @@
  * `modele/zones-admin.ts`) : « Sur la carte » (ce que voient les familles), « Ouverte aux relais » (où NTanova envoie
  * des relais), et d'où viennent ses fiches.
  */
+import { v2 } from '@/ui/v2/classes';
 import type { ReactNode } from 'react';
 import {
   ETATS_CARTE,
@@ -20,8 +21,8 @@ import {
 import { cheminLisible } from '../../modele/geo-divisions';
 import { libelleGenreDivision } from '../../modele/libelles';
 import type { DivisionVue, LotVu, PortAdministration } from '../../modele/ports';
-import { Bouton } from '../../ui/actions';
-import { Icone } from '../../ui/composants';
+import { Bouton } from '@/ui/v2/admin';
+import { Icone } from '@/ui/v2/formulaire';
 import { aller } from '../commun/adresse';
 import { AjouterDivision, NouveauLot, RenommerZone } from './ZonesFormulaires';
 
@@ -101,10 +102,12 @@ export function VoletDeZone({
   return (
     <div className="admin-volet">
       <section className="admin-volet-carte" aria-label={`${zone.nom} : en bref`}>
-        <p className="mention">{parent ? cheminLisible(parent.id, divisions) : 'Tout le pays'}</p>
+        <p className={v2.mention}>
+          {parent ? cheminLisible(parent.id, divisions) : 'Tout le pays'}
+        </p>
         <div className="admin-volet-titre">
           <h2>{zone.nom}</h2>
-          <span className="etiquette etat-telephone">{libelleGenreDivision[zone.genre]}</span>
+          <span className={v2.pastilleNeutre}>{libelleGenreDivision[zone.genre]}</span>
         </div>
         <div className="admin-stats">
           <div className="admin-stat">
@@ -141,7 +144,7 @@ export function VoletDeZone({
               </li>
             </ul>
             {nbFiches === 0 && (
-              <span className="mention">Aucune fiche dans cette zone pour l’instant.</span>
+              <span className={v2.mention}>Aucune fiche dans cette zone pour l’instant.</span>
             )}
           </div>
         </div>
@@ -152,11 +155,11 @@ export function VoletDeZone({
       {surLaCarte(zone) && (
         <section className="admin-volet-carte" aria-label="Sur la carte du site">
           <h3>Ce que les familles voient sur la carte</h3>
-          <p className="mention">
+          <p className={v2.mention}>
             Un seul réglage, trois états. Il ne change rien pour les relais.
           </p>
           <fieldset className="admin-segments" disabled={occupee}>
-            <legend className="visuellement-cache">État de {zone.nom} sur la carte</legend>
+            <legend className="sr-only">État de {zone.nom} sur la carte</legend>
             {ETATS_CARTE.map((e) => (
               <label
                 key={e ?? 'aucun'}
@@ -179,7 +182,7 @@ export function VoletDeZone({
             <div className="admin-apercu-texte">
               <p>{explicationEtat[etat ?? 'aucun']}</p>
               {etat === null && herite !== null && (
-                <p className="bandeau bandeau-attente">
+                <p className={v2.bandeAttention}>
                   <Icone nom="alerte" taille={18} />
                   <span>
                     Ce que {zone.nom} contient est quand même sur la carte (« {libelleEtat(herite)}{' '}
@@ -205,7 +208,7 @@ export function VoletDeZone({
         <div className="admin-interrupteur-rang">
           <div>
             <h3>Ouverte aux relais</h3>
-            <p className="mention">
+            <p className={v2.mention}>
               {ouverteParUneAutre
                 ? `Ouverte par ${par.nom} : elle l’est avec tout ce que ${par.nom} contient. Ferme ${par.nom} pour la fermer ici.`
                 : ouverte
@@ -223,12 +226,12 @@ export function VoletDeZone({
             onClick={() => surOuverture(!ouverte)}
           />
         </div>
-        <p className="mention">
+        <p className={v2.mention}>
           Les relais peuvent relever partout : ce réglage dit seulement où NTanova en envoie. Ouvrir
           une zone ouvre tout ce qu’elle contient.
         </p>
         {!ouverte && dessous.length >= SEUIL_OUVERTURE_LARGE && (
-          <p className="bandeau bandeau-attente">
+          <p className={v2.bandeAttention}>
             <Icone nom="alerte" taille={18} />
             <span>
               Ouvrir {zone.nom} ouvre aussi les {dessous.length} zones qu’elle contient : une
@@ -250,7 +253,7 @@ export function VoletDeZone({
             <span>{phraseDesEcoles(zone)}</span>
             {zone.niveau >= 2 && (
               <a
-                className="bouton bouton-secondaire bouton-petit"
+                className={v2.boutonSecondairePetit}
                 href={`#ecoles/zone/${zone.id}`}
                 onClick={(e) => {
                   e.preventDefault();
@@ -262,7 +265,7 @@ export function VoletDeZone({
             )}
           </div>
         ) : (
-          <p className="texte-doux">
+          <p className={v2.doux}>
             Aucune école relevée ici pour l’instant. Pour en avoir, un relais doit y relever : les
             relais sont dans l’onglet « Relais ».
           </p>
@@ -270,12 +273,12 @@ export function VoletDeZone({
 
         <details
           key={`lots-${zone.id}`}
-          className="admin-plie"
+          className={v2.plie}
           open={sesLots.length > 0 ? true : undefined}
         >
           <summary>Lots ({sesLots.length})</summary>
           {sesLots.length === 0 ? (
-            <p className="mention">
+            <p className={v2.mention}>
               Aucun lot ici. Un lot donne une zone et une échéance à un relais.
             </p>
           ) : (
@@ -291,7 +294,7 @@ export function VoletDeZone({
         </details>
 
         {zone.niveau >= 2 && (
-          <details key={`nouveau-lot-${zone.id}`} className="admin-plie">
+          <details key={`nouveau-lot-${zone.id}`} className={v2.plie}>
             <summary>Créer un lot ici</summary>
             <NouveauLot
               key={zone.id}
@@ -305,7 +308,7 @@ export function VoletDeZone({
         )}
 
         {zone.niveau <= 3 && (
-          <details key={`sous-zone-${zone.id}`} className="admin-plie">
+          <details key={`sous-zone-${zone.id}`} className={v2.plie}>
             <summary>Ajouter une sous-zone</summary>
             <AjouterDivision
               key={zone.id}
@@ -321,7 +324,7 @@ export function VoletDeZone({
 
       <section className="admin-volet-carte" aria-label="Nom et suppression de la zone">
         <h3>Corriger la zone</h3>
-        <details key={`nom-${zone.id}`} className="admin-plie">
+        <details key={`nom-${zone.id}`} className={v2.plie}>
           <summary>Renommer · autres écritures</summary>
           <RenommerZone
             key={`${zone.id}|${zone.nom}|${zone.aliases.join('|')}`}
@@ -331,20 +334,20 @@ export function VoletDeZone({
             surFait={surFait}
           />
         </details>
-        <details key={`suppression-${zone.id}`} className="admin-plie">
+        <details key={`suppression-${zone.id}`} className={v2.plie}>
           <summary>Supprimer cette zone</summary>
           {raisons.length > 0 ? (
-            <p className="mention">
+            <p className={v2.mention}>
               Cette zone ne se supprime pas : {raisons.join(' ; ')}. Supprimer sert à corriger une
               zone saisie par erreur, quand elle ne contient plus rien.
             </p>
           ) : (
-            <div className="pile-serree">
-              <p className="mention">
+            <div className={v2.pileSerree}>
+              <p className={v2.mention}>
                 La zone est vide : ni sous-zone, ni école, ni lot, ni état sur la carte. La
                 suppression est définitive ; son adresse ({zone.slug}) pourra être réutilisée.
               </p>
-              <div className="admin-actions">
+              <div className={v2.actions}>
                 <Bouton variante="danger" disabled={occupee} onClick={() => surSuppression(zone)}>
                   Supprimer {zone.nom}…
                 </Bouton>

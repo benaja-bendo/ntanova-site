@@ -3,6 +3,7 @@
  * que la page publique les montrera, et « X rubriques remplies sur Y · Z à demander ». Une image qui n'est pas publique ne
  * s'affiche pas ici : l'aperçu dit ce que voient les familles.
  */
+import { v2 } from '@/ui/v2/classes';
 import { useEffect, useState } from 'react';
 import {
   completudeDeLaFiche,
@@ -53,7 +54,7 @@ export function ApercuFiche({
         {couverture ? (
           <img src={couverture.adresse ?? undefined} alt={`Photo de couverture de ${ecole.nom}`} />
         ) : (
-          <span className="mention">Pas encore de photo de couverture</span>
+          <span className={v2.mention}>Pas encore de photo de couverture</span>
         )}
         <button
           type="button"

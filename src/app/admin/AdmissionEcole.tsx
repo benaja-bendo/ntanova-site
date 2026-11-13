@@ -1,11 +1,12 @@
+import { v2 } from '@/ui/v2/classes';
 import { useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import { erreurDuCalendrier, type AdmissionASaisir } from '../../modele/fiche-admin';
 import { libelleEtapeAdmission } from '../../modele/libelles';
 import { listes } from '../../modele/listes';
 import type { PortAdministration } from '../../modele/ports';
-import { Bouton } from '../../ui/actions';
-import { Champ } from '../../ui/composants';
+import { Bouton } from '@/ui/v2/admin';
+import { Champ } from '@/ui/v2/formulaire';
 import { messageErreur } from './ChampPosition';
 
 /**
@@ -49,11 +50,7 @@ export function AdmissionEcole({
     };
   }, [admin, ecoleId]);
   if (!a)
-    return erreur ? (
-      <p className="message-erreur">{erreur}</p>
-    ) : (
-      <p aria-busy="true">Chargement…</p>
-    );
+    return erreur ? <p className={v2.erreur}>{erreur}</p> : <p aria-busy="true">Chargement…</p>;
 
   const etape = (cle: (typeof listes.admission_step)[number]) =>
     a.etapes.find((x) => x.etape === cle);
@@ -91,7 +88,7 @@ export function AdmissionEcole({
 
   return (
     <form
-      className="admin-motif pile-serree"
+      className={v2.motifPile}
       aria-label="Admission"
       onSubmit={(ev) => {
         ev.preventDefault();
@@ -103,19 +100,19 @@ export function AdmissionEcole({
         {(x) => (
           <input
             {...x}
-            className="champ"
+            className={v2.champ}
             placeholder="2026-2027"
             value={a.anneeScolaire}
             onChange={(e) => setA({ ...a, anneeScolaire: e.target.value })}
           />
         )}
       </Champ>
-      <fieldset className="pile-serree">
+      <fieldset className={v2.pileSerree}>
         <legend>Le calendrier</legend>
         {listes.admission_step.map((cle) => (
           <div
             key={cle}
-            className="deux-colonnes"
+            className={v2.deuxColonnes}
             role="group"
             aria-label={libelleEtapeAdmission[cle]}
           >
@@ -123,7 +120,7 @@ export function AdmissionEcole({
               {(x) => (
                 <input
                   {...x}
-                  className="champ"
+                  className={v2.champ}
                   type="date"
                   value={etape(cle)?.debut ?? ''}
                   onChange={(e) => poser(cle, 'debut', e.target.value)}
@@ -134,7 +131,7 @@ export function AdmissionEcole({
               {(x) => (
                 <input
                   {...x}
-                  className="champ"
+                  className={v2.champ}
                   type="date"
                   value={etape(cle)?.fin ?? ''}
                   onChange={(e) => poser(cle, 'fin', e.target.value)}
@@ -148,7 +145,7 @@ export function AdmissionEcole({
         {(x) => (
           <textarea
             {...x}
-            className="champ"
+            className={v2.champ}
             rows={4}
             value={pieces}
             onChange={(e) => setPieces(e.target.value)}
@@ -159,14 +156,14 @@ export function AdmissionEcole({
         {(x) => (
           <input
             {...x}
-            className="champ"
+            className={v2.champ}
             maxLength={300}
             value={a.ouDeposer ?? ''}
             onChange={(e) => setA({ ...a, ouDeposer: e.target.value || null })}
           />
         )}
       </Champ>
-      <label className="case">
+      <label className={v2.case}>
         <input
           type="checkbox"
           checked={a.surPlaceSeulement}
@@ -178,7 +175,7 @@ export function AdmissionEcole({
         {(x) => (
           <input
             {...x}
-            className="champ"
+            className={v2.champ}
             type="date"
             value={a.declareeLe}
             onChange={(e) => setA({ ...a, declareeLe: e.target.value })}
@@ -189,7 +186,7 @@ export function AdmissionEcole({
         Enregistrer l’admission
       </Bouton>
       {erreur && (
-        <p className="message-erreur" role="alert">
+        <p className={v2.erreur} role="alert">
           {erreur}
         </p>
       )}

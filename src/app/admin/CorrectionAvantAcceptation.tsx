@@ -1,3 +1,4 @@
+import { v2 } from '@/ui/v2/classes';
 import { useEffect, useRef, useState } from 'react';
 import {
   erreursFormulaireEcole,
@@ -7,7 +8,7 @@ import {
 } from '../../modele/correction-ecole';
 import type { CorrectionEcole, DetailReleve } from '../../modele/ports';
 import type { Erreurs } from '../../modele/fiche';
-import { Bouton } from '../../ui/actions';
+import { Bouton } from '@/ui/v2/admin';
 import { ChampsFiche } from './ChampsFiche';
 
 /** Une préparation locale : seule l’acceptation écrit les valeurs dans la base. */
@@ -58,7 +59,7 @@ export function CorrectionAvantAcceptation({
   return edition ? (
     <form
       ref={formulaire}
-      className="admin-motif"
+      className={v2.motif}
       aria-label="Corriger avant d’accepter"
       noValidate
       onSubmit={(ev) => {
@@ -75,7 +76,7 @@ export function CorrectionAvantAcceptation({
         fermer();
       }}
     >
-      <p className="mention admin-pleine-largeur">
+      <p className={v2.mentionLarge}>
         Corrige seulement ce que les photos ou les informations reçues permettent de confirmer. Ces
         valeurs seront enregistrées avec l’acceptation ; le relevé du relais sera conservé.
       </p>
@@ -84,7 +85,7 @@ export function CorrectionAvantAcceptation({
         erreurs={erreurs}
         changer={(valeurs) => setChamps((c) => ({ ...c, ...valeurs }))}
       />
-      <div className="admin-actions admin-pleine-largeur">
+      <div className={v2.actionsLarge}>
         <Bouton type="submit">Utiliser ces valeurs</Bouton>
         <Bouton variante="secondaire" onClick={fermer}>
           Annuler
@@ -92,13 +93,13 @@ export function CorrectionAvantAcceptation({
       </div>
     </form>
   ) : (
-    <div ref={declencheur} className="pile-serree">
+    <div ref={declencheur} className={v2.pileSerree}>
       <Bouton variante="secondaire" onClick={ouvrir}>
         Corriger avant d’accepter
       </Bouton>
       {Object.keys(correction).length > 0 && (
         <>
-          <p className="mention" role="status">
+          <p className={v2.mention} role="status">
             Les valeurs corrigées seront enregistrées à l’acceptation.
           </p>
           <Bouton variante="discret" onClick={() => surChangement({})}>

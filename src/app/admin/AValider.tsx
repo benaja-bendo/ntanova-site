@@ -1,3 +1,7 @@
+import { v2 } from '@/ui/v2/classes';
+import { IconeBas } from '@/ui/shadcn/icones';
+import { Compteur } from './ui';
+import { cn } from '@/lib/utils';
 import { CorrectionAvantAcceptation } from './CorrectionAvantAcceptation';
 import { useCallback, useEffect, useState } from 'react';
 import { cycleAvecFormations } from '../../modele/formations';
@@ -52,14 +56,15 @@ import type {
   ReleveDecide,
 } from '../../modele/ports';
 import { ErreurDecision } from '../../modele/ports';
-import { Bouton } from '../../ui/actions';
-import { Dialogue } from '../../ui/Dialogue';
-import { SectionRepliable } from '../../ui/SectionRepliable';
+import { Bouton } from '@/ui/v2/admin';
+import { Dialogue } from '@/ui/v2/admin';
+import { SectionRepliable } from '@/ui/v2/admin';
 import { TitreEcran } from './Cadre';
 import { EcoleConnue } from './EcoleConnue';
 import { afficherTelephone } from '../../modele/telephone';
 import { libelleEquipement } from '../../modele/equipements-ecole';
-import { Bandeau, Champ, Choix, Icone, jour, quand } from '../../ui/composants';
+import { Bandeau, Champ, Choix, Icone } from '@/ui/v2/formulaire';
+import { jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
 import { ficheApresLeGeste, gesteDeLaTouche } from '../../modele/raccourcis';
 import { SignauxDuRelais } from './Sante';
@@ -94,46 +99,42 @@ const iconeDeLaLigne: Record<EtatDeLaLigne, 'coche' | 'alerte' | 'fiche'> = {
   bloque: 'alerte',
 };
 
-const classeDecision: Record<ReleveDecide['statut'], string> = {
-  a_valider: 'etat-attente',
-  a_corriger: 'etat-a-corriger',
-  accepte: 'etat-verifiee',
-  refuse: 'etat-refusee',
+const pastilleDecision: Record<ReleveDecide['statut'], string> = {
+  a_valider: v2.pastilleAttention,
+  a_corriger: v2.pastilleAttention,
+  accepte: v2.pastilleSucces,
+  refuse: v2.pastilleDanger,
 };
 
 function Etiquettes({ r }: { r: ReleveAValider }) {
+  const etiquettes = [
+    r.essai && [v2.pastilleNeutre, 'Lot d’essai'],
+    // Une information, jamais une alerte : le relais relève où il se trouve (ticket n° 67).
+    r.enZoneOuverte === false && !r.essai && [v2.pastilleNeutre, 'Hors zone ouverte'],
+    r.doublonPossible && [v2.pastilleAttention, 'Doublon possible'],
+    // Une correction ou une contre-visite peut se passer de photo : NTanova a déjà celle de l'école.
+    !r.enseigneRecue && [
+      v2.pastilleNeutre,
+      r.type === 'releve' ? 'Photo pas encore reçue' : 'Pas de nouvelle photo',
+    ],
+    r.photos > 1 && [v2.pastilleNeutre, `${r.photos} photos`],
+    r.indiceFormations && [v2.pastilleAttention, 'Formations à saisir'],
+  ].filter((e): e is [string, string] => Boolean(e));
+  if (etiquettes.length === 0) return null;
   return (
-    <span className="admin-etiquettes">
-      {r.essai && <span className="etiquette etat-telephone">Lot d'essai</span>}
-      {/* Une information, jamais une alerte : le relais relève où il se trouve (ticket n° 67). */}
-      {r.enZoneOuverte === false && !r.essai && (
-        <span className="etiquette etat-attente">Hors zone ouverte</span>
-      )}
-      {r.doublonPossible && <span className="etiquette etat-attente">Doublon possible</span>}
-      {!r.enseigneRecue && (
-        <span className="etiquette etat-telephone">
-          {/* Une correction ou une contre-visite peut se passer de photo : NTanova a déjà celle de l'école. */}
-          {r.type === 'releve' ? 'Photo pas encore reçue' : 'Pas de nouvelle photo'}
+    <span className="flex flex-wrap gap-1.5">
+      {etiquettes.map(([classe, texte]) => (
+        <span key={texte} className={classe}>
+          {texte}
         </span>
-      )}
-      {r.photos > 1 && <span className="etiquette etat-envoye">{r.photos} photos</span>}
-      {r.indiceFormations && <span className="etiquette etat-a-corriger">Formations à saisir</span>}
+      ))}
     </span>
   );
 }
 
-/** La lettre du rond d'une ligne : la première lettre du nom, sans les crochets des exemples. */
-function initialeDe(nom: string): string {
-  return (nom.replace(/^[^\p{L}]+/u, '').charAt(0) || '?').toUpperCase();
-}
-
 /** Depuis quand la fiche attend ; au-delà de 24 heures, elle se voit (ticket #76). */
 function AgeDeLaFiche({ age }: { age: ReturnType<typeof ageDe> }) {
-  return age.ancienne ? (
-    <span className="etiquette etat-attente">{age.texte}</span>
-  ) : (
-    <span className="mention">{age.texte}</span>
-  );
+  return age.ancienne ? <b className="font-bold text-bonus">{age.texte}</b> : <>{age.texte}</>;
 }
 
 export function AValider({
@@ -231,7 +232,7 @@ export function AValider({
     return () => removeEventListener('keydown', ecouter);
   }, [idsEnCours, idSelection]);
   const filtresDeLaFile = !surLesDecidees && releves !== null && (
-    <div className="admin-affiner" role="group" aria-label="Affiner la file">
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Affiner la file">
       {(
         [
           ['tout', 'Tout'],
@@ -243,7 +244,7 @@ export function AValider({
         <button
           key={valeur}
           type="button"
-          className="pastille-choix"
+          className={v2.puce}
           aria-pressed={filtre === valeur}
           onClick={() => setFiltre(valeur)}
         >
@@ -251,10 +252,10 @@ export function AValider({
         </button>
       ))}
       {relaisProposes.length > 1 && (
-        <label className="admin-affiner-relais">
-          <span className="visuellement-cache">Relais</span>
+        <label className="relative inline-flex">
+          <span className="sr-only">Relais</span>
           <select
-            className="champ"
+            className={cn(v2.puce, 'appearance-none pr-8')}
             value={relaisActif ?? ''}
             onChange={(e) => setRelaisChoisi(e.target.value || null)}
           >
@@ -265,6 +266,10 @@ export function AValider({
               </option>
             ))}
           </select>
+          <IconeBas
+            className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2"
+            aria-hidden
+          />
         </label>
       )}
       {(
@@ -278,7 +283,7 @@ export function AValider({
             <button
               key={valeur}
               type="button"
-              className="pastille-choix"
+              className={v2.puce}
               aria-pressed={indice === valeur}
               onClick={() => setIndice(indice === valeur ? null : valeur)}
             >
@@ -289,8 +294,42 @@ export function AValider({
     </div>
   );
 
+  /** Une ligne de la file : le nom en serif, le relais et l'âge, une pastille au besoin (planche « À valider »). */
+  const ligne = (
+    r: {
+      id: string;
+      nomEnseigne: string;
+      relais: string;
+      lot: string | null;
+      type: ReleveAValider['type'];
+    },
+    age: React.ReactNode,
+    etiquettes: React.ReactNode,
+  ) => (
+    <li key={r.id}>
+      <a
+        href={`#valider/${r.id}`}
+        aria-current={r.id === choisi ? 'true' : undefined}
+        onClick={(e) => {
+          e.preventDefault();
+          setAnnonce(null);
+          aller(`valider/${r.id}`);
+        }}
+        className="flex flex-col gap-1 rounded-lg border border-border bg-card px-3.5 py-3 text-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring aria-[current=true]:border-2 aria-[current=true]:border-primary aria-[current=true]:px-[13px] aria-[current=true]:py-[11px] [@media(hover:hover)]:hover:border-primary"
+      >
+        <b className="font-serif text-[17px] leading-snug">{r.nomEnseigne}</b>
+        <span className="text-sm text-muted-foreground">
+          {r.type !== 'releve' && `${libelleType[r.type]} · `}
+          {r.relais} · {age}
+          {r.lot ? <span className="sr-only">{` · Lot ${r.lot}`}</span> : null}
+        </span>
+        {etiquettes}
+      </a>
+    </li>
+  );
+
   return (
-    <div className={`pile avalider${selection ? ' avec-fiche' : ''}`}>
+    <>
       <TitreEcran
         titre="À valider"
         retour={selection ? { libelle: 'À valider', chemin: 'valider' } : null}
@@ -311,29 +350,35 @@ export function AValider({
         }
       />
 
-      <div className="avalider-onglets" role="group" aria-label="État des fiches">
-        {(
-          [
-            ['tout', 'À traiter', releves?.length ?? null, onglet === 'a_traiter'],
-            ['renvoyees', 'Renvoyées', renvoyeesN, onglet === 'renvoyees'],
-            ['decidees', 'Décidées', null, onglet === 'decidees'],
-          ] as const
-        ).map(([valeur, libelle, n, actif]) => (
-          <button
-            key={valeur}
-            type="button"
-            className="onglet-etat"
-            aria-pressed={actif}
-            onClick={() => setFiltre(valeur)}
-          >
-            {libelle}
-            {n !== null && n > 0 && <span className="onglet-compte">{n}</span>}
-          </button>
-        ))}
-        {filtresDeLaFile && <div className="avalider-filtres-larges">{filtresDeLaFile}</div>}
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3 border-b border-border max-lg:border-0">
+        <div
+          className="flex gap-5 max-lg:w-full max-lg:border-b max-lg:border-border"
+          role="group"
+          aria-label="État des fiches"
+        >
+          {(
+            [
+              ['tout', 'À traiter', releves?.length ?? null, onglet === 'a_traiter'],
+              ['renvoyees', 'Renvoyées', renvoyeesN, onglet === 'renvoyees'],
+              ['decidees', 'Décidées', null, onglet === 'decidees'],
+            ] as const
+          ).map(([valeur, libelle, n, actif]) => (
+            <button
+              key={valeur}
+              type="button"
+              aria-pressed={actif}
+              onClick={() => setFiltre(valeur)}
+              className="-mb-px flex min-h-11 cursor-pointer items-center border-0 border-b-[3px] border-transparent bg-transparent px-0 font-sans text-[15px] font-bold whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring aria-pressed:border-primary aria-pressed:text-primary-strong"
+            >
+              {libelle}
+              <Compteur n={n} />
+            </button>
+          ))}
+        </div>
+        {filtresDeLaFile && <div className="ml-auto pb-2 max-lg:hidden">{filtresDeLaFile}</div>}
       </div>
       {filtresDeLaFile && (
-        <details className="avalider-filtrer">
+        <details className={cn(v2.plie, 'lg:hidden', selection && 'max-lg:hidden')}>
           <summary>Filtrer</summary>
           {filtresDeLaFile}
         </details>
@@ -345,102 +390,58 @@ export function AValider({
         </Bandeau>
       )}
       {annonce && (
-        <p className="bandeau bandeau-envoye" role="status">
+        <p className={v2.bandeSucces} role="status">
           <Icone nom="coche" />
           {annonce}
         </p>
       )}
 
-      <div className={`admin-file${selection ? ' avec-selection' : ''}`}>
-        {surLesDecidees ? (
-          <ul className="admin-liste" aria-label="Décisions récentes">
-            {decides !== null && decidesVisibles.length === 0 && (
-              <li className="texte-doux">
-                {filtre === 'renvoyees'
-                  ? 'Aucune fiche n’attend son relais.'
-                  : 'Aucune décision pour le moment.'}
-              </li>
-            )}
-            {decidesVisibles.map((r) => (
-              <li key={r.id}>
-                <a
-                  href={`#valider/${r.id}`}
-                  className="admin-ligne"
-                  aria-current={r.id === choisi ? 'true' : undefined}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setAnnonce(null);
-                    aller(`valider/${r.id}`);
-                  }}
-                >
-                  <span className="admin-ligne-rond" aria-hidden="true">
-                    {initialeDe(r.nomEnseigne)}
-                  </span>
-                  <span className="admin-ligne-corps">
-                    <span className="admin-ligne-tete">
-                      <b>{r.nomEnseigne}</b>
-                      <span className="mention">
-                        {r.decideLe
-                          ? filtre === 'renvoyees'
-                            ? `Renvoyée ${ageDe(r.decideLe, maintenant).texte}`
-                            : jour(r.decideLe)
-                          : ''}
-                      </span>
-                    </span>
-                    <span className="mention">
-                      {libelleType[r.type]} · {r.relais}
-                      {r.lot ? ` · Lot ${r.lot}` : ''}
-                    </span>
-                    <span className="admin-etiquettes">
-                      <span className={`etiquette ${classeDecision[r.statut]}`}>
-                        {libelleStatutReleve[r.statut]}
-                      </span>
-                    </span>
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <ul className="admin-liste" aria-label="Envois à valider">
-            {releves !== null && visibles.length === 0 && (
-              <li className="texte-doux">
-                {releves.length > 0
-                  ? 'Aucune fiche ne correspond à ces filtres.'
-                  : 'Rien à valider pour le moment.'}
-              </li>
-            )}
-            {visibles.map((r) => (
-              <li key={r.id}>
-                <a
-                  href={`#valider/${r.id}`}
-                  className="admin-ligne"
-                  aria-current={r.id === choisi ? 'true' : undefined}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setAnnonce(null);
-                    aller(`valider/${r.id}`);
-                  }}
-                >
-                  <span className="admin-ligne-rond" aria-hidden="true">
-                    {initialeDe(r.nomEnseigne)}
-                  </span>
-                  <span className="admin-ligne-corps">
-                    <span className="admin-ligne-tete">
-                      <b>{r.nomEnseigne}</b>
-                      <AgeDeLaFiche age={ageDe(r.recuLe, maintenant)} />
-                    </span>
-                    <span className="mention">
-                      {libelleType[r.type]} · {r.relais}
-                      {r.lot ? ` · Lot ${r.lot}` : ''}
-                    </span>
-                    <Etiquettes r={r} />
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="flex items-start gap-4">
+        <ul
+          className={cn(
+            'm-0 flex w-full list-none flex-col gap-2 p-0 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:w-[250px] lg:shrink-0 lg:overflow-y-auto',
+            selection && 'max-lg:hidden',
+          )}
+          aria-label={surLesDecidees ? 'Décisions récentes' : 'Envois à valider'}
+        >
+          {surLesDecidees ? (
+            <>
+              {decides !== null && decidesVisibles.length === 0 && (
+                <li className="text-muted-foreground">
+                  {filtre === 'renvoyees'
+                    ? 'Aucune fiche n’attend son relais.'
+                    : 'Aucune décision pour le moment.'}
+                </li>
+              )}
+              {decidesVisibles.map((r) =>
+                ligne(
+                  r,
+                  r.decideLe
+                    ? filtre === 'renvoyees'
+                      ? `renvoyée ${ageDe(r.decideLe, maintenant).texte}`
+                      : jour(r.decideLe)
+                    : '',
+                  <span className={pastilleDecision[r.statut]}>
+                    {libelleStatutReleve[r.statut]}
+                  </span>,
+                ),
+              )}
+            </>
+          ) : (
+            <>
+              {releves !== null && visibles.length === 0 && (
+                <li className="text-muted-foreground">
+                  {releves.length > 0
+                    ? 'Aucune fiche ne correspond à ces filtres.'
+                    : 'Rien à valider pour le moment.'}
+                </li>
+              )}
+              {visibles.map((r) =>
+                ligne(r, <AgeDeLaFiche age={ageDe(r.recuLe, maintenant)} />, <Etiquettes r={r} />),
+              )}
+            </>
+          )}
+        </ul>
 
         {selection && (
           <Detail
@@ -460,7 +461,7 @@ export function AValider({
           />
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -507,21 +508,23 @@ function Photos({
 
   if (photos.length === 0) {
     return (
-      <figure className="admin-figure">
-        <div className="apercu-vide">Photo pas encore reçue</div>
+      <figure className="m-0 flex flex-col gap-2">
+        <div className="flex aspect-[4/3] items-center justify-center rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">
+          Photo pas encore reçue
+        </div>
       </figure>
     );
   }
   return (
-    <div className="pile-serree">
-      <details className="aide-repliee">
+    <div className={v2.pileSerree}>
+      <details className="text-sm [&>summary]:min-h-9 [&>summary]:cursor-pointer [&>summary]:font-bold [&>summary]:text-primary-strong [&>p]:mt-1.5">
         <summary>À savoir sur les photos</summary>
-        <p className="mention">
+        <p className={v2.mention}>
           Effacer l’original ne retire pas les copies déjà publiées sur le site : reconstruis le
           site après un retrait. Les copies partagées peuvent subsister.
         </p>
         {peutMarquer && aDesPubliables && (
-          <p className="mention">
+          <p className={v2.mention}>
             <b>Contrôler pour publication.</b> Photo nette, sans enfant ni donnée personnelle. Elle
             pourra apparaître sur la fiche publiée après la prochaine mise à jour du site.
             {aDesPrivees &&
@@ -530,10 +533,10 @@ function Photos({
         )}
       </details>
       {aMarquer.length > 1 && (
-        <div className="admin-actions">
+        <div className={v2.actions}>
           <button
             type="button"
-            className="bouton bouton-secondaire bouton-petit"
+            className={v2.boutonSecondairePetit}
             onClick={() =>
               void agir(async () => {
                 for (const p of aMarquer) await admin.marquerPhotoPubliable(p.id, true);
@@ -542,27 +545,29 @@ function Photos({
           >
             Contrôler les {aMarquer.length} photos
           </button>
-          <span className="mention">
+          <span className={v2.mention}>
             Seulement si aucune ne montre d’enfant ni de numéro lisible.
           </span>
         </div>
       )}
-      <div className="admin-photos" role="list" aria-label="Photos de l'envoi">
+      <div className="flex flex-col gap-4" role="list" aria-label="Photos de l'envoi">
         {photos.map((p) => (
-          <figure className="admin-figure" key={p.id} role="listitem">
+          <figure className="m-0 flex flex-col gap-2" key={p.id} role="listitem">
             {p.adresse ? (
               <button
                 type="button"
-                className="admin-photo-ouvrir"
+                className="block w-full cursor-zoom-in overflow-hidden rounded-lg border-0 bg-muted p-0 [&_img]:block [&_img]:aspect-[4/3] [&_img]:w-full [&_img]:object-cover"
                 aria-label={`Agrandir : ${libelleRolePhoto[p.role]}`}
                 onClick={() => setOuverte(p)}
               >
                 <img src={p.adresse} alt={`${libelleRolePhoto[p.role]} — ${nom}`} />
               </button>
             ) : (
-              <div className="apercu-vide">Photo illisible</div>
+              <div className="flex aspect-[4/3] items-center justify-center rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">
+                Photo illisible
+              </div>
             )}
-            <figcaption className="mention">
+            <figcaption className={v2.mention}>
               <b>{libelleRolePhoto[p.role]}</b>
               {p.role === 'signboard' && p.onYVoit && (
                 <>
@@ -574,7 +579,7 @@ function Photos({
                       : p.onYVoit.map((v) => ON_Y_VOIT_ADMIN[v]).join(', ')}
                   </span>
                   {!p.onYVoit.includes('signboard') && (
-                    <span className="admin-sous-ligne message-attention">
+                    <span className="block font-bold text-bonus">
                       L’enseigne n’est pas sur la photo.
                     </span>
                   )}
@@ -583,7 +588,7 @@ function Photos({
               {p.role === 'signboard' && (
                 <>
                   <br />
-                  <span className="admin-numero-saisi">
+                  <span className="font-bold text-foreground">
                     {numeroSaisi
                       ? `Numéro saisi par le relais : ${afficherTelephone(numeroSaisi)}`
                       : 'Aucun numéro saisi par le relais'}
@@ -597,9 +602,9 @@ function Photos({
               {' · '}
               {Math.round(p.octets / 1000)} Ko
             </figcaption>
-            <div className="admin-actions">
+            <div className={v2.actions}>
               {p.publiable ? (
-                <span className="etiquette etat-verifiee">
+                <span className={v2.pastilleSucces}>
                   {peutParaitreSurLeSite(p.role)
                     ? 'Contrôlée pour publication'
                     : 'Contrôlée : reste privée'}
@@ -607,7 +612,7 @@ function Photos({
               ) : !peutMarquer ? null : (
                 <button
                   type="button"
-                  className="bouton bouton-secondaire bouton-petit"
+                  className={v2.boutonSecondairePetit}
                   onClick={() => void agir(() => admin.marquerPhotoPubliable(p.id, true))}
                 >
                   {peutParaitreSurLeSite(p.role)
@@ -619,14 +624,14 @@ function Photos({
                 <>
                   <button
                     type="button"
-                    className="bouton bouton-petit admin-bouton-refus"
+                    className={v2.boutonRefusPetit}
                     onClick={() => void agir(() => admin.effacerPhoto(p.id, null))}
                   >
                     Confirmer : effacer la photo
                   </button>
                   <button
                     type="button"
-                    className="bouton bouton-secondaire bouton-petit"
+                    className={v2.boutonSecondairePetit}
                     onClick={() => setAEffacer(null)}
                   >
                     Annuler
@@ -634,7 +639,7 @@ function Photos({
                 </>
               ) : (
                 // Le droit d'effacement s'exerce aussi sur une fiche déjà décidée.
-                <button type="button" className="lien" onClick={() => setAEffacer(p.id)}>
+                <button type="button" className={v2.lien} onClick={() => setAEffacer(p.id)}>
                   Effacer la photo
                 </button>
               )}
@@ -642,7 +647,7 @@ function Photos({
           </figure>
         ))}
       </div>
-      {erreur && <p className="message-erreur">{erreur}</p>}
+      {erreur && <p className={v2.erreur}>{erreur}</p>}
       {ouverte?.adresse && (
         <Dialogue
           titre={`${libelleRolePhoto[ouverte.role]} — ${nom}`}
@@ -650,11 +655,11 @@ function Photos({
           entete={<h2>{libelleRolePhoto[ouverte.role]}</h2>}
         >
           <img
-            className="admin-photo-grande"
+            className="block h-auto max-h-[70dvh] w-full rounded-lg object-contain"
             src={ouverte.adresse}
             alt={`${libelleRolePhoto[ouverte.role]} — ${nom}`}
           />
-          <p className="mention">
+          <p className={v2.mention}>
             <a href={ouverte.adresse} target="_blank" rel="noopener noreferrer">
               Ouvrir l’original dans un nouvel onglet
             </a>
@@ -782,7 +787,7 @@ function Detail({
   if (!detail) {
     return (
       <section className="admin-detail" aria-busy={!erreur}>
-        {erreur ? <p className="message-erreur">{erreur}</p> : <p>Chargement…</p>}
+        {erreur ? <p className={v2.erreur}>{erreur}</p> : <p>Chargement…</p>}
       </section>
     );
   }
@@ -958,24 +963,31 @@ function Detail({
           ? 'Contact refusé · aucun contact reçu'
           : 'Aucun contact reçu';
 
+  const ligneFait =
+    'flex flex-col gap-1 border-b border-border py-3 first:pt-0 last:border-b-0 last:pb-0';
+  const libelleFait = 'text-[13px] font-bold text-muted-foreground';
   return (
-    <section className="admin-detail" aria-label="Envoi sélectionné">
-      <div className="avalider-fiche-tete">
-        <div>
-          <h2>{detail.nomEnseigne}</h2>
-          <p className="mention">
-            Relevée par {detail.relais} {quand(detail.prisLe)}
+    <section className="flex min-w-0 flex-1 flex-col gap-4" aria-label="Envoi sélectionné">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <h2 className="m-0 font-serif text-[26px] leading-tight font-bold">
+            {detail.nomEnseigne}
+          </h2>
+          <p className="m-0 text-sm text-muted-foreground">
+            {detail.relais} · reçue {quand(detail.prisLe)}
             {detail.lot && !detail.lotDeLaFicheDOrigine ? ` · Lot ${detail.lot}` : ''}
           </p>
         </div>
-        <span className="rang">
-          <span className="etiquette etat-attente">{libelleType[detail.type]}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          {detail.type !== 'releve' && (
+            <span className={v2.pastilleAttention}>{libelleType[detail.type]}</span>
+          )}
           {statutDecide && (
-            <span className={`etiquette ${classeDecision[statutDecide]}`}>
+            <span className={pastilleDecision[statutDecide]}>
               {libelleStatutReleve[statutDecide]}
             </span>
           )}
-          {rang && <span className="mention">{rang}</span>}
+          {rang && <span className="text-sm text-muted-foreground">{rang}</span>}
         </span>
       </div>
 
@@ -991,160 +1003,198 @@ function Detail({
         />
       )}
 
-      <Photos
-        admin={admin}
-        photos={photos}
-        nom={detail.nomEnseigne}
-        numeroSaisi={valeurs.numeroEnseigne}
-        surChangement={chargerPhotos}
-        peutMarquer={!refusee}
-      />
+      <div className="grid items-start gap-4 xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-card p-4">
+          <Photos
+            admin={admin}
+            photos={photos}
+            nom={detail.nomEnseigne}
+            numeroSaisi={valeurs.numeroEnseigne}
+            surChangement={chargerPhotos}
+            peutMarquer={!refusee}
+          />
+        </div>
+
+        <section
+          className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4"
+          aria-label="Partie publique"
+        >
+          <h3 className="sr-only">Public : ce qui se voit de la rue</h3>
+          <dl className="m-0 flex flex-col [&_dd]:m-0 [&_dd]:text-[17px] [&_dd]:font-bold">
+            <div className={ligneFait}>
+              <dt className={libelleFait}>Nom de l'établissement</dt>
+              <dd>{detail.nomEnseigne}</dd>
+              {nouvelleEcole && !lectureSeule && (
+                <span
+                  className="flex flex-wrap gap-2 pt-1"
+                  role="group"
+                  aria-label="Le nom, comparé à l’enseigne"
+                >
+                  <button
+                    type="button"
+                    className={v2.puceCarree}
+                    aria-pressed={nomCompare === 'comme'}
+                    onClick={() => setNomCompare('comme')}
+                  >
+                    Comme sur l’enseigne
+                  </button>
+                  <button
+                    type="button"
+                    className={v2.puceCarree}
+                    aria-pressed={nomCompare === 'different'}
+                    onClick={() => {
+                      setNomCompare('different');
+                      setDemandeCorrection((n) => n + 1);
+                    }}
+                  >
+                    Différent
+                  </button>
+                </span>
+              )}
+            </div>
+            {detail.sigle && (
+              <div className={ligneFait}>
+                <dt className={libelleFait}>Sigle</dt>
+                <dd>{detail.sigle}</dd>
+              </div>
+            )}
+            <div className={ligneFait}>
+              <dt className={libelleFait}>Type</dt>
+              <dd>{libelleTypeEcole[detail.typeEcole]}</dd>
+            </div>
+            <div className={ligneFait}>
+              <dt className={libelleFait}>Niveaux</dt>
+              <dd>{detail.niveaux.map((n) => libelleNiveau[n]).join(', ') || '—'}</dd>
+            </div>
+            {detail.programme && (
+              <div className={ligneFait}>
+                <dt className={libelleFait}>Programme</dt>
+                <dd>{detail.programme}</dd>
+              </div>
+            )}
+            {(detail.programmesVus !== null || detail.programmesEnPhoto) && (
+              <div className={ligneFait}>
+                <dt className={libelleFait}>Séries ou filières vues</dt>
+                <dd>
+                  {detail.programmesVus ?? '—'}
+                  {detail.programmesEnPhoto && (
+                    <span className="block text-sm font-normal text-muted-foreground">
+                      Le relais les a aussi prises en photo (panneau, affiche ou prospectus).
+                    </span>
+                  )}
+                </dd>
+              </div>
+            )}
+            <div className={ligneFait}>
+              <dt className={libelleFait}>Numéro sur l'enseigne</dt>
+              <dd className="flex flex-wrap items-center gap-2">
+                {detail.numeroEnseigne ? afficherTelephone(detail.numeroEnseigne) : '—'}
+                {aConfirmer !== null && !lectureSeule && choixNumero === null && (
+                  <span className={v2.pastilleAttention}>Sur la photo ?</span>
+                )}
+              </dd>
+              {aConfirmer !== null && !lectureSeule && (
+                <>
+                  <span
+                    className="flex flex-wrap gap-2 pt-1"
+                    role="group"
+                    aria-label="Le numéro, sur la photo ?"
+                  >
+                    <button
+                      type="button"
+                      className={v2.puceCarree}
+                      aria-pressed={choixNumero === 'verifie'}
+                      onClick={() => setChoixNumero('verifie')}
+                    >
+                      Sur la photo
+                    </button>
+                    {numeroPeutEtreRetire(detail) && (
+                      <button
+                        type="button"
+                        className={v2.puceCarree}
+                        aria-pressed={choixNumero === 'retire'}
+                        onClick={() => setChoixNumero('retire')}
+                      >
+                        Pas sur la photo
+                      </button>
+                    )}
+                  </span>
+                  <span className="text-[13px] text-muted-foreground">
+                    {numeroPeutEtreRetire(detail)
+                      ? 'Publié tel quel, avec « Appeler » ; « Pas sur la photo » : il ne sera pas publié.'
+                      : 'Pour ne pas le publier, accepte puis retire-le dans la fiche de l’école.'}
+                  </span>
+                </>
+              )}
+            </div>
+            <div className={ligneFait}>
+              <dt className={libelleFait}>Où</dt>
+              <dd className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5">
+                  {enZoneOuverte === false || position === null ? (
+                    <Icone nom="alerte" taille={16} />
+                  ) : null}
+                  {position === null
+                    ? 'Sans position'
+                    : enZoneOuverte === false
+                      ? 'Hors zone ouverte'
+                      : enZoneOuverte === true
+                        ? 'En zone ouverte'
+                        : detail.essai
+                          ? 'Position prise'
+                          : 'Zone inconnue'}
+                </span>
+                {position && (
+                  <a
+                    className="text-[15px] text-primary underline underline-offset-4"
+                    href={`https://www.openstreetmap.org/?mlat=${position.latitude}&mlon=${position.longitude}#map=18/${position.latitude}/${position.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Voir sur OpenStreetMap"
+                  >
+                    Carte
+                  </a>
+                )}
+              </dd>
+              <span className="text-[13px] text-muted-foreground">
+                {[
+                  detail.precisionM !== null
+                    ? `précision ${Math.round(detail.precisionM)} m`
+                    : null,
+                  detail.repere ? `repère : ${detail.repere}` : null,
+                  horsDuSecteur ? `hors du secteur de ${detail.relais}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </div>
+          </dl>
+        </section>
+      </div>
+
+      {detail.doublonPossible && (
+        <Bandeau ton="attente" icone="alerte">
+          <p>
+            <b>Une école est déjà relevée à 40&nbsp;m</b>
+            {detail.doublonDe ? <>&nbsp;: {detail.doublonDe.nom}</> : null}. Le relais a répondu
+            «&nbsp;
+            {detail.reponseDoublon === 'la_meme'
+              ? 'la même école'
+              : detail.reponseDoublon === 'une_autre'
+                ? 'une autre école'
+                : 'sans réponse'}
+            &nbsp;».
+          </p>
+        </Bandeau>
+      )}
 
       <SignauxDuRelais admin={admin} relaisId={detail.relaisId} prenom={detail.relais} />
 
-      <div className="admin-deux">
-        <div className="pile-serree">
-          <p className="rang">
-            <Icone nom={enZoneOuverte === false ? 'alerte' : 'coche'} taille={16} />
-            <span>
-              <b>
-                {position === null
-                  ? 'Sans position'
-                  : enZoneOuverte === false
-                    ? 'Hors zone ouverte'
-                    : enZoneOuverte === true
-                      ? 'En zone ouverte'
-                      : detail.essai
-                        ? 'Position prise'
-                        : 'Zone inconnue'}
-              </b>
-              {detail.precisionM !== null && ` · précision ${Math.round(detail.precisionM)} m`}
-              {horsDuSecteur && ` · hors du secteur de ${detail.relais}`}
-            </span>
-          </p>
-          {position && (
-            <a
-              className="lien"
-              href={`https://www.openstreetmap.org/?mlat=${position.latitude}&mlon=${position.longitude}#map=18/${position.latitude}/${position.longitude}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Voir sur OpenStreetMap
-            </a>
-          )}
-        </div>
-        <div className="pile-serree">
-          {detail.doublonPossible && (
-            <Bandeau ton="attente" icone="alerte">
-              <p>
-                <b>Une école est déjà relevée à 40&nbsp;m</b>
-                {detail.doublonDe ? <>&nbsp;: {detail.doublonDe.nom}</> : null}. Le relais a répondu
-                «&nbsp;
-                {detail.reponseDoublon === 'la_meme'
-                  ? 'la même école'
-                  : detail.reponseDoublon === 'une_autre'
-                    ? 'une autre école'
-                    : 'sans réponse'}
-                &nbsp;».
-              </p>
-            </Bandeau>
-          )}
-        </div>
-      </div>
-
-      <section className="pile-serree" aria-label="Partie publique">
-        <h3 className="rang">
-          <Icone nom="oeil" />
-          Public : ce qui se voit de la rue
-        </h3>
-        <dl className="admin-champs">
-          <dt>Nom de l'établissement</dt>
-          <dd>
-            {detail.nomEnseigne}
-            {nouvelleEcole && !lectureSeule && (
-              <span
-                className="admin-comparer"
-                role="group"
-                aria-label="Le nom, comparé à l’enseigne"
-              >
-                <button
-                  type="button"
-                  className="pastille-choix"
-                  aria-pressed={nomCompare === 'comme'}
-                  onClick={() => setNomCompare('comme')}
-                >
-                  Comme sur l’enseigne
-                </button>
-                <button
-                  type="button"
-                  className="pastille-choix"
-                  aria-pressed={nomCompare === 'different'}
-                  onClick={() => {
-                    setNomCompare('different');
-                    setDemandeCorrection((n) => n + 1);
-                  }}
-                >
-                  Différent
-                </button>
-              </span>
-            )}
-          </dd>
-          {detail.sigle && (
-            <>
-              <dt>Sigle</dt>
-              <dd>{detail.sigle}</dd>
-            </>
-          )}
-          <dt>Type</dt>
-          <dd>{libelleTypeEcole[detail.typeEcole]}</dd>
-          <dt>Niveaux</dt>
-          <dd>{detail.niveaux.map((n) => libelleNiveau[n]).join(', ') || '—'}</dd>
-          <dt>Programme</dt>
-          <dd>{detail.programme ?? '—'}</dd>
-          {(detail.programmesVus !== null || detail.programmesEnPhoto) && (
-            <>
-              <dt>Séries ou filières vues</dt>
-              <dd>
-                {detail.programmesVus ?? '—'}
-                {detail.programmesEnPhoto && (
-                  <span className="mention admin-sous-ligne">
-                    Le relais les a aussi prises en photo (panneau, affiche ou prospectus).
-                  </span>
-                )}
-              </dd>
-            </>
-          )}
-          <dt>Repère</dt>
-          <dd>{detail.repere ?? '—'}</dd>
-          <dt>Numéro sur l'enseigne</dt>
-          <dd>
-            {detail.numeroEnseigne ? afficherTelephone(detail.numeroEnseigne) : '—'}
-            {aConfirmer !== null && !lectureSeule && (
-              <span
-                className={`etiquette ${
-                  choixNumero === 'verifie'
-                    ? 'etat-envoye'
-                    : choixNumero === 'retire'
-                      ? 'etat-refusee'
-                      : 'etat-attente'
-                } admin-etiquette-numero`}
-              >
-                {choixNumero === 'verifie'
-                  ? 'Sur la photo'
-                  : choixNumero === 'retire'
-                    ? 'Pas sur la photo'
-                    : 'Sur la photo ?'}
-              </span>
-            )}
-          </dd>
-        </dl>
-      </section>
-
       {(faitsDuBonus.length > 0 || detail.remarque || detail.autreSiteDe) && (
-        <section className="pile-serree" aria-label="Le bonus du relais">
-          <h3 className="rang">Le bonus du relais</h3>
+        <section className={v2.pileSerree} aria-label="Le bonus du relais">
+          <h3 className={v2.rang}>Le bonus du relais</h3>
           {detail.autreSiteDe && (
-            <p className="mention">
+            <p className={v2.mention}>
               Le relais dit que c’est un autre site d’une école connue (choisie dans sa liste).
             </p>
           )}
@@ -1154,10 +1204,10 @@ function Detail({
             </p>
           )}
           {faitsDuBonus.length > 0 && (
-            <fieldset className="pile-serree">
+            <fieldset className={v2.pileSerree}>
               <legend>Ce qu’il a vu (gardé comme vu sur place à l’acceptation)</legend>
               {faitsDuBonus.map((f) => (
-                <label className="case" key={f.cle}>
+                <label className={v2.case} key={f.cle}>
                   <input
                     type="checkbox"
                     checked={!ecartes.has(f.cle)}
@@ -1180,16 +1230,16 @@ function Detail({
       )}
 
       {(Object.keys(retenues).length > 0 || detail.revision) && (
-        <section className="admin-motif pile-serree" aria-label="Valeurs retenues par NTanova">
+        <section className={v2.motifPile} aria-label="Valeurs retenues par NTanova">
           <h3>Valeurs retenues par NTanova</h3>
-          <p className="mention">
+          <p className={v2.mention}>
             {detail.revision
               ? `Enregistrées ${quand(detail.revision.le)}. Le relevé original ci-dessus est conservé.`
               : 'Préparées pour l’acceptation ; le relevé original ci-dessus est conservé.'}
           </p>
-          <dl className="admin-champs">
+          <dl className={v2.champs}>
             {Object.entries(detail.revision?.valeurs ?? retenues).map(([cle, valeur]) => (
-              <div className="admin-pleine-largeur" key={cle}>
+              <div className={v2.large} key={cle}>
                 <dt>
                   {
                     (
@@ -1221,20 +1271,20 @@ function Detail({
       )}
 
       {erreur && (
-        <p className="message-erreur" role="alert">
+        <p className={v2.erreur} role="alert">
           {erreur}
         </p>
       )}
 
       {lectureSeule ? (
-        <p className="admin-decision mention">
+        <p className="m-0 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
           Décision prise. Pour revenir dessus : demander au relais une nouvelle fiche (un refus est
           définitif), ou agir sur l'école dans l'onglet « Écoles ».
         </p>
       ) : (
         <>
           <fieldset
-            className="admin-decision pile"
+            className="m-0 flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-4 empty:hidden"
             disabled={enCours}
             aria-label="Décision de NTanova"
           >
@@ -1248,7 +1298,7 @@ function Detail({
               />
             )}
             {editionInformations && (
-              <p className="mention">
+              <p className={v2.mention}>
                 Utilise les valeurs corrigées ou annule leur saisie avant de décider.
               </p>
             )}
@@ -1275,7 +1325,7 @@ function Detail({
 
             {!detail.essai && (detail.type !== 'correction' || detail.corrigeUneFicheEnAttente) && (
               <fieldset
-                className="pile-serree formulaire-occupe"
+                className={v2.occupe}
                 disabled={editionInformations}
                 aria-label="Que faire de cette fiche"
               >
@@ -1290,7 +1340,7 @@ function Detail({
                     {(a) => (
                       <select
                         {...a}
-                        className="champ"
+                        className={v2.champ}
                         value={cible.institutionId}
                         onChange={(ev) =>
                           setCible({ mode: 'new_campus', institutionId: ev.target.value })
@@ -1310,7 +1360,7 @@ function Detail({
                     {(a) => (
                       <select
                         {...a}
-                        className="champ"
+                        className={v2.champ}
                         value={cible.campusId}
                         onChange={(ev) => setCible({ mode: cible.mode, campusId: ev.target.value })}
                       >
@@ -1350,7 +1400,7 @@ function Detail({
                     {(a) => (
                       <select
                         {...a}
-                        className="champ"
+                        className={v2.champ}
                         value={divisionId}
                         onChange={(ev) => setDivisionId(ev.target.value)}
                       >
@@ -1377,7 +1427,7 @@ function Detail({
                     {(a) => (
                       <input
                         {...a}
-                        className="champ"
+                        className={v2.champ}
                         type="text"
                         maxLength={120}
                         autoComplete="off"
@@ -1389,12 +1439,12 @@ function Detail({
                 )}
                 {avecFormations && (
                   <>
-                    <p className="mention">
+                    <p className={v2.mention}>
                       Lis les photos du panneau ou du prospectus : les séries et les formations
                       notées ici rendent l’école cherchable (série C, BTS, licence…).
                     </p>
                     {detail.formationsVues.length > 0 && (
-                      <p className="mention" data-testid="formations-du-relais">
+                      <p className={v2.mention} data-testid="formations-du-relais">
                         <b>Cochées par le relais sur place :</b>{' '}
                         {detail.formationsVues.map((f) => f.titre).join(', ')}. Elles sont déjà dans
                         la liste ci-dessous : corrige-les avec les photos avant d’accepter.
@@ -1411,46 +1461,12 @@ function Detail({
               </fieldset>
             )}
 
-            {aConfirmer !== null && (
-              <fieldset className="admin-numero pile-serree">
-                <legend>
-                  Numéro écrit sur l’enseigne : <b>{afficherTelephone(aConfirmer)}</b>
-                </legend>
-                <p className="mention">
-                  Saisi par le relais : compare-le à la photo de l’enseigne ci-dessus. Il sera
-                  publié tel quel, avec un bouton « Appeler », dès que l’école le sera.
-                </p>
-                <div className="admin-comparer" role="group" aria-label="Le numéro, sur la photo ?">
-                  <button
-                    type="button"
-                    className="pastille-choix"
-                    aria-pressed={choixNumero === 'verifie'}
-                    onClick={() => setChoixNumero('verifie')}
-                  >
-                    Sur la photo
-                  </button>
-                  {numeroPeutEtreRetire(detail) && (
-                    <button
-                      type="button"
-                      className="pastille-choix"
-                      aria-pressed={choixNumero === 'retire'}
-                      onClick={() => setChoixNumero('retire')}
-                    >
-                      Pas sur la photo
-                    </button>
-                  )}
-                </div>
-                <p className="mention">
-                  {numeroPeutEtreRetire(detail)
-                    ? '« Pas sur la photo » : il ne sera pas publié.'
-                    : 'Pour ne pas le publier, accepte puis retire-le dans la fiche de l’école.'}
-                </p>
-              </fieldset>
-            )}
-
             {bilanAvant && (
-              <section className="admin-avant pile-serree" aria-label="Avant d’accepter">
-                <h3 className="rang">
+              <section
+                className="flex flex-col gap-2 border-t border-border pt-4"
+                aria-label="Avant d’accepter"
+              >
+                <h3 className={v2.rang}>
                   <Icone nom="coche" />
                   Avant d’accepter
                 </h3>
@@ -1459,9 +1475,9 @@ function Detail({
                     ? 'Il reste un choix à faire avant de pouvoir accepter.'
                     : 'Rien ne bloque : tu peux accepter.'}
                 </p>
-                <ul className="admin-avant-liste">
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[15px]">
                   {bilanAvant.lignes.map((l) => (
-                    <li key={l.cle} className="rang">
+                    <li key={l.cle} className={v2.rang}>
                       <Icone nom={iconeDeLaLigne[l.etat]} taille={16} />
                       <span>
                         <b>{l.titre}</b> · {l.texte}
@@ -1469,23 +1485,23 @@ function Detail({
                     </li>
                   ))}
                 </ul>
-                <p className="mention">{bilanAvant.phrase}</p>
+                <p className={v2.mention}>{bilanAvant.phrase}</p>
               </section>
             )}
 
             {manque && !detail.essai && (
-              <p className="message-attention" role="status">
+              <p className={v2.attention} role="status">
                 {manque}
               </p>
             )}
           </fieldset>
           {/* Les boutons sont un enfant direct de la fiche : « collants », ils restent à l'écran pendant tout son défilement. */}
           <fieldset
-            className="admin-decision-barre pile-serree"
+            className="sticky bottom-16 z-10 m-0 -mx-4 flex min-w-0 flex-col gap-3 border-0 border-t border-border bg-background px-4 py-3 lg:bottom-0 lg:mx-0 lg:px-0"
             disabled={enCours}
             aria-label="Accepter, corriger ou refuser"
           >
-            <div className="admin-actions">
+            <div className={v2.actions}>
               {!detail.essai && (
                 <Bouton
                   type="button"
@@ -1524,21 +1540,21 @@ function Detail({
               )}
               <button
                 type="button"
-                className="bouton bouton-secondaire"
+                className={v2.boutonSecondaire}
                 disabled={editionInformations}
                 aria-expanded={mode === 'correction'}
                 onClick={() => setMode(mode === 'correction' ? null : 'correction')}
                 aria-label="Demander une correction"
               >
-                <span className="seulement-tel">Corriger</span>
-                <span className="seulement-ordi">Demander une correction</span>
+                <span className="lg:hidden">Corriger</span>
+                <span className="max-lg:hidden">Demander une correction</span>
               </button>
-              <span className="mention admin-consequence">
+              <span className="text-sm text-muted-foreground max-lg:hidden">
                 Accepter crée l’école sans la publier.
               </span>
               <button
                 type="button"
-                className="bouton bouton-secondaire admin-bouton-refus"
+                className={cn(v2.boutonRefus, 'ml-auto')}
                 disabled={editionInformations}
                 aria-expanded={mode === 'refus'}
                 onClick={() => {
@@ -1552,7 +1568,7 @@ function Detail({
 
             {mode && (
               <form
-                className="admin-motif"
+                className={v2.motif}
                 onSubmit={(e) => {
                   e.preventDefault();
                   const texte = message.trim() || null;
@@ -1578,7 +1594,7 @@ function Detail({
                   {(a) => (
                     <select
                       {...a}
-                      className="champ"
+                      className={v2.champ}
                       value={motif}
                       onChange={(e) => setMotif(e.target.value as Valeur<'motif_decision'>)}
                     >
@@ -1602,7 +1618,7 @@ function Detail({
                   {(a) => (
                     <textarea
                       {...a}
-                      className="champ"
+                      className={v2.champ}
                       rows={2}
                       maxLength={500}
                       placeholder="Ex. : la photo est floue, reprenez-la de face."
@@ -1630,12 +1646,12 @@ function Detail({
         synthese={`${syntheseContact}${erreurContact ? ' · Action à réessayer' : ''}`}
       >
         {efface && (
-          <p className="bandeau bandeau-envoye" role="status">
+          <p className={v2.bandeSucces} role="status">
             {efface}
           </p>
         )}
         {erreurContact && (
-          <p className="message-erreur" role="alert">
+          <p className={v2.erreur} role="alert">
             {erreurContact}
           </p>
         )}
@@ -1650,8 +1666,8 @@ function Detail({
         />
 
         {personnes.length > 0 && (
-          <section className="pile-serree" aria-label="Écrire à la direction">
-            <h3 className="rang">
+          <section className={v2.pileSerree} aria-label="Écrire à la direction">
+            <h3 className={v2.rang}>
               <Icone nom="coche" />
               Écrire à la direction
             </h3>

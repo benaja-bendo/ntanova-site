@@ -206,7 +206,11 @@ export function Bandeau({
   children: ReactNode;
 }) {
   return (
-    <Bande ton={tons[ton]} icone={icone ? <Icone nom={icone} /> : undefined}>
+    <Bande
+      ton={tons[ton]}
+      icone={icone ? <Icone nom={icone} /> : undefined}
+      role={ton === 'erreur' ? 'alert' : undefined}
+    >
       {children}
     </Bande>
   );

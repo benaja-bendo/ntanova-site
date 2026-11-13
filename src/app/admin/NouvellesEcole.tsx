@@ -1,3 +1,4 @@
+import { v2 } from '@/ui/v2/classes';
 import { useCallback, useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
@@ -9,8 +10,8 @@ import { libelleFonction, libelleGenreNouvelle } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
 import { dateLongue } from '../../modele/pointe-noire';
 import type { PortAdministration } from '../../modele/ports';
-import { Bouton } from '../../ui/actions';
-import { Champ, Choix } from '../../ui/composants';
+import { Bouton } from '@/ui/v2/admin';
+import { Champ, Choix } from '@/ui/v2/formulaire';
 import { messageErreur } from './ChampPosition';
 
 const CANAUX = [
@@ -76,26 +77,26 @@ export function NouvellesEcole({
   const publiees = (liste ?? []).filter((x) => x.etat === 'publiee');
 
   return (
-    <section className="pile-serree" aria-label="Nouvelles de l’école">
+    <section className={v2.pileSerree} aria-label="Nouvelles de l’école">
       <h3>Nouvelles</h3>
       {liste === null ? (
         <p aria-busy="true">Chargement…</p>
       ) : publiees.length === 0 ? (
-        <p className="mention">Aucune nouvelle : la rubrique n’existe pas sur la page.</p>
+        <p className={v2.mention}>Aucune nouvelle : la rubrique n’existe pas sur la page.</p>
       ) : (
         <ul className="admin-liste-manques">
           {publiees.map((x) => (
             <li key={x.id}>
               <span>
                 <b>{x.titre}</b>
-                <span className="mention admin-sous-ligne">
+                <span className={v2.mentionBloc}>
                   {libelleGenreNouvelle[x.genre]} · {dateLongue(x.publieeLe)}
                   {x.fournieParLEcole ? ' · fournie par l’école' : ''}
                 </span>
               </span>
               <button
                 type="button"
-                className="lien lien-danger"
+                className={v2.lienDanger}
                 disabled={enCours}
                 onClick={() =>
                   void agir(() => admin.retirerNouvelle(x.id), 'Nouvelle retirée de la page.')
@@ -108,7 +109,7 @@ export function NouvellesEcole({
         </ul>
       )}
       <form
-        className="admin-motif pile-serree"
+        className={v2.motifPile}
         aria-label="Une nouvelle"
         onSubmit={(ev) => {
           ev.preventDefault();
@@ -132,7 +133,7 @@ export function NouvellesEcole({
           {(a) => (
             <input
               {...a}
-              className="champ"
+              className={v2.champ}
               maxLength={80}
               value={n.titre}
               onChange={(e) => setN({ ...n, titre: e.target.value })}
@@ -143,7 +144,7 @@ export function NouvellesEcole({
           {(a) => (
             <textarea
               {...a}
-              className="champ"
+              className={v2.champ}
               rows={4}
               maxLength={400}
               value={n.texte}
@@ -151,7 +152,7 @@ export function NouvellesEcole({
             />
           )}
         </Champ>
-        <label className="case">
+        <label className={v2.case}>
           <input
             type="checkbox"
             checked={n.fournieParLEcole}
@@ -159,13 +160,13 @@ export function NouvellesEcole({
           />
           L’école l’a fournie (« Nouvelle de l’école ») ; sinon « Nouvelle »
         </label>
-        <fieldset className="pile-serree">
+        <fieldset className={v2.pileSerree}>
           <legend>L’accord de l’école (reste privé)</legend>
           <Champ libelle="Qui">
             {(a) => (
               <select
                 {...a}
-                className="champ"
+                className={v2.champ}
                 value={qui}
                 onChange={(e) => setQui(e.target.value as Valeur<'fonction_direction'>)}
               >
@@ -181,7 +182,7 @@ export function NouvellesEcole({
             {(a) => (
               <select
                 {...a}
-                className="champ"
+                className={v2.champ}
                 value={canal}
                 onChange={(e) => setCanal(e.target.value as typeof canal)}
               >
@@ -197,7 +198,7 @@ export function NouvellesEcole({
             {(a) => (
               <input
                 {...a}
-                className="champ"
+                className={v2.champ}
                 type="date"
                 value={accordLe}
                 onChange={(e) => setAccordLe(e.target.value)}
@@ -205,9 +206,9 @@ export function NouvellesEcole({
             )}
           </Champ>
         </fieldset>
-        <div className="pile-serree" aria-label="Ce que verra un parent">
-          <span className="surtitre-doux">Ce que verra un parent</span>
-          <p className="mention">
+        <div className={v2.pileSerree} aria-label="Ce que verra un parent">
+          <span className={v2.surtitre}>Ce que verra un parent</span>
+          <p className={v2.mention}>
             {(n.fournieParLEcole ? 'Nouvelle de l’école' : 'Nouvelle') +
               ' · ' +
               dateLongue(n.publieeLe)}
@@ -225,12 +226,12 @@ export function NouvellesEcole({
         >
           Publier sur la fiche
         </Bouton>
-        <p className="mention" id="raison-nouvelle" role="status">
+        <p className={v2.mention} id="raison-nouvelle" role="status">
           {raison ?? 'Visible à la prochaine mise à jour du site.'}
         </p>
       </form>
       {erreur && (
-        <p className="message-erreur" role="alert">
+        <p className={v2.erreur} role="alert">
           {erreur}
         </p>
       )}

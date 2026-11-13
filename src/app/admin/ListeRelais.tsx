@@ -1,3 +1,4 @@
+import { v2 } from '@/ui/v2/classes';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ErreurDecision,
@@ -5,7 +6,8 @@ import {
   type PortAdministration,
   type RelaisVu,
 } from '../../modele/ports';
-import { Bandeau, jour } from '../../ui/composants';
+import { Bandeau } from '@/ui/v2/formulaire';
+import { jour } from '../../ui/composants';
 import { TitreEcran } from './Cadre';
 
 const libelleStatut: Record<RelaisVu['statut'], { texte: string; classe: string }> = {
@@ -26,11 +28,11 @@ export function signauxDuRelais(r: Pick<RelaisVu, 'compteurs'>): string[] {
 
 function SignalDuRelais({ r }: { r: RelaisVu }) {
   const s = signauxDuRelais(r);
-  if (s.length === 0) return <span className="texte-doux">Aucun</span>;
+  if (s.length === 0) return <span className={v2.doux}>Aucun</span>;
   return (
     <span className="relais-signaux">
       {s.map((x) => (
-        <span key={x} className="etiquette etat-attente">
+        <span key={x} className={v2.pastilleAttention}>
           {x}
         </span>
       ))}
@@ -90,9 +92,9 @@ function LigneRelais({
     <tr>
       <td>
         <b>{r.prenom || '[sans prénom]'}</b>
-        {r.email && <span className="mention admin-sous-ligne admin-email">{r.email}</span>}
-        <span className="mention admin-sous-ligne">Première connexion : {jour(r.creeLe)}</span>
-        <span className="mention admin-sous-ligne">{nomLot}</span>
+        {r.email && <span className={v2.mentionEmail}>{r.email}</span>}
+        <span className={v2.mentionBloc}>Première connexion : {jour(r.creeLe)}</span>
+        <span className={v2.mentionBloc}>{nomLot}</span>
       </td>
       <td>
         <span className={`etiquette ${libelleStatut[r.statut].classe}`}>
@@ -102,9 +104,9 @@ function LigneRelais({
       <td>
         {r.compteurs.envoyees}
         {r.compteurs.envoyeesSemaine > 0 && (
-          <span className="texte-doux"> · {r.compteurs.envoyeesSemaine} cette semaine</span>
+          <span className={v2.doux}> · {r.compteurs.envoyeesSemaine} cette semaine</span>
         )}
-        <span className="mention admin-sous-ligne">
+        <span className={v2.mentionBloc}>
           {r.compteurs.aValider > 0 && `${r.compteurs.aValider} à valider · `}
           {r.compteurs.acceptees} acceptée{r.compteurs.acceptees > 1 ? 's' : ''}
           {r.compteurs.aCorriger > 0 && ` · ${r.compteurs.aCorriger} à corriger`}
@@ -117,9 +119,9 @@ function LigneRelais({
         <SignalDuRelais r={r} />
       </td>
       <td>
-        <div className="admin-actions">
+        <div className={v2.actions}>
           <select
-            className="champ admin-choix-lot"
+            className={v2.champ}
             aria-label={`Lot de ${r.prenom}`}
             value={lot}
             onChange={(e) => setLot(e.target.value)}
@@ -135,7 +137,7 @@ function LigneRelais({
             <>
               <button
                 type="button"
-                className="bouton bouton-secondaire bouton-petit"
+                className={v2.boutonSecondairePetit}
                 disabled={enCours || lot === r.lotId}
                 onClick={() =>
                   void agir(
@@ -148,7 +150,7 @@ function LigneRelais({
               </button>
               <button
                 type="button"
-                className="bouton bouton-secondaire bouton-petit admin-bouton-refus"
+                className={v2.boutonRefusPetit}
                 disabled={enCours}
                 onClick={() =>
                   void agir(() => admin.suspendreRelais(r.id), `${r.prenom} est suspendu.`)
@@ -161,7 +163,7 @@ function LigneRelais({
             <>
               <button
                 type="button"
-                className="bouton bouton-petit"
+                className={v2.boutonPetit}
                 disabled={enCours}
                 onClick={() =>
                   void agir(() => admin.activerRelais(r.id, lot || null), `${r.prenom} est actif.`)
@@ -173,7 +175,7 @@ function LigneRelais({
               {r.statut === 'en_attente' && (
                 <button
                   type="button"
-                  className="bouton bouton-secondaire bouton-petit admin-bouton-refus"
+                  className={v2.boutonRefusPetit}
                   disabled={enCours}
                   onClick={() =>
                     void agir(() => admin.suspendreRelais(r.id), `${r.prenom} est écarté.`)
@@ -185,7 +187,7 @@ function LigneRelais({
             </>
           )}
         </div>
-        {erreur && <p className="message-erreur">{erreur}</p>}
+        {erreur && <p className={v2.erreur}>{erreur}</p>}
       </td>
     </tr>
   );
@@ -229,7 +231,7 @@ function TableauRelais({
           ))}
           {vide && (
             <tr>
-              <td colSpan={6} className="texte-doux">
+              <td colSpan={6} className={v2.doux}>
                 {vide}
               </td>
             </tr>
@@ -281,7 +283,7 @@ export function ListeRelais({
   };
 
   return (
-    <div className="pile">
+    <div className={v2.pile}>
       <TitreEcran
         titre="Relais"
         regles={
@@ -307,7 +309,7 @@ export function ListeRelais({
         </Bandeau>
       )}
       {annonce && (
-        <p className="bandeau bandeau-envoye" role="status">
+        <p className={v2.bandeSucces} role="status">
           {annonce}
         </p>
       )}
@@ -341,9 +343,9 @@ export function ListeRelais({
           />
         </details>
       )}
-      <details className="admin-sous-ligne">
+      <details className={v2.mentionBloc}>
         <summary>Quelqu’un ne peut pas se connecter ?</summary>
-        <p className="mention">
+        <p className={v2.mention}>
           Tant que l’application Google est en mode « test », seules les adresses ajoutées dans
           Google Cloud (Écran de consentement, Utilisateurs de test) peuvent se connecter. Publier
           l’application lève cette limite.

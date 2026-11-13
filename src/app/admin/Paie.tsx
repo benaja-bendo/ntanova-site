@@ -3,11 +3,13 @@
  * ne le compte qu'une fois ; ici on le voit, on clôt la semaine, puis on note chaque paiement Mobile Money fait
  * avec sa référence. NTanova paie des relais : il n'encaisse jamais de frais de scolarité.
  */
+import { v2 } from '@/ui/v2/classes';
 import { useCallback, useEffect, useState } from 'react';
 import { estUnVendredi, francs, prochainVendredi, vendrediLong } from '../../modele/paie';
 import type { LignePaie, PaiementVu, PortAdministration, SemainePaie } from '../../modele/ports';
 import { afficherTelephone } from '../../modele/telephone';
-import { Bandeau, Champ, jour } from '../../ui/composants';
+import { Bandeau, Champ } from '@/ui/v2/formulaire';
+import { jour } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
 import { TitreEcran } from './Cadre';
 
@@ -47,13 +49,9 @@ function NumeroMobileMoney({
     }
   };
   return (
-    <form
-      className="admin-actions"
-      onSubmit={(ev) => void noter(ev)}
-      aria-label="Numéro Mobile Money"
-    >
+    <form className={v2.actions} onSubmit={(ev) => void noter(ev)} aria-label="Numéro Mobile Money">
       <select
-        className="champ admin-choix-lot"
+        className={v2.champ}
         aria-label="Opérateur"
         value={operateur}
         onChange={(ev) => setOperateur(ev.target.value as Operateur)}
@@ -65,7 +63,7 @@ function NumeroMobileMoney({
         ))}
       </select>
       <input
-        className="champ admin-note"
+        className={v2.zone}
         type="tel"
         inputMode="tel"
         autoComplete="off"
@@ -75,7 +73,7 @@ function NumeroMobileMoney({
         onChange={(ev) => setNumero(ev.target.value)}
       />
       <input
-        className="champ admin-note"
+        className={v2.zone}
         type="text"
         autoComplete="off"
         aria-label="Au nom de"
@@ -83,14 +81,10 @@ function NumeroMobileMoney({
         value={titulaire}
         onChange={(ev) => setTitulaire(ev.target.value)}
       />
-      <button
-        type="submit"
-        className="bouton bouton-secondaire bouton-petit"
-        disabled={numero.trim() === ''}
-      >
+      <button type="submit" className={v2.boutonSecondairePetit} disabled={numero.trim() === ''}>
         Noter le numéro
       </button>
-      {erreur && <span className="message-erreur">{erreur}</span>}
+      {erreur && <span className={v2.erreur}>{erreur}</span>}
     </form>
   );
 }
@@ -129,7 +123,7 @@ function SemaineOuverte({
   };
 
   return (
-    <div className="admin-tableau" aria-label={`Paiements du ${semaine.vendredi}`}>
+    <div className={v2.tableau} aria-label={`Paiements du ${semaine.vendredi}`}>
       <table>
         <thead>
           <tr>
@@ -146,7 +140,7 @@ function SemaineOuverte({
               <td>
                 <b>{p.prenom || '[sans prénom]'}</b>
               </td>
-              <td className="mention">
+              <td className={v2.mention}>
                 {p.fiches} fiche{p.fiches > 1 ? 's' : ''} · {p.contacts} contact
                 {p.contacts > 1 ? 's' : ''}
                 {p.essais > 0 ? ' · essai' : ''}
@@ -158,16 +152,16 @@ function SemaineOuverte({
                 {p.numero ? (
                   <>
                     {afficherTelephone(p.numero)}
-                    <span className="mention admin-sous-ligne">
+                    <span className={v2.mentionBloc}>
                       {libelleOperateur[(p.operateur as Operateur | null) ?? 'autre']}
                     </span>
-                    <span className="admin-sous-ligne">
+                    <span className={v2.mentionBloc}>
                       {p.titulaire ? (
                         <>
                           Au nom de <b>{p.titulaire}</b>
                         </>
                       ) : (
-                        <span className="mention">Nom du titulaire non donné</span>
+                        <span className={v2.mention}>Nom du titulaire non donné</span>
                       )}
                     </span>
                   </>
@@ -177,13 +171,13 @@ function SemaineOuverte({
               </td>
               <td>
                 {p.payeLe ? (
-                  <span className="etiquette etat-verifiee">
+                  <span className={v2.pastilleSucces}>
                     Payé {jour(p.payeLe)} · {p.reference}
                   </span>
                 ) : (
-                  <div className="admin-actions">
+                  <div className={v2.actions}>
                     <input
-                      className="champ admin-note"
+                      className={v2.zone}
                       aria-label={`Référence du paiement de ${p.prenom}`}
                       placeholder="Référence de l’opération"
                       maxLength={80}
@@ -194,7 +188,7 @@ function SemaineOuverte({
                     />
                     <button
                       type="button"
-                      className="bouton bouton-petit"
+                      className={v2.boutonPetit}
                       disabled={(references[p.relaisId] ?? '').trim() === ''}
                       onClick={() => void payer(p)}
                     >
@@ -207,14 +201,14 @@ function SemaineOuverte({
           ))}
           {paiements === null && !erreur && (
             <tr>
-              <td colSpan={5} className="texte-doux" aria-busy="true">
+              <td colSpan={5} className={v2.doux} aria-busy="true">
                 Chargement…
               </td>
             </tr>
           )}
         </tbody>
       </table>
-      {erreur && <p className="message-erreur">{erreur}</p>}
+      {erreur && <p className={v2.erreur}>{erreur}</p>}
     </div>
   );
 }
@@ -282,7 +276,7 @@ export function Paie({ admin }: { admin: PortAdministration }) {
   };
 
   return (
-    <div className="pile">
+    <div className={v2.pile}>
       <TitreEcran
         titre="Paie"
         regles={
@@ -300,13 +294,13 @@ export function Paie({ admin }: { admin: PortAdministration }) {
         </Bandeau>
       )}
       {annonce && (
-        <p className="bandeau bandeau-envoye" role="status">
+        <p className={v2.bandeSucces} role="status">
           {annonce}
         </p>
       )}
 
-      <section className="carte-blanche pile-serree" aria-label="Ce qui est dû">
-        <h2 className="titre-section">Ce qui est dû</h2>
+      <section className={v2.carte} aria-label="Ce qui est dû">
+        <h2 className={v2.titreSection}>Ce qui est dû</h2>
         <Champ
           libelle="Jusqu’au vendredi"
           aide={estUnVendredi(vendredi) ? vendrediLong(vendredi) : 'Choisis un vendredi.'}
@@ -314,14 +308,14 @@ export function Paie({ admin }: { admin: PortAdministration }) {
           {(a) => (
             <input
               {...a}
-              className="champ admin-choix-lot"
+              className={v2.champ}
               type="date"
               value={vendredi}
               onChange={(ev) => setVendredi(ev.target.value)}
             />
           )}
         </Champ>
-        <div className="admin-tableau">
+        <div className={v2.tableau}>
           <table>
             <thead>
               <tr>
@@ -356,14 +350,14 @@ export function Paie({ admin }: { admin: PortAdministration }) {
               ))}
               {apercu !== null && apercu.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="texte-doux">
+                  <td colSpan={6} className={v2.doux}>
                     Rien n’est dû jusqu’à ce vendredi.
                   </td>
                 </tr>
               )}
               {apercu === null && estUnVendredi(vendredi) && !erreur && (
                 <tr>
-                  <td colSpan={6} className="texte-doux" aria-busy="true">
+                  <td colSpan={6} className={v2.doux} aria-busy="true">
                     Calcul…
                   </td>
                 </tr>
@@ -372,13 +366,13 @@ export function Paie({ admin }: { admin: PortAdministration }) {
           </table>
         </div>
         {apercu !== null && apercu.length > 0 && (
-          <div className="admin-actions">
+          <div className={v2.actions}>
             <b>Total : {francs(total)}</b>
             {aCloturer ? (
               <>
                 <button
                   type="button"
-                  className="bouton"
+                  className={v2.bouton}
                   disabled={enCours}
                   onClick={() => void cloturer()}
                 >
@@ -386,14 +380,14 @@ export function Paie({ admin }: { admin: PortAdministration }) {
                 </button>
                 <button
                   type="button"
-                  className="bouton bouton-secondaire"
+                  className={v2.boutonSecondaire}
                   onClick={() => setACloturer(false)}
                 >
                   Annuler
                 </button>
               </>
             ) : (
-              <button type="button" className="bouton" onClick={() => setACloturer(true)}>
+              <button type="button" className={v2.bouton} onClick={() => setACloturer(true)}>
                 Clôturer la semaine
               </button>
             )}
@@ -402,7 +396,7 @@ export function Paie({ admin }: { admin: PortAdministration }) {
       </section>
 
       <h2>Semaines clôturées</h2>
-      <div className="admin-tableau">
+      <div className={v2.tableau}>
         <table>
           <thead>
             <tr>
@@ -425,7 +419,7 @@ export function Paie({ admin }: { admin: PortAdministration }) {
                 <td>
                   <button
                     type="button"
-                    className="bouton bouton-secondaire bouton-petit"
+                    className={v2.boutonSecondairePetit}
                     aria-expanded={ouverte === s.id}
                     onClick={() => setOuverte(ouverte === s.id ? null : s.id)}
                   >
@@ -436,7 +430,7 @@ export function Paie({ admin }: { admin: PortAdministration }) {
             ))}
             {semaines.length === 0 && (
               <tr>
-                <td colSpan={5} className="texte-doux">
+                <td colSpan={5} className={v2.doux}>
                   Aucune semaine clôturée.
                 </td>
               </tr>

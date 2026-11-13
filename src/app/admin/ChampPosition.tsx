@@ -1,8 +1,9 @@
+import { v2 } from '@/ui/v2/classes';
 import { arrondissementDeLaPosition } from '../../modele/carte/plan';
 import { ecrirePosition, lienGoogleMaps } from '../../modele/coordonnees';
 import { lireChampPosition } from '../../modele/correction-ecole';
 import { ErreurDecision } from '../../modele/ports';
-import { Champ } from '../../ui/composants';
+import { Champ } from '@/ui/v2/formulaire';
 
 /** Le message d'une erreur de l'administration : celui de la base quand elle l'a écrit, sinon le réseau. */
 export const messageErreur = (e: unknown): string =>
@@ -43,7 +44,7 @@ export function ChampPosition({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             inputMode="text"
             autoComplete="off"
@@ -54,7 +55,7 @@ export function ChampPosition({
         )}
       </Champ>
       {position && (
-        <p className="mention" aria-live="polite">
+        <p className={v2.mention} aria-live="polite">
           Lu : {ecrirePosition(position)}. {ou}{' '}
           <a href={lienGoogleMaps(position)} target="_blank" rel="noopener noreferrer">
             Vérifier sur Google Maps

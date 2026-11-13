@@ -1,6 +1,7 @@
+import { v2 } from '@/ui/v2/classes';
 import { ChampsFiche } from './ChampsFiche';
-import { Dialogue } from '../../ui/Dialogue';
-import { ActionsSecondaires, BadgePublication, Bouton } from '../../ui/actions';
+import { Dialogue } from '@/ui/v2/admin';
+import { ActionsSecondaires, BadgePublication, Bouton } from '@/ui/v2/admin';
 import { PhotoPublique } from './PhotoPublique';
 import { ImagesEcole } from './ImagesEcole';
 import { ManquesEcole } from './ManquesEcole';
@@ -45,7 +46,8 @@ import type {
   PortAdministration,
   RelaisVu,
 } from '../../modele/ports';
-import { Bandeau, Champ, Choix, jour } from '../../ui/composants';
+import { Bandeau, Champ, Choix } from '@/ui/v2/formulaire';
+import { jour } from '../../ui/composants';
 import { ChampPosition, messageErreur as message } from './ChampPosition';
 import { Creation } from './Creation';
 import { useAdresse } from '../commun/adresse';
@@ -234,7 +236,7 @@ function LigneEcole({
               <button
                 key={cle}
                 type="button"
-                className="pastille-choix"
+                className={v2.puce}
                 disabled={operation || enCours}
                 aria-pressed={mode === cle}
                 onClick={() => {
@@ -249,7 +251,7 @@ function LigneEcole({
         </nav>
       )}
       {retour && !confirmation && (
-        <p ref={zoneRetour} className="bandeau bandeau-envoye">
+        <p ref={zoneRetour} className={v2.bandeSucces}>
           {retour}
         </p>
       )}
@@ -365,7 +367,7 @@ function LigneEcole({
 
       {mode === 'retirer' && (
         <form
-          className="admin-motif"
+          className={v2.motif}
           onSubmit={(ev) => {
             ev.preventDefault();
             void agir(
@@ -374,10 +376,10 @@ function LigneEcole({
             );
           }}
         >
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Motif
             <select
-              className="champ"
+              className={v2.champ}
               value={motif}
               onChange={(ev) => setMotif(ev.target.value as Valeur<'motif_retrait'>)}
             >
@@ -390,10 +392,10 @@ function LigneEcole({
                 ))}
             </select>
           </label>
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Note (facultatif)
             <input
-              className="champ"
+              className={v2.champ}
               maxLength={500}
               value={noteRetrait}
               onChange={(ev) => setNoteRetrait(ev.target.value)}
@@ -407,7 +409,7 @@ function LigneEcole({
 
       {mode === 'corbeille' && (
         <form
-          className="admin-motif"
+          className={v2.motif}
           onSubmit={(ev) => {
             ev.preventDefault();
             void agir(
@@ -416,10 +418,10 @@ function LigneEcole({
             );
           }}
         >
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Motif
             <select
-              className="champ"
+              className={v2.champ}
               value={motif}
               onChange={(ev) => setMotif(ev.target.value as Valeur<'motif_retrait'>)}
             >
@@ -432,10 +434,10 @@ function LigneEcole({
                 ))}
             </select>
           </label>
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Note (facultatif)
             <input
-              className="champ"
+              className={v2.champ}
               maxLength={500}
               value={noteRetrait}
               onChange={(ev) => setNoteRetrait(ev.target.value)}
@@ -454,7 +456,7 @@ function LigneEcole({
 
       {mode === 'supprimer' && (
         <form
-          className="admin-motif"
+          className={v2.motif}
           onSubmit={(ev) => {
             ev.preventDefault();
             if (!apercu || apercu.bloque || !nomCorrespond) return;
@@ -467,7 +469,7 @@ function LigneEcole({
           {apercu === null ? (
             <p aria-busy="true">Lecture de ce que la suppression emporterait…</p>
           ) : apercu.bloque ? (
-            <p className="message-attention" role="status">
+            <p className={v2.attention} role="status">
               {apercu.bloque}
             </p>
           ) : (
@@ -480,10 +482,10 @@ function LigneEcole({
                 de la direction, ses dates d’inscription et son historique. Seule une trace garde
                 son nom et ces nombres.
               </p>
-              <label className="champ-groupe">
+              <label className={v2.groupe}>
                 Pour confirmer, écris le nom de l’école : <b>{e.nom}</b>
                 <input
-                  className="champ"
+                  className={v2.champ}
                   autoComplete="off"
                   value={nomSaisi}
                   onChange={(ev) => setNomSaisi(ev.target.value)}
@@ -505,7 +507,7 @@ function LigneEcole({
 
       {mode === 'rattacher' && (
         <form
-          className="admin-motif pile-serree"
+          className={v2.motifPile}
           aria-label={`Rattacher ${e.nom} à une autre école`}
           onSubmit={(ev) => {
             ev.preventDefault();
@@ -531,7 +533,7 @@ function LigneEcole({
             {(a) => (
               <select
                 {...a}
-                className="champ"
+                className={v2.champ}
                 value={ecoleCible}
                 onChange={(ev) => setEcoleCible(ev.target.value)}
               >
@@ -545,21 +547,21 @@ function LigneEcole({
               </select>
             )}
           </Champ>
-          <p className="mention">
+          <p className={v2.mention}>
             Le site garde son adresse publique.
             {seul
               ? ' Son école actuelle n’a pas d’autre site : ce qui manque à l’école choisie (sigle, année, site web, logo, mot de la direction) lui est donné, puis elle est supprimée.'
               : ' Son école actuelle garde ses autres sites.'}
           </p>
           {erreur && /logo|mot de la direction/.test(erreur) && (
-            <div className="bandeau bandeau-attente pile-serree" role="alert">
+            <div className={v2.bandeAttention} role="alert">
               <p>
                 <b>{erreur}</b> Garde celui qui vaut : retire l’autre dans sa fiche, puis reviens
                 ici.
               </p>
               <button
                 type="button"
-                className="bouton bouton-secondaire"
+                className={v2.boutonSecondaire}
                 onClick={() => {
                   setErreur(null);
                   setMode(/logo/.test(erreur) ? 'images' : 'mot-direction');
@@ -577,7 +579,7 @@ function LigneEcole({
 
       {mode === 'fusionner' && (
         <form
-          className="admin-motif"
+          className={v2.motif}
           onSubmit={(ev) => {
             ev.preventDefault();
             const cible = autres.find((x) => x.id === gardee);
@@ -588,9 +590,13 @@ function LigneEcole({
             );
           }}
         >
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             C'est la même école que…
-            <select className="champ" value={gardee} onChange={(ev) => setGardee(ev.target.value)}>
+            <select
+              className={v2.champ}
+              value={gardee}
+              onChange={(ev) => setGardee(ev.target.value)}
+            >
               <option value="">Choisir l'école à garder</option>
               {autres.map((x) => (
                 <option key={x.id} value={x.id}>
@@ -613,7 +619,7 @@ function LigneEcole({
 
       {mode === 'mission' && (
         <form
-          className="admin-motif"
+          className={v2.motif}
           aria-label={`Mission pour ${e.nom}`}
           onSubmit={(ev) => {
             ev.preventDefault();
@@ -636,7 +642,7 @@ function LigneEcole({
           }}
         >
           {relais.length === 0 ? (
-            <p className="mention admin-pleine-largeur">
+            <p className={v2.mentionLarge}>
               Aucun relais actif : active un relais dans l’onglet « Relais » d’abord.
             </p>
           ) : (
@@ -645,7 +651,7 @@ function LigneEcole({
                 {(a) => (
                   <select
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     value={relaisId}
                     onChange={(ev) => setRelaisId(ev.target.value)}
                   >
@@ -661,7 +667,7 @@ function LigneEcole({
                 {(a) => (
                   <select
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     value={genre}
                     onChange={(ev) => setGenre(ev.target.value as Valeur<'mission_kind'>)}
                   >
@@ -681,7 +687,7 @@ function LigneEcole({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     maxLength={500}
                     placeholder="Ex. : le nom sur l’enseigne, le repère…"
                     value={note}
@@ -693,7 +699,7 @@ function LigneEcole({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     maxLength={300}
                     placeholder="Ex. : photographier le prospectus des frais, en entier."
                     value={tache}
@@ -705,7 +711,7 @@ function LigneEcole({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     maxLength={300}
                     value={raison}
                     onChange={(ev) => setRaison(ev.target.value)}
@@ -716,7 +722,7 @@ function LigneEcole({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     type="date"
                     value={avantLe}
                     onChange={(ev) => setAvantLe(ev.target.value)}
@@ -731,21 +737,21 @@ function LigneEcole({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     inputMode="numeric"
                     value={paie}
                     onChange={(ev) => setPaie(ev.target.value)}
                   />
                 )}
               </Champ>
-              <div className="admin-actions admin-pleine-largeur">
+              <div className={v2.actionsLarge}>
                 <Bouton type="submit" enCours={enCours} disabled={!relaisId}>
                   {e.confiee ? 'Confier de nouveau' : 'Confier'}
                 </Bouton>
                 {e.confiee && (
                   <button
                     type="button"
-                    className="bouton bouton-secondaire"
+                    className={v2.boutonSecondaire}
                     disabled={enCours}
                     onClick={() =>
                       void agir(() => admin.reprendreEcole(e.id), `${e.nom} n'est plus confiée.`)
@@ -788,7 +794,7 @@ function LigneEcole({
       )}
 
       {erreur && (
-        <p className="message-erreur" role="alert">
+        <p className={v2.erreur} role="alert">
           {erreur}
         </p>
       )}
@@ -833,7 +839,7 @@ function LigneEcole({
         <header className="fiche-admin-tete">
           <div className="fiche-admin-identite">
             <p className="fiche-admin-nom">{e.nom}</p>
-            <p className="mention">
+            <p className={v2.mention}>
               {[
                 e.etiquette,
                 libelleTypeEcole[e.typeEcole],
@@ -842,10 +848,10 @@ function LigneEcole({
                 .filter(Boolean)
                 .join(' · ')}
             </p>
-            <div className="rang">
+            <div className={v2.rang}>
               <BadgePublication etat={etat} />
               {e.verifieeLe && (
-                <span className="etiquette etat-verifiee">Confirmée par la direction</span>
+                <span className={v2.pastilleSucces}>Confirmée par la direction</span>
               )}
             </div>
             {memeLieu && (
@@ -945,26 +951,24 @@ function LigneEcole({
     <tr>
       <td>
         <b>{e.nom}</b>
-        {e.etiquette && <span className="mention admin-sous-ligne">{e.etiquette}</span>}
-        {memeLieu && (
-          <span className="mention admin-sous-ligne">Même lieu que {nomDuSite(memeLieu)}</span>
-        )}
-        <span className="mention admin-sous-ligne">
+        {e.etiquette && <span className={v2.mentionBloc}>{e.etiquette}</span>}
+        {memeLieu && <span className={v2.mentionBloc}>Même lieu que {nomDuSite(memeLieu)}</span>}
+        <span className={v2.mentionBloc}>
           {[...new Set([e.quartier, e.division].filter(Boolean))].join(' · ') ||
             (e.divisionId ? 'Quartier inconnu' : 'Division à choisir')}
         </span>
-        <span className="mention admin-sous-ligne">
+        <span className={v2.mentionBloc}>
           {libelleTypeEcole[e.typeEcole]} ·{' '}
           {e.niveaux.map((n) => libelleNiveau[n]).join(', ') || 'aucun niveau'}
           {e.formations > 0 && ` · ${e.formations} formation${e.formations > 1 ? 's' : ''}`}
         </span>
-        <span className="mention admin-sous-ligne">
+        <span className={v2.mentionBloc}>
           {libelleOrigine[e.origine]}
           {e.declareeLe ? ` le ${dateLongue(e.declareeLe)}` : ''}
           {e.verifieeLe && ` · vérifiée par la direction le ${jour(e.verifieeLe)}`}
         </span>
         {e.position && (
-          <span className="mention admin-sous-ligne">
+          <span className={v2.mentionBloc}>
             Position{' '}
             <a href={lienGoogleMaps(e.position)} target="_blank" rel="noopener noreferrer">
               {ecrirePosition(e.position)}
@@ -972,12 +976,10 @@ function LigneEcole({
           </span>
         )}
         {e.corbeille && (
-          <span className="mention admin-sous-ligne">
-            À la corbeille depuis le {jour(e.corbeille.le)}
-          </span>
+          <span className={v2.mentionBloc}>À la corbeille depuis le {jour(e.corbeille.le)}</span>
         )}
         {e.retrait && (
-          <span className="mention admin-sous-ligne">
+          <span className={v2.mentionBloc}>
             {libelleMotifRetrait[e.retrait.motif]}, le {jour(e.retrait.le)}
             {e.retrait.note ? ` : ${e.retrait.note}` : ''}
             {e.retrait.remplaceePar
@@ -993,11 +995,11 @@ function LigneEcole({
         {e.confiee ? (
           <>
             <b>{e.confiee.prenom}</b>
-            <span className="mention admin-sous-ligne">{libelleTypeMission[e.confiee.genre]}</span>
-            {e.confiee.note && <span className="mention admin-sous-ligne">{e.confiee.note}</span>}
+            <span className={v2.mentionBloc}>{libelleTypeMission[e.confiee.genre]}</span>
+            {e.confiee.note && <span className={v2.mentionBloc}>{e.confiee.note}</span>}
           </>
         ) : (
-          <span className="mention">Aucune mission</span>
+          <span className={v2.mention}>Aucune mission</span>
         )}
       </td>
       <td>
@@ -1048,7 +1050,7 @@ function LigneEcole({
             </>
           )}
           {etat !== 'corbeille' && (
-            <a className="bouton bouton-secondaire" href={`#ecoles/fiche/${e.id}`}>
+            <a className={v2.boutonSecondaire} href={`#ecoles/fiche/${e.id}`}>
               Ouvrir la fiche
             </a>
           )}
@@ -1111,9 +1113,9 @@ function LigneEcole({
             entete={
               <>
                 <h2>{e.nom}</h2>
-                <div className="rang">
+                <div className={v2.rang}>
                   <BadgePublication etat={etat} />
-                  <span className="mention">{e.division}</span>
+                  <span className={v2.mention}>{e.division}</span>
                 </div>
               </>
             }
@@ -1184,29 +1186,29 @@ function FormulaireEcole({
 
   return (
     <form
-      className="admin-motif"
+      className={v2.motif}
       aria-label={`Modifier ${e.nom}`}
       noValidate
       onSubmit={(ev) => void enregistrer(ev)}
     >
       <ChampsFiche champs={champs} erreurs={erreurs} changer={changer} />
       {rienADire && (
-        <p className="mention admin-pleine-largeur" aria-live="polite">
+        <p className={v2.mentionLarge} aria-live="polite">
           Rien n’a changé.
         </p>
       )}
       {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
+        <p className={v2.erreurLarge} role="alert">
           {erreur}
         </p>
       )}
-      <div className="admin-actions admin-pleine-largeur">
+      <div className={v2.actionsLarge}>
         <Bouton type="submit" enCours={enCours}>
           Enregistrer
         </Bouton>
         <button
           type="button"
-          className="bouton bouton-secondaire"
+          className={v2.boutonSecondaire}
           disabled={enCours}
           onClick={surAnnuler}
         >
@@ -1272,7 +1274,7 @@ function FormulairePosition({
 
   return (
     <form
-      className="admin-motif"
+      className={v2.motif}
       aria-label={`Situer ${e.nom}`}
       noValidate
       onSubmit={(ev) => void enregistrer(ev)}
@@ -1286,7 +1288,7 @@ function FormulairePosition({
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={divisionId}
             onChange={(ev) => setDivisionId(ev.target.value)}
           >
@@ -1302,17 +1304,17 @@ function FormulairePosition({
         )}
       </Champ>
       {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
+        <p className={v2.erreurLarge} role="alert">
           {erreur}
         </p>
       )}
-      <div className="admin-actions admin-pleine-largeur">
+      <div className={v2.actionsLarge}>
         <Bouton type="submit" enCours={enCours}>
           Enregistrer la position
         </Bouton>
         <button
           type="button"
-          className="bouton bouton-secondaire"
+          className={v2.boutonSecondaire}
           disabled={enCours}
           onClick={surAnnuler}
         >
@@ -1444,7 +1446,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
     const choisie = (ecoles ?? []).find((x) => x.id === zoneDeLAdresse);
     if (!choisie)
       return ecoles === null ? (
-        <p className="texte-doux" aria-busy="true">
+        <p className={v2.doux} aria-busy="true">
           Chargement…
         </p>
       ) : (
@@ -1453,9 +1455,9 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
         </p>
       );
     return (
-      <div className="pile">
+      <div className={v2.pile}>
         {annonce && (
-          <p className="bandeau bandeau-envoye" role="status">
+          <p className={v2.bandeSucces} role="status">
             {annonce}
           </p>
         )}
@@ -1477,7 +1479,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   }
 
   return (
-    <div className="pile">
+    <div className={v2.pile}>
       <TitreEcran
         titre="Écoles"
         focusRetour
@@ -1508,7 +1510,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
             <input
               {...a}
               type="search"
-              className="champ"
+              className={v2.champ}
               placeholder="Nom de l’école"
               value={recherche}
               onChange={(ev) => setRecherche(ev.target.value)}
@@ -1519,7 +1521,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           {(a) => (
             <select
               {...a}
-              className="champ"
+              className={v2.champ}
               value={divisionFiltre}
               onChange={(ev) => setDivisionFiltre(ev.target.value)}
             >
@@ -1565,21 +1567,21 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           surAnnuler={() => setAjout(false)}
         />
       ) : (
-        <div className="admin-actions">
-          <button type="button" className="bouton" onClick={() => setAjout(true)}>
+        <div className={v2.actions}>
+          <button type="button" className={v2.bouton} onClick={() => setAjout(true)}>
             Ajouter ou importer des écoles
           </button>
         </div>
       )}
 
       {compte('prete') > 0 && (
-        <section className="carte-blanche pile-serree" aria-label="Publier d'un coup">
-          <h2 className="titre-section">Publier d'un coup</h2>
-          <div className="admin-actions">
+        <section className={v2.carte} aria-label="Publier d'un coup">
+          <h2 className={v2.titreSection}>Publier d'un coup</h2>
+          <div className={v2.actions}>
             {zonesAvecPretes.length > 0 && (
               <>
                 <select
-                  className="champ admin-choix-lot"
+                  className={v2.champ}
                   aria-label="Zone à publier"
                   value={zone}
                   onChange={(ev) => setZone(ev.target.value)}
@@ -1593,7 +1595,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
                 </select>
                 <button
                   type="button"
-                  className="bouton bouton-petit"
+                  className={v2.boutonPetit}
                   disabled={enCours || !zone}
                   onClick={() =>
                     void publierEnNombre(
@@ -1609,7 +1611,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
             {lots.length > 0 && (
               <>
                 <select
-                  className="champ admin-choix-lot"
+                  className={v2.champ}
                   aria-label="Lot à publier"
                   value={lot}
                   onChange={(ev) => setLot(ev.target.value)}
@@ -1622,7 +1624,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
                 </select>
                 <button
                   type="button"
-                  className="bouton bouton-secondaire bouton-petit"
+                  className={v2.boutonSecondairePetit}
                   disabled={enCours || !lot}
                   onClick={() =>
                     void publierEnNombre(
@@ -1645,7 +1647,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
         </Bandeau>
       )}
       {annonce && (
-        <p className="bandeau bandeau-envoye" role="status">
+        <p className={v2.bandeSucces} role="status">
           {annonce}
         </p>
       )}
@@ -1663,14 +1665,14 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           <tbody>
             {ecoles === null && !erreur && (
               <tr>
-                <td colSpan={4} className="texte-doux" aria-busy="true">
+                <td colSpan={4} className={v2.doux} aria-busy="true">
                   Chargement des écoles…
                 </td>
               </tr>
             )}
             {ecoles !== null && visibles.length === 0 && (
               <tr>
-                <td colSpan={4} className="texte-doux">
+                <td colSpan={4} className={v2.doux}>
                   Aucune école ici.
                 </td>
               </tr>
@@ -1683,7 +1685,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
                     <tr className="ligne-ecole-groupe" aria-hidden="true">
                       <td colSpan={4}>
                         {e.nom.split(' — ')[0]}{' '}
-                        <span className="mention">
+                        <span className={v2.mention}>
                           · {visibles.filter((x) => x.institutionId === e.institutionId).length}{' '}
                           sites
                         </span>

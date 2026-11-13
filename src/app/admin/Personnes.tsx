@@ -1,4 +1,5 @@
-import { Bouton } from '../../ui/actions';
+import { v2 } from '@/ui/v2/classes';
+import { Bouton } from '@/ui/v2/admin';
 /**
  * Les personnes à contacter pour une fiche (ticket #96) : celles que le relais a rencontrées, et celles que
  * l'administration note elle-même (un numéro reçu par WhatsApp que l'application n'a pas pu prendre). Trois au plus.
@@ -19,7 +20,8 @@ import { libelleFonction } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
 import type { ContactDirection, DetailReleve, PortAdministration } from '../../modele/ports';
 import { afficherTelephone } from '../../modele/telephone';
-import { Champ, Icone, quand } from '../../ui/composants';
+import { Champ, Icone } from '@/ui/v2/formulaire';
+import { quand } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
 
 type Edition = { mode: 'ajout' } | { mode: 'correction'; contact: ContactDirection } | null;
@@ -86,11 +88,11 @@ export function Personnes({
   return (
     <section className="admin-prive pile-serree" aria-label="Partie privée">
       <fieldset
-        className="pile-serree formulaire-occupe"
+        className={v2.occupe}
         disabled={operation !== null}
         aria-label="Gestion des personnes"
       >
-        <h3 className="rang">
+        <h3 className={v2.rang}>
           <Icone nom="cadenas" />
           Privé : la direction
         </h3>
@@ -106,10 +108,10 @@ export function Personnes({
         {personnes.length > 0 && (
           <ul className="pile admin-personnes" aria-label="Personnes à contacter">
             {personnes.map((c) => (
-              <li key={c.id} className="pile-serree">
-                {plusieurs && <h4 className="rang">{libellePersonne(c)}</h4>}
+              <li key={c.id} className={v2.pileSerree}>
+                {plusieurs && <h4 className={v2.rang}>{libellePersonne(c)}</h4>}
                 {c.releveId && c.releveId !== id && (
-                  <p className="mention">Ce contact est arrivé avec la fiche d’origine.</p>
+                  <p className={v2.mention}>Ce contact est arrivé avec la fiche d’origine.</p>
                 )}
                 <dl className="admin-champs">
                   {c.fonction && (
@@ -142,11 +144,11 @@ export function Personnes({
                   <dd>{c.source === 'administration' ? 'L’administration' : 'Le relais'}</dd>
                 </dl>
                 {aEffacer === c.id ? (
-                  <span className="admin-actions">
+                  <span className={v2.actions}>
                     <Bouton
                       enCours={operation === 'suppression'}
                       texteEnCours="Suppression…"
-                      className="bouton-petit"
+                      className={v2.petit}
                       variante="danger"
                       onClick={() => void effacer(c)}
                     >
@@ -154,22 +156,22 @@ export function Personnes({
                     </Bouton>
                     <button
                       type="button"
-                      className="bouton bouton-secondaire bouton-petit"
+                      className={v2.boutonSecondairePetit}
                       onClick={() => setAEffacer(null)}
                     >
                       Annuler
                     </button>
                   </span>
                 ) : (
-                  <span className="admin-actions">
+                  <span className={v2.actions}>
                     <button
                       type="button"
-                      className="lien"
+                      className={v2.lien}
                       onClick={() => setEdition({ mode: 'correction', contact: c })}
                     >
                       Corriger cette personne
                     </button>
-                    <button type="button" className="lien" onClick={() => setAEffacer(c.id)}>
+                    <button type="button" className={v2.lien} onClick={() => setAEffacer(c.id)}>
                       {plusieurs
                         ? `Effacer le contact de ${libellePersonne(c)} (droit d'effacement)`
                         : "Effacer le contact (droit d'effacement)"}
@@ -196,13 +198,13 @@ export function Personnes({
         ) : peutAjouterUnePersonne(personnes.length) ? (
           <button
             type="button"
-            className="bouton bouton-secondaire bouton-petit"
+            className={v2.boutonSecondairePetit}
             onClick={() => setEdition({ mode: 'ajout' })}
           >
             Ajouter une personne
           </button>
         ) : (
-          <p className="mention">Trois personnes au plus par fiche.</p>
+          <p className={v2.mention}>Trois personnes au plus par fiche.</p>
         )}
       </fieldset>
     </section>
@@ -243,17 +245,12 @@ function FormulairePersonne({
   };
 
   return (
-    <form
-      className="admin-motif pile-serree"
-      aria-label={nom}
-      onSubmit={(ev) => void envoyer(ev)}
-      noValidate
-    >
+    <form className={v2.motifPile} aria-label={nom} onSubmit={(ev) => void envoyer(ev)} noValidate>
       <Champ libelle="Fonction" erreur={erreurs['fonction']}>
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={saisie.fonction ?? ''}
             onChange={(ev) =>
               change({ fonction: (ev.target.value || null) as Valeur<'fonction_direction'> | null })
@@ -273,7 +270,7 @@ function FormulairePersonne({
           {(a) => (
             <input
               {...a}
-              className="champ"
+              className={v2.champ}
               type="text"
               maxLength={200}
               autoComplete="off"
@@ -287,7 +284,7 @@ function FormulairePersonne({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             value={saisie.nom}
@@ -299,7 +296,7 @@ function FormulairePersonne({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="tel"
             inputMode="tel"
             autoComplete="off"
@@ -308,7 +305,7 @@ function FormulairePersonne({
           />
         )}
       </Champ>
-      <label className="case">
+      <label className={v2.case}>
         <input
           type="checkbox"
           checked={saisie.accord}
@@ -320,7 +317,7 @@ function FormulairePersonne({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             value={saisie.note}
@@ -328,11 +325,11 @@ function FormulairePersonne({
           />
         )}
       </Champ>
-      <div className="admin-actions admin-pleine-largeur">
-        <Bouton type="submit" className="bouton-petit" enCours={enCours}>
+      <div className={v2.actionsLarge}>
+        <Bouton type="submit" className={v2.petit} enCours={enCours}>
           Enregistrer
         </Bouton>
-        <button type="button" className="bouton bouton-secondaire bouton-petit" onClick={annuler}>
+        <button type="button" className={v2.boutonSecondairePetit} onClick={annuler}>
           Annuler
         </button>
       </div>

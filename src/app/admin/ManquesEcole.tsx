@@ -1,3 +1,4 @@
+import { v2 } from '@/ui/v2/classes';
 import { useCallback, useEffect, useState } from 'react';
 import {
   etatDuManque,
@@ -48,12 +49,12 @@ export function ManquesEcole({
     };
   }, [lire]);
 
-  if (erreur && manques === null) return <p className="message-erreur">{erreur}</p>;
+  if (erreur && manques === null) return <p className={v2.erreur}>{erreur}</p>;
   if (manques === null) return <p aria-busy="true">Chargement…</p>;
   if (manques.length === 0)
     return (
-      <section className="pile-serree" aria-label="À compléter">
-        <p className="bandeau bandeau-envoye">Fiche complète : rien ne manque.</p>
+      <section className={v2.pileSerree} aria-label="À compléter">
+        <p className={v2.bandeSucces}>Fiche complète : rien ne manque.</p>
       </section>
     );
 
@@ -76,7 +77,7 @@ export function ManquesEcole({
   };
 
   return (
-    <section className="pile-serree" aria-label="À compléter">
+    <section className={v2.pileSerree} aria-label="À compléter">
       <h3>
         {manques.length} chose{manques.length > 1 ? 's' : ''} à compléter
       </h3>
@@ -85,16 +86,16 @@ export function ManquesEcole({
           <li key={`${m.sujet}-${m.demandeId ?? i}`}>
             <span>
               <b>{m.detail ?? libelleSujetDemande[m.sujet]}</b>
-              <span className="mention admin-sous-ligne">
+              <span className={v2.mentionBloc}>
                 {etatDuManque(m, dateCourte)} · peut le donner&nbsp;:{' '}
                 {m.quiPeut.map((q) => (q === 'ecole' ? 'l’école' : 'un relais')).join(' ou ')}
               </span>
             </span>
-            <span className="admin-actions">
+            <span className={v2.actions}>
               {m.demandeId && m.demandeA === 'ecole' && (
                 <button
                   type="button"
-                  className="lien"
+                  className={v2.lien}
                   disabled={enCours}
                   onClick={() =>
                     void agir(
@@ -109,7 +110,7 @@ export function ManquesEcole({
               {m.quiPeut.includes('relais') && !m.demandeLe && (
                 <button
                   type="button"
-                  className="lien"
+                  className={v2.lien}
                   onClick={() => surConfier(tacheDuManque[m.sujet] ?? m.detail)}
                 >
                   Confier à un relais
@@ -120,12 +121,12 @@ export function ManquesEcole({
         ))}
       </ul>
       {aDemander.length > 0 && (
-        <div className="pile-serree">
-          <p className="mention">
+        <div className={v2.pileSerree}>
+          <p className={v2.mention}>
             Le message, à relire dans WhatsApp&nbsp;: {messageALEcole(nom, aDemander)}
           </p>
           <a
-            className="bouton"
+            className={v2.bouton}
             href={lien}
             target="_blank"
             rel="noopener noreferrer"
@@ -142,18 +143,18 @@ export function ManquesEcole({
           >
             Ouvrir dans WhatsApp
           </a>
-          <p className="mention">
+          <p className={v2.mention}>
             Rien ne part tout seul. Les manques passent à « demandé à l’école » ; annulable.
           </p>
         </div>
       )}
       {erreur && (
-        <p className="message-erreur" role="alert">
+        <p className={v2.erreur} role="alert">
           {erreur}
         </p>
       )}
       {enCours && (
-        <p className="mention" aria-live="polite">
+        <p className={v2.mention} aria-live="polite">
           Enregistrement…
         </p>
       )}

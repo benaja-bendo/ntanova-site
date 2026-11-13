@@ -1,3 +1,4 @@
+import { v2 } from '@/ui/v2/classes';
 import { useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
@@ -12,8 +13,8 @@ import { listes, type Valeur } from '../../modele/listes';
 import { francs } from '../../modele/paie';
 import { dateLongue } from '../../modele/pointe-noire';
 import type { PortAdministration } from '../../modele/ports';
-import { Bouton } from '../../ui/actions';
-import { Champ } from '../../ui/composants';
+import { Bouton } from '@/ui/v2/admin';
+import { Champ } from '@/ui/v2/formulaire';
 import { messageErreur } from './ChampPosition';
 
 /** « 2 ans · Bac · Sur dossier · dossier 15 000 FCFA » : le résumé d'une formation dans la liste. */
@@ -73,11 +74,7 @@ export function FormationsSuperieur({
   }, [admin, ecoleId, version]);
 
   if (!formations)
-    return erreur ? (
-      <p className="message-erreur">{erreur}</p>
-    ) : (
-      <p aria-busy="true">Chargement…</p>
-    );
+    return erreur ? <p className={v2.erreur}>{erreur}</p> : <p aria-busy="true">Chargement…</p>;
 
   const ouvrir = (f: FormationDuSuperieur) => {
     setOuverte(f.id);
@@ -116,26 +113,26 @@ export function FormationsSuperieur({
   };
 
   return (
-    <section className="admin-motif pile-serree" aria-label="Formations du supérieur">
+    <section className={v2.motifPile} aria-label="Formations du supérieur">
       <h3>Formations du supérieur</h3>
       {formations.length === 0 ? (
-        <p className="texte-doux">
+        <p className={v2.doux}>
           Aucune formation notée pour ce site. Elles s’ajoutent depuis le relevé (« À valider ») ou
           les informations de l’école.
         </p>
       ) : (
         <ul className="admin-frais-liste">
           {formations.map((f) => (
-            <li key={f.id} className="pile-serree">
+            <li key={f.id} className={v2.pileSerree}>
               <b>
                 {f.titre}
-                <span className="mention"> · {libelleNiveau[f.cycle]}</span>
+                <span className={v2.mention}> · {libelleNiveau[f.cycle]}</span>
               </b>
-              <p className="mention">{resumeDesDetails(f.details)}</p>
+              <p className={v2.mention}>{resumeDesDetails(f.details)}</p>
               {ouverte !== f.id ? (
                 <button
                   type="button"
-                  className="bouton bouton-secondaire"
+                  className={v2.boutonSecondaire}
                   disabled={enCours}
                   onClick={() => ouvrir(f)}
                 >
@@ -143,19 +140,19 @@ export function FormationsSuperieur({
                 </button>
               ) : (
                 <form
-                  className="pile-serree"
+                  className={v2.pileSerree}
                   aria-label={`Détail de ${f.titre}`}
                   onSubmit={(ev) => {
                     ev.preventDefault();
                     void sauver(f);
                   }}
                 >
-                  <div className="deux-colonnes">
+                  <div className={v2.deuxColonnes}>
                     <Champ libelle="Durée (années)" facultatif>
                       {(x) => (
                         <input
                           {...x}
-                          className="champ"
+                          className={v2.champ}
                           inputMode="decimal"
                           placeholder="2"
                           value={duree}
@@ -167,7 +164,7 @@ export function FormationsSuperieur({
                       {(x) => (
                         <input
                           {...x}
-                          className="champ"
+                          className={v2.champ}
                           inputMode="numeric"
                           placeholder="15000"
                           value={frais}
@@ -180,7 +177,7 @@ export function FormationsSuperieur({
                     {(x) => (
                       <input
                         {...x}
-                        className="champ"
+                        className={v2.champ}
                         maxLength={80}
                         placeholder="Bac, toutes séries"
                         value={saisie.niveauDemande ?? ''}
@@ -194,7 +191,7 @@ export function FormationsSuperieur({
                     {(x) => (
                       <select
                         {...x}
-                        className="champ"
+                        className={v2.champ}
                         value={saisie.selection ?? ''}
                         onChange={(e) =>
                           setSaisie({
@@ -220,7 +217,7 @@ export function FormationsSuperieur({
                     {(x) => (
                       <input
                         {...x}
-                        className="champ"
+                        className={v2.champ}
                         maxLength={120}
                         value={saisie.delivrePar ?? ''}
                         onChange={(e) =>
@@ -233,7 +230,7 @@ export function FormationsSuperieur({
                     {(x) => (
                       <input
                         {...x}
-                        className="champ"
+                        className={v2.champ}
                         type="date"
                         max={jourDuCongo()}
                         value={saisie.ditLe ?? ''}
@@ -241,13 +238,13 @@ export function FormationsSuperieur({
                       />
                     )}
                   </Champ>
-                  <div className="admin-actions">
+                  <div className={v2.actions}>
                     <Bouton type="submit" enCours={enCours}>
                       Enregistrer le détail
                     </Bouton>
                     <button
                       type="button"
-                      className="bouton bouton-secondaire"
+                      className={v2.boutonSecondaire}
                       disabled={enCours}
                       onClick={() => {
                         setOuverte(null);
@@ -264,11 +261,11 @@ export function FormationsSuperieur({
         </ul>
       )}
       {erreur && (
-        <p className="message-erreur" role="alert">
+        <p className={v2.erreur} role="alert">
           {erreur}
         </p>
       )}
-      <p className="mention">
+      <p className={v2.mention}>
         Tout est dit par l’école : la page écrit « d’après l’école, le [date] ».
       </p>
     </section>

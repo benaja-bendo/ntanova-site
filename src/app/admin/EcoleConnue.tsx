@@ -8,6 +8,8 @@
  *   le site voisin sur elle (même portail, deux écoles), « Lieux distincts » une nouvelle école sans mention ;
  * - rien : « Nouvelle école ».
  */
+import { v2 } from '@/ui/v2/classes';
+import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import type { Cible } from '../../modele/acceptation';
 import { distanceEnMots } from '../../modele/deja-sur-ntanova';
@@ -139,27 +141,33 @@ export function EcoleConnue({
 
   return (
     <section
-      className={`ecole-connue-admin${site ? ' ecole-connue-trouvee' : ''}`}
+      className={cn(
+        'flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl px-5 py-4',
+        site ? 'border-2 border-ambre bg-attention' : 'bg-muted',
+      )}
       aria-label="Est-ce une école connue ?"
     >
-      <div className="ecole-connue-texte">
-        <b>{titre}</b>
+      <div className="flex min-w-[16rem] flex-1 flex-col gap-1 text-[15px]">
+        <b className="font-serif text-xl">{titre}</b>
         <span>{texte}</span>
-        {relais && <span className="mention">Le relais a répondu : {relais}.</span>}
+        {relais && <span className={v2.mention}>Le relais a répondu : {relais}.</span>}
         {enAttente && (
-          <span className="mention">
+          <span className={v2.mention}>
             Une fiche en attente porte un nom proche : « {enAttente.nom} »
             {enAttente.distanceM !== null ? `, ${distanceEnMots(enAttente.distanceM)}` : ''}.
           </span>
         )}
       </div>
       {gestes.length > 0 && (
-        <div className="ecole-connue-gestes" role="group" aria-label="Ta réponse">
+        <div className="flex flex-wrap gap-2.5" role="group" aria-label="Ta réponse">
           {gestes.map((g, i) => (
             <button
               key={g.libelle}
               type="button"
-              className={`bouton ${i === 0 ? '' : 'bouton-secondaire'}`}
+              className={cn(
+                i === 0 ? v2.bouton : v2.boutonSecondaire,
+                'aria-pressed:ring-[3px] aria-pressed:ring-ring/40',
+              )}
               aria-pressed={g.actif}
               onClick={() => choisir(g.c)}
             >

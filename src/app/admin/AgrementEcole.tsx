@@ -1,3 +1,4 @@
+import { v2 } from '@/ui/v2/classes';
 import { useEffect, useState } from 'react';
 import {
   intituleAgrement,
@@ -10,12 +11,12 @@ import { libelleGenreAgrement, libelleRolePhotoCourt } from '../../modele/libell
 import { libelleGenrePreuve, type GenrePreuve } from '../../modele/fiche-admin';
 import { listes } from '../../modele/listes';
 import type { PhotoVue, PortAdministration } from '../../modele/ports';
-import { Bouton } from '../../ui/actions';
+import { Bouton } from '@/ui/v2/admin';
 import { ImageIllisible, preparerImage } from '../commun/image';
-import { Champ } from '../../ui/composants';
-import { Dialogue } from '../../ui/Dialogue';
+import { Champ } from '@/ui/v2/formulaire';
+import { Dialogue } from '@/ui/v2/admin';
 import { dateLongue } from '../../modele/pointe-noire';
-import { Bandeau } from '../../ui/composants';
+import { Bandeau } from '@/ui/v2/formulaire';
 import { messageErreur } from './ChampPosition';
 
 const VIDE = {
@@ -95,7 +96,7 @@ export function AgrementEcole({
   return (
     <Dialogue titre={`Agrément de ${nom}`} fermer={fermer} integre={integre}>
       <form
-        className="admin-motif"
+        className={v2.motif}
         aria-label={`Agrément de ${nom}`}
         onSubmit={(ev) => {
           ev.preventDefault();
@@ -119,7 +120,7 @@ export function AgrementEcole({
                 </p>
                 <button
                   type="button"
-                  className="bouton bouton-secondaire"
+                  className={v2.boutonSecondaire}
                   disabled={enCours}
                   onClick={() => {
                     setEnModification(true);
@@ -141,7 +142,7 @@ export function AgrementEcole({
                 </button>
                 <button
                   type="button"
-                  className="bouton bouton-secondaire admin-bouton-refus"
+                  className={v2.boutonRefus}
                   disabled={enCours}
                   onClick={() =>
                     void agir(() => admin.retirerAgrement(a.id), `Agrément de ${nom} retiré.`)
@@ -161,10 +162,10 @@ export function AgrementEcole({
           </ul>
         )}
         {filieres.length > 0 && (
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Concerne
             <select
-              className="champ"
+              className={v2.champ}
               value={saisie.formationId}
               disabled={enModification}
               onChange={(e) => changer({ formationId: e.target.value })}
@@ -178,10 +179,10 @@ export function AgrementEcole({
             </select>
           </label>
         )}
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Intitulé du document
           <select
-            className="champ"
+            className={v2.champ}
             value={saisie.genre}
             onChange={(e) => changer({ genre: e.target.value })}
           >
@@ -194,48 +195,48 @@ export function AgrementEcole({
           </select>
         </label>
         {saisie.genre === 'autre' && (
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Intitulé écrit sur le document
             <input
-              className="champ"
+              className={v2.champ}
               maxLength={80}
               value={saisie.precision}
               onChange={(e) => changer({ precision: e.target.value })}
             />
           </label>
         )}
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Référence, telle qu’elle est écrite (« arrêté n° … »)
           <input
-            className="champ"
+            className={v2.champ}
             maxLength={160}
             value={saisie.reference}
             onChange={(e) => changer({ reference: e.target.value })}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Date du document
           <input
-            className="champ"
+            className={v2.champ}
             type="date"
             max={jourDuCongo()}
             value={saisie.delivreLe}
             onChange={(e) => changer({ delivreLe: e.target.value })}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Source, en mots (où se trouve le document)
           <input
-            className="champ"
+            className={v2.champ}
             maxLength={200}
             value={saisie.sourceTexte}
             onChange={(e) => changer({ sourceTexte: e.target.value })}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Lien vers le document (facultatif)
           <input
-            className="champ"
+            className={v2.champ}
             type="url"
             maxLength={500}
             placeholder="https://"
@@ -243,10 +244,10 @@ export function AgrementEcole({
             onChange={(e) => changer({ sourceLien: e.target.value })}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Jour où tu as vu le document (jamais publié)
           <input
-            className="champ"
+            className={v2.champ}
             type="date"
             max={jourDuCongo()}
             value={saisie.controleLe}
@@ -266,13 +267,13 @@ export function AgrementEcole({
             {erreur}
           </Bandeau>
         )}
-        <button className="bouton" type="submit" disabled={enCours}>
+        <button className={v2.bouton} type="submit" disabled={enCours}>
           {enCours ? 'Enregistrement…' : 'Enregistrer l’agrément'}
         </button>
         {enModification && (
           <button
             type="button"
-            className="bouton bouton-secondaire"
+            className={v2.boutonSecondaire}
             disabled={enCours}
             onClick={() => {
               setEnModification(false);
@@ -283,7 +284,7 @@ export function AgrementEcole({
             Annuler la modification
           </button>
         )}
-        <p className="mention">Visible après la prochaine mise à jour du site.</p>
+        <p className={v2.mention}>Visible après la prochaine mise à jour du site.</p>
       </form>
     </Dialogue>
   );
@@ -369,8 +370,8 @@ function PreuveDeLAgrement({
   };
 
   return (
-    <div className="pile-serree">
-      <p className="mention">
+    <div className={v2.pileSerree}>
+      <p className={v2.mention}>
         Preuve :{' '}
         {actuelle
           ? `${libelleGenrePreuve[actuelle.genre]}${actuelle.chemin ? ' (photo ajoutée ici)' : actuelle.photoId ? ' (photo d’un relevé)' : ''}`
@@ -379,7 +380,7 @@ function PreuveDeLAgrement({
       {!ouverte ? (
         <button
           type="button"
-          className="bouton bouton-secondaire"
+          className={v2.boutonSecondaire}
           onClick={() => {
             setOuverte(true);
             setErreur(null);
@@ -388,10 +389,10 @@ function PreuveDeLAgrement({
           Preuve : {cible}
         </button>
       ) : (
-        <fieldset className="pile-serree" aria-label={`Preuve de l’agrément : ${cible}`}>
+        <fieldset className={v2.pileSerree} aria-label={`Preuve de l’agrément : ${cible}`}>
           <legend>Ce qui prouve la référence</legend>
           {(Object.keys(libelleGenrePreuve) as GenrePreuve[]).map((g) => (
-            <label key={g} className="case">
+            <label key={g} className={v2.case}>
               <input
                 type="radio"
                 name={`preuve-${agrement.id}`}
@@ -411,9 +412,9 @@ function PreuveDeLAgrement({
               {photos === null ? (
                 <p aria-busy="true">Chargement des photos de travail…</p>
               ) : photos.length > 0 ? (
-                <div className="pile-serree" role="radiogroup" aria-label="Photo d’un relevé">
+                <div className={v2.pileSerree} role="radiogroup" aria-label="Photo d’un relevé">
                   {photos.map((p) => (
-                    <label key={p.id} className="case">
+                    <label key={p.id} className={v2.case}>
                       <input
                         type="radio"
                         name={`photo-preuve-${agrement.id}`}
@@ -429,13 +430,13 @@ function PreuveDeLAgrement({
                   ))}
                 </div>
               ) : (
-                <p className="mention">Aucune photo de travail dans les relevés de ce site.</p>
+                <p className={v2.mention}>Aucune photo de travail dans les relevés de ce site.</p>
               )}
               <Champ libelle="Ou ajouter la photo du document" facultatif>
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     onChange={(ev) => {
@@ -445,7 +446,7 @@ function PreuveDeLAgrement({
                   />
                 )}
               </Champ>
-              <p className="mention">Photo de travail : jamais publiée.</p>
+              <p className={v2.mention}>Photo de travail : jamais publiée.</p>
             </>
           )}
           {erreur && (
@@ -453,13 +454,13 @@ function PreuveDeLAgrement({
               {erreur}
             </Bandeau>
           )}
-          <div className="admin-actions">
+          <div className={v2.actions}>
             <Bouton type="button" enCours={enCours} onClick={() => void sauver()}>
               Enregistrer la preuve
             </Bouton>
             <button
               type="button"
-              className="bouton bouton-secondaire"
+              className={v2.boutonSecondaire}
               disabled={enCours}
               onClick={() => setOuverte(false)}
             >

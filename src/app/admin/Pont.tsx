@@ -1,4 +1,5 @@
-import { Bouton } from '../../ui/actions';
+import { v2 } from '@/ui/v2/classes';
+import { Bouton } from '@/ui/v2/admin';
 /**
  * Le pont avec la direction, en un clic : le premier message WhatsApp, déjà écrit, puis les deux gestes
  * qui comptent : confirmer la fonction de la personne (le relais touche alors son bonus de contact) et noter
@@ -19,7 +20,8 @@ import {
 } from '../../modele/pont-direction';
 import type { ContactDirection, DetailReleve, PortAdministration } from '../../modele/ports';
 import { lienWhatsApp } from '../../modele/whatsapp';
-import { Champ, quand } from '../../ui/composants';
+import { Champ } from '@/ui/v2/formulaire';
+import { quand } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
 
 type Canal = 'whatsapp' | 'appel' | 'sur_place' | 'autre';
@@ -105,9 +107,9 @@ function PontPour({
   };
 
   return (
-    <div className="pile-serree" aria-label="Pont avec la direction">
+    <div className={v2.pileSerree} aria-label="Pont avec la direction">
       {!contact.accord || !contact.whatsapp ? (
-        <p className="mention">
+        <p className={v2.mention}>
           La direction n’a pas donné son accord pour être contactée : pas de message à lui écrire.
         </p>
       ) : (
@@ -119,7 +121,7 @@ function PontPour({
             {(a) => (
               <textarea
                 {...a}
-                className="champ"
+                className={v2.champ}
                 rows={9}
                 value={texte}
                 onChange={(ev) => setTexte(ev.target.value)}
@@ -127,15 +129,15 @@ function PontPour({
             )}
           </Champ>
           {!honnete && (
-            <p className="message-erreur" role="alert">
+            <p className={v2.erreur} role="alert">
               Ce message parle de prix, de gratuité, d’audience ou de la paie du relais : NTanova ne
               peut pas l’affirmer aujourd’hui. Reformule-le.
             </p>
           )}
-          <div className="admin-actions">
+          <div className={v2.actions}>
             {lien && numeroValide ? (
               <a
-                className="bouton bouton-petit admin-bouton-accent"
+                className={v2.boutonPetit}
                 href={lien}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -146,22 +148,16 @@ function PontPour({
             ) : (
               // Un message à reformuler a déjà son alerte ci-dessus : ici, seulement un numéro qui n'en est pas un.
               !numeroValide && (
-                <span className="mention">Le numéro de WhatsApp n’est pas valide.</span>
+                <span className={v2.mention}>Le numéro de WhatsApp n’est pas valide.</span>
               )
             )}
-            {envoye && (
-              <span className="etiquette etat-verifiee">Premier message noté aujourd’hui</span>
-            )}
+            {envoye && <span className={v2.pastilleSucces}>Premier message noté aujourd’hui</span>}
           </div>
         </>
       )}
 
       <form aria-label="Fonction et accord de la direction" onSubmit={enregistrerAccord}>
-        <fieldset
-          className="admin-motif formulaire-occupe"
-          disabled={enCours}
-          aria-label="Fonction et accord"
-        >
+        <fieldset className={v2.motif} disabled={enCours} aria-label="Fonction et accord">
           <Champ
             libelle="Fonction de la personne qui a répondu"
             aide="La confirmer débloque le bonus de contact du relais (sauf le secrétariat : un secrétariat ne décide pas)."
@@ -169,7 +165,7 @@ function PontPour({
             {(a) => (
               <select
                 {...a}
-                className="champ"
+                className={v2.champ}
                 value={fonction}
                 onChange={(ev) => setFonction(ev.target.value as Valeur<'fonction_direction'>)}
               >
@@ -181,14 +177,14 @@ function PontPour({
               </select>
             )}
           </Champ>
-          <div className="admin-actions admin-pleine-largeur">
+          <div className={v2.actionsLarge}>
             {confirmee ? (
-              <span className="etiquette etat-verifiee">Fonction confirmée</span>
+              <span className={v2.pastilleSucces}>Fonction confirmée</span>
             ) : (
               <Bouton
                 enCours={operation === 'fonction'}
                 texteEnCours="Confirmation…"
-                className="bouton-petit"
+                className={v2.petit}
                 variante="secondaire"
                 disabled={enCours}
                 onClick={() =>
@@ -214,7 +210,7 @@ function PontPour({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     type="date"
                     max={aujourdhui()}
                     value={accordLe}
@@ -227,7 +223,7 @@ function PontPour({
                 {(a) => (
                   <select
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     value={canal}
                     onChange={(ev) => setCanal(ev.target.value as Canal)}
                   >
@@ -243,7 +239,7 @@ function PontPour({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     type="text"
                     maxLength={500}
                     autoComplete="off"
@@ -252,15 +248,15 @@ function PontPour({
                   />
                 )}
               </Champ>
-              <div className="admin-actions admin-pleine-largeur">
+              <div className={v2.actionsLarge}>
                 {verifiee ? (
-                  <span className="etiquette etat-verifiee">Accord noté</span>
+                  <span className={v2.pastilleSucces}>Accord noté</span>
                 ) : (
                   <Bouton
                     type="submit"
                     enCours={operation === 'accord'}
                     texteEnCours="Enregistrement…"
-                    className="bouton-petit"
+                    className={v2.petit}
                     disabled={enCours || accordLe === ''}
                   >
                     Noter l’accord de la direction (badge « Vérifié »)
@@ -269,7 +265,7 @@ function PontPour({
               </div>
             </>
           ) : (
-            <p className="mention admin-pleine-largeur">
+            <p className={v2.mentionLarge}>
               Accepte d’abord la fiche : l’accord de la direction se note sur l’école
               {contact.accordLe
                 ? ` (accord pour être contactée donné ${quand(contact.accordLe)})`
@@ -278,7 +274,7 @@ function PontPour({
             </p>
           )}
           {erreur && (
-            <p className="message-erreur admin-pleine-largeur" role="alert">
+            <p className={v2.erreurLarge} role="alert">
               {erreur}
             </p>
           )}
@@ -310,13 +306,13 @@ export function Pont({
     contacts[0];
   if (!contact) return null;
   return (
-    <div className="pile-serree">
+    <div className={v2.pileSerree}>
       {contacts.length > 1 && (
         <Champ libelle="Écrire à">
           {(a) => (
             <select
               {...a}
-              className="champ"
+              className={v2.champ}
               value={contact.id}
               onChange={(ev) => setChoisi(ev.target.value)}
             >
