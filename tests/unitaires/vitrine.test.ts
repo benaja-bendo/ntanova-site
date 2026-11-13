@@ -252,3 +252,15 @@ describe('ce que le terrain peut affirmer', () => {
     expect(constatDuTerrainPermis('eau', 'non_precise')).toBe(false);
   });
 });
+
+// Lot C (13/11) : la paie dit les missions faites.
+import { detailDeLaPaie } from '../../src/modele/paie';
+describe('la paie du relais', () => {
+  it('compte les missions faites, sans rien écrire quand il n’y en a pas', () => {
+    expect(detailDeLaPaie({ fiches: 5, contacts: 0, essais: 0, missions: 1 })).toEqual([
+      '5 fiches acceptées',
+      '1 mission faite',
+    ]);
+    expect(detailDeLaPaie({ fiches: 1, contacts: 0, essais: 0 })).toEqual(['1 fiche acceptée']);
+  });
+});

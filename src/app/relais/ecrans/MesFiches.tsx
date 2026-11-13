@@ -90,7 +90,7 @@ function depuisTelephone(f: FicheLocale): Ligne {
         ? { libelle: 'Envoyée', classe: 'etat-envoye' }
         : f.etat === 'refusee'
           ? { libelle: 'Refusée', classe: 'etat-refusee' }
-          : { libelle: partie ? 'Envoi en cours' : 'Sur le téléphone', classe: 'etat-telephone' },
+          : { libelle: libelleDEnvoi(f, partie), classe: 'etat-telephone' },
     contact:
       f.direction === 'absente'
         ? { libelle: 'Absente', classe: 'etat-telephone' }
@@ -375,4 +375,17 @@ export function MesFiches() {
       <Navigation />
     </div>
   );
+}
+
+/**
+ * v2 (13/11) : quand le réseau rame, l'envoi se dit photo par photo (« Envoi · 2 photos sur 6 ») ; une fiche dont rien n'est
+ * parti est « Sur le téléphone ».
+ */
+function libelleDEnvoi(f: FicheLocale, partie: boolean): string {
+  if (!partie) return 'Sur le téléphone';
+  const photos = f.photos.filter((p) => p.envoyee || p.blob != null);
+  const parties = photos.filter((p) => p.envoyee).length;
+  return photos.length > 1 && parties < photos.length
+    ? `Envoi · ${parties} photo${parties > 1 ? 's' : ''} sur ${photos.length}`
+    : 'Envoi en cours';
 }

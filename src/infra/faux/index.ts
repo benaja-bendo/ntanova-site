@@ -169,6 +169,8 @@ function personnesDe(e: Etat, releveId: string): [string, ContactFaux][] {
 const TROIS_PERSONNES = 'Une fiche a trois personnes à contacter au plus.';
 
 interface Etat {
+  /** v2 (13/11) : les « Je n'ai pas pu » reçus, pour les parcours. */
+  missionsPasPu?: { missionId: string; motif: string; note: string | null }[];
   utilisateur: { id: string; email: string } | null;
   statut: Profil['statut'];
   /** L'utilisateur du faux serveur est aussi administrateur. */
@@ -606,8 +608,30 @@ const relais: PortRelais = {
             acceptes.map((r) => r.id),
           ),
           contactConfirme: acceptes.some((r) => e.decisions[r.id]?.contactConfirmeLe),
+          // v2 (13/11) : une mission fictive porte son identifiant ; ce qu'il faut faire, la date et le montant se règlent
+          // pour les parcours par `ntanova-faux-mission` (JSON : tache, raison, avantLe, paieXaf).
+          missionId: `m-${c.id}`,
+          ...(JSON.parse(localStorage.getItem('ntanova-faux-mission') ?? '{}') as Record<
+            string,
+            unknown
+          >),
         };
       });
+  },
+  async missionPasPu(missionId, motif, note) {
+    await reseau();
+    if (motif === 'autre' && !note?.trim())
+      throw new ErreurRejet('22023', 'Dites ce qui vous a empêché (et précisez « autre »).');
+    let trouvee = false;
+    ecrire((e) => {
+      for (const c of Object.values(e.campus))
+        if (`m-${c.id}` === missionId && c.confieeA === MOI) {
+          c.confieeA = null;
+          trouvee = true;
+        }
+      e.missionsPasPu = [...(e.missionsPasPu ?? []), { missionId, motif, note }];
+    });
+    if (!trouvee) throw new ErreurRejet('P0002', 'Mission introuvable ou déjà fermée.');
   },
   async maPaie() {
     await reseau();

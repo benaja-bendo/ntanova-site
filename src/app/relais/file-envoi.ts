@@ -45,7 +45,7 @@ import {
   type PhotoPrete,
 } from '../../modele/ports';
 import type { Adaptateurs } from '../../infra/index';
-import { base, garder } from './base-locale';
+import { base, garder, lireMemoire } from './base-locale';
 import { journaliser } from './journal';
 
 export type ResultatEnvoi = EtatSession | 'erreur';
@@ -182,6 +182,19 @@ async function envoyer(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
     return etat;
   }
 
+  // v2 (13/11) : les « Je n'ai pas pu » d'abord ; un geste fait hors ligne part dès que le réseau revient.
+  const pasPu = await envoyerLesPasPu(adaptateurs);
+  if (pasPu !== 'pret') {
+    dernierBilan = {
+      le: new Date().toISOString(),
+      envoyees: 0,
+      echecs: [],
+      refusees: 0,
+      horsLigne: pasPu === 'hors_ligne',
+    };
+    return pasPu;
+  }
+
   // Seulement les fiches de ce compte : celles d'un autre relais, qui s'est servi du téléphone, attendent son retour.
   // Une fiche d'avant la mise à jour, sans compte, devient celle de ce compte au moment de partir.
   const compte = (await adaptateurs.session.utilisateur())?.id ?? null;
@@ -288,4 +301,32 @@ async function envoyer(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
   dernierBilan = { le: new Date().toISOString(), envoyees, echecs, refusees, horsLigne: false };
   if (resultat === 'pret') await garder('dernierEnvoi', new Date().toISOString());
   return resultat;
+}
+
+/**
+ * v2 (13/11) : envoie les « Je n'ai pas pu » gardés sur le téléphone. Une mission déjà fermée ou plus à ce relais (la base
+ * répond P0002) sort de la file, comme une mission bien reçue ; un refus d'un autre genre aussi, après avoir été écrit dans
+ * le journal (il ne passerait jamais). Hors ligne, rien n'est perdu : la file attend.
+ */
+async function envoyerLesPasPu(adaptateurs: Adaptateurs): Promise<ResultatEnvoi> {
+  const file = (await lireMemoire('missionsPasPu')) ?? [];
+  for (const m of file) {
+    try {
+      await adaptateurs.relais.missionPasPu(m.missionId, m.motif, m.note);
+    } catch (erreur) {
+      if (erreur instanceof ErreurSession) return 'reconnecter';
+      if (erreur instanceof ErreurReseau) {
+        if (horsLigne()) return 'hors_ligne';
+        await journaliser('envoi', 'reseau_mission', erreur);
+        continue;
+      }
+      if (!(erreur instanceof ErreurRejet && erreur.code === 'P0002'))
+        await journaliser('envoi', 'mission_refusee', erreur);
+    }
+    const reste = ((await lireMemoire('missionsPasPu')) ?? []).filter(
+      (x) => x.missionId !== m.missionId,
+    );
+    await garder('missionsPasPu', reste);
+  }
+  return 'pret';
 }

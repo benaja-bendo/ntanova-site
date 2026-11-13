@@ -5,6 +5,7 @@
 import Dexie, { liveQuery, type EntityTable } from 'dexie';
 import { useEffect, useState } from 'react';
 import type { FicheLocale } from '../../modele/fiche';
+import type { Valeur } from '../../modele/listes';
 import type {
   EcoleACompleter,
   EcoleDuPays,
@@ -16,6 +17,14 @@ import type {
   ReleveRecu,
 } from '../../modele/ports';
 
+/** Un « Je n'ai pas pu » à envoyer : la mission, le motif, la précision, et quand le relais l'a dit. */
+export interface MissionPasPu {
+  missionId: string;
+  motif: Valeur<'mission_blocker'>;
+  note: string | null;
+  le: string;
+}
+
 /** Ce que le téléphone garde du serveur, pour marcher hors ligne. */
 export interface Memoire {
   profil: Profil;
@@ -25,6 +34,11 @@ export interface Memoire {
   ecoles: EcoleProche[];
   /** v2 (13/11) : toutes les écoles du pays, en léger, pour « Même nom, ailleurs » et « Un autre site de… ». */
   ecolesDuPays: EcoleDuPays[];
+  /**
+   * v2 (13/11) : les « Je n'ai pas pu » dits sur le téléphone, qui attendent le réseau. Une clé de la mémoire, pas une
+   * table : la base du téléphone ne change pas de version.
+   */
+  missionsPasPu: MissionPasPu[];
   releves: ReleveRecu[];
   /** Les écoles confiées au relais, à situer et compléter sur place. */
   aCompleter: EcoleACompleter[];
