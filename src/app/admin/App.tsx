@@ -6,14 +6,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Utilisateur } from '../../modele/ports';
 import { obtenirAdaptateurs, type Adaptateurs } from '../../infra/index';
-import { aller, useAdresse } from '../commun/adresse';
+import { useAdresse } from '../commun/adresse';
+import { Cadre, type Onglet } from './Cadre';
 import { BoutonGoogle } from '../commun/BoutonGoogle';
 import { AValider } from './AValider';
 import { Ecoles } from './Ecoles';
 import { ListeRelais } from './ListeRelais';
 import { Paie } from './Paie';
 import { Sante } from './Sante';
-import { VueEnsemble } from './VueEnsemble';
+import { Aujourdhui } from './Aujourdhui';
 import { Zones } from './Zones';
 import './admin.css';
 
@@ -144,13 +145,8 @@ export default function App() {
   }
 
   // Chaque compteur dit ce qu'il compte, pour le lecteur d'écran et l'info-bulle.
-  const onglets: {
-    chemin: string;
-    libelle: string;
-    compte: number | null;
-    legende?: [singulier: string, pluriel: string];
-  }[] = [
-    { chemin: 'accueil', libelle: 'Accueil', compte: null },
+  const principaux: Onglet[] = [
+    { chemin: 'accueil', libelle: 'Aujourd’hui', compte: null },
     {
       chemin: 'valider',
       libelle: 'À valider',
@@ -163,75 +159,42 @@ export default function App() {
       compte: ecolesPretes,
       legende: ['école prête à publier', 'écoles prêtes à publier'],
     },
-    { chemin: 'zones', libelle: 'Zones', compte: null },
     {
       chemin: 'relais',
       libelle: 'Relais',
       compte: relaisAActiver,
       legende: ['relais à activer', 'relais à activer'],
     },
-    { chemin: 'sante', libelle: 'Santé', compte: null },
+  ];
+  const rares: Onglet[] = [
+    { chemin: 'zones', libelle: 'Zones', compte: null },
     { chemin: 'paie', libelle: 'Paie', compte: null },
+    { chemin: 'sante', libelle: 'Santé des envois', compte: null },
   ];
 
   return (
-    <div className="admin">
-      <aside className="admin-cote">
-        <div className="admin-marque">
-          <img src="/favicon.svg" alt="" width={30} height={23} />
-          <span>NTanova</span>
-          <span className="admin-badge">admin</span>
-        </div>
-        <nav aria-label="Administration" className="admin-nav">
-          {onglets.map((o) => (
-            <a
-              key={o.chemin}
-              href={`#${o.chemin}`}
-              aria-current={ecran === o.chemin ? 'page' : undefined}
-              onClick={(e) => {
-                e.preventDefault();
-                aller(o.chemin);
-              }}
-            >
-              {o.libelle}
-              {o.compte !== null && o.compte > 0 && (
-                <span
-                  className="admin-badge"
-                  title={`${o.compte} ${o.legende?.[o.compte > 1 ? 1 : 0] ?? ''}`.trim()}
-                >
-                  {o.compte}
-                  <span className="visuellement-cache">
-                    {` ${o.legende?.[o.compte > 1 ? 1 : 0] ?? ''}`}
-                  </span>
-                </span>
-              )}
-            </a>
-          ))}
-        </nav>
-        <div className="admin-compte">
-          <span>Connecté : {utilisateur.email}</span>
-          <button type="button" className="lien" onClick={() => void changerDeCompte()}>
-            Se déconnecter
-          </button>
-        </div>
-      </aside>
-      <main className="admin-contenu">
-        {ecran === 'relais' ? (
-          <ListeRelais admin={adaptateurs.admin} surCompte={compterLesRelais} />
-        ) : ecran === 'ecoles' ? (
-          <Ecoles admin={adaptateurs.admin} />
-        ) : ecran === 'zones' ? (
-          <Zones admin={adaptateurs.admin} />
-        ) : ecran === 'sante' ? (
-          <Sante admin={adaptateurs.admin} />
-        ) : ecran === 'paie' ? (
-          <Paie admin={adaptateurs.admin} />
-        ) : ecran === 'valider' ? (
-          <AValider admin={adaptateurs.admin} surCompte={compter} />
-        ) : (
-          <VueEnsemble admin={adaptateurs.admin} surCompte={compter} surRelais={compterLesRelais} />
-        )}
-      </main>
-    </div>
+    <Cadre
+      ecran={ecran}
+      principaux={principaux}
+      rares={rares}
+      email={utilisateur.email}
+      seDeconnecter={() => void changerDeCompte()}
+    >
+      {ecran === 'relais' ? (
+        <ListeRelais admin={adaptateurs.admin} surCompte={compterLesRelais} />
+      ) : ecran === 'ecoles' ? (
+        <Ecoles admin={adaptateurs.admin} />
+      ) : ecran === 'zones' ? (
+        <Zones admin={adaptateurs.admin} />
+      ) : ecran === 'sante' ? (
+        <Sante admin={adaptateurs.admin} />
+      ) : ecran === 'paie' ? (
+        <Paie admin={adaptateurs.admin} />
+      ) : ecran === 'valider' ? (
+        <AValider admin={adaptateurs.admin} surCompte={compter} />
+      ) : (
+        <Aujourdhui admin={adaptateurs.admin} surCompte={compter} surRelais={compterLesRelais} />
+      )}
+    </Cadre>
   );
 }

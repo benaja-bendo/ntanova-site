@@ -1719,6 +1719,36 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const { data, error } = await supabase().storage.from(SEAU_PHOTOS).createSignedUrl(chemin, 3600);
       return error || !data?.signedUrl ? null : data.signedUrl;
     },
+    async ecolesSimilaires(nom, position, exclureReleve) {
+      const { data, error } = await supabase().rpc('similar_schools', {
+        p_name: nom,
+        p_latitude: position?.latitude ?? null,
+        p_longitude: position?.longitude ?? null,
+        p_exclude_submission: exclureReleve,
+      });
+      decider(error);
+      return ((data ?? []) as {
+        kind: 'campus' | 'submission';
+        id: string;
+        institution_id: string | null;
+        name: string;
+        acronym: string | null;
+        state: string;
+        distance_m: number | null;
+        similarity: number;
+        verdict: 'deja_la' | 'autre_site' | 'voisine';
+      }[]).map((l) => ({
+        genre: l.kind === 'campus' ? 'campus' : 'releve',
+        id: l.id,
+        institutionId: l.institution_id,
+        nom: l.name,
+        sigle: l.acronym,
+        etat: l.state,
+        distanceM: l.distance_m,
+        ressemblance: Number(l.similarity),
+        verdict: l.verdict,
+      }));
+    },
     async formationsDeLEcole(ecoleId) {
       // Les cycles du site qui ont des formations, puis leurs formations avec leur détail (M8).
       const { data, error } = await supabase()

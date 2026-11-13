@@ -1,4 +1,4 @@
-import { ouvrirContacts } from './aides';
+import { ouvrirContacts, ouvrirEcranAdmin } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 
@@ -50,7 +50,7 @@ test('le relais lit ce qui lui est acquis, la semaine close, puis le paiement av
 
   // L'administration note le numéro Mobile Money, puis clôt la semaine.
   await page.goto('/admin/');
-  await page.getByRole('link', { name: 'Paie' }).click();
+  await ouvrirEcranAdmin(page, 'Paie');
   const du = page.getByRole('region', { name: 'Ce qui est dû' });
   await du.getByRole('textbox', { name: 'Numéro Mobile Money' }).fill('242 06 123 45 99');
   await du.getByRole('button', { name: 'Noter le numéro' }).click();
@@ -68,7 +68,7 @@ test('le relais lit ce qui lui est acquis, la semaine close, puis le paiement av
 
   // L'administration note le paiement avec sa référence : le relais la lit.
   await page.goto('/admin/');
-  await page.getByRole('link', { name: 'Paie' }).click();
+  await ouvrirEcranAdmin(page, 'Paie');
   await page.getByRole('button', { name: 'Voir les paiements' }).click();
   const paiements = page.getByLabel(/Paiements du \d{4}-\d{2}-\d{2}/);
   await paiements.getByLabel('Référence du paiement de [Prénom]').fill('MM-0001');

@@ -15,6 +15,7 @@ import {
   type GroupeJournal,
 } from '../../modele/sante';
 import { Bandeau, Champ, quand } from '../../ui/composants';
+import { TitreEcran } from './Cadre';
 
 /**
  * Dans le détail d'une fiche : ce que le téléphone de CE relais a signalé ces 7 derniers jours, pour comprendre une
@@ -99,32 +100,38 @@ export function Sante({ admin }: { admin: PortAdministration }) {
 
   return (
     <div className="pile">
-      <div className="admin-titre">
-        <div>
-          <h1>Santé des envois</h1>
-          <p className="texte-doux">
+      <TitreEcran
+        titre="Santé des envois"
+        regles={
+          <p>
             Ce que les téléphones des relais ont signalé. Une même erreur répétée n’est qu’une
             ligne. Un signal n’est pas forcément une panne : une position refusée se règle dans les
             Réglages du téléphone.
           </p>
-        </div>
-        <Champ libelle="Période">
-          {(a) => (
-            <select
-              {...a}
-              className="champ"
-              value={jours === null ? 'tout' : String(jours)}
-              onChange={(e) => setJours(e.target.value === 'tout' ? null : Number(e.target.value))}
-            >
-              {periodes.map((p) => (
-                <option key={p.libelle} value={p.jours === null ? 'tout' : String(p.jours)}>
-                  {p.libelle}
-                </option>
-              ))}
-            </select>
-          )}
-        </Champ>
-      </div>
+        }
+        actions={
+          <>
+            <Champ libelle="Période">
+              {(a) => (
+                <select
+                  {...a}
+                  className="champ"
+                  value={jours === null ? 'tout' : String(jours)}
+                  onChange={(e) =>
+                    setJours(e.target.value === 'tout' ? null : Number(e.target.value))
+                  }
+                >
+                  {periodes.map((p) => (
+                    <option key={p.libelle} value={p.jours === null ? 'tout' : String(p.jours)}>
+                      {p.libelle}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Champ>
+          </>
+        }
+      />
 
       {erreur && (
         <Bandeau ton="erreur" icone="alerte">

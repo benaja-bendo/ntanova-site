@@ -1,4 +1,4 @@
-import { ouvrirGestion } from './aides';
+import { ouvrirGestion, ficheAdmin, retourAuxEcoles } from './aides';
 import { expect, test } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 test.use({ permissions: ['geolocation'] });
@@ -28,7 +28,7 @@ test('contact public : accord distinct, ajout, relecture et retrait sans badge',
   await f.getByRole('button', { name: 'Enregistrer le contact public' }).click();
   await expect(page.getByRole('status')).toContainText('Reconstruis le site');
   await expect(f).toContainText('+242 06 000 00 01');
-  await expect(ligne).not.toContainText('vérifiée par la direction');
+  await expect(page.locator('article.fiche-admin')).not.toContainText('vérifiée par la direction');
   await page.reload();
   await ouvrirGestion(ligne, 'Contact public');
   await expect(f.getByLabel('Numéro public', { exact: true })).toHaveValue('242060000001');
@@ -79,20 +79,19 @@ test('sur téléphone : formulaire entier dans une fenêtre, Échap rend le focu
   await page.getByRole('link', { name: 'Écoles', exact: true }).click();
   const ouvrir = page
     .getByRole('row', { name: /\[École à situer\]/ })
-    .getByRole('button', { name: 'Gérer la fiche', exact: true });
+    .getByRole('link', { name: 'Ouvrir la fiche', exact: true });
   await ouvrir.click();
   await page
     .getByRole('navigation', { name: 'Sections de la fiche' })
     .getByRole('button', { name: 'Contact public', exact: true })
     .click();
-  const fenetre = page.getByRole('dialog', { name: 'Gérer [École à situer]' });
+  // Admin v2 : la fiche est une page entière ; elle tient dans l'écran sans défiler de côté.
+  const fenetre = ficheAdmin(page, '[École à situer]');
   await expect(fenetre).toBeVisible();
   const boite = await fenetre.boundingBox();
   expect(boite!.x).toBeGreaterThanOrEqual(0);
   expect(boite!.x + boite!.width).toBeLessThanOrEqual(360);
-  expect(boite!.height).toBeLessThanOrEqual(640);
   expect(await fenetre.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
-  await page.keyboard.press('Escape');
+  await retourAuxEcoles(page);
   await expect(fenetre).toHaveCount(0);
-  await expect(ouvrir).toBeFocused();
 });

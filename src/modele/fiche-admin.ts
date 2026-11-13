@@ -246,3 +246,34 @@ export interface PreuveASaisir {
   photoId?: string | null;
   image?: ImagePreparee | null;
 }
+
+// Lot 3 du cahier : « Est-ce une école connue ? » ------------------------------------------------------------------------------------
+
+/**
+ * Un candidat de `similar_schools` : un site (ou un relevé en attente) proche par le nom ou la distance, avec le verdict de la
+ * base : `deja_la` (même endroit), `autre_site` (même nom, plus loin), `voisine` (autre nom, tout près). Rien n'est jamais
+ * fusionné : l'administration choisit.
+ */
+export interface EcoleSimilaire {
+  genre: 'campus' | 'releve';
+  id: string;
+  institutionId: string | null;
+  nom: string;
+  sigle: string | null;
+  etat: string;
+  distanceM: number | null;
+  ressemblance: number;
+  verdict: 'deja_la' | 'autre_site' | 'voisine';
+}
+
+/** Le même verdict que la base (100 m, 500 m, ressemblance 0,45), pour le faux serveur et les tests. */
+export function verdictDeProximite(
+  distanceM: number | null,
+  ressemblance: number,
+): EcoleSimilaire['verdict'] | null {
+  if (distanceM !== null && (distanceM <= 100 || (distanceM <= 500 && ressemblance >= 0.45)))
+    return 'deja_la';
+  if (ressemblance >= 0.45) return 'autre_site';
+  if (distanceM !== null && distanceM <= 500) return 'voisine';
+  return null;
+}

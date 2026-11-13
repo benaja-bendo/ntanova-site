@@ -1,4 +1,4 @@
-import { ouvrirGestion } from './aides';
+import { ouvrirGestion, ficheAdmin, retourAuxEcoles } from './aides';
 import { expect, test } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 test.use({ permissions: ['geolocation'] });
@@ -14,7 +14,7 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
   await expect(page.getByRole('combobox', { name: 'Zone à publier' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
   await ouvrirGestion(ligne, 'Équipements');
-  const d = page.getByRole('dialog', { name: 'Gérer [École 1]' }),
+  const d = ficheAdmin(page, '[École 1]'),
     f = d.getByRole('form');
   // v2 (13/11) : le terrain peut dire « vu » pour tout, « absent » seulement pour la clôture.
   await f.getByRole('combobox', { name: 'Équipement', exact: true }).selectOption('cantine');
@@ -30,15 +30,14 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
   await f.getByRole('button', { name: 'Enregistrer l’équipement' }).click();
   await expect(page.getByRole('status')).toContainText('Reconstruis le site');
   await expect(d.getByRole('list')).toContainText('Observé sur place');
-  await expect(ligne).toContainText('Prête');
-  await expect(ligne).not.toContainText('vérifiée par la direction');
+  await expect(page.locator('article.fiche-admin')).toContainText('Prête');
+  await expect(page.locator('article.fiche-admin')).not.toContainText('vérifiée par la direction');
   const b = await d.boundingBox();
   expect(b!.x).toBeGreaterThanOrEqual(0);
   expect(b!.x + b!.width).toBeLessThanOrEqual(360);
   expect(await d.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
-  await page.keyboard.press('Escape');
+  await retourAuxEcoles(page);
   await expect(d).toHaveCount(0);
-  await expect(ligne.getByRole('button', { name: 'Gérer la fiche', exact: true })).toBeFocused();
   await page.reload();
   await ouvrirGestion(ligne, 'Équipements');
   await d.getByRole('button', { name: 'Modifier Cantine', exact: true }).click();

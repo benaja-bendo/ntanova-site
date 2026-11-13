@@ -8,7 +8,13 @@ import type {
   MediaAdmin,
   NouvelleAdmin,
 } from '../../modele/fiche-admin';
-import { detailsVides, erreurDesDetails, sansDetail } from '../../modele/fiche-admin';
+import {
+  detailsVides,
+  erreurDesDetails,
+  sansDetail,
+  verdictDeProximite,
+} from '../../modele/fiche-admin';
+import { ressemblance } from '../../modele/deja-sur-ntanova';
 import { erreursFormulaireEcole, formulaireDe } from '../../modele/correction-ecole';
 import { erreursDeclaration } from '../../modele/declaration-ecole';
 import {
@@ -35,7 +41,7 @@ import type { Adaptateurs } from '../index';
 import { arrondissementDeLaPosition } from '../../modele/carte/plan';
 import { heriterDeLOrigine } from '../../modele/acceptation';
 import { peutParaitreSurLeSite, type EtatPhotoPublique } from '../../modele/photos-publiques';
-import type { Point } from '../../modele/geo';
+import { distanceMetres, type Point } from '../../modele/geo';
 import { messageManquant } from '../../modele/decision';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { prochainVendredi } from '../../modele/paie';
@@ -2464,6 +2470,41 @@ const admin: PortAdministration = {
   async adresseDePreuve(chemin) {
     await reseau();
     return chemin.includes('/preuves/') ? '/relais/icone-512.png' : null;
+  },
+  async ecolesSimilaires(nom, position, exclureReleve) {
+    await reseau();
+    void exclureReleve;
+    // Les mêmes règles que `similar_schools`, sur les sites du faux serveur (le nom sans les mots génériques).
+    return Object.values(lireEtat().campus)
+      .filter((c) => c.publication !== 'retiree' && !c.corbeille)
+      .flatMap((c) => {
+        const distanceM =
+          position && c.position ? Math.round(distanceMetres(position, c.position)) : null;
+        const r = ressemblance(nom, c.nom);
+        const verdict = verdictDeProximite(distanceM, r);
+        return verdict
+          ? [
+              {
+                genre: 'campus' as const,
+                id: c.id,
+                institutionId: c.institutionId,
+                nom: c.etiquette ? `${c.nom} — ${c.etiquette}` : c.nom,
+                sigle: null,
+                etat: c.publication,
+                distanceM,
+                ressemblance: r,
+                verdict,
+              },
+            ]
+          : [];
+      })
+      .sort(
+        (a, b) =>
+          ['deja_la', 'autre_site', 'voisine'].indexOf(a.verdict) -
+            ['deja_la', 'autre_site', 'voisine'].indexOf(b.verdict) ||
+          (a.distanceM ?? 1e9) - (b.distanceM ?? 1e9),
+      )
+      .slice(0, 10);
   },
   async formationsDeLEcole(ecoleId) {
     await reseau();

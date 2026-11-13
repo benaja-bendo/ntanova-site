@@ -1,8 +1,9 @@
 /* L'administration : sur ordinateur d'abord, utilisable au téléphone. Jetons seulement. */
 
 .admin {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
   min-height: 100dvh;
   background: var(--fond);
 }
@@ -33,36 +34,255 @@
   display: flex;
   align-items: center;
   gap: var(--espace-2);
+  padding: 0 var(--espace-2);
   font-family: var(--police-titre);
-  font-size: var(--taille-intertitre);
+  font-size: 1.1875rem;
   font-weight: 700;
 }
 
 .admin-badge {
-  padding: 2px var(--espace-2);
+  padding: 1px var(--espace-2);
   border-radius: var(--rayon-pilule);
   background: var(--accent);
   color: var(--texte);
   font-family: var(--police-interface);
   font-size: var(--taille-mention);
   font-weight: 700;
+  line-height: 1.4;
 }
 
-/* Le côté : une colonne sur ordinateur, une barre en haut jusqu'à 64 rem (voir plus bas). */
+/* Le compte : une initiale dans un rond jaune, cerclé de crème. */
+.admin-initiale {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--texte-sur-marque);
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--texte);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+/* Téléphone d'abord : barre du haut, contenu, barre du bas à cinq cases. La barre de côté n'existe qu'à 64 rem. */
 .admin-cote {
+  display: none;
+}
+
+.admin-haut {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
-  flex: 1 1 220px;
-  flex-direction: column;
-  gap: var(--espace-5);
-  padding: var(--espace-5) var(--espace-4);
+  align-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
   background: var(--marque-appuyee);
   color: var(--texte-sur-marque);
+}
+
+.admin-haut-titre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--police-titre);
+  font-size: 1.1875rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-haut-retour {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cible-min);
+  height: var(--cible-min);
+  margin: calc(var(--espace-2) * -1) 0;
+  color: var(--texte-sur-marque);
+}
+
+.admin-menu-compte {
+  position: absolute;
+  top: calc(100% - var(--espace-1));
+  right: var(--espace-3);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  width: min(16rem, calc(100vw - 2rem));
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  color: var(--texte);
+  box-shadow: var(--ombre-flottante);
+}
+
+.admin-menu-compte-qui {
+  display: flex;
+  flex-direction: column;
+  padding: var(--espace-3) var(--espace-4);
+  overflow-wrap: anywhere;
+}
+
+.admin-menu-compte-qui span {
+  color: var(--texte-doux);
+  font-size: var(--taille-mention);
+}
+
+.admin-menu-compte button {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  min-height: 48px;
+  padding: 0 var(--espace-4);
+  border: 0;
+  border-top: 1px solid var(--trait);
+  border-radius: 0 0 var(--rayon-m) var(--rayon-m);
+  background: transparent;
+  color: var(--erreur);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.admin-contenu {
+  min-width: 0;
+  padding: var(--espace-4) var(--espace-4) var(--espace-7);
+}
+
+.admin-bas {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--trait);
+  background: var(--fond-releve);
+}
+
+.admin-bas a,
+.admin-bas button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: var(--espace-2) 0 var(--espace-3);
+  border: 0;
+  background: transparent;
+  color: var(--texte-doux);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-bas [aria-current='page'] {
+  color: var(--marque-appuyee);
+  box-shadow: inset 0 3px 0 var(--marque);
+}
+
+/* Sur l'icône : le nombre en pastille. */
+.admin-bas .admin-badge {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 6px);
+  padding: 0 6px;
+  font-size: 0.6875rem;
+}
+
+.admin-feuille-titre {
+  font-family: var(--police-titre);
+  font-size: 1.125rem;
+}
+
+.admin-feuille-liens {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-feuille-liens a,
+.admin-feuille-liens button {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  min-height: 52px;
+  border: 0;
+  border-top: 1px solid var(--trait);
+  background: transparent;
+  color: var(--texte);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+}
+
+.admin-feuille-liens .admin-lien-texte {
+  flex: 1;
+}
+
+.admin-feuille-liens [aria-current='page'] {
+  color: var(--marque-appuyee);
+}
+
+.admin-regles {
+  display: grid;
+  gap: var(--espace-3);
+}
+
+.admin-regles p {
+  margin: 0;
+}
+
+/* Ordinateur : la barre de côté, « Plus rarement » déplié dedans, le compte en bas ; plus de barre du haut ni du bas. */
+@media (min-width: 64rem) {
+  .admin {
+    grid-template-columns: 15rem minmax(0, 1fr);
+    grid-template-rows: 1fr;
+  }
+
+  .admin-haut,
+  .admin-bas {
+    display: none;
+  }
+
+  .admin-cote {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-4);
+    height: 100dvh;
+    padding: var(--espace-5) var(--espace-3);
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+    overflow-y: auto;
+  }
+
+  .admin-contenu {
+    padding: var(--espace-5) var(--espace-6) var(--espace-7);
+  }
+}
+
+.admin-cote-rubrique {
+  padding: 0 var(--espace-3);
+  color: var(--vert-pale);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .admin-nav {
   display: flex;
   flex-direction: column;
-  gap: var(--espace-1);
+  gap: 2px;
 }
 
 .admin-nav a {
@@ -75,22 +295,40 @@
   border-radius: var(--rayon-s);
   color: var(--texte-sur-marque);
   font-family: var(--police-interface);
-  font-size: var(--taille-secondaire);
+  font-size: 0.9375rem;
   font-weight: 700;
   text-decoration: none;
 }
 
+.admin-nav-rare a {
+  min-height: 40px;
+  font-weight: 400;
+}
+
 .admin-nav a[aria-current='page'] {
-  box-shadow: inset 4px 0 0 var(--accent);
   background: var(--marque);
+}
+
+@media (hover: hover) {
+  .admin-nav a:hover {
+    background: var(--marque);
+  }
 }
 
 .admin-compte {
   display: flex;
-  flex-direction: column;
-  gap: var(--espace-1);
+  align-items: center;
+  gap: var(--espace-3);
   margin-top: auto;
-  font-size: var(--taille-mention);
+  padding: var(--espace-3) var(--espace-2) 0;
+  border-top: 1px solid var(--filet-sur-sombre);
+  font-size: var(--taille-secondaire);
+}
+
+.admin-compte-texte {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
   overflow-wrap: anywhere;
 }
 
@@ -99,77 +337,61 @@
   color: var(--texte-sur-marque);
 }
 
-.admin-contenu {
-  flex: 999 1 560px;
-  min-width: 0;
-  padding: var(--espace-5) var(--espace-5) var(--espace-7);
-}
-
-/*
- * Jusqu'à 64 rem (1 024 px), le côté devient une barre en haut. Les tableaux ont besoin
- * de 720 px : à côté d'une colonne de 220 px, ils défileraient dans leur cadre en
- * dessous de 1 024 px environ.
- */
-@media (max-width: 64rem) {
-  /* Sans cela, la barre et le contenu (deux lignes) se partagent la hauteur de l'écran : la barre s'étire. */
-  .admin {
-    align-content: flex-start;
-  }
-
-  .admin-cote {
-    flex-basis: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--espace-2) var(--espace-5);
-    padding: var(--espace-3) var(--espace-4);
-  }
-
-  /* Les onglets ont leur propre ligne : en ajouter un ne fait jamais passer la marque ou le compte à la ligne. La marque
-     et le compte sont sur la première (le compte à droite), les onglets sur la seconde. */
-  .admin-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    flex-basis: 100%;
-    order: 3;
-  }
-
-  .admin-compte {
-    order: 2;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 var(--espace-3);
-    margin-top: 0;
-    margin-left: auto;
-  }
-
-  .admin-compte .lien {
-    align-self: center;
-  }
-}
-
-@media (max-width: 40rem) {
-  .admin-contenu {
-    padding: var(--espace-4);
-  }
-
-  /* Cinq onglets tiennent sur 360 px : des marges plus étroites, et la ligne passe à la suivante si besoin. */
-  .admin-nav a {
-    padding: 0 var(--espace-2);
-  }
-}
-
 .admin-titre {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--espace-3);
+  margin-bottom: var(--espace-4);
 }
 
 .admin-titre p {
   margin: 0;
+}
+
+.admin-titre-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+/* Sur téléphone, le titre est dans la barre du haut : le `h1` reste pour les lecteurs d'écran ; les règles sont dans
+   « Plus ». */
+@media (max-width: 63.99rem) {
+  .admin-titre .bouton-regles {
+    display: none;
+  }
+
+  .admin-titre h1 {
+    display: none;
+  }
+
+  .admin-titre:not(:has(.admin-titre-actions > :not(.bouton-regles))) {
+    margin: 0;
+  }
+}
+
+.bouton-regles {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: 40px;
+  padding: 0 var(--espace-3);
+  border: 0;
+  border-radius: var(--rayon-s);
+  background: transparent;
+  color: var(--marque);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+@media (hover: hover) {
+  .bouton-regles:hover {
+    background: var(--fond-bande);
+  }
 }
 
 .admin-titre h2,
@@ -205,11 +427,11 @@
 
 .admin-ligne {
   display: flex;
-  flex-direction: column;
-  gap: var(--espace-1);
-  padding: var(--espace-3) var(--espace-4);
-  border: 2px solid var(--trait);
-  border-radius: var(--rayon-m);
+  align-items: flex-start;
+  gap: var(--espace-3);
+  padding: var(--espace-3);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-s);
   background: var(--fond-releve);
   color: var(--texte);
   text-decoration: none;
@@ -217,12 +439,145 @@
 
 .admin-ligne[aria-current='true'] {
   border-color: var(--marque);
+  box-shadow: inset 0 0 0 1px var(--marque);
+}
+
+@media (hover: hover) {
+  .admin-ligne:hover {
+    border-color: var(--marque);
+  }
+}
+
+/* Le rond d'une ligne : l'initiale de l'école, comme le rond du logo sur sa page. */
+.admin-ligne-rond {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--marque-appuyee);
+  color: var(--texte-sur-marque);
+  font-weight: 700;
+}
+
+.admin-ligne-corps {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .admin-ligne-tete {
   display: flex;
   justify-content: space-between;
   gap: var(--espace-2);
+}
+
+.admin-ligne-tete b {
+  font-family: var(--police-titre);
+}
+
+/* « À valider » v2 : les onglets d'état, les filtres (en puces sur ordinateur, derrière « Filtrer » sur téléphone). */
+.avalider-onglets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-1) var(--espace-5);
+  border-bottom: 1px solid var(--trait);
+}
+
+.onglet-etat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: var(--cible-min);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--texte-doux);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.onglet-etat[aria-pressed='true'] {
+  color: var(--marque-appuyee);
+  box-shadow: inset 0 -3px 0 var(--marque);
+}
+
+.onglet-compte {
+  padding: 1px var(--espace-2);
+  border-radius: var(--rayon-pilule);
+  background: var(--fond-bande);
+  font-size: var(--taille-mention);
+}
+
+.onglet-etat[aria-pressed='true'] .onglet-compte {
+  background: var(--vert-pale);
+}
+
+.avalider-filtres-larges {
+  display: none;
+}
+
+.avalider-filtrer > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--espace-4);
+  border: 1px solid var(--trait-fort);
+  border-radius: var(--rayon-s);
+  background: var(--fond-releve);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.avalider-filtrer > summary::-webkit-details-marker {
+  display: none;
+}
+
+.avalider-filtrer[open] > summary {
+  margin-bottom: var(--espace-3);
+}
+
+@media (min-width: 64rem) {
+  .avalider-filtres-larges {
+    display: block;
+    margin-left: auto;
+  }
+
+  .avalider-filtrer {
+    display: none;
+  }
+}
+
+/* Sur téléphone : la liste, puis la fiche (deux écrans). La flèche de la barre du haut revient à la liste. */
+@media (max-width: 63.99rem) {
+  .avalider.avec-fiche > .admin-file > .admin-liste,
+  .avalider.avec-fiche > .avalider-onglets,
+  .avalider.avec-fiche > .avalider-filtrer {
+    display: none;
+  }
+}
+
+.avalider-fiche-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espace-2);
+}
+
+.avalider-fiche-tete h2 {
+  font-size: 1.5rem;
+}
+
+.avalider-fiche-tete p {
+  margin: 0;
 }
 
 .admin-etiquettes {
@@ -240,12 +595,12 @@
   display: flex;
   flex: 999 1 520px;
   flex-direction: column;
-  gap: var(--espace-5);
+  gap: var(--espace-4);
   min-width: 0;
-  padding: var(--espace-5);
-  border-radius: var(--rayon-l);
+  padding: var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
   background: var(--fond-releve);
-  box-shadow: 0 1px 0 var(--trait);
 }
 
 .admin-deux {
@@ -444,37 +799,130 @@
   gap: var(--espace-2);
 }
 
-/* La vue d'ensemble : des chiffres, côte à côte dès qu'il y a de la place (ticket #76). */
-.admin-chiffres {
+/* « Aujourd'hui » (lot 5) : ce qui t'attend, puis la semaine ; côte à côte à 64 rem. */
+.aujourdhui {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
-  gap: var(--espace-3);
+  gap: var(--espace-5);
 }
 
-.admin-chiffre {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espace-1);
+@media (min-width: 64rem) {
+  .aujourdhui {
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+    align-items: start;
+  }
+
+  .aujourdhui-detail {
+    grid-column: 1 / -1;
+  }
 }
 
-.admin-chiffre-attention {
-  box-shadow: inset 4px 0 0 var(--accent);
-}
-
-.admin-chiffre-titre {
+.surtitre-doux,
+.admin-contenu .surtitre-doux {
   margin: 0;
   color: var(--texte-doux);
   font-family: var(--police-interface);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.liste-attente,
+.liste-semaine {
+  display: grid;
+  gap: var(--espace-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attente {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-s);
+  background: var(--fond-releve);
+  color: var(--texte);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  a.attente:hover {
+    border-color: var(--marque);
+  }
+}
+
+.attente-nombre {
+  min-width: 2.75rem;
+  color: var(--marque-appuyee);
+  font-family: var(--police-titre);
+  font-size: 1.625rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.attente-nombre-nul {
+  color: var(--texte-doux);
+}
+
+.attente-texte {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.attente-texte span {
+  color: var(--texte-doux);
   font-size: var(--taille-secondaire);
+}
+
+.attente-texte .attente-detail-attention {
+  color: var(--texte);
   font-weight: 700;
 }
 
-.admin-chiffre-valeur {
-  margin: 0;
-  font-family: var(--police-interface);
-  font-size: var(--taille-titre-page);
+.attente-geste {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+  color: var(--marque);
   font-weight: 700;
-  line-height: var(--interligne-titre);
+}
+
+/* Le mot du geste (« Valider ») seulement sur ordinateur : sur téléphone, la flèche suffit. */
+.attente-geste-mot {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .attente-geste-mot {
+    display: inline;
+  }
+
+  .attente-nombre {
+    min-width: 3.5rem;
+    font-size: 2rem;
+  }
+}
+
+.liste-semaine li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border-radius: var(--rayon-m);
+  background: var(--fond-bande);
+}
+
+.semaine-nombre {
+  min-width: 3rem;
+  color: var(--marque-appuyee);
+  font-family: var(--police-titre);
+  font-size: 1.75rem;
+  font-weight: 700;
 }
 
 .admin-barre-cellule {
@@ -522,19 +970,23 @@
   font-size: var(--taille-secondaire);
   padding-inline: var(--espace-3);
 }
-@media (max-width: 47.99rem) {
+@media (max-width: 63.99rem) {
   .ecoles-recherche {
     grid-template-columns: minmax(0, 1fr);
   }
-  .ecoles-tableau {
+  .ecoles-tableau,
+  .relais-tableau {
     background: transparent;
     box-shadow: none;
   }
   .ecoles-tableau table,
-  .ecoles-tableau tbody {
+  .relais-tableau table,
+  .ecoles-tableau tbody,
+  .relais-tableau tbody {
     display: block;
   }
-  .ecoles-tableau thead {
+  .ecoles-tableau thead,
+  .relais-tableau thead {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -542,7 +994,8 @@
     clip-path: inset(50%);
     contain: strict;
   }
-  .ecoles-tableau tr {
+  .ecoles-tableau tr,
+  .relais-tableau tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--espace-3);
@@ -552,21 +1005,26 @@
     border-radius: var(--rayon-l);
     background: var(--fond-releve);
   }
-  .ecoles-tableau td {
+  .ecoles-tableau td,
+  .relais-tableau td {
     display: block;
     padding: 0;
     border: 0;
     min-width: 0;
   }
-  .ecoles-tableau td:first-child {
+  .ecoles-tableau td:first-child,
+  .relais-tableau td:first-child {
     grid-column: 1;
   }
-  .ecoles-tableau td:nth-child(2) {
+  .ecoles-tableau td:nth-child(2),
+  .relais-tableau td:nth-child(2) {
     grid-column: 2;
     grid-row: 1;
   }
   .ecoles-tableau td:nth-child(n + 3),
-  .ecoles-tableau td[colspan] {
+  .relais-tableau td:nth-child(n + 3),
+  .ecoles-tableau td[colspan],
+  .relais-tableau td[colspan] {
     grid-column: 1 / -1;
   }
   .ecole-actions {
@@ -667,33 +1125,25 @@
  * fiche. La demande de correction ou de refus s'ouvre dans la même barre, qui défile seule si la fenêtre est basse.
  */
 .admin-decision-barre {
+  position: sticky;
+  bottom: 56px;
+  z-index: 2;
   min-inline-size: 0;
-  margin: 0;
-  padding: var(--espace-4) 0 0;
+  max-height: 60dvh;
+  margin: 0 calc(-1 * var(--espace-4));
+  padding: var(--espace-3) var(--espace-4);
+  overflow-y: auto;
   border: 0;
   border-top: 1px solid var(--trait);
+  background: var(--fond-releve);
+  box-shadow: var(--ombre-barre-basse);
 }
 
-/* Sur ordinateur : le côté reste en place. */
-@media (min-width: 64.0625rem) {
-  .admin-cote {
-    position: sticky;
-    top: 0;
-    align-self: flex-start;
-    height: 100dvh;
-    overflow-y: auto;
-  }
-
+/* Sur ordinateur : la barre de décision est le pied de la fiche, collée en bas de la fenêtre. */
+@media (min-width: 64rem) {
   .admin-decision-barre {
-    position: sticky;
     bottom: 0;
-    z-index: 2;
     max-height: 75dvh;
-    margin: 0 calc(-1 * var(--espace-5));
-    padding: var(--espace-3) var(--espace-5);
-    overflow-y: auto;
-    background: var(--fond-releve);
-    box-shadow: var(--ombre-tiroir);
   }
 
   /* Un champ ou un bouton qui prend le focus ne reste pas caché sous la barre. */
@@ -703,7 +1153,7 @@
 }
 
 /* À valider sur un grand écran : la file garde sa place et défile seule, le détail défile à côté. */
-@media (min-width: 72rem) {
+@media (min-width: 64rem) {
   .admin-file.avec-selection {
     display: grid;
     grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
@@ -1593,4 +2043,253 @@ button.admin-zone-bascule:focus-visible {
   object-fit: contain;
   border-radius: var(--rayon-m);
   background: var(--fond-bande);
+}
+
+/* Un mot pour le téléphone, un autre pour l'ordinateur (le nom accessible du bouton reste le même). */
+.seulement-ordi {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .seulement-tel {
+    display: none;
+  }
+
+  .seulement-ordi {
+    display: inline;
+  }
+}
+
+/* La barre de décision : une ligne ; « Refuser » à l'écart, à droite ; la conséquence près du geste. */
+.admin-decision-barre > .admin-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.admin-decision-barre > .admin-actions .admin-bouton-refus {
+  margin-left: auto;
+}
+
+.admin-consequence {
+  display: none;
+}
+
+@media (max-width: 63.99rem) {
+  .admin-decision-barre > .admin-actions .bouton {
+    padding-inline: var(--espace-3);
+  }
+}
+
+@media (min-width: 64rem) {
+  .admin-consequence {
+    display: inline;
+  }
+}
+
+.aide-repliee > summary {
+  color: var(--marque);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.aide-repliee[open] > summary {
+  margin-bottom: var(--espace-2);
+}
+
+/* Écoles v2 : une école à plusieurs sites a sa ligne de titre. */
+.ligne-ecole-groupe td {
+  padding-top: var(--espace-4);
+  background: var(--fond);
+  font-family: var(--police-titre);
+  font-size: 1.0625rem;
+  text-align: left;
+}
+
+/* La fiche d'une école, en plein écran (admin v2, lot 5). */
+.fiche-admin {
+  display: grid;
+  gap: var(--espace-4);
+}
+
+.fiche-admin > .admin-titre {
+  margin-bottom: 0;
+}
+
+.fiche-admin-retour {
+  justify-self: start;
+}
+
+@media (max-width: 63.99rem) {
+  .fiche-admin-retour {
+    display: none;
+  }
+}
+
+.fiche-admin-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--espace-4);
+  padding: var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+}
+
+.fiche-admin-rond {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border: 3px solid var(--fond-releve);
+  border-radius: 50%;
+  background: var(--marque-appuyee);
+  color: var(--texte-sur-marque);
+  font-family: var(--police-titre);
+  font-size: 1.5rem;
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--trait);
+}
+
+.fiche-admin-identite {
+  display: grid;
+  flex: 1 1 16rem;
+  gap: var(--espace-2);
+  min-width: 0;
+}
+
+.fiche-admin-identite p {
+  margin: 0;
+}
+
+.fiche-admin-nom {
+  font-family: var(--police-titre);
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+@media (min-width: 64rem) {
+  .fiche-admin-nom {
+    display: none;
+  }
+}
+
+.fiche-admin-sites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+}
+
+.fiche-admin-sites a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--espace-3);
+  border: 1px solid var(--trait-fort);
+  border-radius: var(--rayon-pilule);
+  color: var(--texte);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.fiche-admin-sites a[aria-current='page'] {
+  border-color: var(--marque);
+  background: var(--vert-pale);
+  color: var(--marque-appuyee);
+}
+
+.fiche-admin-gestes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2);
+}
+
+/* Les rubriques de la fiche : une grille de cartes ; celle qui est ouverte est cerclée de vert. */
+.fiche-admin-corps {
+  display: grid;
+  gap: var(--espace-4);
+}
+
+.fiche-admin-corps > .gestion-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(11rem, 100%), 1fr));
+  gap: var(--espace-2);
+}
+
+.fiche-admin-corps > .gestion-sections .pastille-choix {
+  justify-content: flex-start;
+  min-height: 48px;
+  padding: 0 var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-s);
+  background: var(--fond-releve);
+  color: var(--texte);
+  font-weight: 700;
+  text-align: left;
+}
+
+.fiche-admin-corps > .gestion-sections .pastille-choix[aria-pressed='true'] {
+  border-color: var(--marque);
+  background: var(--fond-releve);
+  color: var(--marque-appuyee);
+  box-shadow: inset 0 0 0 1px var(--marque);
+}
+
+.fiche-admin-corps > :not(.gestion-sections) {
+  padding: var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+}
+
+.fiche-admin-corps > p.bandeau,
+.fiche-admin-corps > p.message-erreur {
+  padding: var(--espace-3) var(--espace-4);
+}
+
+/* « Est-ce une école connue ? » (lot 3) : un cadre ambre quand une école connue ressemble, neutre sinon. */
+.ecole-connue-admin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-bande);
+}
+
+.ecole-connue-trouvee {
+  border: 2px solid var(--ambre);
+  background: var(--jaune-pale);
+}
+
+.ecole-connue-admin .ecole-connue-texte {
+  display: flex;
+  flex: 1 1 18rem;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ecole-connue-admin .ecole-connue-texte > b {
+  font-family: var(--police-titre);
+  font-size: 1.125rem;
+}
+
+.ecole-connue-gestes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+}
+
+.ecole-connue-gestes .bouton[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 3px var(--fond-releve),
+    0 0 0 5px var(--marque);
 }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { seConnecter } from './aides';
+import { seConnecter, ouvrirRegles } from './aides';
 
 // Un compte en attente que l'administration reconnaît (ticket #78), construit avec le faux serveur : l'adresse de
 // connexion du relais s'affiche à côté de son prénom (de quoi relier le compte à la personne), « Écarter » met de côté
@@ -32,8 +32,8 @@ test.describe('l’administration reconnaît un compte à activer', () => {
 
   test('le menu dit combien de comptes attendent, dès la page d’arrivée', async ({ page }) => {
     await seConnecter(page, '/admin/');
-    await expect(page.getByRole('heading', { name: 'Vue d’ensemble', level: 1 })).toBeVisible();
-    const menu = page.getByRole('link', { name: /^Relais/ });
+    await expect(page.getByRole('heading', { name: 'Aujourd’hui', level: 1 })).toBeAttached();
+    const menu = page.getByRole('link', { name: /^Relais/ }).locator('visible=true');
     await expect(menu).toContainText('1');
 
     await menu.click();
@@ -52,7 +52,10 @@ test.describe('l’administration reconnaît un compte à activer', () => {
     await seConnecter(page, '/admin/#relais');
     await expect(page.getByRole('heading', { name: 'Relais', level: 1 })).toBeVisible();
     await expect(page.getByText(/Avant, ajoute son adresse Gmail/)).toHaveCount(0);
+    // Admin v2 : la règle est dans le tiroir « Règles ».
+    await ouvrirRegles(page);
     await expect(page.getByText(/dès sa première connexion, « à activer »/)).toBeVisible();
+    await page.keyboard.press('Escape');
     await page.getByText('Quelqu’un ne peut pas se connecter ?').click();
     await expect(page.getByText(/mode « test »/)).toBeVisible();
   });

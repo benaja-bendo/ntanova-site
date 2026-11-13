@@ -33,6 +33,7 @@ import { messageErreur } from './ChampPosition';
 import { VueParEtape } from './ZonesEtapes';
 import { AjouterDivision } from './ZonesFormulaires';
 import { VoletDeZone } from './ZonesVolet';
+import { TitreEcran } from './Cadre';
 
 /** Le retour d'un geste : dit ce qui s'est passé, et le défait quand c'est possible. */
 interface Retour {
@@ -265,40 +266,44 @@ export function Zones({ admin }: { admin: PortAdministration }) {
 
   return (
     <div className="pile">
-      <div className="admin-titre">
-        <div>
-          <h1>Zones</h1>
-          <p className="texte-doux">
+      <TitreEcran
+        titre="Zones"
+        regles={
+          <p>
             Où NTanova envoie des relais, et ce que les familles voient sur la carte. Les relais
             peuvent relever partout au Congo-Brazzaville : « ouverte » dit seulement où l’on en
             envoie, jamais où il leur est interdit de relever.
           </p>
-        </div>
-        <div className="admin-vues" role="group" aria-label="Affichage des zones">
-          <a
-            className="admin-vue"
-            href="#zones"
-            aria-current={vue === 'arbre' ? 'true' : undefined}
-            onClick={(e) => {
-              e.preventDefault();
-              aller('zones');
-            }}
-          >
-            Arbre
-          </a>
-          <a
-            className="admin-vue"
-            href="#zones/etapes"
-            aria-current={vue === 'etapes' ? 'true' : undefined}
-            onClick={(e) => {
-              e.preventDefault();
-              aller('zones/etapes');
-            }}
-          >
-            Par étape
-          </a>
-        </div>
-      </div>
+        }
+        actions={
+          <>
+            <div className="admin-vues" role="group" aria-label="Affichage des zones">
+              <a
+                className="admin-vue"
+                href="#zones"
+                aria-current={vue === 'arbre' ? 'true' : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  aller('zones');
+                }}
+              >
+                Arbre
+              </a>
+              <a
+                className="admin-vue"
+                href="#zones/etapes"
+                aria-current={vue === 'etapes' ? 'true' : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  aller('zones/etapes');
+                }}
+              >
+                Par étape
+              </a>
+            </div>
+          </>
+        }
+      />
 
       {erreur && (
         <Bandeau ton="erreur" icone="alerte">

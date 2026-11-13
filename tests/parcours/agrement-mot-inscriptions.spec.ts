@@ -1,6 +1,6 @@
 // Ticket 148 : l'agrément, le mot de la direction et la date limite des inscriptions, sur la fiche et dans l'administration.
 import { expect, test } from '@playwright/test';
-import { ouvrirGestion, ouvrirLaFiche, uneFicheEnvoyee } from './aides';
+import { ouvrirGestion, ouvrirLaFiche, uneFicheEnvoyee, ficheAdmin } from './aides';
 
 const hier = () => new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
@@ -63,7 +63,7 @@ test.describe('dans l’administration', () => {
     await page.getByRole('link', { name: 'Écoles', exact: true }).click();
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
     await ouvrirGestion(ligne, 'Agrément');
-    const dialog = page.getByRole('dialog', { name: 'Gérer [École 1]' });
+    const dialog = ficheAdmin(page, '[École 1]');
 
     // L'agrément
     const agrement = dialog.getByRole('form', { name: 'Agrément de [École 1]' });
@@ -95,7 +95,9 @@ test.describe('dans l’administration', () => {
     await expect(agrement.getByLabel(/^Référence, telle/)).toHaveValue('arrêté n° [référence]');
     await agrement.getByRole('button', { name: 'Annuler la modification' }).click();
     await expect(agrement.getByLabel(/^Référence, telle/)).toHaveValue('');
-    await expect(ligne).not.toContainText('vérifiée par la direction');
+    await expect(page.locator('article.fiche-admin')).not.toContainText(
+      'vérifiée par la direction',
+    );
     await dialog.getByRole('button', { name: 'Retirer : L’établissement' }).click();
     await expect(dialog.getByRole('button', { name: 'Retirer : L’établissement' })).toHaveCount(0);
 

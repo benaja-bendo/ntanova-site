@@ -245,7 +245,10 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     await page.getByRole('link', { name: 'Écoles' }).click();
     const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
     await ouvrirGestion(ligne, 'Mission');
-    await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
+    await page
+      .locator('article.fiche-admin')
+      .getByRole('button', { name: 'Confier', exact: true })
+      .click();
     await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
     // … et la base lui a donné, depuis, un type et un niveau que ce téléphone ne connaît pas encore.
