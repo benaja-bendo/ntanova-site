@@ -50,6 +50,13 @@ test('frais déclarés : ajout, relecture, modification et retrait, sans badge n
   await retourAuxEcoles(page);
   await page.reload();
   await ouvrirGestion(ligne, 'Frais déclarés');
+  // Sur téléphone (planche), une ligne enregistrée se lit repliée : son résumé, puis un toucher l'ouvre.
+  const resume = premiere.locator('button[aria-expanded]');
+  if (await resume.isVisible()) {
+    await expect(resume).toContainText(/25\s*000/);
+    await expect(resume).toHaveAttribute('aria-expanded', 'false');
+    await resume.click();
+  }
   await expect(premiere.getByLabel('Montant (FCFA)')).toHaveValue(/25\s*000/);
   await premiere.getByRole('button', { name: /^Retirer la ligne / }).click();
   await frais.getByRole('button', { name: /^Enregistrer 0 ligne publiable$/ }).click();

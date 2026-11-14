@@ -116,6 +116,9 @@ export function FraisEcole({
   }, [admin, ecoleId]);
   const photo = prospectus?.[vue] ?? null;
 
+  // Téléphone (planche) : une ligne déjà enregistrée se lit repliée (classe, montant, inscription) ; un toucher l'ouvre.
+  const [ouverte, setOuverte] = useState<string | null>(null);
+  const repliee = (l: Ligne) => l.id !== null && !l.illisible && ouverte !== l.cle;
   const changer = (cle: string, champs: Partial<Ligne>) =>
     setLignes((ls) => ls.map((l) => (l.cle === cle ? { ...l, ...champs } : l)));
   const retirer = (l: Ligne) => {
@@ -330,8 +333,46 @@ export function FraisEcole({
                     className={cn(
                       'border-t border-border',
                       l.illisible && 'shadow-[inset_3px_0_0_var(--erreur)]',
+                      repliee(l) && 'max-lg:[&>td:not(:first-child)]:hidden',
                     )}
                   >
+                    <td role="cell" className="col-span-2 lg:hidden">
+                      <button
+                        type="button"
+                        aria-expanded={!repliee(l)}
+                        onClick={() => setOuverte(repliee(l) ? l.cle : null)}
+                        className="flex w-full cursor-pointer items-start justify-between gap-3 border-0 bg-transparent p-1 text-left font-sans text-foreground"
+                      >
+                        <span className="flex min-w-0 flex-col">
+                          <b className="text-[17px]">
+                            {l.cycle
+                              ? libelleNiveau[l.cycle as Valeur<'niveau'>]
+                              : 'Cycle à choisir'}
+                            {l.illisible && l.classe.trim() ? ` · ${l.classe.trim()}` : ''}
+                          </b>
+                          {!l.illisible && (
+                            <span className="text-sm text-muted-foreground">
+                              {l.classe.trim() || 'toutes les classes'}
+                            </span>
+                          )}
+                        </span>
+                        {l.illisible ? (
+                          <span className={v2.pastilleDanger}>Illisible</span>
+                        ) : (
+                          <span className="flex flex-col items-end text-right">
+                            <b className="text-[17px]">
+                              {l.montant.trim() || '—'} /{' '}
+                              {(
+                                periodesFrais[l.periode as keyof typeof periodesFrais] ?? ''
+                              ).replace('Par ', '')}
+                            </b>
+                            <span className="text-sm text-muted-foreground">
+                              inscription {l.inscription.trim() || '—'}
+                            </span>
+                          </span>
+                        )}
+                      </button>
+                    </td>
                     <td role="cell" className="px-2 py-1.5">
                       <select
                         aria-label="Cycle"
