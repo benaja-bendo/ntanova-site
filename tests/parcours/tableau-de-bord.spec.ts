@@ -377,7 +377,11 @@ test.describe('tableau de bord : Zones', () => {
   }) => {
     await seConnecter(page, '/admin/#zones');
     const arbre = arbreDe(page);
-    await arbre.getByRole('button', { name: 'Ajouter une zone' }).click();
+    await page
+      .getByRole('button', { name: 'Ajouter une zone' })
+      .filter({ visible: true })
+      .first()
+      .click();
     const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
     await expect(fenetre).toBeVisible();
 
@@ -402,7 +406,11 @@ test.describe('tableau de bord : Zones', () => {
       'Deux colonnes : la liste reste à côté de la zone',
     );
     await seConnecter(page, '/admin/#zones/d-pn-ngoyo');
-    await arbreDe(page).getByRole('button', { name: 'Ajouter une zone' }).click();
+    await page
+      .getByRole('button', { name: 'Ajouter une zone' })
+      .filter({ visible: true })
+      .first()
+      .click();
     const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
     await expect(fenetre.getByLabel('Sous quelle zone ?')).toHaveValue('d-pn-ngoyo');
     await fenetre.getByRole('button', { name: 'Fermer' }).click();
@@ -498,7 +506,11 @@ test.describe('tableau de bord : Zones', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/#zones');
-    await arbreDe(page).getByRole('button', { name: 'Ajouter une zone' }).click();
+    await page
+      .getByRole('button', { name: 'Ajouter une zone' })
+      .filter({ visible: true })
+      .first()
+      .click();
     const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
     await fenetre.getByLabel('Sous quelle zone ?').selectOption('d-pn-tie-tie');
     await fenetre.getByLabel('Nom', { exact: true }).fill('Mpaka par erreur');

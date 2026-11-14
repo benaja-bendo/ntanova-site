@@ -72,7 +72,9 @@ test('À valider : « Comme sur l’enseigne / Différent » et « Sur la photo 
   // « Différent » ouvre la correction avant d'accepter.
   await nom.getByRole('button', { name: 'Différent' }).click();
   await expect(page.getByRole('form', { name: 'Corriger avant d’accepter' })).toBeVisible();
-  await page.keyboard.press('Escape');
+  const tiroir = page.getByRole('dialog', { name: 'Corriger avant d’accepter' });
+  await tiroir.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await expect(tiroir).toHaveCount(0);
 
   await expect(publique.getByText('Sur la photo ?')).toBeVisible();
   await page

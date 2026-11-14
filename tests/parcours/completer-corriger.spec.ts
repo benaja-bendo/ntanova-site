@@ -265,6 +265,7 @@ test.describe('après « À repasser »', () => {
 
     // « À repasser » a maintenant un geste : le relais a revu la direction.
     // v2 (13/11) : « Quand repasser ? » est retiré de l'étape 3 ; « À repasser » reste, sans note.
+    await page.goto('/relais/#fiches');
     await expect(page.getByText(/^À repasser/)).toBeVisible({ timeout: 15_000 });
     // v2 : le geste est dans la fiche.
     await ouvrirMaFiche(page, '[École 1]');

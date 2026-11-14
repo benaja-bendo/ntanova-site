@@ -77,9 +77,14 @@ async function verifierLaBarre(page: Page, nom: string) {
 
 /** Aucun tableau de l'écran ne défile dans son cadre. */
 async function verifierLesTableaux(page: Page, nom: string) {
-  await expect(page.locator('.admin-tableau').first()).toBeVisible();
-  for (const cadre of await page.locator('.admin-tableau').all()) {
-    const [contenu, visible] = await cadre.evaluate((e) => [e.scrollWidth, e.clientWidth] as const);
+  // Admin v2 : les tableaux des planches (un `table` dans sa carte, ou une grille `role="table"`) ; Zones n'en a pas.
+  await page.waitForLoadState('networkidle');
+  for (const t of await page.locator('main table, main [role="table"]').all()) {
+    if (!(await t.isVisible())) continue;
+    const [contenu, visible] = await t.evaluate((e) => {
+      const cadre = e.tagName === 'TABLE' ? (e.parentElement ?? e) : e;
+      return [cadre.scrollWidth, cadre.clientWidth] as const;
+    });
     expect(contenu, `${nom} : un tableau défile dans son cadre`).toBeLessThanOrEqual(visible);
   }
 }
@@ -629,8 +634,8 @@ test('à valider : décider dans la barre, contacts dans un tiroir et saisie con
   await formulaire.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await expect(formulaire).toHaveCount(0);
   await expect(tiroir.getByRole('alert')).toHaveCount(0);
-  // Échap referme le tiroir et rend le focus à la ligne, qui compte la nouvelle personne.
-  await page.keyboard.press('Escape');
+  // « Fermer » referme le tiroir et rend le focus à la ligne, qui compte la nouvelle personne.
+  await tiroir.getByRole('button', { name: 'Fermer', exact: true }).click();
   await expect(tiroir).toHaveCount(0);
   await expect(ligne).toBeFocused();
   await expect(fiche.getByText('2 personnes · 1 accord', { exact: true })).toBeVisible();
