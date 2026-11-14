@@ -6,6 +6,7 @@ import {
   etatDuManque,
   libelleSujetDemande,
   messageALEcole,
+  raisonDesManques,
   tacheDuManque,
   type Manque,
 } from '../../modele/fiche-admin';
@@ -59,6 +60,7 @@ export function ManquesEcole({
   const [relaisId, setRelaisId] = useState(relais[0]?.id ?? '');
   const [avantLe, setAvantLe] = useState('');
   const [tache, setTache] = useState<string | null>(null);
+  const [raison, setRaison] = useState<string | null>(null);
   const [paie, setPaie] = useState('');
 
   if (erreur && manques === null) return <p className={v2.erreur}>{erreur}</p>;
@@ -87,6 +89,8 @@ export function ManquesEcole({
       .map((m) => tacheDuManque[m.sujet] ?? m.detail)
       .filter(Boolean)
       .join(' ');
+  // Le « Pourquoi » que le relais lit dans « Une mission » : déduit des manques, toujours envoyé (réécrit ou non).
+  const raisonEcrite = raison ?? raisonDesManques(aConfier);
   const agir = async (action: () => Promise<unknown>, texte: string) => {
     setEnCours(true);
     setErreur(null);
@@ -231,7 +235,7 @@ export function ManquesEcole({
               () =>
                 admin.confierEcole(ecoleId, relaisId, 'complete', null, {
                   tache: tacheEcrite.trim() || null,
-                  raison: null,
+                  raison: raisonEcrite.trim() || raisonDesManques(aConfier) || null,
                   avantLe: avantLe || null,
                   paieXaf,
                 }),
@@ -290,6 +294,18 @@ export function ManquesEcole({
                   value={tacheEcrite}
                   onChange={(e) => setTache(e.target.value)}
                 />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm font-bold">
+                Pourquoi
+                <input
+                  className={v2.champ}
+                  maxLength={300}
+                  value={raisonEcrite}
+                  onChange={(e) => setRaison(e.target.value)}
+                />
+                <span className="text-[13px] font-normal text-muted-foreground">
+                  Le relais le lit dans sa mission. Laissé vide, la raison du manque est envoyée.
+                </span>
               </label>
               <label className="flex items-center gap-3 text-sm">
                 <span className="flex-1 text-muted-foreground">

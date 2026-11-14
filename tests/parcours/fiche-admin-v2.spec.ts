@@ -50,6 +50,8 @@ test('« Confier à un relais » ouvre la mission, la tâche préremplie ; la da
   await bloc.locator('button:not([disabled])', { hasText: 'Un relais' }).first().click();
   const carte = bloc.getByRole('form', { name: 'À un relais' });
   await expect(carte.getByLabel('Ce qu’il devra faire')).not.toHaveValue('');
+  // Le « Pourquoi » de la mission vient du manque, réécrivable ; il part toujours au relais (planche « Une mission »).
+  await expect(carte.getByLabel('Pourquoi')).not.toHaveValue('');
   await carte.getByLabel('Avant le').fill('2030-01-15');
   await carte.getByLabel(/Paie de la mission \(FCFA\)/).fill('-5');
   await carte.getByRole('button', { name: 'Confier la mission' }).click();
@@ -68,6 +70,7 @@ test('« Confier à un relais » ouvre la mission, la tâche préremplie ; la da
   expect(mission).toMatchObject({
     avantLe: '2030-01-15',
     paieXaf: 1000,
+    raison: expect.stringMatching(/manque sur la fiche|\S/),
   });
 });
 

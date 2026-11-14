@@ -230,23 +230,45 @@ test('le détail d’une formation du supérieur : daté par l’école, une dur
   await expect(section).toContainText('BTS Exemple');
   await expect(section).toContainText('Aucun détail');
   await section.getByRole('button', { name: 'Détail : BTS Exemple' }).click();
-  const form = section.getByRole('form', { name: 'Détail de BTS Exemple' });
+  // Le tiroir de la planche « Licence en droit des affaires » : la formation, l'admission et les frais, l'autorisation.
+  const form = page.getByRole('form', { name: 'Détail de BTS Exemple' });
+  await expect(
+    form.getByRole('region', { name: 'L’autorisation de cette formation' }),
+  ).toContainText('Pas encore vue');
   await form.getByLabel(/Durée/).fill('12');
-  await form.getByRole('button', { name: 'Enregistrer le détail' }).click();
-  await expect(section.getByRole('alert')).toHaveText(/0,5 à 8/);
+  await form.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(form.getByRole('alert')).toHaveText(/0,5 à 8/);
 
+  await form.getByLabel('Intitulé').fill('BTS Gestion des entreprises');
+  await form
+    .getByLabel(/Diplôme\b/)
+    .first()
+    .selectOption('bts');
+  await form.getByRole('group', { name: 'Rythme' }).getByRole('button', { name: 'Soir' }).click();
   await form.getByLabel(/Durée/).fill('2');
   await form.getByLabel(/Frais de dossier/).fill('15000');
+  await form.getByLabel(/Frais par an/).fill('450000');
   await form.getByLabel(/Niveau demandé/).fill('Bac, toutes séries');
   await form.getByLabel(/Sélection/).selectOption('dossier');
   await form.getByLabel(/Diplôme délivré par/).fill('[L’établissement]');
-  await form.getByRole('button', { name: 'Enregistrer le détail' }).click();
+  await form.getByLabel(/Référence de l’arrêté/).fill('[n° 123]');
+  await form.getByLabel(/^Le/).fill('2024-09-01');
+  await form.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(form.getByRole('alert')).toHaveText(/sur quoi l’autorisation a été vue/);
+  await form
+    .getByRole('group', { name: 'Vue sur' })
+    .getByRole('button', { name: 'Le document, sur place' })
+    .click();
+  await form.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(form).toBeHidden();
   await expect(page.getByRole('status').first()).toContainText(
-    'Détail de « BTS Exemple » enregistré',
+    '« BTS Gestion des entreprises » enregistrée',
   );
+  await expect(section).toContainText('BTS Gestion des entreprises');
   await expect(section).toContainText(
     /2 ans · Bac, toutes séries · Dossier · dossier 15\s000\sFCFA/,
   );
+  await expect(section).toContainText('Autorisation : réf. [n° 123]');
   await expect(section).toContainText('diplôme délivré par [L’établissement]');
 });
 

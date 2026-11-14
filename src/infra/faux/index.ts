@@ -2,6 +2,7 @@ import { photoExemple, photoExempleAdresse } from './photo-exemple';
 import { jourDuCongo } from '../../modele/date-declaration';
 import type {
   AdmissionASaisir,
+  AutorisationFormation,
   DetailsFormation,
   DetailsMission,
   Manque,
@@ -10,6 +11,7 @@ import type {
 } from '../../modele/fiche-admin';
 import {
   detailsVides,
+  erreurDeLaFiche,
   erreurDesDetails,
   sansDetail,
   verdictDeProximite,
@@ -139,6 +141,11 @@ interface CampusFaux {
   formations?: FormationSaisie[];
   /** Lot F : le détail des formations du supérieur, par filière (`cycle|titre`, l'identifiant du faux). */
   detailsFormations?: Record<string, DetailsFormation>;
+  /** Lot 2 (14/11) : les frais par an et l'autorisation d'une formation (tiroir « modifier une formation »). */
+  ficheFormations?: Record<
+    string,
+    { fraisParAn: number | null; autorisation: AutorisationFormation | null }
+  >;
   verifieeLe?: string | null;
   /** Lot G : l'école voisine au même lieu. */
   memeLieuQue?: string | null;
@@ -2624,6 +2631,11 @@ const admin: PortAdministration = {
           titre: f.titre,
           cycle: f.cycle,
           details: c?.detailsFormations?.[id] ?? detailsVides(),
+          diplome: f.diplome,
+          domaine: f.domaine,
+          rythmes: f.rythmes,
+          fraisParAn: c?.ficheFormations?.[id]?.fraisParAn ?? null,
+          autorisation: c?.ficheFormations?.[id]?.autorisation ?? null,
         };
       });
   },
@@ -2642,6 +2654,54 @@ const admin: PortAdministration = {
         [formationId]: sansDetail(d) ? detailsVides() : d,
       };
     });
+  },
+  async enregistrerFormation(formationId, fiche) {
+    await reseau();
+    const erreur = erreurDeLaFiche(fiche, jourDuCongo());
+    if (erreur) throw new ErreurDecision(erreur);
+    const c = Object.values(lireEtat().campus).find((x) =>
+      (x.formations ?? []).some((f) => `${f.cycle}|${f.titre}` === formationId),
+    );
+    if (!c) throw new ErreurDecision('Formation introuvable.');
+    const ancienne = (c.formations ?? []).find((f) => `${f.cycle}|${f.titre}` === formationId)!;
+    const titre = fiche.titre.trim();
+    const nouvelId = `${ancienne.cycle}|${titre}`;
+    if (
+      nouvelId !== formationId &&
+      (c.formations ?? []).some(
+        (f) => `${f.cycle}|${f.titre}`.toLowerCase() === nouvelId.toLowerCase(),
+      )
+    )
+      throw new ErreurDecision('Une formation de ce cycle porte déjà cet intitulé.');
+    const autorisation = fiche.autorisation
+      ? { ...fiche.autorisation, id: fiche.autorisation.id ?? `autorisation-${nouvelId}` }
+      : null;
+    ecrire((e) => {
+      const campus = e.campus[c.id]!;
+      campus.formations = (campus.formations ?? []).map((f) =>
+        f === ancienne || `${f.cycle}|${f.titre}` === formationId
+          ? { ...f, titre, diplome: fiche.diplome, domaine: fiche.domaine, rythmes: fiche.rythmes }
+          : f,
+      );
+      const fraisParAn = fiche.fraisParAn;
+      const details: DetailsFormation = {
+        dureeAnnees: fiche.dureeAnnees,
+        niveauDemande: fiche.niveauDemande,
+        selection: fiche.selection,
+        fraisDossier: fiche.fraisDossier,
+        delivrePar: fiche.delivrePar,
+        ditLe: fiche.ditLe,
+      };
+      const detailsF = { ...(campus.detailsFormations ?? {}) };
+      const fiches = { ...(campus.ficheFormations ?? {}) };
+      delete detailsF[formationId];
+      delete fiches[formationId];
+      detailsF[nouvelId] = sansDetail(details) ? detailsVides() : details;
+      fiches[nouvelId] = { fraisParAn, autorisation };
+      campus.detailsFormations = detailsF;
+      campus.ficheFormations = fiches;
+    });
+    return autorisation?.id ?? null;
   },
   async retirerAgrement(id) {
     await reseau();

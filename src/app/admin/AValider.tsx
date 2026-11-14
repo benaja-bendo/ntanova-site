@@ -19,6 +19,7 @@ import { arrondissementDeLaPosition } from '../../modele/carte/plan';
 import { lireChampPosition } from '../../modele/correction-ecole';
 import { ageDe, trierParAnciennete } from '../../modele/age';
 import { peutParaitreSurLeSite } from '../../modele/photos-publiques';
+import { ON_Y_VOIT } from '../../modele/fiche';
 import { messageManquant } from '../../modele/decision';
 import {
   compterIndices,
@@ -514,6 +515,13 @@ function Photos({
   // La photo principale : l'enseigne, sinon la première reçue (planche : grande, en tête).
   const principale = photos.find((p) => p.role === 'signboard') ?? photos[0] ?? null;
   const rang = principale ? photos.indexOf(principale) + 1 : 0;
+  // « On y voit » (étape 1 du relais) : un petit avertissement seulement quand il a coché autre chose que l'enseigne.
+  const vu = principale?.role === 'signboard' ? (principale.onYVoit ?? []) : [];
+  const autreQueLEnseigne = vu.some((v) => v !== 'signboard')
+    ? ON_Y_VOIT.filter((o) => vu.includes(o.valeur))
+        .map((o) => o.libelle.replace(/^L’|^Le /, (m) => m.toLowerCase()))
+        .join(', ')
+    : null;
   const agrandir = (p: PhotoVue) => {
     setAEffacer(false);
     setOuverte(p);
@@ -531,6 +539,14 @@ function Photos({
             >
               <img src={principale.adresse} alt={`${libelleRolePhoto[principale.role]} — ${nom}`} />
             </button>
+            {autreQueLEnseigne && (
+              <span
+                className="pointer-events-none absolute top-2.5 left-2.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-[13px] font-bold text-amber-900"
+                role="note"
+              >
+                On y voit : {autreQueLEnseigne}
+              </span>
+            )}
             <span className="pointer-events-none absolute bottom-2.5 left-2.5 rounded-full bg-card px-2.5 py-0.5 text-[13px] font-bold lg:hidden">
               {libelleRolePhoto[principale.role]} · {rang} sur {photos.length}
             </span>

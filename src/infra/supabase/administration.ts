@@ -8,7 +8,13 @@ import type { AgrementEnregistre } from '../../modele/agrement';
 import type { MotDirection } from '../../modele/mot-direction';
 import { lireVueEnsemble } from '../../modele/vue-ensemble';
 import { lireEtatPhotoPublique, ROLES_PUBLIABLES } from '../../modele/photos-publiques';
-import type { AdmissionASaisir, Manque, MediaAdmin, NouvelleAdmin } from '../../modele/fiche-admin';
+import type {
+  AdmissionASaisir,
+  GenrePreuve,
+  Manque,
+  MediaAdmin,
+  NouvelleAdmin,
+} from '../../modele/fiche-admin';
 import { listes, niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { lireFormationsVues } from '../../modele/formations-rapides';
 import {
@@ -1790,7 +1796,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const { data, error } = await supabase()
         .from('campus_cycles')
         .select(
-          'cycle, campus_programs(id, title, duration_years, admission_level, selection, application_fee_xaf, diploma_issuer, details_declared_on)',
+          'cycle, campus_programs(id, title, duration_years, admission_level, selection, application_fee_xaf, diploma_issuer, details_declared_on, diploma, rhythms, education_domains(slug), campus_fees(minimum, period, declared_on), campus_accreditations(id, reference, issued_on, evidence))',
         )
         .eq('campus_id', ecoleId)
         .in('cycle', ['superieur', 'technique', 'autre_formation']);
@@ -1806,6 +1812,13 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           application_fee_xaf: number | null;
           diploma_issuer: string | null;
           details_declared_on: string | null;
+          diploma: Valeur<'diploma_kind'> | null;
+          rhythms: Valeur<'study_rhythm'>[] | null;
+          education_domains: { slug: string } | null;
+          campus_fees: { minimum: number; period: string; declared_on: string | null }[] | null;
+          campus_accreditations:
+            | { id: string; reference: string; issued_on: string; evidence: GenrePreuve | null }[]
+            | null;
         }[];
       }[])
         .flatMap((c) =>
@@ -1821,6 +1834,20 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
               delivrePar: p.diploma_issuer,
               ditLe: p.details_declared_on,
             },
+            diplome: p.diploma,
+            domaine: p.education_domains?.slug ?? null,
+            rythmes: p.rhythms ?? [],
+            fraisParAn:
+              (p.campus_fees ?? [])
+                .filter((f) => f.period === 'annee')
+                .sort((a, b) => (b.declared_on ?? '').localeCompare(a.declared_on ?? ''))[0]
+                ?.minimum ?? null,
+            autorisation: (() => {
+              const a = (p.campus_accreditations ?? [])[0];
+              return a
+                ? { id: a.id, reference: a.reference, le: a.issued_on, preuve: a.evidence ?? 'document_vu' }
+                : null;
+            })(),
           })),
         )
         .sort((x, y) => x.titre.localeCompare(y.titre, 'fr'));
@@ -1836,6 +1863,33 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         p_declared_on: d.ditLe,
       });
       decider(error);
+    },
+    async enregistrerFormation(formationId, f) {
+      const { data, error } = await supabase().rpc('save_program_sheet', {
+        p_program: formationId,
+        p_sheet: {
+          title: f.titre.trim(),
+          diploma: f.diplome,
+          domain: f.domaine,
+          rhythms: f.rythmes,
+          duration_years: f.dureeAnnees,
+          diploma_issuer: f.delivrePar?.trim() || null,
+          admission_level: f.niveauDemande?.trim() || null,
+          selection: f.selection,
+          application_fee_xaf: f.fraisDossier,
+          annual_fee_xaf: f.fraisParAn,
+          declared_on: f.ditLe,
+          authorization: f.autorisation
+            ? {
+                reference: f.autorisation.reference.trim(),
+                issued_on: f.autorisation.le,
+                evidence: f.autorisation.preuve,
+              }
+            : null,
+        },
+      });
+      decider(error);
+      return (data as string | null) ?? null;
     },
     async enregistrerMotDirection(ecoleId, mot) {
       const { error } = await supabase().rpc('set_campus_statement', {

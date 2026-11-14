@@ -106,13 +106,34 @@ test('À valider : l’administration lit « On y voit » sous la photo de l’e
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  // Planche : la photo principale dit son rôle (« L'enseigne ou l'entrée ») ; « On y voit » n'est plus repris à l'écran.
+  // Planche : la photo principale dit son rôle (« L'enseigne ou l'entrée ») ; « On y voit » ne revient qu'en petit
+  // avertissement, quand le relais a coché autre chose que l'enseigne (décision du fondateur, 14/11).
+  const envoi = page.getByRole('region', { name: 'Envoi sélectionné' });
   await expect(
-    page
-      .getByRole('region', { name: 'Envoi sélectionné' })
+    envoi
       .getByText(/L'enseigne ou l'entrée/)
       .filter({ visible: true })
       .first(),
+  ).toBeVisible();
+  await expect(envoi.getByRole('note').filter({ hasText: 'On y voit' })).toHaveCount(0);
+
+  // Le relais avait coché « Le portail » : l'avertissement paraît sur la photo.
+  await page.evaluate(() => {
+    const cle = 'ntanova-faux-serveur';
+    const e = JSON.parse(localStorage.getItem(cle) ?? '{}') as {
+      photos: Record<string, { role: string; onYVoit?: string[] }>;
+    };
+    for (const p of Object.values(e.photos))
+      if (p.role === 'signboard') p.onYVoit = ['signboard', 'entrance'];
+    localStorage.setItem(cle, JSON.stringify(e));
+  });
+  await page.reload();
+  await ouvrirLaFiche(page);
+  await expect(
+    page
+      .getByRole('region', { name: 'Envoi sélectionné' })
+      .getByRole('note')
+      .filter({ hasText: 'On y voit : l’enseigne, le portail' }),
   ).toBeVisible();
 });
 
