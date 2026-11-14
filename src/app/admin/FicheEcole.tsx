@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 /**
  * La fiche d'une école en plein écran, d'après les planches « Fiche d'école, admin » (ordinateur et téléphone) : la carte
  * de l'école (couverture, rond du logo à cheval, nom et crayon, sigle, type, lieu, état, ses sites), ses photos, ses
@@ -5,7 +6,7 @@
  * carte ouvre sa rubrique (un tiroir à droite sur ordinateur, un écran plein sur téléphone) : `ouvrir` la nomme.
  * Tailwind et shadcn seulement.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode, useSyncExternalStore } from 'react';
 import { cn } from '@/lib/utils';
 import { v2 } from '@/ui/v2/classes';
 import {
@@ -148,6 +149,12 @@ export function FicheEcole({
 }) {
   // Une école retirée du site (ou à la corbeille) ne se modifie plus : on la republie (ou la restaure) d'abord.
   const figee = etat === 'retiree' || etat === 'corbeille';
+  // La place des gestes dans la barre verte (Cadre) : lue au rendu, et relue par React après le montage.
+  const barreHaut = useSyncExternalStore(
+    () => () => {},
+    () => document.getElementById('admin-haut-gestes'),
+    () => null,
+  );
   const [medias, setMedias] = useState<MediaAdmin[] | null>(null);
   const [manques, setManques] = useState<Manque[] | null>(null);
   const [photos, setPhotos] = useState<PhotoVue[]>([]);
@@ -524,7 +531,14 @@ export function FicheEcole({
             )}
           </ul>
         </section>
-        <div className="flex flex-wrap gap-2 lg:hidden">{gestes}</div>
+        {/* Téléphone (planche) : l'aperçu et « ⋯ » dans la barre verte, en icônes claires. */}
+        {barreHaut &&
+          createPortal(
+            <span className="flex items-center gap-1 lg:hidden [&>a]:size-10 [&>a]:border-0 [&>a]:bg-transparent [&>a]:p-0 [&>a]:text-[0px] [&>a]:text-creme [&>details>summary]:text-creme! [&>details>summary]:bg-transparent! [&>details>summary]:border-0!">
+              {gestes}
+            </span>,
+            barreHaut,
+          )}
       </aside>
     </div>
   );

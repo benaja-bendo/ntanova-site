@@ -8,12 +8,11 @@ mkdirSync(dossier, { recursive: true });
 
 const prendre = async (page: Page, ecran: string) => {
   await page.waitForTimeout(500);
-  // Les barres collantes (côté, décision) se dessinent où la page est défilée : on capture depuis le haut.
   await page.evaluate(() => scrollTo(0, 0));
+  // L'écran tel qu'il se voit : en page entière, les barres collantes (côté, décision, onglets) se dessinent au milieu.
   await page.screenshot({
     animations: 'disabled',
     path: `${dossier}${ecran}-${page.viewportSize()?.width ?? 0}.png`,
-    fullPage: true,
   });
 };
 

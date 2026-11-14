@@ -17,7 +17,7 @@ export default defineConfig({
       name: '375',
       use: { ...devices['Pixel 7'], viewport: { width: 375, height: 812 }, deviceScaleFactor: 2 },
     },
-    { name: '1280', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
+    { name: '1280', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } } },
   ],
   webServer: {
     command: `pnpm exec wrangler dev --ip 127.0.0.1 --port ${port}`,

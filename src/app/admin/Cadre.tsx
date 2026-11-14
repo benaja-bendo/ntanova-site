@@ -321,7 +321,14 @@ export function Cadre({
             {etat.droiteHaut && (
               <span className="shrink-0 text-sm whitespace-nowrap">{etat.droiteHaut}</span>
             )}
-            <div className={cn('relative', etat.droiteHaut && 'hidden')}>
+            {/* Les gestes d'un écran (la fiche d'école : aperçu, « ⋯ ») s'y posent par un portail ; le compte s'efface alors. */}
+            <div id="admin-haut-gestes" className="flex items-center gap-1 empty:hidden" />
+            <div
+              className={cn(
+                'relative [#admin-haut-gestes:not(:empty)~&]:hidden',
+                etat.droiteHaut && 'hidden',
+              )}
+            >
               <button
                 type="button"
                 aria-label="Mon compte"

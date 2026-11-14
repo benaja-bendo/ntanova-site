@@ -203,7 +203,7 @@ export function FraisEcole({
         </h3>
         {photo?.adresse ? (
           <div
-            className="relative overflow-auto rounded-xl bg-foreground p-4"
+            className="relative overflow-auto rounded-xl bg-foreground p-4 max-lg:max-h-64"
             style={{ maxHeight: 420 }}
           >
             <img
@@ -232,7 +232,7 @@ export function FraisEcole({
             </span>
           </div>
         ) : (
-          <div className="flex aspect-[3/4] items-center justify-center rounded-xl bg-muted p-6 text-center text-sm text-muted-foreground">
+          <div className="flex aspect-[3/4] items-center max-lg:aspect-[16/9] justify-center rounded-xl bg-muted p-6 text-center text-sm text-muted-foreground">
             {prospectus === null
               ? 'Chargement…'
               : 'Pas de prospectus photographié : les lignes se publient « dites par l’école », avec leur date.'}
@@ -259,11 +259,11 @@ export function FraisEcole({
 
       {/* Les lignes. */}
       <section className="flex min-w-0 flex-col gap-4" aria-label={`Frais déclarés de ${nom}`}>
-        <div className="flex flex-wrap gap-3">
+        <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap">
           <label className="flex flex-col gap-1.5 text-sm font-bold">
             Année scolaire
             <input
-              className={cn(champ, 'w-40')}
+              className={cn(champ, 'w-full lg:w-40')}
               maxLength={30}
               placeholder="2026-2027"
               value={annee}
@@ -273,7 +273,7 @@ export function FraisEcole({
           <label className="flex flex-col gap-1.5 text-sm font-bold">
             Déclarés par l’école le
             <input
-              className={cn(champ, 'w-44')}
+              className={cn(champ, 'w-full lg:w-44')}
               type="date"
               max={jourDuCongo()}
               value={declaresLe}

@@ -1447,9 +1447,13 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   }
 
   // Planche : une école, puis ses sites dessous ; une école d'un seul site tient sur une ligne.
-  const groupes = [...new Set(visibles.map((e) => e.institutionId))].map((id) =>
-    visibles.filter((e) => e.institutionId === id),
-  );
+  // Une école dont un site est « à publier » se montre avec tous ses sites (planche : « Site 1 · Publiée », « Site 2 · Prête »).
+  const groupes = [...new Set(visibles.map((e) => e.institutionId))].map((id) => {
+    const vus = visibles.filter((e) => e.institutionId === id);
+    if (filtre === 'retiree' || filtre === 'corbeille') return vus;
+    const tous = (ecoles ?? []).filter((e) => e.institutionId === id && etatDe(e) !== 'corbeille');
+    return tous.length > 1 ? tous : vus;
+  });
   const pretes = (ecoles ?? []).filter((e) => etatDe(e) === 'prete');
   const publierToutes = async () => {
     setEnCours(true);
