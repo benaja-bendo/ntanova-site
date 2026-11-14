@@ -88,7 +88,7 @@ test('ajouter une école : avec sa position elle est prête, sans elle attend d�
   );
   const ajoutee = page.getByRole('row', { name: /\[École ajoutée\]/ });
   await expect(ajoutee.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
-  await expect(ajoutee.getByText('[Quartier] · Ngoyo')).toBeVisible();
+  await expect(ajoutee).toContainText('[Quartier]');
 
   // Sans position : à situer, comme une école importée.
   await page

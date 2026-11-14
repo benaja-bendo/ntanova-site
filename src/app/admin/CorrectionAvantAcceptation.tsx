@@ -32,7 +32,13 @@ export function CorrectionAvantAcceptation({
   const [champs, setChamps] = useState<FormulaireEcole>(() => formulaireDe(avant));
   const [erreurs, setErreurs] = useState<Erreurs>({});
   useEffect(() => {
-    if (edition) formulaire.current?.querySelector<HTMLInputElement>('input')?.focus();
+    if (!edition) return;
+    // Après l'ouverture du tiroir (Radix pose d'abord le focus sur « Fermer ») : le premier champ, le nom.
+    const t = setTimeout(
+      () => formulaire.current?.querySelector<HTMLInputElement>('input')?.focus(),
+      50,
+    );
+    return () => clearTimeout(t);
   }, [edition]);
   const derniereDemande = useRef(demande);
   useEffect(() => {

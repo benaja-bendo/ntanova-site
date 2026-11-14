@@ -114,12 +114,17 @@ test('le bonus : ce qui a été vu, la clôture, des photos en plus ; tout part 
     roles: ['courtyard', 'signboard'],
   });
 
-  // L'administration relit le bonus : chaque équipement vu, coché « gardé » par défaut ; le sigle est dans la partie publique.
+  // L'administration relit le bonus : ce qui a été vu, repris par défaut ; le sigle est dans la partie publique.
   await ouvrirLaFiche(page);
   const bonus = page.getByRole('region', { name: 'Le bonus du relais' });
   await expect(bonus).toContainText('Inscriptions ouvertes');
-  await expect(bonus.getByRole('checkbox', { name: 'Cantine' })).toBeChecked();
-  await expect(bonus.getByRole('checkbox', { name: /Clôture : non/ })).toBeChecked();
+  // Planche « Bonus du relais » : ce qui a été vu, et « Reprendre sur la fiche » (allumé par défaut).
+  await expect(bonus).toContainText(/cantine/i);
+  await expect(bonus).toContainText(/clôture/i);
+  await expect(bonus.getByRole('switch', { name: 'Reprendre sur la fiche' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
   await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText('E1');
 });
 

@@ -152,7 +152,8 @@ test.describe('étape 2/3 du relais : de la crèche au supérieur', () => {
     await ouvrirLaFiche(page);
     const publique = page.getByRole('region', { name: 'Partie publique' });
     await expect(publique.getByText('Pas indiqué', { exact: true })).toBeVisible();
-    await expect(publique.getByText('Programme', { exact: true })).toBeVisible();
+    // Planche : la ligne « Programme » ne paraît que si le relais en a noté un.
+    await expect(publique.getByText('Programme', { exact: true })).toHaveCount(0);
   });
 
   test('les nouvelles cases et la ligne de programme vont du relais jusqu’à l’administration', async ({

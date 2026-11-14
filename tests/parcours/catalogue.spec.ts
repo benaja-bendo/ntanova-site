@@ -340,11 +340,12 @@ test.describe('le pont avec la direction', () => {
 
     const [campus] = (await campusDuServeur(page)).filter((c) => c.nom === '[Lycée A]');
     expect(campus?.verifieeLe).toBe(new Date().toISOString().slice(0, 10));
-    // La date de l'accord est visible dans la liste des écoles, sans être confondue avec « Vérifiée par l'école ».
+    // Planche : la date de l'accord se lit dans l'historique de la fiche (« Confirmée par la direction »).
     await ouvrirLesEcoles(page);
+    await ouvrirFiche(page.getByRole('row', { name: /\[Lycée A\]/ }));
     await expect(
-      page.getByRole('row', { name: /\[Lycée A\]/ }).getByText(/vérifiée par la direction le/),
-    ).toBeVisible();
+      page.getByRole('region', { name: 'Historique' }).filter({ visible: true }).first(),
+    ).toContainText('Confirmée par la direction');
   });
 
   test('sans l’accord de la direction d’être contactée, aucun message n’est proposé', async ({
@@ -449,14 +450,10 @@ test.describe('amorcer le catalogue sans relais', () => {
         .getByRole('row', { name: /\[Lycée Import\]/ })
         .getByRole('button', { name: 'Publier', exact: true }),
     ).toBeVisible();
-    await expect(
-      page
-        .getByRole('row', { name: /\[Groupe Import\]/ })
-        .first()
-        .getByText(/Sans position|Pas sur la carte/)
-        .filter({ visible: true })
-        .first(),
-    ).toBeVisible();
+    // Planche : les deux sites se rangent sous le nom de leur école, chacun à situer.
+    const groupe = page.getByRole('rowgroup', { name: '[Groupe Import]' });
+    await expect(groupe).toContainText('2 sites');
+    await expect(groupe.getByRole('button', { name: 'Situer', exact: true })).toHaveCount(2);
   });
 
   test('importer deux fois la même liste ne crée rien de plus', async ({ page }) => {
@@ -665,6 +662,7 @@ test.describe('la paie du vendredi', () => {
     await relaisConnecte(page, context);
     await envoyerUnLycee(page, '[Lycée A]');
     await ouvrirLEnvoi(page, '[Lycée A]');
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
     await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
     await fermerContacts(page);

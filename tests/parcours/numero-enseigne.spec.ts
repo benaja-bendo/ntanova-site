@@ -60,9 +60,9 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     const choix = page.getByRole('group', { name: 'Le numéro, sur la photo ?' });
     await choix.getByRole('button', { name: 'Sur la photo', exact: true }).click();
     await expect(accepter).toBeEnabled();
-    await expect(
-      page.getByRole('group', { name: 'Accepter, corriger ou refuser' }),
-    ).toContainText('Accepter crée l’école sans la publier.');
+    await expect(page.getByRole('group', { name: 'Accepter, corriger ou refuser' })).toContainText(
+      'Accepter crée l’école sans la publier.',
+    );
     await accepter.click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 

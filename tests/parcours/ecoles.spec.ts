@@ -85,5 +85,5 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
     publiee.getByText('Publiée', { exact: true }).filter({ visible: true }),
   ).toBeVisible();
   // Le quartier et l'arrondissement du même nom ne s'affichent qu'une fois.
-  await expect(publiee.getByText('Tié-Tié', { exact: true })).toBeVisible();
+  await expect(publiee).toContainText('Tié-Tié');
 });

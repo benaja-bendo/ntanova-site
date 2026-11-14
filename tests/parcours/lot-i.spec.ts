@@ -127,12 +127,12 @@ test('Frais : « Même inscription sur toutes les lignes » en un geste', async 
   await ouvrirGestion(page.getByRole('row', { name: /\[École 1\]/ }), 'Frais déclarés');
   // Planche « Frais par classe » : le bouton recopie l'inscription de la première ligne sur toutes les lignes.
   const frais = page.getByRole('region', { name: 'Frais déclarés de [École 1]' });
-  const lignes = frais.getByRole('table').getByRole('row');
+  const lignes = frais.locator('tbody tr');
   while ((await frais.getByLabel('Classe', { exact: true }).count()) < 2)
     await frais.getByRole('button', { name: '+ Ajouter une ligne' }).click();
   for (const [n, classe, montant, inscription] of [
-    [1, 'CP1', '20 000', '5 000'],
-    [2, 'CM2', '25 000', ''],
+    [0, 'CP1', '20 000', '5 000'],
+    [1, 'CM2', '25 000', ''],
   ] as const) {
     const l = lignes.nth(n);
     await l.getByLabel('Cycle', { exact: true }).selectOption('primaire');
@@ -142,7 +142,7 @@ test('Frais : « Même inscription sur toutes les lignes » en un geste', async 
     await l.getByLabel('Inscription (FCFA)').fill(inscription);
   }
   await frais.getByRole('button', { name: 'Même inscription sur toutes les lignes' }).click();
-  await expect(lignes.nth(2).getByLabel('Inscription (FCFA)')).toHaveValue(/5\s*000/);
+  await expect(lignes.nth(1).getByLabel('Inscription (FCFA)')).toHaveValue(/5\s*000/);
   await frais.getByRole('button', { name: 'Enregistrer 2 lignes publiables' }).click();
   await expect(page.getByRole('status').first()).toContainText('2 lignes de frais enregistrées');
 });

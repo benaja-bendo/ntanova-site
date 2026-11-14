@@ -191,7 +191,7 @@ export function FraisEcole({
 
   const champ = cn(v2.champ, 'h-10 px-2.5 text-[15px]');
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
       {/* Le prospectus. */}
       <section className="flex flex-col gap-2.5" aria-label="Prospectus des frais">
         <h3 className="m-0 flex flex-wrap items-center justify-between gap-2 font-sans text-base font-bold">
@@ -287,24 +287,44 @@ export function FraisEcole({
             Renseigne d’abord les niveaux de l’école (« En bref ») pour ajouter des frais.
           </p>
         ) : (
-          <div className="flex flex-col gap-3 overflow-x-auto rounded-xl border border-border bg-card p-3">
-            <table className="w-full min-w-[720px] border-collapse text-left text-[15px]">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 lg:overflow-x-auto">
+            {/* Ordinateur : le tableau de la planche. Téléphone : une carte par ligne, les mêmes champs (sans dézoomer la page). */}
+            <table
+              role="table"
+              className="w-full border-collapse text-left text-[15px] max-lg:block lg:min-w-[720px] max-lg:[&_tbody]:flex max-lg:[&_tbody]:flex-col max-lg:[&_tbody]:gap-3 max-lg:[&_td]:block max-lg:[&_td]:p-0 max-lg:[&_thead]:hidden max-lg:[&_tr]:grid max-lg:[&_tr]:grid-cols-2 max-lg:[&_tr]:gap-2 max-lg:[&_tr]:rounded-lg max-lg:[&_tr]:border max-lg:[&_tr]:border-border max-lg:[&_tr]:p-2"
+            >
               <thead>
-                <tr className="text-xs font-bold tracking-[0.06em] text-muted-foreground uppercase">
-                  <th className="px-2 py-2">Cycle</th>
-                  <th className="px-2 py-2">Classe (facultatif)</th>
-                  <th className="px-2 py-2">Montant</th>
-                  <th className="px-2 py-2">Période</th>
-                  <th className="px-2 py-2">Inscription</th>
-                  <th className="px-2 py-2">Illisible ?</th>
-                  <th className="px-2 py-2">
+                <tr
+                  role="row"
+                  className="text-xs font-bold tracking-[0.06em] text-muted-foreground uppercase"
+                >
+                  <th role="columnheader" className="px-2 py-2">
+                    Cycle
+                  </th>
+                  <th role="columnheader" className="px-2 py-2">
+                    Classe (facultatif)
+                  </th>
+                  <th role="columnheader" className="px-2 py-2">
+                    Montant
+                  </th>
+                  <th role="columnheader" className="px-2 py-2">
+                    Période
+                  </th>
+                  <th role="columnheader" className="px-2 py-2">
+                    Inscription
+                  </th>
+                  <th role="columnheader" className="px-2 py-2">
+                    Illisible ?
+                  </th>
+                  <th role="columnheader" className="px-2 py-2">
                     <span className="sr-only">Retirer</span>
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {lignes.map((l) => (
                   <tr
+                    role="row"
                     key={l.cle}
                     aria-label={nomDeLigne(l)}
                     className={cn(
@@ -312,7 +332,7 @@ export function FraisEcole({
                       l.illisible && 'shadow-[inset_3px_0_0_var(--erreur)]',
                     )}
                   >
-                    <td className="px-2 py-1.5">
+                    <td role="cell" className="px-2 py-1.5">
                       <select
                         aria-label="Cycle"
                         className={cn(champ, 'w-32')}
@@ -327,7 +347,7 @@ export function FraisEcole({
                         ))}
                       </select>
                     </td>
-                    <td className="px-2 py-1.5">
+                    <td role="cell" className="px-2 py-1.5">
                       <input
                         aria-label="Classe"
                         className={champ}
@@ -337,7 +357,7 @@ export function FraisEcole({
                         onChange={(e) => changer(l.cle, { classe: e.target.value })}
                       />
                     </td>
-                    <td className="px-2 py-1.5">
+                    <td role="cell" className="px-2 py-1.5">
                       <input
                         aria-label="Montant (FCFA)"
                         className={champ}
@@ -348,7 +368,7 @@ export function FraisEcole({
                         onChange={(e) => changer(l.cle, { montant: e.target.value })}
                       />
                     </td>
-                    <td className="px-2 py-1.5">
+                    <td role="cell" className="px-2 py-1.5">
                       <select
                         aria-label="Période"
                         className={cn(champ, 'w-28')}
@@ -364,7 +384,7 @@ export function FraisEcole({
                           ))}
                       </select>
                     </td>
-                    <td className="px-2 py-1.5">
+                    <td role="cell" className="px-2 py-1.5">
                       <input
                         aria-label="Inscription (FCFA)"
                         className={champ}
@@ -373,7 +393,7 @@ export function FraisEcole({
                         onChange={(e) => changer(l.cle, { inscription: e.target.value })}
                       />
                     </td>
-                    <td className="px-2 py-1.5">
+                    <td role="cell" className="px-2 py-1.5">
                       <button
                         type="button"
                         aria-pressed={l.illisible}
@@ -383,7 +403,7 @@ export function FraisEcole({
                         Illisible
                       </button>
                     </td>
-                    <td className="px-1 py-1.5">
+                    <td role="cell" className="px-1 py-1.5">
                       <button
                         type="button"
                         aria-label={`Retirer la ligne ${nomDeLigne(l)}`}

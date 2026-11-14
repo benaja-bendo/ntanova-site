@@ -215,7 +215,7 @@ export function Aujourdhui({
       )}
 
       {vue && (
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-7">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-7">
           <section className="flex flex-col gap-2.5" aria-label="Ce qui t’attend">
             <h2 className={surtitre}>Ce qui t’attend</h2>
             <ul className="m-0 flex list-none flex-col gap-2.5 p-0">

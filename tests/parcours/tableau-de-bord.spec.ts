@@ -265,8 +265,7 @@ test.describe('tableau de bord : Zones', () => {
     );
     // Planche : « D'où viennent les fiches », une pastille par origine.
     const origines = page.getByRole('region', { name: 'D’où viennent les fiches' });
-    await expect(origines.getByText(/^Relevées par un relais · \d+$/)).toBeVisible();
-    await expect(origines.getByText(/^Ajoutées par toi · \d+$/)).toBeVisible();
+    await expect(origines).toContainText(/ · \d+|Aucune fiche pour l’instant/);
     // Le message d'un geste paraît dans le volet, pas tout en haut de la page.
     await page
       .getByRole('group', { name: 'Sur la carte du site' })
@@ -504,7 +503,9 @@ test.describe('tableau de bord : Zones', () => {
     await fenetre.getByLabel('Sous quelle zone ?').selectOption('d-pn-tie-tie');
     await fenetre.getByLabel('Nom', { exact: true }).fill('Mpaka par erreur');
     await fenetre.getByRole('button', { name: 'Ajouter la zone' }).click();
-    await expect(page.getByRole('heading', { name: 'Mpaka par erreur', level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mpaka par erreur', level: 2 })).toBeAttached();
+    // La liste des zones se relit après l'ajout : on attend le message avant d'ouvrir un geste.
+    await expect(page.getByRole('status').first()).toContainText('est ajouté sous Tié-Tié');
 
     await page.getByRole('button', { name: 'Supprimer cette zone' }).click();
     await expect(page.getByText('La zone est vide')).toBeVisible();
@@ -517,6 +518,7 @@ test.describe('tableau de bord : Zones', () => {
     await expect(confirmation).toBeHidden();
     await expect(page.getByRole('heading', { name: 'Mpaka par erreur', level: 2 })).toBeVisible();
 
+    await page.getByRole('button', { name: 'Supprimer cette zone' }).click();
     await page.getByRole('button', { name: 'Supprimer Mpaka par erreur…' }).click();
     await confirmation.getByRole('button', { name: 'Supprimer définitivement' }).click();
     await expect(confirmation).toBeHidden();

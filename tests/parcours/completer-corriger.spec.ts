@@ -40,6 +40,7 @@ async function accepter(page: Page, options: { confirmerLeContact: boolean }) {
   await ouvrirLaFiche(page);
   await ouvrirContacts(page);
   if (options.confirmerLeContact) {
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
     await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
   }

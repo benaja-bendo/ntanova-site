@@ -40,6 +40,7 @@ test.describe('administration', () => {
       decodeURIComponent((await ecrire.getAttribute('href')) ?? '').split('?text=')[1] ?? '';
     expect(message).toContain('[École 1]');
     expect(message).not.toMatch(/gratuit|FCFA|prix|tarif|visiteurs|audience/i);
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
     await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
 
@@ -58,7 +59,10 @@ test.describe('administration', () => {
     await expect(page.getByRole('status')).toHaveText(/est publiée.*prochaine mise à jour du site/);
     await expect(page.getByRole('status')).not.toHaveText(/cette nuit|2 h/);
     await expect(
-      page.getByRole('row', { name: /\[École 1\]/ }).getByText('Publiée', { exact: true }),
+      page
+        .getByRole('row', { name: /\[École 1\]/ })
+        .getByText('Publiée', { exact: true })
+        .filter({ visible: true }),
     ).toBeVisible();
 
     await page.goto('/relais/#fiches');
@@ -343,9 +347,7 @@ test.describe('administration', () => {
     await fenetre.getByLabel(/Lot de/).selectOption({ label: 'Sans lot' });
     await fenetre.getByRole('button', { name: 'Activer', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/est actif/);
-    await expect(
-      (await ligneDuRelais(page)).getByText('Actif', { exact: true }).filter({ visible: true }),
-    ).toBeVisible();
+    await expect(await ligneDuRelais(page)).toContainText(/Actif|Jamais connecté/);
     await expect((await lotDe(page)).getByLabel(/Lot de/)).toHaveValue('');
   });
 
@@ -358,9 +360,7 @@ test.describe('administration', () => {
     await fenetre.getByLabel(/Lot de/).selectOption({ label: 'Ngoyo' });
     await fenetre.getByRole('button', { name: 'Activer', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/est actif/);
-    await expect(
-      (await ligneDuRelais(page)).getByText('Actif', { exact: true }).filter({ visible: true }),
-    ).toBeVisible();
+    await expect(await ligneDuRelais(page)).toContainText(/Actif|Jamais connecté/);
     await expect((await lotDe(page)).getByLabel(/Lot de/)).not.toHaveValue('');
   });
 

@@ -16,6 +16,13 @@ test('frais déclarés : ajout, relecture, modification et retrait, sans badge n
   await ouvrirGestion(ligne, 'Frais déclarés');
   // Planche « Frais par classe » : une page, le prospectus à gauche, le tableau des lignes à droite.
   const frais = page.getByRole('region', { name: 'Frais déclarés de [École 1]' });
+  // Le tableau défile dans sa carte : la page, elle, garde la largeur de l'écran (sinon le téléphone la dézoome).
+  await expect(frais).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
   const enregistrer = frais.getByRole('button', { name: /^Enregistrer \d+ lignes? publiables?$/ });
   const premiere = frais.getByRole('row', { name: /Primaire|cette ligne/ }).first();
   if ((await frais.getByLabel('Cycle', { exact: true }).count()) === 0)
@@ -32,7 +39,7 @@ test('frais déclarés : ajout, relecture, modification et retrait, sans badge n
   );
   // De retour sur la fiche : la carte « Frais » le dit ; la fiche reste prête, sans badge.
   const fiche = page.getByRole('article', { name: 'Fiche de [École 1]' });
-  await expect(fiche.getByRole('button', { name: 'Frais : ouvrir' })).toContainText(/25\s*000/);
+  await expect(fiche.getByRole('button', { name: 'Frais : ouvrir' })).toContainText('1 ligne');
   await expect(fiche).toContainText('Prête');
   await expect(fiche).not.toContainText('vérifiée par la direction');
   expect(
@@ -46,7 +53,7 @@ test('frais déclarés : ajout, relecture, modification et retrait, sans badge n
   await expect(premiere.getByLabel('Montant (FCFA)')).toHaveValue(/25\s*000/);
   await premiere.getByRole('button', { name: /^Retirer la ligne / }).click();
   await frais.getByRole('button', { name: /^Enregistrer 0 ligne publiable$/ }).click();
-  await expect(fiche.getByRole('button', { name: 'Frais : ouvrir' })).not.toContainText(/25\s*000/);
+  await expect(fiche.getByRole('button', { name: 'Frais : ouvrir' })).not.toContainText('1 ligne');
 });
 test('fiche publique : fourchette, période, date et inconnues, sans total annuel inventé', async ({
   page,

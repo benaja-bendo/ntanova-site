@@ -183,7 +183,7 @@ export function FicheEcole({
     .at(-1);
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="flex min-w-0 flex-col gap-5 rounded-xl border border-border bg-card pb-5 max-lg:-mx-4 max-lg:-mt-5 max-lg:rounded-none max-lg:border-0 max-lg:bg-background max-lg:pb-0">
         {/* La couverture, le rond du logo à cheval. */}
         <div className="relative">

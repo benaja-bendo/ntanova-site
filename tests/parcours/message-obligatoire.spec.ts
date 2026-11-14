@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
+import { ouvrirLaFiche, uneFicheEnvoyee, ouvrirLeRefus } from './aides';
 
 // Une décision qui renvoie ou refuse une fiche dit toujours quoi faire (ticket #80), construit avec le faux serveur :
 // avec le motif « autre », dont la phrase de repli ne dit rien, le message est obligatoire. Les autres motifs gardent
@@ -24,8 +24,8 @@ test.describe('message obligatoire avec « autre »', () => {
 
     await page.getByRole('button', { name: 'Envoyer la demande' }).click();
     await expect(page.getByRole('alert')).toHaveText(PHRASE);
-    // Rien n'est parti : la fiche attend toujours, à valider.
-    await expect(page.getByRole('button', { name: 'Accepter', exact: true })).toBeVisible();
+    // Rien n'est parti : la demande reste ouverte, la fiche attend toujours.
+    await expect(page.getByRole('alertdialog', { name: 'Demander une correction' })).toBeVisible();
 
     // Des espaces ne sont pas un message.
     await page.getByLabel(/Message au relais/).fill('    ');
@@ -44,7 +44,7 @@ test.describe('message obligatoire avec « autre »', () => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
 
-    await page.getByRole('button', { name: 'Refuser', exact: true }).click();
+    await ouvrirLeRefus(page);
     await expect(page.getByLabel('Motif')).toHaveValue('autre');
     await page.getByRole('button', { name: 'Refuser la fiche' }).click();
     await expect(page.getByRole('alert')).toHaveText(PHRASE);

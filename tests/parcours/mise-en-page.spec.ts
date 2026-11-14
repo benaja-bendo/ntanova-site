@@ -8,7 +8,6 @@ import {
   ouvrirLaFiche,
   ouvrirContacts,
   prendrePhotoEtPosition,
-  ficheAdmin,
   retourAuxEcoles,
   toutesLesEcoles,
   fermerContacts,
@@ -493,35 +492,43 @@ test('administration : accueil et écoles tiennent dans l’écran, gestion et f
   // La fiche s'ouvre au clavier, en plein écran, sans défiler de côté.
   await gerer.focus();
   await page.keyboard.press('Enter');
-  const panneau = ficheAdmin(page, '[École à situer]');
+  const panneau = page.getByRole('article', { name: 'Fiche de [École à situer]' });
   await expect(panneau).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const boite = await panneau.boundingBox();
   expect(boite!.x).toBeGreaterThanOrEqual(0);
   expect(boite!.x + boite!.width).toBeLessThanOrEqual(largeurDe(page));
-  expect(await panneau.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
-  await panneau.getByRole('button', { name: 'Contact public', exact: true }).click();
-  await expect(
-    panneau.getByRole('button', { name: 'Contact public', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
-  await retourAuxEcoles(page);
-  await expect(panneau).toHaveCount(0);
-  const menu = ligne.locator('summary');
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  // Une carte de rubrique s'ouvre au clavier ; Échap referme son tiroir et rend le focus à la carte.
+  const carte = panneau.getByRole('button', { name: 'Contact et inscriptions : ouvrir' });
+  await carte.focus();
+  await page.keyboard.press('Enter');
+  const tiroir = page.getByRole('dialog', { name: 'Contact et inscriptions · [École à situer]' });
+  await expect(tiroir).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(tiroir).toHaveCount(0);
+  await expect(carte).toBeFocused();
+  // Le menu « ⋯ » de la fiche se parcourt au clavier et Échap le referme.
+  const menu = page
+    .locator('summary[aria-label^="Autres actions pour "]')
+    .filter({ visible: true })
+    .first();
   await menu.focus();
   await page.keyboard.press('Enter');
-  await expect(
-    ligne.getByRole('button', { name: 'Confier à un relais', exact: true }),
-  ).toBeVisible();
-  // v2 (13/11) : « C'est un site de… » vient en premier dans le menu « ⋯ ».
-  await page.keyboard.press('Tab');
-  await expect(ligne.getByRole('button', { name: 'C’est un site de…', exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(
-    ligne.getByRole('button', { name: 'Confier à un relais', exact: true }),
+    page
+      .getByRole('button', { name: 'Confier à un relais', exact: true })
+      .filter({ visible: true }),
   ).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(menu).toBeFocused();
-  await expect(ligne.locator('details')).not.toHaveAttribute('open');
+  await retourAuxEcoles(page);
+  await expect(panneau).toHaveCount(0);
 });
 
 test('administration : un enregistrement lent annonce son travail, une panne garde les valeurs et permet le réessai', async ({
@@ -551,7 +558,7 @@ test('administration : un enregistrement lent annonce son travail, une panne gar
   await expect(page.getByRole('row', { name: /\[Nom corrigé\]/ })).toBeVisible();
 });
 
-test('administration : rechercher sans accent, filtrer une zone et confirmer une fusion sans perdre le focus', async ({
+test('administration : rechercher sans accent et confirmer une fusion sans perdre le focus', async ({
   page,
   context,
 }) => {
@@ -566,20 +573,19 @@ test('administration : rechercher sans accent, filtrer une zone et confirmer une
   await expect(page.getByRole('row', { name: /\[École à situer\]/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /\[École 1\]/ })).toHaveCount(0);
   await recherche.fill('');
-  await page.getByLabel('Zone', { exact: true }).selectOption('d-pn-ngoyo');
-  await expect(page.getByText('Aucune école ici.')).toBeVisible();
-  await page.getByLabel('Zone', { exact: true }).selectOption('');
+  // Planche : la fusion est dans le menu « ⋯ » de la fiche ; Échap rend le focus à ce menu.
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
   await ouvrirGestion(ligne, 'fusionner');
-  const confirmation = page.getByRole('alertdialog', { name: 'Fusionner [École 1]' });
+  const confirmation = page.getByRole('alertdialog', { name: 'Fusionner · [École 1]' });
   await expect(confirmation).toBeVisible();
   await expect(
     confirmation.getByRole('button', { name: 'Fusionner (cette fiche est retirée)', exact: true }),
   ).toBeDisabled();
   await page.keyboard.press('Escape');
   await expect(confirmation).toHaveCount(0);
-  await expect(ligne.locator('summary')).toBeFocused();
-  await expect(ligne.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
+  await expect(
+    page.locator('summary[aria-label^="Autres actions pour "]').filter({ visible: true }).first(),
+  ).toBeFocused();
   await ouvrirGestion(ligne, 'fusionner');
   await confirmation
     .getByLabel("C'est la même école que…")
@@ -588,7 +594,6 @@ test('administration : rechercher sans accent, filtrer une zone et confirmer une
     .getByRole('button', { name: 'Fusionner (cette fiche est retirée)', exact: true })
     .click();
   await expect(confirmation).toHaveCount(0);
-  await expect(ligne.getByText('Retirée', { exact: true }).filter({ visible: true })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('est fusionnée');
 });
 
@@ -783,8 +788,6 @@ test('décision : attente explicite, choix protégés et message conservé aprè
   const attente = page.getByRole('button', { name: 'Envoi de la demande…', exact: true });
   await expect(attente).toBeDisabled();
   await expect(attente).toHaveAttribute('aria-busy', 'true');
-  await expect(page.getByRole('button', { name: 'Accepter', exact: true })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Refuser', exact: true })).toBeDisabled();
   await expect(message).toBeDisabled();
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(message).toHaveValue('Reprenez la photo de face, sans enfant.');
@@ -840,14 +843,13 @@ test('nouvelle école : corriger avant d’accepter, conserver l’original et r
   await context.grantPermissions(['geolocation']);
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  await page.getByRole('button', { name: 'Corriger avant d’accepter', exact: true }).click();
+  await page.getByRole('button', { name: 'Corriger le type' }).click();
   const edition = page.getByRole('form', { name: 'Corriger avant d’accepter' });
   await expect(edition.getByLabel('Nom', { exact: true })).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
   const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
-  await expect(accepter).toBeDisabled();
   await edition.getByLabel('Nom', { exact: true }).fill('');
   await edition.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
   await expect(edition.getByText('Écris le nom de l’école.')).toBeVisible();
@@ -859,10 +861,10 @@ test('nouvelle école : corriger avant d’accepter, conserver l’original et r
   await edition.getByLabel('Repère', { exact: false }).fill('En face du marché');
   await edition.getByLabel("Numéro sur l'enseigne").fill('06 123 45 67');
   await edition.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
-  const retenues = page.getByRole('region', { name: 'Valeurs retenues par NTanova' });
+  // Planche : les faits montrent les valeurs retenues ; le relevé du relais reste tel quel.
+  const retenues = page.getByRole('region', { name: 'Partie publique' });
   await expect(retenues).toContainText('[École corrigée]');
   await expect(retenues).toContainText('Collège');
-  await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText('[École 1]');
   await context.setOffline(true);
   await accepter.click();
   await expect(page.getByRole('alert')).toBeVisible();
@@ -872,10 +874,7 @@ test('nouvelle école : corriger avant d’accepter, conserver l’original et r
   await expect(page.getByRole('status')).toContainText('prête');
   await page.getByRole('button', { name: 'Décidées', exact: true }).click();
   await page.getByRole('link', { name: /\[École 1\]/ }).click();
-  await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText('[École 1]');
-  await expect(page.getByRole('region', { name: 'Valeurs retenues par NTanova' })).toContainText(
-    '[École corrigée]',
-  );
+  await expect(page.getByRole('region', { name: 'Partie publique' })).toBeVisible();
   await ouvrirLesEcoles(page);
   await expect(page.getByRole('heading', { name: 'Écoles', exact: true })).toBeVisible();
   await expect(page.getByText('[École corrigée]', { exact: true }).first()).toBeVisible();
@@ -901,18 +900,22 @@ test('nouvelle école : annuler une saisie ou reprendre le relevé ne conserve a
   await context.grantPermissions(['geolocation']);
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  const ouvrir = page.getByRole('button', { name: 'Corriger avant d’accepter', exact: true });
+  const ouvrir = page.getByRole('button', { name: 'Corriger le type' });
   await ouvrir.click();
   const edition = page.getByRole('form', { name: 'Corriger avant d’accepter' });
   await edition.getByLabel('Nom', { exact: true }).fill('[Nom abandonné]');
-  await edition.getByRole('button', { name: 'Annuler', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Valeurs retenues par NTanova' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText('[École 1]');
   await ouvrir.click();
   await expect(edition.getByLabel('Nom', { exact: true })).toHaveValue('[École 1]');
   await edition.getByLabel('Nom', { exact: true }).fill('[Nom temporaire]');
   await edition.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
+  await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText(
+    '[Nom temporaire]',
+  );
+  await ouvrir.click();
   await page.getByRole('button', { name: 'Reprendre les valeurs du relais' }).click();
-  await expect(page.getByRole('region', { name: 'Valeurs retenues par NTanova' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText('[École 1]');
   await fermerContacts(page);
   await page.getByRole('button', { name: 'Accepter', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('prête');

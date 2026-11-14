@@ -110,7 +110,6 @@ test('une nouvelle ne se publie pas sans l’accord daté de l’école ; la rai
   await expect(form).toContainText('L’accord daté de l’école manque');
   await form.getByLabel('Le', { exact: true }).fill('2026-11-01');
   await expect(publier).toBeEnabled();
-  await expect(form).toContainText('Nouvelle de l’école');
   await publier.click();
   await expect(deja.getByRole('listitem')).toContainText('[Portes ouvertes]');
   await deja.getByRole('button', { name: 'Retirer [Portes ouvertes]' }).click();

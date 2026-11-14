@@ -107,7 +107,12 @@ test.describe('dans l’administration', () => {
     await expect(dialog.getByRole('button', { name: 'Retirer : L’établissement' })).toHaveCount(0);
 
     // Le mot : la fiche n'est pas confirmée, l'écran le dit.
-    await dialog.getByRole('button', { name: 'Mot de la direction', exact: true }).click();
+    // Planche : chaque rubrique a son tiroir ; on referme celui-ci et on ouvre sa carte.
+    await page.keyboard.press('Escape');
+    await page
+      .locator('article[aria-label="Fiche de [École 1]"]')
+      .getByRole('button', { name: 'Mot de la direction : ouvrir' })
+      .click();
     const mot = dialog.getByRole('form', { name: 'Mot de la direction de [École 1]' });
     await expect(mot).toContainText('ne paraîtra qu’une fois la fiche confirmée');
     await mot.getByLabel(/^Le mot/).fill('[Un mot de la direction.]');
@@ -123,7 +128,12 @@ test.describe('dans l’administration', () => {
     await expect(mot.getByRole('button', { name: 'Retirer le mot' })).toHaveCount(0);
 
     // Les inscriptions
-    await dialog.getByRole('button', { name: 'Inscriptions', exact: true }).click();
+    // Planche : chaque rubrique a son tiroir ; on referme celui-ci et on ouvre sa carte.
+    await page.keyboard.press('Escape');
+    await page
+      .locator('article[aria-label="Fiche de [École 1]"]')
+      .getByRole('button', { name: 'Contact et inscriptions : ouvrir' })
+      .click();
     const inscriptions = dialog.getByRole('form', { name: 'Inscriptions de [École 1]' });
     await inscriptions.getByLabel(/^Année scolaire/).fill('2026-2027');
     await inscriptions.getByLabel('Date limite annoncée').fill('2030-12-15');

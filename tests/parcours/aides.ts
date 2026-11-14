@@ -169,6 +169,25 @@ export async function marquerPubliable(page: Page) {
   await expect(publique).toHaveAttribute('aria-pressed', 'true');
 }
 
+/** « Refuser » : à droite de la barre sur ordinateur, derrière « ⋯ » sur téléphone (planche). */
+export async function ouvrirLeRefus(page: Page) {
+  await fermerContacts(page);
+  const direct = page
+    .getByRole('button', { name: 'Refuser', exact: true })
+    .filter({ visible: true });
+  if ((await direct.count()) === 0) {
+    await page
+      .getByRole('group', { name: 'Accepter, corriger ou refuser' })
+      .locator('summary')
+      .filter({ visible: true })
+      .click();
+  }
+  await page
+    .getByRole('button', { name: 'Refuser', exact: true })
+    .filter({ visible: true })
+    .click();
+}
+
 /** L'administration ouvre la fiche « [École 1] » dans « À valider ». */
 export async function ouvrirLaFiche(page: Page) {
   await page.goto('/admin/#valider');
@@ -251,11 +270,14 @@ export async function textesPeuLisibles(page: Page, selecteur: string): Promise<
  */
 export async function ouvrirFiche(ligne: Locator) {
   const page = ligne.page();
+  await fermerLeTiroir(page);
   if (page.url().includes('#ecoles/fiche/')) {
     await page.evaluate(() => (location.hash = '#ecoles'));
     await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeAttached();
     await toutesLesEcoles(page);
   }
+  // La liste s'ouvre sur « À publier » : la ligne cherchée peut être dans « Toutes ».
+  if (!(await ligne.isVisible())) await toutesLesEcoles(page);
   await ligne.getByRole('link').first().click();
   await expect(page.locator('article[aria-label^="Fiche de "]')).toBeVisible();
 }
@@ -329,8 +351,18 @@ export const ficheOuverte = (page: Page) =>
     )
     .last();
 
+/** Referme le tiroir ou la fenêtre ouverte (Échap), s'il y en a une : la page est derrière. */
+export async function fermerLeTiroir(page: Page): Promise<void> {
+  const ouvert = page.locator('[role="dialog"], [role="alertdialog"]');
+  if ((await ouvert.count()) > 0) {
+    await page.keyboard.press('Escape');
+    await expect(ouvert).toHaveCount(0);
+  }
+}
+
 /** Revient de la fiche d'une école à la liste « Écoles » (flèche de la barre du haut, ou lien sur ordinateur). */
 export async function retourAuxEcoles(page: Page) {
+  await fermerLeTiroir(page);
   await page
     .getByRole('link', { name: /^(Retour : Écoles|← Écoles|Écoles)$/ })
     .filter({ visible: true })
@@ -364,8 +396,15 @@ export async function ouvrirContacts(page: Page): Promise<void> {
  */
 /** Sur un petit écran, une zone choisie remplace la liste : la flèche de la barre verte la rend. */
 export async function retourAuxZones(page: Page): Promise<void> {
-  const retour = page.getByRole('link', { name: 'Retour : Zones' }).filter({ visible: true });
-  if ((await retour.count()) > 0) await retour.first().click();
+  // Sous 64 rem seulement : une zone choisie y remplace la liste.
+  if ((page.viewportSize()?.width ?? 0) >= 1024) return;
+  if (!/#zones\/./.test(page.url())) return;
+  await page
+    .getByRole('link', { name: 'Retour : Zones' })
+    .filter({ visible: true })
+    .first()
+    .click();
+  await expect(page.getByRole('region', { name: 'Liste des zones' })).toBeVisible();
 }
 
 export async function choisirLaZone(page: Page, nom: RegExp | string): Promise<void> {
@@ -397,6 +436,13 @@ export async function ouvrirLesEcoles(page: Page) {
 export async function ouvrirEcranAdmin(page: Page, nom: string) {
   // Le lien porte aussi son compteur (« Relais 1 relais à activer ») ou son détail (« Paie vendredi »).
   const lien = new RegExp(`^${nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-zà-ÿ])`, 'i');
+  // L'écran doit être là avant de compter les liens (sinon on ouvrirait « Plus » pour rien).
+  await expect(
+    page
+      .getByRole('link', { name: /^Aujourd’hui/ })
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
   const direct = page.getByRole('link', { name: lien }).filter({ visible: true });
   if ((await direct.count()) === 0) {
     await page

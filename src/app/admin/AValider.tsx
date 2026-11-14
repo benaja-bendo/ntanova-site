@@ -1430,57 +1430,59 @@ function Detail({
                     );
                   }}
                 >
-                  <Champ libelle="Motif">
-                    {(a) => (
-                      <select
-                        {...a}
-                        className={v2.champ}
-                        value={motif}
-                        onChange={(e) => setMotif(e.target.value as Valeur<'motif_decision'>)}
-                      >
-                        {motifsProposes.map((m) => (
-                          <option key={m} value={m}>
-                            {libelleMotif[m]}
-                          </option>
-                        ))}
-                      </select>
+                  <fieldset disabled={enCours} className={v2.occupe}>
+                    <Champ libelle="Motif">
+                      {(a) => (
+                        <select
+                          {...a}
+                          className={v2.champ}
+                          value={motif}
+                          onChange={(e) => setMotif(e.target.value as Valeur<'motif_decision'>)}
+                        >
+                          {motifsProposes.map((m) => (
+                            <option key={m} value={m}>
+                              {libelleMotif[m]}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </Champ>
+                    <Champ
+                      libelle="Message au relais"
+                      facultatif={motif !== 'autre'}
+                      aide={
+                        motif === 'autre'
+                          ? 'Obligatoire avec « Autre » : dis au relais ce qu’il doit faire. Il le lit dans « Mes fiches ». Vouvoie-le.'
+                          : 'Le relais le lit dans « Mes fiches ». Vouvoie-le.'
+                      }
+                    >
+                      {(a) => (
+                        <textarea
+                          {...a}
+                          className={v2.champ}
+                          rows={2}
+                          maxLength={500}
+                          placeholder="Ex. : la photo est floue, reprenez-la de face."
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                        />
+                      )}
+                    </Champ>
+                    <Bouton
+                      type="submit"
+                      variante={mode === 'refus' ? 'danger' : 'principal'}
+                      enCours={operation === mode}
+                      texteEnCours={mode === 'correction' ? 'Envoi de la demande…' : 'Refus…'}
+                      disabled={enCours}
+                    >
+                      {mode === 'correction' ? 'Envoyer la demande' : 'Refuser la fiche'}
+                    </Bouton>
+                    {erreur && (
+                      <p className={v2.erreur} role="alert">
+                        {erreur}
+                      </p>
                     )}
-                  </Champ>
-                  <Champ
-                    libelle="Message au relais"
-                    facultatif={motif !== 'autre'}
-                    aide={
-                      motif === 'autre'
-                        ? 'Obligatoire avec « Autre » : dis au relais ce qu’il doit faire. Il le lit dans « Mes fiches ». Vouvoie-le.'
-                        : 'Le relais le lit dans « Mes fiches ». Vouvoie-le.'
-                    }
-                  >
-                    {(a) => (
-                      <textarea
-                        {...a}
-                        className={v2.champ}
-                        rows={2}
-                        maxLength={500}
-                        placeholder="Ex. : la photo est floue, reprenez-la de face."
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                      />
-                    )}
-                  </Champ>
-                  <Bouton
-                    type="submit"
-                    variante={mode === 'refus' ? 'danger' : 'principal'}
-                    enCours={operation === mode}
-                    texteEnCours={mode === 'correction' ? 'Envoi de la demande…' : 'Refus…'}
-                    disabled={enCours}
-                  >
-                    {mode === 'correction' ? 'Envoyer la demande' : 'Refuser la fiche'}
-                  </Bouton>
-                  {erreur && (
-                    <p className={v2.erreur} role="alert">
-                      {erreur}
-                    </p>
-                  )}
+                  </fieldset>
                 </form>
               </Dialogue>
             )}

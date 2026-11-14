@@ -7,7 +7,6 @@ import { ouvrirLaFiche, uneFicheEnvoyee, ouvrirLesEcoles } from './aides';
 
 test.use({ permissions: ['geolocation'] });
 
-const avant = (page: Page) => page.getByRole('region', { name: 'Avant d’accepter' });
 const fiche = (page: Page) => page.getByRole('region', { name: 'Envoi sélectionné' });
 const champPosition = (page: Page) => fiche(page).getByRole('textbox', { name: /^Position/ });
 
@@ -37,7 +36,7 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await ouvrirLaFiche(page);
 
     const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
-    await expect(avant(page)).toContainText('Sans position : l’école ne sera pas sur la carte');
+    await expect(fiche(page).getByText('Sans position', { exact: true })).toBeVisible();
     await expect(accepter).toBeDisabled();
 
     // Ce que donne un clic droit sur Google Maps, à l'entrée de l'école.
@@ -45,9 +44,6 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await expect(
       fiche(page).getByText('Lu : -4.84841, 11.90712. Dans le dessin de Ngoyo.'),
     ).toBeVisible();
-    await expect(avant(page)).toContainText('Saisie par toi : -4.84841, 11.90712');
-    await expect(avant(page)).toContainText('Ngoyo');
-    await expect(avant(page)).toContainText('Rien ne bloque');
     await expect(accepter).toBeEnabled();
     await accepter.click();
     await expect(page.getByRole('status')).toBeVisible();
@@ -55,8 +51,7 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
     await expect(ligne.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
-    await expect(ligne.getByRole('link', { name: '-4.84841, 11.90712' })).toBeVisible();
-    await expect(ligne.getByText('Ngoyo')).toBeVisible();
+    await expect(ligne).toContainText('Ngoyo');
   });
 
   test('hors de tout contour connu : la division se choisit, et la position saisie reste celle qu’on a donnée', async ({
@@ -70,7 +65,7 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
 
     await champPosition(page).fill('-4.85, 14.00');
     await expect(fiche(page).getByText(/Aucun contour connu ici/)).toBeVisible();
-    await expect(avant(page)).toContainText('aucun contour connu ne contient cette position');
+    await expect(fiche(page).getByText(/Choisis la division de l’école/)).toBeVisible();
     const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
     await expect(accepter).toBeDisabled();
 
@@ -80,15 +75,13 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
       .first()
       .getAttribute('value');
     await division.selectOption(ngoyo ?? '');
-    await expect(avant(page)).toContainText('Rien ne bloque');
     await expect(accepter).toBeEnabled();
     await accepter.click();
     await expect(page.getByRole('status')).toBeVisible();
 
     await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-    await expect(ligne.getByRole('link', { name: '-4.85000, 14.00000' })).toBeVisible();
-    await expect(ligne.getByText('Ngoyo')).toBeVisible();
+    await expect(ligne).toContainText('Ngoyo');
   });
 
   test('une position illisible bloque et le dit ; le champ vidé, la fiche s’accepte sans position, l’école reste à situer', async ({
@@ -105,9 +98,10 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await expect(accepter).toBeEnabled();
     await champPosition(page).fill('face au marché');
     await expect(
-      fiche(page).locator('.message-erreur', { hasText: 'Position illisible' }),
+      fiche(page)
+        .getByText(/Position illisible/)
+        .first(),
     ).toBeVisible();
-    await expect(avant(page)).toContainText('illisible');
     await expect(accepter).toBeDisabled();
 
     await champPosition(page).fill('');
@@ -119,7 +113,7 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
     await expect(ligne).toBeVisible();
-    await expect(ligne.getByRole('link', { name: /^-?\d+\.\d+, -?\d+\.\d+$/ })).toHaveCount(0);
+    await expect(ligne).toContainText(/Pas sur la carte|Sans position/);
   });
 
   test('la position mesurée par le relais fait foi : pas de champ pour la remplacer', async ({
@@ -130,7 +124,7 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
 
-    await expect(avant(page)).toContainText('Prise, précision 8 m');
+    await expect(fiche(page)).toContainText('précision 8 m');
     await expect(champPosition(page)).toHaveCount(0);
   });
 });

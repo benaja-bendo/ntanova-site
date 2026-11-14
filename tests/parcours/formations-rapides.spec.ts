@@ -79,9 +79,11 @@ test.describe('les séries du lycée se cochent', () => {
 
     // L'administration les voit cochées dans « À valider », déjà dans la liste des formations, et rien n'est publié.
     await ouvrirLaFiche(page);
-    await expect(page.getByTestId('formations-du-relais')).toContainText(
-      'Cochées par le relais sur place : Série D, Série C',
+    // Planche : la ligne « Formations » des faits les dit ; leur tiroir les corrige avant d'accepter.
+    await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText(
+      'Série D, Série C',
     );
+    await page.getByRole('button', { name: 'Corriger les formations' }).click();
     await expect(page.getByRole('button', { name: 'Retirer Série C' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Retirer Série D' })).toBeVisible();
   });

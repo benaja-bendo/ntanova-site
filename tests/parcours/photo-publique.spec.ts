@@ -10,6 +10,8 @@ import {
   marquerPubliable,
   toutesLesEcoles,
   ouvrirLesEcoles,
+  ouvrirFiche,
+  ficheOuverte,
 } from './aides';
 test.use({ permissions: ['geolocation'] });
 test('photo publique : sélection explicite, relecture et retrait sans badge', async ({
@@ -36,8 +38,8 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
   await expect(d).toContainText('Choix prioritaire.');
   // La fiche est « prête », pas publiée : aucune photo n'est dite publique.
   await expect(d).toContainText('Aucune photo n’est publique tant que la fiche n’est pas publiée');
-  await expect(page.getByRole('article', { name: 'Fiche de [École 1]' })).toContainText('Prête');
-  await expect(page.getByRole('article', { name: 'Fiche de [École 1]' })).not.toContainText(
+  await expect(page.locator('article[aria-label="Fiche de [École 1]"]')).toContainText('Prête');
+  await expect(page.locator('article[aria-label="Fiche de [École 1]"]')).not.toContainText(
     'vérifiée par la direction',
   );
   expect(await d.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
@@ -53,10 +55,17 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
 test('sans enseigne acceptée : aucun choix inventé', async ({ page }) => {
   await seConnecter(page, '/admin/#ecoles');
   await toutesLesEcoles(page);
-  await ouvrirGestion(page.getByRole('row', { name: /\[École à situer\]/ }), 'Photo publique');
-  await expect(page.getByRole('article', { name: 'Fiche de [École 1]' })).toContainText(
-    'Aucune enseigne ni vue du bâtiment issue d’un relevé accepté.',
-  );
+  await ouvrirFiche(page.getByRole('row', { name: /\[École à situer\]/ }));
+  // Sur téléphone, « Gérer » ouvre les photos ; sur ordinateur, sans photo, aucune vignette ne s'ouvre.
+  const gerer = page.getByRole('button', { name: 'Gérer', exact: true }).filter({ visible: true });
+  if ((await gerer.count()) > 0) {
+    await gerer.click();
+    await expect(ficheOuverte(page)).toContainText(
+      'Aucune enseigne ni vue du bâtiment issue d’un relevé accepté.',
+    );
+  } else {
+    await expect(page.getByRole('button', { name: /^Photo( de travail)? : / })).toHaveCount(0);
+  }
 });
 // Le raccord de l'administration au repli automatique (07/11/2026) ----------------------------------------------------------
 
@@ -177,18 +186,23 @@ test('corbeille puis restauration : aucune photo n’est publiée, le retrait et
   await uneEcolePublieeAvecDeuxPhotos(page, context);
 
   const mettreALaCorbeilleEtRestaurer = async () => {
-    await ligne(page).locator(MENU).click();
-    await ligne(page).getByRole('button', { name: 'Mettre à la corbeille…' }).click();
-    await ligne(page).getByLabel('Motif').selectOption('erreur');
-    await ligne(page)
-      .getByRole('button', { name: /Mettre \[École 1\] à la corbeille/ })
+    // Planche : la corbeille est dans le menu « ⋯ » de la fiche ; la restauration, sur la ligne dans « Corbeille ».
+    await ouvrirFiche(ligne(page));
+    await page.locator(MENU).filter({ visible: true }).first().click();
+    await page
+      .getByRole('button', { name: 'Mettre à la corbeille', exact: true })
+      .filter({ visible: true })
       .click();
-    await expect(page.getByRole('status')).toHaveText(/est à la corbeille/);
-    await page.getByRole('button', { name: /^Corbeille\s*1$/ }).click();
-    // À la corbeille, la photo ne se gère plus : ni « Gérer la fiche », ni « Publier ».
-    await expect(ligne(page).getByRole('link', { name: 'Ouvrir la fiche' })).toHaveCount(0);
+    const fenetre = page.getByRole('alertdialog', { name: 'Mettre à la corbeille · [École 1]' });
+    await fenetre.getByLabel('Motif').selectOption('erreur');
+    await fenetre.getByRole('button', { name: /Mettre \[École 1\] à la corbeille/ }).click();
+    await expect(page.getByRole('status').first()).toHaveText(/est à la corbeille/);
+    await retourAuxEcoles(page);
+    await page.getByRole('button', { name: /^Corbeille · 1$/ }).click();
+    // À la corbeille, la photo ne se gère plus : ni « Publier », seulement « Restaurer » ou « Supprimer… ».
+    await expect(ligne(page).getByRole('button', { name: 'Publier', exact: true })).toHaveCount(0);
     await ligne(page).getByRole('button', { name: 'Restaurer' }).click();
-    await expect(page.getByRole('status')).toHaveText(/est restaurée/);
+    await expect(page.getByRole('status').first()).toHaveText(/est restaurée/);
     await page.getByRole('button', { name: 'Toutes' }).click();
     await expect(ligne(page).getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
   };

@@ -2,13 +2,13 @@
 // repliés, « Comme sur l'enseigne / Différent » et « Sur la photo » dans « À valider », les raccourcis J/K/Échap,
 // et « Même lieu » (une nouvelle école distincte, qui le dit).
 import { expect, test, type Page } from '@playwright/test';
-import { ficheAdmin, ouvrirLaFiche, seConnecter, uneFicheEnvoyee, toutesLesEcoles } from './aides';
+import { ouvrirLaFiche, seConnecter, uneFicheEnvoyee, toutesLesEcoles } from './aides';
 
 test.use({ permissions: ['geolocation'] });
 
 const large = (page: Page) => (page.viewportSize()?.width ?? 0) >= 1024;
 
-test('la fiche d’une école : l’aperçu de la couverture et « X rubriques remplies sur Y »', async ({
+test('la fiche d’une école : la couverture, la jauge « N/M » et « Compléter la fiche »', async ({
   page,
 }) => {
   await seConnecter(page, '/admin/#ecoles');
@@ -18,35 +18,30 @@ test('la fiche d’une école : l’aperçu de la couverture et « X rubriques r
     .getByRole('link')
     .first()
     .click();
-  const fiche = ficheAdmin(page, '[École à situer]');
-  const apercu = fiche.getByRole('region', { name: 'Aperçu' });
-  await expect(apercu).toContainText('Pas encore de photo de couverture');
-  const compteur = apercu.getByRole('button', { name: /rubriques? remplies? sur \d+/ });
-  await expect(compteur).toBeVisible();
-  // Le compteur ouvre « À compléter » ; « Ajouter une couverture » ouvre « Images ».
-  await fiche
-    .getByRole('navigation', { name: 'Sections de la fiche' })
-    .getByRole('button', { name: 'Informations' })
-    .click();
-  await compteur.click();
+  // Planche « Fiche d'école » : la couverture (vide, elle le dit), la jauge « N/M » et « Compléter la fiche ».
+  const fiche = page.getByRole('article', { name: 'Fiche de [École à situer]' });
+  await expect(fiche).toContainText('Photo de couverture');
+  const completer = fiche.getByLabel('À compléter').filter({ visible: true }).first();
+  await expect(completer).toContainText(/\d+\/\d+/);
+  await expect(completer).toContainText(/choses? à compléter/);
+  await completer.getByRole('button', { name: 'Compléter la fiche' }).click();
   await expect(
-    fiche
-      .getByRole('navigation', { name: 'Sections de la fiche' })
-      .getByRole('button', { name: 'À compléter' }),
-  ).toHaveAttribute('aria-pressed', 'true');
-  await apercu.getByRole('button', { name: 'Ajouter une couverture' }).click();
+    page.getByRole('dialog', { name: 'Compléter la fiche · [École à situer]' }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await fiche.getByRole('button', { name: 'Changer la couverture' }).click();
   await expect(
-    fiche
-      .getByRole('navigation', { name: 'Sections de la fiche' })
-      .getByRole('button', { name: 'Images' }),
-  ).toHaveAttribute('aria-pressed', 'true');
+    page.getByRole('dialog', { name: 'Couverture, logo et images · [École à situer]' }),
+  ).toBeVisible();
 });
 
 test('Relais : la colonne « Signal », et les relais sans envoi de la semaine repliés en bas', async ({
   page,
 }) => {
   await seConnecter(page, '/admin/#relais');
-  await expect(page.getByRole('columnheader', { name: 'Signal' }).first()).toBeAttached();
+  // Sur ordinateur, le tableau ; sur téléphone, des cartes : le signal est dans chaque carte.
+  if (large(page))
+    await expect(page.getByRole('columnheader', { name: 'Signal' }).first()).toBeAttached();
   // Le compte à activer reste en tête ; le relais sans envoi cette semaine est replié.
   await expect(
     page.getByRole('region', { name: 'Compte à activer : [Relais en attente]' }),
@@ -77,6 +72,7 @@ test('À valider : « Comme sur l’enseigne / Différent » et « Sur la photo 
   // « Différent » ouvre la correction avant d'accepter.
   await nom.getByRole('button', { name: 'Différent' }).click();
   await expect(page.getByRole('form', { name: 'Corriger avant d’accepter' })).toBeVisible();
+  await page.keyboard.press('Escape');
 
   await expect(publique.getByText('Sur la photo ?')).toBeVisible();
   await page

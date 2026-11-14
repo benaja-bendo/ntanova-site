@@ -293,6 +293,9 @@ export function Zones({ admin }: { admin: PortAdministration }) {
         </Bandeau>
       )}
 
+      {/* Téléphone, sans zone choisie : le message d'un geste (un lot créé) se lit au-dessus de la liste. */}
+      {!choisie && noeudRetour && <div className="lg:hidden">{noeudRetour}</div>}
+
       {divisions === null && !erreur && (
         <p aria-busy="true" className={v2.doux}>
           Chargement des zones…
@@ -469,6 +472,8 @@ export function Zones({ admin }: { admin: PortAdministration }) {
           fermer={() => setLotsOuverts(false)}
           entete={<h2>Les lots (secteurs conseillés)</h2>}
         >
+          {/* Le message d'un geste (« rendu », « remis en cours ») se lit dans le tiroir : la page est derrière. */}
+          {noeudRetour}
           <div className={v2.tableau}>
             <table>
               <thead>

@@ -34,7 +34,9 @@ test('déclaration école : date et transmission explicites, brouillon et origin
   await toutesLesEcoles(page);
   await ouvrirFiche(row);
   const fiche = page.getByRole('article', { name: 'Fiche de [École déclarée Exemple]' });
-  await expect(fiche).toContainText(/1 novembre 2026 · Déclarée par l’école/);
+  await expect(fiche.getByRole('region', { name: 'Historique' }).first()).toContainText(
+    'Déclarée par l’école',
+  );
   await expect(fiche).not.toContainText('vérifiée par la direction');
 });
 test('public : origine déclarée datée, sans preuve terrain et porte ouverte au Congo', async ({
