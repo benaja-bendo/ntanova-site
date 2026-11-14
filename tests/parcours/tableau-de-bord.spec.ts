@@ -376,7 +376,6 @@ test.describe('tableau de bord : Zones', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/#zones');
-    const arbre = arbreDe(page);
     await page
       .getByRole('button', { name: 'Ajouter une zone' })
       .filter({ visible: true })
