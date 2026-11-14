@@ -78,7 +78,7 @@ export function VoletDeZone({
       className="flex flex-col gap-5 rounded-xl border border-border bg-card p-5 max-lg:-mx-4 max-lg:-mt-5 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-4"
       aria-label={`${zone.nom} : en bref`}
     >
-      <div className="flex flex-col gap-0.5 max-lg:hidden">
+      <div className="flex flex-col gap-0.5 max-lg:sr-only">
         <h2 className="m-0 font-serif text-[26px] font-bold">{zone.nom}</h2>
         <p className="m-0 text-[15px] text-muted-foreground">
           {libelleGenreDivision[zone.genre]}

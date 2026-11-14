@@ -12,7 +12,8 @@ import {
 
 test.use({ permissions: ['geolocation'] });
 
-const avant = (page: Page) => page.getByRole('region', { name: 'Avant d’accepter' });
+/** La barre du bas de la fiche : la décision et sa légende. */
+const barre = (page: Page) => page.getByRole('group', { name: 'Accepter, corriger ou refuser' });
 
 /** La fiche envoyée devient celle d'ESTAM : du supérieur, un numéro à 10 chiffres après +242, et pas de contact. */
 function faireDeLaFicheCelleDEstam(page: Page) {
@@ -54,33 +55,21 @@ function uneCorrectionSansLot(page: Page) {
   });
 }
 
-test.describe('avant d’accepter, l’écran dit ce qui se passe et ce qui manque', () => {
-  test('une fiche ordinaire : rien ne bloque, la photo à vérifier est dite, et ce que fait « Accepter »', async ({
+// Admin v2 (planche « À valider · une fiche ») : plus de bloc « Avant d'accepter » ; la barre du bas dit ce que fait
+// « Accepter », ou ce qui manque, et le bouton se grise tant qu'un choix reste à faire.
+test.describe('avant d’accepter, la barre dit ce qui se passe et ce qui manque', () => {
+  test('une fiche ordinaire : rien ne bloque, et la barre dit ce que fait « Accepter »', async ({
     page,
     context,
   }) => {
     test.setTimeout(90_000);
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
-
-    await expect(avant(page)).toContainText('Rien ne bloque');
-    await expect(avant(page)).toContainText('Reçu.');
-    await expect(avant(page)).toContainText('Tié-Tié');
-    // L'enseigne reçue n'est pas encore contrôlée : sans cela, elle ne paraîtra pas.
-    await expect(avant(page)).toContainText('pas encore contrôlée');
-    await expect(avant(page)).toContainText('Contrôler pour publication');
-    // Ce que fait « Accepter », et où se publie l'école.
-    await expect(avant(page)).toContainText('devient « prête »');
-    await expect(avant(page)).toContainText('Écoles › Publier');
-
-    // Contrôlée : la ligne le dit, sans promettre autre chose que l'apparition après la mise à jour du site.
-    await page.getByRole('button', { name: 'Contrôler pour publication' }).click();
-    await expect(avant(page)).toContainText('contrôlée pour publication : elle pourra paraître');
-    await expect(avant(page)).toContainText('après la prochaine mise à jour du site');
-    await expect(avant(page)).not.toContainText('pas encore contrôlée');
+    await expect(barre(page)).toContainText('Accepter crée l’école sans la publier.');
+    await expect(page.getByRole('button', { name: 'Accepter', exact: true })).toBeEnabled();
   });
 
-  test('contact et formations sont dits facultatifs ; un numéro à 10 chiffres est signalé, et se confirme sur la photo', async ({
+  test('sans contact ni formations rien ne bloque ; un numéro à 10 chiffres est signalé, et se confirme sur la photo', async ({
     page,
     context,
   }) => {
@@ -89,22 +78,20 @@ test.describe('avant d’accepter, l’écran dit ce qui se passe et ce qui manq
     await faireDeLaFicheCelleDEstam(page);
     await ouvrirLaFiche(page);
 
-    // Contact et formations ne grisent jamais le bouton ; le numéro, lui, attend qu'on dise s'il est sur la photo.
-    await expect(avant(page)).toContainText('Pas reçu');
-    await expect(avant(page)).toContainText('n’empêche ni d’accepter ni de publier');
-    await expect(avant(page)).toContainText('Facultatif pour accepter');
-    await expect(avant(page)).toContainText('10 chiffres après +242');
-    await expect(avant(page)).toContainText('Il reste un choix à faire');
-    const accepter = page.getByRole('button', { name: 'Accepter la fiche' });
+    // Le numéro attend qu'on dise s'il est sur la photo ; la barre le dit, le bouton attend.
+    const fiche = page.getByRole('region', { name: 'Envoi sélectionné' });
+    await expect(fiche).toContainText('10 chiffres après +242');
+    await expect(barre(page)).toContainText('Dis si le numéro de l’enseigne est sur la photo');
+    const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
     await expect(accepter).toBeDisabled();
 
     // Le numéro relu sur la photo : plus rien ne bloque, et l'avertissement sur les 10 chiffres reste lisible.
     await page
-      .getByRole('group', { name: /Numéro écrit sur l’enseigne/ })
+      .getByRole('group', { name: 'Le numéro, sur la photo ?' })
       .getByRole('button', { name: 'Sur la photo', exact: true })
       .click();
-    await expect(avant(page)).toContainText('Rien ne bloque');
-    await expect(avant(page)).toContainText('10 chiffres après +242');
+    await expect(barre(page)).toContainText('Accepter crée l’école sans la publier.');
+    await expect(fiche).toContainText('10 chiffres après +242');
     await expect(accepter).toBeEnabled();
   });
 
@@ -118,20 +105,14 @@ test.describe('avant d’accepter, l’écran dit ce qui se passe et ce qui manq
     await page.goto('/admin/#valider');
     // Une navigation par le dièse ne recharge rien : la liste lue avant la correction serait périmée.
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'À valider', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'À valider', level: 1 })).toBeAttached();
     await page.getByRole('link', { name: /Correction/ }).click();
-    await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeAttached();
 
     // L'en-tête ne dit plus « Lot Essai » : c'est le lot de la fiche d'origine, pas celui de la correction.
-    const entete = page
-      .getByRole('region', { name: 'Envoi sélectionné' })
-      .locator('.avalider-fiche-tete');
-    await expect(entete).toContainText('Relevée par');
-    await expect(entete).not.toContainText('Lot Essai');
-    await expect(avant(page)).toContainText('lot « Essai »');
-    await expect(avant(page)).toContainText('Cette correction n’est dans aucun lot');
-    await expect(avant(page)).toContainText('Rien ne bloque');
-    await expect(page.getByRole('button', { name: 'Accepter la fiche corrigée' })).toBeEnabled();
+    const fiche = page.getByRole('region', { name: 'Envoi sélectionné' });
+    await expect(fiche).not.toContainText('Lot Essai');
+    await expect(page.getByRole('button', { name: 'Accepter la correction' })).toBeEnabled();
   });
 });
 

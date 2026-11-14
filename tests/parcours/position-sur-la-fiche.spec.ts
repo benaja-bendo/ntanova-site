@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
+import { ouvrirLaFiche, uneFicheEnvoyee, ouvrirLesEcoles } from './aides';
 
 // La position saisie sur la fiche « À valider » (ticket 144). Le téléphone d'un relais avait refusé la localisation 27 fois
 // en une semaine : il envoyait des captures de Google Maps, et l'administration devait accepter la fiche, puis ouvrir
@@ -36,7 +36,7 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await sansPosition(page, { sansSecteur: true });
     await ouvrirLaFiche(page);
 
-    const accepter = page.getByRole('button', { name: 'Accepter la fiche' });
+    const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
     await expect(avant(page)).toContainText('Sans position : l’école ne sera pas sur la carte');
     await expect(accepter).toBeDisabled();
 
@@ -52,9 +52,9 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await accepter.click();
     await expect(page.getByRole('status')).toBeVisible();
 
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-    await expect(ligne.getByText('Prête', { exact: true })).toBeVisible();
+    await expect(ligne.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
     await expect(ligne.getByRole('link', { name: '-4.84841, 11.90712' })).toBeVisible();
     await expect(ligne.getByText('Ngoyo')).toBeVisible();
   });
@@ -71,7 +71,7 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await champPosition(page).fill('-4.85, 14.00');
     await expect(fiche(page).getByText(/Aucun contour connu ici/)).toBeVisible();
     await expect(avant(page)).toContainText('aucun contour connu ne contient cette position');
-    const accepter = page.getByRole('button', { name: 'Accepter la fiche' });
+    const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
     await expect(accepter).toBeDisabled();
 
     const division = fiche(page).getByLabel('Division de l’école');
@@ -85,7 +85,7 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await accepter.click();
     await expect(page.getByRole('status')).toBeVisible();
 
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
     await expect(ligne.getByRole('link', { name: '-4.85000, 14.00000' })).toBeVisible();
     await expect(ligne.getByText('Ngoyo')).toBeVisible();
@@ -101,7 +101,7 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await sansPosition(page, { sansSecteur: false });
     await ouvrirLaFiche(page);
 
-    const accepter = page.getByRole('button', { name: 'Accepter la fiche' });
+    const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
     await expect(accepter).toBeEnabled();
     await champPosition(page).fill('face au marché');
     await expect(
@@ -116,7 +116,7 @@ test.describe('saisir la position sur la fiche, avant d’accepter', () => {
     await expect(page.getByRole('status')).toBeVisible();
 
     // Aucune position inventée : l'école n'a que celle qu'on lui a donnée, c'est-à-dire aucune.
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
     await expect(ligne).toBeVisible();
     await expect(ligne.getByRole('link', { name: /^-?\d+\.\d+, -?\d+\.\d+$/ })).toHaveCount(0);

@@ -1,4 +1,4 @@
-import { ouvrirGestion, ficheAdmin, retourAuxEcoles } from './aides';
+import { ouvrirGestion, retourAuxEcoles, ouvrirLesEcoles } from './aides';
 import { expect, test } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 test.use({ permissions: ['geolocation'] });
@@ -8,49 +8,54 @@ test('équipement : provenance explicite, ajout relecture modification et retrai
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  await page.getByRole('button', { name: 'Accepter la fiche' }).click();
-  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+  await ouvrirLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-  await expect(page.getByRole('combobox', { name: 'Zone à publier' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeAttached();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
   await ouvrirGestion(ligne, 'Équipements');
-  const d = ficheAdmin(page, '[École 1]'),
-    f = d.getByRole('form');
+  // Planche « Sur place » : un tableau, une ligne par équipement ; « + Cantine » ouvre la ligne à remplir.
+  const d = page.getByRole('dialog', { name: 'Sur place · [École 1]' });
+  const tableau = d.getByRole('table', { name: 'Équipements de [École 1]' });
+  const cantine = tableau.getByRole('row', { name: 'Cantine', exact: true });
+  const enregistrer = d.getByRole('button', { name: 'Enregistrer', exact: true });
+  await d.getByRole('button', { name: '+ Cantine' }).click();
   // v2 (13/11) : le terrain peut dire « vu » pour tout, « absent » seulement pour la clôture.
-  await f.getByRole('combobox', { name: 'Équipement', exact: true }).selectOption('cantine');
-  await f.getByRole('combobox', { name: 'État', exact: true }).selectOption('absent');
-  await f.getByRole('combobox', { name: 'Source', exact: true }).selectOption('terrain');
-  await f
-    .getByLabel('Date de déclaration ou d’observation')
+  await d.getByLabel('Qui le dit').selectOption('terrain');
+  await d.getByLabel('Ce qu’il dit').selectOption('absent');
+  await d
+    .getByLabel('Le', { exact: true })
     .fill(new Date(Date.now() - 86400000).toISOString().slice(0, 10));
-  await f.getByRole('checkbox').check();
-  await f.getByRole('button', { name: 'Enregistrer l’équipement' }).click();
+  await enregistrer.click();
   await expect(d).toContainText('Une absence ne se dit que pour la clôture');
-  await f.getByRole('combobox', { name: 'État', exact: true }).selectOption('present');
-  await f.getByRole('button', { name: 'Enregistrer l’équipement' }).click();
-  await expect(page.getByRole('status')).toContainText('Reconstruis le site');
-  await expect(d.getByRole('list')).toContainText('Observé sur place');
-  await expect(page.locator('article.fiche-admin')).toContainText('Prête');
-  await expect(page.locator('article.fiche-admin')).not.toContainText('vérifiée par la direction');
+  await d.getByLabel('Ce qu’il dit').selectOption('present');
+  await enregistrer.click();
+  await expect(d.getByRole('status').first()).toContainText('Reconstruis le site');
+  await expect(cantine).toContainText('Vu sur place');
+  await expect(cantine).toContainText('Il y en a');
+  const fiche = page.locator('article[aria-label="Fiche de [École 1]"]');
+  await expect(fiche).toContainText('Prête');
+  await expect(fiche).not.toContainText('vérifiée par la direction');
   const b = await d.boundingBox();
   expect(b!.x).toBeGreaterThanOrEqual(0);
   expect(b!.x + b!.width).toBeLessThanOrEqual(360);
   expect(await d.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
-  await retourAuxEcoles(page);
+  await page.keyboard.press('Escape');
   await expect(d).toHaveCount(0);
+  await retourAuxEcoles(page);
   await page.reload();
   await ouvrirGestion(ligne, 'Équipements');
+  await cantine.locator('summary').click();
   await d.getByRole('button', { name: 'Modifier Cantine', exact: true }).click();
-  await expect(f.getByRole('combobox', { name: 'Source', exact: true })).toHaveValue('terrain');
-  await expect(f.getByRole('checkbox')).not.toBeChecked();
-  await f.getByRole('combobox', { name: 'Source', exact: true }).selectOption('ecole');
-  await f.getByRole('combobox', { name: 'État', exact: true }).selectOption('non_precise');
-  await f.getByRole('checkbox').check();
-  await f.getByRole('button', { name: 'Enregistrer l’équipement' }).click();
-  await expect(d.getByRole('list')).toContainText('Non précisé par l’école');
+  await expect(d.getByLabel('Qui le dit')).toHaveValue('terrain');
+  await d.getByLabel('Qui le dit').selectOption('ecole');
+  await d.getByLabel('Ce qu’il dit').selectOption('non_precise');
+  await enregistrer.click();
+  await expect(cantine).toContainText('Pas précisé');
+  await cantine.locator('summary').click();
   await d.getByRole('button', { name: 'Retirer Cantine', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('retiré du catalogue');
-  await expect(d.getByRole('list')).toHaveCount(0);
+  await expect(d.getByRole('status').first()).toContainText('retiré du catalogue');
+  await expect(cantine).toHaveCount(0);
 });
 test('fiche publique : observé, déclaré absent et non précisé restent distincts et datés', async ({
   page,

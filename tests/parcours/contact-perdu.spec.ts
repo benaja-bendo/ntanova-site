@@ -4,6 +4,7 @@ import {
   ouvrirContacts,
   ouvrirMaFiche,
   toutEstEnvoye,
+  fermerContacts,
 } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
@@ -56,6 +57,7 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     // NTanova renvoie la fiche pour revoir les informations.
     await ouvrirLaFiche(page);
     await ouvrirContacts(page);
+    await fermerContacts(page);
     await page.getByRole('button', { name: 'Demander une correction' }).click();
     await page.getByLabel('Motif').selectOption('autre');
     await page.getByLabel(/Message au relais/).fill('Vérifiez le nom sur l’enseigne.');
@@ -104,6 +106,7 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
     await ouvrirContacts(page);
+    await fermerContacts(page);
     await page.getByRole('button', { name: 'Demander une correction' }).click();
     await page.getByLabel('Motif').selectOption('autre');
     await page.getByLabel(/Message au relais/).fill('Vérifiez le nom sur l’enseigne.');

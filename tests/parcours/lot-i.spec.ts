@@ -3,11 +3,12 @@
 import { expect, test } from '@playwright/test';
 import {
   carteDeMission,
-  ficheAdmin,
   ouvrirGestion,
   ouvrirLaFiche,
   seConnecter,
   uneFicheEnvoyee,
+  ouvrirLesEcoles,
+  ficheOuverte,
 } from './aides';
 
 test.use({ permissions: ['geolocation'] });
@@ -32,12 +33,9 @@ test('« Compte » : « Au nom de » est demandé, puis se relit', async ({ page
 test('« Une mission » : « Confiée par NTanova le » et la date', async ({ page, context }) => {
   await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
   await seConnecter(page, '/admin/#valider');
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   await ouvrirGestion(page.getByRole('row', { name: /\[École à situer\]/ }), 'Mission');
-  await page
-    .locator('article.fiche-admin')
-    .getByRole('button', { name: 'Confier', exact: true })
-    .click();
+  await ficheOuverte(page).getByRole('button', { name: 'Confier', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/est confiée à/);
   await page.evaluate(() =>
     localStorage.setItem(
@@ -108,7 +106,14 @@ test('À valider : l’administration lit « On y voit » sous la photo de l’e
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  await expect(page.getByText('Le relais y voit : l’enseigne')).toBeVisible();
+  // Planche : la photo principale dit son rôle (« L'enseigne ou l'entrée ») ; « On y voit » n'est plus repris à l'écran.
+  await expect(
+    page
+      .getByRole('region', { name: 'Envoi sélectionné' })
+      .getByText(/L'enseigne ou l'entrée/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
 });
 
 test('Frais : « Même inscription sur toutes les lignes » en un geste', async ({
@@ -117,34 +122,27 @@ test('Frais : « Même inscription sur toutes les lignes » en un geste', async 
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  await page.getByRole('button', { name: 'Accepter la fiche' }).click();
-  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+  await ouvrirLesEcoles(page);
   await ouvrirGestion(page.getByRole('row', { name: /\[École 1\]/ }), 'Frais déclarés');
-  const dialog = ficheAdmin(page, '[École 1]');
-  const f = dialog.getByRole('form', { name: /Frais déclarés de/ });
-  const hier = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  for (const [classe, montant, inscription] of [
-    ['CP1', '20 000', '5 000'],
-    ['CM2', '25 000', ''],
+  // Planche « Frais par classe » : le bouton recopie l'inscription de la première ligne sur toutes les lignes.
+  const frais = page.getByRole('region', { name: 'Frais déclarés de [École 1]' });
+  const lignes = frais.getByRole('table').getByRole('row');
+  while ((await frais.getByLabel('Classe', { exact: true }).count()) < 2)
+    await frais.getByRole('button', { name: '+ Ajouter une ligne' }).click();
+  for (const [n, classe, montant, inscription] of [
+    [1, 'CP1', '20 000', '5 000'],
+    [2, 'CM2', '25 000', ''],
   ] as const) {
-    await f.getByRole('combobox', { name: 'Cycle', exact: true }).selectOption('primaire');
-    await f.getByLabel('Classe (facultatif)').fill(classe);
-    await f.getByLabel('Montant minimum ou unique (FCFA)', { exact: true }).fill(montant);
-    await f.getByRole('combobox', { name: 'Période', exact: true }).selectOption('mois');
-    await f.getByLabel('Frais d’inscription (facultatif, FCFA)').fill(inscription);
-    await f.getByLabel('Date de déclaration').fill(hier);
-    await f.getByLabel('Ces frais ont été communiqués par l’école pour être affichés.').check();
-    await f.getByRole('button', { name: 'Enregistrer les frais' }).click();
-    await expect(page.getByRole('status')).toContainText('Reconstruis le site');
+    const l = lignes.nth(n);
+    await l.getByLabel('Cycle', { exact: true }).selectOption('primaire');
+    await l.getByLabel('Classe', { exact: true }).fill(classe);
+    await l.getByLabel('Montant (FCFA)').fill(montant);
+    await l.getByLabel('Période', { exact: true }).selectOption('mois');
+    await l.getByLabel('Inscription (FCFA)').fill(inscription);
   }
-  await dialog.getByRole('button', { name: 'Même inscription sur toutes les lignes' }).click();
-  const meme = dialog.getByRole('form', { name: 'Même inscription sur toutes les lignes' });
-  await expect(meme.getByLabel(/Inscription pour les 2 lignes/)).toHaveValue('5000');
-  await meme.getByRole('button', { name: 'Appliquer à toutes les lignes' }).click();
-  await expect(page.getByRole('status')).toContainText('sur 1 ligne');
-  await dialog
-    .getByRole('button', { name: /Modifier les frais de Primaire/ })
-    .last()
-    .click();
-  await expect(f.getByLabel('Frais d’inscription (facultatif, FCFA)')).toHaveValue('5000');
+  await frais.getByRole('button', { name: 'Même inscription sur toutes les lignes' }).click();
+  await expect(lignes.nth(2).getByLabel('Inscription (FCFA)')).toHaveValue(/5\s*000/);
+  await frais.getByRole('button', { name: 'Enregistrer 2 lignes publiables' }).click();
+  await expect(page.getByRole('status').first()).toContainText('2 lignes de frais enregistrées');
 });

@@ -1,4 +1,11 @@
-import { carteDeMission, envoyerSansBonus, ouvrirGestion, toutEstEnvoye } from './aides';
+import {
+  carteDeMission,
+  envoyerSansBonus,
+  ouvrirGestion,
+  toutEstEnvoye,
+  ouvrirLesEcoles,
+  ficheOuverte,
+} from './aides';
 import { expect, test } from '@playwright/test';
 import { seConnecter } from './aides';
 
@@ -17,19 +24,19 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
 
   // L'administration confie l'école à situer.
   await seConnecter(page, '/admin/#valider');
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
-  await expect(ligne.getByText('À situer', { exact: true })).toBeVisible();
+  await expect(
+    ligne
+      .getByText(/Sans position|Pas sur la carte/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
   await ouvrirGestion(ligne, 'Mission');
   // Une école sans position : la mission par défaut est de la situer.
-  await expect(
-    page.locator('article.fiche-admin').getByLabel('Ce que le relais doit faire'),
-  ).toHaveValue('locate');
-  await page.locator('article.fiche-admin').getByLabel('À vérifier').fill('Le nom exact');
-  await page
-    .locator('article.fiche-admin')
-    .getByRole('button', { name: 'Confier', exact: true })
-    .click();
+  await expect(ficheOuverte(page).getByLabel('Ce que le relais doit faire')).toHaveValue('locate');
+  await ficheOuverte(page).getByLabel('À vérifier').fill('Le nom exact');
+  await ficheOuverte(page).getByRole('button', { name: 'Confier', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
   // Le relais la voit dans « Vos missions » (lot H), ouvre la mission et la complète.
@@ -67,14 +74,16 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.goto('/admin/#valider');
   await page.getByRole('link', { name: /\[École à situer, nom exact\]/ }).click();
   await expect(page.getByText('Contre-visite', { exact: true }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Accepter et situer l’école' }).click();
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/est mise à jour/);
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   const situee = page.getByRole('row', { name: /\[École à situer, nom exact\]/ });
-  await expect(situee.getByText('Prête', { exact: true })).toBeVisible();
+  await expect(situee.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
   await situee.getByRole('button', { name: 'Publier', exact: true }).click();
   const publiee = page.getByRole('row', { name: /\[École à situer, nom exact\]/ });
-  await expect(publiee.getByText('Publiée', { exact: true })).toBeVisible();
+  await expect(
+    publiee.getByText('Publiée', { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
   // Le quartier et l'arrondissement du même nom ne s'affichent qu'une fois.
   await expect(publiee.getByText('Tié-Tié', { exact: true })).toBeVisible();
 });

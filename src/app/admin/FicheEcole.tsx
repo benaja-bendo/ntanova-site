@@ -89,20 +89,24 @@ function CarteRubrique({
   detail,
   manque,
   ouvrir,
+  figee = false,
 }: {
   titre: string;
   resume: ReactNode;
   detail?: ReactNode;
   manque?: string | null;
   ouvrir: () => void;
+  /** Une école retirée ou à la corbeille ne se modifie plus : la carte se lit, elle ne s'ouvre pas. */
+  figee?: boolean;
 }) {
   return (
     <li>
       <button
         type="button"
         onClick={ouvrir}
+        disabled={figee}
         aria-label={`${titre} : ouvrir`}
-        className="flex h-full w-full cursor-pointer flex-col gap-1 rounded-xl border border-border bg-card px-4 py-3.5 text-left font-sans text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring max-lg:rounded-none max-lg:border-0 max-lg:border-b [@media(hover:hover)]:hover:border-primary"
+        className="flex h-full w-full cursor-pointer flex-col gap-1 rounded-xl border border-border bg-card px-4 py-3.5 text-left font-sans text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring max-lg:rounded-none max-lg:border-0 max-lg:border-b disabled:cursor-default disabled:opacity-60 [@media(hover:hover)]:hover:enabled:border-primary"
       >
         <span className="flex items-center justify-between gap-2">
           <b className="text-[17px]">{titre}</b>
@@ -142,6 +146,8 @@ export function FicheEcole({
   /** L'aperçu et « ⋯ » : sur ordinateur, en haut de la fiche ; sur téléphone, dans la barre verte. */
   gestes: ReactNode;
 }) {
+  // Une école retirée du site (ou à la corbeille) ne se modifie plus : on la republie (ou la restaure) d'abord.
+  const figee = etat === 'retiree' || etat === 'corbeille';
   const [medias, setMedias] = useState<MediaAdmin[] | null>(null);
   const [manques, setManques] = useState<Manque[] | null>(null);
   const [photos, setPhotos] = useState<PhotoVue[]>([]);
@@ -197,6 +203,7 @@ export function FicheEcole({
             <button
               type="button"
               onClick={() => ouvrir('images')}
+              disabled={figee}
               className="absolute right-3 bottom-3 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border-0 bg-card px-3 font-sans text-sm font-bold text-foreground shadow-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring max-lg:size-10 max-lg:justify-center max-lg:rounded-full max-lg:px-0"
               aria-label="Changer la couverture"
             >
@@ -207,6 +214,7 @@ export function FicheEcole({
           <button
             type="button"
             onClick={() => ouvrir('images')}
+            disabled={figee}
             aria-label={logo ? 'Changer le logo' : 'Ajouter le logo'}
             className={cn(
               'absolute -bottom-10 left-5 flex size-[84px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-full bg-card p-0 font-sans text-xs font-bold text-destructive outline-none focus-visible:ring-[3px] focus-visible:ring-ring max-lg:-bottom-8 max-lg:left-4 max-lg:size-[68px]',
@@ -234,6 +242,7 @@ export function FicheEcole({
             <button
               type="button"
               onClick={() => ouvrir('modifier')}
+              disabled={figee}
               aria-label="Modifier les informations"
               className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-md border border-input bg-card p-0 text-primary-strong outline-none focus-visible:ring-[3px] focus-visible:ring-ring max-lg:border-0 max-lg:bg-transparent"
             >
@@ -294,6 +303,7 @@ export function FicheEcole({
             manques={manques}
             demandes={demandes}
             ouvrir={ouvrir}
+            figee={figee}
           />
         </div>
 
@@ -347,6 +357,7 @@ export function FicheEcole({
               <button
                 type="button"
                 onClick={() => ouvrir('images')}
+                disabled={figee}
                 aria-label="Ajouter une image"
                 className="flex aspect-[4/3] w-full cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-input bg-card p-0 text-primary-strong"
               >
@@ -364,6 +375,7 @@ export function FicheEcole({
         <ul className="m-0 grid list-none grid-cols-1 gap-3 px-5 p-0 sm:grid-cols-2 xl:grid-cols-3 max-lg:gap-0 max-lg:overflow-hidden max-lg:rounded-xl max-lg:border max-lg:border-border max-lg:bg-card lg:px-5 max-lg:mx-4">
           {superieur ? (
             <CarteRubrique
+              figee={figee}
               titre="Formations"
               resume={`${e.formations} formation${e.formations > 1 ? 's' : ''}`}
               detail={
@@ -377,6 +389,7 @@ export function FicheEcole({
             />
           ) : (
             <CarteRubrique
+              figee={figee}
               titre="En bref"
               resume={[etendue(e.niveaux), e.programme].filter(Boolean).join(' · ')}
               detail={e.repere ? `Repère : ${e.repere}` : null}
@@ -385,6 +398,7 @@ export function FicheEcole({
             />
           )}
           <CarteRubrique
+            figee={figee}
             titre="Sur place"
             resume={
               equipementsVus.length > 0
@@ -401,6 +415,7 @@ export function FicheEcole({
             ouvrir={() => ouvrir('equipements')}
           />
           <CarteRubrique
+            figee={figee}
             titre="Frais"
             resume={
               (e.frais ?? []).length > 0
@@ -412,12 +427,14 @@ export function FicheEcole({
           />
           {superieur && (
             <CarteRubrique
+              figee={figee}
               titre="Admission"
               resume="Conditions, dossier, dates"
               ouvrir={() => ouvrir('admission')}
             />
           )}
           <CarteRubrique
+            figee={figee}
             titre={superieur ? 'Contact' : 'Contact et inscriptions'}
             resume={
               [
@@ -433,6 +450,7 @@ export function FicheEcole({
             ouvrir={() => ouvrir('contact-public')}
           />
           <CarteRubrique
+            figee={figee}
             titre="Mot de la direction"
             resume={
               e.motDirection
@@ -443,6 +461,7 @@ export function FicheEcole({
             ouvrir={() => ouvrir('mot-direction')}
           />
           <CarteRubrique
+            figee={figee}
             titre="Nouvelles"
             resume={
               nouvelles.length > 0
@@ -463,6 +482,7 @@ export function FicheEcole({
             manques={manques}
             demandes={demandes}
             ouvrir={ouvrir}
+            figee={figee}
           />
         </div>
         <section
@@ -516,11 +536,13 @@ function CarteManques({
   manques,
   demandes,
   ouvrir,
+  figee,
 }: {
   completude: ReturnType<typeof completudeDeLaFiche> | null;
   manques: Manque[] | null;
   demandes: number;
   ouvrir: (r: RubriqueFiche) => void;
+  figee: boolean;
 }) {
   if (!completude || !manques) return <div className="h-40 rounded-xl bg-muted" aria-busy="true" />;
   const n = manques.length;
@@ -561,9 +583,16 @@ function CarteManques({
           ))}
         </ul>
       )}
+      {figee && (
+        <p className="m-0 text-sm font-bold text-bonus">
+          Retirée du site : la fiche ne se modifie plus. Republie-la (ou restaure-la) pour la
+          compléter.
+        </p>
+      )}
       <button
         type="button"
         onClick={() => ouvrir('completer')}
+        disabled={figee}
         className={cn(v2.bouton, 'h-12 w-full text-base')}
       >
         Compléter la fiche

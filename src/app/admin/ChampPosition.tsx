@@ -39,7 +39,7 @@ export function ChampPosition({
       ? `Dans le dessin de ${dessine.nom}.`
       : 'Aucun contour connu ici : la base cherchera la division, ou choisis-la dans la liste.';
   return (
-    <div className="admin-pleine-largeur champ-position">
+    <div className="col-span-full flex flex-col gap-1.5">
       <Champ libelle="Position" facultatif={facultatif} erreur={erreur} aide={aide}>
         {(a) => (
           <input

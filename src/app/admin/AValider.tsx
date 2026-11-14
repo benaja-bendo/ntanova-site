@@ -37,6 +37,8 @@ import {
   motifsProposes,
 } from '../../modele/libelles';
 import type {
+  ContactDirection,
+  DomainePublic,
   CorrectionEcole,
   DecisionAcceptation,
   DetailReleve,
@@ -52,13 +54,17 @@ import { ErreurDecision } from '../../modele/ports';
 import { ActionsSecondaires, Bouton, Dialogue } from '@/ui/v2/admin';
 import { TitreEcran } from './Cadre';
 import { EcoleConnue } from './EcoleConnue';
-import { afficherTelephone } from '../../modele/telephone';
+import { afficherTelephone, numeroCongolaisSuspect } from '../../modele/telephone';
 import { libelleEquipement } from '../../modele/equipements-ecole';
 import { Bandeau, Champ, Icone } from '@/ui/v2/formulaire';
 import { jour, quand } from '../../ui/composants';
 import { aller, useAdresse } from '../commun/adresse';
 import { ficheApresLeGeste, gesteDeLaTouche } from '../../modele/raccourcis';
 import { ChampPosition, messageErreur } from './ChampPosition';
+import { Personnes } from './Personnes';
+import { Formations } from './Formations';
+import { cycleAvecFormations } from '../../modele/formations';
+import { Pont } from './Pont';
 
 type Filtre = 'tout' | 'releve' | 'correction' | 'contre_visite' | 'renvoyees' | 'decidees';
 
@@ -84,6 +90,8 @@ function Etiquettes({ r }: { r: ReleveAValider }) {
     r.essai && 'Lot d’essai',
     r.doublonPossible && 'Doublon possible',
     r.precisionM === null && !r.essai && 'Sans position',
+    // Une correction ou une contre-visite peut se passer de photo : NTanova a déjà celle de l'école.
+    !r.enseigneRecue && (r.type === 'releve' ? 'Photo pas encore reçue' : 'Pas de nouvelle photo'),
   ].filter((e): e is string => Boolean(e));
   if (etiquettes.length === 0) return null;
   return (
@@ -474,12 +482,15 @@ function Photos({
   admin,
   photos,
   nom,
+  sansNouvellePhoto = false,
   surChangement,
   peutMarquer = true,
 }: {
   admin: PortAdministration;
   photos: PhotoVue[];
   nom: string;
+  /** Une correction ou une contre-visite sans photo : NTanova a déjà celle de l'école. */
+  sansNouvellePhoto?: boolean;
   surChangement: () => void;
   /** Faux sur une fiche refusée : ses photos ne paraîtront jamais, on ne les déclare pas publiables. */
   peutMarquer?: boolean;
@@ -526,7 +537,11 @@ function Photos({
           </div>
         ) : (
           <div className="flex aspect-[16/10] items-center justify-center rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">
-            {photos.length === 0 ? 'Photo pas encore reçue' : 'Photo illisible'}
+            {photos.length === 0
+              ? sansNouvellePhoto
+                ? 'Pas de nouvelle photo'
+                : 'Photo pas encore reçue'
+              : 'Photo illisible'}
           </div>
         )}
         {principale && peutParaitreSurLeSite(principale.role) && (
@@ -690,6 +705,15 @@ function Detail({
   const [detail, setDetail] = useState<DetailReleve | null>(null);
   const [photos, setPhotos] = useState<PhotoVue[]>([]);
   const [divisions, setDivisions] = useState<DivisionVue[]>([]);
+  // Les personnes à contacter, notées par le relais ou par l'administration (D7) : dans un tiroir, depuis la ligne
+  // « Contacts » des faits.
+  const [personnes, setPersonnes] = useState<ContactDirection[]>([]);
+  const [contactsOuverts, setContactsOuverts] = useState(false);
+  // Les séries et formations lues sur les photos (panneau, prospectus) : un tiroir, depuis la ligne « Formations ».
+  const [domaines, setDomaines] = useState<DomainePublic[]>([]);
+  const [formationsOuvertes, setFormationsOuvertes] = useState(false);
+  const [efface, setEfface] = useState<string | null>(null);
+  const [erreurContact, setErreurContact] = useState<string | null>(null);
   const [divisionId, setDivisionId] = useState('');
   // La position que l'administration lit sur une carte quand le téléphone du relais n'a pas pu la mesurer (ticket 144).
   const [positionTexte, setPositionTexte] = useState('');
@@ -718,6 +742,24 @@ function Detail({
       .photosReleve(id)
       .then(setPhotos)
       .catch((e: unknown) => setErreur(messageErreur(e)));
+  }, [admin, id]);
+
+  // Les personnes ont changé (ajoutée, corrigée, effacée) : on les relit, car celles d'une correction peuvent venir de
+  // la fiche d'origine.
+  const relirePersonnes = async () => {
+    setPersonnes(await admin.contactsReleve(id));
+  };
+  useEffect(() => {
+    admin
+      .domaines()
+      .then(setDomaines)
+      .catch(() => setDomaines([]));
+  }, [admin]);
+  useEffect(() => {
+    admin
+      .contactsReleve(id)
+      .then(setPersonnes)
+      .catch((e: unknown) => setErreurContact(messageErreur(e)));
   }, [admin, id]);
 
   useEffect(() => {
@@ -868,20 +910,24 @@ function Detail({
     }
   };
   // Planche : « Accepter » ; l'encart ambre dit déjà ce que l'acceptation fera de la fiche.
-  const texteAccepter =
-    detail.type === 'correction' && !detail.corrigeUneFicheEnAttente
-      ? 'Accepter la correction'
-      : 'Accepter';
+  // Planche : « Accepter », ou « Accepter la correction » pour une correction (d'une école créée ou d'une fiche en attente).
+  const texteAccepter = detail.type === 'correction' ? 'Accepter la correction' : 'Accepter';
 
   const ligneFait =
     'flex flex-col gap-1 border-b border-border py-3 first:pt-0 last:border-b-0 last:pb-0';
   const libelleFait = 'text-[13px] font-bold text-muted-foreground';
+  const nombreAccords = personnes.filter((p) => p.accord).length;
+  const avecFormations =
+    valeurs.niveaux.some(cycleAvecFormations) || detail.indiceFormations || formations.length > 0;
+  const numeroSuspect = valeurs.numeroEnseigne
+    ? numeroCongolaisSuspect(valeurs.numeroEnseigne)
+    : null;
   return (
     <section
       className="grid min-w-0 flex-1 grid-cols-1 [grid-template-areas:'photo'_'encart'_'faits'_'liste'_'bonus'_'pied'] lg:[grid-template-areas:'tete'_'encart'_'photo'_'faits'_'liste'_'bonus'_'pied'] xl:grid-cols-2 xl:gap-x-4 xl:[grid-template-areas:'tete_tete'_'encart_encart'_'photo_faits'_'liste_faits'_'bonus_faits'_'pied_pied'] [&>*]:mb-4"
       aria-label="Envoi sélectionné"
     >
-      <div className="flex flex-wrap items-start gap-x-4 gap-y-2 [grid-area:tete] max-lg:hidden">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2 [grid-area:tete] max-lg:sr-only">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="m-0 font-serif text-[26px] leading-tight font-bold">
             {detail.nomEnseigne}
@@ -922,6 +968,7 @@ function Detail({
         admin={admin}
         photos={photos}
         nom={detail.nomEnseigne}
+        sansNouvellePhoto={detail.type !== 'releve'}
         surChangement={chargerPhotos}
         peutMarquer={!refusee}
       />
@@ -1003,6 +1050,25 @@ function Detail({
               )}
             </dd>
           </div>
+          {avecFormations && (
+            <div className={ligneFait}>
+              <dt className={libelleFait}>Formations</dt>
+              <dd className="flex items-baseline justify-between gap-3">
+                <span>{formationsRetenues.map((f) => f.titre).join(', ') || '—'}</span>
+                {!lectureSeule && (
+                  <button
+                    type="button"
+                    className="cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4 max-lg:flex max-lg:size-10 max-lg:items-center max-lg:justify-center max-lg:rounded-md max-lg:border max-lg:border-input max-lg:text-foreground max-lg:no-underline"
+                    aria-label="Corriger les formations"
+                    onClick={() => setFormationsOuvertes(true)}
+                  >
+                    <span className="max-lg:hidden">Corriger</span>
+                    <IconeCorriger className="size-[18px] lg:hidden" aria-hidden />
+                  </button>
+                )}
+              </dd>
+            </div>
+          )}
           {detail.programme && (
             <div className={ligneFait}>
               <dt className={libelleFait}>Programme</dt>
@@ -1030,6 +1096,12 @@ function Detail({
                 <span className={v2.pastilleAttention}>Sur la photo ?</span>
               )}
             </dd>
+            {numeroSuspect && (
+              <span className="text-[13px] font-bold text-bonus">
+                {numeroSuspect.chiffres} chiffres après +242 : un numéro congolais en a 9. Relis-le
+                sur la photo.
+              </span>
+            )}
             {aConfirmer !== null && !lectureSeule && (
               <>
                 <span
@@ -1136,6 +1208,25 @@ function Detail({
                 )}
               </Champ>
             )}
+          </div>
+          <div className={ligneFait}>
+            <dt className={libelleFait}>Contacts de la direction</dt>
+            <dd className="flex flex-wrap items-baseline justify-between gap-2">
+              <span>
+                {personnes.length === 0
+                  ? 'Aucun'
+                  : `${personnes.length} personne${personnes.length > 1 ? 's' : ''} · ${nombreAccords} accord${nombreAccords > 1 ? 's' : ''}`}
+                {erreurContact ? ' · à réessayer' : ''}
+              </span>
+              <button
+                type="button"
+                onClick={() => setContactsOuverts(true)}
+                aria-label="Contact et échanges avec la direction"
+                className="cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-bold text-primary underline underline-offset-4"
+              >
+                {personnes.length === 0 ? 'Ajouter' : 'Voir'}
+              </button>
+            </dd>
           </div>
         </dl>
       </section>
@@ -1395,6 +1486,59 @@ function Detail({
             )}
           </fieldset>
         </>
+      )}
+      {formationsOuvertes && (
+        <Dialogue
+          titre="Formations lues sur les photos"
+          variante="tiroir"
+          fermer={() => setFormationsOuvertes(false)}
+          entete={<h2>Formations lues sur les photos</h2>}
+        >
+          <p className={v2.mention}>
+            Lis le panneau ou le prospectus : les séries et formations notées ici rendent l’école
+            cherchable (série C, BTS, licence…). Elles partent avec l’acceptation.
+          </p>
+          <Formations
+            cycles={valeurs.niveaux}
+            formations={formationsRetenues}
+            domaines={domaines}
+            surChangement={setFormations}
+          />
+        </Dialogue>
+      )}
+      {contactsOuverts && (
+        <Dialogue
+          titre="Contact et échanges avec la direction"
+          variante="tiroir"
+          fermer={() => setContactsOuverts(false)}
+          entete={<h2>Contact et échanges avec la direction</h2>}
+        >
+          {efface && (
+            <p className={v2.bandeSucces} role="status">
+              {efface}
+            </p>
+          )}
+          {erreurContact && (
+            <p className={v2.erreur} role="alert">
+              {erreurContact}
+            </p>
+          )}
+          <Personnes
+            admin={admin}
+            id={id}
+            detail={detail}
+            personnes={personnes}
+            surChangement={relirePersonnes}
+            annoncer={setEfface}
+            surErreur={setErreurContact}
+          />
+          {personnes.length > 0 && (
+            <section className={v2.pileSerree} aria-label="Écrire à la direction">
+              <h3 className={cn(v2.rang, 'm-0 text-base font-bold')}>Écrire à la direction</h3>
+              <Pont admin={admin} detail={detail} contacts={personnes} surAnnonce={setEfface} />
+            </section>
+          )}
+        </Dialogue>
       )}
     </section>
   );

@@ -1,7 +1,13 @@
 // L'administration v2 (lots 2 à 5 du cahier, 13/11/2026) : le cadre (barre du bas et « Plus » sur téléphone, barre de côté
 // sur ordinateur), « Aujourd'hui », « Est-ce une école connue ? » dans « À valider », la fiche d'une école en plein écran.
 import { expect, test, type Page } from '@playwright/test';
-import { ficheAdmin, ouvrirLaFiche, retourAuxEcoles, seConnecter, uneFicheEnvoyee } from './aides';
+import {
+  ouvrirLaFiche,
+  retourAuxEcoles,
+  seConnecter,
+  uneFicheEnvoyee,
+  toutesLesEcoles,
+} from './aides';
 
 test.use({ permissions: ['geolocation'] });
 
@@ -27,7 +33,7 @@ test('le cadre : cinq cases et « Plus » sur téléphone, la barre de côté et
     ]);
     await bas.getByRole('button', { name: 'Plus' }).click();
     const plus = page.getByRole('dialog', { name: 'Plus' });
-    await expect(plus.getByRole('link')).toHaveText(['Zones', 'Paie', 'Santé des envois']);
+    await expect(plus.getByRole('link')).toHaveText([/^Zones/, /^Paie/, /^Santé des envois/]);
     await plus.getByRole('button', { name: 'Règles de cet écran' }).click();
     await expect(page.getByRole('dialog', { name: 'Règles : Aujourd’hui' })).toContainText(
       'jamais un objectif',
@@ -107,21 +113,18 @@ test('la fiche d’une école s’ouvre en plein écran, ses rubriques dedans, e
   page,
 }) => {
   await seConnecter(page, '/admin/#ecoles');
+  await toutesLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
-  await ligne.getByRole('link', { name: 'Ouvrir la fiche', exact: true }).click();
+  await ligne.getByRole('link').first().click();
   await expect(page).toHaveURL(/#ecoles\/fiche\//);
-  const fiche = ficheAdmin(page, '[École à situer]');
-  // « À compléter » est ouverte d'abord ; les autres rubriques sont à côté.
-  const rubriques = fiche.getByRole('navigation', { name: 'Sections de la fiche' });
-  await expect(rubriques.getByRole('button', { name: 'À compléter' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await rubriques.getByRole('button', { name: 'Informations' }).click();
-  await expect(fiche.getByRole('button', { name: 'Informations' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  // Planche « Fiche d'école » : la carte « À compléter » (jauge), puis les rubriques en cartes ; une carte ouvre son tiroir.
+  const fiche = page.getByRole('article', { name: 'Fiche de [École à situer]' });
+  await expect(fiche.getByLabel('À compléter').filter({ visible: true }).first()).toBeVisible();
+  await fiche.getByRole('button', { name: 'Sur place : ouvrir' }).click();
+  const tiroir = page.getByRole('dialog', { name: 'Sur place · [École à situer]' });
+  await expect(tiroir).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(tiroir).toHaveCount(0);
   await retourAuxEcoles(page);
   await expect(page.getByRole('row', { name: /\[École à situer\]/ })).toBeVisible();
 });

@@ -44,11 +44,17 @@ import { Bandeau, Champ } from '@/ui/v2/formulaire';
 import { jour } from '../../ui/composants';
 import { ChampPosition, messageErreur as message } from './ChampPosition';
 import { Creation } from './Creation';
-import { useAdresse } from '../commun/adresse';
+import { aller, useAdresse } from '../commun/adresse';
 import { TitreEcran } from './Cadre';
 import { Compteur } from './ui';
 import { FicheEcole } from './FicheEcole';
-import { IconeAjouter, IconeChercher, IconeOeil, IconeRetour } from '@/ui/shadcn/icones';
+import {
+  IconeAjouter,
+  IconeChercher,
+  IconeFermer,
+  IconeOeil,
+  IconeRetour,
+} from '@/ui/shadcn/icones';
 
 export const libelleMotifRetrait: Record<Valeur<'motif_retrait'>, string> = {
   demande_ecole: "À la demande de l'école",
@@ -202,7 +208,7 @@ function LigneEcole({
   const contenuGestion = (
     <>
       {retour && !confirmation && (
-        <p ref={zoneRetour} className={v2.bandeSucces}>
+        <p ref={zoneRetour} className={v2.bandeSucces} role="status">
           {retour}
         </p>
       )}
@@ -262,19 +268,6 @@ function LigneEcole({
           surChangement={signaler}
         />
       )}
-      {mode === 'agrement' && (
-        <AgrementEcole
-          surOccupation={setOperation}
-          integre
-          ecoleId={e.id}
-          nom={e.nom}
-          agrements={e.agrements ?? []}
-          filieres={e.filieres ?? []}
-          admin={admin}
-          fermer={() => setMode(null)}
-          surChangement={signaler}
-        />
-      )}
       {mode === 'mot-direction' && (
         <MotDirectionEcole
           surOccupation={setOperation}
@@ -283,18 +276,6 @@ function LigneEcole({
           nom={e.nom}
           mot={e.motDirection ?? null}
           confirmee={e.verifieeLe !== null}
-          admin={admin}
-          fermer={() => setMode(null)}
-          surChangement={signaler}
-        />
-      )}
-      {mode === 'inscriptions' && (
-        <InscriptionsEcole
-          surOccupation={setOperation}
-          integre
-          ecoleId={e.id}
-          nom={e.nom}
-          inscriptions={e.inscriptions ?? []}
           admin={admin}
           fermer={() => setMode(null)}
           surChangement={signaler}
@@ -309,6 +290,18 @@ function LigneEcole({
           contact={e.contactPublic ?? null}
           fermer={() => setMode(null)}
           admin={admin}
+          surChangement={signaler}
+        />
+      )}
+      {(mode === 'inscriptions' || mode === 'contact-public') && (
+        <InscriptionsEcole
+          surOccupation={setOperation}
+          integre
+          ecoleId={e.id}
+          nom={e.nom}
+          inscriptions={e.inscriptions ?? []}
+          admin={admin}
+          fermer={() => setMode(null)}
           surChangement={signaler}
         />
       )}
@@ -740,6 +733,19 @@ function LigneEcole({
           surAnnuler={() => setMode(null)}
         />
       )}
+      {(mode === 'agrement' || mode === 'modifier') && (
+        <AgrementEcole
+          surOccupation={setOperation}
+          integre
+          ecoleId={e.id}
+          nom={e.nom}
+          agrements={e.agrements ?? []}
+          filieres={e.filieres ?? []}
+          admin={admin}
+          fermer={() => setMode(null)}
+          surChangement={signaler}
+        />
+      )}
 
       {erreur && (
         <p className={v2.erreur} role="alert">
@@ -1083,7 +1089,7 @@ function LigneEcole({
           'text-right max-lg:col-start-2 max-lg:row-span-2 max-lg:row-start-1',
         )}
       >
-        {etat === 'publiee' ? (
+        {etat === 'publiee' || etat === 'retiree' ? (
           <>
             <span className="lg:hidden">
               <BadgePublication etat={etat} />
@@ -1331,12 +1337,14 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   const [ecoles, setEcoles] = useState<EcoleVue[] | null>(null);
   const [relais, setRelais] = useState<RelaisVu[]>([]);
   const [divisions, setDivisions] = useState<DivisionVue[]>([]);
-  // Planche : « À publier » d'abord.
-  const [filtre, setFiltre] = useState<Filtre>('prete');
-  const [recherche, setRecherche] = useState('');
-  // « Voir les écoles » depuis une zone arrive ici avec la zone déjà choisie (#ecoles/zone/<id>).
+  // « Voir les écoles » depuis une zone arrive ici avec la zone déjà choisie (#ecoles/zone/<id>) : toutes ses écoles, et
+  // une puce qui dit le filtre et l'enlève. Sinon, planche : « À publier » d'abord.
   const [, sousAdresse, zoneDeLAdresse] = useAdresse();
-  const [divisionFiltre] = useState(sousAdresse === 'zone' ? (zoneDeLAdresse ?? '') : '');
+  const [divisionFiltre, setDivisionFiltre] = useState(
+    sousAdresse === 'zone' ? (zoneDeLAdresse ?? '') : '',
+  );
+  const [filtre, setFiltre] = useState<Filtre>(divisionFiltre ? 'toutes' : 'prete');
+  const [recherche, setRecherche] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
@@ -1549,6 +1557,22 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           </button>
         </div>
       </div>
+      {divisionFiltre && (
+        <span className="-mt-2 flex">
+          <button
+            type="button"
+            className={cn(v2.puce, 'border-primary bg-succes text-primary-strong')}
+            aria-label={`Enlever le filtre : ${divisions.find((d) => d.id === divisionFiltre)?.nom ?? 'zone'}`}
+            onClick={() => {
+              setDivisionFiltre('');
+              aller('ecoles');
+            }}
+          >
+            {divisions.find((d) => d.id === divisionFiltre)?.nom ?? 'Zone'}
+            <IconeFermer className="size-4" aria-hidden />
+          </button>
+        </span>
+      )}
 
       {erreur && (
         <Bandeau ton="erreur" icone="alerte">

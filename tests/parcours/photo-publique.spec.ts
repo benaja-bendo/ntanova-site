@@ -7,6 +7,9 @@ import {
   uneFicheEnvoyee,
   ficheAdmin,
   retourAuxEcoles,
+  marquerPubliable,
+  toutesLesEcoles,
+  ouvrirLesEcoles,
 } from './aides';
 test.use({ permissions: ['geolocation'] });
 test('photo publique : sélection explicite, relecture et retrait sans badge', async ({
@@ -15,13 +18,8 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  // Admin v2 : l'aide des photos est repliée sous « À savoir sur les photos ».
-  await page.getByText('À savoir sur les photos').click();
-  await expect(
-    page.getByText(/Effacer l’original ne retire pas les copies déjà publiées/),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'Accepter la fiche', exact: true }).click();
-  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+  await ouvrirLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
   await ouvrirGestion(ligne, 'Photo publique');
   const d = ficheAdmin(page, '[École 1]');
@@ -38,8 +36,10 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
   await expect(d).toContainText('Choix prioritaire.');
   // La fiche est « prête », pas publiée : aucune photo n'est dite publique.
   await expect(d).toContainText('Aucune photo n’est publique tant que la fiche n’est pas publiée');
-  await expect(page.locator('article.fiche-admin')).toContainText('Prête');
-  await expect(page.locator('article.fiche-admin')).not.toContainText('vérifiée par la direction');
+  await expect(page.getByRole('article', { name: 'Fiche de [École 1]' })).toContainText('Prête');
+  await expect(page.getByRole('article', { name: 'Fiche de [École 1]' })).not.toContainText(
+    'vérifiée par la direction',
+  );
   expect(await d.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await retourAuxEcoles(page);
   await expect(d).toHaveCount(0);
@@ -52,8 +52,9 @@ test('photo publique : sélection explicite, relecture et retrait sans badge', a
 });
 test('sans enseigne acceptée : aucun choix inventé', async ({ page }) => {
   await seConnecter(page, '/admin/#ecoles');
+  await toutesLesEcoles(page);
   await ouvrirGestion(page.getByRole('row', { name: /\[École à situer\]/ }), 'Photo publique');
-  await expect(page.locator('article.fiche-admin')).toContainText(
+  await expect(page.getByRole('article', { name: 'Fiche de [École 1]' })).toContainText(
     'Aucune enseigne ni vue du bâtiment issue d’un relevé accepté.',
   );
 });
@@ -78,13 +79,14 @@ const etatFaux = (page: Page) =>
 async function uneEcolePublieeAvecDeuxPhotos(page: Page, context: BrowserContext) {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  await page.getByRole('button', { name: 'Contrôler pour publication' }).click();
-  await expect(page.getByText('Contrôlée pour publication', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Accepter la fiche', exact: true }).click();
+  await marquerPubliable(page);
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
-  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  await ouvrirLesEcoles(page);
   await publierLaZoneTieTie(page);
-  await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
+  await expect(
+    ligne(page).getByText('Publiée', { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
   // La vue du bâtiment arrive d'un même relevé, déjà contrôlée ; son identifiant range après celui de l'enseigne.
   await page.evaluate(() => {
     const etat = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
@@ -110,19 +112,8 @@ test('contrôler une enseigne la propose au repli automatique, sans promettre pl
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  await page.getByText('À savoir sur les photos').click();
-  await expect(
-    page.getByText(/Contrôler pour publication\. Photo nette, sans enfant ni donnée personnelle/),
-  ).toBeVisible();
-  await expect(
-    page.getByText(
-      /Elle pourra apparaître sur la fiche publiée après la prochaine mise à jour du site/,
-    ),
-  ).toBeVisible();
-  // L'enseigne est publiable : le bouton le dit, et rien d'autre n'est promis.
-  await expect(page.getByRole('button', { name: 'Marquer publiable' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Contrôler pour publication' }).click();
-  await expect(page.getByText('Contrôlée pour publication', { exact: true })).toBeVisible();
+  // Planche : « Photo publiable », sans enfant ni personne reconnaissable ; rien d'autre n'est promis.
+  await marquerPubliable(page);
   // Contrôler ne publie rien : la photo est contrôlée, aucun choix n'est écrit, aucune photo n'est dite publique.
   const faux = await etatFaux(page);
   expect(Object.values(faux.photos).map((p) => [p.role, p.publiable, p.publique ?? false])).toEqual(
@@ -199,7 +190,7 @@ test('corbeille puis restauration : aucune photo n’est publiée, le retrait et
     await ligne(page).getByRole('button', { name: 'Restaurer' }).click();
     await expect(page.getByRole('status')).toHaveText(/est restaurée/);
     await page.getByRole('button', { name: 'Toutes' }).click();
-    await expect(ligne(page).getByText('Prête', { exact: true })).toBeVisible();
+    await expect(ligne(page).getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
   };
 
   // 1. Repli automatique : la restauration ne republie ni la fiche ni sa photo.
@@ -214,7 +205,9 @@ test('corbeille puis restauration : aucune photo n’est publiée, le retrait et
 
   // 2. L'administration republie : la photo automatique reparaît, elle n'a pas été perdue.
   await ligne(page).getByRole('button', { name: 'Publier', exact: true }).click();
-  await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
+  await expect(
+    ligne(page).getByText('Publiée', { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
   await ouvrirGestion(ligne(page), 'Photo publique');
   await expect(d.getByRole('figure').first()).toContainText('Retenue automatiquement');
 
@@ -225,7 +218,9 @@ test('corbeille puis restauration : aucune photo n’est publiée, le retrait et
   await expect(d).toHaveCount(0);
   await mettreALaCorbeilleEtRestaurer();
   await ligne(page).getByRole('button', { name: 'Publier', exact: true }).click();
-  await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
+  await expect(
+    ligne(page).getByText('Publiée', { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
   await ouvrirGestion(ligne(page), 'Photo publique');
   await expect(d).toContainText('Retrait demandé');
   await expect(d.getByText('Retenue automatiquement')).toHaveCount(0);

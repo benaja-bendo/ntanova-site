@@ -158,7 +158,7 @@ export function Formations({
   const concernes = listes.niveau.filter((c) => cycles.includes(c) && cycleAvecFormations(c));
   if (concernes.length === 0) return null;
   return (
-    <div className="admin-pleine-largeur pile-serree" aria-label="Formations">
+    <div className="col-span-full flex flex-col gap-2" aria-label="Formations">
       {concernes.map((cycle) => {
         const siennes = duCycle(formations, cycle);
         return (

@@ -1,13 +1,13 @@
 // Les formulaires de la fiche admin v2 (ticket 165, lot E, 13/11/2026) : frais par classe et « illisible », « C'est un site
 // de… » et son conflit, une nouvelle qui exige l'accord daté de l'école, l'admission du supérieur.
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirGestion, seConnecter } from './aides';
+import { ficheOuverte, ouvrirFiche, ouvrirGestion, seConnecter, ouvrirLesEcoles } from './aides';
 
 /** Une seconde école dans le faux serveur (un site à elle seule, du supérieur), à côté de « [École à situer] ». */
 async function avecUneSecondeEcole(page: Page) {
   await seConnecter(page, '/admin/#valider');
   // L'état du faux serveur s'écrit à la première lecture : on ouvre « Écoles » d'abord.
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   await expect(page.getByRole('row', { name: /\[École à situer\]/ })).toBeVisible();
   await page.evaluate(() => {
     const cle = 'ntanova-faux-serveur';
@@ -27,10 +27,11 @@ async function avecUneSecondeEcole(page: Page) {
     localStorage.setItem(cle, JSON.stringify(e));
   });
   await page.reload();
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
 }
 
 const ligneDe = (page: Page, nom: RegExp) => page.getByRole('row', { name: nom });
+const MENU = 'summary[aria-label^="Autres actions pour "]';
 
 test('frais : une classe, et une ligne illisible devient un manque demandé à l’école', async ({
   page,
@@ -38,15 +39,15 @@ test('frais : une classe, et une ligne illisible devient un manque demandé à l
   await avecUneSecondeEcole(page);
   const ligne = ligneDe(page, /\[Institut Exemple\]/);
   await ouvrirGestion(ligne, 'Frais déclarés');
-  const form = page.getByRole('form', { name: /Frais déclarés de/ });
-  await expect(page.getByText('Pas de prospectus photographié')).toBeVisible();
-  await form.getByLabel('Classe (facultatif)').fill('3e');
-  await form.getByRole('button', { name: 'Illisible : la demander à l’école' }).click();
-  await expect(page.getByRole('status')).toContainText('« Frais 3e » s’ajoute à ce qui manque');
-  await page.getByRole('button', { name: 'À compléter' }).click();
-  await expect(page.getByRole('region', { name: 'À compléter' })).toContainText(
-    'Frais 3e, illisible sur le prospectus',
-  );
+  // Planche « Frais par classe » : une ligne « Illisible » n'est pas publiée ; « Demander » l'ajoute aux manques.
+  const frais = page.getByRole('region', { name: 'Frais déclarés de [Institut Exemple]' });
+  await expect(page.getByText(/Pas de prospectus photographié/)).toBeVisible();
+  if ((await frais.getByLabel('Classe', { exact: true }).count()) === 0)
+    await frais.getByRole('button', { name: '+ Ajouter une ligne' }).click();
+  await frais.getByLabel('Classe', { exact: true }).first().fill('3e');
+  await frais.getByRole('button', { name: 'Illisible', exact: true }).first().click();
+  await frais.getByRole('button', { name: 'Demander 3e' }).click();
+  await expect(page.getByRole('status').first()).toContainText('« Frais 3e » : demandé à l’école');
 });
 
 test('« C’est un site de… » : ce qui passe et ce qui disparaît est dit ; un conflit de logo dit quoi faire', async ({
@@ -54,8 +55,17 @@ test('« C’est un site de… » : ce qui passe et ce qui disparaît est dit ; 
 }) => {
   await avecUneSecondeEcole(page);
   const ligne = ligneDe(page, /\[École à situer\]/);
-  await ligne.locator('summary').click();
-  await ligne.getByRole('button', { name: 'C’est un site de…' }).click();
+  // Planche : « C'est un site de… » est dans le menu « ⋯ » de la fiche.
+  const siteDe = async () => {
+    await page.locator(MENU).filter({ visible: true }).first().click();
+    await page
+      .getByRole('button', { name: 'C’est un site de…' })
+      .filter({ visible: true })
+      .first()
+      .click();
+  };
+  await ouvrirFiche(ligne);
+  await siteDe();
   const form = page.getByRole('form', { name: /Rattacher \[École à situer\]/ });
   await expect(form).toContainText('Son école actuelle n’a pas d’autre site');
   await form.getByLabel('L’école').selectOption({ label: '[Institut Exemple]' });
@@ -70,9 +80,8 @@ test('« C’est un site de… » : ce qui passe et ce qui disparaît est dit ; 
 
   await page.evaluate(() => localStorage.removeItem('ntanova-faux-conflit-logo'));
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: /Gérer/ })).toHaveCount(0);
-  await ligne.locator('summary').click();
-  await ligne.getByRole('button', { name: 'C’est un site de…' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await siteDe();
   await page
     .getByRole('form', { name: /Rattacher/ })
     .getByLabel('L’école')
@@ -87,10 +96,12 @@ test('une nouvelle ne se publie pas sans l’accord daté de l’école ; la rai
   page,
 }) => {
   await seConnecter(page, '/admin/#valider');
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   await ouvrirGestion(ligneDe(page, /\[École à situer\]/), 'Nouvelles');
-  const bloc = page.getByRole('region', { name: 'Nouvelles de l’école' });
-  await expect(bloc).toContainText('Aucune nouvelle : la rubrique n’existe pas sur la page.');
+  // Planche « Une nouvelle » : le formulaire, et à côté ce que verra un parent et celles déjà publiées.
+  const bloc = ficheOuverte(page);
+  const deja = bloc.getByRole('region', { name: 'Déjà publiées' });
+  await expect(deja).toContainText('Aucune : la rubrique n’existe pas sur la page.');
   const form = bloc.getByRole('form', { name: 'Une nouvelle' });
   await form.getByLabel('Titre').fill('[Portes ouvertes]');
   await form.getByLabel('Texte').fill('[Visite des classes.]');
@@ -101,9 +112,9 @@ test('une nouvelle ne se publie pas sans l’accord daté de l’école ; la rai
   await expect(publier).toBeEnabled();
   await expect(form).toContainText('Nouvelle de l’école');
   await publier.click();
-  await expect(bloc.getByRole('listitem')).toContainText('[Portes ouvertes]');
-  await bloc.getByRole('button', { name: 'Retirer' }).click();
-  await expect(bloc).toContainText('Aucune nouvelle');
+  await expect(deja.getByRole('listitem')).toContainText('[Portes ouvertes]');
+  await deja.getByRole('button', { name: 'Retirer [Portes ouvertes]' }).click();
+  await expect(deja).toContainText('Aucune : la rubrique n’existe pas sur la page.');
 });
 
 test('l’admission du supérieur : une étape qui finit avant de commencer est dite avant l’envoi', async ({

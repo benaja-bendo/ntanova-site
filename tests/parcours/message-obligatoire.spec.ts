@@ -25,7 +25,7 @@ test.describe('message obligatoire avec « autre »', () => {
     await page.getByRole('button', { name: 'Envoyer la demande' }).click();
     await expect(page.getByRole('alert')).toHaveText(PHRASE);
     // Rien n'est parti : la fiche attend toujours, à valider.
-    await expect(page.getByRole('button', { name: 'Accepter la fiche' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Accepter', exact: true })).toBeVisible();
 
     // Des espaces ne sont pas un message.
     await page.getByLabel(/Message au relais/).fill('    ');

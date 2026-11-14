@@ -4,6 +4,8 @@ import {
   envoyerSansBonus,
   ouvrirGestion,
   toutEstEnvoye,
+  ouvrirLesEcoles,
+  ficheOuverte,
 } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter } from './aides';
@@ -247,13 +249,10 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
 
     // L'administration confie l'école à situer au relais…
     await seConnecter(page, '/admin/');
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
     await ouvrirGestion(ligne, 'Mission');
-    await page
-      .locator('article.fiche-admin')
-      .getByRole('button', { name: 'Confier', exact: true })
-      .click();
+    await ficheOuverte(page).getByRole('button', { name: 'Confier', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
     // … et la base lui a donné, depuis, un type et un niveau que ce téléphone ne connaît pas encore.

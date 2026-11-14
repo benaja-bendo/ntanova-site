@@ -4,6 +4,7 @@
  * avec sa référence. NTanova paie des relais : il n'encaisse jamais de frais de scolarité.
  */
 import { v2 } from '@/ui/v2/classes';
+import { cn } from '@/lib/utils';
 import { useCallback, useEffect, useState } from 'react';
 import { estUnVendredi, francs, prochainVendredi, vendrediLong } from '../../modele/paie';
 import type { LignePaie, PaiementVu, PortAdministration, SemainePaie } from '../../modele/ports';
@@ -308,7 +309,7 @@ export function Paie({ admin }: { admin: PortAdministration }) {
           {(a) => (
             <input
               {...a}
-              className={v2.champ}
+              className={cn(v2.champ, 'w-56')}
               type="date"
               value={vendredi}
               onChange={(ev) => setVendredi(ev.target.value)}

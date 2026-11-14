@@ -1,4 +1,4 @@
-import { ouvrirContacts, ouvrirEcranAdmin } from './aides';
+import { ouvrirContacts, ouvrirEcranAdmin, fermerContacts } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 
@@ -34,7 +34,8 @@ test('le relais lit ce qui lui est acquis, la semaine close, puis le paiement av
   await ouvrirContacts(page);
   await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
   await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+  await fermerContacts(page);
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
   // Le relais lit ce qui lui est acquis : une fiche acceptée et un contact confirmé. Les montants viennent de la base.

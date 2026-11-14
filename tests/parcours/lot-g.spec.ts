@@ -2,7 +2,7 @@
 // repliés, « Comme sur l'enseigne / Différent » et « Sur la photo » dans « À valider », les raccourcis J/K/Échap,
 // et « Même lieu » (une nouvelle école distincte, qui le dit).
 import { expect, test, type Page } from '@playwright/test';
-import { ficheAdmin, ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
+import { ficheAdmin, ouvrirLaFiche, seConnecter, uneFicheEnvoyee, toutesLesEcoles } from './aides';
 
 test.use({ permissions: ['geolocation'] });
 
@@ -12,9 +12,11 @@ test('la fiche d’une école : l’aperçu de la couverture et « X rubriques r
   page,
 }) => {
   await seConnecter(page, '/admin/#ecoles');
+  await toutesLesEcoles(page);
   await page
     .getByRole('row', { name: /\[École à situer\]/ })
-    .getByRole('link', { name: 'Ouvrir la fiche', exact: true })
+    .getByRole('link')
+    .first()
     .click();
   const fiche = ficheAdmin(page, '[École à situer]');
   const apercu = fiche.getByRole('region', { name: 'Aperçu' });
@@ -46,11 +48,13 @@ test('Relais : la colonne « Signal », et les relais sans envoi de la semaine r
   await seConnecter(page, '/admin/#relais');
   await expect(page.getByRole('columnheader', { name: 'Signal' }).first()).toBeAttached();
   // Le compte à activer reste en tête ; le relais sans envoi cette semaine est replié.
-  await expect(page.getByRole('row', { name: /\[Relais en attente\]/ })).toBeVisible();
-  const autres = page.locator('details.relais-autres');
-  await expect(autres.locator('summary')).toHaveText('1 autre relais, sans envoi cette semaine');
+  await expect(
+    page.getByRole('region', { name: 'Compte à activer : [Relais en attente]' }),
+  ).toBeVisible();
+  const autres = page.getByText('1 autre relais, sans envoi cette semaine', { exact: true });
+  await expect(autres).toBeVisible();
   await expect(page.getByRole('row', { name: /\[Prénom\]/ })).toBeHidden();
-  await autres.locator('summary').click();
+  await autres.click();
   const moi = page.getByRole('row', { name: /\[Prénom\]/ });
   await expect(moi).toBeVisible();
   await expect(moi).toContainText('Aucun');
@@ -131,10 +135,12 @@ test('« Même lieu » : une nouvelle école distincte, qui dit son voisin dans 
     'aria-pressed',
     'true',
   );
-  await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
   await expect(page.getByRole('status').first()).toBeVisible();
 
   await page.goto('/admin/#ecoles');
+
+  await toutesLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
   await expect(ligne).toContainText('Même lieu que [Collège du portail]');
   // Deux écoles distinctes : la voisine a toujours sa propre ligne.

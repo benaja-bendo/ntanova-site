@@ -10,6 +10,7 @@ import {
   publierLaZoneTieTie,
   seConnecter,
   uneFicheEnvoyee,
+  ouvrirLesEcoles,
 } from './aides';
 
 test.use({ permissions: ['geolocation'] });
@@ -45,9 +46,9 @@ test('« Une de mes fiches » : son état, ce qui vient du relevé, ce qui manqu
 
   // NTanova l'accepte et publie la zone.
   await ouvrirLaFiche(page);
-  await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   await publierLaZoneTieTie(page);
   await expect(page.getByRole('status').first()).toContainText(/publiée/);
 
@@ -173,7 +174,7 @@ test('« Vous la reconnaissez ? » : hors ligne, ou si l’image ne se charge pa
 /** Un institut du supérieur dans le faux serveur, avec une formation et l'agrément de l'établissement. */
 async function unInstitut(page: Page) {
   await seConnecter(page, '/admin/#valider');
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   await expect(page.getByRole('row', { name: /\[École à situer\]/ })).toBeVisible();
   await page.evaluate(() => {
     const cle = 'ntanova-faux-serveur';
@@ -216,7 +217,7 @@ async function unInstitut(page: Page) {
     localStorage.setItem(cle, JSON.stringify(e));
   });
   await page.reload();
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   return page.getByRole('row', { name: /\[Institut Lot F\]/ });
 }
 

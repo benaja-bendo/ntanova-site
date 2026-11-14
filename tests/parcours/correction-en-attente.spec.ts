@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
+import { ouvrirLaFiche, uneFicheEnvoyee, ouvrirLesEcoles } from './aides';
 
 // Accepter la correction d'une fiche (ticket #89), construit avec le faux serveur. Un relais SANS SECTEUR (le cas de la
 // plupart) reprend sa photo après un « à corriger » : sa correction n'a ni position ni secteur. Avant, « Accepter » restait
@@ -78,22 +78,27 @@ test.describe('la correction d’une fiche pas encore acceptée', () => {
     await lePrixDUneCorrection(page);
     await ouvrirLaCorrection(page);
 
-    // L'écran dit ce qu'est cette correction, et d'où vient la position.
-    await expect(page.getByText(/remplace la fiche que tu as renvoyée/)).toBeVisible();
-    await expect(page.getByText(/reprend la position de la fiche d’origine/)).toBeVisible();
-    // Les mêmes choix qu'une nouvelle fiche.
-    await expect(page.getByRole('group', { name: 'Que faire de cette fiche ?' })).toBeVisible();
+    // Planche : la correction se lit comme une fiche ; la barre dit « Accepter la correction ».
 
-    const accepter = page.getByRole('button', { name: 'Accepter la fiche corrigée' });
+    const accepter = page.getByRole('button', { name: 'Accepter la correction' });
     await expect(accepter).toBeEnabled();
     await accepter.click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
     // L'école existe, avec la position de la fiche d'origine (celle que la correction n'avait pas).
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-    await expect(ligne.getByText('Prête', { exact: true })).toBeVisible();
-    await expect(ligne).toContainText('-4.80000, 11.90000');
+    await expect(ligne.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
+    const position = await page.evaluate(() => {
+      const etat = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
+        campus: Record<
+          string,
+          { nom: string; position: { latitude: number; longitude: number } | null }
+        >;
+      };
+      return Object.values(etat.campus).find((c) => c.nom === '[École 1]')?.position ?? null;
+    });
+    expect(position).toEqual({ latitude: -4.8, longitude: 11.9 });
 
     // Le relais voit sa fiche acceptée.
     await page.goto('/relais/#fiches');
@@ -110,7 +115,7 @@ test.describe('la correction d’une fiche pas encore acceptée', () => {
     await ouvrirLaCorrection(page);
 
     // Le bouton est grisé, MAIS l'écran le dit, et le choix est là.
-    const accepter = page.getByRole('button', { name: 'Accepter la fiche corrigée' });
+    const accepter = page.getByRole('button', { name: 'Accepter la correction' });
     await expect(accepter).toBeDisabled();
     await expect(page.getByText(/Choisis la division de l’école/)).toBeVisible();
 
@@ -130,7 +135,7 @@ test.describe('la correction d’une école déjà créée, par un relais sans s
     await uneFicheEnvoyee(page, context);
     // L'école est créée (la fiche d'origine est acceptée), puis le relais envoie sa correction.
     await ouvrirLaFiche(page);
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
     await lePrixDUneCorrection(page);
     // L'origine est acceptée : la correction met l'école à jour.
@@ -138,7 +143,6 @@ test.describe('la correction d’une école déjà créée, par un relais sans s
 
     const accepter = page.getByRole('button', { name: 'Accepter la correction' });
     await expect(accepter).toBeEnabled();
-    await expect(page.getByText(/remplace la fiche que tu as renvoyée/)).toHaveCount(0);
     await accepter.click();
     await expect(page.getByRole('status')).toHaveText(/Acceptée/);
   });

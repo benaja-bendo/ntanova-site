@@ -86,7 +86,7 @@ export function Personnes({
 
   const plusieurs = personnes.length > 1;
   return (
-    <section className="admin-prive pile-serree" aria-label="Partie privée">
+    <section className="flex flex-col gap-2" aria-label="Partie privée">
       <fieldset
         className={v2.occupe}
         disabled={operation !== null}

@@ -1,4 +1,4 @@
-import { ouvrirGestion, ficheAdmin, retourAuxEcoles } from './aides';
+import { ouvrirGestion, retourAuxEcoles, ouvrirLesEcoles } from './aides';
 import { expect, test } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 test.use({ permissions: ['geolocation'] });
@@ -8,54 +8,45 @@ test('frais déclarés : ajout, relecture, modification et retrait, sans badge n
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  await page.getByRole('button', { name: 'Accepter la fiche' }).click();
-  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+  await ouvrirLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-  await expect(page.getByRole('combobox', { name: 'Zone à publier' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeAttached();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
   await ouvrirGestion(ligne, 'Frais déclarés');
-  const dialog = ficheAdmin(page, '[École 1]');
-  const f = dialog.getByRole('form');
-  await f.getByRole('combobox', { name: 'Cycle', exact: true }).selectOption('primaire');
-  await f.getByLabel('Montant minimum ou unique (FCFA)', { exact: true }).fill('25 000');
-  await f.getByLabel('Maximum si fourchette (facultatif, FCFA)').fill('30 000');
-  await f.getByRole('combobox', { name: 'Période', exact: true }).selectOption('mois');
-  await f
-    .getByLabel('Date de déclaration')
+  // Planche « Frais par classe » : une page, le prospectus à gauche, le tableau des lignes à droite.
+  const frais = page.getByRole('region', { name: 'Frais déclarés de [École 1]' });
+  const enregistrer = frais.getByRole('button', { name: /^Enregistrer \d+ lignes? publiables?$/ });
+  const premiere = frais.getByRole('row', { name: /Primaire|cette ligne/ }).first();
+  if ((await frais.getByLabel('Cycle', { exact: true }).count()) === 0)
+    await frais.getByRole('button', { name: '+ Ajouter une ligne' }).click();
+  await frais
+    .getByLabel('Déclarés par l’école le')
     .fill(new Date(Date.now() - 86400000).toISOString().slice(0, 10));
-  await f.getByRole('button', { name: 'Enregistrer les frais' }).click();
-  await expect(dialog).toContainText('Confirme que ces frais ont été communiqués');
-  await f.getByLabel('Ces frais ont été communiqués par l’école pour être affichés.').check();
-  await f.getByRole('button', { name: 'Enregistrer les frais' }).click();
-  await expect(page.getByRole('status')).toContainText('Reconstruis le site');
-  await expect(dialog.getByRole('list')).toContainText(/25\s*000 à 30\s*000 FCFA/);
-  await expect(page.locator('article.fiche-admin')).toContainText('Prête');
-  await expect(page.locator('article.fiche-admin')).not.toContainText('vérifiée par la direction');
-  const b = await dialog.boundingBox();
-  expect(b!.x).toBeGreaterThanOrEqual(0);
-  expect(b!.x + b!.width).toBeLessThanOrEqual(360);
-  expect(await dialog.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  await premiere.getByLabel('Cycle', { exact: true }).selectOption('primaire');
+  await premiere.getByLabel('Montant (FCFA)').fill('25 000 - 30 000');
+  await premiere.getByLabel('Période', { exact: true }).selectOption('mois');
+  await enregistrer.click();
+  await expect(page.getByRole('status').first()).toContainText(
+    'Visible à la prochaine mise à jour du site',
+  );
+  // De retour sur la fiche : la carte « Frais » le dit ; la fiche reste prête, sans badge.
+  const fiche = page.getByRole('article', { name: 'Fiche de [École 1]' });
+  await expect(fiche.getByRole('button', { name: 'Frais : ouvrir' })).toContainText(/25\s*000/);
+  await expect(fiche).toContainText('Prête');
+  await expect(fiche).not.toContainText('vérifiée par la direction');
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
   await retourAuxEcoles(page);
-  await expect(dialog).toHaveCount(0);
   await page.reload();
   await ouvrirGestion(ligne, 'Frais déclarés');
-  await dialog.getByRole('button', { name: 'Modifier les frais de Primaire' }).click();
-  await expect(f.getByLabel('Montant minimum ou unique (FCFA)', { exact: true })).toHaveValue(
-    '25000',
-  );
-  await expect(f.getByLabel('Frais d’inscription (facultatif, FCFA)')).toHaveValue('');
-  await expect(
-    f.getByLabel('Ces frais ont été communiqués par l’école pour être affichés.'),
-  ).not.toBeChecked();
-  await f.getByLabel('Montant minimum ou unique (FCFA)', { exact: true }).fill('0');
-  await f.getByLabel('Maximum si fourchette (facultatif, FCFA)').fill('');
-  await f.getByLabel('Frais d’inscription (facultatif, FCFA)').fill('0');
-  await f.getByLabel('Ces frais ont été communiqués par l’école pour être affichés.').check();
-  await f.getByRole('button', { name: 'Enregistrer les frais' }).click();
-  await expect(dialog.getByRole('list')).toContainText('0 FCFA');
-  await dialog.getByRole('button', { name: 'Retirer les frais de Primaire' }).click();
-  await expect(page.getByRole('status')).toContainText('retirés du catalogue');
-  await expect(dialog.getByRole('list')).toHaveCount(0);
+  await expect(premiere.getByLabel('Montant (FCFA)')).toHaveValue(/25\s*000/);
+  await premiere.getByRole('button', { name: /^Retirer la ligne / }).click();
+  await frais.getByRole('button', { name: /^Enregistrer 0 ligne publiable$/ }).click();
+  await expect(fiche.getByRole('button', { name: 'Frais : ouvrir' })).not.toContainText(/25\s*000/);
 });
 test('fiche publique : fourchette, période, date et inconnues, sans total annuel inventé', async ({
   page,

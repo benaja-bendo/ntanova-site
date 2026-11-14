@@ -6,28 +6,34 @@ import { seConnecter, ouvrirRegles } from './aides';
 // un inconnu, le menu dit combien attendent, et le relais en attente sait quoi faire (écrire à NTanova avec son adresse).
 
 test.describe('l’administration reconnaît un compte à activer', () => {
-  test('l’adresse s’affiche, les comptes à activer passent en premier, et on peut activer ou écarter', async ({
+  test('l’adresse s’affiche, le compte à activer est en bandeau, et on peut l’activer ou l’écarter', async ({
     page,
   }) => {
     await seConnecter(page, '/admin/#relais');
     await expect(page.getByRole('heading', { name: 'Relais', level: 1 })).toBeVisible();
 
-    const attente = page.getByRole('row', { name: /\[Relais en attente\]/ });
+    // Planche : le compte à activer est un bandeau au-dessus du tableau, avec son adresse et « Activer ».
+    const attente = page.getByRole('region', { name: 'Compte à activer : [Relais en attente]' });
     await expect(attente).toContainText('marie@exemple.test');
-    await expect(attente).toContainText('À activer');
-    // Le compte à activer est la première ligne du tableau (après l'en-tête).
-    await expect(page.getByRole('row').nth(1)).toContainText('[Relais en attente]');
+    await expect(attente).toContainText('Un compte à activer');
+    await expect(attente.getByRole('button', { name: 'Activer', exact: true })).toBeVisible();
 
-    // Écarter : un compte inconnu passe « suspendu », il ne reste pas « à activer ».
-    await attente.getByRole('button', { name: 'Écarter' }).click();
+    // Écarter (menu « ⋯ ») : un compte inconnu passe « suspendu », il ne reste pas « à activer ».
+    await attente.locator('summary').click();
+    await attente.getByRole('button', { name: 'Écarter ce compte' }).click();
     await expect(page.getByRole('status')).toHaveText(/est écarté/);
-    await expect(attente).toContainText('Suspendu');
-    await expect(attente.getByRole('button', { name: 'Écarter' })).toHaveCount(0);
+    await expect(attente).toHaveCount(0);
+    const ligne = page.getByRole('row', { name: /\[Relais en attente\]/ });
+    const autres = page.getByText(/autres? relais, sans envoi cette semaine/);
+    if (!(await ligne.isVisible())) await autres.click();
+    await expect(ligne).toContainText('Suspendu');
 
     // Et il peut revenir : « Réactiver ».
-    await attente.getByRole('button', { name: 'Réactiver' }).click();
+    await ligne.locator('summary').click();
+    await ligne.getByRole('button', { name: 'Réactiver' }).click();
     await expect(page.getByRole('status')).toHaveText(/est actif/);
-    await expect(attente).toContainText('Actif');
+    if (!(await ligne.isVisible())) await autres.click();
+    await expect(ligne).toContainText(/Actif|Jamais connecté/);
   });
 
   test('le menu dit combien de comptes attendent, dès la page d’arrivée', async ({ page }) => {
@@ -38,7 +44,7 @@ test.describe('l’administration reconnaît un compte à activer', () => {
 
     await menu.click();
     await page
-      .getByRole('row', { name: /\[Relais en attente\]/ })
+      .getByRole('region', { name: 'Compte à activer : [Relais en attente]' })
       .getByRole('button', { name: 'Activer', exact: true })
       .click();
     await expect(page.getByRole('status')).toHaveText(/est actif/);

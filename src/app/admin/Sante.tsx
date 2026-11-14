@@ -6,6 +6,7 @@
  * (des téléphones d'avant la mise à jour) sort de la vue sans filtre écrit en dur.
  */
 import { v2 } from '@/ui/v2/classes';
+import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import type { PortAdministration } from '../../modele/ports';
 import {
@@ -117,7 +118,7 @@ export function Sante({ admin }: { admin: PortAdministration }) {
               {(a) => (
                 <select
                   {...a}
-                  className={v2.champ}
+                  className={cn(v2.champ, 'h-11 w-40')}
                   value={jours === null ? 'tout' : String(jours)}
                   onChange={(e) =>
                     setJours(e.target.value === 'tout' ? null : Number(e.target.value))

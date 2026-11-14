@@ -1,17 +1,17 @@
 // La fiche admin v2 (ticket 165, lot D, 13/11/2026) : « À compléter » (manques, demander à l'école, confier à un relais),
 // les images de l'école, une mission avec sa tâche, sa date et sa paie.
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirGestion, seConnecter } from './aides';
+import { ouvrirGestion, seConnecter, ouvrirLesEcoles, ficheOuverte } from './aides';
 
 const photo = new URL('./fichiers/enseigne.jpg', import.meta.url).pathname;
 
 async function gerer(page: Page, section: string) {
   await seConnecter(page, '/admin/#valider');
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
   await ouvrirGestion(ligne, section);
   // Admin v2 : la fiche de l'école est une page entière ; ses formulaires y sont.
-  return page.locator('article.fiche-admin');
+  return ficheOuverte(page);
 }
 
 test('« À compléter » : les manques et qui peut les donner ; WhatsApp les note « demandé à l’école », annulable', async ({

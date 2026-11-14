@@ -65,10 +65,10 @@ test.describe('l’administration retrouve une fiche renvoyée', () => {
     await expect(page.getByText('Rien à valider pour le moment.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Renvoyées' }).click();
-    const liste = page.getByRole('list', { name: 'Décisions récentes' });
+    const liste = page.getByRole('list', { name: /^(Décisions récentes|Envois à valider)$/ });
     await expect(liste.getByRole('listitem')).toHaveCount(1);
     await expect(liste).toContainText('[École 1]');
-    await expect(liste).toContainText(/Renvoyée depuis/);
+    await expect(liste).toContainText(/renvoyée depuis/i);
     await liste.getByRole('link', { name: /\[École 1\]/ }).click();
     await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
   });
