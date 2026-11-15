@@ -2,7 +2,7 @@
 -- et les lectures (école connue, liste nationale, historique).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(29);
 
 select public.register_relay('00000000-0000-4000-8000-0000000000d1', 'google-fm-admin', '[Admin]');
 select public.register_relay('00000000-0000-4000-8000-0000000000a1', 'google-fm-a', '[Alice]');
@@ -40,6 +40,9 @@ select throws_ok($$select public.set_school_fee('ed000000-0000-4000-8000-0000000
 reset role;
 select throws_ok($$delete from public.campus_programs where id = 'ef000000-0000-4000-8000-000000000001'$$, '22023', null,
   'Une formation qui porte des frais ne part pas en silence');
+set local role authenticated;
+select is((select public.confirm_school_fees('ed000000-0000-4000-8000-000000000001', current_date)), 3,
+  'Le OUI daté de l''école confirme ses trois lignes (lot 1, 15/11)');
 set local role anon;
 select is((select count(*)::int from public.campus_fees where campus_id = 'ed000000-0000-4000-8000-000000000001'), 3,
   'Un visiteur lit les trois lignes d''une école publiée');

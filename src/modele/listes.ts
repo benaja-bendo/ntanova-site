@@ -137,6 +137,11 @@ export const listes = {
   post_state: ['publiee', 'retiree'],
   selection_kind: ['dossier', 'entretien', 'dossier_entretien', 'concours', 'autre'],
   admission_step: ['dossiers', 'selection', 'resultats', 'rentree'],
+  // Lot 1 du site public (15/11, migration 20261115200000) : places annoncées, effectif en tranches, demandes des familles.
+  opening_state: ['disponibles', 'peu', 'complet', 'autre'],
+  class_size_band: ['moins_de_20', '20_a_34', '35_a_49', '50_et_plus', 'autre'],
+  family_demand_kind: ['verification', 'orientation'],
+  orientation_profile: ['bepc', 'bac', 'adulte', 'autre'],
 } as const;
 
 export type Liste = keyof typeof listes;
