@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(34);
+select plan(36);
 select public.register_relay('00000000-0000-4000-8000-0000000000d1','google-frais-admin','[Admin]');
 select public.register_relay('00000000-0000-4000-8000-0000000000a1','google-frais-relais','[Relais]');
 insert into prive.admins(id) values ('00000000-0000-4000-8000-0000000000d1');
@@ -48,6 +48,13 @@ select is((select count(*)::int from public.campus_fees),0,'Frais d’un brouill
 reset role;
 update public.campuses set publication='publiee' where id='72000000-0000-4000-8000-000000000001';
 set local role anon;
+select is((select count(*)::int from public.campus_fees),0,'École publiée, frais sans le OUI de l’école : invisibles (lot 1, 15/11)');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated"}',true);
+select is((select public.confirm_school_fees('72000000-0000-4000-8000-000000000001',current_date)),1,'Le OUI daté de l’école confirme sa ligne');
+reset role;
+set local role anon;
 select is((select count(*)::int from public.campus_fees),1,'Frais de l’école publiée lisibles');
 select throws_ok($$select * from prive.campus_fee_history$$,'42501',null,'La publication n’expose pas l’historique privé');
 reset role;
@@ -60,7 +67,7 @@ select lives_ok($$select public.withdraw_school_fee('72000000-0000-4000-8000-000
 select is((select verification_state::text from public.campuses where id='72000000-0000-4000-8000-000000000001'),'relevee','Déclarer des frais ne crée pas de badge');
 reset role;
 select is((select count(*)::int from prive.campus_fee_history where recorded_by <> '00000000-0000-4000-8000-0000000000d1'),0,'L’auteur de chaque déclaration est tracé en privé');
-select is((select count(*)::int from prive.campus_fee_history),3,'Ajout modification retrait archivés');
+select is((select count(*)::int from prive.campus_fee_history),4,'Ajout, confirmation, modification, retrait archivés');
 select is((select (before_data->>'minimum')::int from prive.campus_fee_history where action='modification'),25000,'Ancienne valeur conservée');
 set local role anon;
 select is((select count(*)::int from public.campus_fees),0,'Plus de frais dans le catalogue après retrait');

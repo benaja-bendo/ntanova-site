@@ -266,3 +266,28 @@ export const libelleTypeMission: Record<Valeur<'mission_kind'>, string> = {
   locate: 'Situer l’école (prendre sa position)',
   complete: 'Compléter la fiche',
 };
+
+/** Lot 1 du site public (15/11) : les places qu'une école annonce pour une classe. */
+export const libelleEtatPlaces: Record<Valeur<'opening_state'>, string> = {
+  disponibles: 'Places disponibles',
+  peu: 'Peu de places',
+  complet: 'Complet',
+  autre: 'Autre',
+};
+
+/** Lot 1 du site public (15/11) : l'effectif d'une classe, en tranches, jamais le nombre exact. */
+export const libelleTrancheEffectif: Record<Valeur<'class_size_band'>, string> = {
+  moins_de_20: 'Moins de 20 élèves',
+  '20_a_34': '20 à 34 élèves',
+  '35_a_49': '35 à 49 élèves',
+  '50_et_plus': '50 élèves et plus',
+  autre: 'Autre',
+};
+
+/** Lot 1 du site public (15/11) : les trois profils du test d'orientation, et la case de sortie. */
+export const libelleProfilOrientation: Record<Valeur<'orientation_profile'>, string> = {
+  bepc: 'En 3e, ou j’ai le BEPC',
+  bac: 'Au lycée, ou j’ai le bac',
+  adulte: 'Je travaille, je veux me former',
+  autre: 'Autre',
+};
