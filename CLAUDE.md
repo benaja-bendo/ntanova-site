@@ -6,6 +6,15 @@ Le site de NTanova : l'annuaire public des écoles de la République du Congo (*
 
 Ce dépôt ne contient que le code. La stratégie, les hypothèses et les seuils vivent ailleurs, dans un dépôt privé : **n'en recopier aucun ici**, ni dans le code, ni dans les commentaires, ni dans les commits.
 
+## Où on en est (15/11/2026)
+
+- **`main`** contient la refonte v2 de l'espace relais et de l'administration (Tailwind et shadcn, PR 175) et le lot 1 de la base du site public (PR 176) : `billed_months` et `confirmed_on` sur `campus_fees`, `accepted_bac_tracks`, `campus_openings`, `campus_class_sizes`, `family_demands`. **Les migrations du 14/11 et du 15/11 sont appliquées en production ; le code en ligne reste celui du 13/11** (mise en ligne sur ordre du fondateur).
+- **Depuis le lot 1, des frais ne sont publics qu'avec `confirmed_on`**, le jour du OUI écrit de l'école ; modifier les montants d'une ligne l'efface. **Tant que le lot 2 n'est pas livré, l'administration n'a pas de bouton pour noter ce OUI** : des frais saisis ne paraissent pas sur le site (`supabase/schema.md`, « Le site public à trois piliers, lot 1 »).
+- **Prochain : le lot 2**, l'administration saisit ces champs : mois facturés (que `enregistrerFraisEcole` doit envoyer, sinon une modification les efface), « Noter le OUI de l'école », séries admises, places, effectifs. Puis les lots 3 à 8 : socle public, fiche, S'orienter, Espace écoles, Comparer, pré-inscription.
+- **La fiche publique v2 commencée le 14/11** (non vérifiée) est sur `wip/fiche-publique-14-11`, pour le lot 4 : la reprendre par `git rebase --onto main a1ebe51`.
+- **L'interactivité du site public** (consigne du fondateur du 15/11) : le premier affichage d'un outil (calculateur de la fiche, test d'orientation, Comparer) est en HTML et CSS, dans les 200 Ko de la page ; son JavaScript ne se charge qu'à la demande (petit script natif, ou îlot `client:visible`), et chaque exception est déclarée à `pnpm poids`.
+- **Un seul clone, sur `main`** : une branche courte par lot, poussée une fois, fusionnée puis supprimée.
+
 ## Lancer
 
 ```bash
