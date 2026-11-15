@@ -6,11 +6,12 @@ Le site de NTanova : l'annuaire public des écoles de la République du Congo (*
 - Ce dépôt ne contient que le code. Stratégie, hypothèses et seuils vivent dans le dépôt privé `ntanova` : **n'en recopier aucun ici**.
 - Ce fichier ne garde que l'état actuel, l'architecture et les règles actives. **Le détail de chaque livraison, ticket par ticket : `docs/archive/2026-11-15-claude-md-avant-compression/`** (son `INDEX.md` dit où chercher).
 
-## Où on en est (15/11/2026)
+## Où on en est (16/11/2026)
 
 - **`main`** : la refonte v2 de l'espace relais et de l'administration (Tailwind et shadcn, PR 175) ; le lot 1 de la base du site public (PR 176 : `billed_months`, `confirmed_on`, `accepted_bac_tracks`, `campus_openings`, `campus_class_sizes`, `family_demands`). **Migrations en production ; le code en ligne reste celui du 13/11** (mise en ligne sur ordre du fondateur).
-- **Des frais ne sont publics qu'avec `confirmed_on`**, le jour du OUI écrit de l'école (`confirm_school_fees`) ; modifier une ligne l'efface.
-- **Le plan** : lot 2 (l'administration saisit ces champs), puis lots 3 à 8 (socle public, fiche, S'orienter, Espace écoles, Comparer, pré-inscription) : §7 de `docs/produit/2026-11-15-site-public-trois-piliers.md`, dépôt `ntanova`.
+- **Lot 2, fait le 16/11** : l'administration saisit ces champs : mois facturés et **« Noter le OUI de l'école »** (Frais), séries admises (Formations), « Places et effectifs » (fiche), demandes des familles (« Aujourd'hui »). Journal : `docs/avancement-admin-v2.md`.
+- **Des frais ne sont publics qu'avec `confirmed_on`**, le jour du OUI écrit de l'école ; modifier une ligne l'efface (l'écran ne réécrit que les lignes qui changent).
+- **Le plan** : les lots 3 à 8 (socle public, fiche, S'orienter, Espace écoles, Comparer, pré-inscription) : §7 de `docs/produit/2026-11-15-site-public-trois-piliers.md`, dépôt `ntanova`.
 - **La fiche publique v2 du 14/11** (non vérifiée) attend le lot 4 sur `wip/fiche-publique-14-11` (`git rebase --onto main a1ebe51`).
 
 ## Lancer

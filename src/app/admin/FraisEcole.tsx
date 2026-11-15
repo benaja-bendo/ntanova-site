@@ -1,29 +1,46 @@
 /**
  * « Frais par classe » (planche « Frais, avec le prospectus ») : on recopie ce que dit le prospectus, ligne par ligne. À
  * gauche, le prospectus photographié par un relais (photo de travail, jamais publique) ; à droite, l'année scolaire, la
- * date de déclaration et le tableau des lignes (cycle, classe, montant, période, inscription, « Illisible ? »). Une ligne
- * illisible n'est jamais publiée : « Demander … » l'ajoute à ce qui manque, demandée à l'école. Tailwind et shadcn seulement.
+ * date de déclaration, les mois facturés et le tableau des lignes (cycle, classe, montant, période, inscription,
+ * « Illisible ? »). Une ligne illisible n'est jamais publiée : « Demander … » l'ajoute à ce qui manque, demandée à l'école.
+ *
+ * Lot 2 du site public (15/11) : une ligne enregistrée ne paraît sur le site qu'avec **le OUI écrit de l'école**, noté ici
+ * avec son jour (« Noter le OUI de l'école », `confirmerFraisEcole`). Modifier une ligne le lui retire : seules les lignes
+ * qui changent sont réécrites. Tailwind et shadcn seulement.
  */
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { v2 } from '@/ui/v2/classes';
-import { Bouton } from '@/ui/v2/admin';
-import { Bandeau } from '@/ui/v2/formulaire';
-import { IconeAjouter, IconeCadenas, IconeFermer, IconeMoins } from '@/ui/shadcn/icones';
+import { Bouton, Dialogue } from '@/ui/v2/admin';
+import { Bande } from '@/ui/v2/bande';
+import { Bandeau, Champ } from '@/ui/v2/formulaire';
+import {
+  IconeAjouter,
+  IconeAttente,
+  IconeCadenas,
+  IconeFait,
+  IconeFermer,
+  IconeMoins,
+} from '@/ui/shadcn/icones';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
+  erreurDuOui,
+  etatDuOui,
   inscriptionLaPlusFrequente,
+  ligneChangee,
   lireFraisEcole,
+  moisFacturesDesLignes,
+  montantFrais,
   periodesFrais,
   type FraisEcole as Frais,
 } from '../../modele/frais-ecole';
 import { libelleNiveau } from '../../modele/libelles';
+import { dateCourte, dateLongue, jourEtMois } from '../../modele/pointe-noire';
 import type { Valeur } from '../../modele/listes';
 import type { PhotoVue, PortAdministration } from '../../modele/ports';
-import { jour } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
 
-/** Une ligne du tableau, telle qu'on la tape. `id` : la ligne enregistrée qu'elle modifie. */
+/** Une ligne du tableau, telle qu'on la tape. `id` : la ligne enregistrée qu'elle modifie ; `avant`, ce qu'elle était. */
 interface Ligne {
   cle: string;
   id: string | null;
@@ -33,6 +50,9 @@ interface Ligne {
   periode: string;
   inscription: string;
   illisible: boolean;
+  /** La formation du supérieur de la ligne : gardée quand on l'enregistre de nouveau. */
+  formationId: string | null;
+  avant: Frais | null;
 }
 
 const montantEnTexte = (f: Frais) =>
@@ -54,7 +74,21 @@ const nouvelle = (cycle = ''): Ligne => ({
   periode: 'mois',
   inscription: '',
   illisible: false,
+  formationId: null,
+  avant: null,
 });
+
+/** La ligne a-t-elle été retouchée à l'écran depuis son enregistrement ? */
+const retouchee = (l: Ligne) =>
+  !l.avant ||
+  l.illisible ||
+  l.cycle !== l.avant.cycle ||
+  l.classe !== (l.avant.classe ?? '') ||
+  l.montant !== montantEnTexte(l.avant) ||
+  l.periode !== l.avant.periode ||
+  l.inscription !== (l.avant.inscription === null ? '' : String(l.avant.inscription));
+
+const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 
 export function FraisEcole({
   ecoleId,
@@ -88,13 +122,27 @@ export function FraisEcole({
           periode: f.periode,
           inscription: f.inscription === null ? '' : String(f.inscription),
           illisible: false,
+          formationId: f.formationId ?? null,
+          avant: f,
         }))
       : [nouvelle(cycles[0] ?? '')],
   );
   const [retirees, setRetirees] = useState<string[]>([]);
-  const [annee, setAnnee] = useState(frais[0]?.anneeScolaire ?? '');
-  const [declaresLe, setDeclaresLe] = useState(frais[0]?.declaresLe ?? jourDuCongo());
-  const [note, setNote] = useState(frais[0]?.note ?? '');
+  const depart = {
+    annee: frais[0]?.anneeScolaire ?? '',
+    declaresLe: frais[0]?.declaresLe ?? jourDuCongo(),
+    note: frais[0]?.note ?? '',
+    mois: String(moisFacturesDesLignes(frais) ?? ''),
+  };
+  const [annee, setAnnee] = useState(depart.annee);
+  const [declaresLe, setDeclaresLe] = useState(depart.declaresLe);
+  const [note, setNote] = useState(depart.note);
+  // Lot 2 : les mois facturés dans l'année, dits par l'école ; ils valent pour chaque ligne au mois.
+  const [mois, setMois] = useState(depart.mois);
+  const oui = etatDuOui(frais);
+  const [noterOui, setNoterOui] = useState(false);
+  const [jourOui, setJourOui] = useState(jourDuCongo());
+  const [erreurOui, setErreurOui] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [prospectus, setProspectus] = useState<PhotoVue[] | null>(null);
@@ -129,6 +177,14 @@ export function FraisEcole({
   const illisibles = lignes.filter((l) => l.illisible);
   const nomDeLigne = (l: Ligne) =>
     l.classe.trim() || (l.cycle ? libelleNiveau[l.cycle as Valeur<'niveau'>] : 'cette ligne');
+  // Ce qui vaut pour toutes les lignes (année, date, note, mois) : le changer retouche chacune.
+  const communChange =
+    annee !== depart.annee ||
+    declaresLe !== depart.declaresLe ||
+    note !== depart.note ||
+    mois !== depart.mois;
+  const modifiee = (l: Ligne) => communChange || retouchee(l);
+  const nonEnregistre = retirees.length > 0 || lignes.some(modifiee);
 
   const enregistrer = async () => {
     setErreur(null);
@@ -147,21 +203,30 @@ export function FraisEcole({
           anneeScolaire: annee,
           declaresLe,
           note,
+          moisFactures: mois,
           // Planche : enregistrer les lignes recopiées vaut déclaration de l'école (le prospectus en est la preuve).
           declarationConfirmee: true,
-          photoPreuve: photo?.id ?? null,
+          photoPreuve: l.avant?.photoPreuve ?? photo?.id ?? null,
+          formationId: l.formationId,
         }),
       };
     });
     const fautive = saisies.find((x) => !x.lu.frais);
     if (fautive) return setErreur(`${nomDeLigne(fautive.l)} : ${fautive.lu.erreur}`);
+    // Une ligne qui ne change pas n'est pas réécrite : elle garde le OUI de l'école.
+    const aEcrire = saisies.filter(({ l, lu }) => !l.avant || ligneChangee(l.avant, lu.frais!));
     setEnCours(true);
     try {
       for (const id of retirees) await admin.retirerFraisEcole(ecoleId, id);
-      for (const { l, lu } of saisies) await admin.enregistrerFraisEcole(ecoleId, lu.frais!, l.id);
+      for (const { l, lu } of aEcrire) await admin.enregistrerFraisEcole(ecoleId, lu.frais!, l.id);
       setRetirees([]);
+      const n = aEcrire.length;
       surChangement(
-        `${saisies.length} ligne${saisies.length > 1 ? 's' : ''} de frais enregistrée${saisies.length > 1 ? 's' : ''} pour ${nom}. Visible à la prochaine mise à jour du site.`,
+        n > 0
+          ? `${pluriel(n, 'ligne')} de frais enregistrée${n > 1 ? 's' : ''} pour ${nom} : ${n > 1 ? 'elles attendent' : 'elle attend'} le OUI de l’école pour paraître sur le site.${retirees.length ? ` ${pluriel(retirees.length, 'ligne')} retirée${retirees.length > 1 ? 's' : ''}.` : ''}`
+          : retirees.length > 0
+            ? `${pluriel(retirees.length, 'ligne')} de frais retirée${retirees.length > 1 ? 's' : ''} pour ${nom}. Visible à la prochaine mise à jour du site.`
+            : `Rien n’a changé dans les frais de ${nom}.`,
       );
       fermer();
     } catch (e) {
@@ -170,6 +235,38 @@ export function FraisEcole({
       setEnCours(false);
     }
   };
+
+  const confirmerOui = async () => {
+    if (oui.etat !== 'attend') return;
+    const probleme = erreurDuOui(jourOui, oui.auPlusTot);
+    if (probleme) return setErreurOui(probleme);
+    setErreurOui(null);
+    setEnCours(true);
+    try {
+      const n = await admin.confirmerFraisEcole(ecoleId, jourOui);
+      surChangement(
+        `OUI de l’école noté, daté du ${dateLongue(jourOui)} : ${pluriel(n, 'ligne')} de frais de ${nom} ${n > 1 ? 'paraîtront' : 'paraîtra'} à la prochaine mise à jour du site.`,
+      );
+      setNoterOui(false);
+      fermer();
+    } catch (e) {
+      setErreurOui(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  /** Où en est le OUI de la ligne : confirmée, en attente, à redemander (retouchée), nouvelle. */
+  const etatDeLaLigne = (l: Ligne) =>
+    !l.avant ? (
+      <span className={v2.pastilleNeutre}>Nouvelle</span>
+    ) : l.avant.confirmeLe && !modifiee(l) ? (
+      <span className={v2.pastilleSucces}>OUI le {jourEtMois(l.avant.confirmeLe)}</span>
+    ) : l.avant.confirmeLe ? (
+      <span className={v2.pastilleAttention}>OUI à redemander</span>
+    ) : (
+      <span className={v2.pastilleAttention}>En attente du OUI</span>
+    );
 
   const demander = async () => {
     setErreur(null);
@@ -194,7 +291,7 @@ export function FraisEcole({
 
   const champ = cn(v2.champ, 'h-10 px-2.5 text-[15px]');
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
       {/* Le prospectus. */}
       <section className="flex flex-col gap-2.5" aria-label="Prospectus des frais">
         <h3 className="m-0 flex flex-wrap items-center justify-between gap-2 font-sans text-base font-bold">
@@ -243,7 +340,8 @@ export function FraisEcole({
         )}
         {photo && (
           <p className="m-0 text-sm text-muted-foreground">
-            Prise par un relais{photo.prisLe ? ` le ${jour(photo.prisLe)}` : ''}, dans son relevé.
+            Prise par un relais{photo.prisLe ? ` le ${jourEtMois(photo.prisLe)}` : ''}, dans son
+            relevé.
             {prospectus && prospectus.length > 1 && (
               <>
                 {' '}
@@ -262,6 +360,46 @@ export function FraisEcole({
 
       {/* Les lignes. */}
       <section className="flex min-w-0 flex-col gap-4" aria-label={`Frais déclarés de ${nom}`}>
+        {oui.etat === 'attend' && (
+          <Bande
+            ton="attention"
+            region="Le OUI de l’école"
+            icone={<IconeAttente aria-hidden />}
+            action={
+              <Bouton
+                className={v2.petit}
+                disabled={enCours || nonEnregistre}
+                onClick={() => {
+                  setJourOui(jourDuCongo());
+                  setErreurOui(null);
+                  setNoterOui(true);
+                }}
+              >
+                Noter le OUI de l’école
+              </Bouton>
+            }
+          >
+            <p>
+              <b>En attente du OUI de l’école</b> :{' '}
+              {oui.lignes === frais.length
+                ? `${frais.length > 1 ? `les ${frais.length} lignes ne paraissent` : 'la ligne ne paraît'} pas sur le site.`
+                : `${oui.lignes} ligne${oui.lignes > 1 ? 's' : ''} sur ${frais.length} ne ${oui.lignes > 1 ? 'paraissent' : 'paraît'} pas sur le site.`}
+            </p>
+            <p>
+              {nonEnregistre
+                ? 'Enregistre d’abord tes changements : le OUI porte sur les montants enregistrés.'
+                : 'Seulement un OUI écrit (WhatsApp, courrier) de la direction sur ces montants.'}
+            </p>
+          </Bande>
+        )}
+        {oui.etat === 'confirme' && (
+          <Bande ton="succes" region="Le OUI de l’école" icone={<IconeFait aria-hidden />}>
+            <p>
+              <b>OUI de l’école le {dateCourte(oui.le)}</b> : ces frais peuvent paraître sur le
+              site.
+            </p>
+          </Bande>
+        )}
         <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap">
           <label className="flex flex-col gap-1.5 text-sm font-bold">
             Année scolaire
@@ -282,6 +420,21 @@ export function FraisEcole({
               value={declaresLe}
               onChange={(e) => setDeclaresLe(e.target.value)}
             />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-bold">
+            Mois facturés
+            <select
+              className={cn(champ, 'w-full lg:w-36')}
+              value={mois}
+              onChange={(e) => setMois(e.target.value)}
+            >
+              <option value="">Pas dit</option>
+              {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => (
+                <option key={m} value={m}>
+                  {m} mois
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 
@@ -355,6 +508,7 @@ export function FraisEcole({
                               {l.classe.trim() || 'toutes les classes'}
                             </span>
                           )}
+                          {!l.illisible && <span className="mt-1">{etatDeLaLigne(l)}</span>}
                         </span>
                         {l.illisible ? (
                           <span className={v2.pastilleDanger}>Illisible</span>
@@ -387,6 +541,10 @@ export function FraisEcole({
                           </option>
                         ))}
                       </select>
+                      {/* Ordinateur : l'état du OUI sous le cycle (sur téléphone, il est dans le résumé de la ligne). */}
+                      {!l.illisible && (
+                        <span className="mt-1.5 hidden lg:flex">{etatDeLaLigne(l)}</span>
+                      )}
                     </td>
                     <td role="cell" className="px-2 py-1.5">
                       <input
@@ -515,9 +673,57 @@ export function FraisEcole({
           )}
         </div>
         <p className="m-0 text-sm text-muted-foreground">
-          « Illisible » grise le montant : la ligne n’est pas publiée et s’ajoute aux manques.
+          « Illisible » grise le montant : la ligne n’est pas publiée et s’ajoute aux manques. Une
+          ligne enregistrée attend le OUI de l’école ; modifier ses montants le lui retire.
         </p>
       </section>
+
+      {noterOui && oui.etat === 'attend' && (
+        <Dialogue
+          titre="Noter le OUI de l’école"
+          variante="confirmation"
+          libelleFermeture="Annuler"
+          occupe={enCours}
+          fermer={() => setNoterOui(false)}
+          entete={<b>Noter le OUI de l’école</b>}
+        >
+          <p className="m-0 text-[15px]">
+            {nom} a répondu OUI par écrit sur ces montants.{' '}
+            {oui.lignes > 1
+              ? `Les ${oui.lignes} lignes en attente paraîtront`
+              : 'La ligne en attente paraîtra'}{' '}
+            sur le site à sa prochaine mise à jour.
+          </p>
+          <ul className="m-0 flex list-none flex-col gap-1 rounded-md bg-muted p-3 text-[15px]">
+            {frais
+              .filter((f) => !f.confirmeLe)
+              .map((f) => (
+                <li key={f.id}>
+                  <b>{f.classe?.trim() || libelleNiveau[f.cycle]}</b> : {montantFrais(f)}{' '}
+                  {(periodesFrais[f.periode] ?? '').toLocaleLowerCase('fr')}
+                </li>
+              ))}
+          </ul>
+          <Champ libelle="Le jour où l’école a répondu OUI" erreur={erreurOui ?? undefined}>
+            {(x) => (
+              <input
+                {...x}
+                type="date"
+                className={cn(v2.champ, 'sm:w-48')}
+                min={oui.auPlusTot}
+                max={jourDuCongo()}
+                value={jourOui}
+                onChange={(e) => setJourOui(e.target.value)}
+              />
+            )}
+          </Champ>
+          <div className="flex flex-wrap justify-end gap-2.5">
+            <Bouton enCours={enCours} onClick={() => void confirmerOui()}>
+              Noter le OUI
+            </Bouton>
+          </div>
+        </Dialogue>
+      )}
     </div>
   );
 }

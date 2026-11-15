@@ -22,12 +22,19 @@ export interface FraisASaisir {
   photoPreuve?: string | null;
   /** La formation du supérieur à qui la ligne est rattachée (lot I : gardée quand on modifie la ligne). */
   formationId?: string | null;
+  /** Lot 2 du site public (15/11) : les mois facturés dans l'année, pour des frais au mois (1 à 12) ; nul : pas dit. */
+  moisFactures?: number | null;
 }
 export interface FraisEcole extends FraisASaisir {
   id: string;
   /** v2 (13/11) : la classe (« CM2 », « 6e à 4e ») quand la ligne en précise une ; la formation du supérieur ; la preuve. */
   classe?: string | null;
   preuve?: 'declaration' | 'prospectus';
+  /**
+   * Lot 2 : le jour du OUI écrit de l'école sur ces montants (`confirmed_on`). Nul ou absent : la ligne est préparée, elle
+   * ne paraît pas sur le site. Une ligne modifiée le perd (la base l'efface).
+   */
+  confirmeLe?: string | null;
 }
 export interface SaisieFrais {
   cycle: string;
@@ -44,6 +51,8 @@ export interface SaisieFrais {
   classe?: string;
   photoPreuve?: string | null;
   formationId?: string | null;
+  /** Lot 2 : les mois facturés, tels que tapés (« 10 ») ; vide : pas dit. */
+  moisFactures?: string;
 }
 export const saisieFraisVide = (): SaisieFrais => ({
   cycle: '',
@@ -58,6 +67,7 @@ export const saisieFraisVide = (): SaisieFrais => ({
   declarationConfirmee: false,
   classe: '',
   photoPreuve: null,
+  moisFactures: '',
 });
 export const saisieDeFrais = (f: FraisEcole): SaisieFrais => ({
   ...f,
@@ -70,6 +80,7 @@ export const saisieDeFrais = (f: FraisEcole): SaisieFrais => ({
   declarationConfirmee: false,
   classe: f.classe ?? '',
   photoPreuve: f.photoPreuve ?? null,
+  moisFactures: f.moisFactures == null ? '' : String(f.moisFactures),
 });
 function entier(s: string): number | null {
   const n = s.trim().replace(/[\s\u00a0\u202f]/g, '');
@@ -81,7 +92,9 @@ export function lireFraisEcole(
 ): { frais: FraisASaisir | null; erreur: string | null } {
   const minimum = entier(s.minimum),
     maximum = s.maximum.trim() === '' ? minimum : entier(s.maximum),
-    inscription = s.inscription.trim() === '' ? null : entier(s.inscription);
+    inscription = s.inscription.trim() === '' ? null : entier(s.inscription),
+    moisTapes = (s.moisFactures ?? '').trim(),
+    mois = moisTapes === '' ? null : entier(moisTapes);
   let erreur: string | null = null;
   if (!listes.niveau.includes(s.cycle as Valeur<'niveau'>)) erreur = 'Choisis le cycle concerné.';
   else if (
@@ -97,6 +110,9 @@ export function lireFraisEcole(
     (s.periode === 'autre' && !s.precisionPeriode.trim())
   )
     erreur = 'Indique la période et précise-la si elle est différente.';
+  // Les mois facturés ne valent que pour des frais au mois : une autre période les laisse de côté (la base les refuse).
+  else if (s.periode === 'mois' && moisTapes !== '' && (mois === null || mois < 1 || mois > 12))
+    erreur = 'Les mois facturés vont de 1 à 12.';
   else if (!dateDeclareeValide(s.declaresLe, aujourdHui))
     erreur = 'Indique la date réelle de déclaration, pas une date future.';
   else if (!s.declarationConfirmee)
@@ -125,8 +141,84 @@ export function lireFraisEcole(
           classe: (s.classe ?? '').trim() || null,
           photoPreuve: s.photoPreuve ?? null,
           formationId: s.formationId ?? null,
+          moisFactures: s.periode === 'mois' ? mois : null,
         },
   };
+}
+
+/**
+ * Lot 2 : une ligne enregistrée change-t-elle ? Une ligne qui ne change pas n'est pas réécrite, et garde ainsi le OUI de
+ * l'école. La photo du prospectus n'en décide pas : c'est la preuve de la ligne, pas son contenu.
+ */
+export function ligneChangee(avant: FraisEcole, apres: FraisASaisir): boolean {
+  const cles = [
+    'cycle',
+    'minimum',
+    'maximum',
+    'periode',
+    'precisionPeriode',
+    'inscription',
+    'anneeScolaire',
+    'declaresLe',
+    'note',
+    'classe',
+    'formationId',
+    'moisFactures',
+  ] as const;
+  return cles.some((c) => (avant[c] ?? null) !== (apres[c] ?? null));
+}
+
+/** Lot 2 : où en est le OUI de l'école sur ses frais enregistrés. */
+export type EtatDuOui =
+  | { etat: 'vide' }
+  /** Des lignes l'attendent (`lignes`) ; le OUI ne peut pas précéder la plus récente de leurs dates. */
+  | { etat: 'attend'; lignes: number; auPlusTot: string }
+  | { etat: 'confirme'; le: string };
+
+export function etatDuOui(
+  frais: readonly Pick<FraisEcole, 'confirmeLe' | 'declaresLe'>[],
+): EtatDuOui {
+  if (frais.length === 0) return { etat: 'vide' };
+  const attente = frais.filter((f) => !f.confirmeLe);
+  if (attente.length > 0)
+    return {
+      etat: 'attend',
+      lignes: attente.length,
+      auPlusTot: attente
+        .map((f) => f.declaresLe)
+        .sort()
+        .at(-1)!,
+    };
+  return {
+    etat: 'confirme',
+    le: frais
+      .map((f) => f.confirmeLe!)
+      .sort()
+      .at(-1)!,
+  };
+}
+
+/** Le jour du OUI : une date réelle, pas dans le futur, pas avant les frais qu'il confirme. L'erreur, ou null. */
+export function erreurDuOui(
+  le: string,
+  auPlusTot: string,
+  aujourdHui = jourDuCongo(),
+): string | null {
+  if (!dateDeclareeValide(le, aujourdHui)) return 'Donne le jour réel où l’école a répondu OUI.';
+  if (le < auPlusTot) return 'Le OUI ne peut pas précéder la date des frais qu’il confirme.';
+  return null;
+}
+
+/** Les mois facturés le plus souvent dits sur les lignes au mois (pour préremplir), ou null. */
+export function moisFacturesDesLignes(frais: readonly FraisEcole[]): number | null {
+  const compte = new Map<number, number>();
+  for (const f of frais)
+    if (f.periode === 'mois' && f.moisFactures != null)
+      compte.set(f.moisFactures, (compte.get(f.moisFactures) ?? 0) + 1);
+  let meilleur: number | null = null;
+  for (const [mois, n] of compte)
+    if (meilleur === null || n > (compte.get(meilleur) ?? 0)) meilleur = mois;
+  return meilleur;
 }
 
 /**

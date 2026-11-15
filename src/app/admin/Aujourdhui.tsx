@@ -17,6 +17,8 @@ import {
   type VueEnsemble as Vue,
 } from '../../modele/ports';
 import { resumerLesRenvoyees } from '../../modele/renvoyees';
+import { ajouterJours, jourDuCongo } from '../../modele/date-declaration';
+import { resumerDemandes, type DemandesResumees } from '../../modele/demandes-familles';
 import { zonesOuvertesRacines } from '../../modele/vue-ensemble';
 import { cn } from '@/lib/utils';
 import { Bandeau } from '@/ui/v2/formulaire';
@@ -102,6 +104,99 @@ function Attente({
   );
 }
 
+/** Les demandes des familles se lisent sur cette durée, en jours. */
+const JOURS_DES_DEMANDES = 30;
+
+/**
+ * « Les familles demandent » (lot 2 du site public, 15/11) : les fiches dont des familles ont demandé la vérification, et
+ * ce qu'elles ont cherché au test d'orientation sans trouver. Comptées sans nom ni numéro, une par téléphone, sujet et
+ * jour : de quoi dire à une direction que des familles cherchent ses frais, et orienter les missions.
+ */
+function DemandesDesFamilles({ demandes }: { demandes: DemandesResumees }) {
+  const ligne = 'flex min-h-12 items-center gap-3 px-4 py-2.5 text-[15px]';
+  const separee = 'border-t border-border first:border-t-0';
+  const nombre =
+    'w-9 shrink-0 text-center font-serif text-[22px] leading-none font-bold text-primary-strong';
+  return (
+    <section className="flex flex-col gap-2.5 lg:col-span-2" aria-label="Les familles demandent">
+      <h2 className={surtitre}>Les familles demandent · {JOURS_DES_DEMANDES} jours</h2>
+      {demandes.total === 0 ? (
+        <p className="m-0 rounded-lg bg-muted px-4 py-3 text-[15px] text-muted-foreground">
+          Aucune demande comptée. Elles viendront de « Demander la vérification » sur une fiche et
+          du test d’orientation.
+        </p>
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2">
+          <section
+            className="flex flex-col overflow-hidden rounded-lg border border-border bg-card"
+            aria-label="Vérifications demandées"
+          >
+            <h3 className="m-0 border-b border-border bg-muted px-4 py-2.5 font-sans text-sm font-bold">
+              Vérifications demandées
+            </h3>
+            {demandes.verifications.length === 0 ? (
+              <p className="m-0 px-4 py-3 text-[15px] text-muted-foreground">Aucune.</p>
+            ) : (
+              <ul className="m-0 list-none p-0">
+                {demandes.verifications.slice(0, 5).map((v) => (
+                  <li key={v.ecoleId} className={separee}>
+                    <a
+                      href={`#ecoles/fiche/${v.ecoleId}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        aller(`ecoles/fiche/${v.ecoleId}`);
+                      }}
+                      aria-label={`${v.nom} : ${v.nombre} demande${v.nombre > 1 ? 's' : ''}`}
+                      className={cn(
+                        ligne,
+                        'text-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring [@media(hover:hover)]:hover:bg-muted',
+                      )}
+                    >
+                      <span className={nombre}>{v.nombre}</span>
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <b className="truncate">{v.nom}</b>
+                        <span className="text-sm text-muted-foreground">
+                          depuis le {jourLisible(v.depuis)}
+                        </span>
+                      </span>
+                      <IconeAdmin nom="suivant" taille={18} />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <section
+            className="flex flex-col overflow-hidden rounded-lg border border-border bg-card"
+            aria-label="Tests d’orientation sans résultat"
+          >
+            <h3 className="m-0 border-b border-border bg-muted px-4 py-2.5 font-sans text-sm font-bold">
+              Tests d’orientation sans résultat
+            </h3>
+            {demandes.orientations.length === 0 ? (
+              <p className="m-0 px-4 py-3 text-[15px] text-muted-foreground">Aucun.</p>
+            ) : (
+              <ul className="m-0 list-none p-0">
+                {demandes.orientations.slice(0, 5).map((o) => (
+                  <li key={o.sujet} className={cn(ligne, separee)}>
+                    <span className={nombre}>{o.nombre}</span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <b>{o.sujet}</b>
+                      <span className="text-sm text-muted-foreground">
+                        depuis le {jourLisible(o.depuis)}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      )}
+    </section>
+  );
+}
+
 /** Un chiffre de « Cette semaine » : le nombre en serif, ce qu'il compte en gras, sur la bande. */
 function Chiffre({ nombre, children }: { nombre: number; children: React.ReactNode }) {
   return (
@@ -128,6 +223,8 @@ export function Aujourdhui({
   const [renvoyees, setRenvoyees] = useState<ReturnType<typeof resumerLesRenvoyees> | null>(null);
   const [pretes, setPretes] = useState<number | null>(null);
   const [paie, setPaie] = useState<{ relais: number; total: number } | null>(null);
+  // Lot 2 du site public (15/11) : les demandes des familles des 30 derniers jours, sans nom ni numéro.
+  const [demandes, setDemandes] = useState<DemandesResumees | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
   useEffect(() => {
@@ -166,6 +263,10 @@ export function Aujourdhui({
             total: l.reduce((t, x) => t + x.totalXaf, 0),
           }),
       )
+      .catch(() => undefined);
+    void admin
+      .demandesDesFamilles(ajouterJours(jourDuCongo(), -JOURS_DES_DEMANDES))
+      .then((d) => !abandonne && setDemandes(resumerDemandes(d)))
       .catch(() => undefined);
     return () => {
       abandonne = true;
@@ -301,6 +402,8 @@ export function Aujourdhui({
               </Chiffre>
             </ul>
           </section>
+
+          {demandes && <DemandesDesFamilles demandes={demandes} />}
 
           <details className="group rounded-lg border border-border bg-card lg:col-span-2">
             <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-[15px] font-bold text-primary-strong [&::-webkit-details-marker]:hidden">

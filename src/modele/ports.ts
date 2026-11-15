@@ -735,6 +735,9 @@ export interface EcoleVue {
   verifieeLe: string | null;
   /** Lot G : une autre école au même lieu (même portail), notée par l'administration ; son identifiant de site. */
   memeLieuQue?: string | null;
+  /** Lot 2 du site public (15/11) : les places annoncées par l'école (même passées) et l'effectif de ses classes. */
+  places?: import('./places-effectifs').PlacesAnnoncees[];
+  effectifs?: import('./places-effectifs').EffectifClasse[];
 }
 
 /**
@@ -1044,6 +1047,31 @@ export interface PortAdministration {
   enregistrerContactPublic(ecoleId: string, contact: AccordContactPublic | null): Promise<void>;
   enregistrerFraisEcole(ecoleId: string, frais: FraisASaisir, id: string | null): Promise<string>;
   retirerFraisEcole(ecoleId: string, id: string): Promise<void>;
+  /**
+   * Lot 2 du site public (15/11) : le OUI écrit de l'école sur ses frais, au jour où elle l'a donné. Toutes les lignes qui
+   * l'attendent deviennent publiques (à la prochaine mise à jour du site) ; rend leur nombre. Refusé si aucune n'attend,
+   * pour une date future, ou avant la date des frais. `POST /admin/ecoles/{id}/frais/oui`
+   */
+  confirmerFraisEcole(ecoleId: string, confirmeLe: string): Promise<number>;
+  /** Lot 2 : annoncer ou redire les places d'une classe (30 jours au plus après le jour dit). `PUT /admin/ecoles/{id}/places` */
+  enregistrerPlaces(
+    ecoleId: string,
+    places: import('./places-effectifs').PlacesASaisir,
+    id: string | null,
+  ): Promise<string>;
+  retirerPlaces(ecoleId: string, id: string): Promise<void>;
+  /** Lot 2 : l'effectif d'une classe, en tranches. `PUT /admin/ecoles/{id}/effectifs` */
+  enregistrerEffectif(
+    ecoleId: string,
+    effectif: import('./places-effectifs').EffectifASaisir,
+    id: string | null,
+  ): Promise<string>;
+  retirerEffectif(ecoleId: string, id: string): Promise<void>;
+  /**
+   * Lot 2 : les demandes des familles depuis un jour (ISO), sans nom ni numéro : vérifications d'une fiche, tests
+   * d'orientation sans résultat. Lecture seule. `GET /admin/demandes-familles?depuis=`
+   */
+  demandesDesFamilles(depuis: string): Promise<import('./demandes-familles').DemandeFamille[]>;
   /** Ajoute ou remplace l'agrément de l'établissement ou d'une filière : une ligne par école et par filière. */
   enregistrerAgrement(ecoleId: string, agrement: AgrementASaisir): Promise<string>;
   /** Retire l'agrément ; le fichier de sa preuve, s'il y en a un, est effacé du stockage. */

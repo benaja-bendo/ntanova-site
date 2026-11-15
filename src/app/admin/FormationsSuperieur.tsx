@@ -12,7 +12,12 @@ import {
   type FormationDuSuperieur,
   type GenrePreuve,
 } from '../../modele/fiche-admin';
-import { libelleDiplome, libelleNiveau, libelleSelection } from '../../modele/libelles';
+import {
+  libelleDiplome,
+  libelleNiveau,
+  libelleSelection,
+  libelleSerie,
+} from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
 import { francs } from '../../modele/paie';
 import { dateLongue } from '../../modele/pointe-noire';
@@ -50,6 +55,9 @@ const rythmesCourts: Record<Valeur<'study_rhythm'>, string> = {
   soir: 'Soir',
   weekend: 'Week-end',
 };
+
+/** Lot 2 du site public (15/11) : une série en puce, « A », « F2 », « Autre ». */
+const serieCourte = (v: Valeur<'bac_track'>) => (v === 'autre' ? 'Autre' : v.toUpperCase());
 
 /** Sur quoi l'autorisation a été vue (planche : « Vue sur »). */
 const vueSur: Record<GenrePreuve, string> = {
@@ -126,6 +134,11 @@ export function FormationsSuperieur({
                 <span className={v2.mention}> · {libelleNiveau[f.cycle]}</span>
               </b>
               <p className={v2.mention}>{resumeDesDetails(f.details)}</p>
+              {(f.seriesAdmises ?? []).length > 0 && (
+                <p className={v2.mention}>
+                  Séries admises : {(f.seriesAdmises ?? []).map(serieCourte).join(', ')}
+                </p>
+              )}
               <p className={v2.mention}>
                 {f.autorisation
                   ? `Autorisation : réf. ${f.autorisation.reference}`
@@ -188,6 +201,9 @@ function TiroirFormation({
   const [diplome, setDiplome] = useState<Valeur<'diploma_kind'> | null>(f.diplome ?? null);
   const [domaine, setDomaine] = useState<string | null>(f.domaine ?? null);
   const [rythmes, setRythmes] = useState<Valeur<'study_rhythm'>[]>(f.rythmes ?? []);
+  // Lot 2 (15/11) : les séries du bac que la formation admet (supérieur seulement) ; aucune cochée : pas dit.
+  const [series, setSeries] = useState<Valeur<'bac_track'>[]>(f.seriesAdmises ?? []);
+  const apresLeBac = f.cycle === 'superieur';
   const [duree, setDuree] = useState(d.dureeAnnees?.toLocaleString('fr-FR') ?? '');
   const [delivrePar, setDelivrePar] = useState(d.delivrePar ?? '');
   const [niveau, setNiveau] = useState(d.niveauDemande ?? '');
@@ -223,6 +239,7 @@ function TiroirFormation({
       delivrePar: delivrePar.trim() || null,
       ditLe: ditLe || null,
       fraisParAn: parAn,
+      ...(apresLeBac ? { seriesAdmises: series } : {}),
       autorisation:
         vue && preuve
           ? {
@@ -419,7 +436,11 @@ function TiroirFormation({
                   />
                 )}
               </Champ>
-              <Champ libelle="Frais par an (FCFA)" facultatif>
+              <Champ
+                libelle="Frais par an (FCFA)"
+                facultatif
+                aide="Sur le site avec le OUI de l’école (Frais)."
+              >
                 {(x) => (
                   <input
                     {...x}
@@ -431,6 +452,41 @@ function TiroirFormation({
                 )}
               </Champ>
             </div>
+            {apresLeBac && (
+              <div
+                role="group"
+                aria-label="Séries du bac admises"
+                className="flex flex-col gap-1.5"
+              >
+                <span className="text-sm font-bold">
+                  Séries du bac admises{' '}
+                  <span className="font-normal text-muted-foreground">(facultatif)</span>
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {listes.bac_track.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      className={v2.puce}
+                      aria-pressed={series.includes(v)}
+                      aria-label={libelleSerie[v]}
+                      onClick={() =>
+                        setSeries((avant) =>
+                          avant.includes(v)
+                            ? avant.filter((x) => x !== v)
+                            : listes.bac_track.filter((x) => x === v || avant.includes(x)),
+                        )
+                      }
+                    >
+                      {serieCourte(v)}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[13px] text-muted-foreground">
+                  Ce que dit l’école ; aucune cochée : pas dit. Le test d’orientation les lira.
+                </span>
+              </div>
+            )}
             <Champ libelle="Dit par l’école le">
               {(x) => (
                 <input
