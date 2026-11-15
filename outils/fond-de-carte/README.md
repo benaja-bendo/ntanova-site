@@ -139,7 +139,7 @@ Il sert `sortie/` sur `http://127.0.0.1:8077/congo-AAAA-MM-JJ.pmtiles` (uniqueme
 ## Mettre à jour
 
 - **Une nouvelle build** (OpenStreetMap change tous les jours ; un trimestre suffit) : `fabriquer.sh`, envoyer le nouveau fichier (nouveau nom daté), faire pointer le site dessus, **garder l'ancien** le temps de la mise en ligne, l'effacer après (`pnpm exec wrangler r2 object delete ntanova-tuiles/congo-ancien.pmtiles --remote`).
-- **Une nouvelle ville** : ajouter sa fenêtre dans `fabriquer.sh` (un `extract` de plus, et le `merge`) **et** dans `FENETRES_DES_VILLES` (`src/modele/carte/fond.ts`) : un test compare les deux. Une ville coûte de l'ordre de 5 à 20 Mo brut, 2 à 5 Mo allégé. Ajouter aussi son point, son contour et son état public dans la base (voir `CLAUDE.md`, « Les données de la carte interactive »).
+- **Une nouvelle ville** : ajouter sa fenêtre dans `fabriquer.sh` (un `extract` de plus, et le `merge`) **et** dans `FENETRES_DES_VILLES` (`src/modele/carte/fond.ts`) : un test compare les deux. Une ville coûte de l'ordre de 5 à 20 Mo brut, 2 à 5 Mo allégé. Ajouter aussi son point, son contour et son état public dans la base (voir `docs/archive/2026-11-15-claude-md-avant-compression/CLAUDE-avant-compression.md`, « Les données de la carte interactive »).
 
 ## Pièges
 
