@@ -370,7 +370,7 @@ Tests : `paie_missions`, `releve_bonus`, `medias_et_sites`, `frais_manques_nouve
 
 ## Le site public à trois piliers, lot 1 — 15/11/2026
 
-Décisions du fondateur du 15/11 (`ntanova`, `docs/produit/2026-11-15-site-public-trois-piliers.md`, §3 et §5). Migration `20261115200000_lot_1_site_public.sql`, **additive** : aucune colonne ni valeur de liste retirée, l'ancien appel de `set_school_fee` marche toujours (paramètre nouveau à la fin, avec une valeur par défaut). **Aucun écran ne s'en sert encore** : l'administration au lot 2, le site public aux lots 4 à 6.
+Décisions du fondateur du 15/11 (`ntanova`, `docs/produit/2026-11-15-site-public-trois-piliers.md`, §3 et §5). Migration `20261115200000_lot_1_site_public.sql`, **additive** : aucune colonne ni valeur de liste retirée, l'ancien appel de `set_school_fee` marche toujours (paramètre nouveau à la fin, avec une valeur par défaut). L'administration s'en sert depuis le lot 2 (16/11) ; le site public, aux lots 4 à 6.
 
 | Champ | Ce qu'il apporte |
 | --- | --- |
@@ -383,4 +383,4 @@ Décisions du fondateur du 15/11 (`ntanova`, `docs/produit/2026-11-15-site-publi
 
 Toutes les fonctions qui écrivent passent par `exiger_gestion_site` (l'administration aujourd'hui, le compte de la direction à l'étape C). Places et effectifs ont leur historique privé, `prive.campus_detail_history`. Les listes `opening_state`, `class_size_band`, `family_demand_kind` et `orientation_profile` sont recopiées dans `src/modele/listes.ts`.
 
-Tests : `supabase/tests/lot_1_site_public.test.sql` (39 contrôles). `frais_ecole` et `frais_manques_nouvelles_admission` notent désormais le OUI de l'école avant de lire les frais en visiteur ; `droits` ajoute `campus_class_sizes`, `campus_openings` et `public_verification_demands` à ce que le visiteur lit. **À faire au lot 2** : écrans de saisie (mois facturés, « Noter le OUI de l'école », séries admises, places, effectifs). `merge_campuses` ne connaît pas encore ces tables : à vérifier avant leur premier usage.
+Tests : `supabase/tests/lot_1_site_public.test.sql` (39 contrôles). `frais_ecole` et `frais_manques_nouvelles_admission` notent désormais le OUI de l'école avant de lire les frais en visiteur ; `droits` ajoute `campus_class_sizes`, `campus_openings` et `public_verification_demands` à ce que le visiteur lit. **Lot 2 (16/11), l'administration** : les frais envoient toujours `p_billed_months` et ne réécrivent que les lignes qui changent (une ligne inchangée garde son OUI) ; « Noter le OUI de l'école » appelle `confirm_school_fees` ; le tiroir d'une formation du supérieur écrit `accepted_bac_tracks` ; la rubrique « Places et effectifs » de la fiche ; « Aujourd'hui » lit `family_demands` sur 30 jours (jamais `device_day_key`). `merge_campuses` retire le doublon sans toucher à ses places ni à ses effectifs : ils restent sur la fiche retirée, invisibles du public ; les redire sur la fiche gardée.
