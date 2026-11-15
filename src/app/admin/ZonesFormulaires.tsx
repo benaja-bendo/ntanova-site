@@ -2,6 +2,7 @@
  * Les deux formulaires de l'onglet Zones : ajouter une zone sous une zone, poser un lot. Ils s'ouvrent dans le volet de la
  * zone choisie, qui leur donne déjà la zone : on n'a plus à la chercher dans une liste de toutes les zones.
  */
+import { v2 } from '@/ui/v2/classes';
 import { useState } from 'react';
 import { cheminLisible } from '../../modele/geo-divisions';
 import { libelleGenreDivision } from '../../modele/libelles';
@@ -14,7 +15,7 @@ import {
   nomDejaPris,
   problemeDeNom,
 } from '../../modele/zones-admin';
-import { Champ } from '../../ui/composants';
+import { Champ } from '@/ui/v2/formulaire';
 import { messageErreur } from './ChampPosition';
 
 /** Les genres qu'une division peut avoir sous un parent de ce niveau (voir `geo_divisions_genre_du_niveau`). */
@@ -101,8 +102,8 @@ export function AjouterDivision({
   };
 
   return (
-    <form className="admin-motif" aria-label="Ajouter une zone" onSubmit={(ev) => void valider(ev)}>
-      <p className="mention admin-pleine-largeur">
+    <form className={v2.motif} aria-label="Ajouter une zone" onSubmit={(ev) => void valider(ev)}>
+      <p className={v2.mentionLarge}>
         Un département sous un pays, une ville sous un département, un arrondissement sous une
         ville, un quartier ou une zone sous un arrondissement. L’adresse d’une zone se fabrique à
         partir de son nom et ne change plus ensuite : elle est dans des liens publics.
@@ -111,7 +112,7 @@ export function AjouterDivision({
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={parentId}
             onChange={(ev) => choisirParent(ev.target.value)}
           >
@@ -128,7 +129,7 @@ export function AjouterDivision({
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={genre}
             disabled={genres.length === 0}
             onChange={(ev) => setGenre(ev.target.value as Valeur<'geo_kind'>)}
@@ -145,7 +146,7 @@ export function AjouterDivision({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             maxLength={120}
@@ -164,7 +165,7 @@ export function AjouterDivision({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             maxLength={60}
@@ -177,12 +178,16 @@ export function AjouterDivision({
         )}
       </Champ>
       {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
+        <p className={v2.erreurLarge} role="alert">
           {erreur}
         </p>
       )}
-      <div className="admin-actions admin-pleine-largeur">
-        <button type="submit" className="bouton" disabled={enCours || !parent || nom.trim() === ''}>
+      <div className={v2.actionsLarge}>
+        <button
+          type="submit"
+          className={v2.bouton}
+          disabled={enCours || !parent || nom.trim() === ''}
+        >
           Ajouter la zone
         </button>
       </div>
@@ -241,7 +246,7 @@ export function RenommerZone({
 
   return (
     <form
-      className="admin-motif"
+      className={v2.motif}
       aria-label={`Renommer ${zone.nom}`}
       onSubmit={(ev) => void valider(ev)}
     >
@@ -249,7 +254,7 @@ export function RenommerZone({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             maxLength={LONGUEUR_MAX_NOM}
@@ -266,7 +271,7 @@ export function RenommerZone({
         {(a) => (
           <textarea
             {...a}
-            className="champ"
+            className={v2.champ}
             rows={3}
             maxLength={(LONGUEUR_MAX_ECRITURE + 1) * 20}
             value={ecritures}
@@ -274,17 +279,21 @@ export function RenommerZone({
           />
         )}
       </Champ>
-      <p className="mention admin-pleine-largeur">
+      <p className={v2.mentionLarge}>
         L’adresse ({zone.slug}) ne change pas : les liens déjà partagés restent bons. Le nouveau nom
         paraît sur ntanova.com après la prochaine mise à jour du site.
       </p>
       {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
+        <p className={v2.erreurLarge} role="alert">
           {erreur}
         </p>
       )}
-      <div className="admin-actions admin-pleine-largeur">
-        <button type="submit" className="bouton" disabled={enCours || inchange || empeche !== null}>
+      <div className={v2.actionsLarge}>
+        <button
+          type="submit"
+          className={v2.bouton}
+          disabled={enCours || inchange || empeche !== null}
+        >
           Enregistrer
         </button>
       </div>
@@ -332,8 +341,8 @@ export function NouveauLot({
   };
 
   return (
-    <form className="admin-motif" aria-label="Créer un lot" onSubmit={(ev) => void creer(ev)}>
-      <p className="mention admin-pleine-largeur">
+    <form className={v2.motif} aria-label="Créer un lot" onSubmit={(ev) => void creer(ev)}>
+      <p className={v2.mentionLarge}>
         Un lot est la zone qu’un relais parcourt : une ville, un arrondissement ou un quartier,
         n’importe où dans le pays. Il se pose sur une zone <b>ouverte</b> au relevé ; un lot
         d’entraînement se pose n’importe où.
@@ -342,7 +351,7 @@ export function NouveauLot({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             maxLength={80}
@@ -355,7 +364,7 @@ export function NouveauLot({
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={divisionId}
             onChange={(ev) => setDivisionId(ev.target.value)}
           >
@@ -375,26 +384,26 @@ export function NouveauLot({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="date"
             value={rendreLe}
             onChange={(ev) => setRendreLe(ev.target.value)}
           />
         )}
       </Champ>
-      <label className="rang admin-pleine-largeur">
+      <label className={v2.rangLarge}>
         <input type="checkbox" checked={essai} onChange={(ev) => setEssai(ev.target.checked)} />
         <span>Lot d’entraînement : ses fiches ne sont jamais publiées.</span>
       </label>
       {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
+        <p className={v2.erreurLarge} role="alert">
           {erreur}
         </p>
       )}
-      <div className="admin-actions admin-pleine-largeur">
+      <div className={v2.actionsLarge}>
         <button
           type="submit"
-          className="bouton"
+          className={v2.bouton}
           disabled={
             enCours || nom.trim() === '' || divisionId === '' || (!essai && !estOuverte(divisionId))
           }
@@ -402,7 +411,7 @@ export function NouveauLot({
           Créer le lot
         </button>
         {divisionId !== '' && !essai && !estOuverte(divisionId) && (
-          <span className="mention">
+          <span className={v2.mention}>
             Cette zone est fermée : ouvre-la d’abord, ou fais-en un lot d’entraînement.
           </span>
         )}

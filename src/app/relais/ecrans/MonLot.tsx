@@ -5,7 +5,25 @@ import { phraseDuBilan } from '../../../modele/envoi';
 import { base, compteConnecte, garder, lireMemoire, useRequete } from '../base-locale';
 import { jourDuCongo } from '../../../modele/date-declaration';
 import { aller, useEnLigne, useRelais } from '../contexte';
-import { Bandeau, Champ, Choix, heure, Icone, Navigation, PastilleReseau } from '../composants';
+import { heure } from '../composants';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/ui/shadcn/badge';
+import { Button } from '@/ui/shadcn/button';
+import { Input } from '@/ui/shadcn/input';
+import { Label } from '@/ui/shadcn/label';
+import {
+  IconeAide,
+  IconeAjouter,
+  IconeAlerte,
+  IconeCadenas,
+  IconeChargement,
+  IconeFait,
+  IconeNuage,
+  IconeOuvrir,
+} from '@/ui/shadcn/icones';
+import { BarreDuBas, PastilleEnLigne, Surtitre } from '../cadre';
+import { Bande, Ebauche, EtatVide } from '../etats';
+import { Pastille } from '@/ui/v2/choix';
 import { BoutonGoogle } from './Connexion';
 import { commencerCorrection } from './Ajouter';
 import { missionsDeLAccueil, semaineDuRelais } from '../../../modele/accueil-relais';
@@ -35,22 +53,21 @@ export function EtatEnvoi({ calme = 'montrer' }: { calme?: 'montrer' | 'cacher' 
   if (envoi === 'reconnecter') {
     if (calme === 'seul') return null;
     return (
-      <Bandeau ton="erreur" icone="cadenas">
+      <Bande ton="danger" role="alert" icone={<IconeCadenas />} action={<BoutonGoogle />}>
         <p>
           <b>Votre session a expiré.</b> Reconnectez-vous pour envoyer vos fiches&nbsp;: elles
           restent sur le téléphone.
         </p>
-        <BoutonGoogle />
-      </Bandeau>
+      </Bande>
     );
   }
   if (enAttente === undefined || refusees === undefined) {
-    return calme === 'seul' ? null : <div className="bandeau-reserve" aria-hidden="true" />;
+    return calme === 'seul' ? null : <div className="h-11" aria-hidden="true" />;
   }
   if (calme === 'seul' && (enAttente > 0 || refusees > 0)) return null;
   const refus =
     refusees > 0 ? (
-      <Bandeau ton="erreur" icone="alerte">
+      <Bande ton="danger" icone={<IconeAlerte />}>
         <p>
           <b>
             {refusees} fiche{refusees > 1 ? 's' : ''} n'{refusees > 1 ? 'ont' : 'a'} pas pu être
@@ -58,7 +75,7 @@ export function EtatEnvoi({ calme = 'montrer' }: { calme?: 'montrer' | 'cacher' 
           </b>{' '}
           La raison est dans «&nbsp;Mes fiches&nbsp;».
         </p>
-      </Bandeau>
+      </Bande>
     ) : null;
   if (enAttente > 0) {
     const pluriel = enAttente > 1;
@@ -68,9 +85,22 @@ export function EtatEnvoi({ calme = 'montrer' }: { calme?: 'montrer' | 'cacher' 
     return (
       <>
         {refus}
-        <Bandeau
-          ton={(envoi === 'erreur' && enLigne) || phrase?.ton === 'echec' ? 'erreur' : 'attente'}
-          icone="nuage"
+        <Bande
+          ton={(envoi === 'erreur' && enLigne) || phrase?.ton === 'echec' ? 'danger' : 'attention'}
+          icone={<IconeNuage />}
+          action={
+            enLigne && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={synchroniser}
+                disabled={enCoursDEnvoi}
+                aria-busy={enCoursDEnvoi || undefined}
+              >
+                {enCoursDEnvoi ? 'Envoi…' : 'Envoyer maintenant'}
+              </Button>
+            )
+          }
         >
           <p>
             <b>
@@ -86,23 +116,13 @@ export function EtatEnvoi({ calme = 'montrer' }: { calme?: 'montrer' | 'cacher' 
                 : 'Elle partira seule dès que le téléphone capte.'}
           </p>
           {enLigne && enCoursDEnvoi && (
-            <p className="rang" role="status">
-              <span className="roue" aria-hidden="true" />
+            <p role="status" className="flex items-center gap-2">
+              <IconeChargement className="size-4 animate-spin motion-reduce:animate-none" />
               Envoi en cours…
             </p>
           )}
           {enLigne && !enCoursDEnvoi && phrase && <p role="status">{phrase.texte}</p>}
-          {enLigne && (
-            <button
-              type="button"
-              className="bouton bouton-secondaire bouton-petit"
-              onClick={synchroniser}
-              disabled={envoi === 'en_cours'}
-            >
-              {envoi === 'en_cours' ? 'Envoi…' : 'Envoyer maintenant'}
-            </button>
-          )}
-        </Bandeau>
+        </Bande>
       </>
     );
   }
@@ -110,11 +130,12 @@ export function EtatEnvoi({ calme = 'montrer' }: { calme?: 'montrer' | 'cacher' 
   if (refus) return refus;
   if (calme === 'cacher') return null;
   return (
-    <Bandeau ton="envoye" icone="coche">
+    <Bande ton="succes" icone={<IconeFait />}>
       <p>
-        <b>Tout est envoyé.</b> {dernierEnvoi ? `Dernier envoi à ${heure(dernierEnvoi)}.` : ''}
+        <b>Tout est envoyé</b>
+        {dernierEnvoi ? ` · dernier envoi à ${heure(dernierEnvoi)}` : ''}
       </p>
-    </Bandeau>
+    </Bande>
   );
 }
 
@@ -161,63 +182,79 @@ export function Accueil() {
 
   return (
     <div className="ecran">
-      <header className="entete-relais entete-accueil">
-        <span className="entete-marque">
-          <img src="/favicon.svg" alt="" width={30} height={23} />
-          <h1 className="entete-titre" tabIndex={-1} data-retour-liste>
-            Bonjour {profil?.prenom || ''}
-          </h1>
-        </span>
-        <span className="entete-gestes">
-          <PastilleReseau />
-          <a className="bouton-icone" href="#aide/entrer" aria-label="Aide">
-            <Icone nom="aide" taille={22} />
-          </a>
-        </span>
+      <header className="sticky top-0 z-10 flex items-center gap-2.5 border-b border-border bg-card py-2 pr-2 pl-4">
+        <img src="/favicon.svg" alt="" width={30} height={23} />
+        <h1
+          className="m-0 min-w-0 flex-1 truncate font-serif text-lg leading-tight font-bold"
+          tabIndex={-1}
+          data-retour-liste
+        >
+          Bonjour {profil?.prenom || ''}
+        </h1>
+        <PastilleEnLigne />
+        <a
+          href="#aide/entrer"
+          aria-label="Aide"
+          className="flex size-11 items-center justify-center rounded-md text-primary outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+        >
+          <IconeAide className="size-6" />
+        </a>
       </header>
-      <main className="contenu-relais">
+      <main className="flex flex-1 flex-col gap-2.5 p-4">
         <EtatEnvoi calme="cacher" />
 
         {lot?.essai && (
-          <Bandeau ton="attente" icone="alerte">
+          <Bande ton="attention" icone={<IconeAlerte />}>
             <p>
               <b>Lot d'entraînement.</b> Vos fiches ne seront pas publiées.
             </p>
-          </Bandeau>
+          </Bande>
         )}
 
-        <button type="button" className="bouton bouton-large" onClick={() => aller('ajouter/1')}>
-          <Icone nom="plus" />
+        <Button size="hero" className="w-full" onClick={() => aller('ajouter/1')}>
+          <IconeAjouter className="size-6" />
           {brouillon ? 'Reprendre la fiche en cours' : 'Ajouter une école'}
-        </button>
+        </Button>
 
-        <section className="pile-serree missions-accueil" aria-label="Vos missions">
-          <h2 className="surtitre-ligne">
-            <span>Vos missions</span>
-            {lu && <span className="texte-doux">{missions.length} à faire</span>}
-          </h2>
+        <section className="mt-2.5 flex flex-col gap-2" aria-label="Vos missions">
+          <div className="flex items-baseline justify-between">
+            <Surtitre>Vos missions</Surtitre>
+            {lu && (
+              <span className="text-[13px] text-muted-foreground">{missions.length} à faire</span>
+            )}
+          </div>
           {avis && (
-            <p className="message-attention" role="status">
-              {avis}
-            </p>
+            <Bande ton="attention" role="status" icone={<IconeAlerte />}>
+              <p>{avis}</p>
+            </Bande>
+          )}
+          {!lu && (
+            <>
+              <Ebauche className="h-[88px]" />
+              <Ebauche className="h-[88px]" />
+            </>
           )}
           {lu && missions.length === 0 && (
-            <p className="carte-blanche texte-doux">
-              Rien n’attend pour l’instant. Ajoutez les écoles que vous croisez, partout au
-              Congo-Brazzaville.
-            </p>
+            <EtatVide titre="Rien n’attend pour l’instant.">
+              Ajoutez les écoles que vous croisez, partout au Congo-Brazzaville.
+            </EtatVide>
           )}
           {missions.map((m) =>
             m.genre === 'a_corriger' ? (
-              <article key={`c-${m.id}`} className="carte-mission carte-a-corriger">
-                <p className="rang">
-                  <span className="etiquette etat-a-corriger">{m.etiquette}</span>
-                  <b className="carte-mission-nom">{m.nom}</b>
-                </p>
-                <p>{m.texte}</p>
-                <button
-                  type="button"
-                  className="bouton bouton-secondaire bouton-petit"
+              <article
+                key={`c-${m.id}`}
+                className="flex flex-col gap-2 rounded-lg border-2 border-ambre bg-card p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <Badge variant="attention" className="text-xs">
+                    {m.etiquette}
+                  </Badge>
+                  <b className="min-w-0 flex-1 font-serif">{m.nom}</b>
+                </div>
+                <p className="m-0 text-sm">{m.texte}</p>
+                <Button
+                  variant="outline"
+                  className="self-start"
                   onClick={() => {
                     const recu = (releves ?? []).find((r) => r.id === m.id);
                     if (!recu) return;
@@ -231,54 +268,60 @@ export function Accueil() {
                   }}
                 >
                   Corriger la fiche
-                </button>
+                </Button>
               </article>
             ) : (
-              <a key={`m-${m.id}`} className="carte-mission" href={`#mission/${m.id}`}>
-                <span className="carte-mission-corps">
-                  <span className={`etiquette ${m.enRetard ? 'etat-a-corriger' : 'etat-attente'}`}>
+              <a
+                key={`m-${m.id}`}
+                href={`#mission/${m.id}`}
+                className="flex items-center gap-2.5 rounded-lg border border-border bg-card p-3 text-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+              >
+                <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
+                  <Badge
+                    variant={m.enRetard || !m.missionId ? 'attention' : 'succes'}
+                    className="self-start text-xs"
+                  >
                     {m.etiquette}
-                  </span>
-                  <b className="carte-mission-nom">{m.nom}</b>
-                  <span className="texte-doux">{m.texte}</span>
+                  </Badge>
+                  <b className="font-serif">{m.nom}</b>
+                  <span className="text-[13px] text-muted-foreground">{m.texte}</span>
                 </span>
-                <Icone nom="suivant" />
+                <IconeOuvrir className="size-5" />
               </a>
             ),
           )}
         </section>
 
-        {lu && (
-          <section className="carte-blanche pile-serree" aria-label="Cette semaine">
-            <h2 className="surtitre-doux">Cette semaine</h2>
-            <dl className="semaine-relais">
-              <div>
-                <dt>envoyées</dt>
-                <dd>{semaine.envoyees}</dd>
-              </div>
-              <div>
-                <dt>acceptées</dt>
-                <dd>{semaine.acceptees}</dd>
-              </div>
-              <div>
-                <dt>en attente</dt>
-                <dd>{semaine.enAttente}</dd>
-              </div>
-            </dl>
-          </section>
-        )}
+        <section className="mt-2.5 flex flex-col gap-2" aria-label="Cette semaine">
+          <Surtitre>Cette semaine</Surtitre>
+          {lu ? (
+            <a
+              href="#fiches"
+              className="grid grid-cols-3 gap-2 text-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+            >
+              {(
+                [
+                  [semaine.envoyees, 'envoyées'],
+                  [semaine.acceptees, 'acceptées'],
+                  [semaine.enAttente, 'en attente'],
+                ] as const
+              ).map(([n, mot]) => (
+                <span key={mot} className="flex flex-col rounded-md bg-muted px-3 py-2.5">
+                  <b className="font-serif text-[22px] leading-tight text-primary-strong tabular-nums">
+                    {n}
+                  </b>
+                  <span className="text-[13px]">{mot}</span>
+                </span>
+              ))}
+            </a>
+          ) : (
+            <Ebauche className="h-[68px]" />
+          )}
+        </section>
 
         <EtatEnvoi calme="seul" />
-
-        <a className="ligne-aide" href="#aide/entrer">
-          <span>
-            <b>Quoi dire en entrant</b>
-            <span className="texte-doux">la phrase, et ce qu’on ne fait jamais</span>
-          </span>
-          <Icone nom="suivant" />
-        </a>
       </main>
-      <Navigation />
+      <BarreDuBas />
     </div>
   );
 }
@@ -291,8 +334,9 @@ const MOTIFS: { valeur: Valeur<'mission_blocker'>; libelle: string }[] = [
 ];
 
 /**
- * « Je n'ai pas pu » (v2, 13/11) : le motif, une précision pour « Autre », puis la mission se ferme sans paie. Le geste est
- * gardé sur le téléphone et part avec le prochain envoi : il marche hors ligne.
+ * « Je n'ai pas pu » (v2, 13/11 ; planche « une mission ») : une carte repliée ; dépliée, le motif en pastilles, une
+ * précision pour « Autre », puis la mission se ferme sans paie. Le geste est gardé sur le téléphone et part avec le
+ * prochain envoi : il marche hors ligne.
  */
 export function PasPu({ missionId, apres }: { missionId: string; apres?: () => void }) {
   const { synchroniser } = useRelais();
@@ -300,12 +344,6 @@ export function PasPu({ missionId, apres }: { missionId: string; apres?: () => v
   const [motif, setMotif] = useState<Valeur<'mission_blocker'> | null>(null);
   const [note, setNote] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
-  if (!ouvert)
-    return (
-      <button type="button" className="lien lien-discret" onClick={() => setOuvert(true)}>
-        Je n’ai pas pu
-      </button>
-    );
   const fermer = async () => {
     if (!motif) return setErreur('Dites ce qui vous a empêché.');
     if (motif === 'autre' && !note.trim()) return setErreur('Précisez « autre » en quelques mots.');
@@ -318,45 +356,68 @@ export function PasPu({ missionId, apres }: { missionId: string; apres?: () => v
     apres?.();
   };
   return (
-    <section className="pile-serree" aria-label="Je n’ai pas pu">
-      <Choix
-        legende="Qu’est-ce qui vous a empêché ?"
-        options={MOTIFS}
-        valeurs={motif ? [motif] : []}
-        surChoix={(v) => {
-          setMotif(v);
-          setErreur(null);
-        }}
-        colonnes={2}
-      />
-      {motif === 'autre' && (
-        <Champ libelle="En quelques mots">
-          {(a) => (
-            <input
-              {...a}
-              className="champ"
-              type="text"
-              maxLength={200}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
+    <section
+      className="rounded-lg border border-border bg-card px-3.5 py-3"
+      aria-label="Je n’ai pas pu"
+    >
+      <button
+        type="button"
+        aria-expanded={ouvert}
+        onClick={() => setOuvert((o) => !o)}
+        className="flex min-h-7 w-full cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left font-sans text-base font-bold text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+      >
+        <IconeOuvrir
+          className={cn(
+            'size-4 transition-transform motion-reduce:transition-none',
+            ouvert && 'rotate-90',
           )}
-        </Champ>
+        />
+        Je n’ai pas pu
+      </button>
+      {ouvert && (
+        <div className="flex flex-col gap-3 pt-3">
+          <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+            <legend className="mb-2 p-0 text-[15px]">Qu’est-ce qui vous a empêché&nbsp;?</legend>
+            <div className="flex flex-wrap gap-1.5">
+              {MOTIFS.map((m) => (
+                <Pastille
+                  key={m.valeur}
+                  choisie={motif === m.valeur}
+                  onClick={() => {
+                    setMotif(m.valeur);
+                    setErreur(null);
+                  }}
+                >
+                  {m.libelle}
+                </Pastille>
+              ))}
+            </div>
+          </fieldset>
+          {motif === 'autre' && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pas-pu-note">En quelques mots</Label>
+              <Input
+                id="pas-pu-note"
+                type="text"
+                maxLength={200}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
+          )}
+          {erreur && (
+            <p className="m-0 text-sm font-bold text-destructive" role="alert">
+              {erreur}
+            </p>
+          )}
+          <p className="m-0 text-[13px] text-muted-foreground">
+            La mission se ferme, sans paie. NTanova lit le motif.
+          </p>
+          <Button variant="outline" className="self-start" onClick={() => void fermer()}>
+            Fermer la mission
+          </Button>
+        </div>
       )}
-      {erreur && (
-        <p className="message-erreur" role="alert">
-          {erreur}
-        </p>
-      )}
-      <p className="mention">La mission se ferme, sans paie. NTanova lit le motif.</p>
-      <div className="ligne-boutons">
-        <button type="button" className="bouton bouton-petit" onClick={() => void fermer()}>
-          Fermer la mission
-        </button>
-        <button type="button" className="lien" onClick={() => setOuvert(false)}>
-          Annuler
-        </button>
-      </div>
     </section>
   );
 }

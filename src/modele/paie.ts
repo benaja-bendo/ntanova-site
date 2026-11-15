@@ -185,3 +185,56 @@ export function paieDeLaFiche(
   }
   return null;
 }
+
+// v2, planche « Ma paie » (13/11) : la facture courte, « Fiches acceptées · 5 × 500 · 2 500 » ---------------------------------------
+
+/** Un montant sans l'unité, pour une colonne de chiffres (« 2 500 ») ; l'unité est dite une fois, sur le total. */
+export const chiffres = (montant: number): string => francs(montant).replace(/\s*FCFA$/, '');
+
+const libelleCourt: Record<LigneDeFacture['genre'], (n: number) => string> = {
+  fiche: () => 'Fiches acceptées',
+  mission: (n) => (n > 1 ? 'Missions' : 'Mission'),
+  contact: (n) => (n > 1 ? 'Contacts de direction' : 'Contact de direction'),
+  essai: () => 'Essai validé',
+};
+
+/**
+ * La facture de la planche : une ligne par genre et par tarif, le libellé sans le nombre, le calcul (« 5 × 500 ») et le
+ * sous-total, en chiffres. Sans le détail de la base (paie gardée avant la mise à jour) : les quantités seules.
+ */
+export function factureCourte(ligne: {
+  fiches: number;
+  contacts: number;
+  essais: number;
+  missions?: number;
+  lignes?: readonly LigneDeFacture[];
+}): LigneEcrite[] {
+  if (!ligne.lignes)
+    return detailDeLaPaie(ligne).map((libelle) => ({ libelle, calcul: null, sousTotal: null }));
+  const ordre: LigneDeFacture['genre'][] = ['fiche', 'mission', 'contact', 'essai'];
+  return [...ligne.lignes]
+    .filter((l) => l.nombre > 0)
+    .sort((a, b) => ordre.indexOf(a.genre) - ordre.indexOf(b.genre) || b.tarifXaf - a.tarifXaf)
+    .map((l) => ({
+      libelle: libelleCourt[l.genre](l.nombre),
+      calcul:
+        l.genre === 'essai' && l.nombre === 1 ? null : `${l.nombre} × ${chiffres(l.tarifXaf)}`,
+      sousTotal: l.nombre * l.tarifXaf,
+    }));
+}
+
+/** Ce qu'une semaine payée a compté, en quelques mots (« 4 fiches », « 2 fiches · 1 mission », « Essai »). */
+export function resumeDeLaSemaine(ligne: {
+  fiches: number;
+  contacts: number;
+  essais: number;
+  missions?: number;
+}): string {
+  const morceaux: string[] = [];
+  if (ligne.fiches > 0) morceaux.push(`${ligne.fiches} fiche${s(ligne.fiches)}`);
+  const missions = ligne.missions ?? 0;
+  if (missions > 0) morceaux.push(`${missions} mission${s(missions)}`);
+  if (ligne.contacts > 0) morceaux.push(`${ligne.contacts} contact${s(ligne.contacts)}`);
+  if (ligne.essais > 0) morceaux.push(morceaux.length ? 'essai' : 'Essai');
+  return morceaux.join(' · ');
+}

@@ -1,0 +1,69 @@
+/*
+ * Tailwind v4 pour /admin et /relais (décision du fondateur du 12/11, reprise le 13/11) : le thème ne contient que des
+ * renvois aux jetons de src/ui/jetons.css (aucune couleur en valeur, `pnpm couleurs` le garde), sans « preflight » (les
+ * pages existantes gardent leurs marges et leurs titres). Seuls /admin et /relais importent ce fichier.
+ *
+ * Les utilitaires sont importés hors couche : une classe Tailwind l'emporte ainsi sur les règles d'élément de base.css
+ * (`button`, `a`, `h1`), qui ne sont pas en couche.
+ */
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css';
+
+@custom-variant dark (&:is(.jamais-sombre *));
+
+@theme {
+  /* Aucune couleur de Tailwind : seulement les nôtres. */
+  --color-*: initial;
+}
+
+@theme inline {
+  --color-background: var(--fond);
+  --color-foreground: var(--texte);
+  --color-card: var(--fond-releve);
+  --color-card-foreground: var(--texte);
+  --color-popover: var(--fond-releve);
+  --color-popover-foreground: var(--texte);
+  --color-primary: var(--marque);
+  --color-primary-foreground: var(--texte-sur-marque);
+  --color-primary-strong: var(--marque-appuyee);
+  --color-secondary: var(--fond-bande);
+  --color-secondary-foreground: var(--texte);
+  --color-muted: var(--fond-bande);
+  --color-muted-foreground: var(--texte-doux);
+  /* Piège : chez shadcn, `accent` est le fond de survol ; ici --accent est le jaune. */
+  --color-accent: var(--fond-bande);
+  --color-accent-foreground: var(--texte);
+  --color-jaune: var(--accent);
+  --color-destructive: var(--erreur);
+  --color-border: var(--trait);
+  --color-input: var(--trait-fort);
+  --color-ring: var(--focus);
+  --color-creme: var(--creme);
+  --color-blanc: var(--blanc);
+
+  --color-succes: var(--statut-succes-fond);
+  --color-succes-foreground: var(--statut-succes-texte);
+  --color-attention: var(--statut-attention-fond);
+  --color-attention-foreground: var(--statut-attention-texte);
+  --color-danger: var(--statut-danger-fond);
+  --color-danger-foreground: var(--statut-danger-texte);
+  --color-neutre: var(--statut-neutre-fond);
+  --color-neutre-foreground: var(--statut-neutre-texte);
+  --color-ambre: var(--ambre);
+  --color-bonus: var(--jaune-texte);
+
+  --color-cycle-m: var(--cycle-maternelle);
+  --color-cycle-p: var(--cycle-primaire);
+  --color-cycle-c: var(--cycle-college);
+  --color-cycle-l: var(--cycle-lycee);
+  --color-cycle-t: var(--cycle-technique);
+  --color-cycle-s: var(--cycle-superieur);
+
+  --font-sans: var(--police-interface);
+  --font-serif: var(--police-titre);
+
+  --radius-sm: var(--rayon-xs);
+  --radius-md: var(--rayon-s);
+  --radius-lg: var(--rayon-m);
+  --radius-xl: var(--rayon-l);
+}

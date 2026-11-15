@@ -5,6 +5,8 @@ import {
   envoyerSansBonus,
   prendrePhotoEtPosition,
   seConnecter,
+  ligneDeFiche,
+  ouvrirMaFiche,
 } from './aides';
 
 // La file d'envoi de l'espace relais (ticket #55, PR 2), construite avec le faux serveur. Deux réglages du
@@ -58,8 +60,6 @@ async function ouvrirLEspace(page: Page, context: BrowserContext) {
   await attendreLaLecture(page);
 }
 
-const carte = (page: Page, nom: string) => page.getByRole('article').filter({ hasText: nom });
-
 test.describe('une fiche que la base refuse', () => {
   test('sort de la file avec sa raison, n’est pas rejouée, et part après « Réessayer »', async ({
     page,
@@ -77,23 +77,35 @@ test.describe('une fiche que la base refuse', () => {
     await expect(page.getByText(/attend d'être envoyée/)).toHaveCount(0);
 
     await page.getByRole('link', { name: 'Mes fiches' }).click();
-    const fiche = carte(page, '[École 1]');
-    await expect(fiche.getByText('Refusée', { exact: true })).toBeVisible();
+    await expect(
+      ligneDeFiche(page, '[École 1]').getByText('Refusée', { exact: true }),
+    ).toBeVisible();
+    const fiche = await ouvrirMaFiche(page, '[École 1]');
     await expect(fiche.getByText(/Compte relais inactif\./)).toBeVisible();
-    await expect(fiche.getByRole('button', { name: 'Réessayer' })).toBeVisible();
+    await expect(fiche.getByRole('button', { name: /Réessayer/ })).toBeVisible();
     await expect(fiche.getByRole('button', { name: 'Retirer du téléphone' })).toBeVisible();
 
     // La base a refusé une fois ; rouvrir l'application ne rejoue pas ce qu'elle refuse.
     expect((await serveur(page)).refus).toBe(1);
+    await page.goto('/relais/#fiches');
     await page.reload();
-    await expect(carte(page, '[École 1]').getByText('Refusée', { exact: true })).toBeVisible();
+    await expect(
+      ligneDeFiche(page, '[École 1]').getByText('Refusée', { exact: true }),
+    ).toBeVisible();
     await page.waitForTimeout(1500);
     expect((await serveur(page)).refus).toBe(1);
 
     // Le relais a écrit à NTanova, le compte est actif : « Réessayer » remet la fiche en file.
     await regler(page, 'ntanova-faux-rejet', null);
-    await carte(page, '[École 1]').getByRole('button', { name: 'Réessayer' }).click();
-    await expect(carte(page, '[École 1]').getByText('À valider par NTanova')).toBeVisible({
+    await (
+      await ouvrirMaFiche(page, '[École 1]')
+    )
+      .getByRole('button', { name: /Réessayer/ })
+      .click();
+    await page.goto('/relais/#fiches');
+    await expect(
+      ligneDeFiche(page, '[École 1]').getByText('En attente', { exact: true }),
+    ).toBeVisible({
       timeout: 15_000,
     });
     expect((await serveur(page)).noms).toEqual(['[École 1]']);
@@ -104,8 +116,12 @@ test.describe('une fiche que la base refuse', () => {
     await regler(page, 'ntanova-faux-rejet', '23514|Une règle de la base n’est pas respectée.');
     await ajouterUneEcole(page, 1);
     await page.getByRole('link', { name: 'Mes fiches' }).click();
-    const fiche = carte(page, '[École 1]');
-    await expect(fiche.getByText('Refusée', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(ligneDeFiche(page, '[École 1]').getByText('Refusée', { exact: true })).toBeVisible(
+      {
+        timeout: 15_000,
+      },
+    );
+    const fiche = await ouvrirMaFiche(page, '[École 1]');
 
     await fiche.getByRole('button', { name: 'Retirer du téléphone' }).click();
     const confirmation = page.getByRole('alertdialog');
@@ -140,22 +156,28 @@ test.describe('une panne dont on ne sait rien', () => {
     await expect(page.getByText(/1 fiche attend d'être envoyée/)).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/Un envoi a échoué/)).toBeVisible();
     await page.getByRole('link', { name: 'Mes fiches' }).click();
-    await expect(carte(page, '[École 1]').getByText('Refusée', { exact: true })).toHaveCount(0);
+    await expect(ligneDeFiche(page, '[École 1]').getByText('Refusée', { exact: true })).toHaveCount(
+      0,
+    );
 
     const envoyer = page.getByRole('button', { name: 'Envoyer maintenant' });
     for (let i = 0; i < 4; i++) {
       await expect(envoyer).toBeEnabled({ timeout: 10_000 });
       await envoyer.click();
     }
-    await expect(carte(page, '[École 1]').getByText(/a échoué 5 fois de suite/)).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(ligneDeFiche(page, '[École 1]').getByText(/a échoué 5 fois de suite/)).toBeVisible(
+      {
+        timeout: 15_000,
+      },
+    );
 
     // La panne passe : la fiche part.
     await regler(page, 'ntanova-faux-panne', null);
     await expect(envoyer).toBeEnabled({ timeout: 10_000 });
     await envoyer.click();
-    await expect(carte(page, '[École 1]').getByText('À valider par NTanova')).toBeVisible({
+    await expect(
+      ligneDeFiche(page, '[École 1]').getByText('En attente', { exact: true }),
+    ).toBeVisible({
       timeout: 15_000,
     });
   });
@@ -172,12 +194,14 @@ test.describe('modifier une fiche enregistrée', () => {
     await ajouterUneEcole(page, 1);
     await page.getByRole('link', { name: 'Mes fiches' }).click();
 
-    const fiche = carte(page, '[École 1]');
-    await expect(fiche.getByText('Sur le téléphone', { exact: true }).first()).toBeVisible();
+    await expect(
+      ligneDeFiche(page, '[École 1]').getByText('Sur le téléphone', { exact: true }).first(),
+    ).toBeVisible();
+    const fiche = await ouvrirMaFiche(page, '[École 1]');
     await fiche.getByRole('button', { name: 'Modifier' }).click();
 
     // Les trois étapes sont rouvertes avec ce qui avait été saisi, la photo comprise.
-    await expect(page.locator('.entete-etape-titre')).toHaveText('Ajouter une école');
+    await expect(page.getByRole('banner').getByText('Ajouter une école')).toBeVisible();
     await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
     await page.getByRole('button', { name: 'Suivant' }).click();
     await expect(page.getByLabel("Nom de l'établissement")).toHaveValue('[École 1]');
@@ -193,7 +217,10 @@ test.describe('modifier une fiche enregistrée', () => {
     const envoyer = page.getByRole('button', { name: 'Envoyer maintenant' });
     await expect(envoyer).toBeEnabled({ timeout: 10_000 });
     await envoyer.click();
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    // v2 : « Mes fiches » ne dit plus « Tout est envoyé » (planche) ; la fiche partie est « En attente » chez NTanova.
+    await expect(
+      ligneDeFiche(page, '[École 1, nom corrigé]').getByText('En attente', { exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
     expect((await serveur(page)).noms).toEqual(['[École 1, nom corrigé]']);
     expect(await fichesDuTelephone(page)).toBe(1);
   });
@@ -202,13 +229,14 @@ test.describe('modifier une fiche enregistrée', () => {
     await ouvrirLEspace(page, context);
     await ajouterUneEcole(page, 1);
     await page.getByRole('link', { name: 'Mes fiches' }).click();
-    await expect(carte(page, '[École 1]').getByText('À valider par NTanova')).toBeVisible({
+    await expect(
+      ligneDeFiche(page, '[École 1]').getByText('En attente', { exact: true }),
+    ).toBeVisible({
       timeout: 15_000,
     });
-    await expect(carte(page, '[École 1]').getByRole('button', { name: 'Modifier' })).toHaveCount(0);
-    await expect(
-      carte(page, '[École 1]').getByRole('button', { name: 'Retirer du téléphone' }),
-    ).toHaveCount(0);
+    const fiche = await ouvrirMaFiche(page, '[École 1]');
+    await expect(fiche.getByRole('button', { name: 'Modifier' })).toHaveCount(0);
+    await expect(fiche.getByRole('button', { name: 'Retirer du téléphone' })).toHaveCount(0);
   });
 });
 
@@ -225,7 +253,7 @@ test.describe('abandonner une fiche en cours', () => {
         await page.getByLabel("Nom de l'établissement").fill('[École 1]');
         await page.getByRole('button', { name: 'Suivant' }).click();
       }
-      await expect(page.locator('.entete-etape-compte')).toHaveText(`${etape}/3`);
+      await expect(page.getByRole('banner').getByText(`${etape} sur 3`)).toBeVisible();
 
       await page.getByRole('button', { name: 'Abandonner cette fiche' }).click();
       await page
@@ -276,7 +304,7 @@ test('retirer une copie dont NTanova a reçu le relevé conserve la fiche du ser
   );
   await page.goto('/relais/#fiches');
   await page.reload();
-  const fiche = carte(page, '[École 1]');
+  const fiche = await ouvrirMaFiche(page, '[École 1]');
   await fiche.getByRole('button', { name: 'Retirer du téléphone', exact: true }).click();
   const confirmation = page.getByRole('alertdialog');
   await expect(confirmation).toContainText('NTanova a déjà reçu la fiche');
@@ -285,7 +313,9 @@ test('retirer une copie dont NTanova a reçu le relevé conserve la fiche du ser
     .getByRole('button', { name: 'Oui, retirer du téléphone', exact: true })
     .click();
   await expect(confirmation).toHaveCount(0);
-  await expect(fiche.getByText('À valider par NTanova', { exact: true })).toBeVisible();
+  await expect(
+    ligneDeFiche(page, '[École 1]').getByText('En attente', { exact: true }),
+  ).toBeVisible();
   expect(await fichesDuTelephone(page)).toBe(0);
   expect((await serveur(page)).noms).toEqual(['[École 1]']);
 });

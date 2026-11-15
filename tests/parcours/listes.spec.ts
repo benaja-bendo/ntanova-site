@@ -1,4 +1,12 @@
-import { attendreLaLecture, commencerLaMission, envoyerSansBonus, ouvrirGestion } from './aides';
+import {
+  attendreLaLecture,
+  commencerLaMission,
+  envoyerSansBonus,
+  ouvrirGestion,
+  toutEstEnvoye,
+  ouvrirLesEcoles,
+  ficheOuverte,
+} from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter } from './aides';
 
@@ -10,8 +18,8 @@ test.use({ permissions: ['geolocation'] });
 
 const photo = new URL('./fichiers/enseigne.jpg', import.meta.url).pathname;
 
-const niveaux = (page: Page) => page.getByRole('group', { name: "Niveaux écrits sur l'enseigne" });
-const types = (page: Page) => page.getByRole('group', { name: "Type d'école" });
+const niveaux = (page: Page) => page.getByRole('group', { name: 'Niveaux affichés' });
+const types = (page: Page) => page.getByRole('group', { name: 'Type', exact: true });
 
 /** Le relais est connecté et arrive à l'étape 2/3 d'une nouvelle fiche. */
 async function allerALEtape2(page: Page, context: BrowserContext) {
@@ -32,7 +40,7 @@ async function finirEtEnvoyer(page: Page) {
   await page.getByRole('button', { name: 'Personne', exact: true }).click();
   await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page, 15_000);
 }
 
 /** Les relevés que le faux serveur a reçus. */
@@ -108,7 +116,8 @@ test.describe('étape 2/3 du relais : de la crèche au supérieur', () => {
       'false',
     );
 
-    // Les deux cases de sortie s'expliquent, et la ligne de programme les attend.
+    // Les deux cases de sortie s'expliquent dans le (i) de « Type » (planche : aucune aide sous un champ).
+    await page.getByRole('button', { name: 'Aide : le type' }).click();
     await expect(page.getByText(/Pas indiqué\s*: rien d'écrit/)).toBeVisible();
     await expect(page.getByText(/Autre\s*: c'est écrit mais ça ne rentre pas/)).toBeVisible();
     await expect(page.getByLabel(/Programme, langues ou autre mention écrite/)).toBeVisible();
@@ -143,7 +152,8 @@ test.describe('étape 2/3 du relais : de la crèche au supérieur', () => {
     await ouvrirLaFiche(page);
     const publique = page.getByRole('region', { name: 'Partie publique' });
     await expect(publique.getByText('Pas indiqué', { exact: true })).toBeVisible();
-    await expect(publique.getByText('Programme', { exact: true })).toBeVisible();
+    // Planche : la ligne « Programme » ne paraît que si le relais en a noté un.
+    await expect(publique.getByText('Programme', { exact: true })).toHaveCount(0);
   });
 
   test('les nouvelles cases et la ligne de programme vont du relais jusqu’à l’administration', async ({
@@ -199,7 +209,7 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
     // Le téléphone d'un relais qui a fait cette fiche avant la mise à jour n'a pas de « programme ».
     await oublierLeProgramme(page);
     await context.setOffline(false);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 20_000 });
+    await toutEstEnvoye(page, 20_000);
 
     const [recu] = await relevesRecus(page);
     expect(recu).toMatchObject({ nomEnseigne: '[École 1]', programme: null });
@@ -240,13 +250,10 @@ test.describe('des téléphones qui ont déjà des fiches', () => {
 
     // L'administration confie l'école à situer au relais…
     await seConnecter(page, '/admin/');
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
     await ouvrirGestion(ligne, 'Mission');
-    await page
-      .locator('article.fiche-admin')
-      .getByRole('button', { name: 'Confier', exact: true })
-      .click();
+    await ficheOuverte(page).getByRole('button', { name: 'Confier', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/est confiée à/);
 
     // … et la base lui a donné, depuis, un type et un niveau que ce téléphone ne connaît pas encore.

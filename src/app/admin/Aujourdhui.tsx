@@ -18,7 +18,9 @@ import {
 } from '../../modele/ports';
 import { resumerLesRenvoyees } from '../../modele/renvoyees';
 import { zonesOuvertesRacines } from '../../modele/vue-ensemble';
-import { Bandeau } from '../../ui/composants';
+import { cn } from '@/lib/utils';
+import { Bandeau } from '@/ui/v2/formulaire';
+import { cadreTableau, surtitre, tableau } from './ui';
 import { aller } from '../commun/adresse';
 import { IconeAdmin, TitreEcran } from './Cadre';
 
@@ -47,24 +49,43 @@ function Attente({
 }) {
   const contenu = (
     <>
-      <span className={`attente-nombre${nombre === 0 ? ' attente-nombre-nul' : ''}`}>{nombre}</span>
-      <span className="attente-texte">
-        <b>{titre}</b>
-        <span className={attention ? 'attente-detail-attention' : undefined}>{detail}</span>
+      <span
+        className={cn(
+          'w-12 shrink-0 text-center font-serif text-[30px] leading-none font-bold',
+          nombre === 0 ? 'text-muted-foreground' : 'text-primary-strong',
+        )}
+      >
+        {nombre}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <b className="text-[17px]">{titre}</b>
+        <span
+          className={cn(
+            'text-sm',
+            attention ? 'font-bold text-destructive' : 'text-muted-foreground',
+          )}
+        >
+          {detail}
+        </span>
       </span>
       {chemin && (
-        <span className="attente-geste">
-          {geste && <span className="attente-geste-mot">{geste}</span>}
+        <span className="flex items-center gap-1 text-[15px] font-bold text-primary-strong">
+          {geste && <span className="max-lg:sr-only">{geste}</span>}
           <IconeAdmin nom="suivant" taille={20} />
         </span>
       )}
     </>
   );
+  const carte =
+    'flex min-h-20 items-center gap-4 rounded-lg border border-border bg-card px-4 py-3.5 text-foreground no-underline lg:px-5';
   return (
     <li>
       {chemin ? (
         <a
-          className="attente"
+          className={cn(
+            carte,
+            'outline-none focus-visible:ring-[3px] focus-visible:ring-ring [@media(hover:hover)]:hover:border-primary',
+          )}
           href={`#${chemin}`}
           aria-label={`${nombre} ${titre} : ${detail}`}
           onClick={(e) => {
@@ -75,8 +96,20 @@ function Attente({
           {contenu}
         </a>
       ) : (
-        <div className="attente">{contenu}</div>
+        <div className={carte}>{contenu}</div>
       )}
+    </li>
+  );
+}
+
+/** Un chiffre de « Cette semaine » : le nombre en serif, ce qu'il compte en gras, sur la bande. */
+function Chiffre({ nombre, children }: { nombre: number; children: React.ReactNode }) {
+  return (
+    <li className="flex min-h-[70px] items-center gap-4 rounded-lg bg-muted px-4 py-3">
+      <span className="w-12 shrink-0 font-serif text-[30px] leading-none font-bold text-primary-strong">
+        {nombre}
+      </span>
+      <span className="text-[15px] [&_b]:text-base">{children}</span>
     </li>
   );
 }
@@ -150,7 +183,7 @@ export function Aujourdhui({
   const publiees = zones.reduce((t, z) => t + z.publiees, 0);
 
   return (
-    <div className="pile">
+    <>
       <TitreEcran
         titre="Aujourd’hui"
         regles={
@@ -176,16 +209,16 @@ export function Aujourdhui({
       )}
 
       {vue === null && !erreur && (
-        <p className="texte-doux" aria-busy="true">
+        <p className="m-0 text-muted-foreground" aria-busy="true">
           Chargement…
         </p>
       )}
 
       {vue && (
-        <div className="aujourdhui">
-          <section className="aujourdhui-attente pile-serree" aria-label="Ce qui t’attend">
-            <h2 className="surtitre-doux">Ce qui t’attend</h2>
-            <ul className="liste-attente">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-7">
+          <section className="flex flex-col gap-2.5" aria-label="Ce qui t’attend">
+            <h2 className={surtitre}>Ce qui t’attend</h2>
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
               <Attente
                 titre={vue.aValider.nombre > 1 ? 'fiches à valider' : 'fiche à valider'}
                 nombre={vue.aValider.nombre}
@@ -245,40 +278,41 @@ export function Aujourdhui({
             </ul>
           </section>
 
-          <section className="aujourdhui-semaine pile-serree" aria-label="Cette semaine">
-            <h2 className="surtitre-doux">Cette semaine</h2>
-            <ul className="liste-semaine">
-              <li>
-                <span className="semaine-nombre">{recusSemaine}</span>
-                <span>
-                  <b>relevés reçus</b>
-                  {essaiSemaine > 0 && <span> · dont {essaiSemaine} du lot d’essai</span>}
-                </span>
-              </li>
-              <li>
-                <span className="semaine-nombre">{vue.relais.ontEnvoye7j}</span>
+          <section className="flex flex-col gap-2.5" aria-label="Cette semaine">
+            <h2 className={surtitre}>Cette semaine</h2>
+            <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+              <Chiffre nombre={recusSemaine}>
+                <b>relevés reçus</b>
+                {essaiSemaine > 0 && <span> · dont {essaiSemaine} du lot d’essai</span>}
+              </Chiffre>
+              <Chiffre nombre={vue.relais.ontEnvoye7j}>
                 <b>relais actifs sur {vue.relais.actifs}</b>
-              </li>
-              <li>
-                <span className="semaine-nombre">{ecoles}</span>
+              </Chiffre>
+              <Chiffre nombre={ecoles}>
                 <b>
                   école{ecoles > 1 ? 's' : ''}, {publiees} publiée{publiees > 1 ? 's' : ''}
                 </b>
-              </li>
-              <li>
-                <span className="semaine-nombre">{vue.contacts.confirmes7j}</span>
+              </Chiffre>
+              <Chiffre nombre={vue.contacts.confirmes7j}>
                 <b>
                   contact{vue.contacts.confirmes7j > 1 ? 's' : ''} confirmé
                   {vue.contacts.confirmes7j > 1 ? 's' : ''}
                 </b>
-              </li>
+              </Chiffre>
             </ul>
           </section>
 
-          <details className="aujourdhui-detail section-repliable">
-            <summary>Le détail</summary>
-            <div className="pile">
-              <dl className="admin-champs">
+          <details className="group rounded-lg border border-border bg-card lg:col-span-2">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-[15px] font-bold text-primary-strong [&::-webkit-details-marker]:hidden">
+              <IconeAdmin
+                nom="suivant"
+                taille={18}
+                className="transition-transform group-open:rotate-90"
+              />
+              Le détail
+            </summary>
+            <div className="flex flex-col gap-5 border-t border-border p-4">
+              <dl className="m-0 grid gap-x-6 gap-y-1.5 text-[15px] sm:grid-cols-[max-content_1fr] [&_dd]:m-0 [&_dt]:text-muted-foreground">
                 <dt>Délai de décision</dt>
                 <dd>
                   {vue.decisions.delaiMoyenHeures === null
@@ -296,17 +330,17 @@ export function Aujourdhui({
                 <dd>{vue.contacts.confirmesTotal} au total</dd>
               </dl>
 
-              <section className="pile-serree" aria-label="Relevés reçus par jour">
-                <h3>Relevés reçus par jour</h3>
-                <div className="admin-tableau">
-                  <table>
+              <section className="flex flex-col gap-2" aria-label="Relevés reçus par jour">
+                <h3 className="m-0 font-serif text-lg">Relevés reçus par jour</h3>
+                <div className={cadreTableau}>
+                  <table className={tableau}>
                     <thead>
                       <tr>
                         <th scope="col">Jour</th>
                         <th scope="col">Reçus</th>
                         <th scope="col">Dont lot d’essai</th>
                         <th scope="col">
-                          <span className="visuellement-cache">Barre</span>
+                          <span className="sr-only">Barre</span>
                         </th>
                       </tr>
                     </thead>
@@ -316,10 +350,10 @@ export function Aujourdhui({
                           <th scope="row">{jourLisible(j.jour)}</th>
                           <td>{j.total}</td>
                           <td>{j.essai}</td>
-                          <td className="admin-barre-cellule" aria-hidden="true">
+                          <td className="w-2/5" aria-hidden="true">
                             {j.total > 0 && (
                               <span
-                                className="admin-barre"
+                                className="block h-2.5 rounded-full bg-primary"
                                 style={{ inlineSize: `${(j.total / maximum) * 100}%` }}
                               />
                             )}
@@ -331,10 +365,10 @@ export function Aujourdhui({
                 </div>
               </section>
 
-              <section className="pile-serree" aria-label="Écoles par zone ouverte">
-                <h3>Écoles par zone ouverte</h3>
-                <div className="admin-tableau">
-                  <table>
+              <section className="flex flex-col gap-2" aria-label="Écoles par zone ouverte">
+                <h3 className="m-0 font-serif text-lg">Écoles par zone ouverte</h3>
+                <div className={cadreTableau}>
+                  <table className={tableau}>
                     <thead>
                       <tr>
                         <th scope="col">Zone</th>
@@ -358,7 +392,7 @@ export function Aujourdhui({
                       ))}
                       {zones.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="texte-doux">
+                          <td colSpan={6} className="text-muted-foreground">
                             Aucune zone n’est ouverte aux relais.
                           </td>
                         </tr>
@@ -371,6 +405,6 @@ export function Aujourdhui({
           </details>
         </div>
       )}
-    </div>
+    </>
   );
 }

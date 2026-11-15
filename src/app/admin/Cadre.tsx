@@ -1,14 +1,21 @@
 /**
- * Le cadre de l'administration v2 (lot 2 du cahier, planches « Aujourd'hui · téléphone », « Aujourd'hui · ordinateur »,
- * « "Plus" et le compte ») : un seul composant, deux mises en page par le CSS au seuil de 64 rem.
- * - Téléphone : barre du haut (marque, titre de l'écran, initiale du compte), barre du bas à cinq cases (Aujourd'hui,
- *   À valider, Écoles, Relais, Plus) ; « Plus » ouvre une feuille avec Zones, Paie, Santé des envois et les règles.
- * - Ordinateur : barre de côté ; « Plus rarement » (Zones, Paie, Santé des envois) y est déplié ; le compte en bas.
- * Chaque écran pose son titre et ses règles par `TitreEcran` : les paragraphes d'aide ne sont plus sous les titres, ils
- * sont dans le tiroir « Règles » (loi 1 du texte).
+ * Le cadre de l'administration v2, d'après les planches (« Aujourd'hui · téléphone », « Aujourd'hui · ordinateur »,
+ * « "Plus" et le compte ») : Tailwind et shadcn seulement (refonte v2, lot 2 ; DESIGN_SYSTEM.md, § 6).
+ * - Téléphone : barre du haut verte (marque ou retour, titre de l'écran, initiale du compte), barre du bas à cinq cases
+ *   (Aujourd'hui, À valider, Écoles, Relais, Plus) ; « Plus » ouvre une feuille avec Zones, Paie, Santé des envois et les
+ *   règles de l'écran.
+ * - Ordinateur (64 rem et plus) : barre de côté verte, pleine hauteur ; « Plus rarement » y est déplié ; le compte en bas.
+ * Chaque écran pose son titre et ses règles par `TitreEcran` : l'aide n'est plus sous les titres, elle est dans le tiroir
+ * « Règles » (loi 1 du texte).
+ *
+ * Les classes `admin-cote`, `admin-haut` et `admin-bas` ne portent aucun style : les parcours de mise en page les visent.
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Dialogue } from '../../ui/Dialogue';
+import { cn } from '@/lib/utils';
+import { Button } from '@/ui/shadcn/button';
+import { Sheet, SheetContent, SheetTitle } from '@/ui/shadcn/sheet';
+import { Icone } from '@/ui/icones/Icone';
+import type { NomIcone } from '@/ui/icones/registre';
 import { aller } from '../commun/adresse';
 
 export type CheminAdmin = 'accueil' | 'valider' | 'ecoles' | 'relais' | 'zones' | 'paie' | 'sante';
@@ -18,83 +25,56 @@ export interface Onglet {
   libelle: string;
   compte: number | null;
   legende?: [singulier: string, pluriel: string];
+  /** Ce que la feuille « Plus » dit à droite (« 14 zones », « vendredi »). */
+  detail?: string | null;
 }
 
-// Les icônes du cadre : contour, grille de 24, trait de 2 (les mêmes que le canevas).
-const traces: Record<string, ReactNode> = {
-  accueil: (
-    <>
-      <path d="M4 11l8-7 8 7v9H4z" />
-      <path d="M10 20v-6h4v6" />
-    </>
-  ),
-  valider: (
-    <>
-      <rect x="4" y="4" width="16" height="16" rx="3" />
-      <path d="M8.5 12.5l2.5 2.5 4.5-5" />
-    </>
-  ),
-  ecoles: (
-    <>
-      <path d="M2 9l10-5 10 5-10 5z" />
-      <path d="M6 11v5c3 2.5 9 2.5 12 0v-5" />
-    </>
-  ),
-  relais: (
-    <>
-      <circle cx="9" cy="8" r="3.5" />
-      <path d="M2.5 20c.6-3.6 3.1-5.5 6.5-5.5s5.9 1.9 6.5 5.5" />
-      <path d="M16 5.2a3.5 3.5 0 0 1 0 5.6M18.5 14.8c1.7.8 2.7 2.5 3 5.2" />
-    </>
-  ),
-  plus: <path d="M5 12h.01M12 12h.01M19 12h.01" />,
-  zones: (
-    <>
-      <path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z" />
-      <circle cx="12" cy="10" r="2.2" />
-    </>
-  ),
-  paie: (
-    <>
-      <rect x="3" y="6" width="18" height="13" rx="2" />
-      <path d="M3 10h18M7 15h4" />
-    </>
-  ),
-  sante: <path d="M3 12h4l2.5-6 4 12 2.5-6h5" />,
-  regles: (
-    <>
-      <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" />
-      <path d="M9 9h6M9 13h6" />
-    </>
-  ),
-  sortir: <path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9" />,
-  retour: <path d="M15 6l-6 6 6 6" />,
-  suivant: <path d="M9 6l6 6-6 6" />,
-};
+// Les icônes du cadre, tirées du registre unique (planches : contour, grille de 24, trait de 2).
+const ICONES_ADMIN = {
+  accueil: 'maison',
+  valider: 'caseCochee',
+  ecoles: 'toque',
+  relais: 'personnes',
+  plus: 'points',
+  zones: 'lieu',
+  paie: 'paie',
+  sante: 'pouls',
+  regles: 'fiche',
+  sortir: 'deconnexion',
+  retour: 'retour',
+  suivant: 'suite',
+} as const satisfies Record<string, NomIcone>;
 
-export function IconeAdmin({ nom, taille = 22 }: { nom: keyof typeof traces; taille?: number }) {
+export function IconeAdmin({
+  nom,
+  taille = 22,
+  className,
+}: {
+  nom: keyof typeof ICONES_ADMIN;
+  taille?: number;
+  className?: string;
+}) {
   return (
-    <svg
-      width={taille}
-      height={taille}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {traces[nom]}
-    </svg>
+    <Icone
+      nom={ICONES_ADMIN[nom]}
+      className={className}
+      style={{ width: taille, height: taille }}
+      aria-hidden
+    />
   );
 }
 
-function Logo({ couleur = 'var(--texte-sur-marque)' }: { couleur?: string }) {
+function Logo({ className }: { className?: string }) {
   return (
-    <svg width="30" height="23" viewBox="-2.5 -2.5 163 125" aria-hidden="true">
+    <svg
+      width="30"
+      height="23"
+      viewBox="-2.5 -2.5 163 125"
+      aria-hidden="true"
+      className={cn('shrink-0', className)}
+    >
       <path
-        fill={couleur}
+        fill="var(--texte-sur-marque)"
         d="M0 7Q0 2 5 2L24.8 2Q29.8 2 29.8 7L29.8 112.8Q29.8 117.8 24.8 117.8L5 117.8Q0 117.8 0 112.8Z"
       />
       <path
@@ -112,6 +92,9 @@ function Logo({ couleur = 'var(--texte-sur-marque)' }: { couleur?: string }) {
 // Le titre et les règles de l'écran ouvert : la barre du haut (téléphone) et la feuille « Plus » les lisent.
 interface EtatEcran {
   titre: string;
+  /** Sur téléphone, la barre verte peut dire autre chose que le titre (le nom de l'école ouverte, « 2 sur 15 »). */
+  titreHaut?: string | null;
+  droiteHaut?: string | null;
   regles: ReactNode | null;
   retour: { libelle: string; chemin: string } | null;
 }
@@ -120,9 +103,25 @@ const ContexteEcran = createContext<{
   ouvrirRegles: () => void;
 } | null>(null);
 
+/** Le bouton discret « Règles » d'un écran (planche : l'icône de fiche et le mot, en vert). */
+function BoutonRegles({ titre, ouvrir }: { titre: string; ouvrir: () => void }) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={ouvrir}
+      aria-label={`Règles : ${titre}`}
+      className="text-primary-strong max-lg:hidden"
+    >
+      <IconeAdmin nom="regles" taille={18} />
+      Règles
+    </Button>
+  );
+}
+
 /**
- * Le titre d'un écran, son bouton « Règles » et ses actions. Le titre est le seul `h1` de la page ; sur téléphone, il passe
- * dans la barre du haut (il reste lu par les lecteurs d'écran à sa place).
+ * Le titre d'un écran, son bouton « Règles » et ses actions. Le titre est le seul `h1` visible ; sur téléphone, il passe
+ * dans la barre du haut (celui de la page reste lu par les lecteurs d'écran à sa place).
  */
 export function TitreEcran({
   titre,
@@ -130,8 +129,15 @@ export function TitreEcran({
   actions,
   retour = null,
   focusRetour = false,
+  titreHaut = null,
+  droiteHaut = null,
+  cacherTitre = false,
 }: {
   titre: string;
+  /** Le titre n'est lu que par les lecteurs d'écran (la fiche d'une école a son nom dans sa carte). */
+  cacherTitre?: boolean;
+  titreHaut?: string | null;
+  droiteHaut?: string | null;
   regles?: ReactNode;
   actions?: ReactNode;
   retour?: { libelle: string; chemin: string } | null;
@@ -139,67 +145,90 @@ export function TitreEcran({
 }) {
   const ecran = useContext(ContexteEcran);
   useEffect(() => {
-    ecran?.poser({ titre, regles: regles ?? null, retour });
+    ecran?.poser({ titre, regles: regles ?? null, retour, titreHaut, droiteHaut });
     // Les règles sont du texte fixe : on ne repose l'écran que si le titre ou le retour changent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [titre, retour?.chemin]);
+  }, [titre, retour?.chemin, titreHaut, droiteHaut]);
   return (
-    <div className="admin-titre">
-      <h1 tabIndex={focusRetour ? -1 : undefined} data-retour-liste={focusRetour || undefined}>
+    <div className="flex flex-wrap items-center gap-3">
+      <h1
+        tabIndex={focusRetour ? -1 : undefined}
+        data-retour-liste={focusRetour || undefined}
+        className={cn(
+          'm-0 mr-auto font-serif text-[32px] leading-tight font-bold text-primary-strong outline-none max-lg:sr-only',
+          cacherTitre && 'sr-only',
+        )}
+      >
         {titre}
       </h1>
-      <div className="admin-titre-actions">
-        {actions}
-        {regles && (
-          <button
-            type="button"
-            className="bouton-regles"
-            onClick={() => ecran?.ouvrirRegles()}
-            aria-label={`Règles : ${titre}`}
-          >
-            <IconeAdmin nom="regles" taille={18} />
-            Règles
-          </button>
-        )}
-      </div>
+      {(regles || actions) && (
+        <div className="flex flex-wrap items-center gap-3">
+          {regles && <BoutonRegles titre={titre} ouvrir={() => ecran?.ouvrirRegles()} />}
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
 
-function Badge({ o }: { o: Onglet }) {
+function Badge({ o, surFonce }: { o: Onglet; surFonce?: boolean }) {
   if (o.compte === null || o.compte <= 0) return null;
   const legende = o.legende?.[o.compte > 1 ? 1 : 0] ?? '';
   return (
-    <span className="admin-badge" title={`${o.compte} ${legende}`.trim()}>
+    <span
+      title={`${o.compte} ${legende}`.trim()}
+      className={cn(
+        'inline-flex min-w-6 items-center justify-center rounded-full bg-jaune px-1.5 text-xs leading-5 font-bold text-foreground',
+        !surFonce && 'absolute top-1 left-[calc(50%+4px)]',
+      )}
+    >
       {o.compte}
-      <span className="visuellement-cache">{` ${legende}`}</span>
+      <span className="sr-only">{` ${legende}`}</span>
     </span>
   );
 }
 
-function Lien({
-  o,
-  courant,
-  icone,
-  surSuivi,
-}: {
-  o: Onglet;
-  courant: boolean;
-  icone?: boolean;
-  surSuivi?: () => void;
-}) {
+/** Un lien de la barre de côté (ordinateur) : texte crème, l'écran ouvert sur un fond vert plus clair. */
+function LienCote({ o, courant, rare }: { o: Onglet; courant: boolean; rare?: boolean }) {
   return (
     <a
       href={`#${o.chemin}`}
       aria-current={courant ? 'page' : undefined}
       onClick={(e) => {
         e.preventDefault();
-        surSuivi?.();
         aller(o.chemin);
       }}
+      className={cn(
+        'flex min-h-11 items-center gap-2 rounded-lg px-3 text-[15px] text-creme no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-sur-marque)]',
+        rare ? 'font-normal' : 'font-bold',
+        courant ? 'bg-primary font-bold' : '[@media(hover:hover)]:hover:bg-primary/60',
+      )}
     >
-      {icone && <IconeAdmin nom={o.chemin === 'accueil' ? 'accueil' : o.chemin} />}
-      <span className="admin-lien-texte">{o.libelle}</span>
+      <span className="flex-1">{o.libelle}</span>
+      <Badge o={o} surFonce />
+    </a>
+  );
+}
+
+/** Une case de la barre du bas (téléphone) : l'icône, le mot, le compteur en pastille. */
+function CaseBas({ o, courant }: { o: Onglet; courant: boolean }) {
+  return (
+    <a
+      href={`#${o.chemin}`}
+      aria-current={courant ? 'page' : undefined}
+      onClick={(e) => {
+        e.preventDefault();
+        aller(o.chemin);
+      }}
+      className={cn(
+        'relative flex min-h-16 flex-col items-center justify-center gap-0.5 pt-2 pb-2.5 text-xs font-bold no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset',
+        courant
+          ? 'text-primary-strong shadow-[inset_0_3px_0_var(--marque)]'
+          : 'text-muted-foreground',
+      )}
+    >
+      <IconeAdmin nom={o.chemin} />
+      {o.libelle}
       <Badge o={o} />
     </a>
   );
@@ -233,106 +262,171 @@ export function Cadre({
 
   return (
     <ContexteEcran.Provider value={{ poser: setEtat, ouvrirRegles: () => setRegles(true) }}>
-      <div className="admin">
-        <aside className="admin-cote">
-          <div className="admin-marque">
+      <div className="min-h-dvh bg-background font-sans text-foreground lg:grid lg:grid-cols-[211px_minmax(0,1fr)]">
+        <aside className="admin-cote sticky top-0 hidden h-dvh flex-col gap-1 overflow-y-auto bg-primary-strong px-3.5 pt-5 pb-4 text-creme lg:flex">
+          <div className="mb-4 flex items-center gap-2.5 px-2 font-serif text-xl font-bold">
             <Logo />
-            <span>NTanova</span>
+            NTanova
           </div>
-          <nav aria-label="Administration" className="admin-nav">
+          <nav aria-label="Administration" className="flex flex-col gap-0.5">
             {principaux.map((o) => (
-              <Lien key={o.chemin} o={o} courant={ecran === o.chemin} />
+              <LienCote key={o.chemin} o={o} courant={ecran === o.chemin} />
             ))}
           </nav>
-          <span className="admin-cote-rubrique">Plus rarement</span>
-          <nav aria-label="Plus rarement" className="admin-nav admin-nav-rare">
+          <span className="mt-5 mb-1 px-3 text-xs font-bold tracking-[0.08em] text-[var(--vert-pale)] uppercase">
+            Plus rarement
+          </span>
+          <nav aria-label="Plus rarement" className="flex flex-col gap-0.5">
             {rares.map((o) => (
-              <Lien key={o.chemin} o={o} courant={ecran === o.chemin} />
+              <LienCote key={o.chemin} o={o} courant={ecran === o.chemin} rare />
             ))}
           </nav>
-          <div className="admin-compte">
-            <span className="admin-initiale" aria-hidden="true">
+          <div className="mt-auto flex items-center gap-2.5 border-t border-creme/20 px-2 pt-3.5">
+            <span
+              className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-creme bg-jaune font-bold text-foreground"
+              aria-hidden="true"
+            >
               {initiale}
             </span>
-            <span className="admin-compte-texte">
-              <b>{email ?? 'Compte connecté'}</b>
-              <button type="button" className="lien" onClick={seDeconnecter}>
+            <span className="flex min-w-0 flex-col text-sm">
+              <b className="truncate">{email ?? 'Compte connecté'}</b>
+              <button
+                type="button"
+                onClick={seDeconnecter}
+                className="cursor-pointer self-start border-0 bg-transparent p-0 font-sans text-sm text-creme underline underline-offset-2"
+              >
                 Se déconnecter
               </button>
             </span>
           </div>
         </aside>
 
-        <header className="admin-haut">
-          {etat.retour ? (
-            <a
-              className="admin-haut-retour"
-              href={`#${etat.retour.chemin}`}
-              aria-label={`Retour : ${etat.retour.libelle}`}
+        <div className="flex min-h-dvh min-w-0 flex-col">
+          <header className="admin-haut sticky top-0 z-20 flex min-h-[60px] items-center gap-3 bg-primary-strong px-4 text-creme lg:hidden">
+            {etat.retour ? (
+              <a
+                href={`#${etat.retour.chemin}`}
+                aria-label={`Retour : ${etat.retour.libelle}`}
+                className="-ml-2 flex size-11 items-center justify-center rounded-md text-creme outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-sur-marque)]"
+              >
+                <IconeAdmin nom="retour" />
+              </a>
+            ) : (
+              <Logo />
+            )}
+            {/* Sur téléphone, le titre de l'écran est ici (le `h1` de la page est caché, mais lu). */}
+            <span className="flex-1 truncate font-serif text-xl font-bold" aria-hidden="true">
+              {etat.titreHaut ?? etat.titre}
+            </span>
+            {etat.droiteHaut && (
+              <span className="shrink-0 text-sm whitespace-nowrap">{etat.droiteHaut}</span>
+            )}
+            {/* Les gestes d'un écran (la fiche d'école : aperçu, « ⋯ ») s'y posent par un portail ; le compte s'efface alors. */}
+            <div id="admin-haut-gestes" className="flex items-center gap-1 empty:hidden" />
+            <div
+              className={cn(
+                'relative [#admin-haut-gestes:not(:empty)~&]:hidden',
+                etat.droiteHaut && 'hidden',
+              )}
             >
-              <IconeAdmin nom="retour" />
-            </a>
-          ) : (
-            <Logo />
-          )}
-          {/* Sur téléphone, le titre de l'écran est ici : c'est le `h1` (celui de la page n'est pas rendu). */}
-          <h1 className="admin-haut-titre">{etat.titre}</h1>
-          <button
-            type="button"
-            className="admin-initiale"
-            aria-label="Mon compte"
-            aria-expanded={compte}
-            onClick={() => setCompteSur(compte ? null : ecran)}
-          >
-            {initiale}
-          </button>
-          {compte && (
-            <div className="admin-menu-compte" role="menu" aria-label="Mon compte">
-              <span className="admin-menu-compte-qui">
-                <b>Administration</b>
-                <span>{email}</span>
-              </span>
-              <button type="button" role="menuitem" onClick={seDeconnecter}>
-                <IconeAdmin nom="sortir" taille={20} />
-                Se déconnecter
+              <button
+                type="button"
+                aria-label="Mon compte"
+                aria-expanded={compte}
+                onClick={() => setCompteSur(compte ? null : ecran)}
+                className="flex size-10 cursor-pointer items-center justify-center rounded-full border-2 border-creme bg-jaune font-sans font-bold text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-sur-marque)]"
+              >
+                {initiale}
               </button>
+              {compte && (
+                <div
+                  role="menu"
+                  aria-label="Mon compte"
+                  className="absolute top-12 right-0 z-30 w-[min(84vw,320px)] overflow-hidden rounded-xl border border-border bg-card text-foreground shadow-lg"
+                >
+                  <span className="flex flex-col gap-0.5 border-b border-border px-4 py-3">
+                    <b className="text-[17px]">Administration</b>
+                    <span className="truncate text-sm text-muted-foreground">{email}</span>
+                  </span>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={seDeconnecter}
+                    className="flex min-h-12 w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 font-sans text-[17px] font-bold text-destructive"
+                  >
+                    <IconeAdmin nom="sortir" taille={20} />
+                    Se déconnecter
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </header>
+          </header>
 
-        <main className="admin-contenu">{children}</main>
+          <main className="admin-contenu flex flex-1 flex-col gap-5 px-4 pt-5 pb-28 lg:px-7 lg:pt-6 lg:pb-10">
+            {children}
+          </main>
 
-        <nav aria-label="Navigation" className="admin-bas">
-          {principaux.map((o) => (
-            <Lien key={o.chemin} o={o} courant={ecran === o.chemin} icone />
-          ))}
-          <button
-            type="button"
-            aria-current={dansPlus ? 'page' : undefined}
-            aria-expanded={plus}
-            onClick={() => setPlus(true)}
+          <nav
+            aria-label="Navigation"
+            className="admin-bas fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-border bg-card lg:hidden"
           >
-            <IconeAdmin nom="plus" />
-            <span className="admin-lien-texte">Plus</span>
-          </button>
-        </nav>
+            {principaux.map((o) => (
+              <CaseBas key={o.chemin} o={o} courant={ecran === o.chemin} />
+            ))}
+            <button
+              type="button"
+              aria-current={dansPlus ? 'page' : undefined}
+              aria-expanded={plus}
+              onClick={() => setPlus(true)}
+              className={cn(
+                'flex min-h-16 cursor-pointer flex-col items-center justify-center gap-0.5 border-0 bg-transparent pt-2 pb-2.5 font-sans text-xs font-bold outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset',
+                dansPlus
+                  ? 'text-primary-strong shadow-[inset_0_3px_0_var(--marque)]'
+                  : 'text-muted-foreground',
+              )}
+            >
+              <IconeAdmin nom="plus" />
+              Plus
+            </button>
+          </nav>
+        </div>
 
-        {plus && (
-          <Dialogue
-            titre="Plus"
-            variante="feuille"
-            entete={<b className="admin-feuille-titre">Plus</b>}
-            fermer={() => setPlus(false)}
+        <Sheet open={plus} onOpenChange={setPlus}>
+          <SheetContent
+            side="bottom"
+            showCloseButton={false}
+            aria-describedby={undefined}
+            className="gap-0 rounded-t-2xl px-4 pt-2.5 pb-6"
           >
-            <nav aria-label="Plus" className="admin-feuille-liens">
+            <span className="mx-auto mb-3 h-1 w-9 rounded-full bg-input/40" aria-hidden="true" />
+            <SheetTitle className="border-b border-border pb-3 text-2xl">Plus</SheetTitle>
+            <nav aria-label="Plus" className="flex flex-col">
               {rares.map((o) => (
-                <Lien
+                <a
                   key={o.chemin}
-                  o={o}
-                  courant={ecran === o.chemin}
-                  icone
-                  surSuivi={() => setPlus(false)}
-                />
+                  href={`#${o.chemin}`}
+                  aria-current={ecran === o.chemin ? 'page' : undefined}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setPlus(false);
+                    aller(o.chemin);
+                  }}
+                  className="flex min-h-14 items-center gap-4 border-b border-border text-lg font-bold text-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset"
+                >
+                  <IconeAdmin nom={o.chemin} />
+                  <span className="flex-1">{o.libelle}</span>
+                  {o.compte ? (
+                    <span className="rounded-full bg-attention px-2.5 py-0.5 text-sm font-bold text-attention-foreground">
+                      {o.compte} {o.legende?.[o.compte > 1 ? 1 : 0]}
+                    </span>
+                  ) : (
+                    o.detail && (
+                      <span className="text-[15px] font-normal text-muted-foreground">
+                        {o.detail}
+                      </span>
+                    )
+                  )}
+                </a>
               ))}
               {etat.regles && (
                 <button
@@ -341,24 +435,31 @@ export function Cadre({
                     setPlus(false);
                     setRegles(true);
                   }}
+                  className="flex min-h-14 cursor-pointer items-center gap-4 border-0 bg-transparent p-0 text-left font-sans text-lg font-bold text-foreground"
                 >
                   <IconeAdmin nom="regles" />
-                  <span className="admin-lien-texte">Règles de cet écran</span>
+                  Règles de cet écran
                 </button>
               )}
             </nav>
-          </Dialogue>
-        )}
-        {regles && etat.regles && (
-          <Dialogue
-            titre={`Règles : ${etat.titre}`}
-            variante="tiroir"
-            entete={<b className="admin-feuille-titre">Règles : {etat.titre}</b>}
-            fermer={() => setRegles(false)}
+            <Button variant="outline" size="xl" className="mt-3" onClick={() => setPlus(false)}>
+              Fermer
+            </Button>
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={regles && Boolean(etat.regles)} onOpenChange={setRegles}>
+          <SheetContent
+            side="right"
+            aria-describedby={undefined}
+            className="w-full gap-3 overflow-y-auto p-5 sm:max-w-md"
           >
-            <div className="admin-regles">{etat.regles}</div>
-          </Dialogue>
-        )}
+            <SheetTitle className="pr-10">Règles : {etat.titre}</SheetTitle>
+            <div className="flex flex-col gap-3 text-[15px] leading-relaxed [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-5">
+              {etat.regles}
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </ContexteEcran.Provider>
   );

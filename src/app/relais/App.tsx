@@ -32,6 +32,7 @@ import { journaliser } from './journal';
 import { synchroniser as synchroniserTout } from './synchro';
 import { useNouvelleVersion } from './version';
 import './relais.css';
+import '@/ui/shadcn/theme.css';
 
 const INTERVALLE_MS = 3 * 60_000;
 

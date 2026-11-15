@@ -1,6 +1,14 @@
-import { ouvrirContacts, ouvrirEcranAdmin } from './aides';
+import {
+  ouvrirContacts,
+  ouvrirEcranAdmin,
+  ouvrirMaFiche,
+  ouvrirLesEcoles,
+  fermerContacts,
+  retourAuxEcoles,
+  ouvrirFiche,
+} from './aides';
 import { ouvrirGestion } from './aides';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   ouvrirLaFiche,
   publierLaZoneTieTie,
@@ -32,27 +40,38 @@ test.describe('administration', () => {
       decodeURIComponent((await ecrire.getAttribute('href')) ?? '').split('?text=')[1] ?? '';
     expect(message).toContain('[École 1]');
     expect(message).not.toMatch(/gratuit|FCFA|prix|tarif|visiteurs|audience/i);
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
     await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await fermerContacts(page);
+
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
     await expect(page.getByText('Rien à valider pour le moment.')).toBeVisible();
 
     // Accepter ne publie pas : l'école attend le geste « Publier ».
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-    await expect(ligne.getByText('Prête', { exact: true })).toBeVisible();
+    await expect(ligne.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
     await ligne.getByRole('button', { name: 'Publier', exact: true }).click();
     // Elle paraît à la prochaine mise à jour du site : la nuit ne met à jour qu'essai, aucune heure n'est promise.
     await expect(page.getByRole('status')).toHaveText(/est publiée.*prochaine mise à jour du site/);
     await expect(page.getByRole('status')).not.toHaveText(/cette nuit|2 h/);
     await expect(
-      page.getByRole('row', { name: /\[École 1\]/ }).getByText('Publiée', { exact: true }),
+      page
+        .getByRole('row', { name: /\[École 1\]/ })
+        .getByText('Publiée', { exact: true })
+        .filter({ visible: true }),
     ).toBeVisible();
 
     await page.goto('/relais/#fiches');
-    await expect(page.getByText('Acceptée')).toBeVisible({ timeout: 15_000 });
+    // v2 : la liste dit « En ligne » ; la fiche ouverte dit ses étapes, dont « Acceptée ».
+    await expect(page.getByText('En ligne', { exact: true }).last()).toBeVisible({
+      timeout: 15_000,
+    });
+    await ouvrirMaFiche(page, '[École 1]');
+    await expect(page.getByRole('list', { name: 'Où en est la fiche' })).toContainText('Acceptée');
     await expect(page.getByText('Confirmé · promoteur')).toBeVisible();
   });
 
@@ -60,6 +79,8 @@ test.describe('administration', () => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
     await ouvrirContacts(page);
+
+    await fermerContacts(page);
 
     await page.getByRole('button', { name: 'Demander une correction' }).click();
     await page.getByLabel('Motif').selectOption('photo_floue');
@@ -71,38 +92,52 @@ test.describe('administration', () => {
     await expect(page.getByText('La photo est floue, reprenez-la de face.')).toBeVisible({
       timeout: 15_000,
     });
+    await ouvrirMaFiche(page, '[École 1]');
     await expect(page.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
 
     // L'écran dit ce que le relais fait : il corrige une fiche, il n'ajoute pas une école.
     await page.getByRole('button', { name: 'Corriger la fiche' }).click();
-    await expect(page.locator('.entete-etape-titre')).toHaveText('Corriger une fiche');
+    await expect(
+      page.getByRole('banner').getByText('Corriger une fiche', { exact: true }),
+    ).toBeVisible();
   });
 
   test('une école publiée se retire avec un motif, puis se republie', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
     await ouvrirContacts(page);
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await fermerContacts(page);
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     await publierLaZoneTieTie(page);
-    await expect(page.getByRole('status')).toHaveText(/1 école de Tié-Tié publiée/);
+    await expect(page.getByRole('status').first()).toContainText('[École 1] est publiée');
 
     const ligne = () => page.getByRole('row', { name: /\[École 1\]/ });
     // La liste se rafraîchit après « Publier » et remet la ligne à zéro : on attend qu'elle soit à
     // jour, sinon le formulaire ouvert par le clic suivant se referme sous les doigts.
-    await expect(ligne().getByText('Publiée', { exact: true })).toBeVisible();
+    await expect(
+      ligne().getByText('Publiée', { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
     await ouvrirGestion(ligne(), 'retirer');
-    await ligne().getByLabel('Motif').selectOption('demande_ecole');
-    await ligne()
-      .getByRole('button', { name: /Retirer \[École 1\] du site/ })
-      .click();
-    await expect(page.getByRole('status')).toHaveText(/retirée du site.*sans son nom/);
-    await expect(ligne().getByText('Retirée', { exact: true })).toBeVisible();
+    const fenetre = page.getByRole('alertdialog', { name: 'Retirer · [École 1]' });
+    await fenetre.getByLabel('Motif').selectOption('demande_ecole');
+    await fenetre.getByRole('button', { name: /Retirer \[École 1\] du site/ }).click();
+    await expect(page.getByRole('status').first()).toHaveText(/retirée du site.*sans son nom/);
+    await retourAuxEcoles(page);
+    await expect(
+      ligne().getByText('Retirée', { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
     await expect(ligne().getByText(/À la demande de l'école/)).toBeVisible();
 
-    await ligne().getByRole('button', { name: 'Republier' }).click();
-    await expect(ligne().getByText('Publiée', { exact: true })).toBeVisible();
+    // « Republier » est dans la fiche.
+    await ouvrirFiche(ligne());
+    await page.getByRole('button', { name: 'Republier' }).filter({ visible: true }).click();
+    await expect(page.getByRole('status').first()).toContainText('est publiée');
+    await retourAuxEcoles(page);
+    await expect(
+      ligne().getByText('Publiée', { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('« Décidées » relit une décision sans la changer, et efface un contact', async ({
@@ -112,14 +147,15 @@ test.describe('administration', () => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
     await ouvrirContacts(page);
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await fermerContacts(page);
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
     await page.getByRole('button', { name: 'Décidées' }).click();
     await page.getByRole('link', { name: /\[École 1\]/ }).click();
     await expect(
       page.getByText('Acceptée', { exact: true }).locator('visible=true').first(),
     ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Accepter la fiche' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Accepter', exact: true })).toHaveCount(0);
     await expect(page.getByText(/un refus est définitif/)).toBeVisible();
 
     await ouvrirContacts(page);
@@ -138,8 +174,9 @@ test.describe('administration', () => {
     await ouvrirContacts(page);
     // Une 3G qui traîne : la base répond après que l'on a changé d'onglet.
     await page.evaluate(() => localStorage.setItem('ntanova-faux-latence', '600'));
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await fermerContacts(page);
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+    await ouvrirLesEcoles(page);
     await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeVisible();
     // Le temps que la réponse arrive : on reste sur « Écoles ».
     await page.waitForTimeout(1200);
@@ -157,7 +194,8 @@ test.describe('administration', () => {
     // La partie privée est un panneau sombre : ses liens et ses boutons doivent s'y lire. Le pont avec la direction
     // (le message, la fonction, l'accord) est dans une carte claire à côté.
     expect(await textesPeuLisibles(page, 'body'), 'À valider, une fiche').toEqual([]);
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await fermerContacts(page);
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
     await page.getByRole('button', { name: 'Décidées' }).click();
@@ -169,13 +207,17 @@ test.describe('administration', () => {
     ).toBeVisible();
     expect(await textesPeuLisibles(page, 'body'), 'Décidées, effacer le contact').toEqual([]);
 
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     await publierLaZoneTieTie(page);
-    await expect(page.getByRole('status')).toHaveText(/1 école de Tié-Tié publiée/);
+    await expect(page.getByRole('status').first()).toContainText('[École 1] est publiée');
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-    await expect(ligne.getByText('Publiée', { exact: true })).toBeVisible();
+    await expect(
+      ligne.getByText('Publiée', { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
     await ouvrirGestion(ligne, 'retirer');
-    await expect(ligne.getByLabel('Motif')).toBeVisible();
+    await expect(
+      page.getByRole('alertdialog', { name: 'Retirer · [École 1]' }).getByLabel('Motif'),
+    ).toBeVisible();
     expect(await textesPeuLisibles(page, 'body'), 'Écoles, retirer du site').toEqual([]);
   });
 
@@ -192,9 +234,8 @@ test.describe('administration', () => {
     await expect(ligne).toBeVisible();
     // Plus aucune trace de « hors du lot » : le lot n'est qu'un conseil.
     await expect(page.getByText(/Hors du lot/)).toHaveCount(0);
-    await expect(ligne.getByText('Hors zone ouverte')).toBeVisible();
-    // Une information (orange), pas un refus (rouge).
-    await expect(ligne.getByText('Hors zone ouverte')).toHaveClass(/etat-attente/);
+    // Planche : la liste ne dit que le lot d'essai, le doublon possible et l'absence de position ; la zone est dans la fiche.
+    await expect(ligne.getByText('Hors zone ouverte')).toHaveCount(0);
 
     await ligne.click();
     await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
@@ -203,7 +244,8 @@ test.describe('administration', () => {
     await expect(page.getByText(/Hors du lot/)).toHaveCount(0);
     // La division est connue (celle de la position) : rien à choisir.
     await expect(page.getByLabel('Division de l’école')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await fermerContacts(page);
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
   });
 
@@ -223,16 +265,17 @@ test.describe('administration', () => {
     // Avant : la fiche retombait sur la division du lot du relais, même à des milliers de kilomètres.
     const choix = page.getByLabel('Division de l’école');
     await expect(choix).toBeVisible();
-    await expect(detail.getByText(/Choisissez la division/)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Accepter la fiche' })).toBeDisabled();
+    await expect(detail.getByText(/Choisis la division de l’école/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Accepter', exact: true })).toBeDisabled();
 
     await choix.selectOption({ label: 'Congo › Brazzaville › Moungali' });
-    await expect(page.getByRole('button', { name: 'Accepter la fiche' })).toBeEnabled();
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await expect(page.getByRole('button', { name: 'Accepter', exact: true })).toBeEnabled();
+    await fermerContacts(page);
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
     // L'école est rattachée à la division choisie, pas à celle du lot du relais (Tié-Tié).
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     const ecole = page.getByRole('row', { name: /\[École 1\]/ });
     await expect(ecole).toContainText('Moungali');
     await expect(ecole).not.toContainText('Tié-Tié');
@@ -241,7 +284,6 @@ test.describe('administration', () => {
   test('une fiche relevée dans la zone ouverte le dit, sans alerte', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
-    await ouvrirContacts(page);
     await expect(
       page
         .getByRole('region', { name: 'Envoi sélectionné' })
@@ -257,69 +299,77 @@ test.describe('administration', () => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
     await ouvrirContacts(page);
+    await fermerContacts(page);
     await page.getByRole('button', { name: 'Demander une correction' }).click();
     const motifs = await page.getByLabel('Motif').locator('option').allTextContents();
     expect(motifs).toContain("La position n'est pas celle de l'entrée.");
     expect(motifs.join(' ')).not.toMatch(/lot/i);
   });
 
+  // Planche « Relais » : le compte à activer est un bandeau ; « Activer » l'active sans lot, le lot se choisit dans « ⋯ ».
+  const bandeau = (page: Page) =>
+    page.getByRole('region', { name: 'Compte à activer : [Relais en attente]' });
+  const ligneDuRelais = async (page: Page) => {
+    const ligne = page.getByRole('row', { name: /\[Relais en attente\]/ });
+    if (!(await ligne.isVisible()))
+      await page.getByText(/autres? relais, sans envoi cette semaine/).click();
+    return ligne;
+  };
+  const lotDe = async (page: Page) => {
+    const ligne = await ligneDuRelais(page);
+    await ligne.locator('summary').click();
+    await ligne.getByRole('button', { name: 'Changer de lot' }).click();
+    return page.getByRole('alertdialog', { name: 'Le lot de [Relais en attente]' });
+  };
+
   test('un relais en attente est proposé sans lot, jamais sur le lot d’essai', async ({ page }) => {
     await seConnecter(page, '/admin/#valider');
-    await page.getByRole('link', { name: 'Relais' }).click();
-    const ligne = page.getByRole('row', { name: /\[Relais en attente\]/ });
-    await expect(ligne.getByText('À activer')).toBeVisible();
-    // Sans toucher au menu : « Activer » ne doit pas ranger le relais en essai (ses fiches ne se publieraient jamais).
-    await expect(ligne.getByLabel(/Lot de/)).toHaveValue('');
-    await ligne.getByRole('button', { name: 'Activer' }).click();
+    await ouvrirEcranAdmin(page, 'Relais');
+    await expect(bandeau(page)).toContainText('Un compte à activer');
+    // « Activer » ne doit pas ranger le relais en essai (ses fiches ne se publieraient jamais).
+    await bandeau(page).getByRole('button', { name: 'Activer', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/est actif/);
-    await expect(page.getByRole('row', { name: /\[Relais en attente\]/ })).toContainText(
-      'Aucun lot',
-    );
+    const fenetre = await lotDe(page);
+    await expect(fenetre.getByLabel(/Lot de/)).toHaveValue('');
     // Le lot d'essai reste proposé dans le menu, pour qui voudrait un jour former un relais.
-    await expect(
-      page
-        .getByRole('row', { name: /\[Relais en attente\]/ })
-        .getByLabel(/Lot de/)
-        .locator('option'),
-    ).toContainText(['Sans lot', 'Essai']);
+    await expect(fenetre.getByLabel(/Lot de/).locator('option')).toContainText([
+      'Sans lot',
+      'Essai',
+    ]);
   });
 
   test('un relais en attente est activé sans lot : il relève où il se trouve', async ({ page }) => {
     await seConnecter(page, '/admin/#valider');
-    await page.getByRole('link', { name: 'Relais' }).click();
-    const ligne = page.getByRole('row', { name: /\[Relais en attente\]/ });
-    await expect(ligne.getByText('À activer')).toBeVisible();
-    await ligne.getByLabel(/Lot de/).selectOption({ label: 'Sans lot' });
-    await ligne.getByRole('button', { name: 'Activer' }).click();
+    await ouvrirEcranAdmin(page, 'Relais');
+    await bandeau(page).locator('summary').click();
+    await bandeau(page).getByRole('button', { name: 'Choisir son lot et l’activer' }).click();
+    const fenetre = page.getByRole('alertdialog', { name: 'Le lot de [Relais en attente]' });
+    await fenetre.getByLabel(/Lot de/).selectOption({ label: 'Sans lot' });
+    await fenetre.getByRole('button', { name: 'Activer', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/est actif/);
-    await expect(
-      page.getByRole('row', { name: /\[Relais en attente\]/ }).getByText('Actif', { exact: true }),
-    ).toBeVisible();
-    await expect(page.getByRole('row', { name: /\[Relais en attente\]/ })).toContainText(
-      'Aucun lot',
-    );
+    await expect(await ligneDuRelais(page)).toContainText(/Actif|Jamais connecté/);
+    await expect((await lotDe(page)).getByLabel(/Lot de/)).toHaveValue('');
   });
 
   test('un relais en attente est activé sur un lot', async ({ page }) => {
     await seConnecter(page, '/admin/#valider');
-    await page.getByRole('link', { name: 'Relais' }).click();
-    const ligne = page.getByRole('row', { name: /\[Relais en attente\]/ });
-    await expect(ligne.getByText('À activer')).toBeVisible();
-    await ligne.getByLabel(/Lot de/).selectOption({ label: 'Ngoyo' });
-    await ligne.getByRole('button', { name: 'Activer' }).click();
+    await ouvrirEcranAdmin(page, 'Relais');
+    await bandeau(page).locator('summary').click();
+    await bandeau(page).getByRole('button', { name: 'Choisir son lot et l’activer' }).click();
+    const fenetre = page.getByRole('alertdialog', { name: 'Le lot de [Relais en attente]' });
+    await fenetre.getByLabel(/Lot de/).selectOption({ label: 'Ngoyo' });
+    await fenetre.getByRole('button', { name: 'Activer', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/est actif/);
-    await expect(
-      page.getByRole('row', { name: /\[Relais en attente\]/ }).getByText('Actif', { exact: true }),
-    ).toBeVisible();
+    await expect(await ligneDuRelais(page)).toContainText(/Actif|Jamais connecté/);
+    await expect((await lotDe(page)).getByLabel(/Lot de/)).not.toHaveValue('');
   });
 
   test('un lot se marque rendu, et se remet en cours', async ({ page }) => {
     await seConnecter(page, '/admin/#valider');
     await ouvrirEcranAdmin(page, 'Zones');
-    // Le tableau des lots, pas celui des zones (qui a aussi une ligne « Tié-Tié »).
-    const lots = page
-      .locator('.admin-tableau')
-      .filter({ has: page.getByRole('columnheader', { name: 'Rendu' }) });
+    // Planche : les lots sont dans un tiroir, ouvert par le lien sous la liste des zones.
+    await page.getByRole('button', { name: /^Les lots \(secteurs conseillés\)/ }).click();
+    const lots = page.getByRole('dialog', { name: 'Les lots' }).getByRole('table');
     const lot = lots.getByRole('row', { name: /^Tié-Tié/ });
     await expect(lot).toBeVisible();
     await expect(lot.getByRole('button', { name: 'Marquer rendu' })).toBeVisible();

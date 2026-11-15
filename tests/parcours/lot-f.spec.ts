@@ -10,6 +10,7 @@ import {
   publierLaZoneTieTie,
   seConnecter,
   uneFicheEnvoyee,
+  ouvrirLesEcoles,
 } from './aides';
 
 test.use({ permissions: ['geolocation'] });
@@ -26,10 +27,10 @@ test('« Une de mes fiches » : son état, ce qui vient du relevé, ce qui manqu
   // Elle s'ouvre depuis « Mes fiches ».
   await page.getByRole('link', { name: 'Mes fiches' }).click();
   await page.getByRole('link', { name: '[École 1]' }).click();
-  await expect(page.getByRole('heading', { name: 'Une de mes fiches' })).toBeVisible();
+  // v2 (planche « Une de mes fiches ») : le nom de l'école est le titre, les étapes en trois ronds.
+  await expect(page.getByRole('heading', { level: 1, name: '[École 1]' })).toBeVisible();
   const etapes = page.getByRole('list', { name: 'Où en est la fiche' });
   await expect(etapes).toContainText('Envoyée');
-  await expect(page.getByText('NTanova relit votre fiche.')).toBeVisible();
   const releve = page.getByRole('region', { name: 'Ce qui vient de mon relevé' });
   await expect(releve).toContainText('[École 1]');
   await expect(releve).toContainText('Face au marché');
@@ -45,28 +46,28 @@ test('« Une de mes fiches » : son état, ce qui vient du relevé, ce qui manqu
 
   // NTanova l'accepte et publie la zone.
   await ouvrirLaFiche(page);
-  await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   await publierLaZoneTieTie(page);
   await expect(page.getByRole('status').first()).toContainText(/publiée/);
 
   // « Mes fiches » gagne le filtre « En ligne ».
   await page.goto('/relais/#fiches');
-  await expect(page.getByRole('button', { name: 'En ligne · 1' })).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'En ligne · 1' }).click();
+  await expect(page.getByRole('tab', { name: /En ligne\s*1/ })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('tab', { name: /En ligne\s*1/ }).click();
   await expect(page.getByRole('link', { name: '[École 1]' })).toBeVisible();
 
   // Hors ligne, la fiche s'ouvre quand même : tout vient du téléphone.
   await context.setOffline(true);
   await page.getByRole('link', { name: '[École 1]' }).click();
-  await expect(page.getByText('La page de l’école est en ligne.')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Où en est la fiche' })).toContainText('En ligne');
   await expect(page.getByRole('link', { name: 'Voir la page de l’école' })).toHaveAttribute(
     'href',
     '/ecoles/158427/',
   );
   await expect(page.getByRole('region', { name: 'Ce qu’elle rapporte' })).toContainText(
-    /Cette fiche : 500\sFCFA, à payer vendredi/,
+    /Comptée dans la paie du vendredi \d+ \p{L}+\s*500\sFCFA/u,
   );
   await context.setOffline(false);
 
@@ -75,9 +76,10 @@ test('« Une de mes fiches » : son état, ce qui vient du relevé, ce qui manqu
   const detail = page
     .getByRole('region', { name: 'Acquis' })
     .getByRole('list', { name: 'Le détail' });
-  await expect(detail).toContainText('1 fiche acceptée');
-  await expect(detail).toContainText(/1 × 500\sFCFA/);
-  await expect(detail).toContainText(/Total\s*500\sFCFA/);
+  // v2 : la facture de la planche, « Fiches acceptées · 1 × 500 · 500 », le total en tête.
+  await expect(detail).toContainText('Fiches acceptées');
+  await expect(detail).toContainText('1 × 500');
+  await expect(page.getByRole('region', { name: 'Acquis' })).toContainText(/500\sFCFA/);
 });
 
 test('« Une de mes fiches » : la raison de NTanova quand elle demande une correction, et le bouton pour corriger', async ({
@@ -100,9 +102,7 @@ test('« Une de mes fiches » : la raison de NTanova quand elle demande une corr
   await expect(page.getByRole('list', { name: 'Où en est la fiche' })).toContainText('À corriger', {
     timeout: 15_000,
   });
-  await expect(page.locator('.message-ntanova')).toContainText(
-    'Reprenez la photo de l’enseigne, elle est floue.',
-  );
+  await expect(page.getByText(/Reprenez la photo de l’enseigne, elle est floue\./)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
 });
 
@@ -174,7 +174,7 @@ test('« Vous la reconnaissez ? » : hors ligne, ou si l’image ne se charge pa
 /** Un institut du supérieur dans le faux serveur, avec une formation et l'agrément de l'établissement. */
 async function unInstitut(page: Page) {
   await seConnecter(page, '/admin/#valider');
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   await expect(page.getByRole('row', { name: /\[École à situer\]/ })).toBeVisible();
   await page.evaluate(() => {
     const cle = 'ntanova-faux-serveur';
@@ -217,7 +217,7 @@ async function unInstitut(page: Page) {
     localStorage.setItem(cle, JSON.stringify(e));
   });
   await page.reload();
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   return page.getByRole('row', { name: /\[Institut Lot F\]/ });
 }
 
@@ -230,23 +230,45 @@ test('le détail d’une formation du supérieur : daté par l’école, une dur
   await expect(section).toContainText('BTS Exemple');
   await expect(section).toContainText('Aucun détail');
   await section.getByRole('button', { name: 'Détail : BTS Exemple' }).click();
-  const form = section.getByRole('form', { name: 'Détail de BTS Exemple' });
+  // Le tiroir de la planche « Licence en droit des affaires » : la formation, l'admission et les frais, l'autorisation.
+  const form = page.getByRole('form', { name: 'Détail de BTS Exemple' });
+  await expect(
+    form.getByRole('region', { name: 'L’autorisation de cette formation' }),
+  ).toContainText('Pas encore vue');
   await form.getByLabel(/Durée/).fill('12');
-  await form.getByRole('button', { name: 'Enregistrer le détail' }).click();
-  await expect(section.getByRole('alert')).toHaveText(/0,5 à 8/);
+  await form.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(form.getByRole('alert')).toHaveText(/0,5 à 8/);
 
+  await form.getByLabel('Intitulé').fill('BTS Gestion des entreprises');
+  await form
+    .getByLabel(/Diplôme\b/)
+    .first()
+    .selectOption('bts');
+  await form.getByRole('group', { name: 'Rythme' }).getByRole('button', { name: 'Soir' }).click();
   await form.getByLabel(/Durée/).fill('2');
   await form.getByLabel(/Frais de dossier/).fill('15000');
+  await form.getByLabel(/Frais par an/).fill('450000');
   await form.getByLabel(/Niveau demandé/).fill('Bac, toutes séries');
   await form.getByLabel(/Sélection/).selectOption('dossier');
   await form.getByLabel(/Diplôme délivré par/).fill('[L’établissement]');
-  await form.getByRole('button', { name: 'Enregistrer le détail' }).click();
+  await form.getByLabel(/Référence de l’arrêté/).fill('[n° 123]');
+  await form.getByLabel(/^Le/).fill('2024-09-01');
+  await form.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(form.getByRole('alert')).toHaveText(/sur quoi l’autorisation a été vue/);
+  await form
+    .getByRole('group', { name: 'Vue sur' })
+    .getByRole('button', { name: 'Le document, sur place' })
+    .click();
+  await form.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(form).toBeHidden();
   await expect(page.getByRole('status').first()).toContainText(
-    'Détail de « BTS Exemple » enregistré',
+    '« BTS Gestion des entreprises » enregistrée',
   );
+  await expect(section).toContainText('BTS Gestion des entreprises');
   await expect(section).toContainText(
     /2 ans · Bac, toutes séries · Dossier · dossier 15\s000\sFCFA/,
   );
+  await expect(section).toContainText('Autorisation : réf. [n° 123]');
   await expect(section).toContainText('diplôme délivré par [L’établissement]');
 });
 

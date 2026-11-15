@@ -1,5 +1,12 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { ajouterUneEcole, attendreLaLecture, seConnecter } from './aides';
+import {
+  ajouterUneEcole,
+  attendreLaLecture,
+  ligneDeFiche,
+  ouvrirMaFiche,
+  seConnecter,
+  toutEstEnvoye,
+} from './aides';
 
 // La file d'envoi dit ce qu'elle fait (ticket #74). Construit avec le faux serveur. Deux réglages du faux serveur, dans
 // `localStorage` du navigateur :
@@ -43,7 +50,7 @@ async function ouvrirLEspace(page: Page, context: BrowserContext) {
   await attendreLaLecture(page);
 }
 
-const carte = (page: Page, nom: string) => page.getByRole('article').filter({ hasText: nom });
+const carte = (page: Page, nom: string) => ligneDeFiche(page, nom);
 
 test.describe('une erreur de connexion sur une fiche', () => {
   test('ne bloque pas les fiches suivantes, et chacune dit ce qui n’est pas parti', async ({
@@ -78,7 +85,7 @@ test.describe('une erreur de connexion sur une fiche', () => {
     await regler(page, 'ntanova-faux-reseau-photo', null);
     await page.getByRole('button', { name: 'Envoyer maintenant' }).click();
     await expect.poll(async () => (await serveur(page)).photos).toBe(2);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
   });
 
   test('est gardée dans le journal, avec l’étape et ce que le navigateur a dit', async ({
@@ -134,7 +141,7 @@ test.describe('« Envoyer maintenant »', () => {
     await regler(page, 'ntanova-faux-latence', '50');
     await regler(page, 'ntanova-faux-reseau-photo', null);
     await page.getByRole('button', { name: 'Envoyer maintenant' }).click();
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 20_000 });
+    await toutEstEnvoye(page, 20_000);
     expect((await serveur(page)).photos).toBe(1);
   });
 });
@@ -181,8 +188,10 @@ test.describe('une photo qui ne se relit plus', () => {
 
     await page.reload();
     await page.getByRole('link', { name: 'Mes fiches' }).click();
-    const fiche = carte(page, '[École 1]');
-    await expect(fiche.getByText('Refusée', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(carte(page, '[École 1]').getByText('Refusée', { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    const fiche = await ouvrirMaFiche(page, '[École 1]');
     await expect(fiche.getByText(/n’est plus lisible sur ce téléphone/)).toBeVisible();
     await expect(fiche.getByText(/la fiche n’est pas partie/)).toBeVisible();
     expect((await serveur(page)).noms).toEqual([]);

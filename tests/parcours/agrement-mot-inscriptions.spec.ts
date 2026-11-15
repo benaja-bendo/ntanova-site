@@ -1,6 +1,13 @@
 // Ticket 148 : l'agrément, le mot de la direction et la date limite des inscriptions, sur la fiche et dans l'administration.
 import { expect, test } from '@playwright/test';
-import { ouvrirGestion, ouvrirLaFiche, uneFicheEnvoyee, ficheAdmin } from './aides';
+import {
+  ouvrirGestion,
+  ouvrirLaFiche,
+  uneFicheEnvoyee,
+  ficheAdmin,
+  ficheOuverte,
+  ouvrirLesEcoles,
+} from './aides';
 
 const hier = () => new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
@@ -59,8 +66,8 @@ test.describe('dans l’administration', () => {
   }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
-    await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+    await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[École 1\]/ });
     await ouvrirGestion(ligne, 'Agrément');
     const dialog = ficheAdmin(page, '[École 1]');
@@ -95,14 +102,17 @@ test.describe('dans l’administration', () => {
     await expect(agrement.getByLabel(/^Référence, telle/)).toHaveValue('arrêté n° [référence]');
     await agrement.getByRole('button', { name: 'Annuler la modification' }).click();
     await expect(agrement.getByLabel(/^Référence, telle/)).toHaveValue('');
-    await expect(page.locator('article.fiche-admin')).not.toContainText(
-      'vérifiée par la direction',
-    );
+    await expect(ficheOuverte(page)).not.toContainText('vérifiée par la direction');
     await dialog.getByRole('button', { name: 'Retirer : L’établissement' }).click();
     await expect(dialog.getByRole('button', { name: 'Retirer : L’établissement' })).toHaveCount(0);
 
     // Le mot : la fiche n'est pas confirmée, l'écran le dit.
-    await dialog.getByRole('button', { name: 'Mot de la direction', exact: true }).click();
+    // Planche : chaque rubrique a son tiroir ; on referme celui-ci et on ouvre sa carte.
+    await page.keyboard.press('Escape');
+    await page
+      .locator('article[aria-label="Fiche de [École 1]"]')
+      .getByRole('button', { name: 'Mot de la direction : ouvrir' })
+      .click();
     const mot = dialog.getByRole('form', { name: 'Mot de la direction de [École 1]' });
     await expect(mot).toContainText('ne paraîtra qu’une fois la fiche confirmée');
     await mot.getByLabel(/^Le mot/).fill('[Un mot de la direction.]');
@@ -118,7 +128,12 @@ test.describe('dans l’administration', () => {
     await expect(mot.getByRole('button', { name: 'Retirer le mot' })).toHaveCount(0);
 
     // Les inscriptions
-    await dialog.getByRole('button', { name: 'Inscriptions', exact: true }).click();
+    // Planche : chaque rubrique a son tiroir ; on referme celui-ci et on ouvre sa carte.
+    await page.keyboard.press('Escape');
+    await page
+      .locator('article[aria-label="Fiche de [École 1]"]')
+      .getByRole('button', { name: 'Contact et inscriptions : ouvrir' })
+      .click();
     const inscriptions = dialog.getByRole('form', { name: 'Inscriptions de [École 1]' });
     await inscriptions.getByLabel(/^Année scolaire/).fill('2026-2027');
     await inscriptions.getByLabel('Date limite annoncée').fill('2030-12-15');

@@ -3,7 +3,7 @@ import { avecMessage } from '../../../modele/whatsapp';
 import { BoutonGoogle as BoutonCommun } from '../../commun/BoutonGoogle';
 import { base, useRequete } from '../base-locale';
 import { useRelais } from '../contexte';
-import { Icone } from '../composants';
+import { Icone, classeBouton } from '@/ui/v2/formulaire';
 import { journaliser } from '../journal';
 
 /** Le bouton de connexion de l'espace relais. */
@@ -29,27 +29,29 @@ export function Connexion() {
   );
   const fichesEnAttente = phraseFichesEnAttente(restantes ?? 0);
   return (
-    <div className="ecran ecran-accueil">
-      <main className="accueil">
-        <div className="accueil-marque">
+    <div className="ecran">
+      <main className="flex flex-1 flex-col justify-center gap-5 px-6 py-10 [&_h1]:m-0 [&_h1]:font-serif [&_h1]:text-[28px] [&_h1]:leading-tight [&_p]:m-0">
+        <div className="flex items-center gap-3 font-serif text-2xl font-bold">
           <img src="/favicon.svg" alt="" width={48} height={37} />
           <span>NTanova</span>
         </div>
-        <div className="pile-serree">
-          <p className="surtitre">Espace relais</p>
+        <div className="flex flex-col gap-2.5">
+          <p className="m-0 text-xs font-bold tracking-[0.08em] text-muted-foreground uppercase">
+            Espace relais
+          </p>
           <h1>Relever les écoles de son quartier.</h1>
-          <p className="texte-doux">Pour les jeunes qui travaillent avec NTanova.</p>
+          <p className="text-muted-foreground">Pour les jeunes qui travaillent avec NTanova.</p>
         </div>
         <BoutonGoogle />
-        <p className="mention centre">
+        <p className="m-0 text-center text-[13px] text-muted-foreground">
           La première connexion demande du réseau. Ensuite, le relevé marche hors ligne.
         </p>
         {fichesEnAttente && (
-          <p className="mention centre" role="status">
+          <p className="m-0 text-center text-[13px] text-muted-foreground" role="status">
             {fichesEnAttente}
           </p>
         )}
-        <div className="carte-blanche rang">
+        <div className="flex items-center gap-2.5 rounded-lg border border-border bg-card p-3.5">
           <Icone nom="cadenas" />
           <p>
             Votre compte est activé par NTanova après la formation.{' '}
@@ -57,7 +59,7 @@ export function Connexion() {
           </p>
         </div>
       </main>
-      <footer className="pied-relais">
+      <footer className="border-t border-border bg-card px-6 py-4 text-center text-sm">
         <a href="/">Vous n'êtes pas relais&nbsp;? Aller sur le site</a>
       </footer>
     </div>
@@ -73,20 +75,22 @@ export function CompteEnAttente({ email, suspendu }: { email: string | null; sus
     location.reload();
   };
   return (
-    <div className="ecran ecran-accueil">
-      <main className="accueil">
-        <div className="accueil-marque">
+    <div className="ecran">
+      <main className="flex flex-1 flex-col justify-center gap-5 px-6 py-10 [&_h1]:m-0 [&_h1]:font-serif [&_h1]:text-[28px] [&_h1]:leading-tight [&_p]:m-0">
+        <div className="flex items-center gap-3 font-serif text-2xl font-bold">
           <img src="/favicon.svg" alt="" width={48} height={37} />
           <span>NTanova</span>
         </div>
-        <div className="pile-serree">
-          <p className="surtitre">Espace relais</p>
+        <div className="flex flex-col gap-2.5">
+          <p className="m-0 text-xs font-bold tracking-[0.08em] text-muted-foreground uppercase">
+            Espace relais
+          </p>
           <h1>Relever les écoles de son quartier.</h1>
         </div>
-        <div className="bandeau bandeau-attente">
+        <div className="flex flex-col gap-2.5 rounded-md bg-attention px-3 py-2.5 text-sm text-attention-foreground [&_p]:m-0">
           <Icone nom="horloge" taille={22} />
           <div>
-            <p className="bandeau-titre">{suspendu ? 'Compte suspendu' : 'Compte en attente'}</p>
+            <p className="m-0 font-bold">{suspendu ? 'Compte suspendu' : 'Compte en attente'}</p>
             <p>
               {suspendu
                 ? 'Écrivez à NTanova sur WhatsApp pour en savoir plus.'
@@ -95,16 +99,29 @@ export function CompteEnAttente({ email, suspendu }: { email: string | null; sus
           </div>
         </div>
         {lienActivation && (
-          <a className="bouton" href={lienActivation} target="_blank" rel="noopener noreferrer">
+          <a
+            className={classeBouton({ size: 'lg', className: 'w-full' })}
+            href={lienActivation}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Écrire à NTanova sur WhatsApp
           </a>
         )}
-        <button type="button" className="bouton bouton-secondaire" onClick={synchroniser}>
+        <button
+          type="button"
+          className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
+          onClick={synchroniser}
+        >
           Vérifier à nouveau
         </button>
-        <p className="mention">
+        <p className="m-0 text-[13px] text-muted-foreground">
           Connecté avec {email ?? 'votre compte Google'}. Ce n'est pas vous&nbsp;?{' '}
-          <button type="button" className="lien" onClick={() => void changer()}>
+          <button
+            type="button"
+            className={classeBouton({ variant: 'link' })}
+            onClick={() => void changer()}
+          >
             Changer de compte
           </button>
         </p>
@@ -116,9 +133,9 @@ export function CompteEnAttente({ email, suspendu }: { email: string | null; sus
 /** Le compte est connu, mais le téléphone n'en a encore rien lu : l'écran ne reste jamais blanc. */
 export function Ouverture() {
   return (
-    <div className="ecran ecran-accueil" aria-busy="true">
-      <main className="accueil">
-        <p className="texte-doux centre" role="status">
+    <div className="ecran" aria-busy="true">
+      <main className="flex flex-1 flex-col justify-center gap-5 px-6 py-10 [&_h1]:m-0 [&_h1]:font-serif [&_h1]:text-[28px] [&_h1]:leading-tight [&_p]:m-0">
+        <p className="m-0 text-center text-muted-foreground" role="status">
           Ouverture de votre espace…
         </p>
       </main>
@@ -133,14 +150,18 @@ export function Ouverture() {
  */
 export function LectureImpossible() {
   return (
-    <div className="ecran ecran-accueil">
-      <main className="accueil">
+    <div className="ecran">
+      <main className="flex flex-1 flex-col justify-center gap-5 px-6 py-10 [&_h1]:m-0 [&_h1]:font-serif [&_h1]:text-[28px] [&_h1]:leading-tight [&_p]:m-0">
         <h1>Votre espace ne s’ouvre pas</h1>
         <p>
           NTanova n’a pas pu lire votre compte pour le moment. Vos fiches restent sur le téléphone.
           Réessayez&nbsp;; si cela continue, prévenez NTanova.
         </p>
-        <button type="button" className="bouton" onClick={() => location.reload()}>
+        <button
+          type="button"
+          className={classeBouton({ size: 'lg', className: 'w-full' })}
+          onClick={() => location.reload()}
+        >
           Réessayer
         </button>
       </main>
@@ -150,14 +171,18 @@ export function LectureImpossible() {
 
 export function PremiereConnexionHorsLigne() {
   return (
-    <div className="ecran ecran-accueil">
-      <main className="accueil">
+    <div className="ecran">
+      <main className="flex flex-1 flex-col justify-center gap-5 px-6 py-10 [&_h1]:m-0 [&_h1]:font-serif [&_h1]:text-[28px] [&_h1]:leading-tight [&_p]:m-0">
         <h1>Pas de réseau</h1>
         <p>
           La première ouverture demande du réseau, pour charger votre secteur et les écoles déjà
           connues. Ensuite, le relevé marche hors ligne.
         </p>
-        <button type="button" className="bouton" onClick={() => location.reload()}>
+        <button
+          type="button"
+          className={classeBouton({ size: 'lg', className: 'w-full' })}
+          onClick={() => location.reload()}
+        >
           Réessayer
         </button>
       </main>

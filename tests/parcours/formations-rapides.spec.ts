@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirLaFiche, prendrePhotoEtPosition, seConnecter, envoyerSansBonus } from './aides';
+import {
+  ouvrirLaFiche,
+  prendrePhotoEtPosition,
+  seConnecter,
+  envoyerSansBonus,
+  toutEstEnvoye,
+} from './aides';
 
 // Cocher les séries et les filières, sans clavier ; le repère en un toucher ; les brouillons d'avant (audit de la fiche
 // relais, 08/11/2026). Construit avec le faux serveur. Ce que le relais coche préremplit « À valider » : rien ne se publie seul.
@@ -46,11 +52,14 @@ test.describe('les séries du lycée se cochent', () => {
 
     await suivant(page).click();
     await page.getByRole('button', { name: 'Oui', exact: true }).click();
-    await page.getByLabel('Sa fonction').selectOption('promoteur');
+    await page
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Promoteur', exact: true })
+      .click();
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 123 45 61');
     await envoyerSansBonus(page);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
 
     // Le faux serveur a reçu les séries, dans l'ordre où le relais les a touchées, et le texte libre.
     await expect
@@ -70,9 +79,11 @@ test.describe('les séries du lycée se cochent', () => {
 
     // L'administration les voit cochées dans « À valider », déjà dans la liste des formations, et rien n'est publié.
     await ouvrirLaFiche(page);
-    await expect(page.getByTestId('formations-du-relais')).toContainText(
-      'Cochées par le relais sur place : Série D, Série C',
+    // Planche : la ligne « Formations » des faits les dit ; leur tiroir les corrige avant d'accepter.
+    await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText(
+      'Série D, Série C',
     );
+    await page.getByRole('button', { name: 'Corriger les formations' }).click();
     await expect(page.getByRole('button', { name: 'Retirer Série C' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Retirer Série D' })).toBeVisible();
   });
@@ -264,11 +275,14 @@ test.describe('un brouillon écrit avant le 09/11/2026 ne casse pas', () => {
     await suivant(page).click();
     await expect(page.getByRole('heading', { name: 'La rencontre' })).toBeVisible();
     await page.getByRole('button', { name: 'Oui', exact: true }).click();
-    await page.getByLabel('Sa fonction').selectOption('promoteur');
+    await page
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Promoteur', exact: true })
+      .click();
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 123 45 62');
     await envoyerSansBonus(page);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
     await expect
       .poll(() =>
         page.evaluate(() => {

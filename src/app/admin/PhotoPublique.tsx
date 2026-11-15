@@ -1,6 +1,7 @@
+import { v2 } from '@/ui/v2/classes';
 import { useCallback, useEffect, useState } from 'react';
 import type { PortAdministration, PhotoVue } from '../../modele/ports';
-import { Dialogue } from '../../ui/Dialogue';
+import { Dialogue } from '@/ui/v2/admin';
 import { dateLongue } from '../../modele/pointe-noire';
 import { libelleRolePhotoCourt } from '../../modele/libelles';
 import { decrirePhotosPubliques, type EtatPhotoPublique } from '../../modele/photos-publiques';
@@ -92,7 +93,7 @@ export function PhotoPublique({
         Une enseigne ou une vue du bâtiment, d’un relevé accepté de cette école. « Contrôlée » ne
         veut pas dire « publique » : seule la photo retenue paraît.
       </p>
-      <p className="mention">
+      <p className={v2.mention}>
         Elle paraît seulement si la fiche est publiée, après reconstruction du site. Un retrait
         exige aussi cette mise à jour ; les copies déjà partagées peuvent subsister.
       </p>
@@ -103,16 +104,16 @@ export function PhotoPublique({
         </p>
       )}
       {description?.retirable && (
-        <div className="pile-serree">
+        <div className={v2.pileSerree}>
           <button
             type="button"
-            className="bouton bouton-secondaire"
+            className={v2.boutonSecondaire}
             disabled={enCours}
             onClick={() => void agir(null)}
           >
             Retirer la photo publique
           </button>
-          <p className="mention">
+          <p className={v2.mention}>
             Le retrait bloque aussi le choix automatique : aucune autre photo, même contrôlée, ne
             prend sa place. Tu pourras choisir une photo ensuite.
           </p>
@@ -121,12 +122,12 @@ export function PhotoPublique({
       {photos !== null && !photos.length && (
         <p>Aucune enseigne ni vue du bâtiment issue d’un relevé accepté.</p>
       )}
-      <div className="pile">
+      <div className={v2.pile}>
         {(photos ?? []).map((p) => {
           const d = parPhoto.get(p.id);
           const dejaChoisie = d?.prioritaire === true && d.situation !== 'prioritaire_invalide';
           return (
-            <figure className="admin-figure" key={p.id}>
+            <figure className="m-0 flex flex-col gap-2" key={p.id}>
               {p.adresse ? (
                 <a href={p.adresse} target="_blank" rel="noopener noreferrer">
                   <img src={p.adresse} alt={`${libelleRolePhotoCourt[p.role]} — ${nom}`} />
@@ -145,7 +146,7 @@ export function PhotoPublique({
               </figcaption>
               {p.adresse && !dejaChoisie && (
                 <button
-                  className="bouton bouton-secondaire"
+                  className={v2.boutonSecondaire}
                   aria-pressed={choix === p.id}
                   disabled={enCours}
                   onClick={() => {
@@ -164,7 +165,7 @@ export function PhotoPublique({
         })}
       </div>
       {choix && (
-        <div className="pile">
+        <div className={v2.pile}>
           <label>
             <input
               type="checkbox"
@@ -174,19 +175,19 @@ export function PhotoPublique({
             J’ai vérifié : photo nette, sans enfant ni donnée personnelle ; j’autorise sa
             publication.
           </label>
-          <button className="bouton" disabled={enCours} onClick={() => void agir(choix)}>
+          <button className={v2.bouton} disabled={enCours} onClick={() => void agir(choix)}>
             Confirmer la photo publique
           </button>
         </div>
       )}
       {erreur && (
-        <p className="message-erreur" role="alert">
+        <p className={v2.erreur} role="alert">
           {erreur}
         </p>
       )}
-      <p className="mention">Aucun badge ou changement d’origine de la fiche n’est créé.</p>
+      <p className={v2.mention}>Aucun badge ou changement d’origine de la fiche n’est créé.</p>
       <a
-        className="lien"
+        className={v2.lien}
         href="https://github.com/benaja-bendo/ntanova-site/actions/workflows/mise-en-ligne.yml"
         target="_blank"
         rel="noopener noreferrer"

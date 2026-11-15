@@ -124,38 +124,20 @@ test.describe('Santé des envois', () => {
   });
 });
 
-test.describe('dans le détail d’une fiche à valider', () => {
+// Planche « À valider · une fiche » : les signaux du téléphone ne sont plus dans la fiche ; ils se lisent dans
+// « Santé des envois ».
+test.describe('les signaux d’un relais', () => {
   test.use({ permissions: ['geolocation'] });
 
-  test('l’administration voit ce que le téléphone du relais a signalé', async ({
+  test('se lisent dans « Santé des envois », pas dans la fiche à valider', async ({
     page,
     context,
   }) => {
     await uneFicheEnvoyee(page, context);
     await poserLeJournal(page);
     await ouvrirLaFiche(page);
-
-    const bloc = page.getByRole('region', { name: /Ce que le téléphone de .* a signalé/ });
-    await expect(bloc).toContainText('La position est refusée');
-    await expect(bloc).toContainText('3 fois');
-    // Le bruit d'une vieille nuit n'y est pas : 7 jours seulement.
-    await expect(bloc).not.toContainText('Ancienne version');
-
-    await bloc.getByRole('link', { name: 'Voir tout le journal' }).click();
-    await expect(page.getByRole('heading', { name: 'Santé des envois', level: 1 })).toBeVisible();
-  });
-
-  test('un relais qui n’a rien signalé : rien n’est affiché', async ({ page, context }) => {
-    await uneFicheEnvoyee(page, context);
-    await page.evaluate(() => {
-      const etat = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
-        erreurs?: unknown[];
-      };
-      etat.erreurs = [];
-      localStorage.setItem('ntanova-faux-serveur', JSON.stringify(etat));
-    });
-    await ouvrirLaFiche(page);
-    await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
     await expect(page.getByText(/a signalé ces 7 derniers jours/)).toHaveCount(0);
+    await ouvrirEcranAdmin(page, 'Santé des envois');
+    await expect(page.getByText(/La position est refusée/).first()).toBeVisible();
   });
 });

@@ -1,3 +1,4 @@
+import { v2 } from '@/ui/v2/classes';
 import { erreursDeclaration } from '../../modele/declaration-ecole';
 import { jourDuCongo } from '../../modele/date-declaration';
 /**
@@ -25,7 +26,7 @@ import type {
   PortAdministration,
   RapportImport,
 } from '../../modele/ports';
-import { Champ, Choix } from '../../ui/composants';
+import { Champ, Choix } from '@/ui/v2/formulaire';
 import { ChampPosition, messageErreur } from './ChampPosition';
 import { Formations } from './Formations';
 
@@ -47,7 +48,7 @@ function Division({
       {(a) => (
         <select
           {...a}
-          className="champ"
+          className={v2.champ}
           value={valeur}
           onChange={(ev) => surChange(ev.target.value)}
         >
@@ -138,15 +139,15 @@ function FormulaireUne({
 
   return (
     <form
-      className="admin-motif carte-blanche"
+      className={v2.motifBlanc}
       aria-label="Ajouter une école"
       noValidate
       onSubmit={(ev) => void enregistrer(ev)}
     >
-      <h2 className="titre-section admin-pleine-largeur">Ajouter une école</h2>
+      <h2 className={v2.titreLarge}>Ajouter une école</h2>
       {declaration && (
         <>
-          <p className="mention admin-pleine-largeur">
+          <p className={v2.mentionLarge}>
             Informations transmises par l’école pour publication. Cela ne confirme pas toute la
             fiche et ne remplace pas un passage sur place. Aucun numéro privé n’est publié ; le
             contact public se renseigne séparément avec son accord.
@@ -155,7 +156,7 @@ function FormulaireUne({
             {(a) => (
               <input
                 {...a}
-                className="champ"
+                className={v2.champ}
                 type="date"
                 max={jourDuCongo()}
                 value={declareeLe}
@@ -166,7 +167,7 @@ function FormulaireUne({
               />
             )}
           </Champ>
-          <div className="admin-pleine-largeur">
+          <div className={v2.large}>
             <label>
               <input
                 type="checkbox"
@@ -176,7 +177,7 @@ function FormulaireUne({
               L’école a transmis ces informations pour publication.
             </label>
             {erreurs.confirmee && (
-              <p className="message-erreur" role="alert">
+              <p className={v2.erreur} role="alert">
                 {erreurs.confirmee}
               </p>
             )}
@@ -187,7 +188,7 @@ function FormulaireUne({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             value={champs.nom}
@@ -199,7 +200,7 @@ function FormulaireUne({
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={champs.genre}
             onChange={(ev) => changer({ genre: ev.target.value as Valeur<'type_ecole'> })}
           >
@@ -220,7 +221,7 @@ function FormulaireUne({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             maxLength={120}
@@ -245,7 +246,7 @@ function FormulaireUne({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             maxLength={100}
@@ -258,7 +259,7 @@ function FormulaireUne({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             value={champs.repere}
@@ -271,7 +272,7 @@ function FormulaireUne({
           {(a) => (
             <input
               {...a}
-              className="champ"
+              className={v2.champ}
               type="tel"
               inputMode="tel"
               autoComplete="off"
@@ -286,7 +287,7 @@ function FormulaireUne({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             value={champs.programme}
@@ -294,7 +295,7 @@ function FormulaireUne({
           />
         )}
       </Champ>
-      <div className="admin-pleine-largeur">
+      <div className={v2.large}>
         <Choix
           legende="Niveaux"
           options={listes.niveau.map((n) => ({ valeur: n, libelle: libelleNiveau[n] }))}
@@ -311,20 +312,20 @@ function FormulaireUne({
         erreur={erreurs['formations']}
       />
       {existe && (
-        <p className="bandeau bandeau-attente admin-pleine-largeur" role="status">
+        <p className={v2.bandeAttention} role="status">
           {existe}
         </p>
       )}
       {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
+        <p className={v2.erreurLarge} role="alert">
           {erreur}
         </p>
       )}
-      <div className="admin-actions admin-pleine-largeur">
-        <button type="submit" className="bouton" disabled={enCours}>
+      <div className={v2.actionsLarge}>
+        <button type="submit" className={v2.bouton} disabled={enCours}>
           Ajouter l’école
         </button>
-        <button type="button" className="bouton bouton-secondaire" onClick={surAnnuler}>
+        <button type="button" className={v2.boutonSecondaire} onClick={surAnnuler}>
           Annuler
         </button>
       </div>
@@ -412,40 +413,40 @@ function Importation({
   const apteAImporter = rapport !== null && rapport.creees > 0 && !enCours;
 
   return (
-    <section className="admin-motif carte-blanche" aria-label="Importer des écoles">
-      <h2 className="titre-section admin-pleine-largeur">Importer une liste d’écoles</h2>
-      <p className="mention admin-pleine-largeur">
+    <section className={v2.motifBlanc} aria-label="Importer des écoles">
+      <h2 className={v2.titreLarge}>Importer une liste d’écoles</h2>
+      <p className={v2.mentionLarge}>
         CSV (séparé par des points-virgules ou des virgules) ou JSON. Une ligne par implantation ;
         des lignes de même référence sont les implantations d’une même école. Les écoles importées
         ne sont jamais publiées d’office, et sans position elles restent « à situer ».
       </p>
-      <details className="admin-pleine-largeur">
+      <details className={v2.large}>
         <summary>Voir le format et un exemple</summary>
-        <p className="mention">
+        <p className={v2.mention}>
           Colonnes : reference, nom, genre, etiquette, division (chemin ou identifiant), quartier,
           repere, numero, latitude, longitude, programme, cycles (séparés par « | »), formations (
           <code>cycle:titre:domaine:série:diplôme:rythmes</code>, séparées par « | », rythmes
           séparés par « + »). Le JSON suit le même modèle (voir <code>supabase/schema.md</code>).
         </p>
-        <pre className="mention">{EXEMPLE_CSV}</pre>
+        <pre className={v2.mention}>{EXEMPLE_CSV}</pre>
       </details>
       <Champ libelle="Le fichier (ou colle son contenu ci-dessous)" facultatif>
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="file"
             accept=".csv,.json,.txt,text/csv,application/json,text/plain"
             onChange={(ev) => void lireFichier(ev.target.files?.[0])}
           />
         )}
       </Champ>
-      <div className="admin-pleine-largeur">
+      <div className={v2.large}>
         <Champ libelle="Contenu de la liste">
           {(a) => (
             <textarea
               {...a}
-              className="champ"
+              className={v2.champ}
               rows={8}
               spellCheck={false}
               value={texte}
@@ -454,22 +455,22 @@ function Importation({
           )}
         </Champ>
       </div>
-      <div className="admin-actions admin-pleine-largeur">
+      <div className={v2.actionsLarge}>
         <button
           type="button"
-          className="bouton"
+          className={v2.bouton}
           disabled={enCours || texte.trim() === ''}
           onClick={() => void simuler()}
         >
           Vérifier (simulation, rien n’est écrit)
         </button>
-        <button type="button" className="bouton bouton-secondaire" onClick={surAnnuler}>
+        <button type="button" className={v2.boutonSecondaire} onClick={surAnnuler}>
           Annuler
         </button>
       </div>
 
       {rapport && (
-        <p className="bandeau bandeau-public admin-pleine-largeur" role="status">
+        <p className={v2.bandeSucces} role="status">
           Simulation : {rapport.total} école{rapport.total > 1 ? 's' : ''} lue
           {rapport.total > 1 ? 's' : ''} — {rapport.creees} à créer, {rapport.existantes} déjà
           connue{rapport.existantes > 1 ? 's' : ''}, {rapport.erreurs.length} refusée
@@ -477,14 +478,14 @@ function Importation({
         </p>
       )}
       {toutesErreurs.length > 0 && (
-        <div className="admin-pleine-largeur" role="alert">
-          <p className="message-erreur">
+        <div className={v2.large} role="alert">
+          <p className={v2.erreur}>
             {toutesErreurs.length} ligne{toutesErreurs.length > 1 ? 's' : ''} à corriger (elles ne
             seront pas importées) :
           </p>
           <ul>
             {toutesErreurs.map((e, i) => (
-              <li key={`${e.ligne}-${i}`} className="mention">
+              <li key={`${e.ligne}-${i}`} className={v2.mention}>
                 Ligne {e.ligne}
                 {e.nom ? ` (${e.nom})` : ''} : {e.message}
               </li>
@@ -493,14 +494,14 @@ function Importation({
         </div>
       )}
       {apteAImporter && (
-        <div className="admin-actions admin-pleine-largeur">
-          <button type="button" className="bouton" onClick={() => void importer()}>
+        <div className={v2.actionsLarge}>
+          <button type="button" className={v2.bouton} onClick={() => void importer()}>
             Importer {rapport.creees} école{rapport.creees > 1 ? 's' : ''} pour de bon
           </button>
         </div>
       )}
       {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
+        <p className={v2.erreurLarge} role="alert">
           {erreur}
         </p>
       )}
@@ -530,7 +531,7 @@ export function Creation({
   }, [admin]);
 
   return (
-    <div className="pile">
+    <div className={v2.pile}>
       <Choix
         legende="Comment ajouter"
         options={[

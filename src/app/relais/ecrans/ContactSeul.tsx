@@ -8,7 +8,8 @@ import {
 } from '../../../modele/fiche';
 import { ajouterLeContact } from '../actions-fiches';
 import { lireMemoire, useRequete } from '../base-locale';
-import { Bandeau, Entete, Icone, Navigation } from '../composants';
+import { Entete, Navigation } from '../composants';
+import { Bandeau, Icone, classeBouton } from '@/ui/v2/formulaire';
 import { aller, useRelais } from '../contexte';
 import { ChampsContact } from './Ajouter';
 
@@ -30,9 +31,12 @@ export function ContactSeul({ releveId }: { releveId: string }) {
     return (
       <div className="ecran">
         <Entete titre="La direction" principal />
-        <main className="contenu-relais">
+        <main className="flex flex-1 flex-col gap-4 px-4 py-3.5">
           <p>Cette fiche n’est plus dans votre liste.</p>
-          <a className="bouton bouton-secondaire" href="#fiches">
+          <a
+            className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
+            href="#fiches"
+          >
             Retour à mes fiches
           </a>
         </main>
@@ -57,11 +61,11 @@ export function ContactSeul({ releveId }: { releveId: string }) {
   return (
     <div className="ecran">
       <Entete titre="La direction" principal />
-      <main className="contenu-relais">
+      <main className="flex flex-1 flex-col gap-4 px-4 py-3.5">
         <p>
           <b>{recu.nomEnseigne}</b>
           <br />
-          <span className="texte-doux">
+          <span className="text-muted-foreground">
             Vous aviez noté que la direction était absente. Vous l’avez revue&nbsp;: ajoutez son
             contact.
           </span>
@@ -73,12 +77,19 @@ export function ContactSeul({ releveId }: { releveId: string }) {
           </p>
         </Bandeau>
         <ChampsContact contact={contact} modifierContact={modifierContact} erreurs={erreurs} />
-        <a className="lien lien-discret" href="#fiches">
+        <a
+          className={classeBouton({ variant: 'link', className: 'text-muted-foreground' })}
+          href="#fiches"
+        >
           Retour à mes fiches
         </a>
       </main>
-      <div className="pied-etape">
-        <button type="button" className="bouton bouton-large" onClick={() => void envoyer()}>
+      <div className="sticky bottom-0 z-10 flex flex-col gap-2 border-t border-border bg-card px-4 pt-2.5 pb-4">
+        <button
+          type="button"
+          className={classeBouton({ size: 'xl', className: 'w-full' })}
+          onClick={() => void envoyer()}
+        >
           <Icone nom="coche" />
           Envoyer le contact
         </button>

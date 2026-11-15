@@ -5,6 +5,8 @@
  * détail brut seulement pour qui veut creuser. La période par défaut est de 7 jours : le bruit d'une nuit de bascule
  * (des téléphones d'avant la mise à jour) sort de la vue sans filtre écrit en dur.
  */
+import { v2 } from '@/ui/v2/classes';
+import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import type { PortAdministration } from '../../modele/ports';
 import {
@@ -14,7 +16,8 @@ import {
   regrouper,
   type GroupeJournal,
 } from '../../modele/sante';
-import { Bandeau, Champ, quand } from '../../ui/composants';
+import { Bandeau, Champ } from '@/ui/v2/formulaire';
+import { quand } from '../../ui/composants';
 import { TitreEcran } from './Cadre';
 
 /**
@@ -49,20 +52,20 @@ export function SignauxDuRelais({
   const groupes = lecture?.pour === relaisId ? lecture.groupes.slice(0, 3) : [];
   if (groupes.length === 0) return null;
   return (
-    <section className="pile-serree" aria-label={`Ce que le téléphone de ${prenom} a signalé`}>
-      <p className="mention">
+    <section className={v2.pileSerree} aria-label={`Ce que le téléphone de ${prenom} a signalé`}>
+      <p className={v2.mention}>
         <b>
           Ce que le téléphone de {prenom} a signalé ces {periodeParDefaut} derniers jours
         </b>
       </p>
-      <ul className="mention">
+      <ul className={v2.mention}>
         {groupes.map((g) => (
           <li key={g.cle}>
             {g.explication} ({g.nombre} fois, dernière {quand(g.derniere)}).
           </li>
         ))}
       </ul>
-      <a className="lien" href="#sante">
+      <a className={v2.lien} href="#sante">
         Voir tout le journal
       </a>
     </section>
@@ -99,7 +102,7 @@ export function Sante({ admin }: { admin: PortAdministration }) {
   }, [admin, jours]);
 
   return (
-    <div className="pile">
+    <div className={v2.pile}>
       <TitreEcran
         titre="Santé des envois"
         regles={
@@ -115,7 +118,7 @@ export function Sante({ admin }: { admin: PortAdministration }) {
               {(a) => (
                 <select
                   {...a}
-                  className="champ"
+                  className={cn(v2.champ, 'h-11 w-40')}
                   value={jours === null ? 'tout' : String(jours)}
                   onChange={(e) =>
                     setJours(e.target.value === 'tout' ? null : Number(e.target.value))
@@ -139,7 +142,7 @@ export function Sante({ admin }: { admin: PortAdministration }) {
         </Bandeau>
       )}
 
-      <div className="admin-tableau">
+      <div className={v2.tableau}>
         <table>
           <thead>
             <tr>
@@ -158,9 +161,9 @@ export function Sante({ admin }: { admin: PortAdministration }) {
                 </td>
                 <td>
                   {g.explication}
-                  <details className="admin-sous-ligne">
+                  <details className={v2.mentionBloc}>
                     <summary>Détail technique</summary>
-                    <p className="mention">
+                    <p className={v2.mention}>
                       Code : <code>{g.code}</code>
                       {g.versionApp && (
                         <>
@@ -171,7 +174,7 @@ export function Sante({ admin }: { admin: PortAdministration }) {
                       {' · '}première fois {quand(g.premiere)}
                     </p>
                     {g.detail && (
-                      <p className="mention">
+                      <p className={v2.mention}>
                         <code>{g.detail}</code>
                       </p>
                     )}
@@ -184,14 +187,14 @@ export function Sante({ admin }: { admin: PortAdministration }) {
             ))}
             {groupes === null && !erreur && (
               <tr>
-                <td colSpan={5} className="texte-doux" aria-busy="true">
+                <td colSpan={5} className={v2.doux} aria-busy="true">
                   Chargement du journal…
                 </td>
               </tr>
             )}
             {groupes?.length === 0 && (
               <tr>
-                <td colSpan={5} className="texte-doux">
+                <td colSpan={5} className={v2.doux}>
                   Aucun signal sur cette période.
                 </td>
               </tr>
@@ -200,7 +203,7 @@ export function Sante({ admin }: { admin: PortAdministration }) {
         </table>
       </div>
       {groupes !== null && groupes.length > 0 && (
-        <p className="mention">
+        <p className={v2.mention}>
           {lignes} ligne{lignes > 1 ? 's' : ''} du journal, regroupée{groupes.length > 1 ? 's' : ''}{' '}
           en {groupes.length}.
         </p>

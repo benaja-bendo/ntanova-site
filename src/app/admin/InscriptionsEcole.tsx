@@ -1,10 +1,11 @@
+import { v2 } from '@/ui/v2/classes';
 import { useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import { lireDateInscription, type DateInscription } from '../../modele/inscriptions';
 import type { PortAdministration } from '../../modele/ports';
-import { Dialogue } from '../../ui/Dialogue';
+import { Dialogue } from '@/ui/v2/admin';
 import { dateLongue } from '../../modele/pointe-noire';
-import { Bandeau } from '../../ui/composants';
+import { Bandeau } from '@/ui/v2/formulaire';
 import { messageErreur } from './ChampPosition';
 
 const VIDE = { anneeScolaire: '', limite: '', declareeLe: '' };
@@ -68,7 +69,7 @@ export function InscriptionsEcole({
   return (
     <Dialogue titre={`Inscriptions de ${nom}`} fermer={fermer} integre={integre}>
       <form
-        className="admin-motif"
+        className={v2.motif}
         aria-label={`Inscriptions de ${nom}`}
         onSubmit={(ev) => {
           ev.preventDefault();
@@ -81,7 +82,7 @@ export function InscriptionsEcole({
           fois passée, à la mise à jour suivante du site.
         </p>
         {inscriptions.length > 0 && (
-          <ul className="admin-frais-liste">
+          <ul className="m-0 flex list-none flex-col gap-2.5 p-0 [&>li]:flex [&>li]:flex-col [&>li]:gap-1.5 [&>li]:rounded-lg [&>li]:border [&>li]:border-border [&>li]:p-3 [&_p]:m-0">
             {inscriptions.map((d) => (
               <li key={d.id}>
                 <b>
@@ -93,7 +94,7 @@ export function InscriptionsEcole({
                 </p>
                 <button
                   type="button"
-                  className="bouton bouton-secondaire"
+                  className={v2.boutonSecondaire}
                   disabled={enCours}
                   onClick={() => {
                     setId(d.id);
@@ -109,7 +110,7 @@ export function InscriptionsEcole({
                 </button>
                 <button
                   type="button"
-                  className="bouton bouton-secondaire admin-bouton-refus"
+                  className={v2.boutonRefus}
                   disabled={enCours}
                   onClick={() =>
                     void agir(
@@ -124,28 +125,28 @@ export function InscriptionsEcole({
             ))}
           </ul>
         )}
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Année scolaire (2026-2027)
           <input
-            className="champ"
+            className={v2.champ}
             maxLength={30}
             value={saisie.anneeScolaire}
             onChange={(e) => changer({ anneeScolaire: e.target.value })}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Date limite annoncée
           <input
-            className="champ"
+            className={v2.champ}
             type="date"
             value={saisie.limite}
             onChange={(e) => changer({ limite: e.target.value })}
           />
         </label>
-        <label className="champ-groupe">
+        <label className={v2.groupe}>
           Date de la déclaration de l’école
           <input
-            className="champ"
+            className={v2.champ}
             type="date"
             max={jourDuCongo()}
             value={saisie.declareeLe}
@@ -157,13 +158,13 @@ export function InscriptionsEcole({
             {erreur}
           </Bandeau>
         )}
-        <button className="bouton" type="submit" disabled={enCours}>
+        <button className={v2.bouton} type="submit" disabled={enCours}>
           {enCours ? 'Enregistrement…' : id ? 'Modifier la date' : 'Ajouter la date'}
         </button>
         {id && (
           <button
             type="button"
-            className="bouton bouton-secondaire"
+            className={v2.boutonSecondaire}
             disabled={enCours}
             onClick={() => {
               setId(null);
@@ -174,7 +175,7 @@ export function InscriptionsEcole({
             Annuler la modification
           </button>
         )}
-        <p className="mention">Visible après la prochaine mise à jour du site.</p>
+        <p className={v2.mention}>Visible après la prochaine mise à jour du site.</p>
       </form>
     </Dialogue>
   );

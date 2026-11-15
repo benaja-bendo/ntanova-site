@@ -49,7 +49,7 @@ export async function attendreLaLecture(page: Page) {
 
 /** Lot H : la carte d'une mission sur l'accueil (« Vos missions »). */
 export const carteDeMission = (page: Page) =>
-  page.getByRole('region', { name: 'Vos missions' }).locator('a.carte-mission');
+  page.getByRole('region', { name: 'Vos missions' }).getByRole('link');
 
 /** Lot H : depuis l'accueil, ouvre la mission (la première), puis « Prendre la photo » (la contre-visite commence). */
 export async function commencerLaMission(page: Page) {
@@ -87,7 +87,10 @@ export async function ajouterUneEcole(
   await page.getByRole('button', { name: 'Suivant' }).click();
 
   await page.getByRole('button', { name: 'Oui', exact: true }).click();
-  await page.getByLabel('Sa fonction').selectOption('promoteur');
+  await page
+    .getByRole('group', { name: 'Qui ?' })
+    .getByRole('button', { name: 'Promoteur', exact: true })
+    .click();
   await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
   await page.getByLabel(/Son WhatsApp/).fill(`06 123 45 6${n}`);
   await envoyerSansBonus(page);
@@ -120,7 +123,7 @@ export async function uneFicheEnvoyee(
   // tomber en panne de réseau juste après).
   await attendreLaLecture(page);
   await ajouterUneEcole(page, 1, options);
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page);
   // Le faux serveur a bien reçu le relevé, la photo et le contact.
   await expect
     .poll(() =>
@@ -136,9 +139,53 @@ export async function uneFicheEnvoyee(
 }
 
 /** Dans l'onglet « Écoles » : publie d'un coup les écoles prêtes de la zone Tié-Tié (une ville, un arrondissement…). */
+/**
+ * Publie « [École 1] », prête, depuis sa ligne (planche « Écoles » : la ligne d'une école prête porte « Publier »). Le
+ * nom d'avant reste : les parcours publiaient la zone Tié-Tié, où elle est la seule école prête.
+ */
 export async function publierLaZoneTieTie(page: Page) {
-  await page.getByLabel('Zone à publier').selectOption('d-pn-tie-tie');
-  await page.getByRole('button', { name: 'Publier cette zone' }).click();
+  await page
+    .getByRole('row', { name: /\[École 1\]/ })
+    .getByRole('button', { name: 'Publier', exact: true })
+    .click();
+  await expect(page.getByRole('status').first()).toContainText('[École 1] est publiée');
+}
+
+/**
+ * Planche « À valider » : l'enseigne se dit publiable d'une bascule « Photo publiable » (ordinateur), ou de « Publique »
+ * dans « Photos du relevé » (téléphone). Remplace « Contrôler pour publication ».
+ */
+export async function marquerPubliable(page: Page) {
+  const bascule = page.getByRole('switch', { name: 'Photo publiable' }).filter({ visible: true });
+  if ((await bascule.count()) > 0) {
+    await bascule.click();
+    await expect(bascule).toHaveAttribute('aria-checked', 'true');
+    return;
+  }
+  const publique = page
+    .getByRole('group', { name: /^L'enseigne ou l'entrée : publique ou écartée \?$/ })
+    .getByRole('button', { name: 'Publique', exact: true });
+  await publique.click();
+  await expect(publique).toHaveAttribute('aria-pressed', 'true');
+}
+
+/** « Refuser » : à droite de la barre sur ordinateur, derrière « ⋯ » sur téléphone (planche). */
+export async function ouvrirLeRefus(page: Page) {
+  await fermerContacts(page);
+  const direct = page
+    .getByRole('button', { name: 'Refuser', exact: true })
+    .filter({ visible: true });
+  if ((await direct.count()) === 0) {
+    await page
+      .getByRole('group', { name: 'Accepter, corriger ou refuser' })
+      .locator('summary')
+      .filter({ visible: true })
+      .click();
+  }
+  await page
+    .getByRole('button', { name: 'Refuser', exact: true })
+    .filter({ visible: true })
+    .click();
 }
 
 /** L'administration ouvre la fiche « [École 1] » dans « À valider ». */
@@ -217,61 +264,151 @@ export async function textesPeuLisibles(page: Page, selecteur: string): Promise<
 }
 
 /**
- * Ouvre la fiche d'une école depuis la liste (admin v2 : en plein écran, `#ecoles/fiche/<id>`), puis sa rubrique. Le retrait
- * et la fusion restent dans le menu « ⋯ » de la ligne.
+ * Ouvre la fiche d'une école depuis la liste (admin v2 : en plein écran, `#ecoles/fiche/<id>`, par le nom de la ligne),
+ * puis sa rubrique : la carte de la rubrique (planche « Fiche d'école »), ou le menu « ⋯ » de la fiche pour la mission,
+ * le retrait et la fusion.
  */
+export async function ouvrirFiche(ligne: Locator) {
+  const page = ligne.page();
+  await fermerLeTiroir(page);
+  if (page.url().includes('#ecoles/fiche/')) {
+    await page.evaluate(() => (location.hash = '#ecoles'));
+    await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeAttached();
+    await toutesLesEcoles(page);
+  }
+  // La liste s'ouvre sur « À publier » : la ligne cherchée peut être dans « Toutes ».
+  if (!(await ligne.isVisible())) await toutesLesEcoles(page);
+  await ligne.getByRole('link').first().click();
+  await expect(page.locator('article[aria-label^="Fiche de "]')).toBeVisible();
+}
+
+const cartes: Record<string, string> = {
+  Informations: 'Modifier les informations',
+  Agrément: 'Modifier les informations',
+  'Contact public': 'Contact et inscriptions : ouvrir',
+  Inscriptions: 'Contact et inscriptions : ouvrir',
+  'Frais déclarés': 'Frais : ouvrir',
+  Équipements: 'Sur place : ouvrir',
+  'Formations du supérieur': 'Formations : ouvrir',
+  'Mot de la direction': 'Mot de la direction : ouvrir',
+  Nouvelles: 'Nouvelles : ouvrir',
+  Admission: 'Admission : ouvrir',
+  'À compléter': 'Compléter la fiche',
+  Images: 'Changer la couverture',
+  Logo: 'Ajouter le logo',
+};
+const gestes: Record<string, RegExp> = {
+  Mission: /^(Confier à un relais|Mission en cours…)$/,
+  retirer: /^Retirer de la publication$/,
+  fusionner: /^Fusionner avec un doublon$/,
+};
+
 export async function ouvrirGestion(ligne: Locator, section: string) {
-  if (section === 'retirer' || section === 'fusionner') {
-    await ligne.locator('summary').click();
-    await ligne
-      .getByRole('button', {
-        name: section === 'retirer' ? 'Retirer du site' : 'Fusionner…',
-        exact: true,
-      })
+  const page = ligne.page();
+  await ouvrirFiche(ligne);
+  const fiche = page.locator('article[aria-label^="Fiche de "]');
+  if (gestes[section]) {
+    await page
+      .locator('summary[aria-label^="Autres actions pour "]')
+      .filter({ visible: true })
+      .first()
+      .click();
+    await page
+      .getByRole('button', { name: gestes[section] })
+      .filter({ visible: true })
+      .first()
+      .click();
+  } else if (section === 'Photo publique') {
+    await fiche
+      .getByRole('button', { name: /^(Gérer|Photo( de travail)? : .+)$/ })
+      .filter({ visible: true })
+      .first()
       .click();
   } else {
-    const page = ligne.page();
-    // Une fiche déjà ouverte : on revient d'abord à la liste.
-    if (page.url().includes('#ecoles/fiche/')) {
-      await page.evaluate(() => (location.hash = '#ecoles'));
-      await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeAttached();
-    }
-    await ligne.getByRole('link', { name: 'Ouvrir la fiche', exact: true }).click();
-    await page
-      .getByRole('navigation', { name: 'Sections de la fiche' })
-      .getByRole('button', { name: section, exact: true })
+    await fiche
+      .getByRole('button', { name: cartes[section] ?? `${section} : ouvrir`, exact: true })
+      .filter({ visible: true })
+      .first()
       .click();
   }
 }
 
 /** La fiche d'une école ouverte en plein écran (admin v2). */
 export const ficheAdmin = (page: Page, nom: string) =>
-  page.getByRole('article', { name: `Fiche de ${nom}` });
+  // Un tiroir ouvert de la fiche (« Sur place · nom ») est ajouté en fin de page : il passe devant la fiche ; une rubrique
+  // en page (« Frais · nom ») remplace la fiche.
+  page
+    .locator(
+      `[role="dialog"][aria-label$="· ${nom}"], [role="alertdialog"][aria-label$="· ${nom}"], article[aria-label$="· ${nom}"], article[aria-label="Fiche de ${nom}"]`,
+    )
+    .last();
+
+/** La fiche d'école ouverte, ou son tiroir s'il y en a un (admin v2 : l'ancien `article.fiche-admin`). */
+export const ficheOuverte = (page: Page) =>
+  page
+    .locator(
+      '[role="dialog"], [role="alertdialog"], article[aria-label^="Fiche de "], article[aria-label*=" · "]',
+    )
+    .last();
+
+/** Referme le tiroir ou la fenêtre ouverte (Échap), s'il y en a une : la page est derrière. */
+export async function fermerLeTiroir(page: Page): Promise<void> {
+  const ouvert = page.locator('[role="dialog"], [role="alertdialog"]');
+  if ((await ouvert.count()) > 0) {
+    await page.keyboard.press('Escape');
+    await expect(ouvert).toHaveCount(0);
+  }
+}
 
 /** Revient de la fiche d'une école à la liste « Écoles » (flèche de la barre du haut, ou lien sur ordinateur). */
 export async function retourAuxEcoles(page: Page) {
+  await fermerLeTiroir(page);
   await page
-    .getByRole('link', { name: /^(Retour : Écoles|← Écoles)$/ })
-    .locator('visible=true')
+    .getByRole('link', { name: /^(Retour : Écoles|← Écoles|Écoles)$/ })
+    .filter({ visible: true })
     .first()
     .click();
   await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeAttached();
+  await toutesLesEcoles(page);
+}
+
+/** Referme le tiroir des contacts, s'il est ouvert : la barre de décision est dessous. */
+export async function fermerContacts(page: Page): Promise<void> {
+  const tiroir = page.getByRole('dialog', { name: 'Contact et échanges avec la direction' });
+  if (await tiroir.isVisible()) {
+    await page.keyboard.press('Escape');
+    await expect(tiroir).toHaveCount(0);
+  }
 }
 
 /** Le bloc privé est secondaire ; les parcours de contact l'ouvrent explicitement. */
 export async function ouvrirContacts(page: Page): Promise<void> {
-  const section = page.locator('details.section-repliable');
-  await section.locator('summary').waitFor();
-  if ((await section.getAttribute('open')) === null) await section.locator('summary').click();
+  // Admin v2 : la ligne « Contacts de la direction » des faits ouvre le tiroir.
+  const tiroir = page.getByRole('dialog', { name: 'Contact et échanges avec la direction' });
+  if (await tiroir.isVisible()) return;
+  await page.getByRole('button', { name: 'Contact et échanges avec la direction' }).click();
+  await expect(tiroir).toBeVisible();
 }
 
 /**
  * Choisit une zone dans l'arbre de l'onglet Zones. Sous 72 rem, une zone choisie remplace la liste : on y revient d'abord
  * par « Toutes les zones ».
  */
+/** Sur un petit écran, une zone choisie remplace la liste : la flèche de la barre verte la rend. */
+export async function retourAuxZones(page: Page): Promise<void> {
+  // Sous 64 rem seulement : une zone choisie y remplace la liste.
+  if ((page.viewportSize()?.width ?? 0) >= 1024) return;
+  if (!/#zones\/./.test(page.url())) return;
+  await page
+    .getByRole('link', { name: 'Retour : Zones' })
+    .filter({ visible: true })
+    .first()
+    .click();
+  await expect(page.getByRole('region', { name: 'Liste des zones' })).toBeVisible();
+}
+
 export async function choisirLaZone(page: Page, nom: RegExp | string): Promise<void> {
-  const retour = page.getByRole('link', { name: '← Toutes les zones' });
-  if (await retour.isVisible()) await retour.click();
+  await retourAuxZones(page);
   await page
     .getByRole('region', { name: 'Liste des zones' })
     .getByRole('button', { name: nom })
@@ -282,15 +419,38 @@ export async function choisirLaZone(page: Page, nom: RegExp | string): Promise<v
  * Admin v2 : ouvre un écran par son nom. Aujourd'hui, À valider, Écoles et Relais sont dans la barre (du bas sur téléphone,
  * de côté sur ordinateur) ; Zones, Paie et Santé des envois, sur téléphone, dans la feuille « Plus ».
  */
+/** Admin v2 : « Écoles » s'ouvre sur « À publier » (planche) ; les parcours regardent toutes les écoles. */
+export async function toutesLesEcoles(page: Page) {
+  await page
+    .getByRole('group', { name: 'Filtrer par état' })
+    .getByRole('button', { name: /^Toutes/ })
+    .click();
+}
+
+export async function ouvrirLesEcoles(page: Page) {
+  await fermerContacts(page);
+  await page.getByRole('link', { name: 'Écoles' }).click();
+  await toutesLesEcoles(page);
+}
+
 export async function ouvrirEcranAdmin(page: Page, nom: string) {
-  const direct = page.getByRole('link', { name: nom, exact: true }).locator('visible=true');
+  // Le lien porte aussi son compteur (« Relais 1 relais à activer ») ou son détail (« Paie vendredi »).
+  const lien = new RegExp(`^${nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-zà-ÿ])`, 'i');
+  // L'écran doit être là avant de compter les liens (sinon on ouvrirait « Plus » pour rien).
+  await expect(
+    page
+      .getByRole('link', { name: /^Aujourd’hui/ })
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  const direct = page.getByRole('link', { name: lien }).filter({ visible: true });
   if ((await direct.count()) === 0) {
     await page
       .getByRole('navigation', { name: 'Navigation' })
       .getByRole('button', { name: 'Plus' })
       .click();
   }
-  await page.getByRole('link', { name: nom, exact: true }).locator('visible=true').first().click();
+  await page.getByRole('link', { name: lien }).filter({ visible: true }).first().click();
 }
 
 /** Admin v2 : ouvre le tiroir « Règles » de l'écran (le bouton sur ordinateur, « Plus » sur téléphone). */
@@ -305,4 +465,35 @@ export async function ouvrirRegles(page: Page) {
     await page.getByRole('button', { name: 'Règles de cet écran' }).click();
   }
   await expect(page.getByRole('dialog', { name: /^Règles : / })).toBeVisible();
+}
+
+/** v2 (planche « Mes fiches ») : la ligne d'une fiche dans la liste (son état, sa phrase, son badge ; aucun geste). */
+export const ligneDeFiche = (page: Page, nom: string) => page.locator(`li[data-fiche="${nom}"]`);
+
+/**
+ * v2 : les gestes d'une fiche (Corriger, Réessayer, Modifier, Retirer du téléphone…) sont dans la fiche, pas dans la liste.
+ * Ouvre la fiche depuis « Mes fiches » et rend l'écran de la fiche.
+ */
+export async function ouvrirMaFiche(page: Page, nom: string): Promise<Locator> {
+  if (!(await page.getByRole('heading', { level: 1, name: nom }).isVisible())) {
+    if (!(await ligneDeFiche(page, nom).isVisible())) await page.goto('/relais/#fiches');
+    await ligneDeFiche(page, nom).getByRole('link').click();
+  }
+  await expect(page.getByRole('heading', { level: 1, name: nom })).toBeVisible();
+  return page.getByRole('main');
+}
+
+/**
+ * Attend que tout soit parti. Planche v2 : « Tout est envoyé » se lit sur l'accueil (Missions), jamais dans « Mes fiches » ;
+ * on y passe le temps de le lire, puis on revient sur l'écran d'avant.
+ */
+export async function toutEstEnvoye(page: Page, timeout = 15_000) {
+  const avant = await page.evaluate(() => location.hash);
+  const surLAccueil = ['', '#', '#missions', '#lot'].includes(avant);
+  const barre = page.getByRole('navigation', { name: 'Espace relais' });
+  if (!surLAccueil) await barre.getByRole('link', { name: 'Missions' }).click();
+  await expect(page.getByText('Tout est envoyé')).toBeVisible({ timeout });
+  if (surLAccueil) return;
+  if (avant.startsWith('#fiches')) await barre.getByRole('link', { name: 'Mes fiches' }).click();
+  else await page.evaluate((h) => (location.hash = h), avant);
 }

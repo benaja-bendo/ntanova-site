@@ -8,6 +8,9 @@ import {
   prendrePhotoEtPosition,
   seConnecter,
   uneFicheEnvoyee,
+  ligneDeFiche,
+  ouvrirMaFiche,
+  toutEstEnvoye,
 } from './aides';
 
 // Corriger une fiche : le relais revoit ce que NTanova a reçu, ses photos et sa position sur une carte, et une photo
@@ -86,9 +89,11 @@ test.describe('corriger une fiche : ce que NTanova a déjà reçu', () => {
     await uneFicheEnvoyee(page, context);
     await renvoyer(page, 'autre', 'Vérifiez le nom sur l’enseigne.');
 
-    await page.goto('/relais/#fiches');
+    await ouvrirMaFiche(page, '[École 1]');
     await page.getByRole('button', { name: 'Corriger la fiche' }).click();
-    await expect(page.locator('.entete-etape-titre')).toHaveText('Corriger une fiche');
+    await expect(
+      page.getByRole('banner').getByText('Corriger une fiche', { exact: true }),
+    ).toBeVisible();
     await expect(encart(page)).toContainText('Vérifiez le nom sur l’enseigne.');
 
     // La photo reçue est là, avec son rôle, et la consigne dit qu'il n'y a rien à refaire.
@@ -130,7 +135,7 @@ test.describe('corriger une fiche : ce que NTanova a déjà reçu', () => {
     await uneFicheEnvoyee(page, context);
     await renvoyer(page, 'autre', 'Vérifiez le nom.');
 
-    await page.goto('/relais/#fiches');
+    await ouvrirMaFiche(page, '[École 1]');
     await page.getByRole('button', { name: 'Corriger la fiche' }).click();
     await expect(page.getByText('La carte demande du réseau.', { exact: false })).toBeVisible();
     await expect(page.getByText(/-4\.80000, 11\.90000 · précision 8\s*m/)).toBeVisible();
@@ -152,7 +157,7 @@ test.describe('corriger une fiche : ce que NTanova a déjà reçu', () => {
     await perdreLesPhotos(page);
     await renvoyer(page, 'autre', 'Il manque les images, tu peux les remettre ?');
 
-    await page.goto('/relais/#fiches');
+    await ouvrirMaFiche(page, '[École 1]');
     await page.getByRole('button', { name: 'Corriger la fiche' }).click();
     await expect(encart(page)).toContainText('Il manque les images, tu peux les remettre ?');
     await expect(encart(page).getByText('À prendre')).toBeVisible();
@@ -171,7 +176,7 @@ test.describe('corriger une fiche : ce que NTanova a déjà reçu', () => {
     await page.getByRole('button', { name: 'Suivant' }).click();
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
     // La photo est arrivée chez NTanova.
     await expect.poll(async () => (await serveur(page)).photos).toBe(1);
   });
@@ -245,8 +250,12 @@ test.describe('une photo exigée qui n’est plus dans le téléphone', () => {
     // d'être envoyée, sans même tenter le serveur.
     await page.reload();
     await page.getByRole('link', { name: 'Mes fiches' }).click();
-    const fiche = page.getByRole('article').filter({ hasText: '[École 1]' });
-    await expect(fiche.getByText('Refusée', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(ligneDeFiche(page, '[École 1]').getByText('Refusée', { exact: true })).toBeVisible(
+      {
+        timeout: 15_000,
+      },
+    );
+    const fiche = await ouvrirMaFiche(page, '[École 1]');
     await expect(
       fiche.getByText(/La photo de l'enseigne n'est plus dans le téléphone/),
     ).toBeVisible();

@@ -1,3 +1,4 @@
+import { v2 } from '@/ui/v2/classes';
 import { useCallback, useEffect, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
@@ -9,8 +10,8 @@ import { libelleFonction, libelleGenreNouvelle } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
 import { dateLongue } from '../../modele/pointe-noire';
 import type { PortAdministration } from '../../modele/ports';
-import { Bouton } from '../../ui/actions';
-import { Champ, Choix } from '../../ui/composants';
+import { Bouton } from '@/ui/v2/admin';
+import { cn } from '@/lib/utils';
 import { messageErreur } from './ChampPosition';
 
 const CANAUX = [
@@ -75,40 +76,11 @@ export function NouvellesEcole({
   };
   const publiees = (liste ?? []).filter((x) => x.etat === 'publiee');
 
+  const champ = cn(v2.champ, 'h-11');
   return (
-    <section className="pile-serree" aria-label="Nouvelles de l’école">
-      <h3>Nouvelles</h3>
-      {liste === null ? (
-        <p aria-busy="true">Chargement…</p>
-      ) : publiees.length === 0 ? (
-        <p className="mention">Aucune nouvelle : la rubrique n’existe pas sur la page.</p>
-      ) : (
-        <ul className="admin-liste-manques">
-          {publiees.map((x) => (
-            <li key={x.id}>
-              <span>
-                <b>{x.titre}</b>
-                <span className="mention admin-sous-ligne">
-                  {libelleGenreNouvelle[x.genre]} · {dateLongue(x.publieeLe)}
-                  {x.fournieParLEcole ? ' · fournie par l’école' : ''}
-                </span>
-              </span>
-              <button
-                type="button"
-                className="lien lien-danger"
-                disabled={enCours}
-                onClick={() =>
-                  void agir(() => admin.retirerNouvelle(x.id), 'Nouvelle retirée de la page.')
-                }
-              >
-                Retirer
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <form
-        className="admin-motif pile-serree"
+        className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5"
         aria-label="Une nouvelle"
         onSubmit={(ev) => {
           ev.preventDefault();
@@ -122,50 +94,54 @@ export function NouvellesEcole({
           });
         }}
       >
-        <Choix
-          legende="Genre"
-          options={listes.post_kind.map((g) => ({ valeur: g, libelle: libelleGenreNouvelle[g] }))}
-          valeurs={[n.genre]}
-          surChoix={(g) => setN({ ...n, genre: g })}
-        />
-        <Champ libelle="Titre" aide={`${n.titre.trim().length} sur 80.`}>
-          {(a) => (
-            <input
-              {...a}
-              className="champ"
-              maxLength={80}
-              value={n.titre}
-              onChange={(e) => setN({ ...n, titre: e.target.value })}
-            />
-          )}
-        </Champ>
-        <Champ libelle="Texte" aide={`${n.texte.trim().length} sur 400.`}>
-          {(a) => (
-            <textarea
-              {...a}
-              className="champ"
-              rows={4}
-              maxLength={400}
-              value={n.texte}
-              onChange={(e) => setN({ ...n, texte: e.target.value })}
-            />
-          )}
-        </Champ>
-        <label className="case">
+        <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+          <legend className="mb-2 p-0 text-sm font-bold">Genre</legend>
+          <div className="flex flex-wrap gap-2">
+            {listes.post_kind.map((g) => (
+              <button
+                key={g}
+                type="button"
+                aria-pressed={n.genre === g}
+                onClick={() => setN({ ...n, genre: g })}
+                className={v2.puce}
+              >
+                {libelleGenreNouvelle[g]}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <label className="flex flex-col gap-1.5 text-sm font-bold">
+          Titre
           <input
-            type="checkbox"
-            checked={n.fournieParLEcole}
-            onChange={(e) => setN({ ...n, fournieParLEcole: e.target.checked })}
+            className={champ}
+            maxLength={80}
+            value={n.titre}
+            onChange={(e) => setN({ ...n, titre: e.target.value })}
           />
-          L’école l’a fournie (« Nouvelle de l’école ») ; sinon « Nouvelle »
+          <span className="text-[13px] font-normal text-muted-foreground">
+            80 caractères au plus.
+          </span>
         </label>
-        <fieldset className="pile-serree">
-          <legend>L’accord de l’école (reste privé)</legend>
-          <Champ libelle="Qui">
-            {(a) => (
+        <label className="flex flex-col gap-1.5 text-sm font-bold">
+          Texte
+          <textarea
+            className={v2.zone}
+            rows={4}
+            maxLength={400}
+            value={n.texte}
+            onChange={(e) => setN({ ...n, texte: e.target.value })}
+          />
+          <span className="text-[13px] font-normal text-muted-foreground">
+            {n.texte.trim().length} sur 400.
+          </span>
+        </label>
+        <fieldset className="m-0 flex flex-col gap-2 rounded-lg border-0 bg-muted p-3">
+          <legend className="float-left mb-1 p-0 text-[15px] font-bold">L’accord de l’école</legend>
+          <div className="clear-both grid gap-2 sm:grid-cols-3">
+            <label className="flex flex-col gap-1 text-sm font-bold">
+              Qui
               <select
-                {...a}
-                className="champ"
+                className={champ}
                 value={qui}
                 onChange={(e) => setQui(e.target.value as Valeur<'fonction_direction'>)}
               >
@@ -175,13 +151,11 @@ export function NouvellesEcole({
                   </option>
                 ))}
               </select>
-            )}
-          </Champ>
-          <Champ libelle="Par">
-            {(a) => (
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-bold">
+              Par
               <select
-                {...a}
-                className="champ"
+                className={champ}
                 value={canal}
                 onChange={(e) => setCanal(e.target.value as typeof canal)}
               >
@@ -191,49 +165,90 @@ export function NouvellesEcole({
                   </option>
                 ))}
               </select>
-            )}
-          </Champ>
-          <Champ libelle="Le">
-            {(a) => (
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-bold">
+              Le
               <input
-                {...a}
-                className="champ"
+                className={champ}
                 type="date"
                 value={accordLe}
                 onChange={(e) => setAccordLe(e.target.value)}
               />
-            )}
-          </Champ>
+            </label>
+          </div>
+          <span className="text-[13px] text-muted-foreground">
+            Reste privé. Sans accord, rien ne paraît.
+          </span>
         </fieldset>
-        <div className="pile-serree" aria-label="Ce que verra un parent">
-          <span className="surtitre-doux">Ce que verra un parent</span>
-          <p className="mention">
-            {(n.fournieParLEcole ? 'Nouvelle de l’école' : 'Nouvelle') +
-              ' · ' +
-              dateLongue(n.publieeLe)}
-            <br />
-            <b>{n.titre || '[Titre]'}</b>
-            <br />
-            {n.texte || '[Texte]'}
-          </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Bouton
+            type="submit"
+            enCours={enCours}
+            disabled={raison !== null}
+            aria-describedby="raison-nouvelle"
+          >
+            Publier sur la fiche
+          </Bouton>
+          <span className="text-sm text-muted-foreground" id="raison-nouvelle" role="status">
+            {raison ?? 'Visible à la prochaine mise à jour du site.'}
+          </span>
         </div>
-        <Bouton
-          type="submit"
-          enCours={enCours}
-          disabled={raison !== null}
-          aria-describedby="raison-nouvelle"
-        >
-          Publier sur la fiche
-        </Bouton>
-        <p className="mention" id="raison-nouvelle" role="status">
-          {raison ?? 'Visible à la prochaine mise à jour du site.'}
-        </p>
+        {erreur && (
+          <p className={v2.erreur} role="alert">
+            {erreur}
+          </p>
+        )}
       </form>
-      {erreur && (
-        <p className="message-erreur" role="alert">
-          {erreur}
-        </p>
-      )}
-    </section>
+
+      <aside className="flex flex-col gap-4">
+        <section className="flex flex-col gap-2" aria-label="Ce que verra un parent">
+          <h3 className={v2.surtitre}>Ce que verra un parent</h3>
+          <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-card p-3">
+            <div className="aspect-[16/9] rounded-md bg-muted" aria-hidden="true" />
+            <span className="text-xs font-bold tracking-[0.06em] text-muted-foreground uppercase">
+              Nouvelle de l’école · {dateLongue(n.publieeLe)}
+            </span>
+            <b className="text-[17px]">{n.titre || '[Titre]'}</b>
+            <span className="text-[15px] text-muted-foreground">{n.texte || '[Texte]'}</span>
+          </div>
+        </section>
+        <section
+          className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3"
+          aria-label="Déjà publiées"
+        >
+          <h3 className="m-0 font-sans text-[15px] font-bold">Déjà publiées</h3>
+          {liste === null ? (
+            <p className="m-0 text-sm" aria-busy="true">
+              Chargement…
+            </p>
+          ) : publiees.length === 0 ? (
+            <p className="m-0 text-sm text-muted-foreground">
+              Aucune : la rubrique n’existe pas sur la page.
+            </p>
+          ) : (
+            <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+              {publiees.map((x) => (
+                <li key={x.id} className="flex items-center gap-2 text-sm">
+                  <span className="min-w-0 flex-1">
+                    {x.titre} · {dateLongue(x.publieeLe)}
+                  </span>
+                  <button
+                    type="button"
+                    className={cn(v2.lienDanger, 'min-h-0 text-sm no-underline')}
+                    disabled={enCours}
+                    aria-label={`Retirer ${x.titre}`}
+                    onClick={() =>
+                      void agir(() => admin.retirerNouvelle(x.id), 'Nouvelle retirée de la page.')
+                    }
+                  >
+                    Retirer
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </aside>
+    </div>
   );
 }

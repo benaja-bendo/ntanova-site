@@ -1,159 +1,167 @@
-import { compteDesFiches, factureDeLaPaie, francs, vendrediLong } from '../../../modele/paie';
-import type { LigneDeMaPaie } from '../../../modele/ports';
-import { lireMemoire, useRequete } from '../base-locale';
-import { Entete, jour, Navigation } from '../composants';
-
 /**
- * « Ma paie » : le relais lit sa propre paie, en lecture seule. Ce qui lui est acquis pour le prochain vendredi, les
- * semaines closes (à payer, puis payées avec la référence de l'opération). La base calcule, avec les mêmes règles que
- * l'administration ; ici, rien que de l'affichage. Un acquis n'est pas une promesse : le relais le lit comme tel.
+ * « Ma paie » (planche v2 « Ma paie · téléphone ») : ce qui sera payé vendredi, comme une facture (une ligne par genre,
+ * « 5 × 500 », le sous-total), ce qui n'est pas encore compté, puis les semaines déjà payées. Lecture seule : la base
+ * calcule avec les règles de l'administration, l'écran n'affiche que ce qu'elle dit. Un acquis n'est pas une promesse.
  */
+import {
+  chiffres,
+  compteDesFiches,
+  factureCourte,
+  francs,
+  resumeDeLaSemaine,
+  vendrediLong,
+} from '../../../modele/paie';
+import type { LigneDeMaPaie } from '../../../modele/ports';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/ui/shadcn/badge';
+import { Card } from '@/ui/shadcn/card';
+import { IconeAlerte, IconeAttente, IconeOuvrir } from '@/ui/shadcn/icones';
+import { lireMemoire, useRequete } from '../base-locale';
+import { BarreDuBas, EnTete, Surtitre } from '../cadre';
+import { ChargementEcran, EtatVide } from '../etats';
+
+const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
 export function MaPaie() {
   const paie = useRequete(async () => (await lireMemoire('paie')) ?? null);
   const releves = useRequete(async () => (await lireMemoire('releves')) ?? []);
 
-  if (paie === undefined || releves === undefined) {
-    return <div className="ecran" aria-busy="true" />;
-  }
+  if (paie === undefined || releves === undefined) return <ChargementEcran titre="Ma paie" />;
 
   const compte = compteDesFiches(releves);
+  const pasComptees = [
+    compte.enAttente ? `${compte.enAttente} en attente` : null,
+    compte.aCorriger ? `${compte.aCorriger} à corriger` : null,
+  ].filter(Boolean);
+  const closes = paie?.historique ?? [];
 
   return (
     <div className="ecran">
-      <Entete titre="Ma paie" principal />
-      <main className="contenu-relais">
+      <EnTete titre="Ma paie" />
+      <main className="flex flex-1 flex-col gap-4 p-4">
         {paie === null ? (
-          <p className="texte-doux">La paie s’affiche dès que le téléphone capte.</p>
+          <EtatVide titre="La paie s’affiche dès que le téléphone capte.">
+            Vos fiches restent sur le téléphone en attendant.
+          </EtatVide>
         ) : (
           <>
             <Acquis ligne={paie.acquis} />
 
-            <section className="carte-blanche pile-serree" aria-label="Mes fiches">
-              <p className="surtitre-doux">Mes fiches</p>
-              <ul className="liste-taches">
-                <li>
-                  <span>Envoyées&nbsp;: {compte.envoyees}</span>
-                  <span>Acceptées&nbsp;: {compte.acceptees}</span>
-                </li>
-                <li>
-                  <span>En attente&nbsp;: {compte.enAttente}</span>
-                  <span>À corriger&nbsp;: {compte.aCorriger}</span>
-                  <span>Refusées&nbsp;: {compte.refusees}</span>
-                </li>
-              </ul>
-            </section>
-
-            {!paie.numeroConnu && (
-              <p className="message-attention">
-                NTanova n’a pas encore votre numéro Mobile Money. Dites-le-lui sur WhatsApp pour
-                être payé.
-              </p>
+            {pasComptees.length > 0 && (
+              <a
+                href="#fiches"
+                className="flex min-h-12 items-center gap-3 rounded-lg bg-attention px-4 py-3 text-sm text-attention-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+              >
+                <IconeAttente className="size-5 shrink-0" aria-hidden />
+                <span className="flex-1">
+                  <b>Pas comptées&nbsp;:</b> {pasComptees.join(', ')}
+                </span>
+                <IconeOuvrir className="size-5 shrink-0" aria-hidden />
+              </a>
             )}
 
-            <section className="carte-blanche pile-serree" aria-label="Semaines closes">
-              <p className="surtitre-doux">Semaines closes</p>
-              {paie.historique.length === 0 ? (
-                <p className="texte-doux">Aucune semaine close pour le moment.</p>
+            {!paie.numeroConnu && (
+              <a
+                href="#compte"
+                className="flex min-h-12 items-center gap-3 rounded-lg bg-danger px-4 py-3 text-[15px] text-danger-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+              >
+                <IconeAlerte className="size-5 shrink-0" aria-hidden />
+                <span className="flex-1">
+                  <b>Votre numéro Mobile Money manque.</b> Ajoutez-le pour être payé.
+                </span>
+                <IconeOuvrir className="size-5 shrink-0" aria-hidden />
+              </a>
+            )}
+
+            <section className="mt-2 flex flex-col gap-2.5" aria-label="Semaines closes">
+              <Surtitre>Déjà payé</Surtitre>
+              {closes.length === 0 ? (
+                <p className="m-0 text-[15px] text-muted-foreground">
+                  Aucune semaine close pour le moment.
+                </p>
               ) : (
-                paie.historique.map((s) => <Semaine key={s.vendredi} ligne={s} />)
+                <Card className="gap-0 overflow-hidden py-0">
+                  <ul className="m-0 list-none p-0">
+                    {closes.map((s, i) => (
+                      <Semaine key={s.vendredi} ligne={s} premiere={i === 0} />
+                    ))}
+                  </ul>
+                </Card>
               )}
             </section>
           </>
         )}
       </main>
-      <Navigation />
+      <BarreDuBas />
     </div>
   );
 }
 
-/**
- * Lot F (13/11) : la paie comme une facture claire, une ligne par genre et par tarif (« 2 fiches acceptées · 2 × 500 FCFA ·
- * 1 000 FCFA »), puis le total. Une paie gardée avant la mise à jour n'a pas les tarifs : les quantités seules.
- */
-function Facture({ ligne }: { ligne: LigneDeMaPaie }) {
-  const lignes = factureDeLaPaie(ligne);
-  if (lignes.length === 0) return null;
-  return (
-    <ul className="facture" aria-label="Le détail">
-      {lignes.map((l) => (
-        <li key={l.libelle}>
-          <span>{l.libelle}</span>
-          <span className="facture-sous-total">
-            {l.sousTotal !== null ? francs(l.sousTotal) : ''}
-          </span>
-          {l.calcul && <span className="facture-calcul">{l.calcul}</span>}
-        </li>
-      ))}
-      {lignes.some((l) => l.sousTotal !== null) && (
-        <li className="facture-total">
-          <b>Total</b>
-          <span className="facture-sous-total">{francs(ligne.totalXaf)}</span>
-        </li>
-      )}
-    </ul>
-  );
-}
-
+/** La carte du haut : le vendredi, le total en grand, puis la facture. */
 function Acquis({ ligne }: { ligne: LigneDeMaPaie }) {
-  const detail = factureDeLaPaie(ligne);
+  const lignes = factureCourte(ligne);
   return (
-    <section className="carte-blanche pile-serree" aria-label="Acquis">
-      <p className="surtitre-doux">
-        {ligne.vendredi
-          ? `À payer ${vendrediLong(ligne.vendredi)} si rien ne change`
-          : 'À payer vendredi si rien ne change'}
+    <section
+      aria-label="Acquis"
+      className="flex flex-col rounded-lg border-2 border-primary bg-card px-[17px] pt-4 pb-1"
+    >
+      <p className="m-0 text-[15px] font-bold text-muted-foreground">
+        {ligne.vendredi ? `À payer ${vendrediLong(ligne.vendredi)}` : 'À payer vendredi'}
       </p>
-      <span className="intertitre">{francs(ligne.totalXaf)}</span>
-      {detail.length > 0 ? (
-        <Facture ligne={ligne} />
+      <p className="m-0 mt-1 mb-3 font-serif text-[34px] leading-tight font-bold text-primary-strong tabular-nums">
+        {francs(ligne.totalXaf)}
+      </p>
+      {lignes.length > 0 ? (
+        <ul className="m-0 list-none p-0" aria-label="Le détail">
+          {lignes.map((l) => (
+            <li
+              key={l.libelle}
+              className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-4 border-t border-border py-3.5 text-base tabular-nums"
+            >
+              <span>{l.libelle}</span>
+              <span className="text-[15px] text-muted-foreground">{l.calcul ?? ''}</span>
+              <b className="min-w-14 text-right">
+                {l.sousTotal !== null ? chiffres(l.sousTotal) : ''}
+              </b>
+            </li>
+          ))}
+        </ul>
       ) : (
-        <p className="texte-doux">
-          Rien d’acquis pour le moment. Une fiche acceptée par NTanova est payée ; un contact de la
-          direction confirmé aussi.
+        <p className="m-0 border-t border-border py-3.5 text-[15px] text-muted-foreground">
+          Rien d’acquis pour le moment. Une fiche acceptée par NTanova est payée.
         </p>
       )}
       {ligne.nonPayables > 0 && (
-        <p className="message-attention">
+        <p className="m-0 border-t border-border py-3 text-sm text-muted-foreground">
           {ligne.nonPayables} fiche{ligne.nonPayables > 1 ? 's' : ''} acceptée
-          {ligne.nonPayables > 1 ? 's' : ''} ne rapporte{ligne.nonPayables > 1 ? 'nt' : ''}{' '}
-          rien&nbsp;: l’école avait déjà été relevée par un autre relais.
+          {ligne.nonPayables > 1 ? 's' : ''} sans paie&nbsp;: l’école était déjà relevée par un
+          autre relais.
         </p>
       )}
-      <p className="mention">
-        Ce montant peut changer d’ici vendredi (une fiche refusée, un contact pas encore confirmé).
-        Il est fixé quand NTanova clôt la semaine, puis payé en Mobile Money.
-      </p>
     </section>
   );
 }
 
-function Semaine({ ligne }: { ligne: LigneDeMaPaie }) {
-  const detail = factureDeLaPaie(ligne);
+/** Une semaine close : le vendredi, ce qu'elle a compté, le montant ; « À payer » tant que NTanova n'a pas envoyé. */
+function Semaine({ ligne, premiere }: { ligne: LigneDeMaPaie; premiere: boolean }) {
+  const resume = resumeDeLaSemaine(ligne);
   return (
-    <div className="pile-serree">
-      <div className="fiche-relais-tete">
-        <b>{vendrediLong(ligne.vendredi)}</b>
-        <span>{francs(ligne.totalXaf)}</span>
-      </div>
-      {detail.some((d) => d.sousTotal !== null) ? (
-        <Facture ligne={ligne} />
-      ) : (
-        detail.length > 0 && <p className="mention">{detail.map((d) => d.libelle).join(' · ')}</p>
+    <li
+      className={cn(
+        'flex items-center gap-3 px-4 py-3.5 tabular-nums',
+        !premiere && 'border-t border-border',
       )}
-      {ligne.etat === 'paye' ? (
-        <p>
-          <span className="etiquette etat-verifiee">Payé</span>{' '}
-          <span className="mention">
-            {ligne.payeLe ? `le ${jour(ligne.payeLe)}` : ''}
-            {ligne.reference ? ` · réf. ${ligne.reference}` : ''}
-          </span>
-        </p>
-      ) : (
-        <p>
-          <span className="etiquette etat-attente">À payer</span>{' '}
-          <span className="mention">NTanova prépare le paiement.</span>
-        </p>
-      )}
-    </div>
+    >
+      <span className="flex min-w-0 flex-1 flex-col">
+        <b className="text-[17px]">{majuscule(vendrediLong(ligne.vendredi))}</b>
+        <span className="text-[15px] text-muted-foreground">
+          {[resume, ligne.reference ? `réf. ${ligne.reference}` : null].filter(Boolean).join(' · ')}
+        </span>
+      </span>
+      <span className="flex flex-col items-end gap-1">
+        <b className="text-[17px]">{chiffres(ligne.totalXaf)}</b>
+        {ligne.etat !== 'paye' && <Badge variant="attention">À payer</Badge>}
+      </span>
+    </li>
   );
 }

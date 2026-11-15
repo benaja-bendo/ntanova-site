@@ -4,9 +4,12 @@ import {
   ouvrirContacts,
   ouvrirEcranAdmin,
   ouvrirRegles,
+  toutEstEnvoye,
+  ouvrirLesEcoles,
+  fermerContacts,
 } from './aides';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { choisirLaZone, seConnecter } from './aides';
+import { choisirLaZone, ouvrirFiche, retourAuxEcoles, retourAuxZones, seConnecter } from './aides';
 
 // Chantier 3 : l'administration comme poste de pilotage du catalogue. Les photos côte à côte, les formations
 // lues sur le panneau, quatre façons d'accepter un relevé, le pont WhatsApp avec la direction, l'amorçage par
@@ -17,12 +20,15 @@ test.use({ permissions: ['geolocation'] });
 
 const photo = new URL('./fichiers/enseigne.jpg', import.meta.url).pathname;
 
-const niveaux = (page: Page) => page.getByRole('group', { name: "Niveaux écrits sur l'enseigne" });
+const niveaux = (page: Page) => page.getByRole('group', { name: 'Niveaux affichés' });
 
 /** Le relais saisit la direction : vue, promoteur, d'accord pour WhatsApp. */
 async function direction(page: Page) {
   await page.getByRole('button', { name: 'Oui', exact: true }).click();
-  await page.getByLabel('Sa fonction').selectOption('promoteur');
+  await page
+    .getByRole('group', { name: 'Qui ?' })
+    .getByRole('button', { name: 'Promoteur', exact: true })
+    .click();
   await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
   await page.getByLabel(/Son WhatsApp/).fill('06 123 45 61');
 }
@@ -54,7 +60,7 @@ async function envoyerUnLycee(page: Page, nom: string) {
   await expect(page.getByRole('region', { name: /Photos en plus/ })).toContainText('2 sur 5');
   await page.getByRole('button', { name: 'Envoyer la fiche' }).click();
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page, 15_000);
   await page.getByRole('link', { name: 'Missions' }).click();
 }
 
@@ -72,7 +78,7 @@ async function envoyerUneFicheCourte(page: Page, nom: string) {
   await page.getByRole('button', { name: 'Personne', exact: true }).click();
   await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page, 15_000);
   await page.getByRole('link', { name: 'Missions' }).click();
 }
 
@@ -88,7 +94,6 @@ async function ouvrirLEnvoi(page: Page, nom: string) {
   await expect(page.getByRole('heading', { name: 'À valider' })).toBeVisible();
   await page.getByRole('link', { name: new RegExp(nom.replace(/[[\]]/g, '\\$&')) }).click();
   await expect(page.getByRole('heading', { name: nom, level: 2 })).toBeVisible();
-  await ouvrirContacts(page);
 }
 
 /** Ce que le faux serveur a gardé des campus. */
@@ -112,7 +117,7 @@ function campusDuServeur(page: Page) {
 }
 
 test.describe('valider un envoi : photos, formations, acceptation', () => {
-  test('les photos s’affichent côte à côte, les formations se saisissent, la fiche entre dans le catalogue', async ({
+  test('les photos se listent, les formations se saisissent dans leur tiroir, la fiche entre dans le catalogue', async ({
     page,
     context,
   }) => {
@@ -123,29 +128,23 @@ test.describe('valider un envoi : photos, formations, acceptation', () => {
     await page.setViewportSize({ width: 1440, height: 1100 });
     await ouvrirLEnvoi(page, '[Lycée A]');
 
-    // Trois photos, une rangée : on les compare d'un regard.
-    const photos = page.getByRole('list', { name: "Photos de l'envoi" }).getByRole('listitem');
-    await expect(photos).toHaveCount(3);
-    const boites = await Promise.all([0, 1, 2].map((i) => photos.nth(i).boundingBox()));
-    const [a, b, c] = boites;
-    if (!a || !b || !c) throw new Error('photos introuvables');
-    expect(Math.max(a.y, b.y, c.y) - Math.min(a.y, b.y, c.y), 'même rangée').toBeLessThanOrEqual(2);
-    expect(a.x + a.width, 'la 1re est à gauche de la 2e').toBeLessThanOrEqual(b.x + 1);
-    expect(b.x + b.width, 'la 2e est à gauche de la 3e').toBeLessThanOrEqual(c.x + 1);
-    // Chacune dit ce qu'elle montre.
-    const rangee = page.getByRole('list', { name: "Photos de l'envoi" });
-    await expect(rangee).toContainText(/enseigne ou l.entrée/);
-    await expect(rangee).toContainText(/panneau ou l.affiche des formations/);
-    await expect(rangee).toContainText(/prospectus remis par l.école/);
-    // L'administration contrôle pour publication ce qui peut l'être : l'enseigne seule. Le panneau et le prospectus
-    // se contrôlent aussi, mais restent privés, et ne promettent rien de public.
-    await photos.first().getByRole('button', { name: 'Contrôler pour publication' }).click();
-    await expect(photos.first().getByText('Contrôlée pour publication')).toBeVisible();
+    // Planche : la photo principale, puis « Photos du relevé », une ligne par photo, qui dit ce qu'elle montre.
+    const liste = page.getByRole('region', { name: 'Photos du relevé' });
+    await expect(liste.getByRole('listitem')).toHaveCount(3);
+    await expect(liste).toContainText(/enseigne ou l.entrée/);
+    await expect(liste).toContainText(/panneau ou l.affiche des formations/);
+    await expect(liste).toContainText(/prospectus remis par l.école/);
+    // Seule l'enseigne peut être publique ; le panneau et le prospectus restent des photos de travail, privées.
+    await liste
+      .getByRole('group', { name: /^L'enseigne ou l'entrée : publique ou écartée \?$/ })
+      .getByRole('button', { name: 'Publique', exact: true })
+      .click();
     await expect(
-      photos.nth(1).getByRole('button', { name: /Marquer comme contrôlée \(privée\)/ }),
-    ).toBeVisible();
-    await expect(photos.nth(1)).not.toContainText('Contrôler pour publication');
-    await expect(photos.nth(2)).not.toContainText('Contrôler pour publication');
+      liste
+        .getByRole('group', { name: /^L'enseigne ou l'entrée : publique ou écartée \?$/ })
+        .getByRole('button', { name: 'Publique', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(liste.getByText('Travail, privée')).toHaveCount(2);
 
     // Ce que le relais a noté d'un coup d'œil.
     await expect(page.getByText('Séries ou filières vues')).toBeVisible();
@@ -154,23 +153,12 @@ test.describe('valider un envoi : photos, formations, acceptation', () => {
     ).toBeVisible();
     await expect(page.getByText(/Le relais les a aussi prises en photo/)).toBeVisible();
 
-    // Quatre façons d'accepter.
-    const que = page.getByRole('group', { name: 'Que faire de cette fiche ?' });
-    for (const choix of [
-      'Nouvelle école',
-      'Nouvelle implantation d’une école connue',
-      'Mettre à jour une implantation connue',
-      'Ajouter ses niveaux à une implantation connue',
-    ]) {
-      await expect(que.getByRole('button', { name: choix, exact: true })).toBeVisible();
-    }
-    await expect(que.getByRole('button', { name: 'Nouvelle école', exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    // Planche : l'encart et la barre pilotent l'acceptation ; les formations se corrigent dans leur tiroir.
+    await page.getByRole('button', { name: 'Corriger les formations' }).click();
+    const tiroir = page.getByRole('dialog', { name: 'Formations lues sur les photos' });
 
     // Les formations lues sur les photos : deux séries d'un appui, une formation libre, une retirée.
-    const formations = page.getByRole('region', { name: 'Formations : Lycée' });
+    const formations = tiroir.getByRole('region', { name: 'Formations : Lycée' });
     await formations.getByRole('button', { name: 'Série C', exact: true }).click();
     await formations.getByRole('button', { name: 'Série D', exact: true }).click();
     const notees = formations.getByRole('list', { name: 'Formations notées : Lycée' });
@@ -191,8 +179,14 @@ test.describe('valider un envoi : photos, formations, acceptation', () => {
     await formations.getByRole('button', { name: 'Retirer Série D' }).click();
     await expect(notees).not.toContainText('Série D');
     await expect(notees.getByRole('listitem')).toHaveCount(2);
+    await tiroir.getByRole('button', { name: 'Fermer' }).click();
+    await expect(
+      page.getByRole('region', { name: 'Partie publique' }).getByText('Série C, Comptabilité'),
+    ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await fermerContacts(page);
+
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
     // Dans le catalogue : une institution, un campus, un cycle, deux formations.
@@ -200,13 +194,14 @@ test.describe('valider un envoi : photos, formations, acceptation', () => {
     expect(campus?.niveaux).toEqual(['lycee']);
     expect(campus?.formations?.map((f) => f.titre).sort()).toEqual(['Comptabilité', 'Série C']);
 
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     const ligne = page.getByRole('row', { name: /\[Lycée A\]/ });
-    await expect(ligne.getByText('Prête', { exact: true })).toBeVisible();
-    await expect(ligne).toContainText('2 formations');
     await ligne.getByRole('button', { name: 'Publier', exact: true }).click();
     await expect(
-      page.getByRole('row', { name: /\[Lycée A\]/ }).getByText('Publiée', { exact: true }),
+      page
+        .getByRole('row', { name: /\[Lycée A\]/ })
+        .getByText('Publiée', { exact: true })
+        .filter({ visible: true }),
     ).toBeVisible();
   });
 
@@ -222,29 +217,49 @@ test.describe('valider un envoi : photos, formations, acceptation', () => {
     await envoyerUneFicheCourte(page, '[Lycée A annexe]');
 
     await ouvrirLEnvoi(page, '[Lycée A]');
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await fermerContacts(page);
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
     // Admin v2 : sur téléphone, la fiche suivante s'ouvre seule ; on la rouvre depuis la liste.
     await ouvrirLEnvoi(page, '[Lycée A annexe]');
-    const que = page.getByRole('group', { name: 'Que faire de cette fiche ?' });
-    await que.getByRole('button', { name: 'Nouvelle implantation d’une école connue' }).click();
-    await page
-      .getByLabel('Institution connue')
-      .selectOption({ label: '[Lycée A] (1 implantation)' });
-    await page.getByLabel('Nom de l’implantation').fill('Campus de Loandjili');
-    await page.getByRole('button', { name: 'Accepter comme nouvelle implantation' }).click();
+    // Planche : aucune école connue à moins de 50 m, donc pas d'encart ; « Accepter » crée l'école, et « C'est un site
+    // de… » (menu « ⋯ » de sa fiche) la range sous l'école connue.
+    await fermerContacts(page);
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+    await ouvrirLesEcoles(page);
+    await ouvrirFiche(page.getByRole('row', { name: /\[Lycée A annexe\]/ }));
+    await page
+      .locator('summary[aria-label^="Autres actions pour "]')
+      .filter({ visible: true })
+      .first()
+      .click();
+    await page
+      .getByRole('button', { name: 'C’est un site de…' })
+      .filter({ visible: true })
+      .first()
+      .click();
+    const rattacher = page.getByRole('form', {
+      name: 'Rattacher [Lycée A annexe] à une autre école',
+    });
+    const choix = rattacher.getByLabel('L’école');
+    const valeur = await choix
+      .locator('option', { hasText: '[Lycée A]' })
+      .filter({ hasNotText: 'annexe' })
+      .getAttribute('value');
+    await choix.selectOption(valeur ?? '');
+    await rattacher.getByRole('button', { name: 'Rattacher ce site' }).click();
+    await expect(page.getByRole('status').first()).toContainText(
+      'Ce site est maintenant un site de [Lycée A]',
+    );
 
-    // Une institution, deux implantations : la seconde porte son nom d'implantation.
+    // Une institution, deux sites : la liste les range sous le nom de l'école.
     const campus = (await campusDuServeur(page)).filter((c) => c.nom === '[Lycée A]');
     expect(campus).toHaveLength(2);
-    expect(campus.map((c) => c.etiquette)).toContain(null);
-    expect(campus.map((c) => c.etiquette)).toContain('Campus de Loandjili');
-    await page.getByRole('link', { name: 'Écoles' }).click();
-    const lignes = page.getByRole('row', { name: /\[Lycée A\]/ });
-    await expect(lignes).toHaveCount(2);
-    await expect(lignes.filter({ hasText: 'Campus de Loandjili' })).toHaveCount(1);
+    await retourAuxEcoles(page);
+    const ecole = page.getByRole('rowgroup', { name: '[Lycée A]' });
+    await expect(ecole.getByText(/2 sites/).filter({ visible: true })).toBeVisible();
     await expect(page.getByRole('row', { name: /\[Lycée A annexe\]/ })).toHaveCount(0);
   });
 });
@@ -258,6 +273,7 @@ test.describe('le pont avec la direction', () => {
     await relaisConnecte(page, context);
     await envoyerUnLycee(page, '[Lycée A]');
     await ouvrirLEnvoi(page, '[Lycée A]');
+    await ouvrirContacts(page);
 
     const pont = page.getByRole('region', { name: 'Écrire à la direction' });
     const message = pont.getByLabel('Message à la direction');
@@ -305,7 +321,8 @@ test.describe('le pont avec la direction', () => {
     await expect(pont.getByRole('button', { name: /Noter l.accord de la direction/ })).toHaveCount(
       0,
     );
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await fermerContacts(page);
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
     // Dans « Décidées », la fiche porte maintenant son école : l'accord se note, daté.
@@ -323,11 +340,12 @@ test.describe('le pont avec la direction', () => {
 
     const [campus] = (await campusDuServeur(page)).filter((c) => c.nom === '[Lycée A]');
     expect(campus?.verifieeLe).toBe(new Date().toISOString().slice(0, 10));
-    // La date de l'accord est visible dans la liste des écoles, sans être confondue avec « Vérifiée par l'école ».
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    // Planche : la date de l'accord se lit dans l'historique de la fiche (« Confirmée par la direction »).
+    await ouvrirLesEcoles(page);
+    await ouvrirFiche(page.getByRole('row', { name: /\[Lycée A\]/ }));
     await expect(
-      page.getByRole('row', { name: /\[Lycée A\]/ }).getByText(/vérifiée par la direction le/),
-    ).toBeVisible();
+      page.getByRole('region', { name: 'Historique' }).filter({ visible: true }).first(),
+    ).toContainText('Confirmée par la direction');
   });
 
   test('sans l’accord de la direction d’être contactée, aucun message n’est proposé', async ({
@@ -344,13 +362,18 @@ test.describe('le pont avec la direction', () => {
     await page.getByLabel("Nom de l'établissement").fill('[École sans accord]');
     await page.getByRole('button', { name: 'Suivant' }).click();
     await page.getByRole('button', { name: 'Oui', exact: true }).click();
-    await page.getByLabel('Sa fonction').selectOption('directeur');
+    await page
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Directeur', exact: true })
+      .click();
     // La case « accepte que NTanova lui écrive » reste décochée : le numéro ne peut pas être noté.
     await expect(page.getByLabel(/Son WhatsApp/)).toBeDisabled();
     await envoyerSansBonus(page);
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
 
     await ouvrirLEnvoi(page, '[École sans accord]');
+
+    await ouvrirContacts(page);
     const pont = page.getByRole('region', { name: 'Écrire à la direction' });
     await expect(pont.getByText(/n’a pas donné son accord pour être contactée/)).toBeVisible();
     await expect(
@@ -372,8 +395,11 @@ test.describe('amorcer le catalogue sans relais', () => {
 
   async function ouvrirLImport(page: Page) {
     await seConnecter(page, '/admin/#valider');
-    await page.getByRole('link', { name: 'Écoles' }).click();
-    await page.getByRole('button', { name: 'Ajouter ou importer des écoles' }).click();
+    await ouvrirLesEcoles(page);
+    await page
+      .getByRole('button', { name: 'Ajouter une école', exact: true })
+      .filter({ visible: true })
+      .click();
     await page
       .getByRole('group', { name: 'Comment ajouter' })
       .getByRole('button', { name: /Une liste/ })
@@ -420,14 +446,14 @@ test.describe('amorcer le catalogue sans relais', () => {
     }
 
     await expect(
-      page.getByRole('row', { name: /\[Lycée Import\]/ }).getByText('Prête', { exact: true }),
-    ).toBeVisible();
-    await expect(
       page
-        .getByRole('row', { name: /\[Groupe Import\]/ })
-        .first()
-        .getByText('À situer', { exact: true }),
+        .getByRole('row', { name: /\[Lycée Import\]/ })
+        .getByRole('button', { name: 'Publier', exact: true }),
     ).toBeVisible();
+    // Planche : les deux sites se rangent sous le nom de leur école, chacun à situer.
+    const groupe = page.getByRole('rowgroup', { name: '[Groupe Import]' });
+    await expect(groupe).toContainText('2 sites');
+    await expect(groupe.getByRole('button', { name: 'Situer', exact: true })).toHaveCount(2);
   });
 
   test('importer deux fois la même liste ne crée rien de plus', async ({ page }) => {
@@ -440,7 +466,10 @@ test.describe('amorcer le catalogue sans relais', () => {
     const apres = (await campusDuServeur(page)).length;
 
     importation = await (async () => {
-      await page.getByRole('button', { name: 'Ajouter ou importer des écoles' }).click();
+      await page
+        .getByRole('button', { name: 'Ajouter une école', exact: true })
+        .filter({ visible: true })
+        .click();
       await page
         .getByRole('group', { name: 'Comment ajouter' })
         .getByRole('button', { name: /Une liste/ })
@@ -472,19 +501,33 @@ test.describe('zones et lots', () => {
     await ouvrirEcranAdmin(page, 'Zones');
     await expect(page.getByRole('heading', { name: 'Zones', level: 1 })).toBeVisible();
 
-    // Loandjili est fermée : un lot ne s'y pose pas, sauf d'entraînement. La zone du volet est déjà choisie.
+    // Planche : les lots sont dans un tiroir, ouvert par le lien sous la liste des zones.
+    const ouvrirLeLot = async () => {
+      await retourAuxZones(page);
+      await page.getByRole('button', { name: /^Les lots \(secteurs conseillés\)/ }).click();
+      const tiroir = page.getByRole('dialog', { name: 'Les lots' });
+      await tiroir.getByText('Créer un lot', { exact: true }).click();
+      const lot = tiroir.getByRole('form', { name: 'Créer un lot' });
+      // Sur ordinateur, la zone choisie est déjà proposée ; sur téléphone, la liste l'a remplacée.
+      if ((await lot.getByLabel('Zone', { exact: true }).inputValue()) === '')
+        await lot.getByLabel('Zone', { exact: true }).selectOption('d-pn-loandjili');
+      await expect(lot.getByLabel('Zone', { exact: true })).toHaveValue('d-pn-loandjili');
+      await lot.getByLabel('Nom du lot').fill('[Lot Loandjili]');
+      return { tiroir, lot };
+    };
+
+    // Loandjili est fermée : un lot ne s'y pose pas, sauf d'entraînement.
     await choisirLaZone(page, /^Loandjili/);
-    await page.getByText('Créer un lot ici').click();
-    const lot = page.getByRole('form', { name: 'Créer un lot' });
-    await expect(lot.getByLabel('Zone', { exact: true })).toHaveValue('d-pn-loandjili');
-    await lot.getByLabel('Nom du lot').fill('[Lot Loandjili]');
+    let { lot } = await ouvrirLeLot();
     await expect(lot.getByRole('button', { name: 'Créer le lot' })).toBeDisabled();
     await expect(lot.getByText(/Cette zone est fermée/)).toBeVisible();
     await lot.getByLabel(/Lot d’entraînement/).check();
     await expect(lot.getByRole('button', { name: 'Créer le lot' })).toBeEnabled();
     await lot.getByLabel(/Lot d’entraînement/).uncheck();
+    await page.keyboard.press('Escape');
 
     // On l'ouvre : tout ce qu'elle contient s'ouvre avec elle.
+    await choisirLaZone(page, /^Loandjili/);
     const ouverture = page.getByRole('switch', { name: 'Ouverte aux relais : Loandjili' });
     await expect(ouverture).toHaveAttribute('aria-checked', 'false');
     await ouverture.click();
@@ -493,15 +536,16 @@ test.describe('zones et lots', () => {
     );
     await expect(ouverture).toHaveAttribute('aria-checked', 'true');
 
+    ({ lot } = await ouvrirLeLot());
     await lot.getByRole('button', { name: 'Créer le lot' }).click();
     await expect(page.getByRole('status')).toHaveText(/Le lot \[Lot Loandjili\] est créé/);
+    await retourAuxZones(page);
+    await page.getByRole('button', { name: /^Les lots \(secteurs conseillés\)/ }).click();
     await expect(
       page
+        .getByRole('dialog', { name: 'Les lots' })
         .getByRole('row', { name: /\[Lot Loandjili\]/ })
         .getByText('Congo › Pointe-Noire › Loandjili'),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('row', { name: /\[Lot Loandjili\]/ }).getByText('Toute la zone.'),
     ).toBeVisible();
   });
 
@@ -523,13 +567,19 @@ test.describe('zones et lots', () => {
     // Loandjili : « Déploiement programmé » au départ, fermée aux relais. Depuis le 08/11/2026 (ticket 146), la carte dessine
     // la zone sans écrire d'état ; le réglage garde ses mots ici.
     await choisirLaZone(page, /^Loandjili/);
-    const etat = page.getByRole('group', { name: 'État de Loandjili sur la carte' });
-    await expect(etat.getByRole('radio', { name: 'Déploiement programmé' })).toBeChecked();
-    await etat.getByRole('radio', { name: 'Relevé en cours' }).click();
+    const etat = page.getByRole('group', { name: 'Sur la carte du site' });
+    await expect(etat.getByRole('button', { name: 'Déploiement programmé' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await etat.getByRole('button', { name: 'Relevé en cours' }).click();
     await expect(page.getByRole('status')).toHaveText(
       'Loandjili est sur la carte, réglée « Relevé en cours ». Les relais ne sont pas concernés.',
     );
-    await expect(etat.getByRole('radio', { name: 'Relevé en cours' })).toBeChecked();
+    await expect(etat.getByRole('button', { name: 'Relevé en cours' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     // L'ouverture aux relais n'a pas bougé.
     await expect(
       page.getByRole('switch', { name: 'Ouverte aux relais : Loandjili' }),
@@ -540,11 +590,17 @@ test.describe('zones et lots', () => {
     await expect(page.getByRole('status')).toHaveText(
       'Loandjili redevient « Déploiement programmé » sur la carte.',
     );
-    await expect(etat.getByRole('radio', { name: 'Déploiement programmé' })).toBeChecked();
+    await expect(etat.getByRole('button', { name: 'Déploiement programmé' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
 
-    await etat.getByRole('radio', { name: 'Pas encore couverte' }).click();
+    await etat.getByRole('button', { name: 'Pas encore couverte' }).click();
     await expect(page.getByRole('status')).toContainText('Pas encore couverte');
-    await expect(etat.getByRole('radio', { name: 'Pas encore couverte' })).toBeChecked();
+    await expect(etat.getByRole('button', { name: 'Pas encore couverte' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
 
     // Une zone qui n'est pas dessinée sur la carte (un département, un pays) n'a pas de réglage.
     await choisirLaZone(page, /^Congo\s*Pays/);
@@ -606,9 +662,11 @@ test.describe('la paie du vendredi', () => {
     await relaisConnecte(page, context);
     await envoyerUnLycee(page, '[Lycée A]');
     await ouvrirLEnvoi(page, '[Lycée A]');
+    await ouvrirContacts(page);
     await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
     await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await fermerContacts(page);
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
     await ouvrirEcranAdmin(page, 'Paie');

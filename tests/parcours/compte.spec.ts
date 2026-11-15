@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { ajouterUneEcole, attendreLaLecture, seConnecter } from './aides';
+import { ajouterUneEcole, attendreLaLecture, seConnecter, toutEstEnvoye } from './aides';
 
 // L'onglet « Compte » et les fiches d'un téléphone partagé (ticket #55, PR 6), construits avec le faux serveur.
 //   - le relais se déconnecte sans perdre une fiche, et l'avertissement dit ce qui reste sur le téléphone ;
@@ -164,7 +164,7 @@ test.describe('se déconnecter', () => {
     await regler(page, 'ntanova-faux-panne', null);
     await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
     await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 20_000 });
+    await toutEstEnvoye(page, 20_000);
     expect(await releves(page)).toBe(1);
   });
 
@@ -204,7 +204,7 @@ test.describe('un téléphone qui a servi à un autre relais', () => {
     await page.reload();
 
     // Ce compte n'a rien à envoyer : ni la fiche de l'autre ne l'attend, ni elle ne part sous son nom.
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
     await page.getByRole('link', { name: 'Mes fiches' }).click();
     await expect(page.getByText('Aucune fiche pour le moment.')).toBeVisible();
     await expect(page.getByText('[École d’un autre relais]')).toHaveCount(0);

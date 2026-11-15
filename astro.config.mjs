@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig, envField } from 'astro/config';
 import react from '@astrojs/react';
+import tailwindcss from '@tailwindcss/vite';
 import integrationRelais from './outils/integration-relais.mjs';
 
 // La version de l'application, envoyée avec le journal des erreurs.
@@ -12,6 +13,8 @@ export default defineConfig({
   output: 'static',
   integrations: [react(), integrationRelais()],
   vite: {
+    // Tailwind sert seulement /admin et /relais (src/ui/shadcn/theme.css) : aucune page publique ne l'importe.
+    plugins: [tailwindcss()],
     define: { __VERSION_APP__: JSON.stringify(versionApp) },
   },
   // Variables publiques seulement : elles finissent dans le navigateur.

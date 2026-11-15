@@ -1,13 +1,14 @@
+import { v2 } from '@/ui/v2/classes';
+import { cn } from '@/lib/utils';
 import { ChampsFiche } from './ChampsFiche';
-import { Dialogue } from '../../ui/Dialogue';
-import { ActionsSecondaires, BadgePublication, Bouton } from '../../ui/actions';
+import { Dialogue } from '@/ui/v2/admin';
+import { ActionsSecondaires, BadgePublication, Bouton } from '@/ui/v2/admin';
 import { PhotoPublique } from './PhotoPublique';
 import { ImagesEcole } from './ImagesEcole';
 import { ManquesEcole } from './ManquesEcole';
 import { NouvellesEcole } from './NouvellesEcole';
 import { AdmissionEcole } from './AdmissionEcole';
 import { FormationsSuperieur } from './FormationsSuperieur';
-import { dateLongue } from '../../modele/pointe-noire';
 import { EquipementsEcole } from './EquipementsEcole';
 import { FraisEcole } from './FraisEcole';
 import { ContactPublic } from './ContactPublic';
@@ -19,8 +20,8 @@ import { MotDirectionEcole } from './MotDirectionEcole';
  * à situer → prête → publiée → retirée (→ publiée). Publier est un geste à part :
  * une école, une zone (ville, arrondissement, quartier), ou un lot.
  */
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { ecrirePosition, lienGoogleMaps } from '../../modele/coordonnees';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ecrirePosition } from '../../modele/coordonnees';
 import {
   erreursFormulaireEcole,
   formulaireDe,
@@ -30,27 +31,30 @@ import {
 } from '../../modele/correction-ecole';
 import type { Erreurs } from '../../modele/fiche';
 import { cheminLisible } from '../../modele/geo-divisions';
-import {
-  libelleNiveau,
-  libelleOrigine,
-  libelleTypeEcole,
-  libelleTypeMission,
-} from '../../modele/libelles';
+import { libelleNiveau, libelleTypeEcole, libelleTypeMission } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
 import type {
   DivisionVue,
   ApercuSuppression,
   EcoleVue,
-  LotVu,
   PortAdministration,
   RelaisVu,
 } from '../../modele/ports';
-import { Bandeau, Champ, Choix, jour } from '../../ui/composants';
+import { Bandeau, Champ } from '@/ui/v2/formulaire';
+import { jour } from '../../ui/composants';
 import { ChampPosition, messageErreur as message } from './ChampPosition';
 import { Creation } from './Creation';
-import { useAdresse } from '../commun/adresse';
-import { ApercuFiche } from './ApercuFiche';
+import { aller, useAdresse } from '../commun/adresse';
 import { TitreEcran } from './Cadre';
+import { Compteur } from './ui';
+import { FicheEcole } from './FicheEcole';
+import {
+  IconeAjouter,
+  IconeChercher,
+  IconeFermer,
+  IconeOeil,
+  IconeRetour,
+} from '@/ui/shadcn/icones';
 
 export const libelleMotifRetrait: Record<Valeur<'motif_retrait'>, string> = {
   demande_ecole: "À la demande de l'école",
@@ -93,8 +97,13 @@ function LigneEcole({
   admin,
   surChangement,
   pleinEcran = false,
+  site = false,
+  rangSite = 0,
 }: {
   e: EcoleVue;
+  /** Une ligne de site, sous le nom de son école (l'école a plusieurs sites). */
+  site?: boolean;
+  rangSite?: number;
   ecoles: EcoleVue[];
   relais: RelaisVu[];
   divisions: DivisionVue[];
@@ -140,7 +149,7 @@ function LigneEcole({
     | 'formations'
     | 'inscriptions'
     | null
-  >(pleinEcran ? (etat === 'retiree' ? 'contact-public' : 'completer') : null);
+  >(null);
   const [motif, setMotif] = useState<Valeur<'motif_retrait'>>('demande_ecole');
   const [noteRetrait, setNoteRetrait] = useState('');
   const [gardee, setGardee] = useState('');
@@ -192,64 +201,14 @@ function LigneEcole({
     setRetour(null);
     setMode(section);
   };
-  const sections = [
-    ['completer', 'À compléter'],
-    ['modifier', 'Informations'],
-    ['situer', 'Position'],
-    ['contact-public', 'Contact public'],
-    ['frais', 'Frais déclarés'],
-    ['inscriptions', 'Inscriptions'],
-    ['equipements', 'Équipements'],
-    ['agrement', 'Agrément'],
-    ['mot-direction', 'Mot de la direction'],
-    ['photo-publique', 'Photo publique'],
-    ['images', 'Images'],
-    ['nouvelles', 'Nouvelles'],
-    ['admission', 'Admission'],
-    ['formations', 'Formations du supérieur'],
-    ['mission', 'Mission'],
-  ] as const;
   const confirmation =
     mode === 'retirer' || mode === 'fusionner' || mode === 'corbeille' || mode === 'supprimer';
   const nomCorrespond = comparable(nomSaisi) === comparable(e.nom);
 
   const contenuGestion = (
     <>
-      {!confirmation && (
-        <nav className="gestion-sections" aria-label="Sections de la fiche">
-          {sections
-            .filter(
-              ([cle]) =>
-                (etat !== 'retiree' || !['modifier', 'situer', 'mission'].includes(cle)) &&
-                // L'admission ne concerne que le supérieur et le technique.
-                (cle !== 'admission' ||
-                  e.niveaux.some((n) => n === 'superieur' || n === 'technique')) &&
-                // Lot F : le détail des formations, pour le supérieur, le technique et les autres formations.
-                (cle !== 'formations' ||
-                  e.niveaux.some(
-                    (n) => n === 'superieur' || n === 'technique' || n === 'autre_formation',
-                  )),
-            )
-            .map(([cle, libelle]) => (
-              <button
-                key={cle}
-                type="button"
-                className="pastille-choix"
-                disabled={operation || enCours}
-                aria-pressed={mode === cle}
-                onClick={() => {
-                  setErreur(null);
-                  setRetour(null);
-                  setMode(cle);
-                }}
-              >
-                {libelle}
-              </button>
-            ))}
-        </nav>
-      )}
       {retour && !confirmation && (
-        <p ref={zoneRetour} className="bandeau bandeau-envoye">
+        <p ref={zoneRetour} className={v2.bandeSucces} role="status">
           {retour}
         </p>
       )}
@@ -259,10 +218,7 @@ function LigneEcole({
           nom={e.nom}
           numero={e.contactPublic?.numero ?? null}
           admin={admin}
-          surConfier={(t) => {
-            setTache(t ?? '');
-            setMode('mission');
-          }}
+          relais={relais}
           surChangement={signaler}
         />
       )}
@@ -273,7 +229,7 @@ function LigneEcole({
         <AdmissionEcole ecoleId={e.id} admin={admin} surChangement={signaler} />
       )}
       {mode === 'formations' && (
-        <FormationsSuperieur ecoleId={e.id} admin={admin} surChangement={signaler} />
+        <FormationsSuperieur ecoleId={e.id} nom={e.nom} admin={admin} surChangement={signaler} />
       )}
       {mode === 'images' && <ImagesEcole ecoleId={e.id} admin={admin} surChangement={signaler} />}
       {mode === 'photo-publique' && (
@@ -312,19 +268,6 @@ function LigneEcole({
           surChangement={signaler}
         />
       )}
-      {mode === 'agrement' && (
-        <AgrementEcole
-          surOccupation={setOperation}
-          integre
-          ecoleId={e.id}
-          nom={e.nom}
-          agrements={e.agrements ?? []}
-          filieres={e.filieres ?? []}
-          admin={admin}
-          fermer={() => setMode(null)}
-          surChangement={signaler}
-        />
-      )}
       {mode === 'mot-direction' && (
         <MotDirectionEcole
           surOccupation={setOperation}
@@ -333,18 +276,6 @@ function LigneEcole({
           nom={e.nom}
           mot={e.motDirection ?? null}
           confirmee={e.verifieeLe !== null}
-          admin={admin}
-          fermer={() => setMode(null)}
-          surChangement={signaler}
-        />
-      )}
-      {mode === 'inscriptions' && (
-        <InscriptionsEcole
-          surOccupation={setOperation}
-          integre
-          ecoleId={e.id}
-          nom={e.nom}
-          inscriptions={e.inscriptions ?? []}
           admin={admin}
           fermer={() => setMode(null)}
           surChangement={signaler}
@@ -362,10 +293,22 @@ function LigneEcole({
           surChangement={signaler}
         />
       )}
+      {(mode === 'inscriptions' || mode === 'contact-public') && (
+        <InscriptionsEcole
+          surOccupation={setOperation}
+          integre
+          ecoleId={e.id}
+          nom={e.nom}
+          inscriptions={e.inscriptions ?? []}
+          admin={admin}
+          fermer={() => setMode(null)}
+          surChangement={signaler}
+        />
+      )}
 
       {mode === 'retirer' && (
         <form
-          className="admin-motif"
+          className={v2.motif}
           onSubmit={(ev) => {
             ev.preventDefault();
             void agir(
@@ -374,10 +317,10 @@ function LigneEcole({
             );
           }}
         >
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Motif
             <select
-              className="champ"
+              className={v2.champ}
               value={motif}
               onChange={(ev) => setMotif(ev.target.value as Valeur<'motif_retrait'>)}
             >
@@ -390,10 +333,10 @@ function LigneEcole({
                 ))}
             </select>
           </label>
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Note (facultatif)
             <input
-              className="champ"
+              className={v2.champ}
               maxLength={500}
               value={noteRetrait}
               onChange={(ev) => setNoteRetrait(ev.target.value)}
@@ -407,7 +350,7 @@ function LigneEcole({
 
       {mode === 'corbeille' && (
         <form
-          className="admin-motif"
+          className={v2.motif}
           onSubmit={(ev) => {
             ev.preventDefault();
             void agir(
@@ -416,10 +359,10 @@ function LigneEcole({
             );
           }}
         >
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Motif
             <select
-              className="champ"
+              className={v2.champ}
               value={motif}
               onChange={(ev) => setMotif(ev.target.value as Valeur<'motif_retrait'>)}
             >
@@ -432,10 +375,10 @@ function LigneEcole({
                 ))}
             </select>
           </label>
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             Note (facultatif)
             <input
-              className="champ"
+              className={v2.champ}
               maxLength={500}
               value={noteRetrait}
               onChange={(ev) => setNoteRetrait(ev.target.value)}
@@ -454,7 +397,7 @@ function LigneEcole({
 
       {mode === 'supprimer' && (
         <form
-          className="admin-motif"
+          className={v2.motif}
           onSubmit={(ev) => {
             ev.preventDefault();
             if (!apercu || apercu.bloque || !nomCorrespond) return;
@@ -467,7 +410,7 @@ function LigneEcole({
           {apercu === null ? (
             <p aria-busy="true">Lecture de ce que la suppression emporterait…</p>
           ) : apercu.bloque ? (
-            <p className="message-attention" role="status">
+            <p className={v2.attention} role="status">
               {apercu.bloque}
             </p>
           ) : (
@@ -480,10 +423,10 @@ function LigneEcole({
                 de la direction, ses dates d’inscription et son historique. Seule une trace garde
                 son nom et ces nombres.
               </p>
-              <label className="champ-groupe">
+              <label className={v2.groupe}>
                 Pour confirmer, écris le nom de l’école : <b>{e.nom}</b>
                 <input
-                  className="champ"
+                  className={v2.champ}
                   autoComplete="off"
                   value={nomSaisi}
                   onChange={(ev) => setNomSaisi(ev.target.value)}
@@ -505,7 +448,7 @@ function LigneEcole({
 
       {mode === 'rattacher' && (
         <form
-          className="admin-motif pile-serree"
+          className={v2.motifPile}
           aria-label={`Rattacher ${e.nom} à une autre école`}
           onSubmit={(ev) => {
             ev.preventDefault();
@@ -531,7 +474,7 @@ function LigneEcole({
             {(a) => (
               <select
                 {...a}
-                className="champ"
+                className={v2.champ}
                 value={ecoleCible}
                 onChange={(ev) => setEcoleCible(ev.target.value)}
               >
@@ -545,21 +488,21 @@ function LigneEcole({
               </select>
             )}
           </Champ>
-          <p className="mention">
+          <p className={v2.mention}>
             Le site garde son adresse publique.
             {seul
               ? ' Son école actuelle n’a pas d’autre site : ce qui manque à l’école choisie (sigle, année, site web, logo, mot de la direction) lui est donné, puis elle est supprimée.'
               : ' Son école actuelle garde ses autres sites.'}
           </p>
           {erreur && /logo|mot de la direction/.test(erreur) && (
-            <div className="bandeau bandeau-attente pile-serree" role="alert">
+            <div className={v2.bandeAttention} role="alert">
               <p>
                 <b>{erreur}</b> Garde celui qui vaut : retire l’autre dans sa fiche, puis reviens
                 ici.
               </p>
               <button
                 type="button"
-                className="bouton bouton-secondaire"
+                className={v2.boutonSecondaire}
                 onClick={() => {
                   setErreur(null);
                   setMode(/logo/.test(erreur) ? 'images' : 'mot-direction');
@@ -577,7 +520,7 @@ function LigneEcole({
 
       {mode === 'fusionner' && (
         <form
-          className="admin-motif"
+          className={v2.motif}
           onSubmit={(ev) => {
             ev.preventDefault();
             const cible = autres.find((x) => x.id === gardee);
@@ -588,9 +531,13 @@ function LigneEcole({
             );
           }}
         >
-          <label className="champ-groupe">
+          <label className={v2.groupe}>
             C'est la même école que…
-            <select className="champ" value={gardee} onChange={(ev) => setGardee(ev.target.value)}>
+            <select
+              className={v2.champ}
+              value={gardee}
+              onChange={(ev) => setGardee(ev.target.value)}
+            >
               <option value="">Choisir l'école à garder</option>
               {autres.map((x) => (
                 <option key={x.id} value={x.id}>
@@ -613,7 +560,7 @@ function LigneEcole({
 
       {mode === 'mission' && (
         <form
-          className="admin-motif"
+          className={v2.motif}
           aria-label={`Mission pour ${e.nom}`}
           onSubmit={(ev) => {
             ev.preventDefault();
@@ -636,7 +583,7 @@ function LigneEcole({
           }}
         >
           {relais.length === 0 ? (
-            <p className="mention admin-pleine-largeur">
+            <p className={v2.mentionLarge}>
               Aucun relais actif : active un relais dans l’onglet « Relais » d’abord.
             </p>
           ) : (
@@ -645,7 +592,7 @@ function LigneEcole({
                 {(a) => (
                   <select
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     value={relaisId}
                     onChange={(ev) => setRelaisId(ev.target.value)}
                   >
@@ -661,7 +608,7 @@ function LigneEcole({
                 {(a) => (
                   <select
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     value={genre}
                     onChange={(ev) => setGenre(ev.target.value as Valeur<'mission_kind'>)}
                   >
@@ -681,7 +628,7 @@ function LigneEcole({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     maxLength={500}
                     placeholder="Ex. : le nom sur l’enseigne, le repère…"
                     value={note}
@@ -693,7 +640,7 @@ function LigneEcole({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     maxLength={300}
                     placeholder="Ex. : photographier le prospectus des frais, en entier."
                     value={tache}
@@ -705,7 +652,7 @@ function LigneEcole({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     maxLength={300}
                     value={raison}
                     onChange={(ev) => setRaison(ev.target.value)}
@@ -716,7 +663,7 @@ function LigneEcole({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     type="date"
                     value={avantLe}
                     onChange={(ev) => setAvantLe(ev.target.value)}
@@ -731,21 +678,21 @@ function LigneEcole({
                 {(a) => (
                   <input
                     {...a}
-                    className="champ"
+                    className={v2.champ}
                     inputMode="numeric"
                     value={paie}
                     onChange={(ev) => setPaie(ev.target.value)}
                   />
                 )}
               </Champ>
-              <div className="admin-actions admin-pleine-largeur">
+              <div className={v2.actionsLarge}>
                 <Bouton type="submit" enCours={enCours} disabled={!relaisId}>
                   {e.confiee ? 'Confier de nouveau' : 'Confier'}
                 </Bouton>
                 {e.confiee && (
                   <button
                     type="button"
-                    className="bouton bouton-secondaire"
+                    className={v2.boutonSecondaire}
                     disabled={enCours}
                     onClick={() =>
                       void agir(() => admin.reprendreEcole(e.id), `${e.nom} n'est plus confiée.`)
@@ -786,103 +733,201 @@ function LigneEcole({
           surAnnuler={() => setMode(null)}
         />
       )}
+      {(mode === 'agrement' || mode === 'modifier') && (
+        <AgrementEcole
+          surOccupation={setOperation}
+          integre
+          ecoleId={e.id}
+          nom={e.nom}
+          agrements={e.agrements ?? []}
+          filieres={e.filieres ?? []}
+          admin={admin}
+          fermer={() => setMode(null)}
+          surChangement={signaler}
+        />
+      )}
 
       {erreur && (
-        <p className="message-erreur" role="alert">
+        <p className={v2.erreur} role="alert">
           {erreur}
         </p>
       )}
     </>
   );
 
-  // Admin v2 (lot 5, planches « la fiche d'une école ») : la fiche en plein écran. En tête, l'école et ses sites ; à côté
-  // (sur ordinateur), ce qu'on fait d'elle (publier, situer, « ⋯ ») ; puis ses rubriques, et la rubrique ouverte dessous.
+  // La fiche d'une école en plein écran (planches « Fiche d'école, admin ») : la carte de l'école, ses photos, ses
+  // rubriques ; chaque rubrique s'ouvre dans un tiroir (ordinateur) ou un écran plein (téléphone).
   function ficheEnPleinEcran() {
     const sites = ecoles.filter((x) => x.institutionId === e.institutionId);
+    const titres: Record<NonNullable<typeof mode>, string> = {
+      completer: 'Compléter la fiche',
+      modifier: 'En bref',
+      situer: 'Position',
+      'contact-public': 'Contact et inscriptions',
+      frais: 'Frais',
+      inscriptions: 'Inscriptions',
+      equipements: 'Sur place',
+      agrement: 'Agrément',
+      'mot-direction': 'Mot de la direction',
+      'photo-publique': 'Photos',
+      images: 'Couverture, logo et images',
+      nouvelles: 'Nouvelles',
+      admission: 'Admission',
+      formations: 'Formations',
+      mission: 'Confier à un relais',
+      retirer: 'Retirer',
+      fusionner: 'Fusionner',
+      corbeille: 'Mettre à la corbeille',
+      supprimer: 'Supprimer définitivement',
+      rattacher: 'C’est un site de…',
+    };
+    const lienPublic = etat === 'publiee' && e.numeroPublic ? `/ecoles/${e.numeroPublic}/` : null;
+    const gestes = (
+      <>
+        {lienPublic && (
+          <a
+            className={v2.boutonSecondairePetit}
+            href={lienPublic}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <IconeOeil className="size-[18px]" aria-hidden />
+            Aperçu
+          </a>
+        )}
+        {etat !== 'corbeille' && (
+          <ActionsSecondaires nom={e.nom}>
+            {lienPublic && (
+              <a href={lienPublic} target="_blank" rel="noopener noreferrer">
+                Voir la page publique
+              </a>
+            )}
+            <button type="button" onClick={(ev) => ouvrir('mission', ev.currentTarget)}>
+              {e.confiee ? 'Mission en cours…' : 'Confier à un relais'}
+            </button>
+            {etat !== 'retiree' && (
+              <button type="button" onClick={(ev) => ouvrir('rattacher', ev.currentTarget)}>
+                C’est un site de…
+              </button>
+            )}
+            {etat !== 'retiree' && (
+              <button type="button" onClick={(ev) => ouvrir('fusionner', ev.currentTarget)}>
+                Fusionner avec un doublon
+              </button>
+            )}
+            {(etat === 'prete' || etat === 'publiee') && (
+              <button type="button" onClick={(ev) => ouvrir('retirer', ev.currentTarget)}>
+                Retirer de la publication
+              </button>
+            )}
+            <button
+              type="button"
+              className="text-destructive!"
+              onClick={(ev) => ouvrir('corbeille', ev.currentTarget)}
+            >
+              Mettre à la corbeille
+            </button>
+          </ActionsSecondaires>
+        )}
+      </>
+    );
+    // Planches : les frais, les nouvelles et les formations du supérieur s'ouvrent en page (le prospectus ou l'aperçu à côté),
+    // les autres rubriques en tiroir.
+    const enPage =
+      mode === 'frais' || mode === 'nouvelles' || mode === 'formations' || mode === 'admission';
+    if (enPage)
+      return (
+        <article aria-label={`${titres[mode]} · ${e.nom}`} className="flex flex-col gap-4">
+          <nav
+            aria-label="Fil d’Ariane"
+            className="flex flex-wrap items-center gap-1.5 text-[15px] max-lg:hidden"
+          >
+            <a className="font-bold text-primary-strong underline" href="#ecoles">
+              Écoles
+            </a>
+            <span className="text-muted-foreground">›</span>
+            <button
+              type="button"
+              onClick={() => setMode(null)}
+              className="cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-bold text-primary-strong underline"
+            >
+              {e.nom}
+              {e.etiquette ? ` · ${e.etiquette}` : ''}
+            </button>
+            <span className="text-muted-foreground">›</span>
+            <span className="text-muted-foreground">{titres[mode]}</span>
+          </nav>
+          <TitreEcran
+            titre={
+              mode === 'frais'
+                ? 'Frais par classe'
+                : mode === 'nouvelles'
+                  ? 'Une nouvelle'
+                  : titres[mode]
+            }
+            retour={{ libelle: e.nom, chemin: `ecoles/fiche/${e.id}` }}
+            titreHaut={mode === 'frais' ? 'Frais par classe' : titres[mode]}
+          />
+          {mode === 'frais' && (
+            <p className="-mt-2 mb-0 text-[15px] text-muted-foreground">
+              Recopie ce que dit le prospectus, ligne par ligne.
+            </p>
+          )}
+          {contenuGestion}
+        </article>
+      );
     return (
-      <article className="fiche-admin" aria-label={`Fiche de ${e.nom}`}>
+      <article aria-label={`Fiche de ${e.nom}`} className="flex flex-col gap-4">
         <TitreEcran
           titre={e.nom}
+          cacherTitre
           retour={{ libelle: 'Écoles', chemin: 'ecoles' }}
-          regles={
-            <>
-              <p>
-                Chaque rubrique se modifie ici ; les changements paraissent sur ntanova.com après la
-                prochaine mise à jour du site.
-              </p>
-              <p>
-                « À compléter » dit ce qui manque et qui peut le donner : l’école (WhatsApp, avec
-                son accord) ou un relais (une mission).
-              </p>
-            </>
-          }
+          titreHaut="Écoles"
         />
-        <a className="lien lien-discret fiche-admin-retour" href="#ecoles">
-          ← Écoles
-        </a>
-        <ApercuFiche
-          ecole={e}
+        <div className="flex items-center gap-3 max-lg:hidden">
+          <nav aria-label="Fil d’Ariane" className="flex flex-1 items-center gap-1.5 text-[15px]">
+            <IconeRetour className="size-4" aria-hidden />
+            <a className="font-bold text-primary-strong underline" href="#ecoles">
+              Écoles
+            </a>
+            <span className="text-muted-foreground">›</span>
+            <span className="text-muted-foreground">
+              {e.nom}
+              {e.etiquette ? ` · ${e.etiquette}` : ''}
+            </span>
+          </nav>
+          {gestes}
+        </div>
+        {retour && (
+          <p ref={zoneRetour} className={v2.bandeSucces} role="status">
+            {retour}
+          </p>
+        )}
+        {erreur && !mode && (
+          <p className={v2.erreur} role="alert">
+            {erreur}
+          </p>
+        )}
+        <FicheEcole
+          e={e}
+          sites={sites}
+          etat={etat}
           admin={admin}
-          surCouverture={(bouton) => ouvrir('images', bouton)}
-          surManques={() => {
+          memeLieu={memeLieu}
+          gestes={gestes}
+          ouvrir={(r) => {
             setErreur(null);
             setRetour(null);
-            setMode('completer');
+            setMode(r);
           }}
-        />
-        <header className="fiche-admin-tete">
-          <div className="fiche-admin-identite">
-            <p className="fiche-admin-nom">{e.nom}</p>
-            <p className="mention">
-              {[
-                e.etiquette,
-                libelleTypeEcole[e.typeEcole],
-                [...new Set([e.quartier, e.division].filter(Boolean))].join(' · '),
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-            <div className="rang">
-              <BadgePublication etat={etat} />
-              {e.verifieeLe && (
-                <span className="etiquette etat-verifiee">Confirmée par la direction</span>
-              )}
-            </div>
-            {memeLieu && (
-              <p className="mention fiche-admin-meme-lieu">
-                Même lieu que <a href={`#ecoles/fiche/${memeLieu.id}`}>{nomDuSite(memeLieu)}</a>
-                {' · '}
-                <button
-                  type="button"
-                  className="lien-bouton"
-                  disabled={enCours}
-                  onClick={() =>
-                    void agir(
-                      () => admin.definirMemeLieu(e.id, null),
-                      `« Même lieu » est retiré de ${e.nom}.`,
-                    )
-                  }
-                >
-                  Retirer
-                </button>
-              </p>
-            )}
-            {sites.length > 1 && (
-              <nav className="fiche-admin-sites" aria-label="Les sites de cette école">
-                {sites.map((x) => (
-                  <a
-                    key={x.id}
-                    href={`#ecoles/fiche/${x.id}`}
-                    aria-current={x.id === e.id ? 'page' : undefined}
-                  >
-                    {x.etiquette ?? x.nom}
-                  </a>
-                ))}
-              </nav>
-            )}
-          </div>
-          <div className="fiche-admin-gestes">
-            {(etat === 'prete' || (etat === 'retiree' && !e.retrait?.remplaceePar)) && (
+          retirerMemeLieu={() =>
+            void agir(
+              () => admin.definirMemeLieu(e.id, null),
+              `« Même lieu » est retiré de ${e.nom}.`,
+            )
+          }
+          publier={
+            etat === 'prete' || (etat === 'retiree' && !e.retrait?.remplaceePar) ? (
               <Bouton
                 enCours={enCours}
                 texteEnCours="Publication…"
@@ -892,45 +937,27 @@ function LigneEcole({
               >
                 {etat === 'retiree' ? 'Republier' : 'Publier'}
               </Bouton>
-            )}
-            {etat !== 'corbeille' && (
-              <ActionsSecondaires nom={e.nom}>
-                {etat !== 'retiree' && (
-                  <Bouton
-                    variante="discret"
-                    onClick={(ev) => ouvrir('rattacher', ev.currentTarget)}
-                  >
-                    C’est un site de…
-                  </Bouton>
-                )}
-                {etat !== 'retiree' && (
-                  <>
-                    <Bouton variante="danger" onClick={(ev) => ouvrir('retirer', ev.currentTarget)}>
-                      Retirer du site
-                    </Bouton>
-                    <Bouton
-                      variante="danger"
-                      onClick={(ev) => ouvrir('fusionner', ev.currentTarget)}
-                    >
-                      Fusionner…
-                    </Bouton>
-                  </>
-                )}
-                <Bouton variante="danger" onClick={(ev) => ouvrir('corbeille', ev.currentTarget)}>
-                  Mettre à la corbeille…
-                </Bouton>
-              </ActionsSecondaires>
-            )}
-          </div>
-        </header>
-        <div className="fiche-admin-corps">{!confirmation && contenuGestion}</div>
-        {mode && confirmation && (
+            ) : etat === 'a_situer' ? (
+              <Bouton onClick={(ev) => ouvrir('situer', ev.currentTarget)}>Situer</Bouton>
+            ) : null
+          }
+        />
+        {mode && (
           <Dialogue
-            titre={`${{ retirer: 'Retirer', fusionner: 'Fusionner', corbeille: 'Mettre à la corbeille', supprimer: 'Supprimer définitivement' }[mode as 'retirer' | 'fusionner' | 'corbeille' | 'supprimer']} ${e.nom}`}
-            variante="confirmation"
+            titre={`${titres[mode]} · ${e.nom}`}
+            variante={confirmation ? 'confirmation' : 'tiroir'}
             retourFocus={declencheur}
             occupe={enCours || operation}
-            fermer={() => setMode(pleinEcran ? 'completer' : null)}
+            fermer={() => setMode(null)}
+            entete={
+              <>
+                <h2>{titres[mode]}</h2>
+                <span className="text-sm text-muted-foreground">
+                  {e.nom}
+                  {e.etiquette ? ` · ${e.etiquette}` : ''}
+                </span>
+              </>
+            }
           >
             {contenuGestion}
           </Dialogue>
@@ -941,189 +968,170 @@ function LigneEcole({
 
   if (pleinEcran) return ficheEnPleinEcran();
 
+  // Une ligne de la liste (planche « Écoles ») : une école d'un seul site, ou un site sous le nom de son école. Le geste
+  // de la ligne seulement (Publier, Situer, Restaurer, ouvrir la fiche) : le reste est dans la fiche.
+  const geste =
+    etat === 'prete' ? (
+      <Bouton
+        className={v2.petit}
+        enCours={enCours}
+        texteEnCours="Publication…"
+        onClick={() =>
+          void agir(() => admin.publierEcole(e.id), `${e.nom} est publiée. ${EN_LIGNE}`)
+        }
+      >
+        Publier
+      </Bouton>
+    ) : etat === 'a_situer' ? (
+      <Bouton
+        variante="secondaire"
+        className={v2.petit}
+        onClick={(ev) => ouvrir('situer', ev.currentTarget)}
+      >
+        Situer
+      </Bouton>
+    ) : etat === 'corbeille' ? (
+      <span className="flex flex-wrap justify-end gap-2">
+        <Bouton
+          variante="secondaire"
+          className={v2.petit}
+          enCours={enCours}
+          texteEnCours="Restauration…"
+          onClick={() =>
+            void agir(
+              () => admin.restaurerEcole(e.id),
+              `${e.nom} est restaurée. Elle est de nouveau dans les listes ; si elle était publiée, republie-la.`,
+            )
+          }
+        >
+          Restaurer
+        </Bouton>
+        <Bouton
+          variante="danger"
+          className={v2.petit}
+          onClick={(ev) => {
+            setApercu(null);
+            setNomSaisi('');
+            ouvrir('supprimer', ev.currentTarget);
+            // Ce que la suppression emporterait, lu avant de demander la confirmation.
+            admin
+              .apercuSuppression(e.id)
+              .then(setApercu)
+              .catch((err: unknown) => setErreur(message(err)));
+          }}
+        >
+          Supprimer…
+        </Bouton>
+      </span>
+    ) : (
+      <a className={cn(v2.lien, 'min-h-0')} href={`#ecoles/fiche/${e.id}`}>
+        Ouvrir la fiche
+      </a>
+    );
+  const ou =
+    e.aSituer && etat !== 'corbeille'
+      ? 'Pas sur la carte'
+      : ([...new Set([e.quartier, e.division].filter(Boolean))][0] ?? '—');
+  const cellule = 'px-4 py-3 align-middle max-lg:p-0';
   return (
-    <tr>
-      <td>
-        <b>{e.nom}</b>
-        {e.etiquette && <span className="mention admin-sous-ligne">{e.etiquette}</span>}
-        {memeLieu && (
-          <span className="mention admin-sous-ligne">Même lieu que {nomDuSite(memeLieu)}</span>
-        )}
-        <span className="mention admin-sous-ligne">
-          {[...new Set([e.quartier, e.division].filter(Boolean))].join(' · ') ||
-            (e.divisionId ? 'Quartier inconnu' : 'Division à choisir')}
-        </span>
-        <span className="mention admin-sous-ligne">
-          {libelleTypeEcole[e.typeEcole]} ·{' '}
-          {e.niveaux.map((n) => libelleNiveau[n]).join(', ') || 'aucun niveau'}
-          {e.formations > 0 && ` · ${e.formations} formation${e.formations > 1 ? 's' : ''}`}
-        </span>
-        <span className="mention admin-sous-ligne">
-          {libelleOrigine[e.origine]}
-          {e.declareeLe ? ` le ${dateLongue(e.declareeLe)}` : ''}
-          {e.verifieeLe && ` · vérifiée par la direction le ${jour(e.verifieeLe)}`}
-        </span>
-        {e.position && (
-          <span className="mention admin-sous-ligne">
-            Position{' '}
-            <a href={lienGoogleMaps(e.position)} target="_blank" rel="noopener noreferrer">
-              {ecrirePosition(e.position)}
-            </a>
+    <div
+      role="row"
+      aria-label={site ? `${nomDuSite(e)}` : e.nom}
+      className={cn(
+        'grid items-center border-t border-border lg:grid-cols-[minmax(0,2.3fr)_1fr_1.4fr_1.1fr_1fr_auto]',
+        'max-lg:grid-cols-[minmax(0,1fr)_auto] max-lg:gap-x-3 max-lg:gap-y-0.5 max-lg:px-4 max-lg:py-3',
+        site && 'lg:bg-background/40',
+      )}
+    >
+      <div role="cell" className={cn(cellule, site && 'lg:pl-9', 'max-lg:col-start-1')}>
+        <a
+          href={`#ecoles/fiche/${e.id}`}
+          className={cn(
+            'text-foreground no-underline hover:underline',
+            site ? 'text-[15px] font-bold' : 'font-serif text-[17px] font-bold',
+          )}
+        >
+          {site ? (rangSite ? `${e.etiquette ?? `Site ${rangSite}`}` : e.etiquette) : e.nom}
+        </a>
+        {!site && memeLieu && (
+          <span className="block text-[13px] text-muted-foreground">
+            Même lieu que {nomDuSite(memeLieu)}
           </span>
         )}
-        {e.corbeille && (
-          <span className="mention admin-sous-ligne">
-            À la corbeille depuis le {jour(e.corbeille.le)}
-          </span>
-        )}
-        {e.retrait && (
-          <span className="mention admin-sous-ligne">
+        {e.retrait && etat === 'retiree' && (
+          <span className="block text-[13px] text-muted-foreground">
             {libelleMotifRetrait[e.retrait.motif]}, le {jour(e.retrait.le)}
-            {e.retrait.note ? ` : ${e.retrait.note}` : ''}
-            {e.retrait.remplaceePar
-              ? ` → ${ecoles.find((x) => x.id === e.retrait?.remplaceePar)?.nom ?? 'une autre fiche'}`
-              : ''}
           </span>
         )}
-      </td>
-      <td>
+        <span className="block text-[13px] text-muted-foreground lg:hidden">
+          {[site ? etendue(e.niveaux) : libelleTypeEcole[e.typeEcole], ou].join(' · ')}
+        </span>
+      </div>
+      <div role="cell" className={cn(cellule, 'max-lg:hidden')}>
+        {site ? '' : libelleTypeEcole[e.typeEcole]}
+      </div>
+      <div role="cell" className={cn(cellule, 'max-lg:hidden')}>
+        {etendue(e.niveaux)}
+      </div>
+      <div
+        role="cell"
+        className={cn(cellule, 'max-lg:hidden', e.aSituer && 'text-muted-foreground')}
+      >
+        {ou}
+      </div>
+      <div role="cell" className={cn(cellule, 'max-lg:hidden')}>
         <BadgePublication etat={etat} />
-      </td>
-      <td data-colonne="Mission">
-        {e.confiee ? (
+      </div>
+      <div
+        role="cell"
+        className={cn(
+          cellule,
+          'text-right max-lg:col-start-2 max-lg:row-span-2 max-lg:row-start-1',
+        )}
+      >
+        {etat === 'publiee' || etat === 'retiree' ? (
           <>
-            <b>{e.confiee.prenom}</b>
-            <span className="mention admin-sous-ligne">{libelleTypeMission[e.confiee.genre]}</span>
-            {e.confiee.note && <span className="mention admin-sous-ligne">{e.confiee.note}</span>}
+            <span className="lg:hidden">
+              <BadgePublication etat={etat} />
+            </span>
+            <span className="max-lg:hidden">{geste}</span>
           </>
         ) : (
-          <span className="mention">Aucune mission</span>
+          geste
         )}
-      </td>
-      <td>
-        <div className="admin-actions ecole-actions">
-          {(etat === 'prete' || (etat === 'retiree' && !e.retrait?.remplaceePar)) && (
-            <Bouton
-              enCours={enCours}
-              texteEnCours="Publication…"
-              onClick={() =>
-                void agir(() => admin.publierEcole(e.id), `${e.nom} est publiée. ${EN_LIGNE}`)
-              }
-            >
-              {etat === 'retiree' ? 'Republier' : 'Publier'}
-            </Bouton>
-          )}
-          {etat !== 'retiree' && etat !== 'corbeille' && e.aSituer && (
-            <Bouton onClick={(ev) => ouvrir('situer', ev.currentTarget)}>Situer</Bouton>
-          )}
-          {etat === 'corbeille' && (
-            <>
-              <Bouton
-                enCours={enCours}
-                texteEnCours="Restauration…"
-                onClick={() =>
-                  void agir(
-                    () => admin.restaurerEcole(e.id),
-                    `${e.nom} est restaurée. Elle est de nouveau dans les listes ; si elle était publiée, republie-la.`,
-                  )
-                }
-              >
-                Restaurer
-              </Bouton>
-              <Bouton
-                variante="danger"
-                onClick={(ev) => {
-                  setApercu(null);
-                  setNomSaisi('');
-                  ouvrir('supprimer', ev.currentTarget);
-                  // Ce que la suppression emporterait, lu avant de demander la confirmation.
-                  admin
-                    .apercuSuppression(e.id)
-                    .then(setApercu)
-                    .catch((err: unknown) => setErreur(message(err)));
-                }}
-              >
-                Supprimer définitivement…
-              </Bouton>
-            </>
-          )}
-          {etat !== 'corbeille' && (
-            <a className="bouton bouton-secondaire" href={`#ecoles/fiche/${e.id}`}>
-              Ouvrir la fiche
-            </a>
-          )}
-          {/* Le menu « ⋯ » : la mission, le retrait et la fusion quand elles ont un sens, et la corbeille pour toutes les écoles. */}
-          {etat !== 'corbeille' && (
-            <ActionsSecondaires nom={e.nom}>
-              {etat !== 'retiree' && (
-                <Bouton variante="discret" onClick={(ev) => ouvrir('rattacher', ev.currentTarget)}>
-                  C’est un site de…
-                </Bouton>
-              )}
-              {etat !== 'retiree' && (
-                <Bouton variante="discret" onClick={(ev) => ouvrir('mission', ev.currentTarget)}>
-                  {e.confiee ? 'Mission en cours…' : 'Confier à un relais'}
-                </Bouton>
-              )}
-              <div className="actions-danger">
-                {(etat === 'prete' || etat === 'publiee') && (
-                  <>
-                    <Bouton variante="danger" onClick={(ev) => ouvrir('retirer', ev.currentTarget)}>
-                      Retirer du site
-                    </Bouton>
-                    <Bouton
-                      variante="danger"
-                      onClick={(ev) => ouvrir('fusionner', ev.currentTarget)}
-                    >
-                      Fusionner…
-                    </Bouton>
-                  </>
-                )}
-                <Bouton variante="danger" onClick={(ev) => ouvrir('corbeille', ev.currentTarget)}>
-                  Mettre à la corbeille…
-                </Bouton>
-              </div>
-            </ActionsSecondaires>
-          )}
-        </div>
-        {mode && !pleinEcran && (
+        {mode && (
           <Dialogue
-            titre={
-              confirmation
-                ? `${{ retirer: 'Retirer', fusionner: 'Fusionner', corbeille: 'Mettre à la corbeille', supprimer: 'Supprimer définitivement' }[mode as 'retirer' | 'fusionner' | 'corbeille' | 'supprimer']} ${e.nom}`
-                : `Gérer ${e.nom}`
-            }
+            titre={`${{ retirer: 'Retirer', fusionner: 'Fusionner', corbeille: 'Mettre à la corbeille', supprimer: 'Supprimer définitivement', situer: 'Situer' }[mode as 'retirer' | 'fusionner' | 'corbeille' | 'supprimer' | 'situer'] ?? 'Gérer'} ${e.nom}`}
             variante={confirmation ? 'confirmation' : 'tiroir'}
             description={
-              mode === 'corbeille'
-                ? 'L’école disparaît des listes, du site (après la prochaine mise à jour), des statistiques et des missions. Ses fiches, photos et contacts sont gardés : tu peux la restaurer depuis « Corbeille ».'
-                : mode === 'supprimer'
-                  ? 'Définitif : on ne revient pas en arrière.'
-                  : mode === 'retirer'
-                    ? 'Cette école sera retirée du catalogue après la prochaine mise à jour du site. Son historique est conservé.'
-                    : mode === 'fusionner'
-                      ? 'Cette fiche sera retirée et son ancienne adresse renverra vers l’école choisie. Vérifie qu’il s’agit de la même école.'
-                      : undefined
+              mode === 'supprimer' ? 'Définitif : on ne revient pas en arrière.' : undefined
             }
             retourFocus={declencheur}
             occupe={enCours || operation}
             fermer={() => setMode(null)}
             entete={
-              <>
-                <h2>{e.nom}</h2>
-                <div className="rang">
-                  <BadgePublication etat={etat} />
-                  <span className="mention">{e.division}</span>
-                </div>
-              </>
+              <h2>
+                {mode === 'situer'
+                  ? 'Situer'
+                  : mode === 'supprimer'
+                    ? 'Supprimer définitivement'
+                    : e.nom}
+              </h2>
             }
           >
             {contenuGestion}
           </Dialogue>
         )}
-      </td>
-    </tr>
+      </div>
+    </div>
   );
+}
+
+/** « Maternelle à Collège » : du premier au dernier niveau, comme la planche. */
+function etendue(niveaux: EcoleVue['niveaux']): string {
+  if (niveaux.length === 0) return 'Aucun niveau';
+  if (niveaux.length === 1) return libelleNiveau[niveaux[0]!];
+  return `${libelleNiveau[niveaux[0]!]} à ${libelleNiveau[niveaux.at(-1)!].toLocaleLowerCase('fr')}`;
 }
 
 /**
@@ -1184,29 +1192,29 @@ function FormulaireEcole({
 
   return (
     <form
-      className="admin-motif"
+      className={v2.motif}
       aria-label={`Modifier ${e.nom}`}
       noValidate
       onSubmit={(ev) => void enregistrer(ev)}
     >
       <ChampsFiche champs={champs} erreurs={erreurs} changer={changer} />
       {rienADire && (
-        <p className="mention admin-pleine-largeur" aria-live="polite">
+        <p className={v2.mentionLarge} aria-live="polite">
           Rien n’a changé.
         </p>
       )}
       {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
+        <p className={v2.erreurLarge} role="alert">
           {erreur}
         </p>
       )}
-      <div className="admin-actions admin-pleine-largeur">
+      <div className={v2.actionsLarge}>
         <Bouton type="submit" enCours={enCours}>
           Enregistrer
         </Bouton>
         <button
           type="button"
-          className="bouton bouton-secondaire"
+          className={v2.boutonSecondaire}
           disabled={enCours}
           onClick={surAnnuler}
         >
@@ -1272,7 +1280,7 @@ function FormulairePosition({
 
   return (
     <form
-      className="admin-motif"
+      className={v2.motif}
       aria-label={`Situer ${e.nom}`}
       noValidate
       onSubmit={(ev) => void enregistrer(ev)}
@@ -1286,7 +1294,7 @@ function FormulairePosition({
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={divisionId}
             onChange={(ev) => setDivisionId(ev.target.value)}
           >
@@ -1302,17 +1310,17 @@ function FormulairePosition({
         )}
       </Champ>
       {erreur && (
-        <p className="message-erreur admin-pleine-largeur" role="alert">
+        <p className={v2.erreurLarge} role="alert">
           {erreur}
         </p>
       )}
-      <div className="admin-actions admin-pleine-largeur">
+      <div className={v2.actionsLarge}>
         <Bouton type="submit" enCours={enCours}>
           Enregistrer la position
         </Bouton>
         <button
           type="button"
-          className="bouton bouton-secondaire"
+          className={v2.boutonSecondaire}
           disabled={enCours}
           onClick={surAnnuler}
         >
@@ -1324,36 +1332,29 @@ function FormulairePosition({
 }
 
 type Filtre = 'toutes' | Etat;
-type FiltreOrigine = 'toutes' | Valeur<'origin_kind'>;
 
 export function Ecoles({ admin }: { admin: PortAdministration }) {
   const [ecoles, setEcoles] = useState<EcoleVue[] | null>(null);
   const [relais, setRelais] = useState<RelaisVu[]>([]);
-  const [lots, setLots] = useState<LotVu[]>([]);
   const [divisions, setDivisions] = useState<DivisionVue[]>([]);
-  const [lot, setLot] = useState('');
-  const [zone, setZone] = useState('');
-  const [filtre, setFiltre] = useState<Filtre>('toutes');
-  const [recherche, setRecherche] = useState('');
-  // « Voir les écoles » depuis une zone arrive ici avec la zone déjà choisie (#ecoles/zone/<id>).
+  // « Voir les écoles » depuis une zone arrive ici avec la zone déjà choisie (#ecoles/zone/<id>) : toutes ses écoles, et
+  // une puce qui dit le filtre et l'enlève. Sinon, planche : « À publier » d'abord.
   const [, sousAdresse, zoneDeLAdresse] = useAdresse();
   const [divisionFiltre, setDivisionFiltre] = useState(
     sousAdresse === 'zone' ? (zoneDeLAdresse ?? '') : '',
   );
-  const [origine, setOrigine] = useState<FiltreOrigine>('toutes');
+  const [filtre, setFiltre] = useState<Filtre>(divisionFiltre ? 'toutes' : 'prete');
+  const [recherche, setRecherche] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [ajout, setAjout] = useState(false);
 
   const charger = useCallback(() => {
-    Promise.all([admin.ecoles(), admin.relais(), admin.lots(), admin.divisions()])
-      .then(([e, r, l, d]) => {
+    Promise.all([admin.ecoles(), admin.relais(), admin.divisions()])
+      .then(([e, r, d]) => {
         setEcoles(e);
         setRelais(r.filter((x) => x.statut === 'actif'));
-        const vrais = l.filter((x) => !x.essai);
-        setLots(vrais);
-        setLot((avant) => avant || vrais[0]?.id || '');
         setDivisions(d);
         setErreur(null);
       })
@@ -1364,29 +1365,11 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
     charger();
   }, [charger]);
 
-  const publierEnNombre = async (action: () => Promise<number>, ou: string) => {
-    setEnCours(true);
-    try {
-      const n = await action();
-      setAnnonce(
-        n === 0
-          ? `Aucune école prête à publier dans ${ou}.`
-          : `${n} école${n > 1 ? 's' : ''} de ${ou} publiée${n > 1 ? 's' : ''}. ${n > 1 ? EN_LIGNE.replace('Elle paraît', 'Elles paraissent') : EN_LIGNE}`,
-      );
-      charger();
-    } catch (err) {
-      setErreur(message(err));
-    } finally {
-      setEnCours(false);
-    }
-  };
-
   const compte = (etat: Etat) => ecoles?.filter((e) => etatDe(e) === etat).length ?? 0;
   const visibles = (ecoles ?? []).filter(
     (e) =>
       // « Toutes » ne montre pas la corbeille : elle a son propre filtre.
       (filtre === 'toutes' ? etatDe(e) !== 'corbeille' : etatDe(e) === filtre) &&
-      (origine === 'toutes' || e.origine === origine) &&
       e.nom
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -1425,26 +1408,13 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
     { valeur: 'retiree', libelle: 'Retirées', n: compte('retiree') },
     { valeur: 'corbeille', libelle: 'Corbeille', n: compte('corbeille') },
   ];
-  // Les zones qui ont des écoles prêtes : une zone se publie avec tout ce qu'elle contient.
-  const zonesAvecPretes = divisions
-    .map((d) => ({
-      d,
-      prêtes: (ecoles ?? []).filter(
-        (e) =>
-          e.publication === 'prete' &&
-          e.divisionId !== null &&
-          (e.divisionId === d.id ||
-            divisions.find((x) => x.id === e.divisionId)?.chemin.startsWith(`${d.chemin}.`)),
-      ).length,
-    }))
-    .filter((z) => z.prêtes > 0);
 
   // Admin v2 : la fiche d'une école, en plein écran (`#ecoles/fiche/<id>`).
   if (sousAdresse === 'fiche') {
     const choisie = (ecoles ?? []).find((x) => x.id === zoneDeLAdresse);
     if (!choisie)
       return ecoles === null ? (
-        <p className="texte-doux" aria-busy="true">
+        <p className={v2.doux} aria-busy="true">
           Chargement…
         </p>
       ) : (
@@ -1453,9 +1423,9 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
         </p>
       );
     return (
-      <div className="pile">
+      <div className={v2.pile}>
         {annonce && (
-          <p className="bandeau bandeau-envoye" role="status">
+          <p className={v2.bandeSucces} role="status">
             {annonce}
           </p>
         )}
@@ -1476,167 +1446,136 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
     );
   }
 
+  // Planche : une école, puis ses sites dessous ; une école d'un seul site tient sur une ligne.
+  // Une école dont un site est « à publier » se montre avec tous ses sites (planche : « Site 1 · Publiée », « Site 2 · Prête »).
+  const groupes = [...new Set(visibles.map((e) => e.institutionId))].map((id) => {
+    const vus = visibles.filter((e) => e.institutionId === id);
+    if (filtre === 'retiree' || filtre === 'corbeille') return vus;
+    const tous = (ecoles ?? []).filter((e) => e.institutionId === id && etatDe(e) !== 'corbeille');
+    return tous.length > 1 ? tous : vus;
+  });
+  const pretes = (ecoles ?? []).filter((e) => etatDe(e) === 'prete');
+  const publierToutes = async () => {
+    setEnCours(true);
+    setErreur(null);
+    let n = 0;
+    try {
+      for (const e of pretes) {
+        await admin.publierEcole(e.id);
+        n++;
+      }
+      setAnnonce(
+        `${n} école${n > 1 ? 's' : ''} publiée${n > 1 ? 's' : ''}. ${n > 1 ? EN_LIGNE.replace('Elle paraît', 'Elles paraissent') : EN_LIGNE}`,
+      );
+    } catch (err) {
+      setErreur(`${n} publiée${n > 1 ? 's' : ''}, puis : ${message(err)}`);
+    } finally {
+      setEnCours(false);
+      charger();
+    }
+  };
+  const ligne = (e: EcoleVue, extra: { site?: boolean; rangSite?: number } = {}) => (
+    <LigneEcole
+      key={e.id}
+      e={e}
+      {...extra}
+      ecoles={ecoles ?? []}
+      relais={relais}
+      divisions={divisions}
+      admin={admin}
+      surChangement={(texte) => {
+        setAnnonce(texte);
+        charger();
+      }}
+    />
+  );
+  const ajouter = (
+    <Bouton onClick={() => setAjout(true)}>
+      <IconeAjouter className="size-5" aria-hidden />
+      Ajouter une école
+    </Bouton>
+  );
+
   return (
-    <div className="pile">
+    <>
       <TitreEcran
         titre="Écoles"
         focusRetour
+        actions={<span className="max-lg:hidden">{ajouter}</span>}
         regles={
-          <p>
-            Prépare les écoles et choisis celles à publier. Les changements paraissent après la
-            prochaine mise à jour du site.
-          </p>
+          <>
+            <p>
+              Prépare les écoles et choisis celles à publier. Les changements paraissent après la
+              prochaine mise à jour du site.
+            </p>
+            <p>
+              Une école, ses sites dessous. « Publier les N d’un coup » publie toutes les écoles
+              prêtes.
+            </p>
+          </>
         }
       />
-      <div className="avalider-onglets" role="group" aria-label="Filtrer par état">
-        {filtres.map((f) => (
-          <button
-            key={f.valeur}
-            type="button"
-            className="onglet-etat"
-            aria-pressed={filtre === f.valeur}
-            onClick={() => setFiltre(f.valeur)}
-          >
-            {f.libelle}
-            {f.n !== null && f.n > 0 && <span className="onglet-compte">{f.n}</span>}
-          </button>
-        ))}
-      </div>
-      <div className="ecoles-recherche">
-        <Champ libelle="Rechercher une école">
-          {(a) => (
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3 lg:border-b lg:border-border">
+        <div
+          className="flex gap-5 max-lg:w-full max-lg:border-b max-lg:border-border"
+          role="group"
+          aria-label="Filtrer par état"
+        >
+          {filtres
+            .filter((f) => ['prete', 'toutes', 'a_situer'].includes(f.valeur))
+            .map((f) => (
+              <button
+                key={f.valeur}
+                type="button"
+                aria-pressed={filtre === f.valeur}
+                onClick={() => setFiltre(f.valeur)}
+                className="-mb-px flex min-h-11 cursor-pointer items-center border-0 border-b-[3px] border-transparent bg-transparent px-0 font-sans text-[15px] font-bold whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring aria-pressed:border-primary aria-pressed:text-primary-strong"
+              >
+                {f.libelle}
+                <Compteur n={f.n} />
+              </button>
+            ))}
+        </div>
+        <div className="mb-2 flex flex-1 items-center gap-2 lg:ml-auto lg:max-w-[22rem]">
+          <label className="relative flex-1">
+            <span className="sr-only">Rechercher une école</span>
+            <IconeChercher
+              className="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
             <input
-              {...a}
               type="search"
-              className="champ"
-              placeholder="Nom de l’école"
+              className={cn(v2.champ, 'h-12 pl-11')}
+              placeholder="Une école, un site, un quartier"
               value={recherche}
               onChange={(ev) => setRecherche(ev.target.value)}
             />
-          )}
-        </Champ>
-        <Champ libelle="Zone">
-          {(a) => (
-            <select
-              {...a}
-              className="champ"
-              value={divisionFiltre}
-              onChange={(ev) => setDivisionFiltre(ev.target.value)}
-            >
-              <option value="">Toutes les zones</option>
-              {divisions
-                .filter((d) => d.niveau >= 2)
-                .map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {cheminLisible(d.id, divisions)}
-                  </option>
-                ))}
-            </select>
-          )}
-        </Champ>
-      </div>
-      <details className="ecoles-origine">
-        <summary>
-          Filtrer par origine{origine !== 'toutes' ? ` · ${libelleOrigine[origine]}` : ''}
-        </summary>
-        <Choix
-          legende="D'où vient la fiche"
-          options={[
-            { valeur: 'toutes', libelle: 'Toutes' },
-            { valeur: 'field', libelle: libelleOrigine.field },
-            { valeur: 'admin', libelle: libelleOrigine.admin },
-            { valeur: 'import', libelle: libelleOrigine.import },
-            { valeur: 'school', libelle: libelleOrigine.school },
-          ]}
-          valeurs={[origine]}
-          surChoix={(o) => setOrigine(o)}
-        />
-      </details>
-
-      {ajout ? (
-        <Creation
-          admin={admin}
-          divisions={divisions}
-          surEnregistre={(texte) => {
-            setAjout(false);
-            setAnnonce(texte);
-            charger();
-          }}
-          surAnnuler={() => setAjout(false)}
-        />
-      ) : (
-        <div className="admin-actions">
-          <button type="button" className="bouton" onClick={() => setAjout(true)}>
-            Ajouter ou importer des écoles
+          </label>
+          <button
+            type="button"
+            aria-label="Ajouter une école"
+            onClick={() => setAjout(true)}
+            className={cn(v2.bouton, 'size-12 px-0 lg:hidden')}
+          >
+            <IconeAjouter className="size-6" aria-hidden />
           </button>
         </div>
-      )}
-
-      {compte('prete') > 0 && (
-        <section className="carte-blanche pile-serree" aria-label="Publier d'un coup">
-          <h2 className="titre-section">Publier d'un coup</h2>
-          <div className="admin-actions">
-            {zonesAvecPretes.length > 0 && (
-              <>
-                <select
-                  className="champ admin-choix-lot"
-                  aria-label="Zone à publier"
-                  value={zone}
-                  onChange={(ev) => setZone(ev.target.value)}
-                >
-                  <option value="">Choisir une zone…</option>
-                  {zonesAvecPretes.map((z) => (
-                    <option key={z.d.id} value={z.d.id}>
-                      {cheminLisible(z.d.id, divisions)} ({z.prêtes} prête{z.prêtes > 1 ? 's' : ''})
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="bouton bouton-petit"
-                  disabled={enCours || !zone}
-                  onClick={() =>
-                    void publierEnNombre(
-                      () => admin.publierDivision(zone),
-                      divisions.find((d) => d.id === zone)?.nom ?? 'cette zone',
-                    )
-                  }
-                >
-                  Publier cette zone
-                </button>
-              </>
-            )}
-            {lots.length > 0 && (
-              <>
-                <select
-                  className="champ admin-choix-lot"
-                  aria-label="Lot à publier"
-                  value={lot}
-                  onChange={(ev) => setLot(ev.target.value)}
-                >
-                  {lots.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      Lot {l.nom}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="bouton bouton-secondaire bouton-petit"
-                  disabled={enCours || !lot}
-                  onClick={() =>
-                    void publierEnNombre(
-                      () => admin.publierLot(lot),
-                      `lot ${lots.find((l) => l.id === lot)?.nom ?? ''}`,
-                    )
-                  }
-                >
-                  Publier ce lot
-                </button>
-              </>
-            )}
-          </div>
-        </section>
+      </div>
+      {divisionFiltre && (
+        <span className="-mt-2 flex">
+          <button
+            type="button"
+            className={cn(v2.puce, 'border-primary bg-succes text-primary-strong')}
+            aria-label={`Enlever le filtre : ${divisions.find((d) => d.id === divisionFiltre)?.nom ?? 'zone'}`}
+            onClick={() => {
+              setDivisionFiltre('');
+              aller('ecoles');
+            }}
+          >
+            {divisions.find((d) => d.id === divisionFiltre)?.nom ?? 'Zone'}
+            <IconeFermer className="size-4" aria-hidden />
+          </button>
+        </span>
       )}
 
       {erreur && (
@@ -1645,68 +1584,151 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
         </Bandeau>
       )}
       {annonce && (
-        <p className="bandeau bandeau-envoye" role="status">
+        <p className={v2.bandeSucces} role="status">
           {annonce}
         </p>
       )}
 
-      <div className="admin-tableau ecoles-tableau">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">École</th>
-              <th scope="col">État</th>
-              <th scope="col">Confiée à</th>
-              <th scope="col">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ecoles === null && !erreur && (
-              <tr>
-                <td colSpan={4} className="texte-doux" aria-busy="true">
-                  Chargement des écoles…
-                </td>
-              </tr>
-            )}
-            {ecoles !== null && visibles.length === 0 && (
-              <tr>
-                <td colSpan={4} className="texte-doux">
-                  Aucune école ici.
-                </td>
-              </tr>
-            )}
-            {visibles.map((e, i) => (
-              <Fragment key={e.id}>
-                {/* Admin v2 : une école à plusieurs sites a sa ligne, ses sites dessous. */}
-                {visibles.filter((x) => x.institutionId === e.institutionId).length > 1 &&
-                  visibles.findIndex((x) => x.institutionId === e.institutionId) === i && (
-                    <tr className="ligne-ecole-groupe" aria-hidden="true">
-                      <td colSpan={4}>
-                        {e.nom.split(' — ')[0]}{' '}
-                        <span className="mention">
-                          · {visibles.filter((x) => x.institutionId === e.institutionId).length}{' '}
-                          sites
-                        </span>
-                      </td>
-                    </tr>
-                  )}
-                <LigneEcole
-                  key={e.id}
-                  e={e}
-                  ecoles={ecoles ?? []}
-                  relais={relais}
-                  divisions={divisions}
-                  admin={admin}
-                  surChangement={(texte) => {
-                    setAnnonce(texte);
-                    charger();
-                  }}
-                />
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+      <div
+        role="table"
+        aria-label="Écoles"
+        className="overflow-hidden rounded-xl border border-border bg-card max-lg:border-0 max-lg:bg-transparent"
+      >
+        <div
+          role="row"
+          className="grid bg-muted text-xs font-bold tracking-[0.08em] text-muted-foreground uppercase lg:grid-cols-[minmax(0,2.3fr)_1fr_1.4fr_1.1fr_1fr_auto] max-lg:hidden"
+        >
+          {['École et sites', 'Type', 'Niveaux', 'Où', 'État', ''].map((t, i) => (
+            <div role="columnheader" key={i} className="px-4 py-3">
+              {t || <span className="sr-only">Geste</span>}
+            </div>
+          ))}
+        </div>
+        {ecoles === null && !erreur && (
+          <p className="m-0 px-4 py-4 text-muted-foreground" aria-busy="true">
+            Chargement des écoles…
+          </p>
+        )}
+        {ecoles !== null && visibles.length === 0 && (
+          <p className="m-0 px-4 py-4 text-muted-foreground">Aucune école ici.</p>
+        )}
+        <div className="flex flex-col max-lg:gap-3">
+          {groupes.map((sites) => {
+            const premiere = sites[0]!;
+            if (sites.length === 1)
+              return (
+                <div
+                  key={premiere.id}
+                  role="rowgroup"
+                  className="max-lg:overflow-hidden max-lg:rounded-xl max-lg:border max-lg:border-border max-lg:bg-card max-lg:[&>[role=row]]:border-t-0"
+                >
+                  {ligne(premiere)}
+                </div>
+              );
+            const nPretes = sites.filter((x) => etatDe(x) === 'prete').length;
+            return (
+              <div
+                key={premiere.institutionId}
+                role="rowgroup"
+                aria-label={premiere.nom}
+                className="border-t border-border max-lg:overflow-hidden max-lg:rounded-xl max-lg:border max-lg:bg-card"
+              >
+                <div
+                  role="row"
+                  className="grid items-center lg:grid-cols-[minmax(0,2.3fr)_1fr_1.4fr_1.1fr_1fr_auto] max-lg:grid-cols-[minmax(0,1fr)_auto] max-lg:px-4 max-lg:py-3"
+                >
+                  <div role="cell" className="px-4 py-3 max-lg:p-0">
+                    <a
+                      href={`#ecoles/fiche/${premiere.id}`}
+                      className="font-serif text-[17px] font-bold text-foreground underline-offset-4 max-lg:underline"
+                    >
+                      {premiere.nom}
+                    </a>
+                    <span className="block text-[13px] text-muted-foreground lg:hidden">
+                      {libelleTypeEcole[premiere.typeEcole]} · {sites.length} sites
+                    </span>
+                  </div>
+                  <div role="cell" className="px-4 py-3 max-lg:hidden">
+                    {libelleTypeEcole[premiere.typeEcole]}
+                  </div>
+                  <div role="cell" className="px-4 py-3 text-muted-foreground max-lg:hidden">
+                    {sites.length} sites
+                  </div>
+                  <div role="cell" className="max-lg:hidden" />
+                  <div role="cell" className="px-4 py-3 max-lg:p-0 max-lg:text-right">
+                    {nPretes > 0 && (
+                      <span className={v2.pastilleAttention}>{nPretes} à publier</span>
+                    )}
+                  </div>
+                  <div role="cell" className="max-lg:hidden" />
+                </div>
+                {sites.map((x, i) => ligne(x, { site: true, rangSite: i + 1 }))}
+                <div role="row" className="border-t border-border px-4 py-3 lg:pl-9">
+                  <button
+                    type="button"
+                    role="cell"
+                    onClick={() => setAjout(true)}
+                    className="inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 font-sans text-[15px] font-bold text-primary-strong"
+                  >
+                    <IconeAjouter className="size-4" aria-hidden />
+                    Ajouter un site à cette école
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm text-muted-foreground">
+          {(['retiree', 'corbeille'] as const).map(
+            (f) =>
+              compte(f) > 0 && (
+                <button
+                  key={f}
+                  type="button"
+                  aria-pressed={filtre === f}
+                  onClick={() => setFiltre(filtre === f ? 'toutes' : f)}
+                  className="mr-3 cursor-pointer border-0 bg-transparent p-0 font-sans text-sm text-muted-foreground underline aria-pressed:font-bold aria-pressed:text-foreground"
+                >
+                  {f === 'retiree' ? 'Retirées' : 'Corbeille'} · {compte(f)}
+                </button>
+              ),
+          )}
+        </span>
+        {pretes.length > 1 && (
+          <Bouton
+            variante="secondaire"
+            className="ml-auto h-12 max-lg:w-full"
+            enCours={enCours}
+            texteEnCours="Publication…"
+            onClick={() => void publierToutes()}
+          >
+            Publier les {pretes.length} d’un coup
+          </Bouton>
+        )}
+      </div>
+
+      {ajout && (
+        <Dialogue
+          titre="Ajouter une école"
+          variante="tiroir"
+          fermer={() => setAjout(false)}
+          entete={<h2>Ajouter une école</h2>}
+        >
+          <Creation
+            admin={admin}
+            divisions={divisions}
+            surEnregistre={(texte) => {
+              setAjout(false);
+              setAnnonce(texte);
+              charger();
+            }}
+            surAnnuler={() => setAjout(false)}
+          />
+        </Dialogue>
+      )}
+    </>
   );
 }

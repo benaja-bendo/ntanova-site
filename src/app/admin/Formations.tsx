@@ -3,6 +3,7 @@
  * photographié (séries du bac, diplômes, domaines, rythmes). C'est ce qui rend les lycées, les écoles techniques
  * et le supérieur cherchables sur le site.
  */
+import { v2 } from '@/ui/v2/classes';
 import { useState } from 'react';
 import {
   avecFormation,
@@ -18,7 +19,7 @@ import {
 import { libelleDiplome, libelleNiveau, libelleRythme, libelleSerie } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
 import type { DomainePublic, FormationSaisie } from '../../modele/ports';
-import { Champ, Choix } from '../../ui/composants';
+import { Champ, Choix } from '@/ui/v2/formulaire';
 
 function AjoutLibre({
   cycle,
@@ -40,7 +41,7 @@ function AjoutLibre({
   };
   return (
     <div
-      className="admin-motif"
+      className={v2.motif}
       role="group"
       aria-label={`Ajouter une formation (${libelleNiveau[cycle]})`}
     >
@@ -52,7 +53,7 @@ function AjoutLibre({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             maxLength={160}
@@ -65,7 +66,7 @@ function AjoutLibre({
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={f.domaine ?? ''}
             onChange={(ev) => setF({ ...f, domaine: ev.target.value || null })}
           >
@@ -82,7 +83,7 @@ function AjoutLibre({
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={f.diplome ?? ''}
             onChange={(ev) =>
               setF({ ...f, diplome: (ev.target.value || null) as Valeur<'diploma_kind'> | null })
@@ -101,7 +102,7 @@ function AjoutLibre({
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={f.serie ?? ''}
             onChange={(ev) =>
               setF({ ...f, serie: (ev.target.value || null) as Valeur<'bac_track'> | null })
@@ -116,7 +117,7 @@ function AjoutLibre({
           </select>
         )}
       </Champ>
-      <div className="admin-pleine-largeur">
+      <div className={v2.large}>
         <Choix
           legende="Rythme"
           options={listes.study_rhythm.map((r) => ({ valeur: r, libelle: libelleRythme[r] }))}
@@ -131,8 +132,8 @@ function AjoutLibre({
           }
         />
       </div>
-      <div className="admin-actions admin-pleine-largeur">
-        <button type="button" className="bouton bouton-secondaire bouton-petit" onClick={ajouter}>
+      <div className={v2.actionsLarge}>
+        <button type="button" className={v2.boutonSecondairePetit} onClick={ajouter}>
           Ajouter cette formation
         </button>
       </div>
@@ -157,13 +158,13 @@ export function Formations({
   const concernes = listes.niveau.filter((c) => cycles.includes(c) && cycleAvecFormations(c));
   if (concernes.length === 0) return null;
   return (
-    <div className="admin-pleine-largeur pile-serree" aria-label="Formations">
+    <div className="col-span-full flex flex-col gap-2" aria-label="Formations">
       {concernes.map((cycle) => {
         const siennes = duCycle(formations, cycle);
         return (
           <section
             key={cycle}
-            className="pile-serree"
+            className={v2.pileSerree}
             aria-label={`Formations : ${libelleNiveau[cycle]}`}
           >
             <h3>Formations : {libelleNiveau[cycle]}</h3>
@@ -186,15 +187,15 @@ export function Formations({
             )}
             {siennes.length > 0 && (
               <ul
-                className="admin-liste"
+                className="m-0 flex list-none flex-col gap-2 p-0"
                 aria-label={`Formations notées : ${libelleNiveau[cycle]}`}
               >
                 {siennes.map((f) => (
-                  <li key={f.titre} className="admin-actions">
+                  <li key={f.titre} className={v2.actions}>
                     <span>{resume(f)}</span>
                     <button
                       type="button"
-                      className="lien"
+                      className={v2.lien}
                       aria-label={`Retirer ${f.titre}`}
                       onClick={() => surChangement(sansFormation(formations, f))}
                     >
@@ -212,7 +213,7 @@ export function Formations({
           </section>
         );
       })}
-      {erreur && <p className="message-erreur">{erreur}</p>}
+      {erreur && <p className={v2.erreur}>{erreur}</p>}
     </div>
   );
 }

@@ -1,7 +1,8 @@
-import { photoExemple } from './photo-exemple';
+import { photoExemple, photoExempleAdresse } from './photo-exemple';
 import { jourDuCongo } from '../../modele/date-declaration';
 import type {
   AdmissionASaisir,
+  AutorisationFormation,
   DetailsFormation,
   DetailsMission,
   Manque,
@@ -10,6 +11,7 @@ import type {
 } from '../../modele/fiche-admin';
 import {
   detailsVides,
+  erreurDeLaFiche,
   erreurDesDetails,
   sansDetail,
   verdictDeProximite,
@@ -45,6 +47,8 @@ import { distanceMetres, type Point } from '../../modele/geo';
 import { messageManquant } from '../../modele/decision';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { prochainVendredi } from '../../modele/paie';
+import { etatDesPlanches } from './scenario-planches';
+import { etatDesPlanchesAdmin } from './scenario-admin';
 import {
   ErreurDecision,
   ErreurRejet,
@@ -89,6 +93,8 @@ interface PhotoFausse {
   octets: number;
   publiable: boolean;
   onYVoit?: ('signboard' | 'entrance' | 'building')[];
+  /** Scénario « admin » : l'enseigne fictive dessinée au lieu de l'icône. */
+  exemple?: boolean;
 }
 
 /** Une institution et son campus, réunis (le faux serveur n'a qu'un campus par institution, sauf ajout). */
@@ -135,6 +141,11 @@ interface CampusFaux {
   formations?: FormationSaisie[];
   /** Lot F : le détail des formations du supérieur, par filière (`cycle|titre`, l'identifiant du faux). */
   detailsFormations?: Record<string, DetailsFormation>;
+  /** Lot 2 (14/11) : les frais par an et l'autorisation d'une formation (tiroir « modifier une formation »). */
+  ficheFormations?: Record<
+    string,
+    { fraisParAn: number | null; autorisation: AutorisationFormation | null }
+  >;
   verifieeLe?: string | null;
   /** Lot G : l'école voisine au même lieu. */
   memeLieuQue?: string | null;
@@ -195,6 +206,11 @@ function personnesDe(e: Etat, releveId: string): [string, ContactFaux][] {
 const TROIS_PERSONNES = 'Une fiche a trois personnes à contacter au plus.';
 
 interface Etat {
+  /** Le scénario « admin » : le relais de chaque fiche, et la liste des relais de l'administration. */
+  relaisDesReleves?: Record<string, string>;
+  relaisDeLAdmin?: Awaited<ReturnType<PortAdministration['relais']>>;
+  /** Le scénario « planches » : les missions faites de la semaine, payées à leur montant (le faux ne les ferme pas). */
+  paieMissions?: { tarifXaf: number; nombre: number }[];
   /** Lot H : le numéro Mobile Money du relais. */
   numeroDePaie?: {
     operateur: 'mtn' | 'airtel' | 'autre';
@@ -385,9 +401,32 @@ const etatInitial = (): Etat => ({
   autresReleves: [],
 });
 
+// `?scenario=planches` dans l'adresse (serveur local du fondateur) : on repart des états des planches v2.
+if (
+  typeof location !== 'undefined' &&
+  ['planches', 'admin'].includes(new URLSearchParams(location.search).get('scenario') ?? '')
+) {
+  localStorage.setItem(
+    'ntanova-faux-scenario',
+    new URLSearchParams(location.search).get('scenario') ?? '',
+  );
+  localStorage.removeItem(CLE);
+}
+
 function lireEtat(): Etat {
   const garde = localStorage.getItem(CLE);
-  return garde ? { ...etatInitial(), ...(JSON.parse(garde) as Partial<Etat>) } : etatInitial();
+  if (garde) return { ...etatInitial(), ...(JSON.parse(garde) as Partial<Etat>) };
+  // `ntanova-faux-scenario` = « planches » : les états des planches v2, pour les captures comparées.
+  if (localStorage.getItem('ntanova-faux-scenario') === 'planches') {
+    const depart = etatInitial();
+    const scenario = etatDesPlanches() as unknown as Partial<Etat>;
+    return { ...depart, ...scenario, campus: { ...depart.campus, ...scenario.campus } };
+  }
+  // `ntanova-faux-scenario` = « admin » : les états des planches de l'administration.
+  if (localStorage.getItem('ntanova-faux-scenario') === 'admin') {
+    return { ...etatInitial(), ...(etatDesPlanchesAdmin() as unknown as Partial<Etat>) };
+  }
+  return etatInitial();
 }
 
 function ecrire(modifier: (etat: Etat) => void): void {
@@ -780,6 +819,8 @@ const relais: PortRelais = {
         );
       })
       .map((r) => r.id);
+    const missions = e.paieMissions ?? [];
+    const enMissions = missions.reduce((t, m) => t + m.tarifXaf * m.nombre, 0);
     return {
       acquis: {
         vendredi,
@@ -787,11 +828,15 @@ const relais: PortRelais = {
         fiches: ligne?.fiches ?? 0,
         contacts: ligne?.contacts ?? 0,
         essais: ligne?.essais ?? 0,
-        totalXaf: ligne?.totalXaf ?? 0,
+        missions: missions.reduce((t, m) => t + m.nombre, 0),
+        totalXaf: (ligne?.totalXaf ?? 0) + enMissions,
         nonPayables,
         payeLe: null,
         reference: null,
-        lignes: factureFausse(ligne?.fiches ?? 0, ligne?.contacts ?? 0, ligne?.essais ?? 0, payees),
+        lignes: [
+          ...factureFausse(ligne?.fiches ?? 0, ligne?.contacts ?? 0, ligne?.essais ?? 0, payees),
+          ...missions.map((m) => ({ genre: 'mission' as const, ...m, fiches: [] })),
+        ],
       },
       historique,
       numeroConnu: MOI in e.paie.numeros,
@@ -919,7 +964,7 @@ function ligneDe(r: ReleveAEnvoyer, e: Etat) {
     recuLe: r.prisLe,
     type: r.type,
     nomEnseigne: r.nomEnseigne,
-    relais: '[Prénom]',
+    relais: e.relaisDesReleves?.[r.id] ?? '[Prénom]',
     // Comme la base : un relais sans secteur n'a pas de lot (le faux serveur retombait sur le premier lot).
     lot: r.lotId ? lot.nom : null,
     essai: lot.essai,
@@ -949,6 +994,7 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     institutionId: c.institutionId,
     nom: c.nom,
     etiquette: c.etiquette,
+    numeroPublic: 158427,
     quartier: c.quartier,
     division: division?.nom ?? null,
     divisionId: division?.id ?? null,
@@ -1161,7 +1207,7 @@ const admin: PortAdministration = {
       .map((p) => ({
         id: p.id,
         role: p.role,
-        adresse: '/relais/icone-512.png',
+        adresse: p.exemple ? photoExempleAdresse : '/relais/icone-512.png',
         octets: p.octets,
         largeur: 1280,
         hauteur: 960,
@@ -1177,7 +1223,7 @@ const admin: PortAdministration = {
       .map((p) => ({
         id: p.id,
         role: p.role,
-        adresse: '/relais/icone-512.png',
+        adresse: p.exemple ? photoExempleAdresse : '/relais/icone-512.png',
         octets: p.octets,
         largeur: 1280,
         hauteur: 960,
@@ -1193,7 +1239,7 @@ const admin: PortAdministration = {
       .map((p) => ({
         id: p.id,
         role: p.role,
-        adresse: '/relais/icone-512.png',
+        adresse: p.exemple ? photoExempleAdresse : '/relais/icone-512.png',
         octets: p.octets,
         largeur: 1280,
         hauteur: 960,
@@ -1677,6 +1723,7 @@ const admin: PortAdministration = {
   async relais() {
     await reseau();
     const e = lireEtat();
+    if (e.relaisDeLAdmin) return e.relaisDeLAdmin;
     const siennes = Object.values(e.releves);
     const d = (id: string) => e.decisions[id]?.statut ?? 'a_valider';
     return [
@@ -2584,6 +2631,11 @@ const admin: PortAdministration = {
           titre: f.titre,
           cycle: f.cycle,
           details: c?.detailsFormations?.[id] ?? detailsVides(),
+          diplome: f.diplome,
+          domaine: f.domaine,
+          rythmes: f.rythmes,
+          fraisParAn: c?.ficheFormations?.[id]?.fraisParAn ?? null,
+          autorisation: c?.ficheFormations?.[id]?.autorisation ?? null,
         };
       });
   },
@@ -2602,6 +2654,54 @@ const admin: PortAdministration = {
         [formationId]: sansDetail(d) ? detailsVides() : d,
       };
     });
+  },
+  async enregistrerFormation(formationId, fiche) {
+    await reseau();
+    const erreur = erreurDeLaFiche(fiche, jourDuCongo());
+    if (erreur) throw new ErreurDecision(erreur);
+    const c = Object.values(lireEtat().campus).find((x) =>
+      (x.formations ?? []).some((f) => `${f.cycle}|${f.titre}` === formationId),
+    );
+    if (!c) throw new ErreurDecision('Formation introuvable.');
+    const ancienne = (c.formations ?? []).find((f) => `${f.cycle}|${f.titre}` === formationId)!;
+    const titre = fiche.titre.trim();
+    const nouvelId = `${ancienne.cycle}|${titre}`;
+    if (
+      nouvelId !== formationId &&
+      (c.formations ?? []).some(
+        (f) => `${f.cycle}|${f.titre}`.toLowerCase() === nouvelId.toLowerCase(),
+      )
+    )
+      throw new ErreurDecision('Une formation de ce cycle porte déjà cet intitulé.');
+    const autorisation = fiche.autorisation
+      ? { ...fiche.autorisation, id: fiche.autorisation.id ?? `autorisation-${nouvelId}` }
+      : null;
+    ecrire((e) => {
+      const campus = e.campus[c.id]!;
+      campus.formations = (campus.formations ?? []).map((f) =>
+        f === ancienne || `${f.cycle}|${f.titre}` === formationId
+          ? { ...f, titre, diplome: fiche.diplome, domaine: fiche.domaine, rythmes: fiche.rythmes }
+          : f,
+      );
+      const fraisParAn = fiche.fraisParAn;
+      const details: DetailsFormation = {
+        dureeAnnees: fiche.dureeAnnees,
+        niveauDemande: fiche.niveauDemande,
+        selection: fiche.selection,
+        fraisDossier: fiche.fraisDossier,
+        delivrePar: fiche.delivrePar,
+        ditLe: fiche.ditLe,
+      };
+      const detailsF = { ...(campus.detailsFormations ?? {}) };
+      const fiches = { ...(campus.ficheFormations ?? {}) };
+      delete detailsF[formationId];
+      delete fiches[formationId];
+      detailsF[nouvelId] = sansDetail(details) ? detailsVides() : details;
+      fiches[nouvelId] = { fraisParAn, autorisation };
+      campus.detailsFormations = detailsF;
+      campus.ficheFormations = fiches;
+    });
+    return autorisation?.id ?? null;
   },
   async retirerAgrement(id) {
     await reseau();

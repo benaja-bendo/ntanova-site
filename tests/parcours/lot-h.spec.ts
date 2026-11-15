@@ -22,7 +22,10 @@ test('l’accueil : le bouton d’abord, « Vos missions », « Cette semaine »
   // Le « ? » ouvre l'aide « Quoi dire en entrant ».
   await page.getByRole('link', { name: 'Aide', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Quoi dire en entrant', level: 1 })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'À dire en entrant' })).toContainText('Jamais');
+  await expect(page.getByRole('region', { name: 'À dire en entrant' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Jamais' })).toContainText(
+    'Photographier un enfant.',
+  );
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
@@ -71,10 +74,11 @@ test('« Compte » : l’aide en trois pages, le guide et WhatsApp', async ({ pa
   await aide.getByRole('link', { name: /Les règles du relais/ }).click();
   await expect(page.getByRole('heading', { name: 'Les règles du relais', level: 1 })).toBeVisible();
   await expect(page.getByText('Aucun enfant en photo.')).toBeVisible();
+  // v2 : le guide se lit depuis les pages d'aide.
+  await expect(page.getByRole('link', { name: /Lire le guide du relais/ })).toBeVisible();
   await page.getByRole('button', { name: 'Retour' }).click();
   await aide.getByRole('link', { name: /Comment je suis payé/ }).click();
   await expect(page.getByText('500 FCFA par fiche acceptée')).toBeVisible();
   await page.getByRole('button', { name: 'Retour' }).click();
-  await expect(aide.getByRole('link', { name: /Lire le guide du relais/ })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Écrire à NTanova sur WhatsApp' })).toBeVisible();
 });

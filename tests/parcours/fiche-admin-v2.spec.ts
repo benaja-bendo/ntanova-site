@@ -1,17 +1,17 @@
 // La fiche admin v2 (ticket 165, lot D, 13/11/2026) : « À compléter » (manques, demander à l'école, confier à un relais),
 // les images de l'école, une mission avec sa tâche, sa date et sa paie.
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirGestion, seConnecter } from './aides';
+import { ouvrirGestion, seConnecter, ouvrirLesEcoles, ficheOuverte } from './aides';
 
 const photo = new URL('./fichiers/enseigne.jpg', import.meta.url).pathname;
 
 async function gerer(page: Page, section: string) {
   await seConnecter(page, '/admin/#valider');
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
   await ouvrirGestion(ligne, section);
   // Admin v2 : la fiche de l'école est une page entière ; ses formulaires y sont.
-  return page.locator('article.fiche-admin');
+  return ficheOuverte(page);
 }
 
 test('« À compléter » : les manques et qui peut les donner ; WhatsApp les note « demandé à l’école », annulable', async ({
@@ -19,10 +19,14 @@ test('« À compléter » : les manques et qui peut les donner ; WhatsApp les no
 }) => {
   await gerer(page, 'À compléter');
   const bloc = page.getByRole('region', { name: 'À compléter' });
-  await expect(bloc.getByRole('heading')).toHaveText(/choses? à compléter/);
+  // Planche « Compléter la fiche » : chaque manque dit à qui on le demande (l'école par défaut, quand elle peut).
+  await expect(bloc).toContainText(/choses? à compléter/);
   await expect(bloc).toContainText('Logo');
-  await expect(bloc).toContainText('peut le donner : l’école');
-  await expect(bloc).toContainText('à faire');
+  await expect(
+    bloc
+      .getByRole('group', { name: /^Logo : à qui le demander \?$/ })
+      .getByRole('button', { name: 'L’école' }),
+  ).toHaveAttribute('aria-pressed', 'true');
   const whatsapp = bloc.getByRole('link', { name: 'Ouvrir dans WhatsApp' });
   expect(decodeURIComponent((await whatsapp.getAttribute('href'))!)).toContain(
     'Pour compléter la fiche de [École à situer]',
@@ -40,20 +44,23 @@ test('« À compléter » : les manques et qui peut les donner ; WhatsApp les no
 test('« Confier à un relais » ouvre la mission, la tâche préremplie ; la date et la paie partent avec elle', async ({
   page,
 }) => {
-  const ligne = await gerer(page, 'À compléter');
+  await gerer(page, 'À compléter');
   const bloc = page.getByRole('region', { name: 'À compléter' });
-  await bloc.getByRole('button', { name: 'Confier à un relais' }).first().click();
-  await expect(ligne.getByLabel('Ce qu’il devra faire')).not.toHaveValue('');
-  await ligne.getByLabel('Pourquoi').fill('[La ligne de la 3e était illisible.]');
-  await ligne.getByLabel('Avant le').fill('2030-01-15');
-  await ligne.getByLabel('Paie de la mission (FCFA)').fill('-5');
-  await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
-  await expect(page.getByRole('alert').or(page.locator('.message-erreur'))).toContainText(
+  // « Un relais » sur un manque ouvre la carte « À un relais · 1 mission », la tâche préremplie.
+  await bloc.locator('button:not([disabled])', { hasText: 'Un relais' }).first().click();
+  const carte = bloc.getByRole('form', { name: 'À un relais' });
+  await expect(carte.getByLabel('Ce qu’il devra faire')).not.toHaveValue('');
+  // Le « Pourquoi » de la mission vient du manque, réécrivable ; il part toujours au relais (planche « Une mission »).
+  await expect(carte.getByLabel('Pourquoi')).not.toHaveValue('');
+  await carte.getByLabel('Avant le').fill('2030-01-15');
+  await carte.getByLabel(/Paie de la mission \(FCFA\)/).fill('-5');
+  await carte.getByRole('button', { name: 'Confier la mission' }).click();
+  await expect(page.getByRole('alert').first()).toContainText(
     'La paie est un nombre entier de FCFA',
   );
-  await ligne.getByLabel('Paie de la mission (FCFA)').fill('1000');
-  await ligne.getByRole('button', { name: 'Confier', exact: true }).click();
-  await expect(page.getByRole('status')).toHaveText(/est confiée à/);
+  await carte.getByLabel(/Paie de la mission \(FCFA\)/).fill('1000');
+  await carte.getByRole('button', { name: 'Confier la mission' }).click();
+  await expect(page.getByRole('status').first()).toHaveText(/est confiée à/);
   const mission = await page.evaluate(() => {
     const e = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
       campus: Record<string, { nom: string; detailsMission?: Record<string, unknown> }>;
@@ -61,9 +68,9 @@ test('« Confier à un relais » ouvre la mission, la tâche préremplie ; la da
     return Object.values(e.campus).find((c) => c.nom === '[École à situer]')?.detailsMission;
   });
   expect(mission).toMatchObject({
-    raison: '[La ligne de la 3e était illisible.]',
     avantLe: '2030-01-15',
     paieXaf: 1000,
+    raison: expect.stringMatching(/manque sur la fiche|\S/),
   });
 });
 

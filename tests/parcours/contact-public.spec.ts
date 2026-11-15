@@ -1,4 +1,4 @@
-import { ouvrirGestion, ficheAdmin, retourAuxEcoles } from './aides';
+import { ouvrirGestion, retourAuxEcoles, ficheOuverte, ouvrirLesEcoles } from './aides';
 import { expect, test } from '@playwright/test';
 import { ouvrirLaFiche, uneFicheEnvoyee } from './aides';
 test.use({ permissions: ['geolocation'] });
@@ -8,8 +8,8 @@ test('contact public : accord distinct, ajout, relecture et retrait sans badge',
 }) => {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  await page.getByRole('button', { name: 'Accepter la fiche' }).click();
-  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+  await ouvrirLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École 1\]/ });
   await ouvrirGestion(ligne, 'Contact public');
   const f = page.getByRole('form', { name: 'Contact public de [École 1]', exact: true });
@@ -28,7 +28,7 @@ test('contact public : accord distinct, ajout, relecture et retrait sans badge',
   await f.getByRole('button', { name: 'Enregistrer le contact public' }).click();
   await expect(page.getByRole('status')).toContainText('Reconstruis le site');
   await expect(f).toContainText('+242 06 000 00 01');
-  await expect(page.locator('article.fiche-admin')).not.toContainText('vérifiée par la direction');
+  await expect(ficheOuverte(page)).not.toContainText('vérifiée par la direction');
   await page.reload();
   await ouvrirGestion(ligne, 'Contact public');
   await expect(f.getByLabel('Numéro public', { exact: true })).toHaveValue('242060000001');
@@ -76,22 +76,24 @@ test('sur téléphone : formulaire entier dans une fenêtre, Échap rend le focu
 }) => {
   await page.goto('/admin/');
   await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
-  await page.getByRole('link', { name: 'Écoles', exact: true }).click();
+  await ouvrirLesEcoles(page);
   const ouvrir = page
     .getByRole('row', { name: /\[École à situer\]/ })
-    .getByRole('link', { name: 'Ouvrir la fiche', exact: true });
+    .getByRole('link')
+    .first();
   await ouvrir.click();
-  await page
-    .getByRole('navigation', { name: 'Sections de la fiche' })
-    .getByRole('button', { name: 'Contact public', exact: true })
-    .click();
-  // Admin v2 : la fiche est une page entière ; elle tient dans l'écran sans défiler de côté.
-  const fenetre = ficheAdmin(page, '[École à situer]');
+  const carte = page.getByRole('button', { name: 'Contact et inscriptions : ouvrir' });
+  await carte.click();
+  // Planche : le formulaire entier dans un tiroir, qui tient dans l'écran sans défiler de côté.
+  const fenetre = page.getByRole('dialog', { name: 'Contact et inscriptions · [École à situer]' });
   await expect(fenetre).toBeVisible();
   const boite = await fenetre.boundingBox();
   expect(boite!.x).toBeGreaterThanOrEqual(0);
   expect(boite!.x + boite!.width).toBeLessThanOrEqual(360);
   expect(await fenetre.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
-  await retourAuxEcoles(page);
+  // Échap ferme le tiroir et rend le focus à la carte.
+  await page.keyboard.press('Escape');
   await expect(fenetre).toHaveCount(0);
+  await expect(carte).toBeFocused();
+  await retourAuxEcoles(page);
 });

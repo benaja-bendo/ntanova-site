@@ -129,7 +129,9 @@ test.describe('dans l’espace relais', () => {
     await page.goto('/relais/#compte');
     await expect(page.getByRole('heading', { name: 'Compte' })).toBeVisible();
 
-    await page.getByRole('link', { name: 'Lire le guide du relais' }).click();
+    // v2 : Compte › une page d'aide › le guide.
+    await page.getByRole('link', { name: /Les règles du relais/ }).click();
+    await page.getByRole('link', { name: /Lire le guide du relais/ }).click();
     await expect(page).toHaveURL(/\/relais\/guide\/$/);
     await expect(
       page.getByRole('heading', { level: 1, name: 'Le guide des Relais et Contributeurs' }),

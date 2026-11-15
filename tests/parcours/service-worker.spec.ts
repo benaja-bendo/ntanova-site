@@ -27,13 +27,16 @@ test('le service worker ne garde ni l’administration ni les scripts du site pu
   const relais = await fichiersNommesPar(page, '/relais/');
   expect(relais.length, 'la page du relais nomme ses fichiers').toBeGreaterThan(2);
   for (const fichier of relais) expect(liste, `le relais perd « ${fichier} »`).toContain(fichier);
+  // Le guide du relais se lit hors ligne : ses fichiers sont gardés aussi (v2 : la feuille commune du site n'est plus
+  // chargée par l'application, seulement par le guide).
+  const guide = await fichiersNommesPar(page, '/relais/guide/');
   expect(liste).toContain('/relais/');
 
   const prives = [
     ...(await fichiersNommesPar(page, '/admin/')),
     ...(await fichiersNommesPar(page, '/ecoles/')),
     ...(await fichiersNommesPar(page, '/carte/')),
-  ].filter((fichier) => !relais.includes(fichier));
+  ].filter((fichier) => !relais.includes(fichier) && !guide.includes(fichier));
   expect(
     prives.length,
     'l’administration et le site public ont leurs propres fichiers',

@@ -24,7 +24,8 @@ import {
 import { PRECISION_SUFFISANTE_M } from '../../../modele/geo';
 import { avecMessage } from '../../../modele/whatsapp';
 import { garder, lireMemoire, oublier } from '../base-locale';
-import { Bandeau, Entete, Navigation } from '../composants';
+import { Entete, Navigation } from '../composants';
+import { Bandeau, classeBouton } from '@/ui/v2/formulaire';
 import { aller, useRelais } from '../contexte';
 import { environnementActuel, etatDeLAutorisation } from '../environnement';
 import { journaliser } from '../journal';
@@ -168,20 +169,23 @@ export function PremiersPas() {
   return (
     <div className="ecran">
       <Entete titre="Tester mon téléphone" principal />
-      <main className="contenu-relais">
+      <main className="flex flex-1 flex-col gap-4 px-4 py-3.5">
         <p>
           Deux minutes, avant votre première fiche. <b>Rien n’est envoyé</b> : ni photo, ni
           position. Et rien n’est obligatoire.
         </p>
 
-        <section className="carte-blanche pile-serree" aria-label="La position">
-          <h2 className="intertitre">1. La position</h2>
-          <p className="texte-doux">
+        <section
+          className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3.5"
+          aria-label="La position"
+        >
+          <h2 className="m-0 font-serif text-lg font-bold">1. La position</h2>
+          <p className="text-muted-foreground">
             C’est ce qui place l’école sur la carte. Il faut que le téléphone la donne.
           </p>
           <button
             type="button"
-            className="bouton bouton-secondaire"
+            className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
             disabled={enCours !== null}
             onClick={testerLaPosition}
           >
@@ -191,18 +195,24 @@ export function PremiersPas() {
           {verdictDeLaPosition && <LeVerdict verdict={verdictDeLaPosition} />}
         </section>
 
-        <section className="carte-blanche pile-serree" aria-label="La photo">
-          <h2 className="intertitre">2. La photo</h2>
-          <p className="texte-doux">
+        <section
+          className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3.5"
+          aria-label="La photo"
+        >
+          <h2 className="m-0 font-serif text-lg font-bold">2. La photo</h2>
+          <p className="text-muted-foreground">
             Prenez n’importe quelle photo. Elle est allégée, rangée dans le téléphone puis relue,
             comme pour une vraie fiche, et effacée aussitôt.
           </p>
-          <label className="bouton bouton-secondaire" aria-disabled={enCours !== null}>
+          <label
+            className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
+            aria-disabled={enCours !== null}
+          >
             {enCours === 'photo' ? 'Vérification…' : 'Choisir ou prendre une photo'}
             <input
               type="file"
               accept="image/*"
-              className="visuellement-cache"
+              className="sr-only"
               disabled={enCours !== null}
               onChange={(e) => {
                 const fichier = e.target.files?.[0];
@@ -212,21 +222,27 @@ export function PremiersPas() {
             />
           </label>
           {erreurPhoto && (
-            <p className="message-attention" role="status">
+            <p
+              className="m-0 rounded-md bg-attention px-3 py-2.5 text-sm text-attention-foreground"
+              role="status"
+            >
               {erreurPhoto}
             </p>
           )}
           {verdictDeLaPhoto && <LeVerdict verdict={verdictDeLaPhoto} />}
         </section>
 
-        <section className="carte-blanche pile-serree" aria-label="La connexion">
-          <h2 className="intertitre">3. La connexion</h2>
-          <p className="texte-doux">
+        <section
+          className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3.5"
+          aria-label="La connexion"
+        >
+          <h2 className="m-0 font-serif text-lg font-bold">3. La connexion</h2>
+          <p className="text-muted-foreground">
             Sans réseau, vous pouvez relever : les fiches partent quand il revient.
           </p>
           <button
             type="button"
-            className="bouton bouton-secondaire"
+            className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
             disabled={enCours !== null}
             onClick={() => void testerLaConnexion()}
           >
@@ -235,8 +251,11 @@ export function PremiersPas() {
           {verdictDeLaConnexion && <LeVerdict verdict={verdictDeLaConnexion} />}
         </section>
 
-        <section className="carte-blanche pile-serree" aria-label="L’écran d’accueil">
-          <h2 className="intertitre">Un conseil</h2>
+        <section
+          className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3.5"
+          aria-label="L’écran d’accueil"
+        >
+          <h2 className="m-0 font-serif text-lg font-bold">Un conseil</h2>
           {env.installee ? (
             <p>L’application est sur l’écran d’accueil de votre téléphone. C’est le plus sûr.</p>
           ) : env.systeme === 'ios' ? (
@@ -256,7 +275,7 @@ export function PremiersPas() {
 
         {unProbleme && lien && (
           <a
-            className="bouton bouton-secondaire"
+            className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
             href={lien}
             target="_blank"
             rel="noopener noreferrer"
@@ -267,13 +286,17 @@ export function PremiersPas() {
 
         <button
           type="button"
-          className="bouton bouton-large"
+          className={classeBouton({ size: 'xl', className: 'w-full' })}
           disabled={!testsTermines(resultats)}
           onClick={() => void terminer()}
         >
           J’ai terminé
         </button>
-        <button type="button" className="bouton bouton-secondaire" onClick={() => void terminer()}>
+        <button
+          type="button"
+          className={classeBouton({ variant: 'outline', size: 'lg', className: 'w-full' })}
+          onClick={() => void terminer()}
+        >
           Passer ces tests
         </button>
       </main>

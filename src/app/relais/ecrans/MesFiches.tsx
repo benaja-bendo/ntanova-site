@@ -1,4 +1,3 @@
-import { ConfirmationAction } from '../../../ui/ConfirmationAction';
 import { useState } from 'react';
 import { appartientAuCompte } from '../../../modele/compte';
 import {
@@ -18,7 +17,24 @@ import {
   type IssueDeLAction,
 } from '../actions-fiches';
 import { base, compteConnecte, lireMemoire, useRequete } from '../base-locale';
-import { Entete, jour, Navigation } from '../composants';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/ui/shadcn/badge';
+import { Button } from '@/ui/shadcn/button';
+import {
+  IconeAttente,
+  IconeCorriger,
+  IconeEnvoi,
+  IconeFait,
+  IconeRefus,
+  IconeTelephone,
+} from '@/ui/shadcn/icones';
+import { Tabs, TabsList, TabsTrigger } from '@/ui/shadcn/tabs';
+import { BarreDuBas, EnTete } from '../cadre';
+import { jour } from '../composants';
+import { Bande, ChargementEcran, Confirmer, EtatVide } from '../etats';
+import { IconeAlerte } from '@/ui/shadcn/icones';
+
+type BadgeVariant = 'neutre' | 'attention' | 'succes' | 'danger';
 import { aller, useRelais } from '../contexte';
 import { commencerCorrection } from './Ajouter';
 import { EtatEnvoi } from './MonLot';
@@ -164,7 +180,7 @@ function depuisServeur(
   };
 }
 
-type Filtre = 'toutes' | 'a_corriger' | 'a_repasser' | 'telephone' | 'en_ligne';
+type Filtre = 'toutes' | 'a_corriger' | 'en_attente' | 'en_ligne';
 
 const avisDesGestes: Record<Exclude<IssueDeLAction, 'ok'>, string> = {
   en_cours: "L'envoi de cette fiche est en cours. Réessayez dans un instant.",
@@ -173,19 +189,102 @@ const avisDesGestes: Record<Exclude<IssueDeLAction, 'ok'>, string> = {
     'Une autre fiche est déjà en cours. Terminez-la ou abandonnez-la d’abord (« Reprendre la fiche en cours »).',
 };
 
+/** Le dessin d'une ligne (planche « Mes fiches ») : son icône, son badge, sa phrase. */
+type Aspect = 'telephone' | 'envoi' | 'corriger' | 'attente' | 'fait' | 'refus';
+const iconeDe: Record<Aspect, { Icone: typeof IconeFait; classe: string }> = {
+  telephone: { Icone: IconeTelephone, classe: 'text-foreground' },
+  envoi: { Icone: IconeEnvoi, classe: 'text-foreground' },
+  corriger: { Icone: IconeCorriger, classe: 'text-ambre' },
+  attente: { Icone: IconeAttente, classe: 'text-foreground' },
+  fait: { Icone: IconeFait, classe: 'text-primary' },
+  refus: { Icone: IconeRefus, classe: 'text-destructive' },
+};
+const badgeDe: Record<string, BadgeVariant> = {
+  'etat-telephone': 'neutre',
+  'etat-envoye': 'neutre',
+  'etat-attente': 'neutre',
+  'etat-a-corriger': 'attention',
+  'etat-verifiee': 'succes',
+  'etat-refusee': 'danger',
+};
+
+function aspectDe(l: Ligne): Aspect {
+  if (l.aCorriger) return 'corriger';
+  if (l.refus || l.fiche.classe === 'etat-refusee') return 'refus';
+  if (l.surTelephone) return l.fiche.libelle.startsWith('Envoi') ? 'envoi' : 'telephone';
+  if (l.fiche.classe === 'etat-verifiee' || l.enLigne) return 'fait';
+  if (l.fiche.classe === 'etat-envoye') return 'envoi';
+  return 'attente';
+}
+
+/** L'ordre de la planche : ce qui est encore sur le téléphone, puis ce qui attend le relais, puis NTanova, puis le reste. */
+function rang(l: Ligne): number {
+  const a = aspectDe(l);
+  if (a === 'telephone' || a === 'envoi') return 0;
+  if (a === 'corriger') return 1;
+  if (a === 'attente') return 2;
+  if (a === 'fait') return l.enLigne ? 3 : 4;
+  return 5;
+}
+
+/** La phrase sous le nom : ce que NTanova a dit, sinon ce qui se passe. */
+function phraseDe(l: Ligne, payees: ReadonlySet<string> = new Set()): string {
+  if (l.message) return `NTanova : « ${l.message} »`;
+  if (l.repasser) return `À repasser : ${l.repasser}`;
+  if (l.peutAjouterLeContact) return 'À repasser : la direction était absente';
+  if (l.contact?.libelle === 'Reçu · à confirmer')
+    return 'Contact de la direction : Reçu · à confirmer';
+  if (l.refus) return l.refus.titre;
+  if (l.echec) return l.echec;
+  if (l.essaisRates !== null) return `L'envoi a échoué ${l.essaisRates} fois de suite`;
+  if (l.surTelephone)
+    return l.fiche.libelle.startsWith('Envoi')
+      ? l.fiche.libelle.replace('Envoi ·', 'Envoi en cours ·')
+      : 'Partira dès que le téléphone capte';
+  if (l.enLigne) return 'Sa page est en ligne';
+  if (l.fiche.classe === 'etat-verifiee')
+    return payees.has(l.id)
+      ? 'Comptée dans la paie de vendredi'
+      : `Acceptée · relevée ${quand(l.date)}`;
+  if (l.fiche.libelle === 'Correction envoyée') return 'Correction envoyée · NTanova la regarde';
+  if (l.fiche.classe === 'etat-envoye') return 'Reçue par NTanova';
+  return `Envoyée ${quand(l.date)} · NTanova la regarde`;
+}
+
+/** « aujourd'hui », « hier », sinon « le 3 nov. ». */
+function quand(date: string): string {
+  const j = jour(date);
+  return /^(Aujourd|Hier)/.test(j) ? j.charAt(0).toLowerCase() + j.slice(1) : `le ${j}`;
+}
+
+/** Le mot du badge, court comme sur la planche. */
+function badgeTexteDe(l: Ligne): string {
+  if (l.enLigne) return 'En ligne';
+  if (l.refus || l.fiche.classe === 'etat-refusee') return 'Refusée';
+  if (l.surTelephone) return l.fiche.libelle.startsWith('Envoi') ? 'Envoi' : 'Sur le téléphone';
+  if (l.fiche.classe === 'etat-attente') return 'En attente';
+  if (l.fiche.classe === 'etat-verifiee') return 'Acceptée';
+  return l.fiche.libelle;
+}
+
 export function MesFiches() {
-  const { synchroniser } = useRelais();
   const [filtre, setFiltre] = useState<Filtre>('toutes');
-  const [avis, setAvis] = useState<string | null>(null);
   // Les fiches de ce compte seulement : celles d'un autre relais, qui s'est servi du téléphone, ne sont pas à lui.
-  const locales =
-    useRequete(async () => {
-      const compte = await compteConnecte();
-      return (await base.fiches.where('etat').notEqual('brouillon').toArray()).filter((f) =>
-        appartientAuCompte(f, compte),
-      );
-    }) ?? [];
-  const recus = useRequete(() => lireMemoire('releves')) ?? [];
+  const locales = useRequete(async () => {
+    const compte = await compteConnecte();
+    return (await base.fiches.where('etat').notEqual('brouillon').toArray()).filter((f) =>
+      appartientAuCompte(f, compte),
+    );
+  });
+  const recusLus = useRequete(() => lireMemoire('releves'));
+  const paie = useRequete(async () => (await lireMemoire('paie')) ?? null);
+  if (locales === undefined || recusLus === undefined || paie === undefined)
+    return <ChargementEcran titre="Mes fiches" />;
+  // Les fiches que la paie de vendredi compte déjà (« Comptée dans la paie de vendredi »).
+  const payees = new Set(
+    (paie?.acquis.lignes ?? []).filter((x) => x.genre === 'fiche').flatMap((x) => x.fiches),
+  );
+  const recus = recusLus ?? [];
 
   const idsRecus = new Set(recus.map((r) => r.id));
   const localesParId = new Map(locales.map((f) => [f.id, f]));
@@ -193,206 +292,104 @@ export function MesFiches() {
   const lignes = [
     ...locales.filter((f) => !idsRecus.has(f.id)).map(depuisTelephone),
     ...recus.map((r) => depuisServeur(r, corrigees, localesParId.get(r.id))),
-  ].sort((a, b) => b.date.localeCompare(a.date));
+  ].sort((a, b) => rang(a) - rang(b) || b.date.localeCompare(a.date));
 
+  const enAttente = (l: Ligne) => l.fiche.classe === 'etat-attente' && !l.aCorriger;
   const compte = {
+    toutes: lignes.length,
     a_corriger: lignes.filter((l) => l.aCorriger).length,
-    a_repasser: lignes.filter((l) => l.repasser).length,
-    telephone: lignes.filter((l) => l.surTelephone).length,
+    en_attente: lignes.filter(enAttente).length,
     en_ligne: lignes.filter((l) => l.enLigne).length,
   };
   const visibles = lignes.filter((l) =>
     filtre === 'a_corriger'
       ? l.aCorriger
-      : filtre === 'a_repasser'
-        ? l.repasser
-        : filtre === 'telephone'
-          ? l.surTelephone
-          : filtre === 'en_ligne'
-            ? l.enLigne
-            : true,
+      : filtre === 'en_attente'
+        ? enAttente(l)
+        : filtre === 'en_ligne'
+          ? l.enLigne
+          : true,
   );
   const filtres: { valeur: Filtre; libelle: string }[] = [
     { valeur: 'toutes', libelle: 'Toutes' },
-    { valeur: 'a_corriger', libelle: `À corriger · ${compte.a_corriger}` },
-    { valeur: 'a_repasser', libelle: `À repasser · ${compte.a_repasser}` },
-    { valeur: 'telephone', libelle: `Sur le téléphone · ${compte.telephone}` },
-    { valeur: 'en_ligne', libelle: `En ligne · ${compte.en_ligne}` },
+    { valeur: 'a_corriger', libelle: 'À corriger' },
+    { valeur: 'en_attente', libelle: 'En attente' },
+    { valeur: 'en_ligne', libelle: 'En ligne' },
   ];
 
-  const apres = (issue: IssueDeLAction) => setAvis(issue === 'ok' ? null : avisDesGestes[issue]);
-
-  const corriger = async (l: Ligne) => {
-    if (!l.recu) return;
-    if ((await commencerCorrection(l.recu, recus)) === 'brouillon_existant') {
-      setAvis(avisDesGestes.brouillon_existant);
-    }
-  };
-
-  const relancer = async (id: string) => {
-    const issue = await reessayer(id);
-    apres(issue);
-    if (issue === 'ok') synchroniser();
-  };
-
-  const retirer = async (l: Ligne) => {
-    const issue = await retirerDuTelephone(l.id);
-    if (issue !== 'ok') return avisDesGestes[issue];
-    setAvis(null);
-    return undefined;
-  };
-
   return (
-    <div className="ecran">
-      <Entete titre="Mes fiches" principal />
-      <main className="contenu-relais">
-        <EtatEnvoi />
-        <div className="filtres" role="group" aria-label="Filtrer les fiches">
+    <div className="ecran bg-card">
+      <EnTete titre="Mes fiches" />
+      <Tabs value={filtre} onValueChange={(v) => setFiltre(v as Filtre)} className="gap-0">
+        <TabsList aria-label="Filtrer les fiches" className="sticky top-[60px] z-10">
           {filtres.map((f) => (
-            <button
-              key={f.valeur}
-              type="button"
-              className="pastille-choix"
-              aria-pressed={filtre === f.valeur}
-              onClick={() => setFiltre(f.valeur)}
-            >
-              {f.libelle}
-            </button>
+            <TabsTrigger key={f.valeur} value={f.valeur}>
+              {f.libelle}{' '}
+              <span className={filtre === f.valeur ? 'text-muted-foreground' : undefined}>
+                {compte[f.valeur]}
+              </span>
+            </TabsTrigger>
           ))}
+        </TabsList>
+      </Tabs>
+      <main className="flex flex-1 flex-col bg-card">
+        <div className="px-4 pt-3 empty:hidden">
+          <EtatEnvoi calme="cacher" />
         </div>
-
-        {avis && (
-          <p className="message-attention" role="status">
-            {avis}
-          </p>
-        )}
-
         {visibles.length === 0 && (
-          <p className="texte-doux">
-            {lignes.length === 0 ? 'Aucune fiche pour le moment.' : 'Aucune fiche ici.'}
-          </p>
+          <div className="p-4">
+            <EtatVide
+              titre={lignes.length === 0 ? 'Aucune fiche pour le moment.' : 'Aucune fiche ici.'}
+            >
+              {lignes.length === 0
+                ? 'Les écoles que vous ajoutez s’affichent ici, avec ce que NTanova en dit.'
+                : null}
+            </EtatVide>
+          </div>
         )}
 
-        {visibles.map((l) => (
-          <article key={l.id} className="carte-blanche fiche-relais">
-            <div className="fiche-relais-tete">
-              <h2>
-                <a className="lien-fiche" href={`#fiches/${l.id}`}>
-                  {l.nom}
+        <ul className="m-0 list-none p-0">
+          {visibles.map((l) => {
+            const aspect = aspectDe(l);
+            const { Icone, classe } = iconeDe[aspect];
+            return (
+              <li
+                key={l.id}
+                data-fiche={l.nom}
+                className={cn(
+                  'border-b border-border',
+                  aspect === 'corriger' && 'shadow-[inset_3px_0_0_var(--ambre)]',
+                )}
+              >
+                <a
+                  href={`#fiches/${l.id}`}
+                  className="flex min-h-16 items-center gap-3 px-4 py-2 text-foreground no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-inset"
+                >
+                  <Icone className={cn('size-[22px] shrink-0', classe)} aria-hidden />
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <b className="text-base leading-snug">{l.nom}</b>
+                    <span
+                      className={cn(
+                        'text-[13px] leading-snug',
+                        aspect === 'corriger' ? 'text-foreground' : 'text-muted-foreground',
+                      )}
+                    >
+                      {phraseDe(l, payees)}
+                    </span>
+                  </span>
+                  <Badge
+                    variant={badgeDe[l.enLigne ? 'etat-verifiee' : l.fiche.classe] ?? 'neutre'}
+                    className="px-2 py-0.5 text-xs"
+                  >
+                    {badgeTexteDe(l)}
+                  </Badge>
                 </a>
-              </h2>
-              <span className="mention">{jour(l.date)}</span>
-            </div>
-            <dl className="fiche-relais-etats">
-              <dt>Fiche</dt>
-              <dd>
-                <span className={`etiquette ${l.fiche.classe}`}>{l.fiche.libelle}</span>
-              </dd>
-              {l.enLigne && (
-                <>
-                  <dt>Page</dt>
-                  <dd>
-                    <span className="etiquette etat-verifiee">En ligne</span>
-                  </dd>
-                </>
-              )}
-              {l.contact && (
-                <>
-                  <dt>Contact</dt>
-                  <dd>
-                    <span className={`etiquette ${l.contact.classe}`}>{l.contact.libelle}</span>
-                  </dd>
-                </>
-              )}
-            </dl>
-            {l.message && (
-              <p className="message-ntanova">
-                <b>NTanova&nbsp;:</b> {l.message}
-              </p>
-            )}
-            {l.refus && (
-              <p className="message-erreur" role="alert">
-                <b>{l.refus.titre}</b> {l.refus.detail}
-              </p>
-            )}
-            {l.echec && (
-              <p className="message-attention" role="status">
-                {l.echec}
-              </p>
-            )}
-            {!l.echec && l.essaisRates !== null && (
-              <p className="message-attention">
-                L'envoi a échoué {l.essaisRates} fois de suite. Prévenez NTanova si cela continue.
-              </p>
-            )}
-            {l.repasser && <p className="mention">À repasser&nbsp;: {l.repasser}</p>}
-            {(l.aCorriger ||
-              l.peutAjouterLeContact ||
-              l.peutReessayer ||
-              l.peutModifier ||
-              l.peutRetirer) && (
-              <div className="fiche-relais-actions">
-                {l.aCorriger && (
-                  <button
-                    type="button"
-                    className="bouton bouton-petit"
-                    onClick={() => void corriger(l)}
-                  >
-                    Corriger la fiche
-                  </button>
-                )}
-                {l.peutAjouterLeContact && (
-                  <button
-                    type="button"
-                    className="bouton bouton-secondaire bouton-petit"
-                    onClick={() => aller(`contact/${l.id}`)}
-                  >
-                    J’ai revu la direction
-                  </button>
-                )}
-                {l.peutReessayer && (
-                  <button
-                    type="button"
-                    className="bouton bouton-petit"
-                    onClick={() => void relancer(l.id)}
-                  >
-                    Réessayer
-                  </button>
-                )}
-                {l.peutModifier && (
-                  <button
-                    type="button"
-                    className="bouton bouton-secondaire bouton-petit"
-                    onClick={() => void modifierLaFiche(l.id).then(apres)}
-                  >
-                    Modifier
-                  </button>
-                )}
-                {l.peutRetirer && (
-                  <ConfirmationAction
-                    libelle="Retirer du téléphone"
-                    titre={`Retirer « ${l.nom} » du téléphone ?`}
-                    description={
-                      localesParId.get(l.id)?.envoyes.releve
-                        ? 'NTanova a déjà reçu la fiche : seuls les éléments encore sur le téléphone (photos, contact) seront effacés. La fiche reçue par NTanova est conservée.'
-                        : 'Cette fiche n’a pas été envoyée. Elle sera effacée du téléphone et sera perdue.'
-                    }
-                    confirmer="Oui, retirer du téléphone"
-                    classe="lien lien-discret"
-                    surConfirmer={() => retirer(l)}
-                  />
-                )}
-              </div>
-            )}
-          </article>
-        ))}
-
-        <p className="mention">
-          Une fois envoyés, les contacts de la direction ne s'affichent plus ici&nbsp;: seul NTanova
-          les voit.
-        </p>
+              </li>
+            );
+          })}
+        </ul>
       </main>
-      <Navigation />
+      <BarreDuBas />
     </div>
   );
 }
@@ -408,4 +405,119 @@ function libelleDEnvoi(f: FicheLocale, partie: boolean): string {
   return photos.length > 1 && parties < photos.length
     ? `Envoi · ${parties} photo${parties > 1 ? 's' : ''} sur ${photos.length}`
     : 'Envoi en cours';
+}
+
+/**
+ * Ce que le relais peut faire d'une de ses fiches (planche : les gestes sont dans la fiche, pas dans la liste) : la
+ * corriger, ajouter le contact de la direction, réessayer l'envoi, la modifier avant qu'elle parte, la retirer du
+ * téléphone. Rien quand il n'y a rien à faire.
+ */
+export function GestesDeLaFiche({ id }: { id: string }) {
+  const { synchroniser } = useRelais();
+  const [avis, setAvis] = useState<string | null>(null);
+  const lu = useRequete(async () => {
+    const compte = await compteConnecte();
+    const locales = (await base.fiches.where('etat').notEqual('brouillon').toArray()).filter((f) =>
+      appartientAuCompte(f, compte),
+    );
+    return { locales, recus: (await lireMemoire('releves')) ?? [] };
+  });
+  if (!lu) return null;
+  const { locales, recus } = lu;
+  const locale = locales.find((f) => f.id === id);
+  const recu = recus.find((r) => r.id === id);
+  const corrigees = new Set(locales.map((f) => f.corrigeReleveId).filter((x) => x !== null));
+  const l = recu ? depuisServeur(recu, corrigees, locale) : locale ? depuisTelephone(locale) : null;
+  if (!l) return null;
+
+  const apres = (issue: IssueDeLAction) => setAvis(issue === 'ok' ? null : avisDesGestes[issue]);
+  const corriger = async () => {
+    if (!l.recu) return;
+    if ((await commencerCorrection(l.recu, recus)) === 'brouillon_existant')
+      setAvis(avisDesGestes.brouillon_existant);
+  };
+  const relancer = async () => {
+    const issue = await reessayer(l.id);
+    apres(issue);
+    if (issue === 'ok') synchroniser();
+  };
+  const retirer = async () => {
+    const issue = await retirerDuTelephone(l.id);
+    if (issue !== 'ok') return avisDesGestes[issue];
+    setAvis(null);
+    aller('fiches');
+    return undefined;
+  };
+  const aDesGestes =
+    l.aCorriger || l.peutAjouterLeContact || l.peutReessayer || l.peutModifier || l.peutRetirer;
+  const alerte =
+    l.refus ??
+    (!l.echec && l.essaisRates !== null
+      ? {
+          titre: 'L’envoi échoue',
+          detail: `L'envoi a échoué ${l.essaisRates} fois de suite. Prévenez NTanova si cela continue.`,
+        }
+      : null);
+  if (!aDesGestes && !alerte && !avis) return null;
+  return (
+    <section aria-label="Que faire" className="flex flex-col gap-2.5">
+      {alerte && (
+        <Bande ton="danger" role={l.refus ? 'alert' : undefined} icone={<IconeAlerte />}>
+          <p>
+            <b>{alerte.titre}</b>
+          </p>
+          <p>{alerte.detail}</p>
+        </Bande>
+      )}
+      {avis && (
+        <Bande ton="attention" role="status" icone={<IconeAlerte />}>
+          <p>{avis}</p>
+        </Bande>
+      )}
+      {l.aCorriger && (
+        <Button size="xl" className="w-full" onClick={() => void corriger()}>
+          Corriger la fiche
+        </Button>
+      )}
+      {l.peutReessayer && (
+        <Button size="xl" className="w-full" onClick={() => void relancer()}>
+          Réessayer l’envoi
+        </Button>
+      )}
+      {l.peutAjouterLeContact && (
+        <Button
+          variant="outline"
+          size="lg"
+          className="w-full"
+          onClick={() => aller(`contact/${l.id}`)}
+        >
+          J’ai revu la direction
+        </Button>
+      )}
+      {l.peutModifier && (
+        <Button
+          variant="outline"
+          size="lg"
+          className="w-full"
+          onClick={() => void modifierLaFiche(l.id).then(apres)}
+        >
+          Modifier
+        </Button>
+      )}
+      {l.peutRetirer && (
+        <Confirmer
+          libelle="Retirer du téléphone"
+          titre={`Retirer « ${l.nom} » du téléphone ?`}
+          description={
+            locale?.envoyes.releve
+              ? 'NTanova a déjà reçu la fiche : seuls les éléments encore sur le téléphone (photos, contact) seront effacés. La fiche reçue par NTanova est conservée.'
+              : 'Cette fiche n’a pas été envoyée. Elle sera effacée du téléphone et sera perdue.'
+          }
+          confirmer="Oui, retirer du téléphone"
+          enCours="Suppression…"
+          surConfirmer={retirer}
+        />
+      )}
+    </section>
+  );
 }

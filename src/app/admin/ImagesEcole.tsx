@@ -1,10 +1,11 @@
+import { v2 } from '@/ui/v2/classes';
 import { useCallback, useEffect, useState } from 'react';
 import { placesLibres, type MediaAdmin } from '../../modele/fiche-admin';
 import { libelleSujetMedia } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
 import type { PortAdministration } from '../../modele/ports';
-import { Bouton } from '../../ui/actions';
-import { Champ } from '../../ui/composants';
+import { Bouton } from '@/ui/v2/admin';
+import { Champ } from '@/ui/v2/formulaire';
 import { ImageIllisible, preparerImage } from '../commun/image';
 import { messageErreur } from './ChampPosition';
 
@@ -48,11 +49,7 @@ export function ImagesEcole({
   }, [lire]);
 
   if (medias === null)
-    return erreur ? (
-      <p className="message-erreur">{erreur}</p>
-    ) : (
-      <p aria-busy="true">Chargement…</p>
-    );
+    return erreur ? <p className={v2.erreur}>{erreur}</p> : <p aria-busy="true">Chargement…</p>;
   const libres = placesLibres(medias);
   const relire = async (texte: string) => {
     setMedias(await lire());
@@ -103,17 +100,17 @@ export function ImagesEcole({
   };
 
   return (
-    <section className="pile-serree" aria-label="Images de l’école">
+    <section className={v2.pileSerree} aria-label="Images de l’école">
       {GENRES.map(({ valeur, libelle }) => {
         const liste = medias.filter((m) => m.genre === valeur);
         return (
-          <div key={valeur} className="pile-serree">
+          <div key={valeur} className={v2.pileSerree}>
             <h3>
               {libelle}
-              {valeur === 'gallery' && <span className="mention"> · {liste.length} sur 12</span>}
+              {valeur === 'gallery' && <span className={v2.mention}> · {liste.length} sur 12</span>}
             </h3>
             {liste.length === 0 ? (
-              <p className="mention">
+              <p className={v2.mention}>
                 {valeur === 'logo'
                   ? 'Pas de logo : la page montre le sigle, ou la lettre du cycle.'
                   : valeur === 'cover'
@@ -121,7 +118,7 @@ export function ImagesEcole({
                     : 'Pas d’image dans la galerie : la rubrique « Photos » n’existe pas sur la page.'}
               </p>
             ) : (
-              <ul className="admin-medias">
+              <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 [&_img]:aspect-[4/3] [&_img]:w-full [&_img]:rounded-md [&_img]:object-cover">
                 {liste.map((m) => (
                   <li key={m.id}>
                     {m.adresse && (
@@ -129,7 +126,7 @@ export function ImagesEcole({
                     )}
                     <span>
                       <b>{m.legende ?? libelleSujetMedia[m.sujet]}</b>
-                      <span className="mention admin-sous-ligne">
+                      <span className={v2.mentionBloc}>
                         {m.publique
                           ? 'Publique'
                           : m.controleLe
@@ -137,11 +134,11 @@ export function ImagesEcole({
                             : 'À contrôler'}
                       </span>
                     </span>
-                    <span className="admin-actions">
+                    <span className={v2.actions}>
                       {!m.controleLe && (
                         <button
                           type="button"
-                          className="lien"
+                          className={v2.lien}
                           onClick={() =>
                             void agir(
                               () => admin.modifierMedia(m.id, { controle: true, publique: true }),
@@ -155,7 +152,7 @@ export function ImagesEcole({
                       {m.controleLe && (
                         <button
                           type="button"
-                          className="lien"
+                          className={v2.lien}
                           onClick={() =>
                             void agir(
                               () => admin.modifierMedia(m.id, { publique: !m.publique }),
@@ -168,7 +165,7 @@ export function ImagesEcole({
                       )}
                       <button
                         type="button"
-                        className="lien lien-danger"
+                        className={v2.lienDanger}
                         onClick={() => void agir(() => admin.retirerMedia(m.id), 'Image retirée.')}
                       >
                         Retirer
@@ -183,7 +180,7 @@ export function ImagesEcole({
       })}
 
       <form
-        className="admin-motif pile-serree"
+        className={v2.motifPile}
         aria-label="Ajouter une image"
         onSubmit={(ev) => {
           ev.preventDefault();
@@ -195,7 +192,7 @@ export function ImagesEcole({
           {(a) => (
             <select
               {...a}
-              className="champ"
+              className={v2.champ}
               value={genre}
               onChange={(ev) => setGenre(ev.target.value as Valeur<'media_kind'>)}
             >
@@ -213,7 +210,7 @@ export function ImagesEcole({
             {(a) => (
               <select
                 {...a}
-                className="champ"
+                className={v2.champ}
                 value={sujet}
                 onChange={(ev) => setSujet(ev.target.value as Valeur<'media_subject'>)}
               >
@@ -232,7 +229,7 @@ export function ImagesEcole({
           {(a) => (
             <input
               {...a}
-              className="champ"
+              className={v2.champ}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               onChange={(ev) => setFichier(ev.target.files?.[0] ?? null)}
@@ -243,14 +240,14 @@ export function ImagesEcole({
           {(a) => (
             <input
               {...a}
-              className="champ"
+              className={v2.champ}
               maxLength={60}
               value={legende}
               onChange={(ev) => setLegende(ev.target.value)}
             />
           )}
         </Champ>
-        <label className="case">
+        <label className={v2.case}>
           <input
             type="checkbox"
             checked={controle}
@@ -265,10 +262,10 @@ export function ImagesEcole({
         >
           Ajouter l’image
         </Bouton>
-        <p className="mention">Visible à la prochaine mise à jour du site.</p>
+        <p className={v2.mention}>Visible à la prochaine mise à jour du site.</p>
       </form>
       {erreur && (
-        <p className="message-erreur" role="alert">
+        <p className={v2.erreur} role="alert">
           {erreur}
         </p>
       )}

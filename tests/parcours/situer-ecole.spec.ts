@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { seConnecter } from './aides';
+import { seConnecter, ouvrirLesEcoles } from './aides';
 
 // L'administration situe elle-même une école qu'elle connaît, ou en ajoute une (ticket 15) :
 // la position collée depuis Google Maps. Construit avec le faux serveur, qui connaît
@@ -9,9 +9,14 @@ test('situer une école connue : la position se lit avant d’être enregistrée
   page,
 }) => {
   await seConnecter(page, '/admin/');
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
-  await expect(ligne.getByText('À situer', { exact: true })).toBeVisible();
+  await expect(
+    ligne
+      .getByText(/Sans position|Pas sur la carte/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
   await ligne.getByRole('button', { name: 'Situer', exact: true }).click();
 
   const formulaire = page.getByRole('form', { name: 'Situer [École à situer]' });
@@ -43,11 +48,13 @@ test('situer une école connue : la position se lit avant d’être enregistrée
   );
 
   const situee = page.getByRole('row', { name: /\[École à situer\]/ });
-  await expect(situee.getByText('Prête', { exact: true })).toBeVisible();
-  await expect(situee.getByRole('link', { name: '-4.79105, 11.92500' })).toBeVisible();
+  // Planche : la ligne d'une école prête porte son seul geste, « Publier ».
   await situee.getByRole('button', { name: 'Publier', exact: true }).click();
   await expect(
-    page.getByRole('row', { name: /\[École à situer\]/ }).getByText('Publiée', { exact: true }),
+    page
+      .getByRole('row', { name: /\[École à situer\]/ })
+      .getByText('Publiée', { exact: true })
+      .filter({ visible: true }),
   ).toBeVisible();
 });
 
@@ -55,9 +62,12 @@ test('ajouter une école : avec sa position elle est prête, sans elle attend d�
   page,
 }) => {
   await seConnecter(page, '/admin/');
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
 
-  await page.getByRole('button', { name: 'Ajouter ou importer des écoles' }).click();
+  await page
+    .getByRole('button', { name: 'Ajouter une école', exact: true })
+    .filter({ visible: true })
+    .click();
   let formulaire = page.getByRole('form', { name: 'Ajouter une école' });
   // Sans nom, rien ne part ; rien n'est coché d'avance.
   await formulaire.getByRole('button', { name: 'Ajouter l’école' }).click();
@@ -77,11 +87,14 @@ test('ajouter une école : avec sa position elle est prête, sans elle attend d�
     '[École ajoutée] est ajoutée, prête : publie-la quand tu veux.',
   );
   const ajoutee = page.getByRole('row', { name: /\[École ajoutée\]/ });
-  await expect(ajoutee.getByText('Prête', { exact: true })).toBeVisible();
-  await expect(ajoutee.getByText('[Quartier] · Ngoyo')).toBeVisible();
+  await expect(ajoutee.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
+  await expect(ajoutee).toContainText('[Quartier]');
 
   // Sans position : à situer, comme une école importée.
-  await page.getByRole('button', { name: 'Ajouter ou importer des écoles' }).click();
+  await page
+    .getByRole('button', { name: 'Ajouter une école', exact: true })
+    .filter({ visible: true })
+    .click();
   formulaire = page.getByRole('form', { name: 'Ajouter une école' });
   await formulaire.getByLabel('Nom de l’école').fill('[École sans position]');
   await formulaire.getByRole('button', { name: 'Ajouter l’école' }).click();
@@ -89,6 +102,8 @@ test('ajouter une école : avec sa position elle est prête, sans elle attend d�
   await expect(
     page
       .getByRole('row', { name: /\[École sans position\]/ })
-      .getByText('À situer', { exact: true }),
+      .getByText(/Sans position|Pas sur la carte/)
+      .filter({ visible: true })
+      .first(),
   ).toBeVisible();
 });

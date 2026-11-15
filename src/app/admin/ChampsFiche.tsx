@@ -1,8 +1,9 @@
+import { v2 } from '@/ui/v2/classes';
 import type { FormulaireEcole } from '../../modele/correction-ecole';
 import type { Erreurs } from '../../modele/fiche';
 import { listes, type Valeur } from '../../modele/listes';
 import { libelleNiveau, libelleTypeEcole } from '../../modele/libelles';
-import { Champ, Choix } from '../../ui/composants';
+import { Champ, Choix } from '@/ui/v2/formulaire';
 
 /** Les champs d'une fiche : ceux qu'on corrige, et ceux d'une école qu'on ajoute. */
 export function ChampsFiche({
@@ -26,7 +27,7 @@ export function ChampsFiche({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             value={champs.nom}
@@ -38,7 +39,7 @@ export function ChampsFiche({
         {(a) => (
           <select
             {...a}
-            className="champ"
+            className={v2.champ}
             value={champs.typeEcole}
             onChange={(ev) => changer({ typeEcole: ev.target.value as Valeur<'type_ecole'> })}
           >
@@ -50,7 +51,7 @@ export function ChampsFiche({
           </select>
         )}
       </Champ>
-      <div className="admin-pleine-largeur">
+      <div className={v2.large}>
         <Choix
           legende="Niveaux"
           options={listes.niveau.map((n) => ({ valeur: n, libelle: libelleNiveau[n] }))}
@@ -63,7 +64,7 @@ export function ChampsFiche({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             value={champs.programme}
@@ -75,7 +76,7 @@ export function ChampsFiche({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="text"
             autoComplete="off"
             value={champs.repere}
@@ -87,7 +88,7 @@ export function ChampsFiche({
         {(a) => (
           <input
             {...a}
-            className="champ"
+            className={v2.champ}
             type="tel"
             inputMode="tel"
             autoComplete="off"

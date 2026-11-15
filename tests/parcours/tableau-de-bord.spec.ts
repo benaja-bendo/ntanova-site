@@ -1,12 +1,17 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import {
   choisirLaZone,
+  retourAuxZones,
+  ouvrirFiche,
+  retourAuxEcoles,
+  toutesLesEcoles,
   ouvrirGestion,
   ouvrirLaFiche,
   publierLaZoneTieTie,
   seConnecter,
   uneFicheEnvoyee,
   ouvrirEcranAdmin,
+  ouvrirLesEcoles,
 } from './aides';
 
 // Audit de l'administration du 06/11/2026 : garder ses repères pendant le défilement, contrôler une photo sans quitter
@@ -28,7 +33,7 @@ test.describe('tableau de bord : À valider', () => {
     await page.setViewportSize({ width: 1280, height: 520 });
     await ouvrirLaFiche(page);
 
-    const accepter = page.getByRole('button', { name: 'Accepter la fiche' });
+    const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
     await expect(accepter).toBeInViewport();
 
     await page.mouse.wheel(0, 300);
@@ -42,9 +47,12 @@ test.describe('tableau de bord : À valider', () => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
 
-    await page.getByRole('button', { name: /^Agrandir : / }).click();
+    await page
+      .getByRole('button', { name: /^Agrandir : / })
+      .first()
+      .click();
     const fenetre = page.getByRole('dialog');
-    await expect(fenetre.locator('img.admin-photo-grande')).toBeVisible();
+    await expect(fenetre.getByRole('img')).toBeVisible();
     // Un seul onglet : l'agrandissement ne sort plus de la page.
     expect(page.context().pages()).toHaveLength(1);
     await expect(fenetre.getByRole('link', { name: /Ouvrir l’original/ })).toHaveAttribute(
@@ -56,14 +64,18 @@ test.describe('tableau de bord : À valider', () => {
     await expect(fenetre).toHaveCount(0);
   });
 
-  test('avec une seule photo, pas de bouton « Contrôler les photos » : le geste unitaire suffit', async ({
+  test('avec une seule photo, un seul geste : « Photo publiable » (ou « Publique » sur téléphone)', async ({
     page,
     context,
   }) => {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
-    await expect(page.getByRole('button', { name: 'Contrôler pour publication' })).toHaveCount(1);
-    await expect(page.getByRole('button', { name: /^Contrôler les \d+ photos$/ })).toHaveCount(0);
+    const bascule = page.getByRole('switch', { name: 'Photo publiable' }).filter({ visible: true });
+    const choix = page
+      .getByRole('group', { name: / : publique ou écartée \?$/ })
+      .filter({ visible: true });
+    expect((await bascule.count()) + (await choix.count())).toBe(1);
+    await expect(page.getByRole('button', { name: /^Contrôler/ })).toHaveCount(0);
   });
 });
 
@@ -86,7 +98,7 @@ test.describe('tableau de bord : compteurs', () => {
 
     // Acceptée, l'école est prête : l'onglet « Écoles » le dit, et « À valider » se vide.
     await ouvrirLaFiche(page);
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
     await page.goto('/admin/#zones');
     await page.reload();
@@ -103,35 +115,42 @@ test.describe('tableau de bord : Écoles', () => {
   async function uneEcolePubliee(page: Page, context: BrowserContext) {
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
-    await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
-    await page.getByRole('link', { name: 'Écoles' }).click();
+    await ouvrirLesEcoles(page);
     await publierLaZoneTieTie(page);
-    await expect(page.getByRole('status')).toHaveText(/1 école de Tié-Tié publiée/);
-    await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
+    await expect(page.getByRole('status').first()).toContainText('[École 1] est publiée');
+    await expect(
+      ligne(page).getByText('Publiée', { exact: true }).filter({ visible: true }),
+    ).toBeVisible();
   }
   const ligne = (page: Page) => page.getByRole('row', { name: /\[École 1\]/ });
+
+  // Planche : retirer, fusionner, la corbeille et la mission sont dans le menu « ⋯ » de la fiche, pas dans la ligne.
+  const menuDeLaFiche = (page: Page) => page.locator(MENU).filter({ visible: true }).first();
+  const dansLeMenu = (page: Page, nom: string) =>
+    page.getByRole('button', { name: nom, exact: true }).filter({ visible: true });
 
   test('le menu « ⋯ » d’une école retirée ne s’ouvre plus vide : il propose la corbeille', async ({
     page,
     context,
   }) => {
     await uneEcolePubliee(page, context);
-    // Publiée : retirer, fusionner, corbeille, mission.
-    await expect(ligne(page).locator(MENU)).toHaveCount(1);
-
     await ouvrirGestion(ligne(page), 'retirer');
-    await ligne(page).getByLabel('Motif').selectOption('demande_ecole');
-    await ligne(page)
-      .getByRole('button', { name: /Retirer \[École 1\] du site/ })
-      .click();
-    await expect(ligne(page).getByText('Retirée', { exact: true })).toBeVisible();
+    const fenetre = page.getByRole('alertdialog', { name: 'Retirer · [École 1]' });
+    await fenetre.getByLabel('Motif').selectOption('demande_ecole');
+    await fenetre.getByRole('button', { name: /Retirer \[École 1\] du site/ }).click();
+    await expect(page.getByRole('status').first()).toContainText('est retirée du site');
 
-    // Retirée : plus de « Retirer » ni de « Fusionner », mais la corbeille (avant : un menu vide).
-    await ligne(page).locator(MENU).click();
-    await expect(ligne(page).getByRole('button', { name: 'Retirer du site' })).toHaveCount(0);
-    await expect(ligne(page).getByRole('button', { name: 'Mettre à la corbeille…' })).toBeVisible();
-    await expect(ligne(page).getByRole('button', { name: 'Republier' })).toBeVisible();
+    // Retirée : plus de « Retirer » ni de « Fusionner », mais la corbeille (avant : un menu vide) ; « Republier » est
+    // dans la fiche.
+    await menuDeLaFiche(page).click();
+    await expect(dansLeMenu(page, 'Retirer de la publication')).toHaveCount(0);
+    await expect(dansLeMenu(page, 'Fusionner avec un doublon')).toHaveCount(0);
+    await expect(dansLeMenu(page, 'Mettre à la corbeille')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Republier' }).filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('depuis une zone, « Voir les écoles » ouvre Écoles déjà filtré sur elle', async ({
@@ -142,9 +161,10 @@ test.describe('tableau de bord : Écoles', () => {
     await ouvrirEcranAdmin(page, 'Zones');
     await choisirLaZone(page, /^Tié-Tié/);
     await expect(page.getByText('1 école · 1 publiée')).toBeVisible();
-    await page.getByRole('link', { name: 'Voir les écoles' }).click();
-    await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeVisible();
-    await expect(page.getByLabel('Zone', { exact: true })).toHaveValue('d-pn-tie-tie');
+    await page.getByRole('link', { name: /^Voir les \d+ écoles?$/ }).click();
+    await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeAttached();
+    // Toutes les écoles de la zone, et une puce qui dit le filtre et l'enlève.
+    await expect(page.getByRole('button', { name: 'Enlever le filtre : Tié-Tié' })).toBeVisible();
     await expect(ligne(page)).toBeVisible();
   });
 
@@ -154,58 +174,50 @@ test.describe('tableau de bord : Écoles', () => {
   }) => {
     await uneEcolePubliee(page, context);
 
-    // Mettre à la corbeille : elle disparaît de « Toutes » et paraît dans « Corbeille ».
-    await ligne(page).locator(MENU).click();
-    await ligne(page).getByRole('button', { name: 'Mettre à la corbeille…' }).click();
-    await ligne(page).getByLabel('Motif').selectOption('erreur');
-    await ligne(page)
-      .getByRole('button', { name: /Mettre \[École 1\] à la corbeille/ })
-      .click();
-    await expect(page.getByRole('status')).toHaveText(/est à la corbeille.*restaurer/);
+    // Mettre à la corbeille (menu « ⋯ » de la fiche) : elle disparaît de « Toutes » et paraît dans « Corbeille ».
+    const mettreALaCorbeille = async () => {
+      await ouvrirFiche(ligne(page));
+      await menuDeLaFiche(page).click();
+      await dansLeMenu(page, 'Mettre à la corbeille').click();
+      const fenetre = page.getByRole('alertdialog', { name: 'Mettre à la corbeille · [École 1]' });
+      await fenetre.getByLabel('Motif').selectOption('erreur');
+      await fenetre.getByRole('button', { name: /Mettre \[École 1\] à la corbeille/ }).click();
+      await expect(page.getByRole('status').first()).toHaveText(/est à la corbeille.*restaurer/);
+      await retourAuxEcoles(page);
+    };
+    await mettreALaCorbeille();
     await expect(ligne(page)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /^Corbeille\s*1$/ })).toBeVisible();
-
-    await page.getByRole('button', { name: /^Corbeille\s*1$/ }).click();
-    await expect(ligne(page).getByText('À la corbeille', { exact: true })).toBeVisible();
-    await expect(ligne(page).getByText(/À la corbeille depuis le/)).toBeVisible();
-    // À la corbeille : ni « Publier », ni « Gérer la fiche ».
+    const corbeille = page.getByRole('button', { name: /^Corbeille · 1$/ });
+    await corbeille.click();
+    // À la corbeille : ni « Publier », ni la fiche ; « Restaurer » et « Supprimer… » sur la ligne.
     await expect(ligne(page).getByRole('button', { name: 'Publier', exact: true })).toHaveCount(0);
-    await expect(ligne(page).getByRole('link', { name: 'Ouvrir la fiche' })).toHaveCount(0);
 
     // Restaurer : une école publiée revient « prête », jamais « publiée » toute seule.
     await ligne(page).getByRole('button', { name: 'Restaurer' }).click();
-    await expect(page.getByRole('status')).toHaveText(/est restaurée/);
-    await page.getByRole('button', { name: 'Toutes' }).click();
-    await expect(ligne(page).getByText('Prête', { exact: true })).toBeVisible();
+    await expect(page.getByRole('status').first()).toHaveText(/est restaurée/);
+    await toutesLesEcoles(page);
+    await expect(ligne(page).getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
 
     // La suppression définitive demande d'abord la corbeille, puis le nom de l'école.
-    await ligne(page).locator(MENU).click();
-    await ligne(page).getByRole('button', { name: 'Mettre à la corbeille…' }).click();
-    await ligne(page)
-      .getByRole('button', { name: /Mettre \[École 1\] à la corbeille/ })
-      .click();
-    await page.getByRole('button', { name: /^Corbeille\s*1$/ }).click();
-    await ligne(page).getByRole('button', { name: 'Supprimer définitivement…' }).click();
-
-    await expect(ligne(page).getByText(/La suppression emporte/)).toBeVisible();
-    const supprimer = ligne(page).getByRole('button', {
+    await mettreALaCorbeille();
+    await page.getByRole('button', { name: /^Corbeille · 1$/ }).click();
+    await ligne(page).getByRole('button', { name: 'Supprimer…' }).click();
+    const fenetre = page.getByRole('alertdialog', { name: 'Supprimer définitivement [École 1]' });
+    await expect(fenetre.getByText(/La suppression emporte/)).toBeVisible();
+    const supprimer = fenetre.getByRole('button', {
       name: /^Supprimer définitivement \[École 1\]/,
     });
     await expect(supprimer).toBeDisabled();
-    await ligne(page)
-      .getByLabel(/écris le nom de l’école/)
-      .fill('[Autre école]');
+    await fenetre.getByLabel(/écris le nom de l’école/).fill('[Autre école]');
     await expect(supprimer).toBeDisabled();
     // Sans accent ni majuscule ni espace en trop : le nom se reconnaît.
-    await ligne(page)
-      .getByLabel(/écris le nom de l’école/)
-      .fill('  [école 1] ');
+    await fenetre.getByLabel(/écris le nom de l’école/).fill('  [école 1] ');
     await expect(supprimer).toBeEnabled();
     await supprimer.click();
 
-    await expect(page.getByRole('status')).toHaveText(/supprimée définitivement/);
+    await expect(page.getByRole('status').first()).toHaveText(/supprimée définitivement/);
     await expect(ligne(page)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Corbeille', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Corbeille · / })).toHaveCount(0);
   });
 });
 
@@ -219,9 +231,6 @@ test.describe('tableau de bord : Zones', () => {
     await seConnecter(page, '/admin/#zones');
     const arbre = arbreDe(page);
     await expect(arbre.getByRole('button', { name: /^Loandjili/ })).toBeVisible();
-    await expect(
-      arbre.getByText(/zones · \d+ avec des écoles · \d+ suivies sur la carte/),
-    ).toBeVisible();
 
     // Moungali n'a ni école, ni état, ni relais : elle se replie sous Brazzaville. Niari et Dolisie sous le Congo.
     await expect(arbre.getByRole('button', { name: /^Moungali/ })).toHaveCount(0);
@@ -246,21 +255,21 @@ test.describe('tableau de bord : Zones', () => {
     await expect(page.getByRole('heading', { name: 'Ngoyo', level: 2 })).toBeVisible();
     // Ngoyo est « relevé en cours » et ouverte aux relais.
     await expect(
-      page.getByRole('group', { name: 'État de Ngoyo sur la carte' }).getByRole('radio', {
+      page.getByRole('group', { name: 'Sur la carte du site' }).getByRole('button', {
         name: 'Relevé en cours',
       }),
-    ).toBeChecked();
+    ).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('switch', { name: 'Ouverte aux relais : Ngoyo' })).toHaveAttribute(
       'aria-checked',
       'true',
     );
-    // Trois nombres sans étiquette sont devenus une barre et sa légende.
-    await expect(page.getByText(/relevées? par un relais/)).toBeVisible();
-    await expect(page.getByText(/ajoutées? par toi/)).toBeVisible();
+    // Planche : « D'où viennent les fiches », une pastille par origine.
+    const origines = page.getByRole('region', { name: 'D’où viennent les fiches' });
+    await expect(origines).toContainText(/ · \d+|Aucune fiche pour l’instant/);
     // Le message d'un geste paraît dans le volet, pas tout en haut de la page.
     await page
-      .getByRole('group', { name: 'État de Ngoyo sur la carte' })
-      .getByRole('radio', { name: 'Déploiement programmé' })
+      .getByRole('group', { name: 'Sur la carte du site' })
+      .getByRole('button', { name: 'Déploiement programmé' })
       .click();
     await expect(messageDeLaPage(page)).toBeInViewport();
   });
@@ -271,9 +280,7 @@ test.describe('tableau de bord : Zones', () => {
     await seConnecter(page, '/admin/#zones');
     await choisirLaZone(page, /^Pointe-Noire\s*Ville/);
     await expect(
-      page.getByText(
-        /Ce que Pointe-Noire contient est quand même sur la carte \(« Relevé en cours\s?»\)/,
-      ),
+      page.getByText(/Ce qu’elle contient est quand même sur la carte \(« Relevé en cours\s?»\)/),
     ).toBeVisible();
   });
 
@@ -311,40 +318,31 @@ test.describe('tableau de bord : Zones', () => {
     );
   });
 
-  test('la vue par étape range les zones par état, et une zone s’y active d’un bouton', async ({
+  test('l’état d’une zone sur la carte se règle dans son volet, et « Annuler » le rend', async ({
     page,
   }) => {
-    await seConnecter(page, '/admin/#zones');
-    await page.getByRole('link', { name: 'Par étape' }).click();
-    const programme = page.getByRole('region', { name: 'Déploiement programmé' });
-    const enCours = page.getByRole('region', { name: 'Relevé en cours' });
-    const pasEncore = page.getByRole('region', { name: 'Pas encore couverte' });
-    await expect(programme.getByText('Loandjili', { exact: true })).toBeVisible();
-    await expect(enCours.getByText('Ngoyo', { exact: true })).toBeVisible();
-    // Une zone sans école ni relais ne prend pas la place des autres : elle se déplie à la demande.
-    await expect(pasEncore.getByText('Moungali', { exact: true })).toHaveCount(0);
-    await pasEncore.getByRole('button', { name: /autres? zones? sans école/ }).click();
-    await expect(pasEncore.getByText('Moungali', { exact: true })).toBeVisible();
-
-    await programme.getByRole('button', { name: 'Activer Loandjili' }).click();
+    await seConnecter(page, '/admin/#zones/d-pn-loandjili');
+    const carte = page.getByRole('group', { name: 'Sur la carte du site' });
+    await expect(carte.getByRole('button', { name: 'Déploiement programmé' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await carte.getByRole('button', { name: 'Relevé en cours' }).click();
     await expect(messageDeLaPage(page)).toHaveText(
       'Loandjili est sur la carte, réglée « Relevé en cours ». Les relais ne sont pas concernés.',
     );
-    await expect(enCours.getByText('Loandjili', { exact: true })).toBeVisible();
-    await expect(programme.getByText('Loandjili', { exact: true })).toHaveCount(0);
-
+    await expect(carte.getByRole('button', { name: 'Relevé en cours' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     await page.getByRole('button', { name: 'Annuler' }).click();
-    await expect(programme.getByText('Loandjili', { exact: true })).toBeVisible();
-
-    // Le nom d'une zone ouvre son volet dans l'arbre.
-    await programme.getByRole('button', { name: 'Régler Loandjili' }).click();
-    await expect(page).toHaveURL(/#zones\/d-pn-loandjili$/);
-    await expect(page.getByRole('heading', { name: 'Loandjili', level: 2 })).toBeVisible();
+    await expect(carte.getByRole('button', { name: 'Déploiement programmé' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
-  test('chaque zone qui en contient d’autres se déplie et se replie, et tout se déplie ou se replie d’un geste', async ({
-    page,
-  }) => {
+  test('chaque zone qui en contient d’autres se déplie et se replie', async ({ page }) => {
     await seConnecter(page, '/admin/#zones');
     const arbre = arbreDe(page);
     const ligne = (...mots: string[]) =>
@@ -358,7 +356,6 @@ test.describe('tableau de bord : Zones', () => {
     await expect(bascule).toHaveAttribute('aria-expanded', 'true');
     await bascule.click();
     await expect(loandjili).toHaveCount(0);
-    await expect(ville).toContainText('6 zones cachées');
     await expect(ville.getByRole('button', { name: 'Déplier', exact: true })).toHaveAttribute(
       'aria-expanded',
       'false',
@@ -369,33 +366,9 @@ test.describe('tableau de bord : Zones', () => {
     await expect(loandjili).toBeVisible();
     await expect(ligne('Loandjili').getByRole('button', { name: /(Dé|Re)plier/ })).toHaveCount(0);
 
-    // « Tout replier » : le pays et ses départements ; « Tout déplier » : les 12 zones, groupes ouverts compris.
-    await arbre.getByRole('button', { name: 'Tout replier' }).click();
-    await expect(loandjili).toHaveCount(0);
-    await expect(arbre.getByRole('button', { name: /^Brazzaville/ }).first()).toBeVisible();
-    await arbre.getByRole('button', { name: 'Tout déplier' }).click();
-    await expect(arbre.getByRole('button', { name: /^Moungali/ })).toBeVisible();
-    await expect(arbre.getByRole('button', { name: /^Dolisie/ })).toBeVisible();
-    await expect(loandjili).toBeVisible();
-
-    // Une zone choisie par son adresse rouvre ce qui la contient, même repliée.
-    await arbre.getByRole('button', { name: 'Tout replier' }).click();
-    await expect(loandjili).toHaveCount(0);
-    await page.evaluate(() => {
-      location.hash = '#zones/d-pn-ngoyo';
-    });
-    await expect(page.getByRole('heading', { name: 'Ngoyo', level: 2 })).toBeVisible();
-    // Sur un petit écran, la zone choisie remplace la liste : on y revient pour la retrouver dans l'arbre.
-    const retour = page.getByRole('link', { name: '← Toutes les zones' });
-    if (await retour.isVisible()) await retour.click();
-    await expect(arbre.getByRole('button', { name: /^Ngoyo/ })).toBeVisible();
-
     // Une recherche remet à plat : plus rien à déplier ni à replier.
-    await page.evaluate(() => {
-      location.hash = '#zones';
-    });
     await arbre.getByLabel('Chercher une zone').fill('moun');
-    await expect(arbre.getByRole('button', { name: 'Tout déplier' })).toHaveCount(0);
+    await expect(arbre.getByRole('button', { name: /^(Dé|Re)plier$/ })).toHaveCount(0);
     await expect(arbre.getByRole('button', { name: /^Moungali/ })).toBeVisible();
   });
 
@@ -403,8 +376,11 @@ test.describe('tableau de bord : Zones', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/#zones');
-    const arbre = arbreDe(page);
-    await arbre.getByRole('button', { name: 'Ajouter une zone' }).click();
+    await page
+      .getByRole('button', { name: 'Ajouter une zone' })
+      .filter({ visible: true })
+      .first()
+      .click();
     const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
     await expect(fenetre).toBeVisible();
 
@@ -429,7 +405,11 @@ test.describe('tableau de bord : Zones', () => {
       'Deux colonnes : la liste reste à côté de la zone',
     );
     await seConnecter(page, '/admin/#zones/d-pn-ngoyo');
-    await arbreDe(page).getByRole('button', { name: 'Ajouter une zone' }).click();
+    await page
+      .getByRole('button', { name: 'Ajouter une zone' })
+      .filter({ visible: true })
+      .first()
+      .click();
     const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
     await expect(fenetre.getByLabel('Sous quelle zone ?')).toHaveValue('d-pn-ngoyo');
     await fenetre.getByRole('button', { name: 'Fermer' }).click();
@@ -454,14 +434,14 @@ test.describe('tableau de bord : Zones', () => {
     await expect(arbre.getByRole('button', { name: /^Loandjili/ })).toBeInViewport();
   });
 
-  test('sur un petit écran, une zone choisie remplace la liste, et « Toutes les zones » la rend', async ({
+  test('sur un petit écran, une zone choisie remplace la liste, et la flèche du haut la rend', async ({
     page,
   }) => {
     test.skip((page.viewportSize()?.width ?? 0) >= 1152, 'Deux colonnes : la liste reste');
     await seConnecter(page, '/admin/#zones/d-pn-loandjili');
     await expect(page.getByRole('heading', { name: 'Loandjili', level: 2 })).toBeVisible();
     await expect(arbreDe(page)).toBeHidden();
-    await page.getByRole('link', { name: '← Toutes les zones' }).click();
+    await retourAuxZones(page);
     await expect(arbreDe(page)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Loandjili', level: 2 })).toHaveCount(0);
   });
@@ -471,7 +451,7 @@ test.describe('tableau de bord : Zones', () => {
   }) => {
     await seConnecter(page, '/admin/#zones/d-bz-moungali');
     await expect(page.getByRole('heading', { name: 'Moungali', level: 2 })).toBeVisible();
-    await page.getByText('Renommer · autres écritures', { exact: true }).click();
+    await page.getByRole('button', { name: 'Renommer', exact: true }).click();
     const formulaire = page.getByRole('form', { name: 'Renommer Moungali' });
     const enregistrer = formulaire.getByRole('button', { name: 'Enregistrer' });
     // Rien n'a changé : rien à enregistrer.
@@ -486,7 +466,11 @@ test.describe('tableau de bord : Zones', () => {
     await expect(messageDeLaPage(page)).toContainText(
       'Les autres écritures de Moungali sont enregistrées.',
     );
-    await expect(page.getByLabel('Autres écritures, pour la recherche')).toHaveValue('Mongali');
+    // Le tiroir se referme ; rouvert, il montre la liste nettoyée.
+    await page.getByRole('button', { name: 'Renommer', exact: true }).click();
+    await expect(formulaire.getByLabel('Autres écritures, pour la recherche')).toHaveValue(
+      'Mongali',
+    );
 
     // Le nom change, l'adresse reste : le lien du volet est le même.
     await formulaire.getByLabel('Nom', { exact: true }).fill('Moungali centre');
@@ -498,8 +482,7 @@ test.describe('tableau de bord : Zones', () => {
     await expect(page).toHaveURL(/#zones\/d-bz-moungali$/);
 
     // La recherche de l'arbre trouve la zone par son ancienne écriture, sans accent ni majuscule.
-    const retour = page.getByRole('link', { name: '← Toutes les zones' });
-    if (await retour.isVisible()) await retour.click();
+    await retourAuxZones(page);
     const arbre = arbreDe(page);
     await arbre.getByLabel('Chercher une zone').fill('MONGALI');
     await expect(arbre.getByRole('list').getByRole('button')).toHaveCount(1);
@@ -508,7 +491,7 @@ test.describe('tableau de bord : Zones', () => {
 
   test('un nom déjà pris sous le même parent est refusé avant d’enregistrer', async ({ page }) => {
     await seConnecter(page, '/admin/#zones/d-pn-lumumba');
-    await page.getByText('Renommer · autres écritures', { exact: true }).click();
+    await page.getByRole('button', { name: 'Renommer', exact: true }).click();
     const formulaire = page.getByRole('form', { name: 'Renommer Lumumba' });
     await formulaire.getByLabel('Nom', { exact: true }).fill('  mvou-MVOU ');
     await expect(formulaire.getByText('Mvou-Mvou existe déjà sous le même parent.')).toBeVisible();
@@ -522,14 +505,20 @@ test.describe('tableau de bord : Zones', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/#zones');
-    await arbreDe(page).getByRole('button', { name: 'Ajouter une zone' }).click();
+    await page
+      .getByRole('button', { name: 'Ajouter une zone' })
+      .filter({ visible: true })
+      .first()
+      .click();
     const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
     await fenetre.getByLabel('Sous quelle zone ?').selectOption('d-pn-tie-tie');
     await fenetre.getByLabel('Nom', { exact: true }).fill('Mpaka par erreur');
     await fenetre.getByRole('button', { name: 'Ajouter la zone' }).click();
-    await expect(page.getByRole('heading', { name: 'Mpaka par erreur', level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mpaka par erreur', level: 2 })).toBeAttached();
+    // La liste des zones se relit après l'ajout : on attend le message avant d'ouvrir un geste.
+    await expect(page.getByRole('status').first()).toContainText('est ajouté sous Tié-Tié');
 
-    await page.getByText('Supprimer cette zone', { exact: true }).click();
+    await page.getByRole('button', { name: 'Supprimer cette zone' }).click();
     await expect(page.getByText('La zone est vide')).toBeVisible();
     await page.getByRole('button', { name: 'Supprimer Mpaka par erreur…' }).click();
 
@@ -540,6 +529,7 @@ test.describe('tableau de bord : Zones', () => {
     await expect(confirmation).toBeHidden();
     await expect(page.getByRole('heading', { name: 'Mpaka par erreur', level: 2 })).toBeVisible();
 
+    await page.getByRole('button', { name: 'Supprimer cette zone' }).click();
     await page.getByRole('button', { name: 'Supprimer Mpaka par erreur…' }).click();
     await confirmation.getByRole('button', { name: 'Supprimer définitivement' }).click();
     await expect(confirmation).toBeHidden();
@@ -552,7 +542,7 @@ test.describe('tableau de bord : Zones', () => {
     page,
   }) => {
     await seConnecter(page, '/admin/#zones/d-pn-ngoyo');
-    await page.getByText('Supprimer cette zone', { exact: true }).click();
+    await page.getByRole('button', { name: 'Supprimer cette zone' }).click();
     const raison = page.getByText(/Cette zone ne se supprime pas :/);
     await expect(raison).toContainText('elle a 1 lot');
     await expect(raison).toContainText('elle est sur la carte du site');

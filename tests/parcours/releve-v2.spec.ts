@@ -7,6 +7,7 @@ import {
   ouvrirLaFiche,
   prendrePhotoEtPosition,
   seConnecter,
+  toutEstEnvoye,
 } from './aides';
 
 test.use({ permissions: ['geolocation'] });
@@ -88,7 +89,7 @@ test('le bonus : ce qui a été vu, la clôture, des photos en plus ; tout part 
   await expect(page.getByRole('heading', { name: /Photos en plus/ })).toContainText('1 sur 5');
   await page.getByRole('button', { name: 'Envoyer la fiche' }).click();
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page, 15_000);
   const recu = await page.evaluate(() => {
     const e = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
       releves: Record<string, Record<string, unknown>>;
@@ -113,12 +114,17 @@ test('le bonus : ce qui a été vu, la clôture, des photos en plus ; tout part 
     roles: ['courtyard', 'signboard'],
   });
 
-  // L'administration relit le bonus : chaque équipement vu, coché « gardé » par défaut ; le sigle est dans la partie publique.
+  // L'administration relit le bonus : ce qui a été vu, repris par défaut ; le sigle est dans la partie publique.
   await ouvrirLaFiche(page);
   const bonus = page.getByRole('region', { name: 'Le bonus du relais' });
   await expect(bonus).toContainText('Inscriptions ouvertes');
-  await expect(bonus.getByRole('checkbox', { name: 'Cantine' })).toBeChecked();
-  await expect(bonus.getByRole('checkbox', { name: /Clôture : non/ })).toBeChecked();
+  // Planche « Bonus du relais » : ce qui a été vu, et « Reprendre sur la fiche » (allumé par défaut).
+  await expect(bonus).toContainText(/cantine/i);
+  await expect(bonus).toContainText(/clôture/i);
+  await expect(bonus.getByRole('switch', { name: 'Reprendre sur la fiche' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
   await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText('E1');
 });
 
@@ -133,5 +139,5 @@ test('une fiche sans bonus part comme avant, par « Envoyer sans bonus »', asyn
   await page.getByRole('button', { name: 'Personne', exact: true }).click();
   await envoyerSansBonus(page);
   await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-  await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+  await toutEstEnvoye(page, 15_000);
 });

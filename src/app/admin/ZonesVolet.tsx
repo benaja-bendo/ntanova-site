@@ -3,58 +3,26 @@
  * `modele/zones-admin.ts`) : « Sur la carte » (ce que voient les familles), « Ouverte aux relais » (où NTanova envoie
  * des relais), et d'où viennent ses fiches.
  */
-import type { ReactNode } from 'react';
+import { v2 } from '@/ui/v2/classes';
+import { useState, type ReactNode } from 'react';
 import {
   ETATS_CARTE,
   SEUIL_OUVERTURE_LARGE,
   etatHerite,
-  explicationEtat,
   libelleEtat,
-  origineDesFiches,
   phraseDesEcoles,
   raisonsDeNePasSupprimer,
   surLaCarte,
   zonesDessous,
   type EtatCarte,
 } from '../../modele/zones-admin';
-import { cheminLisible } from '../../modele/geo-divisions';
 import { libelleGenreDivision } from '../../modele/libelles';
 import type { DivisionVue, LotVu, PortAdministration } from '../../modele/ports';
-import { Bouton } from '../../ui/actions';
-import { Icone } from '../../ui/composants';
+import { Bouton, Dialogue } from '@/ui/v2/admin';
+import { cn } from '@/lib/utils';
+import { IconeBas, IconeFait } from '@/ui/shadcn/icones';
 import { aller } from '../commun/adresse';
-import { AjouterDivision, NouveauLot, RenommerZone } from './ZonesFormulaires';
-
-const ADRESSE_DE_LA_MISE_A_JOUR =
-  'https://github.com/benaja-bendo/ntanova-site/actions/workflows/mise-en-ligne.yml';
-
-/**
- * Ce que les familles voient sur la carte, dessiné avec les couleurs de la carte : un contour, jamais un texte. Depuis le
- * 08/11/2026 (ticket 146), « programmé » et « relevé en cours » se dessinent pareil.
- */
-function ApercuDeLaCarte({ etat, avecEcoles }: { etat: EtatCarte; avecEcoles: boolean }) {
-  return (
-    <svg className="admin-apercu-svg" viewBox="0 0 232 150" aria-hidden="true" focusable="false">
-      <rect className="apercu-terre" width="232" height="150" />
-      <path className="apercu-eau" d="M150 150 L232 96 L232 150Z" />
-      <path className="apercu-parc" d="M0 108 Q40 92 70 112 L60 150 L0 150Z" />
-      <path className="apercu-rue" d="M0 60 L232 40 M70 0 L96 150 M150 0 L170 120" />
-      {etat && (
-        <polygon
-          className="apercu-zone apercu-zone-actif"
-          points="56,30 160,20 202,66 182,118 100,128 46,90"
-        />
-      )}
-      {avecEcoles && (
-        <g>
-          <circle className="apercu-ecole apercu-ecole-m" cx="96" cy="58" r="6" />
-          <circle className="apercu-ecole apercu-ecole-p" cx="132" cy="84" r="6" />
-          <circle className="apercu-ecole apercu-ecole-c" cx="84" cy="96" r="6" />
-        </g>
-      )}
-    </svg>
-  );
-}
+import { AjouterDivision, RenommerZone } from './ZonesFormulaires';
 
 export function VoletDeZone({
   zone,
@@ -90,269 +58,239 @@ export function VoletDeZone({
   const dessous = zonesDessous(zone, divisions);
   const herite = etatHerite(zone, divisions);
   const etat: EtatCarte = zone.deploiement;
-  const origine = origineDesFiches(zone);
   const nbFiches = zone.relevees + zone.ajoutees + zone.importees;
-  const sesLots = lots.filter(
-    (l) => l.divisionId === zone.id || dessous.some((z) => z.id === l.divisionId),
-  );
   const estOuverte = (id: string) => ouvertePar.get(id) != null;
   const raisons = raisonsDeNePasSupprimer(zone, divisions, lots);
 
-  return (
-    <div className="admin-volet">
-      <section className="admin-volet-carte" aria-label={`${zone.nom} : en bref`}>
-        <p className="mention">{parent ? cheminLisible(parent.id, divisions) : 'Tout le pays'}</p>
-        <div className="admin-volet-titre">
-          <h2>{zone.nom}</h2>
-          <span className="etiquette etat-telephone">{libelleGenreDivision[zone.genre]}</span>
-        </div>
-        <div className="admin-stats">
-          <div className="admin-stat">
-            <b>{zone.ecoles}</b>
-            <span>{zone.ecoles > 1 ? 'écoles' : 'école'}</span>
-          </div>
-          <div className="admin-stat">
-            <b>{zone.publiees}</b>
-            <span>{zone.publiees > 1 ? 'publiées sur le site' : 'publiée sur le site'}</span>
-          </div>
-          <div className="admin-stat admin-stat-origine">
-            <span>D’où viennent les fiches</span>
-            <span
-              className="admin-origine"
-              role="img"
-              aria-label={`${zone.relevees} relevées par un relais, ${zone.ajoutees} ajoutées par toi, ${zone.importees} importées`}
-            >
-              <span className="origine-releve" style={{ width: `${origine.relevees}%` }} />
-              <span className="origine-ajoutee" style={{ width: `${origine.ajoutees}%` }} />
-              <span className="origine-importee" style={{ width: `${origine.importees}%` }} />
-            </span>
-            <ul className="admin-legende">
-              <li>
-                <i className="origine-releve" aria-hidden="true" />
-                {zone.relevees} {zone.relevees > 1 ? 'relevées' : 'relevée'} par un relais
-              </li>
-              <li>
-                <i className="origine-ajoutee" aria-hidden="true" />
-                {zone.ajoutees} {zone.ajoutees > 1 ? 'ajoutées' : 'ajoutée'} par toi
-              </li>
-              <li>
-                <i className="origine-importee" aria-hidden="true" />
-                {zone.importees} {zone.importees > 1 ? 'importées' : 'importée'}
-              </li>
-            </ul>
-            {nbFiches === 0 && (
-              <span className="mention">Aucune fiche dans cette zone pour l’instant.</span>
-            )}
-          </div>
-        </div>
-      </section>
+  const [ouvert, setOuvert] = useState<'sous-zone' | 'renommer' | 'supprimer' | null>(null);
+  const titres = {
+    'sous-zone': 'Ajouter une sous-zone',
+    renommer: 'Renommer, autres écritures',
+    supprimer: 'Supprimer cette zone',
+  } as const;
+  const fait = (texte: string, zoneId?: string) => {
+    setOuvert(null);
+    surFait(texte, zoneId);
+  };
 
+  return (
+    <section
+      className="flex flex-col gap-5 rounded-xl border border-border bg-card p-5 max-lg:-mx-4 max-lg:-mt-5 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:p-4"
+      aria-label={`${zone.nom} : en bref`}
+    >
+      <div className="flex flex-col gap-0.5 max-lg:sr-only">
+        <h2 className="m-0 font-serif text-[26px] font-bold">{zone.nom}</h2>
+        <p className="m-0 text-[15px] text-muted-foreground">
+          {libelleGenreDivision[zone.genre]}
+          {parent ? ` · ${parent.nom}` : ''}
+        </p>
+      </div>
       {retour}
 
-      {surLaCarte(zone) && (
-        <section className="admin-volet-carte" aria-label="Sur la carte du site">
-          <h3>Ce que les familles voient sur la carte</h3>
-          <p className="mention">
-            Un seul réglage, trois états. Il ne change rien pour les relais.
-          </p>
-          <fieldset className="admin-segments" disabled={occupee}>
-            <legend className="visuellement-cache">État de {zone.nom} sur la carte</legend>
-            {ETATS_CARTE.map((e) => (
-              <label
-                key={e ?? 'aucun'}
-                className={`admin-segment admin-segment-${e ?? 'aucun'}${etat === e ? ' est-actif' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name={`etat-${zone.id}`}
-                  checked={etat === e}
-                  onChange={() => surEtat(e)}
-                />
-                <span>{libelleEtat(e)}</span>
-              </label>
-            ))}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+        {surLaCarte(zone) ? (
+          <fieldset
+            className="m-0 flex flex-col gap-2.5 border-0 p-0 max-lg:rounded-xl max-lg:border max-lg:border-border max-lg:bg-card max-lg:p-4"
+            disabled={occupee}
+            aria-label="Sur la carte du site"
+          >
+            <legend className="mb-2.5 p-0 font-sans text-base font-bold max-lg:font-serif max-lg:text-lg">
+              Ce que les familles voient sur la carte
+            </legend>
+            <div className="flex flex-wrap gap-2 max-lg:flex-col">
+              {ETATS_CARTE.map((e) => (
+                <button
+                  key={e ?? 'aucun'}
+                  type="button"
+                  aria-pressed={etat === e}
+                  onClick={() => surEtat(e)}
+                  className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border-2 border-input bg-card px-3.5 font-sans text-[15px] font-bold text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:opacity-50 aria-pressed:border-primary aria-pressed:bg-succes aria-pressed:text-primary-strong"
+                >
+                  {etat === e && <IconeFait className="size-4" aria-hidden />}
+                  {libelleEtat(e)}
+                </button>
+              ))}
+            </div>
+            {etat === null && herite !== null && (
+              <span className="text-[13px] text-muted-foreground">
+                Ce qu’elle contient est quand même sur la carte (« {libelleEtat(herite)} »).
+              </span>
+            )}
           </fieldset>
-          <div className="admin-apercu">
-            <div className="admin-apercu-carte">
-              <ApercuDeLaCarte etat={etat} avecEcoles={zone.ecoles > 0} />
-            </div>
-            <div className="admin-apercu-texte">
-              <p>{explicationEtat[etat ?? 'aucun']}</p>
-              {etat === null && herite !== null && (
-                <p className="bandeau bandeau-attente">
-                  <Icone nom="alerte" taille={18} />
-                  <span>
-                    Ce que {zone.nom} contient est quand même sur la carte (« {libelleEtat(herite)}{' '}
-                    »).
-                  </span>
-                </p>
-              )}
-              <p className="admin-horloge">
-                <Icone nom="horloge" taille={18} />
-                <span>
-                  Visible sur ntanova.com après la prochaine mise à jour du site.{' '}
-                  <a href={ADRESSE_DE_LA_MISE_A_JOUR} target="_blank" rel="noopener noreferrer">
-                    Ouvrir la mise à jour du site
-                  </a>
-                </span>
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
+        ) : (
+          <p className="m-0 self-center text-sm text-muted-foreground">
+            {libelleGenreDivision[zone.genre]} : la carte se règle sur ses villes et ses
+            arrondissements.
+          </p>
+        )}
 
-      <section className="admin-volet-carte" aria-label="Relais">
-        <div className="admin-interrupteur-rang">
-          <div>
-            <h3>Ouverte aux relais</h3>
-            <p className="mention">
+        <div className="flex items-center gap-4 rounded-xl bg-muted p-4 max-lg:border max-lg:border-border max-lg:bg-card">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <b className="text-base">Ouverte aux relais</b>
+            <span className="text-sm text-muted-foreground">
               {ouverteParUneAutre
-                ? `Ouverte par ${par.nom} : elle l’est avec tout ce que ${par.nom} contient. Ferme ${par.nom} pour la fermer ici.`
-                : ouverte
-                  ? 'Oui : NTanova envoie des relais ici.'
-                  : 'Non : NTanova n’y envoie pas de relais pour l’instant.'}
-            </p>
-          </div>
+                ? `Ouverte par ${par.nom}, avec tout ce qu’elle contient.`
+                : 'Où tu envoies des relais. Ils peuvent relever partout.'}
+            </span>
+          </span>
           <button
             type="button"
             role="switch"
-            className={`admin-interrupteur${ouverte ? ' est-actif' : ''}`}
             aria-checked={ouverte}
             aria-label={`Ouverte aux relais : ${zone.nom}`}
             disabled={occupee || ouverteParUneAutre}
             onClick={() => surOuverture(!ouverte)}
-          />
+            className={cn(
+              'relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent p-0 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60',
+              ouverte ? 'bg-primary' : 'bg-input/60',
+            )}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                'block size-7 rounded-full bg-card shadow transition-transform',
+                ouverte ? 'translate-x-6' : 'translate-x-0',
+              )}
+            />
+          </button>
         </div>
-        <p className="mention">
-          Les relais peuvent relever partout : ce réglage dit seulement où NTanova en envoie. Ouvrir
-          une zone ouvre tout ce qu’elle contient.
+      </div>
+      {!ouverte && dessous.length >= SEUIL_OUVERTURE_LARGE && (
+        <p className="m-0 text-[13px] text-muted-foreground">
+          Ouvrir {zone.nom} ouvre aussi les {dessous.length} zones qu’elle contient : une
+          confirmation te montrera ce qui change.
         </p>
-        {!ouverte && dessous.length >= SEUIL_OUVERTURE_LARGE && (
-          <p className="bandeau bandeau-attente">
-            <Icone nom="alerte" taille={18} />
-            <span>
-              Ouvrir {zone.nom} ouvre aussi les {dessous.length} zones qu’elle contient : une
-              confirmation te montrera ce qui change avant d’agir.
+      )}
+
+      <div className="grid gap-4 border-t border-border pt-4 xl:grid-cols-2 max-lg:rounded-xl max-lg:border max-lg:bg-card max-lg:p-4">
+        <section className="flex flex-col gap-1.5" aria-label="Écoles de la zone">
+          <h3 className="m-0 font-sans text-base font-bold max-lg:hidden">Écoles de cette zone</h3>
+          <p className="m-0 flex items-baseline gap-3">
+            <b className="font-serif text-[30px] text-primary-strong">{zone.ecoles}</b>
+            <span className="text-[15px]">
+              {zone.ecoles === 0 ? 'Aucune école relevée ici' : phraseDesEcoles(zone)}
             </span>
           </p>
-        )}
-      </section>
-
-      <section className="admin-volet-carte" aria-label="Écoles et lots de la zone">
-        <h3>Écoles de cette zone</h3>
-        {zone.ecoles > 0 ? (
-          <div className="admin-ecoles-rang">
-            <progress
-              max={zone.ecoles}
-              value={zone.publiees}
-              aria-label="Écoles publiées sur celles de la zone"
-            />
-            <span>{phraseDesEcoles(zone)}</span>
-            {zone.niveau >= 2 && (
-              <a
-                className="bouton bouton-secondaire bouton-petit"
-                href={`#ecoles/zone/${zone.id}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  aller(`ecoles/zone/${zone.id}`);
-                }}
-              >
-                Voir les écoles
-              </a>
-            )}
-          </div>
-        ) : (
-          <p className="texte-doux">
-            Aucune école relevée ici pour l’instant. Pour en avoir, un relais doit y relever : les
-            relais sont dans l’onglet « Relais ».
-          </p>
-        )}
-
-        <details
-          key={`lots-${zone.id}`}
-          className="admin-plie"
-          open={sesLots.length > 0 ? true : undefined}
-        >
-          <summary>Lots ({sesLots.length})</summary>
-          {sesLots.length === 0 ? (
-            <p className="mention">
-              Aucun lot ici. Un lot donne une zone et une échéance à un relais.
-            </p>
-          ) : (
-            <ul className="admin-liste-simple">
-              {sesLots.map((l) => (
-                <li key={l.id}>
-                  <b>{l.nom}</b>
-                  {l.essai ? ' · entraînement, fiches jamais publiées' : ' · toute la zone'}
-                </li>
-              ))}
-            </ul>
+          {zone.ecoles > 0 && zone.niveau >= 2 && (
+            <a
+              className="self-start text-[15px] font-bold text-primary underline"
+              href={`#ecoles/zone/${zone.id}`}
+              onClick={(e) => {
+                e.preventDefault();
+                aller(`ecoles/zone/${zone.id}`);
+              }}
+            >
+              Voir les {zone.ecoles} écoles
+            </a>
           )}
-        </details>
+        </section>
+        <section className="flex flex-col gap-2" aria-label="D’où viennent les fiches">
+          <h3 className="m-0 font-sans text-base font-bold">D’où viennent les fiches</h3>
+          {nbFiches === 0 ? (
+            <span className="text-sm text-muted-foreground">Aucune fiche pour l’instant.</span>
+          ) : (
+            <span className="flex flex-wrap gap-1.5">
+              {(
+                [
+                  ['Relevées par un relais', zone.relevees],
+                  ['Ajoutées par toi', zone.ajoutees],
+                  ['Importées', zone.importees],
+                ] as const
+              )
+                .filter(([, n]) => n > 0)
+                .map(([t, n]) => (
+                  <span key={t} className={v2.pastilleNeutre}>
+                    {t} · {n}
+                  </span>
+                ))}
+            </span>
+          )}
+        </section>
+      </div>
 
-        {zone.niveau >= 2 && (
-          <details key={`nouveau-lot-${zone.id}`} className="admin-plie">
-            <summary>Créer un lot ici</summary>
-            <NouveauLot
-              key={zone.id}
-              divisions={divisions}
-              estOuverte={estOuverte}
-              admin={admin}
-              surFait={surFait}
-              zoneInitiale={zone.id}
-            />
-          </details>
+      <div className="flex flex-wrap gap-2.5 border-t border-border pt-4 max-lg:flex-col max-lg:gap-0 max-lg:overflow-hidden max-lg:rounded-xl max-lg:border max-lg:bg-card max-lg:p-0">
+        {(zone.niveau <= 3 ? (['sous-zone', 'renommer'] as const) : (['renommer'] as const)).map(
+          (m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setOuvert(m)}
+              className={cn(
+                v2.boutonSecondairePetit,
+                'max-lg:h-14 max-lg:justify-between max-lg:rounded-none max-lg:border-0 max-lg:border-b max-lg:border-border max-lg:px-4 max-lg:text-[15px] max-lg:text-foreground',
+              )}
+            >
+              {m === 'sous-zone' ? 'Ajouter une sous-zone' : 'Renommer'}
+              <IconeBas className="size-5 lg:hidden" aria-hidden />
+            </button>
+          ),
         )}
+        <button
+          type="button"
+          onClick={() => setOuvert('supprimer')}
+          className={cn(
+            v2.boutonRefusPetit,
+            'ml-auto max-lg:ml-0 max-lg:h-14 max-lg:justify-between max-lg:rounded-none max-lg:border-0 max-lg:px-4 max-lg:text-[15px]',
+          )}
+        >
+          Supprimer cette zone
+          <IconeBas className="size-5 lg:hidden" aria-hidden />
+        </button>
+      </div>
 
-        {zone.niveau <= 3 && (
-          <details key={`sous-zone-${zone.id}`} className="admin-plie">
-            <summary>Ajouter une sous-zone</summary>
+      {ouvert && (
+        <Dialogue
+          titre={`${titres[ouvert]} : ${zone.nom}`}
+          variante={ouvert === 'supprimer' ? 'confirmation' : 'dialogue'}
+          libelleFermeture={ouvert === 'supprimer' ? 'Annuler' : 'Fermer'}
+          fermer={() => setOuvert(null)}
+          entete={<h2>{titres[ouvert]}</h2>}
+        >
+          {ouvert === 'sous-zone' && (
             <AjouterDivision
               key={zone.id}
               divisions={divisions}
               estOuverte={estOuverte}
               admin={admin}
-              surFait={surFait}
+              surFait={fait}
               parentInitial={zone.id}
             />
-          </details>
-        )}
-      </section>
-
-      <section className="admin-volet-carte" aria-label="Nom et suppression de la zone">
-        <h3>Corriger la zone</h3>
-        <details key={`nom-${zone.id}`} className="admin-plie">
-          <summary>Renommer · autres écritures</summary>
-          <RenommerZone
-            key={`${zone.id}|${zone.nom}|${zone.aliases.join('|')}`}
-            zone={zone}
-            divisions={divisions}
-            admin={admin}
-            surFait={surFait}
-          />
-        </details>
-        <details key={`suppression-${zone.id}`} className="admin-plie">
-          <summary>Supprimer cette zone</summary>
-          {raisons.length > 0 ? (
-            <p className="mention">
-              Cette zone ne se supprime pas : {raisons.join(' ; ')}. Supprimer sert à corriger une
-              zone saisie par erreur, quand elle ne contient plus rien.
-            </p>
-          ) : (
-            <div className="pile-serree">
-              <p className="mention">
-                La zone est vide : ni sous-zone, ni école, ni lot, ni état sur la carte. La
-                suppression est définitive ; son adresse ({zone.slug}) pourra être réutilisée.
+          )}
+          {ouvert === 'renommer' && (
+            <RenommerZone
+              key={`${zone.id}|${zone.nom}|${zone.aliases.join('|')}`}
+              zone={zone}
+              divisions={divisions}
+              admin={admin}
+              surFait={fait}
+            />
+          )}
+          {ouvert === 'supprimer' &&
+            (raisons.length > 0 ? (
+              <p className="m-0 text-[15px]">
+                Cette zone ne se supprime pas : {raisons.join(' ; ')}. Supprimer sert à corriger une
+                zone saisie par erreur, quand elle ne contient plus rien.
               </p>
-              <div className="admin-actions">
-                <Bouton variante="danger" disabled={occupee} onClick={() => surSuppression(zone)}>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <p className="m-0 text-[15px]">
+                  La zone est vide : ni sous-zone, ni école, ni lot, ni état sur la carte. La
+                  suppression est définitive ; son adresse ({zone.slug}) pourra être réutilisée.
+                </p>
+                <Bouton
+                  variante="danger"
+                  disabled={occupee}
+                  onClick={() => {
+                    setOuvert(null);
+                    surSuppression(zone);
+                  }}
+                >
                   Supprimer {zone.nom}…
                 </Bouton>
               </div>
-            </div>
-          )}
-        </details>
-      </section>
-    </div>
+            ))}
+        </Dialogue>
+      )}
+    </section>
   );
 }

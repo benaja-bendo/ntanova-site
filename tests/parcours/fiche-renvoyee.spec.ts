@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
+import { ligneDeFiche, ouvrirLaFiche, ouvrirMaFiche, seConnecter, uneFicheEnvoyee } from './aides';
 
 // Une fiche renvoyée « à corriger » (ticket #92), construit avec le faux serveur : l'administration la retrouve et sait
 // depuis quand elle attend son relais ; le relais ne lit plus un refus gardé dans son téléphone quand NTanova a déjà
@@ -65,10 +65,10 @@ test.describe('l’administration retrouve une fiche renvoyée', () => {
     await expect(page.getByText('Rien à valider pour le moment.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Renvoyées' }).click();
-    const liste = page.getByRole('list', { name: 'Décisions récentes' });
+    const liste = page.getByRole('list', { name: /^(Décisions récentes|Envois à valider)$/ });
     await expect(liste.getByRole('listitem')).toHaveCount(1);
     await expect(liste).toContainText('[École 1]');
-    await expect(liste).toContainText(/Renvoyée depuis/);
+    await expect(liste).toContainText(/renvoyée depuis/i);
     await liste.getByRole('link', { name: /\[École 1\]/ }).click();
     await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
   });
@@ -102,8 +102,10 @@ test.describe('le relais, quand NTanova a déjà renvoyé sa fiche', () => {
     await garderLeRefusDeLaPhoto(page);
 
     await page.goto('/relais/#fiches');
-    const fiche = page.getByRole('article').filter({ hasText: '[École 1]' });
-    await expect(fiche.getByText('Reprenez la photo de l’enseigne.')).toBeVisible();
+    await expect(
+      ligneDeFiche(page, '[École 1]').getByText(/Reprenez la photo de l’enseigne\./),
+    ).toBeVisible();
+    const fiche = await ouvrirMaFiche(page, '[École 1]');
     await expect(fiche.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
     // NTanova est déjà prévenue : plus de « prévenez NTanova », et « Réessayer » ne peut pas redonner une photo perdue.
     await expect(fiche.getByText(/n’a pas pu être reçue|Prévenez NTanova/)).toHaveCount(0);
@@ -118,7 +120,7 @@ test.describe('le relais, quand NTanova a déjà renvoyé sa fiche', () => {
     await garderLeRefusDeLaPhoto(page);
 
     await page.goto('/relais/#fiches');
-    const fiche = page.getByRole('article').filter({ hasText: '[École 1]' });
+    const fiche = await ouvrirMaFiche(page, '[École 1]');
     await expect(fiche.getByText(/n’est plus lisible sur ce téléphone/)).toBeVisible();
     await expect(fiche.getByRole('button', { name: 'Réessayer' })).toBeVisible();
   });

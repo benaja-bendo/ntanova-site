@@ -683,6 +683,8 @@ export interface ApercuSuppression {
 }
 
 export interface EcoleVue {
+  /** Le numéro public du site : son lien court `/ecoles/<numero>/` (refonte v2 : « Aperçu »). */
+  numeroPublic?: number | null;
   equipements?: Equipement[];
   frais?: FraisEcole[];
   contactPublic?: ContactPublic | null;
@@ -1074,6 +1076,15 @@ export interface PortAdministration {
     formationId: string,
     details: import('./fiche-admin').DetailsFormation,
   ): Promise<void>;
+  /**
+   * Lot 2 (14/11) : tout le tiroir « modifier une formation » du supérieur, d'un seul geste (intitulé, diplôme, domaine,
+   * durée, rythme, délivré par, admission et frais, autorisation). Rend l'identifiant de l'autorisation, ou null.
+   * `PUT /admin/formations/{id}`
+   */
+  enregistrerFormation(
+    formationId: string,
+    fiche: import('./fiche-admin').FicheFormation,
+  ): Promise<string | null>;
   /** `mot` nul : le retrait. */
   enregistrerMotDirection(ecoleId: string, mot: AccordMotDirection | null): Promise<void>;
   enregistrerDateInscription(

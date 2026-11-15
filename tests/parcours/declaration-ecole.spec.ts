@@ -1,11 +1,15 @@
 import { expect, test } from '@playwright/test';
-import { seConnecter } from './aides';
+import { ouvrirFiche, seConnecter, toutesLesEcoles } from './aides';
 
 test('déclaration école : date et transmission explicites, brouillon et origine conservés', async ({
   page,
 }) => {
   await seConnecter(page, '/admin/#ecoles');
-  await page.getByRole('button', { name: 'Ajouter ou importer des écoles' }).click();
+  await toutesLesEcoles(page);
+  await page
+    .getByRole('button', { name: 'Ajouter une école', exact: true })
+    .filter({ visible: true })
+    .click();
   await page.getByRole('button', { name: 'Déclaration d’une école', exact: true }).click();
   const f = page.getByRole('form', { name: 'Ajouter une école' });
   await expect(f.getByLabel('Date de déclaration de l’école')).toHaveValue('');
@@ -22,12 +26,18 @@ test('déclaration école : date et transmission explicites, brouillon et origin
     .check();
   await f.getByRole('button', { name: 'Ajouter l’école', exact: true }).click();
   const row = page.getByRole('row', { name: /\[École déclarée Exemple\]/ });
-  await expect(row).toContainText('Déclarée par l’école le 1 novembre 2026');
-  await expect(row).toContainText('À situer');
+  await expect(row).toContainText(/Sans position|Pas sur la carte/);
   await expect(row).not.toContainText('Publiée');
   await expect(row).not.toContainText('vérifiée par la direction');
+  // Planche : l'origine datée se lit dans l'historique de la fiche.
   await page.reload();
-  await expect(row).toContainText('Déclarée par l’école le 1 novembre 2026');
+  await toutesLesEcoles(page);
+  await ouvrirFiche(row);
+  const fiche = page.getByRole('article', { name: 'Fiche de [École déclarée Exemple]' });
+  await expect(fiche.getByRole('region', { name: 'Historique' }).first()).toContainText(
+    'Déclarée par l’école',
+  );
+  await expect(fiche).not.toContainText('vérifiée par la direction');
 });
 test('public : origine déclarée datée, sans preuve terrain et porte ouverte au Congo', async ({
   page,

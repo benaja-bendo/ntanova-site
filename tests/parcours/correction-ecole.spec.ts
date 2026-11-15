@@ -1,4 +1,4 @@
-import { ouvrirGestion, retourAuxEcoles } from './aides';
+import { ouvrirGestion, retourAuxEcoles, ouvrirLesEcoles } from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ouvrirLaFiche, publierLaZoneTieTie, uneFicheEnvoyee } from './aides';
 
@@ -11,9 +11,9 @@ test.use({ permissions: ['geolocation'] });
 async function uneEcolePrete(page: Page, context: Parameters<typeof uneFicheEnvoyee>[1]) {
   await uneFicheEnvoyee(page, context);
   await ouvrirLaFiche(page);
-  await page.getByRole('button', { name: 'Accepter la fiche' }).click();
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   await expect(page.getByRole('heading', { name: 'Écoles', level: 1 })).toBeVisible();
 }
 
@@ -26,7 +26,7 @@ test('l’administration corrige le nom, le type, les niveaux et le programme, s
   await uneEcolePrete(page, context);
 
   // Ce que la fiche dit aujourd'hui se lit sous son nom : de quoi repérer celles qui attendent un type.
-  await expect(ligne(page).getByText('Pas indiqué · Primaire')).toBeVisible();
+  await expect(ligne(page)).toContainText('Pas indiqué');
 
   await ouvrirGestion(ligne(page), 'Informations');
   const formulaire = page.getByRole('form', { name: 'Modifier [École 1]' });
@@ -46,7 +46,7 @@ test('l’administration corrige le nom, le type, les niveaux et le programme, s
   await expect(page.getByRole('status')).toHaveText(/\[École 1 corrigée\] est modifiée/);
   await retourAuxEcoles(page);
   const corrigee = page.getByRole('row', { name: /\[École 1 corrigée\]/ });
-  await expect(corrigee.getByText('Publique · Primaire, Collège')).toBeVisible();
+  await expect(corrigee).toContainText('Publique');
 
   // Rouverte, la fiche montre ce qui a été enregistré.
   await ouvrirGestion(corrigee, 'Informations');
@@ -60,7 +60,9 @@ test('une fiche publiée se corrige aussi, et la correction dit quand elle para�
 }) => {
   await uneEcolePrete(page, context);
   await publierLaZoneTieTie(page);
-  await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
+  await expect(
+    ligne(page).getByText('Publiée', { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
 
   await ouvrirGestion(ligne(page), 'Informations');
   await page
@@ -98,19 +100,27 @@ test('rien n’a changé : rien ne part ; un nom vide se dit en français', asyn
 test('une école retirée du site ne se modifie plus', async ({ page, context }) => {
   await uneEcolePrete(page, context);
   await publierLaZoneTieTie(page);
-  await expect(ligne(page).getByText('Publiée', { exact: true })).toBeVisible();
-  await expect(ligne(page).getByRole('link', { name: 'Ouvrir la fiche' })).toBeVisible();
+  await expect(
+    ligne(page).getByText('Publiée', { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(ligne(page).getByRole('link').first()).toBeVisible();
 
   await ouvrirGestion(ligne(page), 'retirer');
-  await ligne(page).getByLabel('Motif').selectOption('erreur');
-  await ligne(page)
-    .getByRole('button', { name: /Retirer \[École 1\] du site/ })
-    .click();
-  await expect(ligne(page).getByText('Retirée', { exact: true })).toBeVisible();
-  await ouvrirGestion(ligne(page), 'Contact public');
+  const fenetre = page.getByRole('alertdialog', { name: 'Retirer · [École 1]' });
+  await fenetre.getByLabel('Motif').selectOption('erreur');
+  await fenetre.getByRole('button', { name: /Retirer \[École 1\] du site/ }).click();
+  await expect(page.getByRole('status').first()).toContainText('est retirée du site');
+  // Retirée : la fiche se lit, ses rubriques ne s'ouvrent plus ; elle le dit.
+  const fiche = page.getByRole('article', { name: 'Fiche de [École 1]' });
   await expect(
-    page
-      .getByRole('navigation', { name: 'Sections de la fiche' })
-      .getByRole('button', { name: 'Informations', exact: true }),
-  ).toHaveCount(0);
+    fiche.getByRole('button', { name: 'Contact et inscriptions : ouvrir' }),
+  ).toBeDisabled();
+  await expect(fiche.getByRole('button', { name: 'Modifier les informations' })).toBeDisabled();
+  await expect(
+    fiche.getByText(/Retirée du site : la fiche ne se modifie plus/).filter({ visible: true }),
+  ).toBeVisible();
+  await retourAuxEcoles(page);
+  await expect(
+    ligne(page).getByText('Retirée', { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
 });

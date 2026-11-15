@@ -33,6 +33,23 @@ export const tacheDuManque: Partial<Record<Valeur<'request_topic'>, string>> = {
   admission: 'Photographier l’affiche des inscriptions ou de l’admission.',
 };
 
+/**
+ * Pourquoi le relais y retourne, en une phrase vouvoyée, déduite des manques (planche « Une mission » : « Pourquoi : la ligne
+ * de la 3e était illisible… »). Le détail d'un manque (« Frais de la 3e : illisible sur le prospectus ») passe en premier ;
+ * sinon, le libellé de ce qui manque sur la fiche. Le fondateur peut la réécrire avant de confier.
+ */
+export function raisonDesManques(manques: Pick<Manque, 'sujet' | 'detail'>[]): string {
+  const morceaux = manques.map((m) =>
+    m.detail?.trim()
+      ? m.detail.trim()
+      : `${libelleSujetDemande[m.sujet].toLowerCase()} manque sur la fiche`,
+  );
+  const uniques = [...new Set(morceaux)];
+  if (uniques.length === 0) return '';
+  const phrase = uniques.join(' ; ');
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1) + '.';
+}
+
 /** « Logo : demandé à l'école le 13 nov. » ; « Frais : à faire ». */
 export function etatDuManque(m: Manque, dateCourte: (j: string) => string): string {
   if (m.demandeLe && m.demandeA === 'ecole')
@@ -182,6 +199,52 @@ export interface FormationDuSuperieur {
   titre: string;
   cycle: Valeur<'niveau'>;
   details: DetailsFormation;
+  /** Lot 2 (14/11), planche « Licence en droit des affaires » : le reste de la formation. */
+  diplome?: Valeur<'diploma_kind'> | null;
+  /** L'adresse du domaine (`droit`, `gestion`…). */
+  domaine?: string | null;
+  rythmes?: Valeur<'study_rhythm'>[];
+  /** Les frais par an (FCFA), une ligne « par an » liée à la formation. */
+  fraisParAn?: number | null;
+  autorisation?: AutorisationFormation | null;
+}
+
+/** L'autorisation d'une formation : la référence de l'arrêté, sa date, et sur quoi NTanova l'a vue. */
+export interface AutorisationFormation {
+  /** Connu à la relecture : l'identifiant de l'agrément, pour y joindre la photo de l'arrêté. */
+  id?: string;
+  reference: string;
+  le: string;
+  preuve: GenrePreuve;
+}
+
+/** Tout le tiroir « modifier une formation » : enregistré d'un seul geste (`save_program_sheet`). */
+export interface FicheFormation extends DetailsFormation {
+  titre: string;
+  diplome: Valeur<'diploma_kind'> | null;
+  domaine: string | null;
+  rythmes: Valeur<'study_rhythm'>[];
+  fraisParAn: number | null;
+  /** Nulle : « Pas encore vue » (une autorisation déjà saisie est retirée). */
+  autorisation: AutorisationFormation | null;
+}
+
+/** Ce qui ne va pas dans le tiroir, en une phrase, ou nul. */
+export function erreurDeLaFiche(f: FicheFormation, aujourdHui: string): string | null {
+  if (!f.titre.trim()) return 'Écris l’intitulé de la formation.';
+  if (f.titre.trim().length > 160) return 'L’intitulé tient en 160 caractères.';
+  const details = erreurDesDetails(f, aujourdHui);
+  if (details) return details;
+  if (f.fraisParAn !== null && !(Number.isInteger(f.fraisParAn) && f.fraisParAn >= 0))
+    return 'Les frais par an sont un montant en FCFA, sans virgule.';
+  if (f.fraisParAn !== null && (!f.ditLe || f.ditLe > aujourdHui))
+    return 'Indique le jour où l’école a donné les frais (pas une date future).';
+  if (f.autorisation) {
+    if (!f.autorisation.reference.trim()) return 'Écris la référence de l’arrêté.';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(f.autorisation.le) || f.autorisation.le > aujourdHui)
+      return 'Indique la date de l’arrêté (pas une date future).';
+  }
+  return null;
 }
 
 export const detailsVides = (): DetailsFormation => ({

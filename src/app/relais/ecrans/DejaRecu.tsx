@@ -7,6 +7,7 @@
  * chez NTanova (`mesPhotos`, adresses d'une heure). Quand elles ne se lisent pas (pas de réseau, règle de la base pas
  * encore appliquée), l'écran dit seulement quels rôles sont arrivés.
  */
+import { classeBouton } from '@/ui/v2/formulaire';
 import { useEffect, useState } from 'react';
 import type { FicheLocale } from '../../../modele/fiche';
 import type { Point } from '../../../modele/geo';
@@ -57,19 +58,25 @@ export function PhotosRecues({ fiche }: { fiche: FicheLocale }) {
       : "NTanova a déjà la photo de l'enseigne. Reprenez-la seulement si elle est fausse.";
 
   return (
-    <div className="pile-serree" aria-label="Photos reçues par NTanova">
+    <div className="flex flex-col gap-2.5" aria-label="Photos reçues par NTanova">
       {nombre === 0 ? (
-        <p className="message-attention" role="status">
+        <p
+          className="m-0 rounded-md bg-attention px-3 py-2.5 text-sm text-attention-foreground"
+          role="status"
+        >
           NTanova n'a reçu aucune photo avec cette fiche. Prenez la photo de l'enseigne maintenant.
         </p>
       ) : (
         <>
-          <p className="surtitre">Reçues par NTanova</p>
+          <p className="m-0 text-xs font-bold tracking-[0.08em] text-muted-foreground uppercase">
+            Reçues par NTanova
+          </p>
           {lecture.etat === 'prete' && lecture.photos.length > 0 ? (
-            <ul className="photos-recues">
+            <ul className="m-0 grid list-none grid-cols-3 gap-2 p-0">
               {lecture.photos.map((p) => (
-                <li key={p.id}>
+                <li key={p.id} className="flex flex-col gap-1 text-xs font-bold">
                   <img
+                    className="aspect-[4/3] w-full rounded-md bg-border object-cover"
                     src={p.url}
                     alt={`Photo reçue : ${libelleRolePhotoCourt[p.role]}`}
                     loading="lazy"
@@ -79,16 +86,22 @@ export function PhotosRecues({ fiche }: { fiche: FicheLocale }) {
               ))}
             </ul>
           ) : lecture.etat === 'chargement' ? (
-            <p className="mention" role="status">
+            <p className="m-0 text-[13px] text-muted-foreground" role="status">
               Chargement des photos…
             </p>
           ) : (
-            <p className="mention">
+            <p className="m-0 text-[13px] text-muted-foreground">
               Photos reçues&nbsp;: {recu.photos.map((r) => libelleRolePhotoCourt[r]).join(', ')}.
               Leur aperçu ne s'affiche pas pour le moment.
             </p>
           )}
-          <p className={enseigneRecue && !aReprendre ? 'mention' : 'message-attention'}>
+          <p
+            className={
+              enseigneRecue && !aReprendre
+                ? 'm-0 text-[13px] text-muted-foreground'
+                : 'm-0 rounded-md bg-attention px-3 py-2.5 text-sm'
+            }
+          >
             {consigne}
           </p>
         </>
@@ -102,7 +115,11 @@ export function PositionRecue({ fiche }: { fiche: FicheLocale }) {
   const recu = fiche.dejaRecu;
   if (!recu) return null;
   if (!recu.position) {
-    return <p className="mention">NTanova n'a pas reçu de position avec cette fiche.</p>;
+    return (
+      <p className="m-0 text-[13px] text-muted-foreground">
+        NTanova n'a pas reçu de position avec cette fiche.
+      </p>
+    );
   }
   return (
     <CartePosition
@@ -128,11 +145,15 @@ export function VoirSurLaCarte({
 }) {
   const [ouverte, setOuverte] = useState(false);
   return (
-    <div className="pile-serree">
+    <div className="flex flex-col gap-2.5">
       {ouverte && <CartePosition position={position} precisionM={precisionM} legende={legende} />}
       <button
         type="button"
-        className="bouton bouton-secondaire bouton-petit"
+        className={classeBouton({
+          variant: 'ghost',
+          size: 'sm',
+          className: 'self-start text-primary',
+        })}
         aria-expanded={ouverte}
         onClick={() => setOuverte((o) => !o)}
       >

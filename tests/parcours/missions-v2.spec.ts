@@ -1,19 +1,16 @@
 // Les missions v2 (ticket 165, lot C, 13/11/2026) : ce qu'il faut faire, pourquoi, la date, la paie ; « Je n'ai pas pu », qui
 // marche hors ligne et part au retour du réseau.
 import { expect, test, type Page } from '@playwright/test';
-import { carteDeMission, ouvrirGestion, seConnecter } from './aides';
+import { carteDeMission, ouvrirGestion, seConnecter, ouvrirLesEcoles, ficheOuverte } from './aides';
 
 test.use({ permissions: ['geolocation'] });
 
 async function confierUneMission(page: Page) {
   await seConnecter(page, '/admin/#valider');
-  await page.getByRole('link', { name: 'Écoles' }).click();
+  await ouvrirLesEcoles(page);
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
   await ouvrirGestion(ligne, 'Mission');
-  await page
-    .locator('article.fiche-admin')
-    .getByRole('button', { name: 'Confier', exact: true })
-    .click();
+  await ficheOuverte(page).getByRole('button', { name: 'Confier', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/est confiée à/);
   // Ce que la base dit d'une mission écrite par « Compléter » (le faux serveur le lit ici).
   await page.evaluate(() =>

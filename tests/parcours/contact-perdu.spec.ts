@@ -1,4 +1,11 @@
-import { attendreLaLecture, envoyerSansBonus, ouvrirContacts } from './aides';
+import {
+  attendreLaLecture,
+  envoyerSansBonus,
+  ouvrirContacts,
+  ouvrirMaFiche,
+  toutEstEnvoye,
+  fermerContacts,
+} from './aides';
 import { expect, test, type Page } from '@playwright/test';
 import { ajouterUneEcole, ouvrirLaFiche, seConnecter, uneFicheEnvoyee } from './aides';
 
@@ -50,6 +57,7 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     // NTanova renvoie la fiche pour revoir les informations.
     await ouvrirLaFiche(page);
     await ouvrirContacts(page);
+    await fermerContacts(page);
     await page.getByRole('button', { name: 'Demander une correction' }).click();
     await page.getByLabel('Motif').selectOption('autre');
     await page.getByLabel(/Message au relais/).fill('Vérifiez le nom sur l’enseigne.');
@@ -57,7 +65,7 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     await expect(page.getByRole('status')).toHaveText(/correction part au relais/);
 
     // Le relais corrige : la direction est redemandée, avec la raison, et plus « Rien à refaire ».
-    await page.goto('/relais/#fiches');
+    await ouvrirMaFiche(page, '[École 1]');
     await page.getByRole('button', { name: 'Corriger la fiche' }).click();
     await expect(page.getByRole('region', { name: 'À faire sur cette école' })).toContainText(
       'Contact à redonner',
@@ -70,12 +78,15 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     await expect(page.getByText(/n['’]est pas arrivé chez NTanova/)).toBeVisible();
     await expect(page.getByText('Rien à refaire ici.')).toHaveCount(0);
 
-    await page.getByLabel('Sa fonction').selectOption('directeur');
+    await page
+      .getByRole('group', { name: 'Qui ?' })
+      .getByRole('button', { name: 'Directeur', exact: true })
+      .click();
     await page.getByLabel('La personne accepte que NTanova lui écrive sur WhatsApp').check();
     await page.getByLabel(/Son WhatsApp/).fill('06 765 43 21');
     await envoyerSansBonus(page);
     await page.getByRole('link', { name: 'Missions' }).click();
-    await expect(page.getByText('Tout est envoyé.')).toBeVisible({ timeout: 15_000 });
+    await toutEstEnvoye(page, 15_000);
 
     // Le contact est arrivé, sur la correction : deux relevés, la photo de l'original, un contact.
     await expect.poll(() => serveur(page)).toEqual([2, 1, 1]);
@@ -95,13 +106,14 @@ test.describe('la direction a été vue, mais NTanova n’a pas reçu son contac
     await uneFicheEnvoyee(page, context);
     await ouvrirLaFiche(page);
     await ouvrirContacts(page);
+    await fermerContacts(page);
     await page.getByRole('button', { name: 'Demander une correction' }).click();
     await page.getByLabel('Motif').selectOption('autre');
     await page.getByLabel(/Message au relais/).fill('Vérifiez le nom sur l’enseigne.');
     await page.getByRole('button', { name: 'Envoyer la demande' }).click();
     await expect(page.getByRole('status')).toHaveText(/correction part au relais/);
 
-    await page.goto('/relais/#fiches');
+    await ouvrirMaFiche(page, '[École 1]');
     await page.getByRole('button', { name: 'Corriger la fiche' }).click();
     await expect(page.getByRole('region', { name: 'À faire sur cette école' })).toContainText(
       'Rien à refaire',
