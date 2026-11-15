@@ -1,5 +1,5 @@
 ---
-// La date limite des inscriptions (ticket 148 ; v2 du 13/11 : un bandeau jaune pâle, comme sur le canevas). Le site est
+// La date limite des inscriptions (ticket 148 ; v2 du 13/11 : un bandeau jaune pâle ; lot 3 : « Inscriptions jusqu'au [date] », comme sur la planche). Le site est
 // statique : la date passée disparaît à la construction suivante.
 import type { DateInscription } from '../modele/inscriptions';
 import { dateLongue } from '../modele/pointe-noire';
@@ -11,11 +11,10 @@ const { inscription } = Astro.props;
 ---
 
 <section class="inscriptions" aria-label="Inscriptions">
-  <h2>Inscriptions {inscription.anneeScolaire}</h2>
-  <p>
-    Date limite annoncée&nbsp;: <strong>{dateLongue(inscription.limite)}</strong>
+  <h2>Inscriptions jusqu’au {dateLongue(inscription.limite)}</h2>
+  <p class="declaree">
+    Année {inscription.anneeScolaire}. Annoncé par l’école le {dateLongue(inscription.declareeLe)}.
   </p>
-  <p class="declaree">Annoncée par l’école le {dateLongue(inscription.declareeLe)}.</p>
 </section>
 
 <style>

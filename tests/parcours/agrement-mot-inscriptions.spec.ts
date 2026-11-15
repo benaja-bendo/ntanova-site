@@ -23,12 +23,15 @@ test('fiche confirmée : la référence sans lien, le mot daté, la prochaine da
     '[Nous accueillons les élèves de la sixième à la terminale.]',
   );
   await expect(page.locator('.mot-direction figcaption')).toHaveText(
-    'Le mot de la direction, 4 novembre 2026',
+    'Le mot de la direction · 4 novembre 2026',
   );
   const inscriptions = page.getByRole('region', { name: 'Inscriptions' });
-  await expect(inscriptions.getByRole('heading')).toHaveText('Inscriptions 2030-2031');
-  await expect(inscriptions).toContainText('Date limite annoncée : 15 décembre 2030');
-  await expect(inscriptions).toContainText('Annoncée par l’école le 4 novembre 2026');
+  // Lot 3 (planche) : « Inscriptions jusqu'au [date] », l'année et qui l'a annoncé.
+  await expect(inscriptions.getByRole('heading')).toHaveText(
+    'Inscriptions jusqu’au 15 décembre 2030',
+  );
+  await expect(inscriptions).toContainText('Année 2030-2031');
+  await expect(inscriptions).toContainText('Annoncé par l’école le 4 novembre 2026');
   await expect(page.locator('main')).not.toContainText('Ouvertes jusqu');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(360);
 });
@@ -40,9 +43,9 @@ test('fiche non confirmée : l’agrément et sa source paraissent, le mot et un
   const source = page.getByRole('link', { name: 'Voir la source : [Journal officiel]' });
   await expect(source).toHaveAttribute('href', 'https://exemple.cg/arrete');
   await expect(source).toHaveAttribute('rel', /nofollow/);
-  await expect(page.getByText('Agrément de la filière')).toBeVisible();
-  await expect(page.locator('.filiere-nom .ligne-agrement')).toContainText(
-    'arrêté n° [filière] du 15 janvier 2024 · source : [Journal officiel]',
+  // Lot 3 (planche « supérieur ») : chaque carte de formation dit son autorisation.
+  await expect(page.locator('.carte-formation .autorisation.vue').first()).toContainText(
+    'Autorisation : réf. arrêté n° [filière] du 15 janvier 2024 · source : [Journal officiel]',
   );
   await expect(page.locator('.mot-direction')).toHaveCount(0);
   await expect(page.locator('main')).not.toContainText('Ce mot ne paraît pas');

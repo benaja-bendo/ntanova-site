@@ -374,7 +374,7 @@ test.describe('site public', () => {
 
   test('fiche : à partir de 1 024 px, l’appel aux directions passe à droite', async ({ page }) => {
     await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
-    const proprietes = await page.locator('dl.proprietes').boundingBox();
+    const proprietes = await page.locator('.proprietes').boundingBox();
     const appel = await page.getByRole('complementary').boundingBox();
     if (largeurDe(page) >= ORDINATEUR) {
       expect(appel?.x ?? 0).toBeGreaterThanOrEqual((proprietes?.x ?? 0) + (proprietes?.width ?? 0));

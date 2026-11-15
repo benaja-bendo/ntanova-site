@@ -374,7 +374,7 @@ test.describe('site public', () => {
   test.describe('toutes les écoles, de la crèche au supérieur (ticket 12)', () => {
     test('la fiche dit le type, les niveaux et le programme de l’école', async ({ page }) => {
       await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
-      const proprietes = page.locator('dl.proprietes');
+      const proprietes = page.locator('.proprietes');
       // Le type et les niveaux sont des puces sous le nom (audit du 05/11, chantier 2), plus des lignes de tableau.
       const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
       await expect(puces.getByRole('listitem').filter({ hasText: 'Privée' })).toBeVisible();
@@ -392,7 +392,7 @@ test.describe('site public', () => {
       page,
     }) => {
       await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
-      const proprietes = page.locator('dl.proprietes');
+      const proprietes = page.locator('.proprietes');
       await expect(proprietes).not.toContainText('Pas indiqué');
       await expect(proprietes).not.toContainText('Non indiqués');
       await expect(proprietes.getByText('Type', { exact: true })).toHaveCount(0);

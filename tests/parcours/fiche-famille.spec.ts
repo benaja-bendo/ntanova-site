@@ -380,7 +380,7 @@ test.describe('sur ordinateur', () => {
     page,
   }) => {
     await page.goto(COMPLEXE);
-    const lignes = page.locator('dl.proprietes');
+    const lignes = page.locator('.proprietes');
     const termes = lignes.locator('dt');
     const valeurs = lignes.locator('dd');
     await expect(termes).toHaveText([

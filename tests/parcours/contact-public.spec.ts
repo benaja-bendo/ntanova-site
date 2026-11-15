@@ -45,10 +45,12 @@ test('fiche publique : accord daté et numéro d’enseigne gardent leur provena
   page,
 }) => {
   await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
-  await expect(page.getByText('Contact communiqué par l’école', { exact: true })).toBeVisible();
-  await expect(page.getByText('Publication autorisée le 3 novembre 2026.')).toBeVisible();
+  // Lot 3 (planche) : une ligne « Téléphone » ; d'où vient le numéro se lit en note sous la carte « Contact ».
+  await expect(
+    page.getByText('Numéro communiqué par l’école, publication autorisée le 3 novembre 2026.'),
+  ).toBeVisible();
   // Une ligne dans la fiche, plus le bouton « Appeler » de la barre d'actions : le même numéro, le contact communiqué d'abord.
-  await expect(page.locator('dl.proprietes a[href="tel:+242060000009"]')).toHaveCount(1);
+  await expect(page.locator('.proprietes a[href="tel:+242060000009"]')).toHaveCount(1);
   await expect(page.getByRole('link', { name: 'Appeler' })).toHaveAttribute(
     'href',
     'tel:+242060000009',
@@ -57,7 +59,7 @@ test('fiche publique : accord daté et numéro d’enseigne gardent leur provena
 });
 test('même numéro sur l’enseigne et communiqué : un appel, deux provenances', async ({ page }) => {
   await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
-  await expect(page.locator('dl.proprietes a[href="tel:+242060000002"]')).toHaveCount(1);
+  await expect(page.locator('.proprietes a[href="tel:+242060000002"]')).toHaveCount(1);
   await expect(page.getByRole('link', { name: 'Appeler' })).toHaveAttribute(
     'href',
     'tel:+242060000002',
@@ -67,7 +69,7 @@ test('même numéro sur l’enseigne et communiqué : un appel, deux provenances
 });
 test('sans accord public : pas de nouveau contact ni de mention inventée', async ({ page }) => {
   await page.goto('/ecoles/centre-de-formation-exemple-315702/');
-  await expect(page.getByText('Contact communiqué par l’école', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Numéro communiqué par l’école', { exact: false })).toHaveCount(0);
   await expect(page.getByText("Contact de l'école", { exact: true })).toHaveCount(0);
 });
 

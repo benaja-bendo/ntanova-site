@@ -33,15 +33,27 @@ import { LIEN_METHODE } from '../modele/pages-de-confiance';
 import { lienWhatsApp } from '../modele/whatsapp';
 import PhotoEcole from './PhotoEcole.astro';
 import ProprietesEcole from './ProprietesEcole.astro';
-import CouvertureEcole from './CouvertureEcole.astro';
 import EquipementsEcole from './EquipementsEcole.astro';
 import FormationsEcole from './FormationsEcole.astro';
 import Icone from './Icone.astro';
+import Carte from './Carte.astro';
+import {
+  arrondissementDeLaPosition,
+  arrondissementsDessines,
+  cadreEcole,
+  marqueDe,
+  planer,
+  ruesDe,
+  situees,
+} from '../modele/carte/plan';
 import InscriptionsEcole from './InscriptionsEcole.astro';
 import LigneAgrement from './LigneAgrement.astro';
+import { cheminPhotoPublique } from '../modele/photos-publiques';
 import MotDirectionEcole from './MotDirectionEcole.astro';
 import AdmissionEcole from './fiche/AdmissionEcole.astro';
 import FraisDeLaFiche from './fiche/FraisDeLaFiche.astro';
+import FraisParAn from './fiche/FraisParAn.astro';
+import FormationsDuSuperieur from './fiche/FormationsDuSuperieur.astro';
 import GalerieEcole from './fiche/GalerieEcole.astro';
 import NouvellesEcole from './fiche/NouvellesEcole.astro';
 import SitesEcole from './fiche/SitesEcole.astro';
@@ -146,6 +158,13 @@ const rond = rondDeLEcole(e);
 const suiteIdentite = ligneDIdentite({ ...e, etiquette: null }, 1);
 const couverture = e.medias?.couverture ?? null;
 const galerie = e.medias?.galerie ?? [];
+const imageCouverture = couverture
+  ? cheminMedia(couverture, 'couverture')
+  : e.photo
+    ? cheminPhotoPublique(e.photo)
+    : galerie[0]
+      ? cheminMedia(galerie[0], 'vignette')
+      : null;
 // La photo d'enseigne d'avant (choisie ou retenue d'office) : seule, dans « Photos », quand l'école n'a ni couverture ni galerie.
 const photoSeule = !couverture && galerie.length === 0 ? (e.photo ?? null) : null;
 const nouvelles = nouvellesAMontrer(e.nouvelles ?? [], aujourdhui);
@@ -166,15 +185,41 @@ const premierDeLEcole = avecMot
         ? 'equipements'
         : null;
 const ancre = (bloc: string) => (premierDeLEcole === bloc ? 'ecole' : undefined);
+const fraisAn = superieur && (e.frais ?? []).some((f) => f.formationId && f.periode === 'annee');
 const rubriques = rubriquesDeLaFiche({
   ecole: premierDeLEcole !== null,
   formations: e.formations.length > 0,
   admission: !!admission,
   photos: galerie.length > 0 || !!photoSeule,
-  frais: fraisEcole.length > 0,
+  frais: fraisEcole.length > 0 || fraisAn,
   nouvelles: nouvelles.length > 0,
 });
 const courte = ficheCourte(e);
+// Lot 3 (planche « Où trouver ») : le petit plan revient, dessiné à la construction (aucun JavaScript), seulement là où
+// l'arrondissement est dessiné ; tout le dessin mène à la carte, la vraie porte reste « Voir sur la carte ».
+const pointEcole =
+  e.latitude !== null && e.longitude !== null ? { latitude: e.latitude, longitude: e.longitude } : null;
+const arrondissementDuPlan = pointEcole ? arrondissementDeLaPosition(pointEcole) : null;
+const plan =
+  pointEcole && arrondissementDuPlan && ruesDe(arrondissementDuPlan.slug) && lienSurLaCarte
+    ? (() => {
+        const { boite, projection } = cadreEcole(pointEcole);
+        const marques = planer(
+          boite,
+          situees([e, ...autres]).map((x) => marqueDe(x)),
+          projection,
+        ).marques;
+        return {
+          projection,
+          marques,
+          roles: arrondissementsDessines.map((a) => ({
+            arrondissement: a,
+            role: a.slug === arrondissementDuPlan.slug ? ('focus' as const) : ('voisin' as const),
+          })),
+          rues: ruesDe(arrondissementDuPlan.slug),
+        };
+      })()
+    : null;
 const lienPhotos = `${lienEcole(e)}photos/`;
 const joursRestants = (n: number) =>
   n <= 0 ? 'Dernier jour.' : n === 1 ? 'Plus qu’un jour.' : `Plus que ${n} jours.`;
@@ -195,11 +240,13 @@ const joursRestants = (n: number) =>
   </nav>
 
   <div class="fiche-entete">
+    {/* Lot 3 (planche « Fiche publique ») : une vraie photo en couverture ; sans couverture choisie, la photo de l'enseigne
+        ou la première de la galerie ; sans aucune photo, une bande unie (plus de bannière dessinée). */}
     <div class="fiche-couverture">
-      {couverture ? (
+      {imageCouverture ? (
         <img
           class="couverture-photo"
-          src={cheminMedia(couverture, 'couverture')}
+          src={imageCouverture}
           alt={`Vue de ${e.nom}`}
           width="720"
           height="300"
@@ -207,19 +254,19 @@ const joursRestants = (n: number) =>
           fetchpriority="high"
         />
       ) : (
-        <CouvertureEcole lettre={lettreEcole} />
+        <div class="couverture-unie" aria-hidden="true" />
       )}
     </div>
 
     <div class="fiche-tete">
-      <div class="fiche-identite">
+      <div class="fiche-nom fiche-identite">
         {rond.genre === 'logo' ? (
           <span class="rond-ecole rond-logo">
             <img
               src={cheminMedia(rond.media, 'logo')}
               alt={`Logo de ${e.nom}`}
-              width="76"
-              height="76"
+              width="100"
+              height="100"
             />
           </span>
         ) : rond.genre === 'sigle' ? (
@@ -231,61 +278,64 @@ const joursRestants = (n: number) =>
             {lettreEcole}
           </span>
         )}
-        <h1>{e.nom}</h1>
-        {(e.etiquette || suiteIdentite) && (
+        <div class="fiche-titres">
+          <h1>{e.nom}</h1>
           <p class="fiche-ligne">
-            {e.etiquette && <span class="etiquette-campus">{e.etiquette}</span>}
-            {e.etiquette && suiteIdentite && ' · '}
-            {suiteIdentite}
+            <span class="fiche-lieu-ligne">
+              <Icone nom="lieu" />
+              <span>
+                <strong>{lieuFort}</strong>
+                {lieuReste.length > 0 && ` · ${lieuReste.join(' · ')}`}
+              </span>
+            </span>
+            {(e.etiquette || suiteIdentite) && (
+              <span class="ligne-identite">
+                {e.etiquette && <span class="etiquette-campus">{e.etiquette}</span>}
+                {e.etiquette && suiteIdentite && ' · '}
+                {suiteIdentite}
+              </span>
+            )}
           </p>
-        )}
-        <p class="fiche-lieu">
-          <Icone nom="lieu" />
-          <span>
-            <strong>{lieuFort}</strong>
-            {lieuReste.length > 0 && ` · ${lieuReste.join(' · ')}`}
-          </span>
-        </p>
-        {e.agrement && <LigneAgrement agrement={e.agrement} />}
-
-        {(puces.length > 0 || typeSeLit || rythme || horaires.length > 0) && (
-          <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
-            {puces.map((p) => (
-              <li class="etiquette-niveau">
-                <span class={classeDisque(p.lettre)} aria-hidden="true">
-                  {p.lettre}
-                </span>
-                {p.libelle}
-              </li>
-            ))}
-            {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
-            {horaires.map((h) => (
-              <li class="etiquette-type">{libelleHoraire[h]}</li>
-            ))}
-            {rythme && <li class="etiquette-type">{rythme}</li>}
-          </ul>
-        )}
-
-        <div class="preuves" aria-label="Sources de la fiche">
-          {preuves.map((p) => (
-            <p class={classesPreuve[p.genre]}>
-              {p.icone && <Icone nom={p.icone} />}
-              {p.texte}
-            </p>
-          ))}
-          <a class="lien-methode" href={LIEN_METHODE}>
-            Comment nous vérifions une fiche
-          </a>
         </div>
       </div>
 
-      {/* Les gestes d'une famille : uniquement ceux qui mènent quelque part. */}
+      {/* Une seule rangée de pastilles (planche) : les niveaux et le type, puis les sources ; deux listes pour le lecteur d'écran. */}
+      <div class="rangee-puces">
+      <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
+        {puces.map((p) => (
+          <li class="etiquette-niveau">
+            <span class={classeDisque(p.lettre)} aria-hidden="true">
+              {p.lettre}
+            </span>
+            {p.libelle}
+          </li>
+        ))}
+        {superieur && diplomes && <li class="etiquette-type">{diplomes.replaceAll(', ', ' · ')}</li>}
+        {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
+        {horaires.map((h) => (
+          <li class="etiquette-type">{libelleHoraire[h]}</li>
+        ))}
+        {rythme && <li class="etiquette-type">{rythme}</li>}
+      </ul>
+      <ul class="preuves" aria-label="Sources de la fiche">
+        {preuves.map((p) => (
+          <li class={classesPreuve[p.genre]}>
+            {p.icone && <Icone nom={p.icone} />}
+            {p.texte}
+          </li>
+        ))}
+      </ul>
+      </div>
+      <a class="lien-methode" href={LIEN_METHODE}>
+        Comment nous vérifions une fiche
+      </a>
+
+      {/* Les gestes d'une famille : uniquement ceux qui mènent quelque part ; deux par ligne sur téléphone (planche). */}
       <div
         class:list={[
           'fiche-actions',
           {
-            'fiche-actions-trois': nombreActions === 3,
-            'fiche-actions-quatre': nombreActions === 4,
+            'fiche-actions-impair': nombreActions % 2 === 1,
           },
         ]}
       >
@@ -336,7 +386,7 @@ const joursRestants = (n: number) =>
     <div class="fiche-principale">
       {e.formations.length > 0 && (
         <div class="o-1">
-          <FormationsEcole e={e} />
+          {superieur ? <FormationsDuSuperieur e={e} /> : <FormationsEcole e={e} />}
         </div>
       )}
       {admission && (
@@ -349,24 +399,22 @@ const joursRestants = (n: number) =>
           <MotDirectionEcole mot={e.motDirection!} />
         </div>
       )}
-      {aSavoir && !confirmee && (
-        <section class="a-savoir o-4" aria-label="À savoir" id={ancre('savoir')}>
-          <h2 class="titre-ordinateur">À savoir</h2>
-          <ProprietesEcole e={e} diplomes={diplomes} />
-        </section>
-      )}
       {inscription && (
-        <div class="o-5" id={ancre('inscription')}>
+        <div class:list={['o-5', { 'cache-ordi': aSavoir }]} id={ancre('inscription')}>
           <InscriptionsEcole inscription={inscription} />
         </div>
       )}
       {equipements.length > 0 && (
         <div class="o-6">
-          <EquipementsEcole equipements={equipements} id={ancre('equipements')} />
+          <EquipementsEcole
+            equipements={equipements}
+            id={ancre('equipements')}
+            titre={superieur ? 'Sur le campus' : 'Sur place'}
+          />
         </div>
       )}
       {galerie.length > 0 && (
-        <div class="o-7">
+        <div class="o-7 galerie-avant">
           <GalerieEcole galerie={galerie} nom={e.nom} lienPhotos={lienPhotos} />
         </div>
       )}
@@ -385,7 +433,7 @@ const joursRestants = (n: number) =>
 
     <div class="fiche-cote">
       {ouverts && (
-        <section class="dossiers-ouverts o-0" aria-label="Dossiers ouverts">
+        <section class:list={['dossiers-ouverts o-0', { 'cache-ordi': aSavoir }]} aria-label="Dossiers ouverts">
           <b>Dossiers ouverts jusqu’au {dateLongue(ouverts.jusquau)}</b>
           <p>
             {joursRestants(ouverts.joursRestants)} La date vient de l’école&nbsp;: vérifiez-la avant
@@ -393,10 +441,24 @@ const joursRestants = (n: number) =>
           </p>
         </section>
       )}
-      {aSavoir && confirmee && (
-        <section class="contact o-4" aria-label="Contact" id={avecMot ? undefined : 'ecole'}>
+      {aSavoir && (
+        <section class="contact o-4" aria-label="Contact" id={ancre('savoir')}>
           <h2>Contact</h2>
-          <ProprietesEcole e={e} diplomes={diplomes} />
+          <div class="carte-contact">
+            <ProprietesEcole e={e} diplomes={superieur ? null : diplomes} />
+            {e.agrement && <LigneAgrement agrement={e.agrement} />}
+            {ouverts ? (
+              <a class="contact-alerte seulement-ordi" href="#admission">
+                Dossiers jusqu’au {dateLongue(ouverts.jusquau)} · voir l’admission
+              </a>
+            ) : (
+              inscription && (
+                <p class="contact-alerte seulement-ordi">
+                  Inscriptions jusqu’au {dateLongue(inscription.limite)}
+                </p>
+              )
+            )}
+          </div>
         </section>
       )}
       {fraisEcole.length > 0 && (
@@ -404,10 +466,32 @@ const joursRestants = (n: number) =>
           <FraisDeLaFiche frais={fraisEcole} />
         </div>
       )}
+      {superieur && (
+        <div class="o-8">
+          <FraisParAn e={e} />
+        </div>
+      )}
 
       {(e.repere || lienSurLaCarte || e.memeLieu) && (
         <section class="bloc ou o-10" aria-label="Où est l'école">
           <h2>{titreOuTrouver(e.nom)}</h2>
+          {plan && (
+            <div class="ou-plan">
+              <Carte
+                id="plan-fiche"
+                titre={`Plan autour de ${e.nom}`}
+                projection={plan.projection}
+                arrondissements={plan.roles}
+                rues={plan.rues}
+                marques={plan.marques}
+                halo={pointEcole!}
+                apercu={lienSurLaCarte!}
+              />
+              <span class="ou-plan-lien" aria-hidden="true">
+                Ouvrir la carte
+              </span>
+            </div>
+          )}
           {e.repere && (
             <p class="apercu-repere">
               <Icone nom="repere" petite={false} />
@@ -549,6 +633,11 @@ const joursRestants = (n: number) =>
   .fiche :global(p) {
     margin: 0;
   }
+  /* « Les 2 sites de l'école » : un petit titre, pas un intertitre (planche). */
+  .fiche :global(.sites-titre) {
+    font-family: var(--police-interface);
+    font-size: var(--taille-courante);
+  }
 
   /* Le fil d'Ariane : le séparateur est un décor, il ne se lit pas. */
   .ariane ol {
@@ -578,55 +667,68 @@ const joursRestants = (n: number) =>
   .fiche-couverture {
     margin-inline: calc(var(--espace-4) * -1);
   }
+  /* Le rond de l'école est à cheval sur la couverture ; le nom vient dessous (téléphone) ou à côté (ordinateur). */
   .fiche-tete {
     position: relative;
     display: grid;
-    gap: var(--espace-4);
-    margin-top: -30px;
+    gap: var(--espace-3);
+    margin-top: -40px;
   }
-  .fiche-identite {
+  .fiche-nom {
+    display: grid;
+    justify-items: start;
+    gap: var(--espace-3);
+    min-width: 0;
+  }
+  .fiche-titres {
     display: grid;
     gap: var(--espace-2);
     min-width: 0;
   }
   .disque-fiche {
-    width: 60px;
-    height: 60px;
-    font-size: 1.625rem;
+    width: 80px;
+    height: 80px;
+    font-size: 2rem;
     box-shadow: 0 0 0 4px var(--fond);
   }
-  .etiquette-campus {
-    color: var(--marque-appuyee);
-    font-family: var(--police-titre);
-    font-weight: 700;
+  /* La ligne sous le nom : « Site 1 · Maternelle à collège · CSLP · depuis 2009 », puis le lieu (téléphone). */
+  .fiche-ligne {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-2);
+    color: var(--texte-doux);
   }
-  .fiche-lieu {
+  .ligne-identite {
+    order: -1;
+  }
+  .fiche-lieu-ligne {
     display: flex;
     align-items: center;
     gap: var(--espace-1);
-    color: var(--texte-doux);
   }
-  .fiche-lieu :global(.ico) {
+  .fiche-lieu-ligne :global(.ico) {
+    flex: none;
     color: var(--marque);
   }
-  .fiche-lieu strong {
+  .fiche-lieu-ligne strong {
     color: var(--texte);
   }
-  .puces {
-    margin: var(--espace-1) 0 0;
+  .rangee-puces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+  }
+  .puces,
+  .preuves {
+    display: contents;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  /* Les preuves : une pastille par preuve, la source et la date sur une ligne. */
-  .preuves {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--espace-2);
-    margin-top: var(--espace-1);
-  }
+  /* Les preuves : des pastilles dans la même rangée que les niveaux (planche). */
   .preuves .preuve {
+    display: inline-flex;
     align-items: center;
     gap: var(--espace-2);
     min-height: 34px;
@@ -636,8 +738,14 @@ const joursRestants = (n: number) =>
     color: var(--preuve-terrain);
     font-weight: 700;
   }
+  /* « Confirmée par la direction » : une pastille claire, comme sur la planche. */
   .preuves .preuve-direction {
-    color: var(--preuve-direction-texte);
+    border-color: transparent;
+    background: var(--vert-pale);
+    color: var(--marque-appuyee);
+  }
+  .preuves .preuve-direction :global(.ico) {
+    color: var(--marque-appuyee);
   }
   .preuves .preuve-ecole {
     border-color: var(--preuve-ecole);
@@ -651,6 +759,7 @@ const joursRestants = (n: number) =>
     color: var(--texte-doux);
   }
   .lien-methode {
+    justify-self: start;
     display: inline-flex;
     align-items: center;
     min-height: var(--cible-min);
@@ -659,35 +768,26 @@ const joursRestants = (n: number) =>
     font-weight: 700;
   }
 
-  /* Les actions : une ligne de trois, ou deux lignes de deux. */
+  /* Les actions : deux par ligne sur téléphone (planche : « Y aller » et « WhatsApp », puis « Appeler » et « Partager »). */
   .fiche-actions {
-    display: flex;
-    gap: var(--espace-2);
-  }
-  .fiche-actions .bouton {
-    flex: 1;
-    gap: 6px;
-    min-width: 0;
-    padding-inline: var(--espace-1);
-    font-size: 0.9375rem;
-  }
-  .fiche-actions-trois .bouton:first-child {
-    flex-grow: 1.3;
-  }
-  .fiche-actions-quatre {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--espace-3);
+  }
+  .fiche-actions-impair .bouton:first-child {
+    grid-column: span 2;
+  }
+  .fiche-actions .bouton {
+    gap: var(--espace-2);
+    min-width: 0;
+    min-height: 3.25rem;
+    padding-inline: var(--espace-2);
   }
   /* Le bouton « Partager » dit qu'il a copié le lien. */
   .fiche-actions .copie {
     border-color: var(--preuve-terrain);
     background: var(--vert-pale);
     color: var(--marque-appuyee);
-  }
-  @media (max-width: 24rem) {
-    .fiche-actions :global(.ico) {
-      display: none;
-    }
   }
 
   /* Sur téléphone, les blocs se suivent. Le titre d'« À savoir » et de « Contact » ne sert qu'en colonnes. */
@@ -751,8 +851,10 @@ const joursRestants = (n: number) =>
     scroll-margin-top: 3.5rem;
   }
 
-  /* La couverture photographiée : la même place que la couverture dessinée, recadrée. */
-  .couverture-photo {
+  /* La couverture : une vraie photo, recadrée ; sans photo, une bande unie (plus de bannière dessinée). */
+  .couverture-photo,
+  .couverture-unie {
+    display: block;
     width: 100%;
     height: 168px;
     object-fit: cover;
@@ -763,8 +865,8 @@ const joursRestants = (n: number) =>
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 64px;
-    height: 64px;
+    width: 80px;
+    height: 80px;
     overflow: hidden;
     border-radius: 50%;
     box-shadow: 0 0 0 4px var(--fond);
@@ -785,10 +887,6 @@ const joursRestants = (n: number) =>
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-  .fiche-ligne {
-    color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
   }
   /* La barre des rubriques : des ancres de la même page ; elle reste en haut au défilement et défile seule de côté. */
   .rubriques {
@@ -813,6 +911,11 @@ const joursRestants = (n: number) =>
     text-decoration: none;
     white-space: nowrap;
   }
+  /* La première rubrique est soulignée, comme sur la planche. */
+  .rubriques a:first-child {
+    color: var(--marque);
+    box-shadow: inset 0 -3px 0 var(--marque);
+  }
   @media (hover: hover) {
     .rubriques a:hover {
       color: var(--marque);
@@ -835,11 +938,36 @@ const joursRestants = (n: number) =>
   .titre-ordinateur {
     display: none;
   }
-  .a-savoir,
   .contact,
   .photos {
     display: grid;
     gap: var(--espace-3);
+  }
+  /* « Contact » : le titre, puis une carte de lignes (téléphone) ; sur ordinateur, le titre entre dans la carte. */
+  .carte-contact {
+    display: grid;
+    gap: var(--espace-3);
+    padding: var(--espace-1) var(--espace-4) var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .carte-contact :global(.lignes-fiche) {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .contact-alerte {
+    display: block;
+    padding: var(--espace-3);
+    border-radius: var(--rayon-s);
+    background: var(--statut-attention-fond);
+    color: var(--statut-attention-texte);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .seulement-ordi {
+    display: none;
   }
   .bloc {
     border: 2px solid var(--trait);
@@ -857,7 +985,25 @@ const joursRestants = (n: number) =>
     color: var(--rouge);
   }
   .ou-carte {
-    justify-self: start;
+    justify-self: stretch;
+  }
+  .ou-plan {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--rayon-m);
+  }
+  .ou-plan-lien {
+    position: absolute;
+    pointer-events: none;
+    top: var(--espace-2);
+    right: var(--espace-2);
+    padding: 2px var(--espace-3);
+    border-radius: var(--rayon-pilule);
+    background: var(--fond-releve);
+    color: var(--marque);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+    text-decoration: none;
   }
 
   /* L'invitation aux directions : le bandeau clair de la maquette, pas le bandeau sombre des pages de zone. */
@@ -903,9 +1049,7 @@ const joursRestants = (n: number) =>
   /* L'identifiant, permanent : en pied de fiche sur téléphone, dans un cadre en colonnes. */
   .identifiant {
     display: grid;
-    gap: var(--espace-1);
-    padding-top: var(--espace-3);
-    border-top: 1px solid var(--trait);
+    gap: 0;
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
     overflow-wrap: anywhere;
@@ -937,57 +1081,75 @@ const joursRestants = (n: number) =>
     .fiche-couverture {
       margin-inline: 0;
     }
+    /* Le rond à cheval sur la couverture, le nom à sa droite ; puces et boutons dessous, alignés à gauche (planche). */
     .fiche-tete {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: var(--espace-4) var(--espace-6);
-      margin-top: -60px;
+      gap: var(--espace-4);
+      margin-top: 0;
       padding-left: var(--espace-5);
     }
-    /* Assez étroit pour laisser quatre boutons à droite du nom, à 1 280 px. */
-    .fiche-identite {
-      flex: 1 1 30rem;
+    .fiche-nom {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--espace-5);
+    }
+    .fiche-nom > .rond-ecole,
+    .fiche-nom > .disque-fiche {
+      margin-top: -50px;
+    }
+    .fiche-titres {
+      gap: var(--espace-1);
+      padding-top: var(--espace-2);
+    }
+    .disque-fiche,
+    .rond-ecole {
+      flex: none;
+      width: 100px;
+      height: 100px;
+      box-shadow: 0 0 0 6px var(--fond);
     }
     .disque-fiche {
-      width: 84px;
-      height: 84px;
-      font-size: 2.25rem;
-      box-shadow: 0 0 0 6px var(--fond);
-    }
-    .rond-ecole {
-      width: 84px;
-      height: 84px;
-      box-shadow: 0 0 0 6px var(--fond);
+      font-size: 2.5rem;
     }
     .rond-sigle {
-      font-size: 1.375rem;
+      font-size: 1.625rem;
     }
-    .couverture-photo {
-      height: 220px;
+    .fiche-tete > .rangee-puces,
+    .fiche-tete > .lien-methode,
+    .fiche-tete > .fiche-actions {
+      margin-left: calc(var(--espace-5) * -1);
+    }
+    .fiche-ligne {
+      display: block;
+    }
+    .fiche-lieu-ligne,
+    .fiche-lieu-ligne > span {
+      display: inline;
+    }
+    .fiche-lieu-ligne :global(.ico) {
+      display: inline-block;
+      vertical-align: -3px;
+      margin-inline-end: var(--espace-1);
+    }
+    .ligne-identite::before {
+      content: ' · ' / '';
+    }
+    .couverture-photo,
+    .couverture-unie {
+      height: 240px;
       border-radius: var(--rayon-l);
     }
     .rubriques {
       margin-inline: 0;
       padding: 0;
     }
-    .fiche-lieu {
-      font-size: var(--taille-intertitre);
-    }
-    .preuves {
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .fiche-actions,
-    .fiche-actions-quatre {
+    .fiche-actions {
       display: flex;
       flex-wrap: wrap;
+      gap: var(--espace-2);
     }
     .fiche-actions .bouton {
       flex: none;
-      gap: var(--espace-2);
+      min-height: var(--cible-min);
       padding-inline: 1.25rem;
     }
     /* La colonne de la fiche garde la largeur d'une ligne de texte : cartes et texte alignés. */
@@ -1025,10 +1187,33 @@ const joursRestants = (n: number) =>
       gap: var(--espace-5);
       min-width: 0;
     }
-    .identifiant {
-      padding: var(--espace-3) var(--espace-4);
+    .lien-methode {
+      display: none;
+    }
+    .seulement-ordi {
+      display: block;
+    }
+    .cache-ordi {
+      display: none;
+    }
+    .galerie-avant {
+      order: 5;
+    }
+    /* Sur ordinateur, la carte « Contact » porte son titre (planche). */
+    .contact {
+      gap: var(--espace-2);
+      padding: var(--espace-4);
       border: 1px solid var(--trait);
       border-radius: var(--rayon-m);
+      background: var(--fond-releve);
+    }
+    .contact h2 {
+      font-size: var(--taille-intertitre);
+    }
+    .carte-contact {
+      padding: 0;
+      border: 0;
+      background: none;
     }
   }
 </style>

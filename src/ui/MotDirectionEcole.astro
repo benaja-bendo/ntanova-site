@@ -1,5 +1,6 @@
 ---
-// Le mot de la direction (ticket 148) : une parole de l'école, entre guillemets et datée, loin des preuves.
+// Le mot de la direction (ticket 148 ; lot 3, planche « Fiche publique ») : en tête, « Le mot de la direction · [date] » en
+// petites capitales, puis la parole de l'école entre guillemets, en caractères de titre. Loin des preuves.
 import type { MotDirection } from '../modele/mot-direction';
 import { dateLongue } from '../modele/pointe-noire';
 
@@ -10,25 +11,37 @@ const { mot } = Astro.props;
 ---
 
 <figure class="mot-direction">
+  <figcaption>Le mot de la direction · {dateLongue(mot.ditLe)}</figcaption>
   <blockquote>«&nbsp;{mot.texte}&nbsp;»</blockquote>
-  <figcaption>Le mot de la direction, {dateLongue(mot.ditLe)}</figcaption>
 </figure>
 
 <style>
   .mot-direction {
     display: grid;
-    gap: var(--espace-1);
+    gap: var(--espace-2);
     margin: 0;
-    padding: var(--espace-3) var(--espace-4);
+    padding: var(--espace-4);
     border-radius: var(--rayon-m);
     background: var(--fond-bande);
   }
   blockquote {
     margin: 0;
+    font-family: var(--police-titre);
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.35;
     overflow-wrap: anywhere;
   }
   figcaption {
     color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  @media (min-width: 48rem) {
+    blockquote {
+      font-size: 1.3125rem;
+    }
   }
 </style>
