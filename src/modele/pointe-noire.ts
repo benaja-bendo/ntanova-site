@@ -18,6 +18,15 @@ export function dateLongue(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** « 15 nov. » : le jour et le mois, à l’heure du Congo (jamais « Aujourd’hui », qui ne se lit pas après « le »). */
+export function jourEtMois(iso: string): string {
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Africa/Brazzaville',
+  }).format(new Date(iso));
+}
+
 /** Date courte des preuves publiques, à l’heure du Congo. */
 export function dateCourte(iso: string): string {
   return new Intl.DateTimeFormat('fr-FR', {

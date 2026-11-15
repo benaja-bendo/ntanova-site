@@ -1,5 +1,7 @@
 import { versEquipement, type LigneEquipement } from './equipements';
 import { versFrais, type LigneFrais } from './frais';
+import { finDeLAnnonce } from '../../modele/places-effectifs';
+import type { DemandeFamille } from '../../modele/demandes-familles';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Point } from '../../modele/geo';
 import { heriterDeLOrigine, type OrigineDeLaCorrection } from '../../modele/acceptation';
@@ -246,6 +248,21 @@ interface LigneCampus {
   // Un lien « un pour un » (la clé du mot est celle de l'école) : l'API rend un objet, ou rien.
   campus_statements?: { body: string; stated_on: string } | { body: string; stated_on: string }[] | null;
   campus_enrollment_deadlines?: LigneDateInscription[];
+  /** Lot 1 du site public (15/11) : les places annoncées et l'effectif des classes. */
+  campus_openings?: LigneClasse<Valeur<'opening_state'>>[];
+  campus_class_sizes?: LigneClasse<Valeur<'class_size_band'>>[];
+}
+
+/** Une ligne de `campus_openings` (`state`) ou de `campus_class_sizes` (`band`). */
+interface LigneClasse<V extends string> {
+  id: string;
+  cycle: Valeur<'niveau'>;
+  level_label: string | null;
+  state?: V;
+  band?: V;
+  detail: string | null;
+  said_on: string;
+  expires_on?: string | null;
 }
 
 interface LigneAgrement {
@@ -299,7 +316,8 @@ const COLONNES_CAMPUS =
   'id, public_number, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
   'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, same_place_as_campus_id, ' +
   'institutions(name, kind), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
-  'campus_cycles(cycle, campus_programs(id, title)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*)';
+  'campus_cycles(cycle, campus_programs(id, title)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*), ' +
+  'campus_openings(*), campus_class_sizes(*)';
 
 /** La réponse de `campus_purge_preview`, lue avec tolérance : un champ qui manque vaut zéro, jamais une erreur. */
 const lireApercuSuppression = (donnees: unknown): ApercuSuppression => {
@@ -361,6 +379,23 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     repere: e.landmark,
     numeroEnseigne: e.sign_phone,
     frais: (e.campus_fees ?? []).map(versFrais),
+    places: (e.campus_openings ?? []).map((o) => ({
+      id: o.id,
+      cycle: o.cycle,
+      classe: o.level_label,
+      etat: o.state ?? 'autre',
+      precision: o.detail,
+      ditLe: o.said_on,
+      finLe: o.expires_on ?? finDeLAnnonce(o.said_on),
+    })),
+    effectifs: (e.campus_class_sizes ?? []).map((t) => ({
+      id: t.id,
+      cycle: t.cycle,
+      classe: t.level_label,
+      tranche: t.band ?? 'autre',
+      precision: t.detail,
+      ditLe: t.said_on,
+    })),
     equipements: (e.campus_facts ?? []).map(versEquipement),
     contactPublic: e.public_phone && e.public_phone_agreed_on ? { numero: e.public_phone, accordLe: e.public_phone_agreed_on } : null,
     formations: e.campus_cycles.reduce((n, c) => n + c.campus_programs.length, 0),
@@ -1712,6 +1747,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         p_program: frais.formationId ?? null,
         p_evidence: frais.photoPreuve ? 'prospectus' : 'declaration',
         p_proof_photo: frais.photoPreuve ?? null,
+        // Lot 2 (15/11) : toujours envoyés ; sinon une modification les effacerait.
+        p_billed_months: frais.periode === 'mois' ? (frais.moisFactures ?? null) : null,
       });
       decider(error);
       return data as string;
@@ -1719,6 +1756,97 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
     async retirerFraisEcole(ecoleId, id) {
       const { error } = await supabase().rpc('withdraw_school_fee', { p_campus: ecoleId, p_fee: id });
       decider(error);
+    },
+    async confirmerFraisEcole(ecoleId, confirmeLe) {
+      const { data, error } = await supabase().rpc('confirm_school_fees', {
+        p_campus: ecoleId,
+        p_confirmed_on: confirmeLe,
+      });
+      decider(error);
+      return Number(data ?? 0);
+    },
+    async enregistrerPlaces(ecoleId, p, id) {
+      const { data, error } = await supabase().rpc('set_campus_opening', {
+        p_campus: ecoleId,
+        p_opening: id,
+        p_cycle: p.cycle,
+        p_level_label: p.classe,
+        p_state: p.etat,
+        p_detail: p.precision,
+        p_said_on: p.ditLe,
+      });
+      decider(error);
+      return data as string;
+    },
+    async retirerPlaces(ecoleId, id) {
+      const { error } = await supabase().rpc('withdraw_campus_opening', {
+        p_campus: ecoleId,
+        p_opening: id,
+      });
+      decider(error);
+    },
+    async enregistrerEffectif(ecoleId, t, id) {
+      const { data, error } = await supabase().rpc('set_campus_class_size', {
+        p_campus: ecoleId,
+        p_size: id,
+        p_cycle: t.cycle,
+        p_level_label: t.classe,
+        p_band: t.tranche,
+        p_detail: t.precision,
+        p_said_on: t.ditLe,
+      });
+      decider(error);
+      return data as string;
+    },
+    async retirerEffectif(ecoleId, id) {
+      const { error } = await supabase().rpc('withdraw_campus_class_size', {
+        p_campus: ecoleId,
+        p_size: id,
+      });
+      decider(error);
+    },
+    async demandesDesFamilles(depuis) {
+      // Jamais la clé du téléphone (`device_day_key`) : l'administration lit le sujet et le jour, rien d'autre.
+      const lignes = await toutesLesLignes<{
+        kind: Valeur<'family_demand_kind'>;
+        demand_day: string;
+        campus_id: string | null;
+        profile: Valeur<'orientation_profile'> | null;
+        rhythm: Valeur<'study_rhythm'> | null;
+        bac_track: Valeur<'bac_track'> | null;
+        campuses: { label: string | null; institutions: { name: string } | null } | null;
+        education_domains: { name: string } | null;
+        geo_divisions: { name: string } | null;
+      }>((de, a) =>
+        supabase()
+          .from('family_demands')
+          .select(
+            'kind, demand_day, campus_id, profile, rhythm, bac_track, campuses(label, institutions(name)), education_domains(name), geo_divisions(name)',
+          )
+          .gte('demand_day', depuis)
+          .order('demand_day', { ascending: false })
+          .order('id')
+          .range(de, a),
+      );
+      return lignes.map(
+        (l): DemandeFamille => ({
+          genre: l.kind,
+          jour: l.demand_day,
+          ecole: l.campus_id
+            ? {
+                id: l.campus_id,
+                nom:
+                  [l.campuses?.institutions?.name, l.campuses?.label].filter(Boolean).join(' · ') ||
+                  'École sans nom',
+              }
+            : null,
+          profil: l.profile,
+          domaine: l.education_domains?.name ?? null,
+          lieu: l.geo_divisions?.name ?? null,
+          rythme: l.rhythm,
+          serie: l.bac_track,
+        }),
+      );
     },
 
     async enregistrerAgrement(ecoleId, a) {
@@ -1796,7 +1924,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const { data, error } = await supabase()
         .from('campus_cycles')
         .select(
-          'cycle, campus_programs(id, title, duration_years, admission_level, selection, application_fee_xaf, diploma_issuer, details_declared_on, diploma, rhythms, education_domains(slug), campus_fees(minimum, period, declared_on), campus_accreditations(id, reference, issued_on, evidence))',
+          'cycle, campus_programs(id, title, duration_years, admission_level, selection, application_fee_xaf, diploma_issuer, details_declared_on, diploma, rhythms, accepted_bac_tracks, education_domains(slug), campus_fees(minimum, period, declared_on), campus_accreditations(id, reference, issued_on, evidence))',
         )
         .eq('campus_id', ecoleId)
         .in('cycle', ['superieur', 'technique', 'autre_formation']);
@@ -1814,6 +1942,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           details_declared_on: string | null;
           diploma: Valeur<'diploma_kind'> | null;
           rhythms: Valeur<'study_rhythm'>[] | null;
+          accepted_bac_tracks?: Valeur<'bac_track'>[] | null;
           education_domains: { slug: string } | null;
           campus_fees: { minimum: number; period: string; declared_on: string | null }[] | null;
           campus_accreditations:
@@ -1837,6 +1966,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
             diplome: p.diploma,
             domaine: p.education_domains?.slug ?? null,
             rythmes: p.rhythms ?? [],
+            seriesAdmises: p.accepted_bac_tracks ?? null,
             fraisParAn:
               (p.campus_fees ?? [])
                 .filter((f) => f.period === 'annee')
@@ -1872,6 +2002,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           diploma: f.diplome,
           domain: f.domaine,
           rhythms: f.rythmes,
+          // Lot 2 (15/11) : une liste vide se lit « pas dit » ; absente, la base garde ce qu'elle a.
+          ...(f.seriesAdmises ? { accepted_bac_tracks: f.seriesAdmises.length ? f.seriesAdmises : null } : {}),
           duration_years: f.dureeAnnees,
           diploma_issuer: f.delivrePar?.trim() || null,
           admission_level: f.niveauDemande?.trim() || null,

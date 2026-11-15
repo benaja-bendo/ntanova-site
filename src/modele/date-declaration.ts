@@ -9,6 +9,12 @@ export function jourDuCongo(quand: Date = new Date()): string {
   const valeurs = Object.fromEntries(parts.map((p) => [p.type, p.value]));
   return `${valeurs.year}-${valeurs.month}-${valeurs.day}`;
 }
+/** Le jour (ISO) décalé de `jours` (négatif : avant), compté à midi pour ne jamais basculer de jour. */
+export function ajouterJours(jour: string, jours: number): string {
+  const d = new Date(`${jour}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + jours);
+  return d.toISOString().slice(0, 10);
+}
 export function dateDeclareeValide(jour: string, aujourdHui = jourDuCongo()): boolean {
   return (
     /^\d{4}-\d{2}-\d{2}$/.test(jour) &&

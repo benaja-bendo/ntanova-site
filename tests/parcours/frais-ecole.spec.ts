@@ -34,8 +34,9 @@ test('frais déclarés : ajout, relecture, modification et retrait, sans badge n
   await premiere.getByLabel('Montant (FCFA)').fill('25 000 - 30 000');
   await premiere.getByLabel('Période', { exact: true }).selectOption('mois');
   await enregistrer.click();
+  // Depuis le lot 1 du site public (15/11), une ligne ne paraît qu'avec le OUI daté de l'école : l'écran le dit.
   await expect(page.getByRole('status').first()).toContainText(
-    'Visible à la prochaine mise à jour du site',
+    'elle attend le OUI de l’école pour paraître sur le site',
   );
   // De retour sur la fiche : la carte « Frais » le dit ; la fiche reste prête, sans badge.
   const fiche = page.getByRole('article', { name: 'Fiche de [École 1]' });

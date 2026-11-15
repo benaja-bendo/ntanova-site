@@ -26,6 +26,54 @@ const ilYA = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOS
 const id = (prefixe: string, n: number) =>
   `${prefixe}-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
+/** Le jour `jours` après `ditLe` (la fin d'une annonce de places : dit le + 30). */
+const jourApres = (ditLe: string, jours: number) =>
+  new Date(Date.parse(`${ditLe}T12:00:00Z`) + jours * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Lot 2 du site public (15/11) : des demandes de familles comptées sans nom, pour voir « Les familles demandent ».
+ * Des vérifications de fiches, puis des tests d'orientation sans résultat ; une par jour et par téléphone, comme la base.
+ */
+const demandesDesFamilles = () => [
+  ...(
+    [
+      [PALMIERS, 'Complexe scolaire Les Palmiers · Site 1', [1, 2, 2, 4, 6, 9, 12]],
+      [MARCHE, 'École primaire du Marché', [3, 5, 8]],
+      [PRESCOLAIRE, 'Centre préscolaire du Marché', [20]],
+    ] as const
+  ).flatMap(([ecole, nom, jours]) =>
+    jours.map((j) => ({
+      genre: 'verification',
+      jour: jourIlYA(j),
+      ecole: { id: ecole, nom },
+      profil: null,
+      domaine: null,
+      lieu: null,
+      rythme: null,
+      serie: null,
+    })),
+  ),
+  ...(
+    [
+      ['bac', 'Informatique', 'Pointe-Noire', 'soir', null, [1, 3, 4, 7]],
+      ['bepc', 'Santé', 'Loandjili', null, null, [2, 6]],
+      ['bac', 'Droit', 'Pointe-Noire', 'jour', 'a', [10]],
+      ['adulte', 'Gestion', 'Pointe-Noire', 'weekend', null, [15]],
+    ] as const
+  ).flatMap(([profil, domaine, lieu, rythme, serie, jours]) =>
+    jours.map((j) => ({
+      genre: 'orientation',
+      jour: jourIlYA(j),
+      ecole: null,
+      profil,
+      domaine,
+      lieu,
+      rythme,
+      serie,
+    })),
+  ),
+];
+
 /** Une position autour d'un point, à `metres` vers le nord. */
 const auNord = (p: { latitude: number; longitude: number }, metres: number) => ({
   latitude: p.latitude + metres / 111_000,
@@ -233,6 +281,7 @@ export function etatDesPlanchesAdmin() {
       ]),
     ]),
     relaisDesReleves: relaisDe,
+    demandesFamilles: demandesDesFamilles(),
     campus: Object.fromEntries([
       campus(PALMIERS, 'Complexe scolaire Les Palmiers', {
         etiquette: 'Site 1',
@@ -274,6 +323,33 @@ export function etatDesPlanchesAdmin() {
           declaresLe: jourIlYA(20),
           note: null,
           preuve: 'prospectus',
+          // Lot 2 (15/11) : recopiées du prospectus, elles attendent le OUI de l'école pour paraître.
+          moisFactures: 10,
+          confirmeLe: null,
+        })),
+        places: [
+          ['pl-1', 'primaire', 'CP1', 'disponibles', null, jourIlYA(5)],
+          ['pl-2', 'college', '6e', 'peu', 'Deux places', jourIlYA(12)],
+          ['pl-3', 'maternelle', 'Petite section', 'complet', null, jourIlYA(45)],
+        ].map(([id, cycle, classe, etat, precision, ditLe]) => ({
+          id,
+          cycle,
+          classe,
+          etat,
+          precision,
+          ditLe,
+          finLe: jourApres(ditLe as string, 30),
+        })),
+        effectifs: [
+          ['ef-1', 'primaire', 'CP1', '35_a_49'],
+          ['ef-2', 'college', '6e', '50_et_plus'],
+        ].map(([id, cycle, classe, tranche]) => ({
+          id,
+          cycle,
+          classe,
+          tranche,
+          precision: null,
+          ditLe: jourIlYA(5),
         })),
         contactPublic: { numero: '242060000001', accordLe: jourIlYA(5) },
         motDirection: {

@@ -11,6 +11,7 @@ import { AdmissionEcole } from './AdmissionEcole';
 import { FormationsSuperieur } from './FormationsSuperieur';
 import { EquipementsEcole } from './EquipementsEcole';
 import { FraisEcole } from './FraisEcole';
+import { PlacesEffectifs } from './PlacesEffectifs';
 import { ContactPublic } from './ContactPublic';
 import { AgrementEcole } from './AgrementEcole';
 import { InscriptionsEcole } from './InscriptionsEcole';
@@ -138,6 +139,7 @@ function LigneEcole({
     | 'photo-publique'
     | 'equipements'
     | 'frais'
+    | 'places'
     | 'contact-public'
     | 'agrement'
     | 'mot-direction'
@@ -265,6 +267,18 @@ function LigneEcole({
           frais={e.frais ?? []}
           admin={admin}
           fermer={() => setMode(null)}
+          surChangement={signaler}
+        />
+      )}
+      {mode === 'places' && (
+        <PlacesEffectifs
+          surOccupation={setOperation}
+          ecoleId={e.id}
+          nom={e.nom}
+          cycles={e.niveaux}
+          places={e.places ?? []}
+          effectifs={e.effectifs ?? []}
+          admin={admin}
           surChangement={signaler}
         />
       )}
@@ -765,6 +779,7 @@ function LigneEcole({
       situer: 'Position',
       'contact-public': 'Contact et inscriptions',
       frais: 'Frais',
+      places: 'Places et effectifs',
       inscriptions: 'Inscriptions',
       equipements: 'Sur place',
       agrement: 'Agrément',

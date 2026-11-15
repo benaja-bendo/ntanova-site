@@ -24,7 +24,12 @@ import {
   type NouvelleAdmin,
 } from '../../modele/fiche-admin';
 import { libelleEquipement } from '../../modele/equipements-ecole';
+import { etatDuOui } from '../../modele/frais-ecole';
+import { jourDuCongo } from '../../modele/date-declaration';
+import { annonceEnCours, nomDeClasse, trierParClasse } from '../../modele/places-effectifs';
+import { dateCourte, jourEtMois } from '../../modele/pointe-noire';
 import {
+  libelleEtatPlaces,
   libelleNiveau,
   libelleRolePhotoCourt,
   libelleTypeEcole,
@@ -39,6 +44,7 @@ export type RubriqueFiche =
   | 'situer'
   | 'equipements'
   | 'frais'
+  | 'places'
   | 'contact-public'
   | 'inscriptions'
   | 'agrement'
@@ -188,6 +194,19 @@ export function FicheEcole({
     .map((i) => i.limite)
     .sort()
     .at(-1);
+  // Lot 2 du site public (15/11) : le OUI de l'école sur ses frais ; les places annoncées encore sur le site.
+  const ouiFrais = etatDuOui(e.frais ?? []);
+  const placesEnCours = trierParClasse(
+    (e.places ?? []).filter((p) => annonceEnCours(p, jourDuCongo())),
+  );
+  const effectifs = e.effectifs ?? [];
+  const placesEnMots = placesEnCours
+    .slice(0, 3)
+    .map(
+      (p) =>
+        `${nomDeClasse(p)} : ${p.etat === 'autre' ? (p.precision ?? 'autre') : libelleEtatPlaces[p.etat].toLocaleLowerCase('fr')}`,
+    )
+    .join(' · ');
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -429,8 +448,39 @@ export function FicheEcole({
                 ? `${(e.frais ?? []).length} ligne${(e.frais ?? []).length > 1 ? 's' : ''} par classe${(e.frais ?? []).some((f) => f.inscription !== null) ? ' · inscription' : ''}`
                 : 'Aucune ligne'
             }
-            manque={(e.frais ?? []).length === 0 ? 'À demander' : null}
+            detail={
+              ouiFrais.etat === 'confirme' ? `OUI de l’école le ${dateCourte(ouiFrais.le)}` : null
+            }
+            manque={
+              (e.frais ?? []).length === 0
+                ? 'À demander'
+                : ouiFrais.etat === 'attend'
+                  ? 'En attente du OUI de l’école'
+                  : null
+            }
             ouvrir={() => ouvrir('frais')}
+          />
+          <CarteRubrique
+            figee={figee}
+            titre="Places et effectifs"
+            resume={
+              placesEnCours.length > 0
+                ? `${placesEnMots}${placesEnCours.length > 3 ? '…' : ''}`
+                : 'Aucune place annoncée'
+            }
+            detail={
+              [
+                placesEnCours.length > 0
+                  ? `Sur le site jusqu’au ${jourEtMois(placesEnCours.map((p) => p.finLe).sort()[0]!)}`
+                  : null,
+                effectifs.length > 0
+                  ? `${effectifs.length} effectif${effectifs.length > 1 ? 's' : ''} de classe`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ') || 'Dit par l’école, classe par classe'
+            }
+            ouvrir={() => ouvrir('places')}
           />
           {superieur && (
             <CarteRubrique
@@ -446,7 +496,7 @@ export function FicheEcole({
             resume={
               [
                 e.contactPublic?.numero ?? null,
-                derniereInscription ? `jusqu'au ${jour(derniereInscription)}` : null,
+                derniereInscription ? `jusqu'au ${jourEtMois(derniereInscription)}` : null,
               ]
                 .filter(Boolean)
                 .join(' · ') || 'Aucun contact public'
@@ -464,7 +514,7 @@ export function FicheEcole({
                 ? `« ${e.motDirection.texte.slice(0, 60)}${e.motDirection.texte.length > 60 ? '…' : ''} »`
                 : 'Pas encore remis'
             }
-            detail={e.motDirection ? `Remis le ${jour(e.motDirection.ditLe)}` : null}
+            detail={e.motDirection ? `Remis le ${jourEtMois(e.motDirection.ditLe)}` : null}
             ouvrir={() => ouvrir('mot-direction')}
           />
           <CarteRubrique

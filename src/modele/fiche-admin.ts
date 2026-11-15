@@ -207,6 +207,8 @@ export interface FormationDuSuperieur {
   /** Les frais par an (FCFA), une ligne « par an » liée à la formation. */
   fraisParAn?: number | null;
   autorisation?: AutorisationFormation | null;
+  /** Lot 2 du site public (15/11) : les séries du bac que la formation admet, dites par l'école ; vide ou nul : pas dit. */
+  seriesAdmises?: Valeur<'bac_track'>[] | null;
 }
 
 /** L'autorisation d'une formation : la référence de l'arrêté, sa date, et sur quoi NTanova l'a vue. */
@@ -227,6 +229,8 @@ export interface FicheFormation extends DetailsFormation {
   fraisParAn: number | null;
   /** Nulle : « Pas encore vue » (une autorisation déjà saisie est retirée). */
   autorisation: AutorisationFormation | null;
+  /** Lot 2 (15/11) : les séries du bac admises ; vide : pas dit. Absent : la fiche n'y touche pas. */
+  seriesAdmises?: Valeur<'bac_track'>[];
 }
 
 /** Ce qui ne va pas dans le tiroir, en une phrase, ou nul. */

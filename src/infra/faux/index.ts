@@ -24,7 +24,24 @@ import {
   saisieDeEquipement,
   type Equipement,
 } from '../../modele/equipements-ecole';
-import { lireFraisEcole, saisieDeFrais, type FraisEcole } from '../../modele/frais-ecole';
+import {
+  erreurDuOui,
+  etatDuOui,
+  ligneChangee,
+  lireFraisEcole,
+  saisieDeFrais,
+  type FraisEcole,
+} from '../../modele/frais-ecole';
+import {
+  finDeLAnnonce,
+  lireEffectif,
+  lirePlaces,
+  saisieDEffectif,
+  saisieDePlaces,
+  type EffectifClasse,
+  type PlacesAnnoncees,
+} from '../../modele/places-effectifs';
+import type { DemandeFamille } from '../../modele/demandes-familles';
 import { lireAccordContactPublic, type ContactPublic } from '../../modele/contact-public';
 import { lireAgrement, type AgrementEnregistre } from '../../modele/agrement';
 import { lireDateInscription, type DateInscription } from '../../modele/inscriptions';
@@ -99,6 +116,9 @@ interface PhotoFausse {
 
 /** Une institution et son campus, réunis (le faux serveur n'a qu'un campus par institution, sauf ajout). */
 interface CampusFaux {
+  /** Lot 2 du site public (15/11) : les places annoncées et l'effectif des classes, dits par l'école. */
+  places?: PlacesAnnoncees[];
+  effectifs?: EffectifClasse[];
   agrements?: AgrementEnregistre[];
   motDirection?: MotDirection | null;
   inscriptions?: DateInscription[];
@@ -144,7 +164,12 @@ interface CampusFaux {
   /** Lot 2 (14/11) : les frais par an et l'autorisation d'une formation (tiroir « modifier une formation »). */
   ficheFormations?: Record<
     string,
-    { fraisParAn: number | null; autorisation: AutorisationFormation | null }
+    {
+      fraisParAn: number | null;
+      autorisation: AutorisationFormation | null;
+      /** Lot 2 (15/11) : les séries du bac admises ; nul : pas dit. */
+      seriesAdmises?: Valeur<'bac_track'>[] | null;
+    }
   >;
   verifieeLe?: string | null;
   /** Lot G : l'école voisine au même lieu. */
@@ -206,6 +231,8 @@ function personnesDe(e: Etat, releveId: string): [string, ContactFaux][] {
 const TROIS_PERSONNES = 'Une fiche a trois personnes à contacter au plus.';
 
 interface Etat {
+  /** Lot 2 du site public (15/11) : les demandes des familles, sans nom ni numéro (comme `family_demands`). */
+  demandesFamilles?: DemandeFamille[];
   /** Le scénario « admin » : le relais de chaque fiche, et la liste des relais de l'administration. */
   relaisDesReleves?: Record<string, string>;
   relaisDeLAdmin?: Awaited<ReturnType<PortAdministration['relais']>>;
@@ -1019,6 +1046,8 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     repere: c.repere ?? null,
     numeroEnseigne: c.numeroEnseigne ?? null,
     frais: c.frais ?? [],
+    places: c.places ?? [],
+    effectifs: c.effectifs ?? [],
     equipements: c.equipements ?? [],
     contactPublic: c.contactPublic ?? null,
     formations: (c.formations ?? []).length,
@@ -2509,14 +2538,114 @@ const admin: PortAdministration = {
         'Une ligne existe déjà pour cette classe, cette période et cette année scolaire : modifie-la.',
       );
     const identifiant = id ?? crypto.randomUUID();
+    // Comme `set_school_fee` (lot 1) : une ligne neuve attend le OUI de l'école ; une ligne modifiée le perd.
+    const avant = (c.frais ?? []).find((f) => f.id === id);
+    const garde =
+      avant?.confirmeLe &&
+      !ligneChangee(avant, resultat.frais) &&
+      (avant.photoPreuve ?? null) === (resultat.frais.photoPreuve ?? null)
+        ? avant.confirmeLe
+        : null;
     ecrire((e) => {
       const c = e.campus[ecoleId]!;
       c.frais = [
         ...(c.frais ?? []).filter((f) => f.id !== identifiant),
-        { ...resultat.frais!, id: identifiant },
+        {
+          ...resultat.frais!,
+          id: identifiant,
+          preuve: resultat.frais!.photoPreuve ? 'prospectus' : 'declaration',
+          confirmeLe: garde,
+        },
       ];
     });
     return identifiant;
+  },
+  async confirmerFraisEcole(ecoleId, confirmeLe) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    if (!c) throw new ErreurDecision('École introuvable.');
+    const oui = etatDuOui(c.frais ?? []);
+    if (oui.etat !== 'attend')
+      throw new ErreurDecision('Aucune ligne de frais n’attend le OUI de cette école.');
+    const erreur = erreurDuOui(confirmeLe, oui.auPlusTot);
+    if (erreur) throw new ErreurDecision(erreur);
+    ecrire((e) => {
+      const campus = e.campus[ecoleId]!;
+      campus.frais = (campus.frais ?? []).map((f) => (f.confirmeLe ? f : { ...f, confirmeLe }));
+    });
+    return oui.lignes;
+  },
+  async enregistrerPlaces(ecoleId, places, id) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    if (!c) throw new ErreurDecision('École introuvable.');
+    if (id && !(c.places ?? []).some((p) => p.id === id))
+      throw new ErreurDecision('Annonce introuvable.');
+    const lu = lirePlaces(saisieDePlaces(places), c.niveaux ?? []);
+    if (!lu.places) throw new ErreurDecision(lu.erreur!);
+    if (
+      (c.places ?? []).some(
+        (p) => p.id !== id && p.cycle === places.cycle && p.classe === lu.places!.classe,
+      )
+    )
+      throw new ErreurDecision('Une annonce existe déjà pour cette classe : modifie-la.');
+    const identifiant = id ?? crypto.randomUUID();
+    ecrire((e) => {
+      const campus = e.campus[ecoleId]!;
+      campus.places = [
+        ...(campus.places ?? []).filter((p) => p.id !== identifiant),
+        { ...lu.places!, id: identifiant, finLe: finDeLAnnonce(lu.places!.ditLe) },
+      ];
+    });
+    return identifiant;
+  },
+  async retirerPlaces(ecoleId, id) {
+    await reseau();
+    if (!(lireEtat().campus[ecoleId]?.places ?? []).some((p) => p.id === id))
+      throw new ErreurDecision('Annonce introuvable.');
+    ecrire((e) => {
+      const campus = e.campus[ecoleId]!;
+      campus.places = (campus.places ?? []).filter((p) => p.id !== id);
+    });
+  },
+  async enregistrerEffectif(ecoleId, effectif, id) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    if (!c) throw new ErreurDecision('École introuvable.');
+    if (id && !(c.effectifs ?? []).some((t) => t.id === id))
+      throw new ErreurDecision('Effectif introuvable.');
+    const lu = lireEffectif(saisieDEffectif(effectif), c.niveaux ?? []);
+    if (!lu.effectif) throw new ErreurDecision(lu.erreur!);
+    if (
+      (c.effectifs ?? []).some(
+        (t) => t.id !== id && t.cycle === effectif.cycle && t.classe === lu.effectif!.classe,
+      )
+    )
+      throw new ErreurDecision('Un effectif existe déjà pour cette classe : modifie-le.');
+    const identifiant = id ?? crypto.randomUUID();
+    ecrire((e) => {
+      const campus = e.campus[ecoleId]!;
+      campus.effectifs = [
+        ...(campus.effectifs ?? []).filter((t) => t.id !== identifiant),
+        { ...lu.effectif!, id: identifiant },
+      ];
+    });
+    return identifiant;
+  },
+  async retirerEffectif(ecoleId, id) {
+    await reseau();
+    if (!(lireEtat().campus[ecoleId]?.effectifs ?? []).some((t) => t.id === id))
+      throw new ErreurDecision('Effectif introuvable.');
+    ecrire((e) => {
+      const campus = e.campus[ecoleId]!;
+      campus.effectifs = (campus.effectifs ?? []).filter((t) => t.id !== id);
+    });
+  },
+  async demandesDesFamilles(depuis) {
+    await reseau();
+    return (lireEtat().demandesFamilles ?? [])
+      .filter((d) => d.jour >= depuis)
+      .sort((a, b) => b.jour.localeCompare(a.jour));
   },
   async retirerFraisEcole(ecoleId, id) {
     await reseau();
@@ -2636,6 +2765,7 @@ const admin: PortAdministration = {
           rythmes: f.rythmes,
           fraisParAn: c?.ficheFormations?.[id]?.fraisParAn ?? null,
           autorisation: c?.ficheFormations?.[id]?.autorisation ?? null,
+          seriesAdmises: c?.ficheFormations?.[id]?.seriesAdmises ?? null,
         };
       });
   },
@@ -2697,7 +2827,14 @@ const admin: PortAdministration = {
       delete detailsF[formationId];
       delete fiches[formationId];
       detailsF[nouvelId] = sansDetail(details) ? detailsVides() : details;
-      fiches[nouvelId] = { fraisParAn, autorisation };
+      // Comme `save_program_sheet` : une liste vide se lit « pas dit » ; absente, la fiche garde ce qu'elle avait.
+      const series =
+        fiche.seriesAdmises === undefined
+          ? (campus.ficheFormations?.[formationId]?.seriesAdmises ?? null)
+          : fiche.seriesAdmises.length
+            ? [...new Set(fiche.seriesAdmises)]
+            : null;
+      fiches[nouvelId] = { fraisParAn, autorisation, seriesAdmises: series };
       campus.detailsFormations = detailsF;
       campus.ficheFormations = fiches;
     });
