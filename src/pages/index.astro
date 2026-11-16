@@ -21,10 +21,9 @@ import { provenanceDe } from '../modele/libelles';
 import { ligneDeEcole, niveauxEnMots } from '../modele/ligne-ecole';
 import { LIEN_METHODE } from '../modele/pages-de-confiance';
 import { dateCourte } from '../modele/pointe-noire';
-import { cheminMedia } from '../modele/vitrine';
 import Icone from '../ui/Icone.astro';
-import Marque from '../ui/Marque.astro';
 import PagePublique from '../ui/PagePublique.astro';
+import VignetteEcole from '../ui/VignetteEcole.astro';
 import '../ui/carte-pieces.css';
 
 const { arbre, ecoles } = await obtenirSite();
@@ -39,14 +38,14 @@ const recentes = vuesRecemment(ecoles).map((e) => {
   return {
     url: ligne.url,
     nom: e.nom,
-    lettre: ligne.lettre,
     lettres: ligne.lettres,
     niveaux: niveauxEnMots(e.niveaux),
     lieu: ligne.lieu,
     confirmee,
     // La date ne se coupe pas : une preuve longue passe à la ligne avant elle (« … direction · » puis « 4 nov. 2026 »).
     preuve: `${confirmee ? 'Confirmée par la direction' : 'Vue sur place'}${date ? ` · ${dateCourte(date).replace(/ /g, '\u00a0')}` : ''}`,
-    couverture: e.medias?.couverture ?? null,
+    // La vignette de la version 44 : sa photo de couverture, sinon le fond pierre et le rond de l'école (lot 4).
+    ecole: e,
   };
 });
 ---
@@ -179,29 +178,7 @@ const recentes = vuesRecemment(ecoles).map((e) => {
           {recentes.map((r) => (
             <li>
               <a class="carte-recente" href={r.url}>
-                {r.couverture ? (
-                  <img
-                    class="recente-couverture"
-                    src={cheminMedia(r.couverture, 'vignette')}
-                    alt=""
-                    width="400"
-                    height="300"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ) : (
-                  <div
-                    class:list={[
-                      'recente-couverture',
-                      'recente-dessinee',
-                      r.lettre && `c-${r.lettre}`,
-                    ]}
-                    aria-hidden="true"
-                  >
-                    {r.lettre && <span class="recente-lettre" data-lettre={r.lettre} />}
-                    <Marque taille={16} />
-                  </div>
-                )}
+                <VignetteEcole ecole={r.ecole} />
                 <span class="recente-nom">{r.nom}</span>
                 {r.niveaux && (
                   <span class="recente-niveaux">
@@ -602,40 +579,10 @@ const recentes = vuesRecemment(ecoles).map((e) => {
     color: var(--texte);
     text-decoration: none;
   }
-  .recente-couverture {
-    width: 100%;
+  /* La vignette de la planche : 104 px de haut dans la carte de 220 px. */
+  .carte-recente :global(.vignette-ecole) {
     height: 104px;
-    border-radius: var(--rayon-s);
-    object-fit: cover;
-  }
-  /* Sans photo, la couverture dessinée des fiches (ticket 148) : la couleur et la lettre du cycle, les trois barres. */
-  .recente-dessinee {
-    position: relative;
-    overflow: hidden;
-    background-color: var(--cycle, var(--carte-epingle-neutre));
-    background-image: repeating-linear-gradient(
-      115deg,
-      var(--couverture-rayure) 0 3px,
-      transparent 3px 22px
-    );
-  }
-  .recente-lettre::before {
-    content: attr(data-lettre);
-  }
-  .recente-lettre {
-    position: absolute;
-    right: 12px;
-    bottom: -18px;
-    color: var(--couverture-lettre);
-    font-family: var(--police-titre);
-    font-size: 7.5rem;
-    font-weight: 700;
-    line-height: 1;
-  }
-  .recente-dessinee :global(.marque) {
-    position: absolute;
-    top: 10px;
-    left: 10px;
+    aspect-ratio: auto;
   }
   .recente-nom {
     font-family: var(--police-titre);

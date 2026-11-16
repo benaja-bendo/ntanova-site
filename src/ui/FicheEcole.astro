@@ -48,7 +48,6 @@ import {
 } from '../modele/carte/plan';
 import InscriptionsEcole from './InscriptionsEcole.astro';
 import LigneAgrement from './LigneAgrement.astro';
-import { cheminPhotoPublique } from '../modele/photos-publiques';
 import MotDirectionEcole from './MotDirectionEcole.astro';
 import AdmissionEcole from './fiche/AdmissionEcole.astro';
 import FraisDeLaFiche from './fiche/FraisDeLaFiche.astro';
@@ -158,15 +157,12 @@ const rond = rondDeLEcole(e);
 const suiteIdentite = ligneDIdentite({ ...e, etiquette: null }, 1);
 const couverture = e.medias?.couverture ?? null;
 const galerie = e.medias?.galerie ?? [];
-const imageCouverture = couverture
-  ? cheminMedia(couverture, 'couverture')
-  : e.photo
-    ? cheminPhotoPublique(e.photo)
-    : galerie[0]
-      ? cheminMedia(galerie[0], 'vignette')
-      : null;
-// La photo d'enseigne d'avant (choisie ou retenue d'office) : seule, dans « Photos », quand l'école n'a ni couverture ni galerie.
-const photoSeule = !couverture && galerie.length === 0 ? (e.photo ?? null) : null;
+// Version 44 (planches « Fiche d'école » et « Fiche mince ») : la couverture est la photo choisie comme telle ; sans elle, le
+// fond pierre et « Pas encore de photo ». La photo d'enseigne et la galerie restent dans « Photos ».
+const imageCouverture = couverture ? cheminMedia(couverture, 'couverture') : null;
+// La photo d'enseigne (choisie ou retenue d'office) : seule, dans « Photos », quand l'école n'a pas de galerie. Elle n'est plus
+// jamais la couverture (version 44), elle ne fait donc jamais double emploi.
+const photoSeule = galerie.length === 0 ? (e.photo ?? null) : null;
 const nouvelles = nouvellesAMontrer(e.nouvelles ?? [], aujourdhui);
 const admission = admissionAMontrer(e.admission, aujourdhui) ? (e.admission ?? null) : null;
 const ouverts = dossiersOuverts(e.admission, aujourdhui);
@@ -198,7 +194,9 @@ const courte = ficheCourte(e);
 // Lot 3 (planche « Où trouver ») : le petit plan revient, dessiné à la construction (aucun JavaScript), seulement là où
 // l'arrondissement est dessiné ; tout le dessin mène à la carte, la vraie porte reste « Voir sur la carte ».
 const pointEcole =
-  e.latitude !== null && e.longitude !== null ? { latitude: e.latitude, longitude: e.longitude } : null;
+  e.latitude !== null && e.longitude !== null
+    ? { latitude: e.latitude, longitude: e.longitude }
+    : null;
 const arrondissementDuPlan = pointEcole ? arrondissementDeLaPosition(pointEcole) : null;
 const plan =
   pointEcole && arrondissementDuPlan && ruesDe(arrondissementDuPlan.slug) && lienSurLaCarte
@@ -240,8 +238,7 @@ const joursRestants = (n: number) =>
   </nav>
 
   <div class="fiche-entete">
-    {/* Lot 3 (planche « Fiche publique ») : une vraie photo en couverture ; sans couverture choisie, la photo de l'enseigne
-        ou la première de la galerie ; sans aucune photo, une bande unie (plus de bannière dessinée). */}
+    {/* Lot 4 (version 44) : la photo de couverture, sinon le fond pierre, l'appareil et « Pas encore de photo ». */}
     <div class="fiche-couverture">
       {imageCouverture ? (
         <img
@@ -254,7 +251,10 @@ const joursRestants = (n: number) =>
           fetchpriority="high"
         />
       ) : (
-        <div class="couverture-unie" aria-hidden="true" />
+        <div class="couverture-vide">
+          <Icone nom="appareil" petite={false} />
+          Pas encore de photo
+        </div>
       )}
     </div>
 
@@ -301,30 +301,32 @@ const joursRestants = (n: number) =>
 
       {/* Une seule rangée de pastilles (planche) : les niveaux et le type, puis les sources ; deux listes pour le lecteur d'écran. */}
       <div class="rangee-puces">
-      <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
-        {puces.map((p) => (
-          <li class="etiquette-niveau">
-            <span class={classeDisque(p.lettre)} aria-hidden="true">
-              {p.lettre}
-            </span>
-            {p.libelle}
-          </li>
-        ))}
-        {superieur && diplomes && <li class="etiquette-type">{diplomes.replaceAll(', ', ' · ')}</li>}
-        {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
-        {horaires.map((h) => (
-          <li class="etiquette-type">{libelleHoraire[h]}</li>
-        ))}
-        {rythme && <li class="etiquette-type">{rythme}</li>}
-      </ul>
-      <ul class="preuves" aria-label="Sources de la fiche">
-        {preuves.map((p) => (
-          <li class={classesPreuve[p.genre]}>
-            {p.icone && <Icone nom={p.icone} />}
-            {p.texte}
-          </li>
-        ))}
-      </ul>
+        <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
+          {puces.map((p) => (
+            <li class="etiquette-niveau">
+              <span class={classeDisque(p.lettre)} aria-hidden="true">
+                {p.lettre}
+              </span>
+              {p.libelle}
+            </li>
+          ))}
+          {superieur && diplomes && (
+            <li class="etiquette-type">{diplomes.replaceAll(', ', ' · ')}</li>
+          )}
+          {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
+          {horaires.map((h) => (
+            <li class="etiquette-type">{libelleHoraire[h]}</li>
+          ))}
+          {rythme && <li class="etiquette-type">{rythme}</li>}
+        </ul>
+        <ul class="preuves" aria-label="Sources de la fiche">
+          {preuves.map((p) => (
+            <li class={classesPreuve[p.genre]}>
+              {p.icone && <Icone nom={p.icone} />}
+              {p.texte}
+            </li>
+          ))}
+        </ul>
       </div>
       <a class="lien-methode" href={LIEN_METHODE}>
         Comment nous vérifions une fiche
@@ -433,7 +435,10 @@ const joursRestants = (n: number) =>
 
     <div class="fiche-cote">
       {ouverts && (
-        <section class:list={['dossiers-ouverts o-0', { 'cache-ordi': aSavoir }]} aria-label="Dossiers ouverts">
+        <section
+          class:list={['dossiers-ouverts o-0', { 'cache-ordi': aSavoir }]}
+          aria-label="Dossiers ouverts"
+        >
           <b>Dossiers ouverts jusqu’au {dateLongue(ouverts.jusquau)}</b>
           <p>
             {joursRestants(ouverts.joursRestants)} La date vient de l’école&nbsp;: vérifiez-la avant
@@ -851,14 +856,30 @@ const joursRestants = (n: number) =>
     scroll-margin-top: 3.5rem;
   }
 
-  /* La couverture : une vraie photo, recadrée ; sans photo, une bande unie (plus de bannière dessinée). */
+  /* La couverture : une vraie photo, recadrée ; sans photo, le fond pierre de la version 44 et « Pas encore de photo ». */
   .couverture-photo,
-  .couverture-unie {
+  .couverture-vide {
     display: block;
     width: 100%;
     height: 168px;
     object-fit: cover;
-    background: var(--fond-bande);
+    background: var(--couverture-vide);
+  }
+  .couverture-vide {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--espace-1);
+    color: var(--texte-doux);
+    font-family: var(--police-interface);
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+  .couverture-vide :global(svg) {
+    width: 28px;
+    height: 28px;
+    stroke-width: 1.6;
   }
   /* Le rond de l'école : son logo, sinon son sigle sur le vert foncé (décision du 12/11). */
   .rond-ecole {
@@ -1134,8 +1155,8 @@ const joursRestants = (n: number) =>
       content: ' · ' / '';
     }
     .couverture-photo,
-    .couverture-unie {
-      height: 240px;
+    .couverture-vide {
+      height: 260px;
       border-radius: var(--rayon-l);
     }
     .rubriques {

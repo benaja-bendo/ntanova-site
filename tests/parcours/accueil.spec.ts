@@ -93,12 +93,18 @@ test.describe('l’accueil', () => {
     }
     // Le passage le plus récent d'abord.
     await expect(cartes.first()).toContainText('[Institut supérieur Exemple]');
-    // Une photo publique : sa vignette, chargée à la demande ; sans photo, la couverture dessinée. Jamais l'enseigne.
-    const photo = page.locator('.cartes-recentes img');
+    // Une photo de couverture : sa vignette, chargée à la demande. Sans photo, la vignette de la version 44 (lot 4) : le fond
+    // pierre et le rond de l'école (sigle sur le vert foncé, sinon la lettre de son niveau), jamais les anciennes vignettes
+    // bleues à grande lettre. Jamais la photo d'enseigne.
+    const photo = page.locator('.cartes-recentes img.vignette-ecole');
     await expect(photo).toHaveCount(1);
     await expect(photo).toHaveAttribute('loading', 'lazy');
     await expect(photo).toHaveAttribute('src', /-vignette\.webp$/);
-    await expect(page.locator('.cartes-recentes .recente-dessinee')).toHaveCount(3);
+    const vides = page.locator('.cartes-recentes .vignette-vide');
+    await expect(vides).toHaveCount(3);
+    for (const vide of await vides.all())
+      await expect(vide.locator('.vignette-rond')).toHaveCount(1);
+    await expect(page.locator('.cartes-recentes .recente-dessinee')).toHaveCount(0);
   });
 
   test('« Une école manque ? » : « La signaler » écrit à NTanova sur WhatsApp, le message déjà commencé', async ({

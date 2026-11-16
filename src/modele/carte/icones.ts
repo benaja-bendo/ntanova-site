@@ -59,6 +59,11 @@ export const ICONES = {
     'M8.5 7.5V5.5a1.5 1.5 0 0 1 1.5-1.5h4a1.5 1.5 0 0 1 1.5 1.5v2M3 12.5h18',
   ],
   info: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 11v5M12 8h.01'],
+  // La fiche (lot 4, planches de la version 44) : l'appareil d'une couverture sans photo, le signet de « Garder », les deux
+  // flèches de Comparer.
+  appareil: ['M4 8h3l2-3h6l2 3h3v11H4z', 'M9 13a3 3 0 1 0 6 0a3 3 0 1 0-6 0'],
+  garder: ['M6.5 4h11a1 1 0 0 1 1 1v15.5l-6.5-4-6.5 4V5a1 1 0 0 1 1-1z'],
+  comparer: ['M4 8h14l-3-3M20 16H6l3 3'],
 } as const;
 
 export type NomIcone = keyof typeof ICONES;

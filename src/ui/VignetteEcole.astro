@@ -1,0 +1,95 @@
+---
+// La vignette d'une école dans une carte (accueil, « Écoles proches », et plus tard la liste du lot 4 bis) : planches de la
+// version 44. Sa photo de couverture, réduite ; sans photo, le fond pierre et le rond de l'école : son logo, sinon son
+// sigle sur le vert foncé, sinon la lettre de son niveau le plus élevé dans la couleur du cycle (`rondDeLEcole`).
+// Jamais la photo d'enseigne (elle reste dans « Photos »), jamais les anciennes vignettes bleues à grande lettre.
+import type { EcolePubliee } from '../modele/ports';
+import { cheminMedia, rondDeLEcole } from '../modele/vitrine';
+
+interface Props {
+  ecole: Pick<EcolePubliee, 'medias' | 'sigle' | 'niveaux'>;
+  /** `large` : la bande d'une carte de l'accueil ; `carree` : la vignette carrée d'une ligne de liste. */
+  forme?: 'large' | 'carree';
+}
+const { ecole, forme = 'large' } = Astro.props;
+const couverture = ecole.medias?.couverture ?? null;
+const rond = rondDeLEcole(ecole);
+---
+
+{couverture ? (
+  <img
+    class:list={['vignette-ecole', `vignette-${forme}`]}
+    src={cheminMedia(couverture, 'vignette')}
+    alt=""
+    width="400"
+    height="300"
+    loading="lazy"
+    decoding="async"
+  />
+) : (
+  <span class:list={['vignette-ecole', 'vignette-vide', `vignette-${forme}`]} aria-hidden="true">
+    {rond.genre === 'logo' ? (
+      <span class="vignette-rond vignette-logo">
+        <img src={cheminMedia(rond.media, 'logo')} alt="" width="100" height="100" loading="lazy" />
+      </span>
+    ) : rond.genre === 'sigle' ? (
+      <span class="vignette-rond vignette-sigle">{rond.texte}</span>
+    ) : rond.genre === 'cycle' ? (
+      <span class={`disque c-${rond.lettre} vignette-rond vignette-cycle`}>{rond.lettre}</span>
+    ) : null}
+  </span>
+)}
+
+<style>
+  .vignette-ecole {
+    display: block;
+    width: 100%;
+    border-radius: var(--rayon-s);
+    background: var(--couverture-vide);
+    object-fit: cover;
+  }
+  .vignette-large {
+    aspect-ratio: 2 / 1;
+  }
+  .vignette-carree {
+    aspect-ratio: 1;
+  }
+  .vignette-vide {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* Le rond de la planche : 56 px, comme dans les cartes de la liste. */
+  .vignette-rond {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    overflow: hidden;
+    border-radius: 50%;
+  }
+  .vignette-sigle {
+    padding: 4px;
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+    font-family: var(--police-titre);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .vignette-cycle {
+    font-size: 1.375rem;
+  }
+  .vignette-logo {
+    background: var(--fond-releve);
+  }
+  .vignette-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>
