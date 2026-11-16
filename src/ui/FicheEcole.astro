@@ -227,12 +227,20 @@ const joursRestants = (n: number) =>
         <img
           class:list={['couverture-photo', { 'couverture-entiere': couvertureEnHauteur }]}
           src={couverture.src}
-          alt={couverture.genre === 'enseigne' ? `Enseigne de ${e.nom}` : `Vue de ${e.nom}`}
+          alt={`Vue de ${e.nom}`}
           width="720"
           height="300"
           decoding="async"
           fetchpriority="high"
         />
+        {/* La photo de l'enseigne dit d'où elle vient (chaque information a sa source et sa date) ; une couverture choisie
+            par l'école, elle, est passée par l'administration comme la galerie. */}
+        {couverture.genre === 'enseigne' && (
+          <span class="couverture-source">
+            Photo prise sur place
+            {couverture.photo.prisLe ? ` le ${dateLongue(couverture.photo.prisLe)}` : ''}
+          </span>
+        )}
       </div>
     )}
 
@@ -634,7 +642,7 @@ const joursRestants = (n: number) =>
 {/* « Demander la vérification » (lot 4) : une demande comptée sans nom ni numéro. Le navigateur tire une clé au hasard, une fois,
     et n'envoie que l'empreinte (SHA-256) de la clé et du jour : au plus une demande par téléphone, fiche et jour. Sans
     JavaScript, le bouton ne fait rien ; sous le faux serveur (`data-url` vide), la page répond elle-même. */}
-<script is:inline>
+{!confirmee && demandes && <script is:inline>
   (function () {
     const b = document.querySelector('[data-demande]');
     if (!b) return;
@@ -685,7 +693,7 @@ const joursRestants = (n: number) =>
       }
     });
   })();
-</script>
+</script>}
 
 <style>
   .fiche {
@@ -936,6 +944,20 @@ const joursRestants = (n: number) =>
   }
   .couverture-entiere {
     object-fit: contain;
+  }
+  .fiche-couverture {
+    position: relative;
+  }
+  /* En bas à droite : le rond de l'école est à cheval sur le coin gauche. */
+  .couverture-source {
+    position: absolute;
+    right: var(--espace-3);
+    bottom: var(--espace-2);
+    padding: 2px var(--espace-2);
+    border-radius: var(--rayon-pilule);
+    background: var(--fond-releve);
+    color: var(--texte-doux);
+    font-size: var(--taille-mention);
   }
   /* Sans photo, aucun bandeau : la fiche commence par le rond et le nom (règle du 09/11). */
   .fiche-tete.sans-couverture {

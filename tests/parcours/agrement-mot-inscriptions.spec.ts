@@ -43,9 +43,10 @@ test('fiche non confirmée : l’agrément et sa source paraissent, le mot et un
   const source = page.getByRole('link', { name: 'Voir la source : [Journal officiel]' });
   await expect(source).toHaveAttribute('href', 'https://exemple.cg/arrete');
   await expect(source).toHaveAttribute('rel', /nofollow/);
-  // Lot 3 (planche « supérieur ») : chaque carte de formation dit son autorisation.
+  // Planche « supérieur » (version 44) : chaque carte de formation dit son autorisation et comment NTanova l'a vue (le
+  // document lui-même) ; la source n'y paraît que si la façon de la voir n'est pas notée. Avant : toujours la source.
   await expect(page.locator('.carte-formation .autorisation.vue').first()).toContainText(
-    'Autorisation : réf. arrêté n° [filière] du 15 janvier 2024 · source : [Journal officiel]',
+    'Autorisation : réf. arrêté n° [filière] du 15 janvier 2024 · vue sur le document',
   );
   await expect(page.locator('.mot-direction')).toHaveCount(0);
   await expect(page.locator('main')).not.toContainText('Ce mot ne paraît pas');

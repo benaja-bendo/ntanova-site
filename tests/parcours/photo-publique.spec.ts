@@ -255,7 +255,8 @@ test('fiche publique : image locale légère, provenance et partage sans URL pri
   const r = await request.get(src!);
   expect(r.ok()).toBe(true);
   expect((await r.body()).length).toBeLessThanOrEqual(32768);
-  await expect(page.getByText(/Photo prise sur place/)).toBeVisible();
+  // Lot 4 (16/11) : la photo d'enseigne devient la couverture et dit, sur elle, d'où elle vient.
+  await expect(page.locator('.couverture-source')).toHaveText(/Photo prise sur place/);
   const html = await page.content();
   expect(html).not.toContain('/storage/v1/');
   const og = await request.get(

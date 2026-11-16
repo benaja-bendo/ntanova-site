@@ -47,7 +47,10 @@ describe('la couverture de la fiche', () => {
       medias: { logo: null, couverture: media('m1'), galerie: [] },
       photo: { id: 'p1', prisLe: null },
     });
-    expect(couvertureDeLaFiche(e)).toEqual({ genre: 'couverture', src: '/medias/m1-couverture.webp' });
+    expect(couvertureDeLaFiche(e)).toEqual({
+      genre: 'couverture',
+      src: '/medias/m1-couverture.webp',
+    });
   });
   it('sinon la photo d’enseigne', () => {
     const e = ecole({ photo: { id: 'p1', prisLe: '2026-11-06' } });

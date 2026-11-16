@@ -14,29 +14,29 @@ const { nouvelles } = Astro.props;
   <section class="nouvelles" id="nouvelles" aria-label="Nouvelles">
     <h2>Nouvelles</h2>
     <div class="liste-nouvelles">
-    {nouvelles.map((n) => (
-      <article class="nouvelle">
-        {n.media ? (
-          <img
-            src={cheminMedia(n.media, 'vignette')}
-            alt={n.media.legende ?? ''}
-            width="400"
-            height="225"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <span class="sans-image" aria-hidden="true" />
-        )}
-        <div class="nouvelle-texte">
-          <span class="surtitre-nouvelle">
-            {surtitreNouvelle(n)} · {dateLongue(n.publieeLe)}
-          </span>
-          <h3>{n.titre}</h3>
-          <p>{n.texte}</p>
-        </div>
-      </article>
-    ))}
+      {nouvelles.map((n) => (
+        <article class="nouvelle">
+          {n.media ? (
+            <img
+              src={cheminMedia(n.media, 'vignette')}
+              alt={n.media.legende ?? ''}
+              width="400"
+              height="225"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <span class="sans-image" aria-hidden="true" />
+          )}
+          <div class="nouvelle-texte">
+            <span class="surtitre-nouvelle">
+              {surtitreNouvelle(n)} · {dateLongue(n.publieeLe)}
+            </span>
+            <h3>{n.titre}</h3>
+            <p>{n.texte}</p>
+          </div>
+        </article>
+      ))}
     </div>
   </section>
 )}

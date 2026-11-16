@@ -26,13 +26,7 @@ const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
       <h2>Photos</h2>
       {resteTel > 0 && <a href={lienPhotos}>Voir les {galerie.length}</a>}
     </div>
-    <ul
-      class:list={[
-        'tuiles',
-        `tuiles-${nTel}`,
-        `ordi-${montrees.length}`,
-      ]}
-    >
+    <ul class:list={['tuiles', `tuiles-${nTel}`, `ordi-${montrees.length}`]}>
       {montrees.map((m, i) => (
         <li class:list={[{ 'seulement-ordi': i >= VIGNETTES_SUR_LA_FICHE }]}>
           <img

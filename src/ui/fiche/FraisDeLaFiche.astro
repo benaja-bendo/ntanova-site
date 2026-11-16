@@ -30,40 +30,40 @@ const notes = [...new Set(lignes.map((f) => f.note).filter((n): n is string => !
       {annee && <span>année {annee}</span>}
     </div>
     <div class="carte-frais">
-    <ul class="lignes-fiche">
-      {lignes.map((f) => (
-        <li>
-          <span>{libelleLigneDeFrais(f)}</span>
-          <b>
-            {montantFrais(f)} {periodeCourte(f)}
-          </b>
-        </li>
+      <ul class="lignes-fiche">
+        {lignes.map((f) => (
+          <li>
+            <span>{libelleLigneDeFrais(f)}</span>
+            <b>
+              {montantFrais(f)} {periodeCourte(f)}
+            </b>
+          </li>
+        ))}
+        {inscription && (
+          <li>
+            <span class="avec-precision">
+              Inscription
+              {inscription.min !== inscription.max && <span>selon le cycle</span>}
+            </span>
+            <b>
+              {inscription.min === inscription.max
+                ? francsCFA(inscription.min)
+                : `${new Intl.NumberFormat('fr-FR').format(inscription.min)} à ${francsCFA(inscription.max)}`}
+            </b>
+          </li>
+        )}
+      </ul>
+      {notes.map((n) => (
+        <p class="doux">{n}</p>
       ))}
-      {inscription && (
-        <li>
-          <span class="avec-precision">
-            Inscription
-            {inscription.min !== inscription.max && <span>selon le cycle</span>}
-          </span>
-          <b>
-            {inscription.min === inscription.max
-              ? francsCFA(inscription.min)
-              : `${new Intl.NumberFormat('fr-FR').format(inscription.min)} à ${francsCFA(inscription.max)}`}
-          </b>
-        </li>
+      {source && (
+        <p class="doux">
+          {source.surProspectus
+            ? `Lus sur le prospectus de l’école, déclarés le ${dateLongue(source.declaresLe)}.`
+            : `Dits par l’école le ${dateLongue(source.declaresLe)}.`}{' '}
+          À confirmer avec elle.
+        </p>
       )}
-    </ul>
-    {notes.map((n) => (
-      <p class="doux">{n}</p>
-    ))}
-    {source && (
-      <p class="doux">
-        {source.surProspectus
-          ? `Lus sur le prospectus de l’école, déclarés le ${dateLongue(source.declaresLe)}.`
-          : `Dits par l’école le ${dateLongue(source.declaresLe)}.`}{' '}
-        À confirmer avec elle.
-      </p>
-    )}
     </div>
   </section>
 )}

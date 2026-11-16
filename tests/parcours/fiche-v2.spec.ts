@@ -5,11 +5,13 @@ const COMPLETE = '/ecoles/groupe-scolaire-exemple-158427/';
 const NUE = '/ecoles/ecole-ajoutee-exemple-639158/';
 const SUPERIEUR = '/ecoles/institut-superieur-exemple-527064/';
 
-test('une fiche nue reste digne : la bannière, son rond, et une seule carte « Vous êtes de l’école ? »', async ({
+// Planche « Fiche mince » (lot 4, fondateur 16/11) : sans photo, aucun bandeau (règle du 09/11) ; la fiche commence par son rond
+// et son nom ; l'appel aux directions est « Vous dirigez cette école ? ». Avant : bannière dessinée et « Vous êtes de l'école ? ».
+test('une fiche nue reste digne : son rond, son nom, et une seule carte « Vous dirigez cette école ? »', async ({
   page,
 }) => {
   await page.goto(NUE);
-  await expect(page.locator('.couverture')).toBeVisible();
+  await expect(page.locator('.fiche-couverture')).toHaveCount(0);
   await expect(page.locator('.disque-fiche')).toHaveText('P');
   // Aucune rubrique vide : ni barre, ni bloc.
   await expect(page.getByRole('navigation', { name: 'Aller à une rubrique' })).toHaveCount(0);
@@ -20,8 +22,9 @@ test('une fiche nue reste digne : la bannière, son rond, et une seule carte « 
     'Équipements et infrastructures',
   ])
     await expect(page.getByRole('region', { name: nom, exact: true })).toHaveCount(0);
-  const carte = page.locator('.ecoles-appel-court');
-  await expect(carte.getByRole('heading')).toHaveText('Vous êtes de l’école ?');
+  const carte = page.locator('.ecoles-appel');
+  await expect(carte).toHaveCount(1);
+  await expect(carte.getByRole('heading')).toHaveText('Vous dirigez cette école ?');
   const lien = carte.getByRole('link', { name: 'Compléter cette fiche' });
   expect(decodeURIComponent((await lien.getAttribute('href'))!)).toContain(
     '[École ajoutée Exemple]',
@@ -44,7 +47,8 @@ test('une fiche complète : logo, couverture, ligne d’identité, rubriques en 
     'alt',
     'Logo de [Groupe scolaire Exemple]',
   );
-  await expect(page.locator('.fiche-ligne')).toHaveText(
+  // La ligne d'identité, puis le lieu (planche « Fiche mince »).
+  await expect(page.locator('.ligne-identite')).toHaveText(
     'Campus du quartier · Maternelle à lycée · GSE · depuis 2009',
   );
   await expect(page.locator('.puces')).toContainText('Le matin');
@@ -73,8 +77,9 @@ test('cinq photos : trois vignettes sur la fiche, toutes sur la page des photos'
   page,
 }) => {
   await page.goto(COMPLETE);
+  // Trois vignettes sur téléphone, cinq sur ordinateur (planche « Fiche d'école », version 44) : on compte celles qu'on voit.
   const galerie = page.getByRole('region', { name: 'Photos' });
-  await expect(galerie.locator('img')).toHaveCount(3);
+  await expect(galerie.locator('img').filter({ visible: true })).toHaveCount(3);
   await galerie.getByRole('link', { name: 'Voir les 5', exact: true }).click();
   await expect(page).toHaveURL(/\/ecoles\/groupe-scolaire-exemple-158427\/photos\/$/);
   await expect(page.locator('figure img')).toHaveCount(5);
@@ -97,7 +102,9 @@ test('le supérieur : formations détaillées, admission en cours, « Dossiers o
   await page.goto(SUPERIEUR);
   await expect(page.locator('.rond-sigle')).toHaveText('ISE');
   const formations = page.getByRole('region', { name: 'Formations' });
-  await expect(formations).toContainText('2 ans · 450 000 FCFA / an');
+  // Planche « supérieur » (version 44) : la durée dans la ligne du diplôme, les frais sur leur ligne.
+  await expect(formations).toContainText('BTS · 2 ans');
+  await expect(formations).toContainText('450 000 FCFA / an');
   await expect(formations).toContainText('Autorisation : pas encore vue par NTanova');
   const admission = page.getByRole('region', { name: 'Admission' });
   await expect(admission.getByRole('heading', { level: 2 })).toHaveText('Admission · 2026-2027');

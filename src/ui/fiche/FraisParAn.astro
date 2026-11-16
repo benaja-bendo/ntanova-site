@@ -20,7 +20,10 @@ const parDiplome = listes.diploma_kind
     if (sienne.length === 0) return null;
     const min = Math.min(...sienne.map((f) => f.minimum));
     const max = Math.max(...sienne.map((f) => f.maximum));
-    return { libelle: libelleDiplome[d], montant: min === max ? francsCFA(min) : `${nombre(min)} à ${francsCFA(max)}` };
+    return {
+      libelle: libelleDiplome[d],
+      montant: min === max ? francsCFA(min) : `${nombre(min)} à ${francsCFA(max)}`,
+    };
   })
   .filter((x): x is { libelle: string; montant: string } => x !== null);
 const inscriptions = lignes.map((f) => f.inscription).filter((n): n is number => n != null);

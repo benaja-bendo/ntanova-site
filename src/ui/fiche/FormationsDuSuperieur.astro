@@ -28,7 +28,11 @@ const filtrer = diplomes.length > 1;
 const rythmeCourt = { jour: 'Jour', soir: 'Soir', weekend: 'Week-end' } as const;
 const ans = (n: number) => `${n.toLocaleString('fr-FR')} an${n >= 2 ? 's' : ''}`;
 const sousTitre = (f: FormationPublique) =>
-  [f.diplome ? libelleDiplome[f.diplome] : null, f.dureeAnnees ? ans(f.dureeAnnees) : null, f.domaine?.nom]
+  [
+    f.diplome ? libelleDiplome[f.diplome] : null,
+    f.dureeAnnees ? ans(f.dureeAnnees) : null,
+    f.domaine?.nom,
+  ]
     .filter(Boolean)
     .join(' · ');
 const admission = (f: FormationPublique) =>
@@ -48,7 +52,12 @@ const admission = (f: FormationPublique) =>
         </label>
         {diplomes.map(({ d, n }) => (
           <>
-            <input class={`visuellement-cache filtre f-${d}`} type="radio" id={`fs-${d}`} name="fs" />
+            <input
+              class={`visuellement-cache filtre f-${d}`}
+              type="radio"
+              id={`fs-${d}`}
+              name="fs"
+            />
             <label class="pastille-choix" for={`fs-${d}`}>
               {libelleDiplome[d]} · {n}
             </label>
@@ -77,7 +86,10 @@ const admission = (f: FormationPublique) =>
               <p class="ligne">
                 <span>Admission</span>
                 <b>
-                  {[admission(f), f.fraisDossier != null ? `dossier ${francsCFA(f.fraisDossier)}` : null]
+                  {[
+                    admission(f),
+                    f.fraisDossier != null ? `dossier ${francsCFA(f.fraisDossier)}` : null,
+                  ]
                     .filter(Boolean)
                     .join(' · ')}
                 </b>
@@ -108,7 +120,9 @@ const admission = (f: FormationPublique) =>
                 <span>Autorisation&nbsp;: pas encore vue par NTanova</span>
               </p>
             )}
-            {f.detailsDitsLe && <p class="doux petit">D’après l’école, le {dateLongue(f.detailsDitsLe)}</p>}
+            {f.detailsDitsLe && (
+              <p class="doux petit">D’après l’école, le {dateLongue(f.detailsDitsLe)}</p>
+            )}
           </li>
         );
       })}

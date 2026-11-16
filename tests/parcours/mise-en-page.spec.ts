@@ -1003,9 +1003,10 @@ for (const [cas, chemin] of [
       expect(cote!.x).toBeGreaterThan(principal!.x + principal!.width);
     }
     if (cas === 'terrain partiel') {
-      await expect(page.locator('.proprietes dt')).toContainText(['Langue d’enseignement']);
-      await expect(page.locator('.proprietes dd')).toContainText(['Français']);
-      await expect(page.locator('.photo-ecole img')).toBeVisible();
+      await expect(page.locator('.proprietes .libelle')).toContainText(['Langue d’enseignement']);
+      await expect(page.locator('.proprietes')).toContainText('Français');
+      // Lot 4 : la photo d'enseigne est la couverture, plus une photo dans la fiche.
+      await expect(page.locator('.fiche-couverture img')).toBeVisible();
       await expect(page.locator('.preuve-direction')).toHaveCount(0);
       await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toHaveCount(0);
     }
@@ -1018,11 +1019,11 @@ for (const [cas, chemin] of [
       await expect(page.locator('.etiquette-campus')).toHaveText('Campus de Mongo-Mpoukou');
     }
     if (cas === 'fiche complète') {
-      await expect(page.locator('.photo-ecole img')).toBeVisible();
-      // Canevas du 08/11/2026 : la photo vit dans la fiche, sous les actions.
-      const image = await page.locator('.photo-ecole').boundingBox();
-      const actions = await page.locator('.fiche-actions').boundingBox();
-      expect(image!.y).toBeGreaterThan(actions!.y);
+      // Lot 4 (16/11) : la photo d'enseigne devient la couverture, au-dessus du nom ; elle ne revient pas dans la fiche.
+      const image = await page.locator('.fiche-couverture img').boundingBox();
+      const titre = await page.locator('.fiche h1').boundingBox();
+      expect(image!.y).toBeLessThan(titre!.y);
+      await expect(page.locator('.photo-ecole')).toHaveCount(0);
       await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toBeVisible();
     }
   });

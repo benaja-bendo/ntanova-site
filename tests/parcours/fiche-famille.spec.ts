@@ -96,15 +96,19 @@ test.describe('la fiche d’une école', () => {
 });
 
 test.describe('le canevas du 08/11/2026 (ticket 148)', () => {
-  test('la couverture est dessinée : la couleur et la lettre du cycle, aucune image', async ({
+  // Lot 4 (fondateur, 16/11) : la couverture est la couverture choisie, sinon la photo d'enseigne ; sans photo, aucun bandeau.
+  // Remplace « la couverture est dessinée » (08/11).
+  test('la couverture : la photo d’enseigne, sinon rien, jamais un bandeau vide', async ({
     page,
   }) => {
     await page.goto(COMPLEXE);
-    const couverture = page.locator('.couverture');
-    await expect(couverture).toHaveClass(/c-P/);
-    await expect(couverture.locator('.couverture-lettre')).toHaveAttribute('data-lettre', 'P');
-    await expect(couverture.locator('svg.marque')).toHaveCount(1);
-    await expect(couverture.locator('img')).toHaveCount(0);
+    const couverture = page.locator('.fiche-couverture img');
+    await expect(couverture).toHaveAttribute('src', /^\/photos\/[a-f0-9-]+\.webp$/);
+    await expect(page.locator('.photo-ecole')).toHaveCount(0);
+    await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
+    await expect(page.locator('.fiche-couverture')).toHaveCount(0);
+    await expect(page.locator('main')).not.toContainText('Pas encore de photo');
+    await expect(page.locator('.disque-fiche, .rond-ecole')).toHaveCount(1);
   });
 
   test('le fil d’Ariane remonte les lieux qui ont une page', async ({ page }) => {
@@ -158,13 +162,20 @@ test.describe('le canevas du 08/11/2026 (ticket 148)', () => {
     });
     const page = await contexte.newPage();
     await page.goto(INSTITUT);
-    const lignes = page.locator('.filiere');
+    // Planche « supérieur » (version 44) : une carte par formation, des pastilles par diplôme ; trois cartes, puis « voir tout ».
+    const lignes = page.locator('.carte-formation');
     await expect(lignes).toHaveCount(4);
-    await page.getByText('BTS', { exact: true }).first().click();
+    await page
+      .locator('.formations-sup label')
+      .filter({ hasText: /^BTS · \d/ })
+      .click();
     await expect(lignes.filter({ visible: true })).toHaveCount(1);
     await expect(lignes.filter({ visible: true })).toContainText('BTS Informatique de gestion');
-    await page.getByText('Toutes', { exact: true }).click();
-    await expect(lignes.filter({ visible: true })).toHaveCount(4);
+    await page
+      .locator('.formations-sup label')
+      .filter({ hasText: /^Toutes · 4/ })
+      .click();
+    await expect(lignes.filter({ visible: true })).toHaveCount(3);
     await contexte.close();
   });
 });
@@ -228,10 +239,11 @@ test.describe('la barre « Y aller · Appeler · Partager »', () => {
     const partage = decodeURIComponent((await actions(page).nth(2).getAttribute('href')) ?? '');
     expect(partage).toMatch(/^https:\/\/wa\.me\/\?text=/);
     expect(partage).toContain('[Complexe scolaire Exemple] · https://ntanova.com' + COMPLEXE);
-    // Canevas du 08/11/2026 : les trois sur une ligne, Y aller un peu plus large.
+    // Planche « Fiche mince » (version 44, fondateur 16/11) : deux colonnes ; Y aller seul sur la première ligne, Appeler et
+    // Partager côte à côte dessous. Remplace « les trois sur une ligne » (08/11).
     const [y, a, p] = await Promise.all([0, 1, 2].map((i) => actions(page).nth(i).boundingBox()));
     expect(y!.width).toBeGreaterThan(a!.width);
-    expect(Math.abs(a!.y - y!.y)).toBeLessThan(2);
+    expect(a!.y).toBeGreaterThan(y!.y + y!.height - 2);
     expect(Math.abs(a!.y - p!.y)).toBeLessThan(2);
     for (const b of [y, a, p]) expect(b!.height).toBeGreaterThanOrEqual(44);
   });
@@ -380,25 +392,25 @@ test.describe('sur ordinateur', () => {
     page,
   }) => {
     await page.goto(COMPLEXE);
+    // « À savoir » (planche « Fiche mince ») : une ligne par propriété, le libellé à gauche, la valeur à droite.
     const lignes = page.locator('.proprietes');
-    const termes = lignes.locator('dt');
-    const valeurs = lignes.locator('dd');
-    await expect(termes).toHaveText([
-      'Programme et langues',
-      'Contact communiqué par l’école',
-      'Téléphone',
-    ]);
+    const termes = lignes.locator('.libelle');
+    const valeurs = lignes.locator('li > :last-child');
+    await expect(termes).toHaveText(['Téléphone', 'Programme et langues']);
     const xTermes = await termes.evaluateAll((l) => l.map((e) => e.getBoundingClientRect().x));
     const xValeurs = await valeurs.evaluateAll((l) => l.map((e) => e.getBoundingClientRect().x));
     expect(new Set(xTermes.map(Math.round)).size, 'les termes partent du même bord').toBe(1);
-    expect(new Set(xValeurs.map(Math.round)).size, 'les valeurs partent du même bord').toBe(1);
+    // Les valeurs s'alignent à droite : leur bord droit est commun.
+    const dValeurs = await valeurs.evaluateAll((l) =>
+      l.map((e) => e.getBoundingClientRect().right),
+    );
+    expect(new Set(dValeurs.map(Math.round)).size, 'les valeurs finissent au même bord').toBe(1);
+    expect(xValeurs.length).toBe(2);
     // Même corps et même couleur pour tous les termes, même graisse pour toutes les valeurs.
     const styles = await termes.evaluateAll((l) =>
       l.map((e) => `${getComputedStyle(e).fontSize} ${getComputedStyle(e).color}`),
     );
     expect(new Set(styles).size).toBe(1);
-    const marges = await valeurs.evaluateAll((l) => l.map((e) => getComputedStyle(e).marginLeft));
-    expect(new Set(marges)).toEqual(new Set(['0px']));
   });
 
   test('les trois piliers sont en haut, et aucun bouton « Menu »', async ({ page }) => {

@@ -98,7 +98,8 @@ test.describe('site public', () => {
       expect(textes.length).toBeGreaterThanOrEqual(1);
       expect(textes.length).toBeLessThanOrEqual(2);
       expect(textes.some((x) => x.includes('data-partager'))).toBe(true);
-      for (const x of textes) expect(x.includes('data-partager') || x.includes('data-demande')).toBe(true);
+      for (const x of textes)
+        expect(x.includes('data-partager') || x.includes('data-demande')).toBe(true);
     });
   }
 
@@ -142,9 +143,10 @@ test.describe('site public', () => {
     const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
     await expect(puces.getByRole('listitem').filter({ hasText: 'Maternelle' })).toBeVisible();
     await expect(puces.getByRole('listitem').filter({ hasText: 'Primaire' })).toBeVisible();
-    await expect(page.getByRole('link', { name: '+242 06 000 00 01' })).toHaveAttribute(
+    // « À savoir » (version 44) : un seul numéro, celui que l'école a communiqué ; il passe avant celui de l'enseigne.
+    await expect(page.getByRole('link', { name: '+242 06 000 00 09' })).toHaveAttribute(
       'href',
-      'tel:+242060000001',
+      'tel:+242060000009',
     );
     await expect(page.getByRole('link', { name: 'Y aller' })).toHaveAttribute(
       'href',
@@ -167,7 +169,10 @@ test.describe('site public', () => {
     );
     expect(description).not.toContain('Congo');
     // Ce que NTanova demande se lit sur « Espace écoles » (/pour-les-ecoles/), le troisième pilier de l'en-tête.
-    await page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Espace écoles' }).click();
+    await page
+      .getByRole('navigation', { name: 'Navigation principale' })
+      .getByRole('link', { name: 'Espace écoles' })
+      .click();
     await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
   });
 
@@ -209,7 +214,7 @@ test.describe('site public', () => {
       await expect(page.locator('.etiquette-campus')).toHaveText('Campus du quartier');
       await expect(page.getByText(/Confirmée par la direction · 4 nov. 2026/)).toBeVisible();
       // Le lieu, du plus fin au plus large, sans répéter Pointe-Noire (ville et département).
-      await expect(page.locator('.fiche-lieu')).toHaveText(
+      await expect(page.locator('.fiche-lieu-ligne')).toHaveText(
         '[Quartier Exemple] · Loandjili · Pointe-Noire',
       );
       // Les deux preuves, l'une après l'autre, jamais fusionnées.

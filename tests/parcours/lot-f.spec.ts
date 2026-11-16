@@ -311,10 +311,10 @@ test('la page publique du supérieur dit le détail d’une formation, sa date, 
   page,
 }) => {
   await page.goto('/ecoles/527064/');
-  const formations = page.locator('.filiere', { hasText: 'BTS Informatique de gestion' });
-  await expect(formations).toContainText('niveau demandé : [Bac, toutes séries]');
-  await expect(formations).toContainText('sélection : dossier');
-  await expect(formations).toContainText(/frais de dossier 15\s000\sFCFA/);
+  // Planche « supérieur » (version 44) : une carte par formation ; son admission en une ligne.
+  const formations = page.locator('.carte-formation', { hasText: 'BTS Informatique de gestion' });
+  await expect(formations).toContainText('[Bac, toutes séries] · dossier');
+  await expect(formations).toContainText(/dossier 15\s000\sFCFA/);
   await expect(formations).toContainText('D’après l’école, le 5 novembre 2026');
   await expect(formations).toContainText('vue sur le document');
   await expect(page.locator('body')).not.toContainText(/reconnue? par l.État/);

@@ -27,8 +27,7 @@ export const cheminVignetteEnseigne = (p: Pick<PhotoPublique, 'id'>, forme: Form
   `/photos/vignettes/${p.id}-${forme}.webp`;
 
 export type CouvertureDeLaFiche =
-  | { genre: 'couverture'; src: string }
-  | { genre: 'enseigne'; src: string; photo: PhotoPublique };
+  { genre: 'couverture'; src: string } | { genre: 'enseigne'; src: string; photo: PhotoPublique };
 
 /** La couverture choisie, sinon la photo d'enseigne, sinon rien : la fiche commence alors par le rond et le nom. */
 export function couvertureDeLaFiche(
