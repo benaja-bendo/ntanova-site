@@ -13,7 +13,6 @@ import type { EcolePubliee } from './ports';
 export const PAGES_FIXES = [
   '/',
   '/ecoles/',
-  '/carte/',
   '/pour-les-ecoles/',
   '/a-propos/',
   ...PAGES_DE_TRANSPARENCE.map((p) => p.href),

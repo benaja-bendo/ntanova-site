@@ -63,6 +63,15 @@ export const ICONES = {
   // flèches de Comparer.
   appareil: ['M4 8h3l2-3h6l2 3h3v11H4z', 'M9 13a3 3 0 1 0 6 0a3 3 0 1 0-6 0'],
   garder: ['M6.5 4h11a1 1 0 0 1 1 1v15.5l-6.5-4-6.5 4V5a1 1 0 0 1 1-1z'],
+  // Lot 4 bis : le bouton « Filtres » (tabler « adjustments-horizontal », d'icones.js.org).
+  reglages: [
+    'M14 6a2 2 0 1 0 4 0a2 2 0 1 0 -4 0',
+    'M4 6h10M18 6h2',
+    'M6 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0',
+    'M4 12h2M10 12h10',
+    'M15 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0',
+    'M4 18h11M19 18h1',
+  ],
   comparer: ['M4 8h14l-3-3M20 16H6l3 3'],
 } as const;
 

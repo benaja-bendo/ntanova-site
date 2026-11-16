@@ -1,0 +1,216 @@
+/*
+ * La carte d'une école et sa vignette (lot 4 et lot 4 bis, 16/11/2026) : une seule feuille, globale, parce que le même HTML
+ * est posé à la construction (`CarteEcole.astro`) et dans le navigateur (`modele/carte-ecole.ts`). Couleurs : jetons seulement.
+ */
+/* La vignette adaptée choisit sa source ; c'est l'image qui se place dans la carte. */
+.carte-ecole picture {
+  display: contents;
+}
+.vignette-ecole {
+  display: block;
+  width: 100%;
+  border-radius: var(--rayon-s);
+  background: var(--couverture-vide);
+  object-fit: cover;
+}
+.vignette-large {
+  aspect-ratio: 400 / 208;
+}
+.vignette-adaptee {
+  aspect-ratio: 1;
+}
+.vignette-vide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Le rond de la planche : 56 px dans une carte en colonne, 40 px dans une carte en ligne. */
+.vignette-rond {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border-radius: 50%;
+}
+.vignette-adaptee .vignette-rond {
+  width: 40px;
+  height: 40px;
+}
+.vignette-sigle {
+  padding: 4px;
+  background: var(--marque-appuyee);
+  color: var(--texte-sur-marque);
+  font-family: var(--police-titre);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.vignette-adaptee .vignette-sigle {
+  font-size: 0.6875rem;
+}
+.vignette-cycle {
+  font-size: 1.375rem;
+}
+.vignette-adaptee .vignette-cycle {
+  font-size: 1.125rem;
+}
+.vignette-logo {
+  background: var(--fond-releve);
+}
+.vignette-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+@media (min-width: 48rem) {
+  .vignette-adaptee {
+    aspect-ratio: 400 / 208;
+  }
+  .vignette-adaptee .vignette-rond {
+    width: 56px;
+    height: 56px;
+  }
+  .vignette-adaptee .vignette-sigle {
+    font-size: 0.9375rem;
+  }
+  .vignette-adaptee .vignette-cycle {
+    font-size: 1.375rem;
+  }
+}
+
+.carte-ecole {
+  display: flex;
+  gap: var(--espace-2);
+  height: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  color: var(--texte);
+  text-decoration: none;
+}
+.carte-ecole-colonne {
+  flex-direction: column;
+}
+.carte-ecole-colonne .vignette-ecole {
+  height: 104px;
+  aspect-ratio: auto;
+}
+.carte-ecole-ligne {
+  align-items: center;
+  gap: var(--espace-3);
+}
+.carte-ecole-ligne .vignette-ecole {
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+.carte-ecole-texte {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--espace-1);
+  min-width: 0;
+}
+.carte-ecole-colonne .carte-ecole-texte {
+  gap: var(--espace-2);
+}
+@media (hover: hover) {
+  .carte-ecole:hover {
+    border-color: var(--marque);
+  }
+}
+.carte-ecole-nom {
+  font-family: var(--police-titre);
+  font-size: var(--taille-courante);
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.carte-ecole-niveaux {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--texte-doux);
+  font-size: 0.8125rem;
+}
+.carte-ecole-puces {
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
+}
+.carte-ecole-lieu {
+  font-size: var(--taille-secondaire);
+}
+/* La preuve en bas de la carte : alignée d'une carte à l'autre quand un nom prend deux lignes. */
+.carte-ecole-preuve {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 5px;
+  margin-top: auto;
+  padding: 2px var(--espace-2);
+  border: 2px solid var(--preuve-terrain);
+  border-radius: var(--rayon-pilule);
+  color: var(--marque-appuyee);
+  font-family: var(--police-interface);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+}
+.carte-ecole-preuve-confirmee {
+  background: var(--preuve-direction);
+  color: var(--preuve-direction-texte);
+}
+.carte-ecole-preuve :global(svg) {
+  width: 13px;
+  height: 13px;
+}
+/* À partir de 48 rem, la carte en ligne passe en colonne (trois par rangée), comme sa vignette. */
+@media (min-width: 48rem) {
+  .carte-ecole-ligne {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .carte-ecole-ligne .vignette-ecole {
+    width: 100%;
+    height: 104px;
+  }
+  .carte-ecole-ligne .carte-ecole-texte {
+    gap: var(--espace-2);
+  }
+  .carte-ecole-chevron {
+    display: none;
+  }
+}
+.carte-ecole-chevron {
+  flex: none;
+  color: var(--texte-doux);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.carte-ecole-sigle {
+  color: var(--texte-doux);
+  font-family: var(--police-interface);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+}
+.carte-ecole-preuve-faible {
+  border-style: dashed;
+  border-color: var(--trait);
+  color: var(--texte-doux);
+}
+.carte-ecole-active {
+  border-color: var(--marque);
+  box-shadow: 0 0 0 1px var(--marque);
+}
+.carte-ecole:focus-visible {
+  outline: var(--epaisseur-focus) solid var(--focus);
+  outline-offset: 2px;
+}

@@ -14,6 +14,12 @@
 /formations/:facette/:valeur /ecoles/?:facette=:valeur 301
 /formations/:facette/:valeur/ /ecoles/?:facette=:valeur 301
 
+# Lot 4 bis (version 46, fondateur, 16/11/2026) : la carte entre dans « Les écoles ». La destination n'a pas de paramètre pour
+# que ceux de l'adresse suivent : `/carte/?ecole=…` rouvre l'école sur la vue Carte. Les fichiers de la carte
+# (`/carte/style.json`, `/carte/ecoles.geojson`…) restent servis : la vue Carte les lit.
+/carte /ecoles/ 301
+/carte/ /ecoles/ 301
+
 # Les « coins » des anciens plans dessinés renvoient vers la page de leur arrondissement, qui renvoie vers la carte.
 /cartes/:pays/:ville/:arrondissement/:coin/ /cartes/:pays/:ville/:arrondissement/ 301
 /ecoles/:arrondissement/carte/:coin/ /ecoles/:arrondissement/carte/ 301
