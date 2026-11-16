@@ -8,7 +8,7 @@ Le site de NTanova : l'annuaire public des écoles de la République du Congo (*
 
 ## Où on en est (16/11/2026)
 
-- **`main`** : la refonte v2 de l'espace relais et de l'administration (Tailwind et shadcn, PR 175) ; le lot 1 de la base du site public (PR 176 : `billed_months`, `confirmed_on`, `accepted_bac_tracks`, `campus_openings`, `campus_class_sizes`, `family_demands`). **Migrations en production ; le code en ligne reste celui du 13/11** (mise en ligne sur ordre du fondateur).
+- **`main`** : la refonte v2 de l'espace relais et de l'administration (Tailwind et shadcn, PR 175) ; le lot 1 de la base du site public (PR 176 : `billed_months`, `confirmed_on`, `accepted_bac_tracks`, `campus_openings`, `campus_class_sizes`, `family_demands`). **Migrations et code en production : `main` `cfb4d42` (lots 1 à 4 bis) mis en ligne le 16/11** (mise en ligne sur ordre du fondateur).
 - **Lot 2, fait le 16/11** : l'administration saisit ces champs : mois facturés et **« Noter le OUI de l'école »** (Frais), séries admises (Formations), « Places et effectifs » (fiche), demandes des familles (« Aujourd'hui »). Journal : `docs/avancement-admin-v2.md`.
 - **Des frais ne sont publics qu'avec `confirmed_on`**, le jour du OUI écrit de l'école ; modifier une ligne l'efface (l'écran ne réécrit que les lignes qui changent).
 - **Lot 3, fait le 16/11** (planches « Accueil » de la version 44) : l'en-tête à trois piliers, Trouver une école · S'orienter · Espace écoles (plus de bouton Menu) ; le pied de page (« Une école manque ? », les villes, la date de l'annuaire) ; **l'accueil sans carte ni JavaScript** ; `/orienter/` de passage (chaque profil ouvre sa liste) jusqu'aux questions du lot 5. Le mode « accueil » de la carte (`chargeur.ts`, `chargement.ts`) n'est plus appelé.
