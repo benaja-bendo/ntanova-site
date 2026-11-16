@@ -317,7 +317,7 @@ export function FicheEcole({
               </a>
             ))}
             <a
-              href="#ecoles/ajouter"
+              href={`#ecoles/fiche/${e.id}/site`}
               className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full border border-dashed border-primary px-3.5 text-sm font-bold whitespace-nowrap text-primary-strong no-underline"
             >
               <IconeAjouter className="size-4" aria-hidden />

@@ -12,6 +12,7 @@ import {
   erreurFormation,
   formationSerie,
   formationVide,
+  memeFormation,
   resume,
   sansFormation,
   SERIES_RAPIDES,
@@ -21,24 +22,39 @@ import { listes, type Valeur } from '../../modele/listes';
 import type { DomainePublic, FormationSaisie } from '../../modele/ports';
 import { Champ, Choix } from '@/ui/v2/formulaire';
 
+/**
+ * Une formation qui n'est pas une série du bac (BTS, licence, couture…) : facultative, donc repliée derrière un lien
+ * (fondateur, 16/11) ; les pastilles de séries suffisent le plus souvent.
+ */
 function AjoutLibre({
   cycle,
   domaines,
+  deja,
   surAjout,
 }: {
   cycle: Valeur<'niveau'>;
   domaines: readonly DomainePublic[];
+  /** Les formations déjà notées pour ce cycle : une même formation (titre, à la casse près) est dite, pas ajoutée. */
+  deja: readonly FormationSaisie[];
   surAjout: (f: FormationSaisie) => void;
 }) {
+  const [ouvert, setOuvert] = useState(false);
   const [f, setF] = useState<FormationSaisie>(() => formationVide(cycle));
   const [erreur, setErreur] = useState<string | undefined>();
   const ajouter = () => {
-    const probleme = erreurFormation(f);
+    const notee = deja.find((x) => memeFormation(x, f));
+    const probleme = erreurFormation(f) ?? (notee ? `Déjà notée : ${notee.titre}.` : null);
     setErreur(probleme ?? undefined);
     if (probleme) return;
     surAjout({ ...f, titre: f.titre.trim() });
     setF(formationVide(cycle));
   };
+  if (!ouvert)
+    return (
+      <button type="button" className={`${v2.lien} self-start`} onClick={() => setOuvert(true)}>
+        + Autre formation (BTS, licence, couture…)
+      </button>
+    );
   return (
     <div
       className={v2.motif}
@@ -46,7 +62,7 @@ function AjoutLibre({
       aria-label={`Ajouter une formation (${libelleNiveau[cycle]})`}
     >
       <Champ
-        libelle="Ce qui est affiché"
+        libelle="Nom de la formation (tel qu’écrit sur le panneau)"
         erreur={erreur}
         aide="Par exemple « BTS Informatique de gestion », « Licence en droit », « Couture »."
       >
@@ -58,7 +74,11 @@ function AjoutLibre({
             autoComplete="off"
             maxLength={160}
             value={f.titre}
-            onChange={(ev) => setF({ ...f, titre: ev.target.value })}
+            onChange={(ev) => {
+              setF({ ...f, titre: ev.target.value });
+              // L'erreur s'efface dès qu'on écrit : elle revient seulement au prochain « Ajouter ».
+              setErreur(undefined);
+            }}
           />
         )}
       </Champ>
@@ -208,6 +228,7 @@ export function Formations({
             <AjoutLibre
               cycle={cycle}
               domaines={domaines}
+              deja={siennes}
               surAjout={(f) => surChangement(avecFormation(formations, f))}
             />
           </section>

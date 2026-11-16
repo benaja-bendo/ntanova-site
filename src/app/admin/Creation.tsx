@@ -1,4 +1,5 @@
 import { v2 } from '@/ui/v2/classes';
+import { cn } from '@/lib/utils';
 import { erreursDeclaration } from '../../modele/declaration-ecole';
 import { jourDuCongo } from '../../modele/date-declaration';
 /**
@@ -17,6 +18,9 @@ import {
 import type { Erreurs } from '../../modele/fiche';
 import { sansCycle } from '../../modele/formations';
 import { cheminLisible } from '../../modele/geo-divisions';
+import { lirePosition } from '../../modele/coordonnees';
+import { distanceEnMots } from '../../modele/deja-sur-ntanova';
+import type { EcoleSimilaire } from '../../modele/fiche-admin';
 import { lireImportation, type LectureImport } from '../../modele/import-ecoles';
 import { libelleNiveau, libelleTypeEcole } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
@@ -26,11 +30,18 @@ import type {
   PortAdministration,
   RapportImport,
 } from '../../modele/ports';
+import { ErreurDecision } from '../../modele/ports';
 import { Champ, Choix } from '@/ui/v2/formulaire';
 import { ChampPosition, messageErreur } from './ChampPosition';
 import { Formations } from './Formations';
 
 type Vue = 'une' | 'liste' | 'ecole';
+
+/** « + Un site » (fondateur, 16/11) : le site s'ajoute à cette école ; son nom est repris, non modifiable. */
+export interface EcoleDuSite {
+  institutionId: string;
+  nom: string;
+}
 
 function Division({
   valeur,
@@ -68,6 +79,7 @@ function Division({
 
 function FormulaireUne({
   declaration = false,
+  site,
   admin,
   divisions,
   domaines,
@@ -75,23 +87,33 @@ function FormulaireUne({
   surAnnuler,
 }: {
   declaration?: boolean;
+  site?: EcoleDuSite | undefined;
   admin: PortAdministration;
   divisions: DivisionVue[];
   domaines: DomainePublic[];
   surEnregistre: (texte: string) => void;
   surAnnuler: () => void;
 }) {
-  const [champs, setChamps] = useState<FormulaireCreation>(formulaireCreationVide);
+  // Un site reprend le nom de son école : les contrôles du formulaire le voient, il n'est pas à l'écran.
+  const [champs, setChamps] = useState<FormulaireCreation>(() => ({
+    ...formulaireCreationVide(),
+    nom: site?.nom ?? '',
+  }));
   const [erreurs, setErreurs] = useState<Erreurs>({});
   const [erreur, setErreur] = useState<string | null>(null);
   const [declareeLe, setDeclareeLe] = useState('');
   const [confirmee, setConfirmee] = useState(false);
   const [existe, setExiste] = useState<string | null>(null);
+  // B (16/11) : une école du même nom, déjà connue (même endroit ou ailleurs). Rien ne se crée sans la réponse.
+  const [connue, setConnue] = useState<EcoleSimilaire | null>(null);
+  const [autreEcole, setAutreEcole] = useState(false);
   const [enCours, setEnCours] = useState(false);
   const changer = (nouveaux: Partial<FormulaireCreation>) => {
     setChamps((avant) => ({ ...avant, ...nouveaux }));
     setExiste(null);
     setConfirmee(false);
+    setConnue(null);
+    setAutreEcole(false);
   };
 
   const basculerCycle = (n: Valeur<'niveau'>) =>
@@ -104,8 +126,57 @@ function FormulaireUne({
         : { cycles: listes.niveau.filter((x) => x === n || champs.cycles.includes(x)) },
     );
 
-  const enregistrer = async (ev: { preventDefault: () => void }) => {
-    ev.preventDefault();
+  /**
+   * Un site d'une école connue : il se crée, puis se rattache à elle (`attach_campus_to_institution`, la même règle que
+   * « C'est un site de… » ; l'école provisoire, sans autre site, disparaît). Le nom du site est obligatoire : il distingue
+   * les sites d'une même école, et la base refuse un site du même nom au même endroit.
+   */
+  const creerUnSite = async (ecole: EcoleDuSite) => {
+    if (champs.etiquette.trim() === '') {
+      setErreurs({
+        etiquette: 'Écris le nom du site (« Campus de Loandjili », « Site Collège »…).',
+      });
+      return;
+    }
+    const entree = versEntree({ ...champs, nom: ecole.nom });
+    // Une déclaration de l'école garde sa date et sa confirmation, site ou école.
+    const resultat = await admin.creerEcole(
+      entree,
+      declaration ? { declareeLe, confirmee } : undefined,
+    );
+    if (resultat.statut === 'existe') {
+      setExiste(resultat.message ?? 'Ce site est déjà enregistré.');
+      return;
+    }
+    const campusId = resultat.campusIds[0];
+    try {
+      if (campusId) await admin.rattacherSite(campusId, ecole.institutionId);
+    } catch {
+      throw new ErreurDecision(
+        `Le site est créé, mais pas rattaché à ${ecole.nom} : ouvre sa fiche et choisis « C’est un site de… ».`,
+      );
+    }
+    surEnregistre(`${entree.campus[0]?.etiquette ?? 'Le site'} est ajouté à ${ecole.nom}.`);
+  };
+
+  /** « Oui, un site de cette école » : le nom de l'école se lit dans la liste des institutions. */
+  const unSiteDe = async (c: EcoleSimilaire) => {
+    if (!c.institutionId) return;
+    setErreur(null);
+    setEnCours(true);
+    try {
+      const nom =
+        (await admin.institutions()).find((i) => i.id === c.institutionId)?.nom ?? champs.nom;
+      await creerUnSite({ institutionId: c.institutionId, nom });
+    } catch (err) {
+      setErreur(messageErreur(err));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  const enregistrer = async (ev?: { preventDefault: () => void }, sansDemander = autreEcole) => {
+    ev?.preventDefault();
     setErreur(null);
     const trouvees = {
       ...erreursCreation(champs),
@@ -115,6 +186,28 @@ function FormulaireUne({
     if (Object.keys(trouvees).length > 0) return;
     setEnCours(true);
     try {
+      if (site) {
+        await creerUnSite(site);
+        return;
+      }
+      // B : la base compare le nom (sans accents, majuscules ni mots génériques) et la distance (`similar_schools`).
+      if (!sansDemander) {
+        const proches = await admin.ecolesSimilaires(
+          champs.nom,
+          lirePosition(champs.position),
+          null,
+        );
+        const meme = proches.find(
+          (c) =>
+            c.genre === 'campus' &&
+            c.institutionId !== null &&
+            (c.verdict === 'deja_la' || c.verdict === 'autre_site'),
+        );
+        if (meme) {
+          setConnue(meme);
+          return;
+        }
+      }
       const entree = versEntree(champs);
       const resultat = await admin.creerEcole(
         entree,
@@ -140,11 +233,11 @@ function FormulaireUne({
   return (
     <form
       className={v2.motifBlanc}
-      aria-label="Ajouter une école"
+      aria-label={site ? `Ajouter un site à ${site.nom}` : 'Ajouter une école'}
       noValidate
       onSubmit={(ev) => void enregistrer(ev)}
     >
-      <h2 className={v2.titreLarge}>Ajouter une école</h2>
+      <h2 className={v2.titreLarge}>{site ? `Un site de ${site.nom}` : 'Ajouter une école'}</h2>
       {declaration && (
         <>
           <p className={v2.mentionLarge}>
@@ -184,39 +277,52 @@ function FormulaireUne({
           </div>
         </>
       )}
-      <Champ libelle="Nom de l’école" erreur={erreurs['nom']}>
-        {(a) => (
-          <input
-            {...a}
-            className={v2.champ}
-            type="text"
-            autoComplete="off"
-            value={champs.nom}
-            onChange={(ev) => changer({ nom: ev.target.value })}
-          />
-        )}
-      </Champ>
-      <Champ libelle="Type d'école" erreur={erreurs['genre']}>
-        {(a) => (
-          <select
-            {...a}
-            className={v2.champ}
-            value={champs.genre}
-            onChange={(ev) => changer({ genre: ev.target.value as Valeur<'type_ecole'> })}
-          >
-            {(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => (
-              <option key={t} value={t}>
-                {libelleTypeEcole[t]}
-              </option>
-            ))}
-          </select>
-        )}
-      </Champ>
+      {site ? (
+        <p className={v2.mentionLarge}>
+          École : <b>{site.nom}</b>. Le nom, le type et le logo sont ceux de l’école ; ce site a sa
+          position, ses niveaux et ses formations.
+        </p>
+      ) : (
+        <Champ libelle="Nom de l’école" erreur={erreurs['nom']}>
+          {(a) => (
+            <input
+              {...a}
+              className={v2.champ}
+              type="text"
+              autoComplete="off"
+              value={champs.nom}
+              onChange={(ev) => changer({ nom: ev.target.value })}
+            />
+          )}
+        </Champ>
+      )}
+      {!site && (
+        <Champ libelle="Type d'école" erreur={erreurs['genre']}>
+          {(a) => (
+            <select
+              {...a}
+              className={v2.champ}
+              value={champs.genre}
+              onChange={(ev) => changer({ genre: ev.target.value as Valeur<'type_ecole'> })}
+            >
+              {(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => (
+                <option key={t} value={t}>
+                  {libelleTypeEcole[t]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Champ>
+      )}
       <Champ
-        libelle="Nom de l’implantation"
-        facultatif
+        libelle={site ? 'Nom du site' : 'Nom de l’implantation'}
+        facultatif={!site}
         erreur={erreurs['etiquette']}
-        aide="« Campus de Loandjili » : quand l’école a plusieurs implantations. Ajoute les autres ensuite avec « Nouvelle implantation » en validant un relevé, ou par une importation."
+        aide={
+          site
+            ? '« Campus de Loandjili », « Site Collège » : ce qui distingue ce site des autres.'
+            : '« Campus de Loandjili » : quand l’école a plusieurs implantations. Ajoute les autres ensuite avec « + Un site » sur sa fiche.'
+        }
       >
         {(a) => (
           <input
@@ -311,6 +417,47 @@ function FormulaireUne({
         surChangement={(formations) => changer({ formations })}
         erreur={erreurs['formations']}
       />
+      {connue && (
+        <section
+          className={cn(
+            v2.large,
+            'flex flex-col gap-3 rounded-xl border-2 border-ambre bg-attention px-5 py-4',
+          )}
+          aria-label="Est-ce une école connue ?"
+        >
+          <b className="font-serif text-xl">
+            {connue.verdict === 'deja_la'
+              ? 'Déjà dans la base ?'
+              : 'Un autre site de cette école ?'}
+          </b>
+          <span>
+            « {connue.nom} » existe déjà
+            {connue.distanceM !== null ? `, ${distanceEnMots(connue.distanceM)}` : ''}.
+          </span>
+          <div className="flex flex-wrap gap-2.5" role="group" aria-label="Ta réponse">
+            <button
+              type="button"
+              className={v2.bouton}
+              disabled={enCours}
+              onClick={() => void unSiteDe(connue)}
+            >
+              Oui, un site de cette école
+            </button>
+            <button
+              type="button"
+              className={v2.boutonSecondaire}
+              disabled={enCours}
+              onClick={() => {
+                setAutreEcole(true);
+                setConnue(null);
+                void enregistrer(undefined, true);
+              }}
+            >
+              Non, une autre école
+            </button>
+          </div>
+        </section>
+      )}
       {existe && (
         <p className={v2.bandeAttention} role="status">
           {existe}
@@ -322,8 +469,8 @@ function FormulaireUne({
         </p>
       )}
       <div className={v2.actionsLarge}>
-        <button type="submit" className={v2.bouton} disabled={enCours}>
-          Ajouter l’école
+        <button type="submit" className={v2.bouton} disabled={enCours || connue !== null}>
+          {site ? 'Ajouter le site' : 'Ajouter l’école'}
         </button>
         <button type="button" className={v2.boutonSecondaire} onClick={surAnnuler}>
           Annuler
@@ -512,9 +659,11 @@ function Importation({
 export function Creation({
   admin,
   divisions,
+  site,
   surEnregistre,
   surAnnuler,
 }: {
+  site?: EcoleDuSite;
   admin: PortAdministration;
   divisions: DivisionVue[];
   surEnregistre: (texte: string) => void;
@@ -529,6 +678,18 @@ export function Creation({
       .then(setDomaines)
       .catch(() => setDomaines([]));
   }, [admin]);
+
+  if (site)
+    return (
+      <FormulaireUne
+        site={site}
+        admin={admin}
+        divisions={divisions}
+        domaines={domaines}
+        surEnregistre={surEnregistre}
+        surAnnuler={surAnnuler}
+      />
+    );
 
   return (
     <div className={v2.pile}>

@@ -16,7 +16,7 @@ import {
   sansDetail,
   verdictDeProximite,
 } from '../../modele/fiche-admin';
-import { ressemblance } from '../../modele/deja-sur-ntanova';
+import { noyauDuNom, ressemblance } from '../../modele/deja-sur-ntanova';
 import { erreursFormulaireEcole, formulaireDe } from '../../modele/correction-ecole';
 import { erreursDeclaration } from '../../modele/declaration-ecole';
 import {
@@ -2175,11 +2175,13 @@ const admin: PortAdministration = {
     if (declaration && entree.campus.some((c) => c.numeroEnseigne !== null))
       throw new ErreurDecision('Le contact public nécessite son accord séparé.');
     const origine = declaration ? 'school' : 'admin';
-    const resultat = creerEntree(lireEtat(), entree, origine);
+    // Les erreurs d'abord, sans rien écrire ; puis l'écriture, dont on rend les identifiants (ceux qui existent).
+    creerEntree(lireEtat(), entree, origine);
+    let resultat!: ReturnType<typeof creerEntree>;
     ecrire((e) => {
-      const r = creerEntree(e, entree, origine);
-      if (r.statut === 'creee' && declaration)
-        for (const id of r.campusIds) e.campus[id]!.declareeLe = declaration.declareeLe;
+      resultat = creerEntree(e, entree, origine);
+      if (resultat.statut === 'creee' && declaration)
+        for (const id of resultat.campusIds) e.campus[id]!.declareeLe = declaration.declareeLe;
     });
     return resultat;
   },
@@ -2788,7 +2790,7 @@ const admin: PortAdministration = {
       .flatMap((c) => {
         const distanceM =
           position && c.position ? Math.round(distanceMetres(position, c.position)) : null;
-        const r = ressemblance(nom, c.nom);
+        const r = ressemblance(noyauDuNom(nom), noyauDuNom(c.nom));
         const verdict = verdictDeProximite(distanceM, r);
         return verdict
           ? [

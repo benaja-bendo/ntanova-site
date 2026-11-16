@@ -1365,7 +1365,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   const [divisions, setDivisions] = useState<DivisionVue[]>([]);
   // « Voir les écoles » depuis une zone arrive ici avec la zone déjà choisie (#ecoles/zone/<id>) : toutes ses écoles, et
   // une puce qui dit le filtre et l'enlève. Sinon, planche : « À publier » d'abord.
-  const [, sousAdresse, zoneDeLAdresse] = useAdresse();
+  const [, sousAdresse, zoneDeLAdresse, gesteDeLAdresse] = useAdresse();
   const [divisionFiltre, setDivisionFiltre] = useState(
     sousAdresse === 'zone' ? (zoneDeLAdresse ?? '') : '',
   );
@@ -1454,6 +1454,27 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           <p className={v2.bandeSucces} role="status">
             {annonce}
           </p>
+        )}
+        {/* « + Un site » (16/11) : `#ecoles/fiche/<id>/site` ajoute un site à CETTE école, pas une autre école. */}
+        {gesteDeLAdresse === 'site' && (
+          <Dialogue
+            titre={`Un site de ${choisie.nom}`}
+            variante="tiroir"
+            fermer={() => aller(`ecoles/fiche/${choisie.id}`)}
+            entete={<h2>Un site de {choisie.nom}</h2>}
+          >
+            <Creation
+              admin={admin}
+              divisions={divisions}
+              site={{ institutionId: choisie.institutionId, nom: choisie.nom }}
+              surEnregistre={(texte) => {
+                setAnnonce(texte);
+                charger();
+                aller(`ecoles/fiche/${choisie.id}`, true);
+              }}
+              surAnnuler={() => aller(`ecoles/fiche/${choisie.id}`)}
+            />
+          </Dialogue>
         )}
         <LigneEcole
           key={choisie.id}

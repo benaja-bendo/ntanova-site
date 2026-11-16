@@ -109,7 +109,7 @@ export function resume(
 
 /** Les messages d'une formation à envoyer : vide si elle peut partir. */
 export function erreurFormation(f: FormationSaisie): string | null {
-  if (f.titre.trim() === '') return 'Écris ce qui est affiché (« Série C », « BTS Gestion »…).';
+  if (f.titre.trim() === '') return 'Écris le nom de la formation (« Série C », « BTS Gestion »…).';
   if (f.titre.trim().length > 160) return 'Ce titre est trop long.';
   if (f.serie !== null && !listes.bac_track.includes(f.serie))
     return 'Cette série n’est pas dans la liste.';
