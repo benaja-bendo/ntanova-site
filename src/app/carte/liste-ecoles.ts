@@ -168,7 +168,15 @@ export function demarrerListe(racine: HTMLElement): void {
   }
 
   async function appliquer(changement?: (e: EtatListe) => EtatListe, garderLaPage = false) {
-    await lire();
+    try {
+      await lire();
+    } catch {
+      // Une coupure : la liste construite reste ; le prochain geste relit le fichier.
+      message.textContent =
+        'La liste ne se met pas à jour : vérifiez la connexion, puis touchez de nouveau votre choix.';
+      return;
+    }
+    if (message.textContent?.startsWith('La liste ne se met pas')) message.textContent = '';
     if (changement) etat = changement(etat);
     if (!garderLaPage) montrees = PAR_PAGE;
     calculer();
@@ -381,10 +389,12 @@ export function demarrerListe(racine: HTMLElement): void {
     });
   } else {
     const premierGeste = () =>
-      void lire().then(() => {
-        calculer();
-        dessinerFiltres();
-      });
+      void lire()
+        .then(() => {
+          calculer();
+          dessinerFiltres();
+        })
+        .catch(() => undefined);
     racine.addEventListener('pointerdown', premierGeste, { once: true });
     racine.addEventListener('focusin', premierGeste, { once: true });
   }
