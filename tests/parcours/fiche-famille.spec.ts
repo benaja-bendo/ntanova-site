@@ -401,21 +401,23 @@ test.describe('sur ordinateur', () => {
     expect(new Set(marges)).toEqual(new Set(['0px']));
   });
 
-  test('la navigation du haut est là, le bouton « Menu » du téléphone n’y est pas', async ({
-    page,
-  }) => {
+  test('les trois piliers sont en haut, et aucun bouton « Menu »', async ({ page }) => {
     await page.goto(COMPLEXE);
-    await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible();
-    await expect(page.locator('summary.menu-bouton')).toBeHidden();
-    await expect(page.locator('.ville')).toBeVisible();
+    await expect(
+      page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link'),
+    ).toHaveText(['Trouver une école', 'S’orienter', 'Espace écoles']);
+    await expect(page.locator('summary.menu-bouton')).toHaveCount(0);
+    await expect(page.locator('header .ville')).toBeVisible();
   });
 });
 
-test.describe('le menu du téléphone', () => {
-  test('« Menu » ouvre les quatre portes du site, sans JavaScript, et la page courante est marquée (ticket 146)', async ({
+test.describe('l’en-tête du téléphone', () => {
+  test('les trois piliers sont visibles sans JavaScript, sur une ligne, 44 px chacun, et la page courante est marquée (lot 3)', async ({
     browser,
     baseURL,
   }) => {
+    // Décision 1A du 15/11/2026 et planche « Accueil · téléphone » de la version 44 : plus de bouton « Menu ». Carte, Méthode,
+    // Données et À propos passent au pied de page.
     const contexte = await browser.newContext({
       javaScriptEnabled: false,
       viewport: { width: 360, height: 640 },
@@ -423,40 +425,51 @@ test.describe('le menu du téléphone', () => {
     });
     const page = await contexte.newPage();
     await page.goto('/ecoles/pointe-noire/');
-    const menu = page.getByRole('navigation', { name: 'Menu principal' });
-    await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeHidden();
-    await expect(menu).toBeHidden();
-    await page.locator('summary.menu-bouton').click();
-    await expect(menu.getByRole('link')).toHaveText([
-      'Écoles',
-      'Carte',
-      'Pour les écoles',
-      'À propos',
+    const piliers = page.getByRole('navigation', { name: 'Navigation principale' });
+    await expect(piliers.getByRole('link')).toHaveText([
+      'Trouver une école',
+      'S’orienter',
+      'Espace écoles',
     ]);
-    for (const lien of await menu.getByRole('link').all())
-      expect((await lien.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    await expect(menu.getByRole('link', { name: 'Écoles', exact: true })).toHaveAttribute(
+    await expect(page.getByRole('navigation', { name: 'Menu principal' })).toHaveCount(0);
+    const boites = await Promise.all(
+      (await piliers.getByRole('link').all()).map((l) => l.boundingBox()),
+    );
+    for (const b of boites) {
+      expect(b!.height).toBeGreaterThanOrEqual(44);
+      expect(b!.y, 'les trois sur la même ligne').toBe(boites[0]!.y);
+    }
+    // Une liste, une page de lieu ou une fiche : c'est « Trouver une école ».
+    await expect(piliers.getByRole('link', { name: 'Trouver une école' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    await menu.getByRole('link', { name: 'Carte' }).click();
+    await piliers.getByRole('link', { name: 'S’orienter' }).click();
+    await expect(page).toHaveURL(/\/orienter\/$/);
+    await expect(piliers.getByRole('link', { name: 'S’orienter' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await expect(piliers.getByRole('link', { name: 'Trouver une école' })).not.toHaveAttribute(
+      'aria-current',
+    );
+    // La carte reste à un geste : au pied de page.
+    await page.getByRole('contentinfo').getByRole('link', { name: 'Carte', exact: true }).click();
     await expect(page).toHaveURL(/\/carte\/$/);
     await contexte.close();
   });
 
-  test('le menu ouvert passe au-dessus de la page, sur toute la largeur, sous l’en-tête', async ({
-    page,
-  }) => {
+  test('la bulle du pays passe au-dessus de la page, juste sous l’en-tête', async ({ page }) => {
     await page.goto(COMPLEXE);
-    await page.locator('summary.menu-bouton').click();
-    const panneau = await page.locator('.menu-liens').boundingBox();
+    await page.locator('header details.pays > summary').click();
+    const bulle = await page.locator('.pays-bulle').boundingBox();
     const entete = await page.locator('header.entete').boundingBox();
-    expect(Math.abs(panneau!.y - (entete!.y + entete!.height))).toBeLessThan(2);
-    expect(panneau!.width).toBeGreaterThanOrEqual(page.viewportSize()!.width - 1);
-    // Il recouvre bien le contenu : le point juste sous le menu pointe vers lui.
+    expect(Math.abs(bulle!.y - (entete!.y + entete!.height))).toBeLessThan(2);
+    expect(bulle!.x + bulle!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    // Elle recouvre bien le contenu : le point en son milieu pointe vers elle.
     const pointe = await page.evaluate(
-      ([x, y]) => !!document.elementFromPoint(x!, y!)?.closest('.menu-liens'),
-      [180, panneau!.y + panneau!.height / 2],
+      ([x, y]) => !!document.elementFromPoint(x!, y!)?.closest('.pays-bulle'),
+      [bulle!.x + bulle!.width / 2, bulle!.y + bulle!.height / 2],
     );
     expect(pointe).toBe(true);
   });
@@ -491,35 +504,37 @@ test.describe('le menu du téléphone', () => {
 });
 
 test.describe('l’accueil', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() =>
-      Object.defineProperty(navigator, 'connection', {
-        value: { saveData: true },
-        configurable: true,
-      }),
-    );
-  });
-
-  test('un seul bouton principal vers la carte, sous le titre : plus de doublon « plein écran » sous l’aperçu', async ({
+  test('la recherche ouvre « Écoles » avec le mot cherché, et le parent arrive sur la fiche', async ({
     page,
   }) => {
     await page.goto('/');
-    await expect(page.getByRole('link', { name: 'Explorer la carte', exact: true })).toHaveCount(1);
-    await expect(page.getByText('Explorer la carte en plein écran')).toHaveCount(0);
-    await expect(page.locator('.plein-ecran')).toHaveCount(0);
-    // Le seul lien « plein » vers /carte/ dans le corps de la page : celui de l'ouverture.
-    await expect(page.locator('main a.bouton:not(.bouton-secondaire)[href="/carte/"]')).toHaveCount(
-      1,
-    );
+    await page.getByRole('searchbox', { name: 'Chercher une école' }).fill('mongo');
+    await page.getByRole('button', { name: 'Chercher' }).click();
+    await expect(page).toHaveURL(/\/ecoles\/\?q=mongo$/);
+    await page
+      .locator('ul.liste-lignes')
+      .getByRole('link', { name: /Groupe scolaire/ })
+      .click();
+    await expect(page).toHaveURL(/\/ecoles\/groupe-scolaire-exemple-904316\/$/);
   });
 
-  test('le lien sous les villes dit ce qu’il ouvre : « Les arrondissements de Pointe-Noire »', async ({
+  test('la carte n’est plus à l’accueil, mais à un geste : « Voir la carte »', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('main canvas, main .carte, main [data-carte]')).toHaveCount(0);
+    await page.getByRole('main').getByRole('link', { name: 'Voir la carte' }).click();
+    await expect(page).toHaveURL(/\/carte\/$/);
+  });
+
+  test('la carte d’une ville mène à sa page, chaque puce à son arrondissement', async ({
     page,
   }) => {
     await page.goto('/');
-    const lien = page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' });
-    await expect(lien).toHaveAttribute('href', '/ecoles/pointe-noire/');
-    await expect(page.getByRole('link', { name: 'Voir la carte de Pointe-Noire' })).toHaveCount(0);
+    const ville = page.locator('section.ville-carte', { hasText: 'Pointe-Noire' });
+    await expect(
+      ville.getByRole('link', { name: /^Pointe-Noire 7 écoles sur NTanova$/ }),
+    ).toHaveAttribute('href', '/ecoles/pointe-noire/');
+    await ville.getByRole('link', { name: /^Loandjili/ }).click();
+    await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/loandjili\/$/);
   });
 
   test('sur téléphone, « Comment les fiches sont tenues » : les trois étapes, l’une sous l’autre, avant l’appel aux directions', async ({
@@ -536,9 +551,9 @@ test.describe('l’accueil', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       360,
     );
-    const appel = await page.locator('.ecoles-appel').boundingBox();
+    const appel = await page.locator('.appel-ecoles').boundingBox();
     expect(appel!.y).toBeGreaterThan(boites[2]!.y);
-    const villes = await page.locator('a.quartier').last().boundingBox();
+    const villes = await page.locator('section.ville-carte').last().boundingBox();
     expect(boites[0]!.y).toBeGreaterThan(villes!.y);
   });
 });

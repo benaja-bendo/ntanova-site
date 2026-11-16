@@ -11,7 +11,8 @@ Le site de NTanova : l'annuaire public des écoles de la République du Congo (*
 - **`main`** : la refonte v2 de l'espace relais et de l'administration (Tailwind et shadcn, PR 175) ; le lot 1 de la base du site public (PR 176 : `billed_months`, `confirmed_on`, `accepted_bac_tracks`, `campus_openings`, `campus_class_sizes`, `family_demands`). **Migrations en production ; le code en ligne reste celui du 13/11** (mise en ligne sur ordre du fondateur).
 - **Lot 2, fait le 16/11** : l'administration saisit ces champs : mois facturés et **« Noter le OUI de l'école »** (Frais), séries admises (Formations), « Places et effectifs » (fiche), demandes des familles (« Aujourd'hui »). Journal : `docs/avancement-admin-v2.md`.
 - **Des frais ne sont publics qu'avec `confirmed_on`**, le jour du OUI écrit de l'école ; modifier une ligne l'efface (l'écran ne réécrit que les lignes qui changent).
-- **Le plan** : les lots 3 à 8 (socle public, fiche, S'orienter, Espace écoles, Comparer, pré-inscription) : §7 de `docs/produit/2026-11-15-site-public-trois-piliers.md`, dépôt `ntanova`.
+- **Lot 3, fait le 16/11** (planches « Accueil » de la version 44) : l'en-tête à trois piliers, Trouver une école · S'orienter · Espace écoles (plus de bouton Menu) ; le pied de page (« Une école manque ? », les villes, la date de l'annuaire) ; **l'accueil sans carte ni JavaScript** ; `/orienter/` de passage (chaque profil ouvre sa liste) jusqu'aux questions du lot 5. Le mode « accueil » de la carte (`chargeur.ts`, `chargement.ts`) n'est plus appelé.
+- **Le plan** : les lots 4 à 8 (fiche, S'orienter, Espace écoles, Comparer, pré-inscription) : §7 de `docs/produit/2026-11-15-site-public-trois-piliers.md`, dépôt `ntanova`.
 - **La fiche publique v2 du 14/11** (non vérifiée) attend le lot 4 sur `wip/fiche-publique-14-11` (`git rebase --onto main a1ebe51`).
 
 ## Lancer
@@ -44,7 +45,7 @@ src/ui/         jetons, composants (CSS du site, shadcn, v2), sans appel réseau
 supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parcours · outils/ contrôles maison
 ```
 
-- **Frontières gardées par ESLint** (`eslint.config.js`, testé par `frontieres.test.ts`) : changer l'import, jamais la règle. `@supabase/*` seulement dans `src/infra/` ; `app/` et `pages/` reçoivent les adaptateurs par `src/infra/index.ts` ; `modele/` sans React ni `infra` ni `ui` ; relais et admin ne dépendent pas l'un de l'autre (pas de `Relais.tsx` dans l'admin).
+- **Frontières gardées par ESLint** (`eslint.config.js`, testé par `frontieres.test.ts`) : changer l'import, jamais la règle. `@supabase/*` seulement dans `src/infra/` ; `app/` et `pages/` reçoivent les adaptateurs par `src/infra/index.ts` ; `modele/` sans React ni `infra` ni `ui` ; relais et admin ne dépendent pas l'un de l'autre (pas de `Relais.tsx` dans l'admin). Ce que le gabarit public montre sur chaque page (les villes du pied) passe par `src/middleware.ts` et `Astro.locals`.
 - **Les ports** (`src/modele/ports.ts`) portent le nom de leur future route REST : le jour d'un serveur, seul `src/infra/` change. Le faux serveur implémente chaque geste nouveau, sinon les parcours ne le voient pas.
 
 ### L'espace relais : ce qui ne s'affaiblit jamais
@@ -89,7 +90,7 @@ supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parco
 
 - **Une page publique pèse moins de 200 Ko et n'a pas de JavaScript**, sauf ces exceptions, contrôlées par `pnpm poids` :
   - `/ecoles/` : script de filtrage de 20 Ko et `/recherche.json` de 300 Ko au plus (compressés) ; la position, demandée au seul bouton « Autour de moi », n'est envoyée à personne ;
-  - `/` et `/carte/` : page 100 Ko, chargeur 8 Ko, îlot MapLibre 500 Ko servis, premier affichage 700 Ko (`src/app/carte/README.md`) ;
+  - `/carte/` : page 100 Ko, chargeur 8 Ko, îlot MapLibre 500 Ko servis, premier affichage 700 Ko (`src/app/carte/README.md`) ; l'accueil n'a plus de carte depuis le lot 3 ;
   - « Partager » sur une fiche : un script de 2 Ko au plus, sinon un lien WhatsApp.
 - **À venir (fondateur, 15/11)** : calculateur, test d'orientation et Comparer s'affichent d'abord en HTML et CSS dans les 200 Ko ; leur JavaScript ne se charge qu'à la demande (script natif ou îlot `client:visible`), déclaré à `pnpm poids`.
 
@@ -124,4 +125,5 @@ Le quota s'est épuisé le 05/11 et a bloqué une mise en production : chaque mi
 - `react-hooks` refuse un `setState` direct dans un effet : le faire dans les rappels de l'action.
 - Un parcours attend l'état final avant d'agir ; le vérifier en ralentissant le faux serveur (`localStorage['ntanova-faux-latence']`). Avant `context.setOffline(true)` : `attendreLaLecture(page)`.
 - Astro : un retour à la ligne entre un mot et une expression mange l'espace ; écrire `{' '}`.
+- Site public : `public.css` est servi avant `composants.css` ; une surcharge d'une seule classe de `.bouton` y perd, écrire `.bouton.bouton-accent`.
 - Carte : enregistrer toutes ses images dès `style.load` (sinon pas d'épingles) ; regarder la carte, pas seulement ses tests.

@@ -37,6 +37,8 @@ const pagesSansJavaScript = [
   '/ecoles/ecole-de-brazzaville-exemple-731590/',
   '/pour-les-ecoles/',
   '/a-propos/',
+  // Lot 3 : le deuxième pilier, en attendant les questions du lot 5.
+  '/orienter/',
   // Ticket 149 : les pages qu'une administration lit.
   '/methode/',
   '/donnees/',
@@ -83,8 +85,9 @@ test.describe('site public', () => {
   for (const adresse of pagesSansJavaScript) {
     test(`${adresse} : HTML lisible, 360 px, cibles de 44 px`, async ({ page, baseURL }) => {
       await pageLisible(page, baseURL, adresse);
+      // L'accueil n'a plus de carte depuis le lot 3 : plus de script non plus.
       expect(await page.locator('script:not([type="application/ld+json"])').count()).toBe(
-        adresse === '/' || fichesDEcole.includes(adresse) ? 1 : 0,
+        fichesDEcole.includes(adresse) ? 1 : 0,
       );
       // Sur une fiche, ce seul script est écrit dans la page (rien à télécharger) et sert « Partager ».
       if (fichesDEcole.includes(adresse)) {

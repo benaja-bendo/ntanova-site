@@ -1,5 +1,7 @@
 # Composants de la carte publique
 
+**Depuis le lot 3 (16/11/2026), l'accueil n'a plus de carte : seule `/carte/` l'utilise.** Le mode « accueil » (aperçu, attente de l'appui, lien « Explorer la carte ») n'est plus appelé ; il reste dans `chargeur.ts`, `chargement.ts` et `ExplorateurCarte.astro` jusqu'à son retrait.
+
 Une même carte sur l'accueil et `/carte/`, sans framework d'interface supplémentaire. La séparation suivie est celle des **données et règles, du rendu et de l'orchestration** ; pas de hiérarchie de classes ni d'abstraction générique.
 
 | Modifier… | Point d'entrée |

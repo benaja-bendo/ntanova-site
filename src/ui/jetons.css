@@ -235,8 +235,7 @@
   --interligne-titre: 1.2;
 
   /* Sur grand écran (à partir de 48 rem), les titres des pages publiques montent avec la largeur ; */
-  /* en dessous, les tailles ci-dessus ne changent pas. */
-  --taille-titre-accueil: clamp(1.75rem, 0.9rem + 3.4vw, 3.5rem); /* 40 px à 768, 56 px à 1 280 */
+  /* en dessous, les tailles ci-dessus ne changent pas. L'accueil (lot 3) prend les tailles de ses planches (30 et 46 px). */
   --taille-titre-public: clamp(1.75rem, 1.2rem + 1.5vw, 2.5rem); /* 31 px à 768, 38 px à 1 280 */
   --taille-titre-section: clamp(1.375rem, 1rem + 1.2vw, 1.875rem); /* 22 à 30 px */
   --taille-chapeau: clamp(1rem, 0.9rem + 0.45vw, 1.125rem); /* 16 à 18 px */

@@ -378,17 +378,23 @@ test.describe('la page « Écoles » (ticket 146)', () => {
 });
 
 test.describe('l’accueil en économiseur de données', () => {
-  test('le cadre dit que la carte attend l’appui, sans l’ancien dessin ni grand vide (ticket 146)', async ({
+  test('rien à attendre : ni carte ni script, la recherche et les villes tout de suite (lot 3)', async ({
     page,
   }) => {
-    await page.goto('/');
-    const cadre = page.locator('#carte');
-    await expect(cadre).toHaveAttribute('data-attente', 'appui');
-    await expect(cadre.locator('.carte-repli')).toBeHidden();
-    await expect(cadre.locator('.attente-appui')).toHaveText(
-      'La carte se charge à la demande, pour ménager vos données.',
+    // Ticket 146 : l'accueil d'un téléphone qui économise ses données attendait l'appui pour charger la carte. Depuis le lot 3
+    // (décision du 15/11/2026), l'accueil n'a plus de carte : il n'a plus rien à charger.
+    await page.addInitScript(() =>
+      Object.defineProperty(navigator, 'connection', {
+        value: { saveData: true },
+        configurable: true,
+      }),
     );
-    await expect(page.getByRole('button', { name: 'Explorer la carte interactive' })).toBeVisible();
-    expect((await cadre.boundingBox())!.height).toBeLessThan(22 * 16);
+    const demandes: string[] = [];
+    page.on('request', (r) => demandes.push(r.url()));
+    await page.goto('/');
+    await expect(page.locator('#carte')).toHaveCount(0);
+    await expect(page.locator('script[src]')).toHaveCount(0);
+    expect(demandes.filter((u) => /\/_astro\/.*\.js|tuiles|\.pmtiles|geojson/.test(u))).toEqual([]);
+    await expect(page.getByRole('searchbox', { name: 'Chercher une école' })).toBeInViewport();
   });
 });

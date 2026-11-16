@@ -12,7 +12,7 @@ async function ouvrir(page: import('@playwright/test').Page) {
   await page.goto('/carte/');
   await expect(page.locator('.explorateur')).toHaveAttribute('data-active', 'oui');
 }
-test('depuis l’accueil : accès direct visible, sans charger MapLibre avant le clic', async ({
+test('depuis l’accueil : « Voir la carte », sans charger MapLibre avant le clic', async ({
   page,
 }) => {
   await page.addInitScript(() =>
@@ -24,8 +24,9 @@ test('depuis l’accueil : accès direct visible, sans charger MapLibre avant le
   const demandes: string[] = [];
   page.on('request', (r) => demandes.push(r.url()));
   await page.goto('/');
-  const bouton = page.getByRole('link', { name: 'Explorer la carte', exact: true });
-  await expect(bouton).toBeInViewport();
+  // Lot 3 : la carte quitte l'accueil ; on l'ouvre sous les villes de « Où ? ».
+  const bouton = page.getByRole('main').getByRole('link', { name: 'Voir la carte', exact: true });
+  await expect(bouton).toBeVisible();
   expect(demandes.some((u) => /\/_astro\/(esm|ilot|maplibre)/.test(u))).toBe(false);
   await bouton.click();
   await expect(page).toHaveURL(/\/carte\//);
