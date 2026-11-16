@@ -1,5 +1,5 @@
 ---
-// « Photos » (v2 du 13/11) : trois vignettes au plus sur la fiche, la première en grand ; au-delà, « Voir les N » mène à la
+// « Photos » (v2 du 13/11) : trois vignettes au plus sur téléphone, cinq sur ordinateur, la première en grand ; au-delà, « Voir les N » mène à la
 // page des photos de l'école (une page statique de plus, sous son propre budget). Chaque image a été contrôlée par
 // l'administration (aucun enfant, aucune personne reconnaissable) ; aucune photo de travail n'entre ici.
 import { libelleSujetMedia } from '../../modele/libelles';
@@ -11,8 +11,12 @@ interface Props {
   lienPhotos: string;
 }
 const { galerie, nom, lienPhotos } = Astro.props;
-const montrees = galerie.slice(0, VIGNETTES_SUR_LA_FICHE);
-const reste = galerie.length - montrees.length;
+// Lot 3 (planche « Fiche publique ») : trois vignettes sur téléphone, cinq sur ordinateur (la grande, puis quatre en carré).
+const SUR_ORDINATEUR = 5;
+const montrees = galerie.slice(0, SUR_ORDINATEUR);
+const resteTel = galerie.length - Math.min(galerie.length, VIGNETTES_SUR_LA_FICHE);
+const resteOrdi = galerie.length - montrees.length;
+const nTel = Math.min(montrees.length, VIGNETTES_SUR_LA_FICHE);
 const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
 ---
 
@@ -20,11 +24,11 @@ const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
   <section class="galerie" id="photos" aria-label="Photos">
     <div class="tete">
       <h2>Photos</h2>
-      {reste > 0 && <a href={lienPhotos}>Voir les {galerie.length}</a>}
+      {resteTel > 0 && <a href={lienPhotos}>Voir les {galerie.length}</a>}
     </div>
-    <ul class:list={['tuiles', `tuiles-${montrees.length}`]}>
+    <ul class:list={['tuiles', `tuiles-${nTel}`, `ordi-${montrees.length}`]}>
       {montrees.map((m, i) => (
-        <li>
+        <li class:list={[{ 'seulement-ordi': i >= VIGNETTES_SUR_LA_FICHE }]}>
           <img
             src={cheminMedia(m, 'vignette')}
             alt={`${libelle(m)}, ${nom}`}
@@ -34,9 +38,22 @@ const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
             decoding="async"
           />
           <span class="etiquette-photo">{libelle(m)}</span>
-          {i === montrees.length - 1 && reste > 0 && (
-            <a class="plus" href={lienPhotos} aria-label={`Voir les ${galerie.length} photos`}>
-              +{reste}
+          {i === nTel - 1 && resteTel > 0 && (
+            <a
+              class="plus plus-tel"
+              href={lienPhotos}
+              aria-label={`Voir les ${galerie.length} photos`}
+            >
+              +{resteTel}
+            </a>
+          )}
+          {i === montrees.length - 1 && resteOrdi > 0 && (
+            <a
+              class="plus plus-ordi"
+              href={lienPhotos}
+              aria-label={`Voir les ${galerie.length} photos`}
+            >
+              +{resteOrdi}
             </a>
           )}
         </li>
@@ -76,13 +93,17 @@ const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
   }
   .tuiles-3 {
     grid-template-columns: 2fr 1fr;
-    grid-template-rows: 5rem 5rem;
+    grid-template-rows: 5.25rem 5.25rem;
   }
   .tuiles-3 li:first-child {
     grid-row: span 2;
   }
   .tuiles-1 {
     grid-auto-rows: 12rem;
+  }
+  .seulement-ordi,
+  .plus-ordi {
+    display: none;
   }
   li {
     position: relative;
@@ -104,8 +125,8 @@ const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
     font-weight: 700;
   }
   .etiquette-photo {
-    left: var(--espace-1);
-    bottom: var(--espace-1);
+    left: var(--espace-2);
+    bottom: var(--espace-2);
     background: var(--fond-releve);
     color: var(--texte);
   }
@@ -121,9 +142,40 @@ const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
     color: var(--texte-sur-marque);
     text-decoration: none;
   }
+  /* Ordinateur (planche) : la grande à gauche, quatre en carré à droite ; pas de titre, la galerie suit le mot de la direction. */
   @media (min-width: 64rem) {
+    .tete h2 {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .tete a,
+    .plus-tel {
+      display: none;
+    }
+    .plus-ordi {
+      display: inline-flex;
+    }
+    .seulement-ordi {
+      display: block;
+    }
     .tuiles-3 {
-      grid-template-rows: 7rem 7rem;
+      grid-template-rows: 7.5rem 7.5rem;
+    }
+    .ordi-4,
+    .ordi-5 {
+      grid-template-columns: 2fr 1fr 1fr;
+      grid-template-rows: 7.5rem 7.5rem;
+    }
+    .ordi-4 li:first-child,
+    .ordi-5 li:first-child {
+      grid-row: span 2;
+    }
+    .ordi-4 li:last-child {
+      grid-column: span 2;
     }
   }
 </style>

@@ -33,15 +33,18 @@ import { LIEN_METHODE } from '../modele/pages-de-confiance';
 import { lienWhatsApp } from '../modele/whatsapp';
 import PhotoEcole from './PhotoEcole.astro';
 import ProprietesEcole from './ProprietesEcole.astro';
-import CouvertureEcole from './CouvertureEcole.astro';
 import EquipementsEcole from './EquipementsEcole.astro';
 import FormationsEcole from './FormationsEcole.astro';
 import Icone from './Icone.astro';
+import CarteEcole from './CarteEcole.astro';
+import { couvertureDeLaFiche } from '../modele/fiche-mince';
 import InscriptionsEcole from './InscriptionsEcole.astro';
 import LigneAgrement from './LigneAgrement.astro';
 import MotDirectionEcole from './MotDirectionEcole.astro';
 import AdmissionEcole from './fiche/AdmissionEcole.astro';
 import FraisDeLaFiche from './fiche/FraisDeLaFiche.astro';
+import FraisParAn from './fiche/FraisParAn.astro';
+import FormationsDuSuperieur from './fiche/FormationsDuSuperieur.astro';
 import GalerieEcole from './fiche/GalerieEcole.astro';
 import NouvellesEcole from './fiche/NouvellesEcole.astro';
 import SitesEcole from './fiche/SitesEcole.astro';
@@ -51,7 +54,6 @@ import {
   cheminMedia,
   dossiersOuverts,
   estDuSuperieur,
-  ficheCourte,
   ligneDIdentite,
   lignesDeFraisDeLEcole,
   nouvellesAMontrer,
@@ -69,8 +71,29 @@ interface Props {
   erreur: string | null;
   /** « Je dirige cette école et je souhaite confirmer sa fiche » : le lien WhatsApp avec son nom et son adresse, s'il est configuré. */
   confirmer?: string | null;
+  /** Lot 4 : « Écoles proches », vues sur place, avec leur distance (`ecolesProches`). */
+  proches?: { ecole: EcolePubliee; distanceM: number }[];
+  /** Lot 4 : la photo de couverture est prise en hauteur (elle se montre entière, sur le fond pierre). */
+  couvertureEnHauteur?: boolean;
+  /** Lot 4 : « Demander la vérification », où l'envoyer (`pointDesDemandes`) ; sans lui, le bloc n'a pas le bouton. */
+  demandes?: { url: string; cle: string } | 'faux' | null;
+  /** Lot 4 : « Vous avez son prospectus ? », le lien WhatsApp avec le nom de l'école. */
+  prospectus?: string | null;
+  /** Lot 4 : « Voir les écoles de Loandjili », la page du lieu, quand elle a des fiches. */
+  lieuDesProches?: { nom: string; lien: string } | null;
 }
-const { e, zone, autres, erreur, confirmer = null } = Astro.props;
+const {
+  e,
+  zone,
+  autres,
+  erreur,
+  confirmer = null,
+  proches = [],
+  couvertureEnHauteur = false,
+  demandes = null,
+  prospectus = null,
+  lieuDesProches = null,
+} = Astro.props;
 
 // Le fil d'Ariane : les lieux qui ont une page, du plus grand au plus fin (un département n'en a pas, ticket 147).
 const ariane: { nom: string; lien: string }[] = [];
@@ -144,10 +167,14 @@ const aujourdhui = jourDuCongo();
 const superieur = estDuSuperieur(e);
 const rond = rondDeLEcole(e);
 const suiteIdentite = ligneDIdentite({ ...e, etiquette: null }, 1);
-const couverture = e.medias?.couverture ?? null;
 const galerie = e.medias?.galerie ?? [];
-// La photo d'enseigne d'avant (choisie ou retenue d'office) : seule, dans « Photos », quand l'école n'a ni couverture ni galerie.
-const photoSeule = !couverture && galerie.length === 0 ? (e.photo ?? null) : null;
+// Lot 4 (fondateur, 16/11) : la couverture choisie, sinon la photo d'enseigne ; sans photo, aucun bandeau ni phrase (règle du
+// 09/11) : la fiche commence par le rond et le nom.
+const couverture = couvertureDeLaFiche(e);
+// La photo d'enseigne seule, dans « Photos », quand l'école n'a pas de galerie, et jamais deux fois : devenue couverture, elle
+// n'y revient pas.
+const photoSeule =
+  galerie.length === 0 && couverture?.genre !== 'enseigne' ? (e.photo ?? null) : null;
 const nouvelles = nouvellesAMontrer(e.nouvelles ?? [], aujourdhui);
 const admission = admissionAMontrer(e.admission, aujourdhui) ? (e.admission ?? null) : null;
 const ouverts = dossiersOuverts(e.admission, aujourdhui);
@@ -166,15 +193,15 @@ const premierDeLEcole = avecMot
         ? 'equipements'
         : null;
 const ancre = (bloc: string) => (premierDeLEcole === bloc ? 'ecole' : undefined);
+const fraisAn = superieur && (e.frais ?? []).some((f) => f.formationId && f.periode === 'annee');
 const rubriques = rubriquesDeLaFiche({
   ecole: premierDeLEcole !== null,
   formations: e.formations.length > 0,
   admission: !!admission,
   photos: galerie.length > 0 || !!photoSeule,
-  frais: fraisEcole.length > 0,
+  frais: fraisEcole.length > 0 || fraisAn,
   nouvelles: nouvelles.length > 0,
 });
-const courte = ficheCourte(e);
 const lienPhotos = `${lienEcole(e)}photos/`;
 const joursRestants = (n: number) =>
   n <= 0 ? 'Dernier jour.' : n === 1 ? 'Plus qu’un jour.' : `Plus que ${n} jours.`;
@@ -195,31 +222,37 @@ const joursRestants = (n: number) =>
   </nav>
 
   <div class="fiche-entete">
-    <div class="fiche-couverture">
-      {couverture ? (
+    {couverture && (
+      <div class="fiche-couverture">
         <img
-          class="couverture-photo"
-          src={cheminMedia(couverture, 'couverture')}
+          class:list={['couverture-photo', { 'couverture-entiere': couvertureEnHauteur }]}
+          src={couverture.src}
           alt={`Vue de ${e.nom}`}
           width="720"
           height="300"
           decoding="async"
           fetchpriority="high"
         />
-      ) : (
-        <CouvertureEcole lettre={lettreEcole} />
-      )}
-    </div>
+        {/* La photo de l'enseigne dit d'où elle vient (chaque information a sa source et sa date) ; une couverture choisie
+            par l'école, elle, est passée par l'administration comme la galerie. */}
+        {couverture.genre === 'enseigne' && (
+          <span class="couverture-source">
+            Photo prise sur place
+            {couverture.photo.prisLe ? ` le ${dateLongue(couverture.photo.prisLe)}` : ''}
+          </span>
+        )}
+      </div>
+    )}
 
-    <div class="fiche-tete">
-      <div class="fiche-identite">
+    <div class:list={['fiche-tete', { 'sans-couverture': !couverture }]}>
+      <div class="fiche-nom fiche-identite">
         {rond.genre === 'logo' ? (
           <span class="rond-ecole rond-logo">
             <img
               src={cheminMedia(rond.media, 'logo')}
               alt={`Logo de ${e.nom}`}
-              width="76"
-              height="76"
+              width="100"
+              height="100"
             />
           </span>
         ) : rond.genre === 'sigle' ? (
@@ -231,61 +264,66 @@ const joursRestants = (n: number) =>
             {lettreEcole}
           </span>
         )}
-        <h1>{e.nom}</h1>
-        {(e.etiquette || suiteIdentite) && (
+        <div class="fiche-titres">
+          <h1>{e.nom}</h1>
           <p class="fiche-ligne">
-            {e.etiquette && <span class="etiquette-campus">{e.etiquette}</span>}
-            {e.etiquette && suiteIdentite && ' · '}
-            {suiteIdentite}
+            <span class="fiche-lieu-ligne">
+              <Icone nom="lieu" />
+              <span>
+                <strong>{lieuFort}</strong>
+                {lieuReste.length > 0 && ` · ${lieuReste.join(' · ')}`}
+              </span>
+            </span>
+            {(e.etiquette || suiteIdentite) && (
+              <span class="ligne-identite">
+                {e.etiquette && <span class="etiquette-campus">{e.etiquette}</span>}
+                {e.etiquette && suiteIdentite && ' · '}
+                {suiteIdentite}
+              </span>
+            )}
           </p>
-        )}
-        <p class="fiche-lieu">
-          <Icone nom="lieu" />
-          <span>
-            <strong>{lieuFort}</strong>
-            {lieuReste.length > 0 && ` · ${lieuReste.join(' · ')}`}
-          </span>
-        </p>
-        {e.agrement && <LigneAgrement agrement={e.agrement} />}
-
-        {(puces.length > 0 || typeSeLit || rythme || horaires.length > 0) && (
-          <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
-            {puces.map((p) => (
-              <li class="etiquette-niveau">
-                <span class={classeDisque(p.lettre)} aria-hidden="true">
-                  {p.lettre}
-                </span>
-                {p.libelle}
-              </li>
-            ))}
-            {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
-            {horaires.map((h) => (
-              <li class="etiquette-type">{libelleHoraire[h]}</li>
-            ))}
-            {rythme && <li class="etiquette-type">{rythme}</li>}
-          </ul>
-        )}
-
-        <div class="preuves" aria-label="Sources de la fiche">
-          {preuves.map((p) => (
-            <p class={classesPreuve[p.genre]}>
-              {p.icone && <Icone nom={p.icone} />}
-              {p.texte}
-            </p>
-          ))}
-          <a class="lien-methode" href={LIEN_METHODE}>
-            Comment nous vérifions une fiche
-          </a>
         </div>
       </div>
 
-      {/* Les gestes d'une famille : uniquement ceux qui mènent quelque part. */}
+      {/* Une seule rangée de pastilles (planche) : les niveaux et le type, puis les sources ; deux listes pour le lecteur d'écran. */}
+      <div class="rangee-puces">
+        <ul class="apercu-meta puces" aria-label="Niveaux et type d’école">
+          {puces.map((p) => (
+            <li class="etiquette-niveau">
+              <span class={classeDisque(p.lettre)} aria-hidden="true">
+                {p.lettre}
+              </span>
+              {p.libelle}
+            </li>
+          ))}
+          {superieur && diplomes && (
+            <li class="etiquette-type">{diplomes.replaceAll(', ', ' · ')}</li>
+          )}
+          {typeSeLit && <li class="etiquette-type">{libelleTypeEcole[e.typeEcole]}</li>}
+          {horaires.map((h) => (
+            <li class="etiquette-type">{libelleHoraire[h]}</li>
+          ))}
+          {rythme && <li class="etiquette-type">{rythme}</li>}
+        </ul>
+        <ul class="preuves" aria-label="Sources de la fiche">
+          {preuves.map((p) => (
+            <li class={classesPreuve[p.genre]}>
+              {p.icone && <Icone nom={p.icone} />}
+              {p.texte}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <a class="lien-methode" href={LIEN_METHODE}>
+        Comment nous vérifions une fiche
+      </a>
+
+      {/* Les gestes d'une famille : uniquement ceux qui mènent quelque part ; deux par ligne sur téléphone (planche). */}
       <div
         class:list={[
           'fiche-actions',
           {
-            'fiche-actions-trois': nombreActions === 3,
-            'fiche-actions-quatre': nombreActions === 4,
+            'fiche-actions-impair': nombreActions % 2 === 1,
           },
         ]}
       >
@@ -334,9 +372,29 @@ const joursRestants = (n: number) =>
   {/* Sur téléphone, une seule colonne dans l'ordre du canevas (`o-…`) ; à partir de 64 rem, deux colonnes. */}
   <div class="fiche-corps">
     <div class="fiche-principale">
+      {aSavoir && (
+        <section class="contact o-4" aria-labelledby="titre-a-savoir" id={ancre('savoir')}>
+          <h2 id="titre-a-savoir">À savoir</h2>
+          <div class="carte-contact">
+            <ProprietesEcole e={e} diplomes={superieur ? null : diplomes} />
+            {e.agrement && <LigneAgrement agrement={e.agrement} />}
+            {ouverts ? (
+              <a class="contact-alerte seulement-ordi" href="#admission">
+                Dossiers jusqu’au {dateLongue(ouverts.jusquau)} · voir l’admission
+              </a>
+            ) : (
+              inscription && (
+                <p class="contact-alerte seulement-ordi">
+                  Inscriptions jusqu’au {dateLongue(inscription.limite)}
+                </p>
+              )
+            )}
+          </div>
+        </section>
+      )}
       {e.formations.length > 0 && (
         <div class="o-1">
-          <FormationsEcole e={e} />
+          {superieur ? <FormationsDuSuperieur e={e} /> : <FormationsEcole e={e} />}
         </div>
       )}
       {admission && (
@@ -349,24 +407,22 @@ const joursRestants = (n: number) =>
           <MotDirectionEcole mot={e.motDirection!} />
         </div>
       )}
-      {aSavoir && !confirmee && (
-        <section class="a-savoir o-4" aria-label="À savoir" id={ancre('savoir')}>
-          <h2 class="titre-ordinateur">À savoir</h2>
-          <ProprietesEcole e={e} diplomes={diplomes} />
-        </section>
-      )}
       {inscription && (
-        <div class="o-5" id={ancre('inscription')}>
+        <div class:list={['o-5', { 'cache-ordi': aSavoir }]} id={ancre('inscription')}>
           <InscriptionsEcole inscription={inscription} />
         </div>
       )}
       {equipements.length > 0 && (
         <div class="o-6">
-          <EquipementsEcole equipements={equipements} id={ancre('equipements')} />
+          <EquipementsEcole
+            equipements={equipements}
+            id={ancre('equipements')}
+            titre={superieur ? 'Sur le campus' : 'Sur place'}
+          />
         </div>
       )}
       {galerie.length > 0 && (
-        <div class="o-7">
+        <div class="o-7 galerie-avant">
           <GalerieEcole galerie={galerie} nom={e.nom} lienPhotos={lienPhotos} />
         </div>
       )}
@@ -381,11 +437,67 @@ const joursRestants = (n: number) =>
           <NouvellesEcole nouvelles={nouvelles} />
         </div>
       )}
+      {/* Lot 4 : « Cette école vous intéresse ? », une demande comptée sans nom ni numéro (lot 1, `count_family_demand`), et
+          « Vous avez son prospectus ? » sur une fiche sans frais. */}
+      {!confirmee && (demandes || (prospectus && fraisEcole.length === 0)) && (
+        <section class="interet o-11" aria-labelledby="titre-interet">
+          <h2 id="titre-interet">Cette école vous intéresse&nbsp;?</h2>
+          {demandes && (
+            <div
+              class="interet-demande"
+              data-demande
+              data-campus={e.id}
+              data-url={demandes === 'faux' ? '' : demandes.url}
+              data-cle={demandes === 'faux' ? '' : demandes.cle}
+            >
+              <p>Demandez à NTanova de vérifier ses tarifs et ses inscriptions en priorité.</p>
+              <button class="bouton" type="button" data-demande-bouton>
+                Demander la vérification
+              </button>
+              <p class="interet-note" role="status" data-demande-etat>
+                Un seul geste. Aucun nom, aucun numéro.
+              </p>
+            </div>
+          )}
+          {prospectus && fraisEcole.length === 0 && (
+            <div class="interet-prospectus">
+              <Icone nom="appareil" petite={false} />
+              <div>
+                <b>Vous avez son prospectus&nbsp;?</b>
+                <p>
+                  Envoyez-nous sa photo&nbsp;: nous demandons à l’école de confirmer ses frais avant
+                  de les publier.
+                </p>
+                <a href={prospectus}>
+                  <Icone nom="bulle" />
+                  Envoyer la photo sur WhatsApp
+                </a>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+      {!confirmee && (
+        <aside class="ecoles-appel o-11" aria-labelledby="titre-dirigez">
+          <h2 id="titre-dirigez">{invitationDirection(e.nom)}</h2>
+          <p>
+            Complétez cette fiche&nbsp;: photos, frais, contact. Rien n’est publié sans votre
+            accord.
+          </p>
+          <a class="bouton" href={confirmer ?? '/pour-les-ecoles/'}>
+            <Icone nom="bulle" />
+            Compléter cette fiche
+          </a>
+        </aside>
+      )}
     </div>
 
     <div class="fiche-cote">
       {ouverts && (
-        <section class="dossiers-ouverts o-0" aria-label="Dossiers ouverts">
+        <section
+          class:list={['dossiers-ouverts o-0', { 'cache-ordi': aSavoir }]}
+          aria-label="Dossiers ouverts"
+        >
           <b>Dossiers ouverts jusqu’au {dateLongue(ouverts.jusquau)}</b>
           <p>
             {joursRestants(ouverts.joursRestants)} La date vient de l’école&nbsp;: vérifiez-la avant
@@ -393,15 +505,14 @@ const joursRestants = (n: number) =>
           </p>
         </section>
       )}
-      {aSavoir && confirmee && (
-        <section class="contact o-4" aria-label="Contact" id={avecMot ? undefined : 'ecole'}>
-          <h2>Contact</h2>
-          <ProprietesEcole e={e} diplomes={diplomes} />
-        </section>
-      )}
       {fraisEcole.length > 0 && (
         <div class="o-8">
           <FraisDeLaFiche frais={fraisEcole} />
+        </div>
+      )}
+      {superieur && (
+        <div class="o-8">
+          <FraisParAn e={e} />
         </div>
       )}
 
@@ -427,35 +538,6 @@ const joursRestants = (n: number) =>
             </a>
           )}
         </section>
-      )}
-
-      {!confirmee && courte && (
-        <aside class="ecoles-appel ecoles-appel-court o-11">
-          <h2>Vous êtes de l’école&nbsp;?</h2>
-          <p>
-            Complétez cette fiche&nbsp;: photos, frais, contact. Rien n’est publié sans votre
-            accord.
-          </p>
-          <a class="bouton" href={confirmer ?? '/pour-les-ecoles/'}>
-            <Icone nom="bulle" />
-            Compléter cette fiche
-          </a>
-        </aside>
-      )}
-      {!confirmee && !courte && (
-        <aside class="ecoles-appel o-11">
-          <h2>{invitationDirection(e.nom)}</h2>
-          <p>
-            Confirmez sa fiche avec nous&nbsp;: la date de votre accord y paraîtra. Ajoutez vos
-            filières, vos frais et votre contact. Ce que vous nous transmettez n’est publié qu’avec
-            votre accord.
-          </p>
-          <a class="bouton" href={confirmer ?? '/pour-les-ecoles/'}>
-            <Icone nom="bulle" />
-            Confirmer cette fiche
-          </a>
-          {confirmer && <a href="/pour-les-ecoles/">Ce que nous vous demanderons</a>}
-        </aside>
       )}
 
       <div class="liens-fiche o-12">
@@ -488,6 +570,35 @@ const joursRestants = (n: number) =>
         <p>Fiche mise à jour le {dateLongue(e.misAJourLe)}</p>
       </div>
     </div>
+    {proches.length > 0 && (
+      <section class="proches" aria-labelledby="titre-proches">
+        <div class="proches-tete">
+          <div>
+            <h2 id="titre-proches">Écoles proches</h2>
+            <p class="texte-doux">
+              Vues sur place, à moins de 5&nbsp;km, avec un niveau en commun.
+            </p>
+          </div>
+          {lieuDesProches && (
+            <a class="lien-fort seulement-ordi" href={lieuDesProches.lien}>
+              Voir les écoles {lieuDesProches.nom} ›
+            </a>
+          )}
+        </div>
+        <ul class="proches-liste">
+          {proches.map((p) => (
+            <li>
+              <CarteEcole ecole={p.ecole} forme="ligne" distanceM={p.distanceM} />
+            </li>
+          ))}
+        </ul>
+        {lieuDesProches && (
+          <a class="lien-fort cache-ordi" href={lieuDesProches.lien}>
+            Voir les écoles {lieuDesProches.nom} ›
+          </a>
+        )}
+      </section>
+    )}
   </div>
 </article>
 
@@ -528,6 +639,62 @@ const joursRestants = (n: number) =>
   })();
 </script>
 
+{/* « Demander la vérification » (lot 4) : une demande comptée sans nom ni numéro. Le navigateur tire une clé au hasard, une fois,
+    et n'envoie que l'empreinte (SHA-256) de la clé et du jour : au plus une demande par téléphone, fiche et jour. Sans
+    JavaScript, le bouton ne fait rien ; sous le faux serveur (`data-url` vide), la page répond elle-même. */}
+{!confirmee && demandes && <script is:inline>
+  (function () {
+    const b = document.querySelector('[data-demande]');
+    if (!b) return;
+    const bt = b.querySelector('[data-demande-bouton]');
+    const et = b.querySelector('[data-demande-etat]');
+    bt.addEventListener('click', async function () {
+      bt.disabled = true;
+      try {
+        let k;
+        try {
+          k = localStorage.getItem('ntanova-cle');
+          if (!k) localStorage.setItem('ntanova-cle', (k = crypto.randomUUID()));
+        } catch {
+          k = crypto.randomUUID();
+        }
+        const h = await crypto.subtle.digest(
+          'SHA-256',
+          new TextEncoder().encode(k + new Date().toISOString().slice(0, 10)),
+        );
+        const e = Array.from(new Uint8Array(h), (o) => o.toString(16).padStart(2, '0')).join('');
+        let r = 'comptee';
+        const u = b.dataset.url;
+        if (u) {
+          const c = b.dataset.cle;
+          const q = await fetch(u, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: c,
+              Authorization: 'Bearer ' + c,
+            },
+            body: JSON.stringify({
+              p_kind: 'verification',
+              p_device_day_key: e,
+              p_campus: b.dataset.campus,
+            }),
+          });
+          if (!q.ok) throw 0;
+          r = await q.json();
+        }
+        et.textContent =
+          r === 'deja_comptee'
+            ? 'Votre demande est déjà comptée aujourd’hui. Merci.'
+            : 'Merci, votre demande est comptée. Aucun nom, aucun numéro.';
+      } catch {
+        bt.disabled = false;
+        et.textContent = 'La demande n’est pas partie. Vérifiez la connexion, puis réessayez.';
+      }
+    });
+  })();
+</script>}
+
 <style>
   .fiche {
     display: grid;
@@ -548,6 +715,11 @@ const joursRestants = (n: number) =>
   }
   .fiche :global(p) {
     margin: 0;
+  }
+  /* « Les 2 sites de l'école » : un petit titre, pas un intertitre (planche). */
+  .fiche :global(.sites-titre) {
+    font-family: var(--police-interface);
+    font-size: var(--taille-courante);
   }
 
   /* Le fil d'Ariane : le séparateur est un décor, il ne se lit pas. */
@@ -578,55 +750,68 @@ const joursRestants = (n: number) =>
   .fiche-couverture {
     margin-inline: calc(var(--espace-4) * -1);
   }
+  /* Le rond de l'école est à cheval sur la couverture ; le nom vient dessous (téléphone) ou à côté (ordinateur). */
   .fiche-tete {
     position: relative;
     display: grid;
-    gap: var(--espace-4);
-    margin-top: -30px;
+    gap: var(--espace-3);
+    margin-top: -40px;
   }
-  .fiche-identite {
+  .fiche-nom {
+    display: grid;
+    justify-items: start;
+    gap: var(--espace-3);
+    min-width: 0;
+  }
+  .fiche-titres {
     display: grid;
     gap: var(--espace-2);
     min-width: 0;
   }
   .disque-fiche {
-    width: 60px;
-    height: 60px;
-    font-size: 1.625rem;
+    width: 80px;
+    height: 80px;
+    font-size: 2rem;
     box-shadow: 0 0 0 4px var(--fond);
   }
-  .etiquette-campus {
-    color: var(--marque-appuyee);
-    font-family: var(--police-titre);
-    font-weight: 700;
+  /* La ligne sous le nom : « Site 1 · Maternelle à collège · CSLP · depuis 2009 », puis le lieu (téléphone). */
+  .fiche-ligne {
+    display: flex;
+    flex-direction: column;
+    gap: var(--espace-2);
+    color: var(--texte-doux);
   }
-  .fiche-lieu {
+  .ligne-identite {
+    order: -1;
+  }
+  .fiche-lieu-ligne {
     display: flex;
     align-items: center;
     gap: var(--espace-1);
-    color: var(--texte-doux);
   }
-  .fiche-lieu :global(.ico) {
+  .fiche-lieu-ligne :global(.ico) {
+    flex: none;
     color: var(--marque);
   }
-  .fiche-lieu strong {
+  .fiche-lieu-ligne strong {
     color: var(--texte);
   }
-  .puces {
-    margin: var(--espace-1) 0 0;
+  .rangee-puces {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+  }
+  .puces,
+  .preuves {
+    display: contents;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  /* Les preuves : une pastille par preuve, la source et la date sur une ligne. */
-  .preuves {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--espace-2);
-    margin-top: var(--espace-1);
-  }
+  /* Les preuves : des pastilles dans la même rangée que les niveaux (planche). */
   .preuves .preuve {
+    display: inline-flex;
     align-items: center;
     gap: var(--espace-2);
     min-height: 34px;
@@ -636,8 +821,14 @@ const joursRestants = (n: number) =>
     color: var(--preuve-terrain);
     font-weight: 700;
   }
+  /* « Confirmée par la direction » : une pastille claire, comme sur la planche. */
   .preuves .preuve-direction {
-    color: var(--preuve-direction-texte);
+    border-color: transparent;
+    background: var(--vert-pale);
+    color: var(--marque-appuyee);
+  }
+  .preuves .preuve-direction :global(.ico) {
+    color: var(--marque-appuyee);
   }
   .preuves .preuve-ecole {
     border-color: var(--preuve-ecole);
@@ -651,6 +842,7 @@ const joursRestants = (n: number) =>
     color: var(--texte-doux);
   }
   .lien-methode {
+    justify-self: start;
     display: inline-flex;
     align-items: center;
     min-height: var(--cible-min);
@@ -659,35 +851,26 @@ const joursRestants = (n: number) =>
     font-weight: 700;
   }
 
-  /* Les actions : une ligne de trois, ou deux lignes de deux. */
+  /* Les actions : deux par ligne sur téléphone (planche : « Y aller » et « WhatsApp », puis « Appeler » et « Partager »). */
   .fiche-actions {
-    display: flex;
-    gap: var(--espace-2);
-  }
-  .fiche-actions .bouton {
-    flex: 1;
-    gap: 6px;
-    min-width: 0;
-    padding-inline: var(--espace-1);
-    font-size: 0.9375rem;
-  }
-  .fiche-actions-trois .bouton:first-child {
-    flex-grow: 1.3;
-  }
-  .fiche-actions-quatre {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--espace-3);
+  }
+  .fiche-actions-impair .bouton:first-child {
+    grid-column: span 2;
+  }
+  .fiche-actions .bouton {
+    gap: var(--espace-2);
+    min-width: 0;
+    min-height: 3.25rem;
+    padding-inline: var(--espace-2);
   }
   /* Le bouton « Partager » dit qu'il a copié le lien. */
   .fiche-actions .copie {
     border-color: var(--preuve-terrain);
     background: var(--vert-pale);
     color: var(--marque-appuyee);
-  }
-  @media (max-width: 24rem) {
-    .fiche-actions :global(.ico) {
-      display: none;
-    }
   }
 
   /* Sur téléphone, les blocs se suivent. Le titre d'« À savoir » et de « Contact » ne sert qu'en colonnes. */
@@ -751,20 +934,41 @@ const joursRestants = (n: number) =>
     scroll-margin-top: 3.5rem;
   }
 
-  /* La couverture photographiée : la même place que la couverture dessinée, recadrée. */
+  /* La couverture : la photo, recadrée ; prise en hauteur, entière sur le fond pierre (lot 4). */
   .couverture-photo {
+    display: block;
     width: 100%;
     height: 168px;
     object-fit: cover;
-    background: var(--fond-bande);
+    background: var(--couverture-vide);
   }
-  /* Le rond de l'école : son logo, sinon son sigle sur le vert foncé (décision du 12/11). */
+  .couverture-entiere {
+    object-fit: contain;
+  }
+  .fiche-couverture {
+    position: relative;
+  }
+  /* En bas à droite : le rond de l'école est à cheval sur le coin gauche. */
+  .couverture-source {
+    position: absolute;
+    right: var(--espace-3);
+    bottom: var(--espace-2);
+    padding: 2px var(--espace-2);
+    border-radius: var(--rayon-pilule);
+    background: var(--fond-releve);
+    color: var(--texte-doux);
+    font-size: var(--taille-mention);
+  }
+  /* Sans photo, aucun bandeau : la fiche commence par le rond et le nom (règle du 09/11). */
+  .fiche-tete.sans-couverture {
+    margin-top: 0;
+  }
   .rond-ecole {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 64px;
-    height: 64px;
+    width: 80px;
+    height: 80px;
     overflow: hidden;
     border-radius: 50%;
     box-shadow: 0 0 0 4px var(--fond);
@@ -785,10 +989,6 @@ const joursRestants = (n: number) =>
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-  .fiche-ligne {
-    color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
   }
   /* La barre des rubriques : des ancres de la même page ; elle reste en haut au défilement et défile seule de côté. */
   .rubriques {
@@ -813,6 +1013,11 @@ const joursRestants = (n: number) =>
     text-decoration: none;
     white-space: nowrap;
   }
+  /* La première rubrique est soulignée, comme sur la planche. */
+  .rubriques a:first-child {
+    color: var(--marque);
+    box-shadow: inset 0 -3px 0 var(--marque);
+  }
   @media (hover: hover) {
     .rubriques a:hover {
       color: var(--marque);
@@ -835,11 +1040,36 @@ const joursRestants = (n: number) =>
   .titre-ordinateur {
     display: none;
   }
-  .a-savoir,
   .contact,
   .photos {
     display: grid;
     gap: var(--espace-3);
+  }
+  /* « Contact » : le titre, puis une carte de lignes (téléphone) ; sur ordinateur, le titre entre dans la carte. */
+  .carte-contact {
+    display: grid;
+    gap: var(--espace-3);
+    padding: var(--espace-1) var(--espace-4) var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .carte-contact :global(.lignes-fiche) {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .contact-alerte {
+    display: block;
+    padding: var(--espace-3);
+    border-radius: var(--rayon-s);
+    background: var(--statut-attention-fond);
+    color: var(--statut-attention-texte);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .seulement-ordi {
+    display: none;
   }
   .bloc {
     border: 2px solid var(--trait);
@@ -857,7 +1087,91 @@ const joursRestants = (n: number) =>
     color: var(--rouge);
   }
   .ou-carte {
-    justify-self: start;
+    justify-self: stretch;
+  }
+
+  /* « Cette école vous intéresse ? » (lot 4) : la carte bordée de vert de la planche. */
+  .interet {
+    display: grid;
+    gap: var(--espace-3);
+    padding: var(--espace-4);
+    border: 2px solid var(--marque);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .interet-demande {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .interet-demande .bouton {
+    justify-self: stretch;
+  }
+  .interet-note {
+    color: var(--texte-doux);
+    font-size: var(--taille-mention);
+  }
+  .interet-prospectus {
+    display: flex;
+    gap: var(--espace-3);
+    padding-top: var(--espace-3);
+    border-top: 1px solid var(--trait);
+    font-size: var(--taille-secondaire);
+  }
+  .interet-demande + .interet-prospectus {
+    margin-top: var(--espace-1);
+  }
+  .interet-prospectus > :global(svg) {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    color: var(--marque);
+  }
+  .interet-prospectus div {
+    display: grid;
+    gap: var(--espace-1);
+  }
+  .interet-prospectus a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espace-2);
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+
+  /* « Écoles proches » (lot 4) : la carte d'école partagée, en ligne sur téléphone, en trois colonnes sur ordinateur. */
+  .proches {
+    order: 10;
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .proches-tete {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--espace-3);
+  }
+  .proches-tete p {
+    font-size: var(--taille-secondaire);
+  }
+  .proches-liste {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .lien-fort {
+    color: var(--marque);
+    font-weight: 700;
+  }
+  .proches .lien-fort {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+  }
+  .proches .lien-fort.seulement-ordi {
+    display: none;
   }
 
   /* L'invitation aux directions : le bandeau clair de la maquette, pas le bandeau sombre des pages de zone. */
@@ -903,9 +1217,7 @@ const joursRestants = (n: number) =>
   /* L'identifiant, permanent : en pied de fiche sur téléphone, dans un cadre en colonnes. */
   .identifiant {
     display: grid;
-    gap: var(--espace-1);
-    padding-top: var(--espace-3);
-    border-top: 1px solid var(--trait);
+    gap: 0;
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
     overflow-wrap: anywhere;
@@ -937,57 +1249,93 @@ const joursRestants = (n: number) =>
     .fiche-couverture {
       margin-inline: 0;
     }
+    /* Le rond à cheval sur la couverture, le nom à sa droite ; puces et boutons dessous, alignés à gauche (planche). */
     .fiche-tete {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: var(--espace-4) var(--espace-6);
-      margin-top: -60px;
+      gap: var(--espace-4);
+      margin-top: 0;
       padding-left: var(--espace-5);
     }
-    /* Assez étroit pour laisser quatre boutons à droite du nom, à 1 280 px. */
-    .fiche-identite {
-      flex: 1 1 30rem;
+    .fiche-nom {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--espace-5);
+    }
+    .fiche-nom > .rond-ecole,
+    .fiche-nom > .disque-fiche {
+      margin-top: -50px;
+    }
+    .fiche-tete.sans-couverture {
+      padding-left: 0;
+    }
+    .fiche-tete.sans-couverture .fiche-nom > .rond-ecole,
+    .fiche-tete.sans-couverture .fiche-nom > .disque-fiche {
+      margin-top: 0;
+    }
+    .fiche-tete.sans-couverture > .rangee-puces,
+    .fiche-tete.sans-couverture > .lien-methode,
+    .fiche-tete.sans-couverture > .fiche-actions {
+      margin-left: 0;
+    }
+    .interet-demande .bouton {
+      justify-self: start;
+    }
+    .fiche-titres {
+      gap: var(--espace-1);
+      padding-top: var(--espace-2);
+    }
+    .disque-fiche,
+    .rond-ecole {
+      flex: none;
+      width: 100px;
+      height: 100px;
+      box-shadow: 0 0 0 6px var(--fond);
     }
     .disque-fiche {
-      width: 84px;
-      height: 84px;
-      font-size: 2.25rem;
-      box-shadow: 0 0 0 6px var(--fond);
-    }
-    .rond-ecole {
-      width: 84px;
-      height: 84px;
-      box-shadow: 0 0 0 6px var(--fond);
+      font-size: 2.5rem;
     }
     .rond-sigle {
-      font-size: 1.375rem;
+      font-size: 1.625rem;
+    }
+    .fiche-tete > .rangee-puces,
+    .fiche-tete > .lien-methode,
+    .fiche-tete > .fiche-actions {
+      margin-left: calc(var(--espace-5) * -1);
+    }
+    .fiche-ligne {
+      display: block;
+    }
+    .fiche-lieu-ligne,
+    .fiche-lieu-ligne > span {
+      display: inline;
+    }
+    .fiche-lieu-ligne :global(.ico) {
+      display: inline-block;
+      vertical-align: -3px;
+      margin-inline-end: var(--espace-1);
+    }
+    .ligne-identite::before {
+      content: ' · ' / '';
+    }
+    .proches-liste {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--espace-4);
     }
     .couverture-photo {
-      height: 220px;
+      height: 260px;
       border-radius: var(--rayon-l);
     }
     .rubriques {
       margin-inline: 0;
       padding: 0;
     }
-    .fiche-lieu {
-      font-size: var(--taille-intertitre);
-    }
-    .preuves {
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .fiche-actions,
-    .fiche-actions-quatre {
+    .fiche-actions {
       display: flex;
       flex-wrap: wrap;
+      gap: var(--espace-2);
     }
     .fiche-actions .bouton {
       flex: none;
-      gap: var(--espace-2);
+      min-height: var(--cible-min);
       padding-inline: 1.25rem;
     }
     /* La colonne de la fiche garde la largeur d'une ligne de texte : cartes et texte alignés. */
@@ -1025,10 +1373,42 @@ const joursRestants = (n: number) =>
       gap: var(--espace-5);
       min-width: 0;
     }
-    .identifiant {
-      padding: var(--espace-3) var(--espace-4);
+    .lien-methode {
+      display: none;
+    }
+    .seulement-ordi {
+      display: block;
+    }
+    .cache-ordi {
+      display: none;
+    }
+    .galerie-avant {
+      order: 5;
+    }
+    .proches {
+      grid-column: 1 / -1;
+    }
+    .proches > .lien-fort.cache-ordi {
+      display: none;
+    }
+    .proches .lien-fort.seulement-ordi {
+      display: inline-flex;
+    }
+    /* Sur ordinateur, la carte « Contact » porte son titre (planche). */
+    .contact {
+      gap: var(--espace-2);
+      padding: var(--espace-4);
       border: 1px solid var(--trait);
       border-radius: var(--rayon-m);
+      background: var(--fond-releve);
+    }
+    .contact h2 {
+      font-size: var(--taille-intertitre);
+    }
+    .carte-contact {
+      padding: 0;
+      border: 0;
+      background: none;
     }
   }
 </style>

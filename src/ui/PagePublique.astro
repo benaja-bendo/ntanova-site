@@ -52,10 +52,11 @@ const canonique = absolue(Astro.url.pathname);
 const chemin = Astro.url.pathname;
 const surCarte = chemin.startsWith('/carte/');
 // Les trois piliers (décision 1A du 15/11/2026, version 44) : des choses que cherche le visiteur, pas des outils. « Trouver une
-// école », c'est l'accueil, la liste, les lieux, les fiches et la carte.
+// école », c'est l'accueil, la liste, les lieux, les fiches et la carte. Il mène à la liste, `/ecoles/` (fondateur, 16/11 ; la
+// planche le menait à l'accueil), et reste allumé sur l'accueil.
 const piliers = [
   {
-    href: '/',
+    href: '/ecoles/',
     texte: 'Trouver une école',
     courant: chemin === '/' || chemin.startsWith('/ecoles') || surCarte,
   },

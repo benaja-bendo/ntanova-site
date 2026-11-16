@@ -1,0 +1,98 @@
+---
+// « Frais par an » du supérieur (lot 3, planche « Fiche publique · supérieur ») : une ligne par diplôme (« BTS : [min] à [max]
+// FCFA »), tirée des frais de chaque formation, puis l'inscription et la source. Le détail se lit sur chaque formation.
+import { francsCFA } from '../../modele/frais-ecole';
+import { libelleDiplome } from '../../modele/libelles';
+import { listes } from '../../modele/listes';
+import { dateLongue } from '../../modele/pointe-noire';
+import type { EcolePubliee } from '../../modele/ports';
+import { anneeDesFrais, sourceDesFrais } from '../../modele/vitrine';
+interface Props {
+  e: EcolePubliee;
+}
+const { e } = Astro.props;
+const nombre = (n: number) => new Intl.NumberFormat('fr-FR').format(n);
+const lignes = (e.frais ?? []).filter((f) => f.formationId && f.periode === 'annee');
+const parDiplome = listes.diploma_kind
+  .map((d) => {
+    const ids = new Set(e.formations.filter((f) => f.diplome === d && f.id).map((f) => f.id));
+    const sienne = lignes.filter((f) => ids.has(f.formationId!));
+    if (sienne.length === 0) return null;
+    const min = Math.min(...sienne.map((f) => f.minimum));
+    const max = Math.max(...sienne.map((f) => f.maximum));
+    return {
+      libelle: libelleDiplome[d],
+      montant: min === max ? francsCFA(min) : `${nombre(min)} à ${francsCFA(max)}`,
+    };
+  })
+  .filter((x): x is { libelle: string; montant: string } => x !== null);
+const inscriptions = lignes.map((f) => f.inscription).filter((n): n is number => n != null);
+const annee = anneeDesFrais(lignes);
+const source = sourceDesFrais(lignes);
+---
+
+{parDiplome.length > 0 && (
+  <section class="frais-an" id="frais" aria-label="Frais par an">
+    <div class="tete">
+      <h2>Frais par an</h2>
+      {annee && <span>{annee}</span>}
+    </div>
+    <ul class="lignes-fiche">
+      {parDiplome.map((l) => (
+        <li>
+          <span>{l.libelle}</span>
+          <b>{l.montant}</b>
+        </li>
+      ))}
+      {inscriptions.length > 0 && (
+        <li>
+          <span>Inscription</span>
+          <b>
+            {Math.min(...inscriptions) === Math.max(...inscriptions)
+              ? francsCFA(inscriptions[0]!)
+              : `${nombre(Math.min(...inscriptions))} à ${francsCFA(Math.max(...inscriptions))}`}
+          </b>
+        </li>
+      )}
+    </ul>
+    {source && (
+      <p class="doux">
+        Selon la formation&nbsp;: le détail est sur chaque formation. Déclarés par l’école le{' '}
+        {dateLongue(source.declaresLe)}.
+      </p>
+    )}
+  </section>
+)}
+
+<style>
+  .frais-an {
+    display: grid;
+    gap: var(--espace-2);
+    padding: var(--espace-4);
+    border: 2px solid var(--marque);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .tete {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--espace-3);
+  }
+  .tete h2 {
+    font-size: var(--taille-intertitre);
+  }
+  .tete span,
+  .doux {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .lignes-fiche {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  b {
+    text-align: end;
+  }
+</style>

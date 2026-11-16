@@ -86,16 +86,20 @@ test.describe('site public', () => {
     test(`${adresse} : HTML lisible, 360 px, cibles de 44 px`, async ({ page, baseURL }) => {
       await pageLisible(page, baseURL, adresse);
       // L'accueil n'a plus de carte depuis le lot 3 : plus de script non plus.
-      expect(await page.locator('script:not([type="application/ld+json"])').count()).toBe(
-        fichesDEcole.includes(adresse) ? 1 : 0,
-      );
-      // Sur une fiche, ce seul script est écrit dans la page (rien à télécharger) et sert « Partager ».
-      if (fichesDEcole.includes(adresse)) {
-        await expect(page.locator('script[src]')).toHaveCount(0);
-        expect(
-          await page.locator('script:not([type="application/ld+json"])').innerHTML(),
-        ).toContain('data-partager');
+      const scripts = page.locator('script:not([type="application/ld+json"])');
+      if (!fichesDEcole.includes(adresse)) {
+        expect(await scripts.count()).toBe(0);
+        return;
       }
+      // Sur une fiche, rien à télécharger : « Partager », et, depuis le lot 4 (16/11), sur une fiche que la direction n'a pas
+      // confirmée, « Demander la vérification ». Deux petits scripts écrits dans la page, rien d'autre.
+      await expect(page.locator('script[src]')).toHaveCount(0);
+      const textes = await scripts.evaluateAll((s) => s.map((x) => x.innerHTML));
+      expect(textes.length).toBeGreaterThanOrEqual(1);
+      expect(textes.length).toBeLessThanOrEqual(2);
+      expect(textes.some((x) => x.includes('data-partager'))).toBe(true);
+      for (const x of textes)
+        expect(x.includes('data-partager') || x.includes('data-demande')).toBe(true);
     });
   }
 
@@ -132,22 +136,25 @@ test.describe('site public', () => {
     await page.getByRole('link', { name: /\[Complexe scolaire Exemple\]/ }).click();
 
     await expect(page.getByRole('heading', { name: '[Complexe scolaire Exemple]' })).toBeVisible();
-    await expect(page.getByText(/Vue sur place · 2 nov. 2026/)).toBeVisible();
-    await expect(page.getByText(/Confirmée par la direction/)).toHaveCount(0);
+    // Les preuves de la fiche (sa tête) : « Écoles proches », plus bas, a les siennes (lot 4).
+    const tete = page.locator('.fiche-tete');
+    await expect(tete.getByText(/Vue sur place · 2 nov. 2026/)).toBeVisible();
+    await expect(tete.getByText(/Confirmée par la direction/)).toHaveCount(0);
     const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
     await expect(puces.getByRole('listitem').filter({ hasText: 'Maternelle' })).toBeVisible();
     await expect(puces.getByRole('listitem').filter({ hasText: 'Primaire' })).toBeVisible();
-    await expect(page.getByRole('link', { name: '+242 06 000 00 01' })).toHaveAttribute(
+    // « À savoir » (version 44) : un seul numéro, celui que l'école a communiqué ; il passe avant celui de l'enseigne.
+    await expect(page.getByRole('link', { name: '+242 06 000 00 09' })).toHaveAttribute(
       'href',
-      'tel:+242060000001',
+      'tel:+242060000009',
     );
     await expect(page.getByRole('link', { name: 'Y aller' })).toHaveAttribute(
       'href',
       'https://www.google.com/maps/dir/?api=1&destination=-4.79105,11.925',
     );
-    // « Confirmer cette fiche » ouvre WhatsApp avec le nom de l'école, son lieu et l'adresse de sa fiche : NTanova sait de
+    // « Compléter cette fiche » (planche « Fiche mince », lot 4 ; avant : « Confirmer cette fiche ») ouvre WhatsApp avec le nom de l'école, son lieu et l'adresse de sa fiche : NTanova sait de
     // quelle fiche il s'agit sans rien redemander.
-    const confirmer = page.getByRole('link', { name: 'Confirmer cette fiche' });
+    const confirmer = page.getByRole('link', { name: 'Compléter cette fiche' });
     const message = decodeURIComponent((await confirmer.getAttribute('href')) ?? '');
     expect(message).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
     expect(message).toContain('je dirige [Complexe scolaire Exemple]');
@@ -161,8 +168,11 @@ test.describe('site public', () => {
       '[Complexe scolaire Exemple], à [Quartier], Tié-Tié, Pointe-Noire :',
     );
     expect(description).not.toContain('Congo');
-    // Ce que NTanova demande se lit sur « Espace écoles » (/pour-les-ecoles/), un lien plus bas.
-    await page.getByRole('link', { name: 'Ce que nous vous demanderons' }).click();
+    // Ce que NTanova demande se lit sur « Espace écoles » (/pour-les-ecoles/), le troisième pilier de l'en-tête.
+    await page
+      .getByRole('navigation', { name: 'Navigation principale' })
+      .getByRole('link', { name: 'Espace écoles' })
+      .click();
     await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
   });
 
@@ -204,7 +214,7 @@ test.describe('site public', () => {
       await expect(page.locator('.etiquette-campus')).toHaveText('Campus du quartier');
       await expect(page.getByText(/Confirmée par la direction · 4 nov. 2026/)).toBeVisible();
       // Le lieu, du plus fin au plus large, sans répéter Pointe-Noire (ville et département).
-      await expect(page.locator('.fiche-lieu')).toHaveText(
+      await expect(page.locator('.fiche-lieu-ligne')).toHaveText(
         '[Quartier Exemple] · Loandjili · Pointe-Noire',
       );
       // Les deux preuves, l'une après l'autre, jamais fusionnées.
@@ -374,7 +384,7 @@ test.describe('site public', () => {
   test.describe('toutes les écoles, de la crèche au supérieur (ticket 12)', () => {
     test('la fiche dit le type, les niveaux et le programme de l’école', async ({ page }) => {
       await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
-      const proprietes = page.locator('dl.proprietes');
+      const proprietes = page.locator('.proprietes');
       // Le type et les niveaux sont des puces sous le nom (audit du 05/11, chantier 2), plus des lignes de tableau.
       const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
       await expect(puces.getByRole('listitem').filter({ hasText: 'Privée' })).toBeVisible();
@@ -392,7 +402,7 @@ test.describe('site public', () => {
       page,
     }) => {
       await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
-      const proprietes = page.locator('dl.proprietes');
+      const proprietes = page.locator('.proprietes');
       await expect(proprietes).not.toContainText('Pas indiqué');
       await expect(proprietes).not.toContainText('Non indiqués');
       await expect(proprietes.getByText('Type', { exact: true })).toHaveCount(0);

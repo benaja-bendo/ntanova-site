@@ -1,9 +1,10 @@
 ---
-// Le programme, le contact et les diplômes d'une école, une ligne par propriété. Le contact est écrit par ContactEcole : ses dt
-// et dd n'ont pas l'attribut de cette feuille, d'où `:global`.
+// La carte « Contact » de la fiche (lot 3, planche « Fiche publique ») : une ligne par propriété, le libellé à gauche, la
+// valeur à droite. D'où vient le numéro se dit en note, comme les frais : « Chaque information dit sa source et sa date ».
 import type { EcolePubliee } from '../modele/ports';
 import { libelleProgramme } from '../modele/presentation-fiche';
 import { libelleLangue } from '../modele/libelles';
+import { dateLongue } from '../modele/pointe-noire';
 import { siteWebLisible } from '../modele/vitrine';
 import ContactEcole from './ContactEcole.astro';
 interface Props {
@@ -11,71 +12,73 @@ interface Props {
   diplomes: string | null;
 }
 const { e, diplomes } = Astro.props;
+const contact = e.contactPublic ?? null;
+const source = contact
+  ? `Numéro communiqué par l’école, publication autorisée le ${dateLongue(contact.accordLe)}.${
+      e.numeroEnseigne === contact.numero ? ' Également lu sur l’enseigne.' : ''
+    }`
+  : e.numeroEnseigne
+    ? 'Numéro relevé sur l’enseigne.'
+    : null;
 ---
 
-<dl class="proprietes">
-  {e.programme && (
-    <>
-      <dt>{libelleProgramme(e.programme)}</dt>
-      <dd>{e.programme}</dd>
-    </>
-  )}
-  <ContactEcole contact={e.contactPublic ?? null} enseigne={e.numeroEnseigne} />
+<ul class="lignes-fiche proprietes">
+  <ContactEcole contact={contact} enseigne={e.numeroEnseigne} />
   {(e.langues ?? []).length > 0 && (
-    <>
-      <dt>{(e.langues ?? []).length > 1 ? 'Langues' : 'Langue'}</dt>
-      <dd>{(e.langues ?? []).map((l) => libelleLangue[l]).join(', ')}</dd>
-    </>
+    <li>
+      <span class="libelle">{(e.langues ?? []).length > 1 ? 'Langues' : 'Langue'}</span>
+      <b>{(e.langues ?? []).map((l) => libelleLangue[l]).join(', ')}</b>
+    </li>
   )}
   {e.siteWeb && (
-    <>
-      <dt>Site web</dt>
-      <dd>
-        <a class="lien-cible" href={e.siteWeb} rel="nofollow noopener">
-          {siteWebLisible(e.siteWeb)}
-        </a>
-      </dd>
-    </>
+    <li>
+      <span class="libelle">Site web</span>
+      <a class="lien-cible" href={e.siteWeb} rel="nofollow noopener">
+        {siteWebLisible(e.siteWeb)}
+      </a>
+    </li>
+  )}
+  {e.programme && (
+    <li>
+      <span class="libelle">{libelleProgramme(e.programme)}</span>
+      <b>{e.programme}</b>
+    </li>
   )}
   {diplomes && (
-    <>
-      <dt>Diplômes</dt>
-      <dd>{diplomes}</dd>
-    </>
+    <li>
+      <span class="libelle">Diplômes</span>
+      <b>{diplomes}</b>
+    </li>
   )}
-</dl>
+  <slot />
+</ul>
+{source && <p class="source-contact">{source}</p>}
 
 <style>
-  .proprietes {
-    display: grid;
-    grid-template-columns: minmax(6.5rem, 40%) minmax(0, 1fr);
-    margin: 0;
-    border: 2px solid var(--trait);
-    border-radius: var(--rayon-m);
-    background: var(--fond-releve);
+  .proprietes :global(li) {
+    flex-wrap: nowrap;
+    align-items: center;
   }
-  .proprietes :global(dt),
-  .proprietes :global(dd) {
-    padding: var(--espace-3) var(--espace-4);
-    border-top: 1px solid var(--trait);
-  }
-  .proprietes :global(dt) {
-    padding-inline-end: 0;
+  .proprietes :global(.libelle) {
+    flex: none;
     color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
   }
-  .proprietes :global(dd) {
-    margin: 0;
+  .proprietes :global(b),
+  .proprietes :global(a) {
+    min-width: 0;
     font-weight: 700;
+    text-align: end;
     overflow-wrap: anywhere;
   }
   .lien-cible {
     display: inline-flex;
     align-items: center;
     min-height: var(--cible-min);
+    color: var(--marque);
   }
-  .proprietes :global(dt:first-of-type),
-  .proprietes :global(dt:first-of-type + dd) {
-    border-top: 0;
+  .source-contact {
+    margin: 0;
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
   }
 </style>

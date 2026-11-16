@@ -50,3 +50,16 @@ export async function mediaPourLeSite(
   }
   throw new Error('L’image ne tient pas dans le budget de la fiche.');
 }
+
+/**
+ * Lot 4 (16/11) : une photo prise en hauteur se montre entière sur le fond pierre de la couverture, au lieu d'être coupée en
+ * bandeau. Lu à la construction, l'orientation de l'appareil comprise.
+ */
+export async function estEnHauteur(source: Uint8Array): Promise<boolean> {
+  const { width, height, orientation } = await sharp(source, {
+    limitInputPixels: 20000000,
+  }).metadata();
+  if (!width || !height) return false;
+  const tournee = (orientation ?? 1) >= 5;
+  return tournee ? width > height : height > width;
+}

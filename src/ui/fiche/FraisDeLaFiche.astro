@@ -29,40 +29,42 @@ const notes = [...new Set(lignes.map((f) => f.note).filter((n): n is string => !
       <h2>Frais</h2>
       {annee && <span>année {annee}</span>}
     </div>
-    <ul class="lignes-fiche">
-      {lignes.map((f) => (
-        <li>
-          <span>{libelleLigneDeFrais(f)}</span>
-          <b>
-            {montantFrais(f)} {periodeCourte(f)}
-          </b>
-        </li>
+    <div class="carte-frais">
+      <ul class="lignes-fiche">
+        {lignes.map((f) => (
+          <li>
+            <span>{libelleLigneDeFrais(f)}</span>
+            <b>
+              {montantFrais(f)} {periodeCourte(f)}
+            </b>
+          </li>
+        ))}
+        {inscription && (
+          <li>
+            <span class="avec-precision">
+              Inscription
+              {inscription.min !== inscription.max && <span>selon le cycle</span>}
+            </span>
+            <b>
+              {inscription.min === inscription.max
+                ? francsCFA(inscription.min)
+                : `${new Intl.NumberFormat('fr-FR').format(inscription.min)} à ${francsCFA(inscription.max)}`}
+            </b>
+          </li>
+        )}
+      </ul>
+      {notes.map((n) => (
+        <p class="doux">{n}</p>
       ))}
-      {inscription && (
-        <li>
-          <span class="avec-precision">
-            Inscription
-            {inscription.min !== inscription.max && <span>selon le cycle</span>}
-          </span>
-          <b>
-            {inscription.min === inscription.max
-              ? francsCFA(inscription.min)
-              : `${new Intl.NumberFormat('fr-FR').format(inscription.min)} à ${francsCFA(inscription.max)}`}
-          </b>
-        </li>
+      {source && (
+        <p class="doux">
+          {source.surProspectus
+            ? `Lus sur le prospectus de l’école, déclarés le ${dateLongue(source.declaresLe)}.`
+            : `Dits par l’école le ${dateLongue(source.declaresLe)}.`}{' '}
+          À confirmer avec elle.
+        </p>
       )}
-    </ul>
-    {notes.map((n) => (
-      <p class="doux">{n}</p>
-    ))}
-    {source && (
-      <p class="doux">
-        {source.surProspectus
-          ? `Lus sur le prospectus de l’école, déclarés le ${dateLongue(source.declaresLe)}.`
-          : `Dits par l’école le ${dateLongue(source.declaresLe)}.`}{' '}
-        À confirmer avec elle.
-      </p>
-    )}
+    </div>
   </section>
 )}
 
@@ -89,5 +91,36 @@ const notes = [...new Set(lignes.map((f) => f.note).filter((n): n is string => !
   }
   b {
     text-align: end;
+  }
+  /* Planche : les lignes, l'inscription et la source dans la même carte. */
+  .carte-frais {
+    display: grid;
+    gap: var(--espace-2);
+    padding: var(--espace-1) var(--espace-4) var(--espace-3);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .carte-frais .lignes-fiche {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  /* Ordinateur : toute la rubrique devient la carte, bordée de vert, le titre dedans (planche). */
+  @media (min-width: 64rem) {
+    .frais-fiche {
+      padding: var(--espace-4);
+      border: 2px solid var(--marque);
+      border-radius: var(--rayon-m);
+      background: var(--fond-releve);
+    }
+    .frais-fiche h2 {
+      font-size: var(--taille-intertitre);
+    }
+    .carte-frais {
+      padding: 0;
+      border: 0;
+      background: none;
+    }
   }
 </style>

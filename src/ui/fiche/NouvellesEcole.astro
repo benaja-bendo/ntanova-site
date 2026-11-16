@@ -1,7 +1,7 @@
 ---
 // « Nouvelles » (v2 du 13/11) : les trois plus récentes, publiées par l'administration avec l'accord daté de l'école. Le
 // surtitre dit d'où elle vient : « Nouvelle de l'école » si l'école l'a fournie, sinon « Nouvelle ». Sans nouvelle, la
-// rubrique n'existe pas.
+// rubrique n'existe pas. Lot 3 (planche) : une vignette, ou une teinte unie, à gauche ; sur ordinateur, deux cartes par ligne.
 import { dateLongue } from '../../modele/pointe-noire';
 import { cheminMedia, surtitreNouvelle, type NouvellePublique } from '../../modele/vitrine';
 interface Props {
@@ -13,27 +13,31 @@ const { nouvelles } = Astro.props;
 {nouvelles.length > 0 && (
   <section class="nouvelles" id="nouvelles" aria-label="Nouvelles">
     <h2>Nouvelles</h2>
-    {nouvelles.map((n) => (
-      <article class="nouvelle">
-        {n.media && (
-          <img
-            src={cheminMedia(n.media, 'vignette')}
-            alt={n.media.legende ?? ''}
-            width="76"
-            height="76"
-            loading="lazy"
-            decoding="async"
-          />
-        )}
-        <div class="nouvelle-texte">
-          <span class="surtitre-nouvelle">
-            {surtitreNouvelle(n)} · {dateLongue(n.publieeLe)}
-          </span>
-          <h3>{n.titre}</h3>
-          <p>{n.texte}</p>
-        </div>
-      </article>
-    ))}
+    <div class="liste-nouvelles">
+      {nouvelles.map((n) => (
+        <article class="nouvelle">
+          {n.media ? (
+            <img
+              src={cheminMedia(n.media, 'vignette')}
+              alt={n.media.legende ?? ''}
+              width="400"
+              height="225"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <span class="sans-image" aria-hidden="true" />
+          )}
+          <div class="nouvelle-texte">
+            <span class="surtitre-nouvelle">
+              {surtitreNouvelle(n)} · {dateLongue(n.publieeLe)}
+            </span>
+            <h3>{n.titre}</h3>
+            <p>{n.texte}</p>
+          </div>
+        </article>
+      ))}
+    </div>
   </section>
 )}
 
@@ -41,6 +45,10 @@ const { nouvelles } = Astro.props;
   .nouvelles {
     display: grid;
     gap: var(--espace-2);
+  }
+  .liste-nouvelles {
+    display: grid;
+    gap: var(--espace-3);
   }
   .nouvelle {
     display: flex;
@@ -50,7 +58,8 @@ const { nouvelles } = Astro.props;
     border-radius: var(--rayon-m);
     background: var(--fond-releve);
   }
-  img {
+  img,
+  .sans-image {
     flex: none;
     width: 76px;
     height: 76px;
@@ -79,5 +88,20 @@ const { nouvelles } = Astro.props;
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
     overflow-wrap: anywhere;
+  }
+  /* Ordinateur (planche) : deux cartes côte à côte, l'image en haut (une teinte unie quand l'école n'en a pas donné). */
+  @media (min-width: 64rem) {
+    .liste-nouvelles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .nouvelle {
+      flex-direction: column;
+    }
+    img,
+    .sans-image {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 3 / 1;
+    }
   }
 </style>

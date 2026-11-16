@@ -372,14 +372,18 @@ test.describe('site public', () => {
     }
   });
 
-  test('fiche : à partir de 1 024 px, l’appel aux directions passe à droite', async ({ page }) => {
+  // Planche « Fiche mince » de la version 44 (lot 4, 16/11) : « Vous dirigez cette école ? » suit « À savoir » dans la colonne
+  // principale ; à droite, « Où trouver ». Avant : l'appel passait à droite à partir de 1 024 px.
+  test('fiche : à partir de 1 024 px, « Où trouver » à droite, l’appel aux directions sous « À savoir »', async ({
+    page,
+  }) => {
     await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
-    const proprietes = await page.locator('dl.proprietes').boundingBox();
+    const savoir = await page.locator('.proprietes').boundingBox();
     const appel = await page.getByRole('complementary').boundingBox();
+    const ou = await page.getByRole('region', { name: /Où est l.école/ }).boundingBox();
+    expect(appel?.y ?? 0).toBeGreaterThan((savoir?.y ?? 0) + (savoir?.height ?? 0));
     if (largeurDe(page) >= ORDINATEUR) {
-      expect(appel?.x ?? 0).toBeGreaterThanOrEqual((proprietes?.x ?? 0) + (proprietes?.width ?? 0));
-    } else {
-      expect(appel?.y ?? 0).toBeGreaterThan((proprietes?.y ?? 0) + (proprietes?.height ?? 0));
+      expect(ou?.x ?? 0).toBeGreaterThanOrEqual((savoir?.x ?? 0) + (savoir?.width ?? 0));
     }
   });
 
@@ -999,9 +1003,10 @@ for (const [cas, chemin] of [
       expect(cote!.x).toBeGreaterThan(principal!.x + principal!.width);
     }
     if (cas === 'terrain partiel') {
-      await expect(page.locator('.proprietes dt')).toContainText(['Langue d’enseignement']);
-      await expect(page.locator('.proprietes dd')).toContainText(['Français']);
-      await expect(page.locator('.photo-ecole img')).toBeVisible();
+      await expect(page.locator('.proprietes .libelle')).toContainText(['Langue d’enseignement']);
+      await expect(page.locator('.proprietes')).toContainText('Français');
+      // Lot 4 : la photo d'enseigne est la couverture, plus une photo dans la fiche.
+      await expect(page.locator('.fiche-couverture img')).toBeVisible();
       await expect(page.locator('.preuve-direction')).toHaveCount(0);
       await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toHaveCount(0);
     }
@@ -1014,11 +1019,11 @@ for (const [cas, chemin] of [
       await expect(page.locator('.etiquette-campus')).toHaveText('Campus de Mongo-Mpoukou');
     }
     if (cas === 'fiche complète') {
-      await expect(page.locator('.photo-ecole img')).toBeVisible();
-      // Canevas du 08/11/2026 : la photo vit dans la fiche, sous les actions.
-      const image = await page.locator('.photo-ecole').boundingBox();
-      const actions = await page.locator('.fiche-actions').boundingBox();
-      expect(image!.y).toBeGreaterThan(actions!.y);
+      // Lot 4 (16/11) : la photo d'enseigne devient la couverture, au-dessus du nom ; elle ne revient pas dans la fiche.
+      const image = await page.locator('.fiche-couverture img').boundingBox();
+      const titre = await page.locator('.fiche h1').boundingBox();
+      expect(image!.y).toBeLessThan(titre!.y);
+      await expect(page.locator('.photo-ecole')).toHaveCount(0);
       await expect(page.getByRole('region', { name: 'Frais déclarés par l’école' })).toBeVisible();
     }
   });

@@ -1,0 +1,270 @@
+---
+// Les formations du supérieur (lot 3, planche « Fiche publique · supérieur ») : une carte par formation, trois sur la fiche et
+// « Voir les N formations » pour le reste ; des pastilles par diplôme (« BTS · 3 ») pour filtrer. Pastilles et « voir tout »
+// sont des cases à cocher : aucun JavaScript. Chaque carte dit le diplôme, la durée, le domaine, le rythme, l'admission, les
+// frais par an et, toujours, où en est son autorisation (« pas encore vue par NTanova » plutôt que rien).
+import { francsCFA, montantFrais } from '../../modele/frais-ecole';
+import { libelleDiplome, libelleSelection } from '../../modele/libelles';
+import { listes } from '../../modele/listes';
+import { dateLongue } from '../../modele/pointe-noire';
+import type { EcolePubliee, FormationPublique } from '../../modele/ports';
+import { periodeCourte } from '../../modele/presentation-fiche';
+import { preuveEnMots, referenceEnMots } from '../../modele/agrement';
+import Icone from '../Icone.astro';
+
+interface Props {
+  e: EcolePubliee;
+}
+const { e } = Astro.props;
+const SUR_LA_FICHE = 3;
+const formations = e.formations;
+const frais = e.frais ?? [];
+const fraisDe = (f: FormationPublique) =>
+  f.id ? frais.find((x) => x.formationId === f.id) : undefined;
+const diplomes = listes.diploma_kind
+  .map((d) => ({ d, n: formations.filter((f) => f.diplome === d).length }))
+  .filter((x) => x.n > 0);
+const filtrer = diplomes.length > 1;
+const rythmeCourt = { jour: 'Jour', soir: 'Soir', weekend: 'Week-end' } as const;
+const ans = (n: number) => `${n.toLocaleString('fr-FR')} an${n >= 2 ? 's' : ''}`;
+const sousTitre = (f: FormationPublique) =>
+  [
+    f.diplome ? libelleDiplome[f.diplome] : null,
+    f.dureeAnnees ? ans(f.dureeAnnees) : null,
+    f.domaine?.nom,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+const admission = (f: FormationPublique) =>
+  [f.niveauDemande, f.selection ? libelleSelection[f.selection].toLowerCase() : null]
+    .filter(Boolean)
+    .join(' · ');
+---
+
+<section class="formations-sup" id="formations" aria-label="Formations">
+  <h2>Formations</h2>
+  <div class="corps">
+    {filtrer && (
+      <>
+        <input class="visuellement-cache filtre f-0" type="radio" id="fs-0" name="fs" checked />
+        <label class="pastille-choix" for="fs-0">
+          Toutes · {formations.length}
+        </label>
+        {diplomes.map(({ d, n }) => (
+          <>
+            <input
+              class={`visuellement-cache filtre f-${d}`}
+              type="radio"
+              id={`fs-${d}`}
+              name="fs"
+            />
+            <label class="pastille-choix" for={`fs-${d}`}>
+              {libelleDiplome[d]} · {n}
+            </label>
+          </>
+        ))}
+      </>
+    )}
+    {formations.length > SUR_LA_FICHE && (
+      <input class="visuellement-cache voir-toutes" type="checkbox" id="fs-toutes" />
+    )}
+    <ul class="cartes">
+      {formations.map((f) => {
+        const ligneFrais = fraisDe(f);
+        return (
+          <li class:list={['carte-formation', f.diplome ? `d-${f.diplome}` : 'd-aucun']}>
+            <h3>{f.titre}</h3>
+            {sousTitre(f) && <p class="doux">{sousTitre(f)}</p>}
+            {f.rythmes.length > 0 && (
+              <p class="rythmes">
+                {f.rythmes.map((r) => (
+                  <span>{rythmeCourt[r]}</span>
+                ))}
+              </p>
+            )}
+            {(admission(f) || f.fraisDossier != null) && (
+              <p class="ligne">
+                <span>Admission</span>
+                <b>
+                  {[
+                    admission(f),
+                    f.fraisDossier != null ? `dossier ${francsCFA(f.fraisDossier)}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </b>
+              </p>
+            )}
+            {ligneFrais && (
+              <p class="ligne">
+                <span>Frais</span>
+                <b>
+                  {montantFrais(ligneFrais)} {periodeCourte(ligneFrais)}
+                </b>
+              </p>
+            )}
+            {f.delivrePar && <p class="doux petit">Diplôme délivré par {f.delivrePar}</p>}
+            {f.agrement ? (
+              <p class="autorisation vue">
+                <Icone nom="bouclier" />
+                <span>
+                  Autorisation&nbsp;: réf. {referenceEnMots(f.agrement)}
+                  {preuveEnMots(f.agrement.preuve ?? null)
+                    ? ` · ${preuveEnMots(f.agrement.preuve ?? null)}`
+                    : ` · source : ${f.agrement.sourceTexte}`}
+                </span>
+              </p>
+            ) : (
+              <p class="autorisation">
+                <Icone nom="bouclierVide" />
+                <span>Autorisation&nbsp;: pas encore vue par NTanova</span>
+              </p>
+            )}
+            {f.detailsDitsLe && (
+              <p class="doux petit">D’après l’école, le {dateLongue(f.detailsDitsLe)}</p>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+    {formations.length > SUR_LA_FICHE && (
+      <label class="voir-lien" for="fs-toutes">
+        Voir les {formations.length} formations
+      </label>
+    )}
+  </div>
+</section>
+
+<style>
+  .formations-sup {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .corps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+  }
+  .filtre:checked + .pastille-choix {
+    border-color: var(--marque);
+    background: var(--vert-pale);
+    color: var(--marque-appuyee);
+  }
+  .filtre:focus-visible + .pastille-choix,
+  .voir-toutes:focus-visible ~ .voir-lien {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  .cartes {
+    flex: 1 1 100%;
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .carte-formation {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-2);
+    padding: var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    overflow-wrap: anywhere;
+  }
+  /* Trois cartes sur la fiche ; « Voir les N formations », ou un diplôme choisi, montre les autres. */
+  .carte-formation:nth-child(n + 4) {
+    display: none;
+  }
+  .voir-toutes:checked ~ .cartes .carte-formation,
+  .voir-toutes:checked ~ .voir-lien {
+    display: grid;
+  }
+  .voir-toutes:checked ~ .voir-lien {
+    display: none;
+  }
+  /* Un diplôme choisi : toutes ses formations, et seulement elles. */
+  .filtre:not(.f-0):checked ~ .cartes .carte-formation,
+  .filtre:not(.f-0):checked ~ .voir-lien {
+    display: none;
+  }
+  .f-cepe:checked ~ .cartes .carte-formation.d-cepe,
+  .f-bepc:checked ~ .cartes .carte-formation.d-bepc,
+  .f-bac:checked ~ .cartes .carte-formation.d-bac,
+  .f-bt:checked ~ .cartes .carte-formation.d-bt,
+  .f-bts:checked ~ .cartes .carte-formation.d-bts,
+  .f-licence:checked ~ .cartes .carte-formation.d-licence,
+  .f-master:checked ~ .cartes .carte-formation.d-master,
+  .f-doctorat:checked ~ .cartes .carte-formation.d-doctorat,
+  .f-cap:checked ~ .cartes .carte-formation.d-cap,
+  .f-certificat:checked ~ .cartes .carte-formation.d-certificat,
+  .f-autre:checked ~ .cartes .carte-formation.d-autre {
+    display: grid;
+  }
+  h3 {
+    margin: 0;
+    font-family: var(--police-interface);
+    font-size: 1.0625rem;
+  }
+  p {
+    margin: 0;
+  }
+  .doux {
+    color: var(--texte-doux);
+  }
+  .petit {
+    font-size: var(--taille-secondaire);
+  }
+  .rythmes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-1);
+  }
+  .rythmes span {
+    padding: 0 var(--espace-2);
+    border-radius: var(--rayon-pilule);
+    background: var(--fond-bande);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .ligne {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--espace-3);
+  }
+  .ligne span {
+    flex: none;
+    color: var(--texte-doux);
+  }
+  .ligne b {
+    text-align: end;
+  }
+  .autorisation {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--espace-1);
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .autorisation.vue {
+    color: var(--marque-appuyee);
+  }
+  .voir-lien {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  @media (min-width: 64rem) {
+    .cartes {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .ligne {
+      font-size: var(--taille-secondaire);
+    }
+  }
+</style>

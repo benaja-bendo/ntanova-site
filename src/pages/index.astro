@@ -17,38 +17,18 @@ import {
   vuesRecemment,
 } from '../modele/accueil';
 import { compterEcoles } from '../modele/geo-divisions';
-import { provenanceDe } from '../modele/libelles';
-import { ligneDeEcole, niveauxEnMots } from '../modele/ligne-ecole';
 import { LIEN_METHODE } from '../modele/pages-de-confiance';
-import { dateCourte } from '../modele/pointe-noire';
-import { cheminMedia } from '../modele/vitrine';
 import Icone from '../ui/Icone.astro';
-import Marque from '../ui/Marque.astro';
 import PagePublique from '../ui/PagePublique.astro';
+import CarteEcole from '../ui/CarteEcole.astro';
 import '../ui/carte-pieces.css';
 
 const { arbre, ecoles } = await obtenirSite();
 const villes = villesDeLAccueil(arbre);
 const niveaux = niveauxDeLAccueil(ecoles);
 const superieur = lienDuSuperieur(compterSuperieur(ecoles));
-// Les cartes « Vues sur place récemment » : les mots des lignes de la liste, la preuve la plus forte et sa date.
-const recentes = vuesRecemment(ecoles).map((e) => {
-  const ligne = ligneDeEcole(e);
-  const confirmee = provenanceDe(e) === 'verifiee';
-  const date = confirmee ? e.verifieeLe : e.releveeLe;
-  return {
-    url: ligne.url,
-    nom: e.nom,
-    lettre: ligne.lettre,
-    lettres: ligne.lettres,
-    niveaux: niveauxEnMots(e.niveaux),
-    lieu: ligne.lieu,
-    confirmee,
-    // La date ne se coupe pas : une preuve longue passe à la ligne avant elle (« … direction · » puis « 4 nov. 2026 »).
-    preuve: `${confirmee ? 'Confirmée par la direction' : 'Vue sur place'}${date ? ` · ${dateCourte(date).replace(/ /g, '\u00a0')}` : ''}`,
-    couverture: e.medias?.couverture ?? null,
-  };
-});
+// Les cartes « Vues sur place récemment » : la carte d'école partagée (lot 4), en colonne.
+const recentes = vuesRecemment(ecoles);
 ---
 
 <PagePublique
@@ -176,52 +156,9 @@ const recentes = vuesRecemment(ecoles).map((e) => {
       <section class="recentes" aria-labelledby="titre-recentes">
         <h2 id="titre-recentes">Vues sur place récemment</h2>
         <ul class="cartes-recentes">
-          {recentes.map((r) => (
+          {recentes.map((e) => (
             <li>
-              <a class="carte-recente" href={r.url}>
-                {r.couverture ? (
-                  <img
-                    class="recente-couverture"
-                    src={cheminMedia(r.couverture, 'vignette')}
-                    alt=""
-                    width="400"
-                    height="300"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ) : (
-                  <div
-                    class:list={[
-                      'recente-couverture',
-                      'recente-dessinee',
-                      r.lettre && `c-${r.lettre}`,
-                    ]}
-                    aria-hidden="true"
-                  >
-                    {r.lettre && <span class="recente-lettre" data-lettre={r.lettre} />}
-                    <Marque taille={16} />
-                  </div>
-                )}
-                <span class="recente-nom">{r.nom}</span>
-                {r.niveaux && (
-                  <span class="recente-niveaux">
-                    <span class="recente-puces" aria-hidden="true">
-                      {r.lettres.map((l) => (
-                        <span class={`disque disque-s c-${l}`}>{l}</span>
-                      ))}
-                    </span>
-                    {r.niveaux}
-                  </span>
-                )}
-                <span class="recente-lieu">
-                  <b>{r.lieu.fort}</b>
-                  {r.lieu.reste && ` · ${r.lieu.reste}`}
-                </span>
-                <span class:list={['recente-preuve', { 'recente-preuve-confirmee': r.confirmee }]}>
-                  <Icone nom={r.confirmee ? 'bouclier' : 'oeil'} />
-                  {r.preuve}
-                </span>
-              </a>
+              <CarteEcole ecole={e} />
             </li>
           ))}
         </ul>
@@ -589,103 +526,8 @@ const recentes = vuesRecemment(ecoles).map((e) => {
   .cartes-recentes > li {
     display: flex;
     flex: none;
-  }
-  .carte-recente {
-    display: flex;
-    flex-direction: column;
-    gap: var(--espace-2);
     width: 220px;
-    padding: 10px;
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-m);
-    background: var(--fond-releve);
-    color: var(--texte);
-    text-decoration: none;
   }
-  .recente-couverture {
-    width: 100%;
-    height: 104px;
-    border-radius: var(--rayon-s);
-    object-fit: cover;
-  }
-  /* Sans photo, la couverture dessinée des fiches (ticket 148) : la couleur et la lettre du cycle, les trois barres. */
-  .recente-dessinee {
-    position: relative;
-    overflow: hidden;
-    background-color: var(--cycle, var(--carte-epingle-neutre));
-    background-image: repeating-linear-gradient(
-      115deg,
-      var(--couverture-rayure) 0 3px,
-      transparent 3px 22px
-    );
-  }
-  .recente-lettre::before {
-    content: attr(data-lettre);
-  }
-  .recente-lettre {
-    position: absolute;
-    right: 12px;
-    bottom: -18px;
-    color: var(--couverture-lettre);
-    font-family: var(--police-titre);
-    font-size: 7.5rem;
-    font-weight: 700;
-    line-height: 1;
-  }
-  .recente-dessinee :global(.marque) {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-  }
-  .recente-nom {
-    font-family: var(--police-titre);
-    font-size: var(--taille-courante);
-    font-weight: 700;
-    line-height: 1.2;
-  }
-  @media (hover: hover) {
-    .carte-recente:hover {
-      border-color: var(--marque);
-    }
-  }
-  .recente-niveaux {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--texte-doux);
-    font-size: 0.8125rem;
-  }
-  .recente-puces {
-    display: inline-flex;
-    gap: 3px;
-  }
-  .recente-lieu {
-    font-size: var(--taille-secondaire);
-  }
-  /* La preuve en bas de la carte : alignée d'une carte à l'autre quand un nom prend deux lignes. */
-  .recente-preuve {
-    display: inline-flex;
-    align-items: center;
-    align-self: flex-start;
-    gap: 5px;
-    margin-top: auto;
-    padding: 2px var(--espace-2);
-    border: 2px solid var(--preuve-terrain);
-    border-radius: var(--rayon-pilule);
-    color: var(--marque-appuyee);
-    font-family: var(--police-interface);
-    font-size: var(--taille-mention);
-    font-weight: 700;
-  }
-  .recente-preuve-confirmee {
-    background: var(--preuve-direction);
-    color: var(--preuve-direction-texte);
-  }
-  .recente-preuve :global(svg) {
-    width: 13px;
-    height: 13px;
-  }
-
   /* « Comment les fiches sont tenues » : trois étapes, le numéro à gauche sur téléphone. */
   .etapes-bande {
     margin-top: 20px;
@@ -855,8 +697,7 @@ const recentes = vuesRecemment(ecoles).map((e) => {
       padding: 0;
       overflow: visible;
     }
-    .carte-recente {
-      flex: 1;
+    .cartes-recentes > li {
       width: auto;
     }
     .etapes-bande {
