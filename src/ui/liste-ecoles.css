@@ -385,6 +385,35 @@ body.filtres-ouverts {
   font-weight: 700;
   transform: translateX(-50%);
 }
+.zone-carte-note {
+  display: none;
+}
+.zone-carte[data-fond='absent'] .zone-carte-fond {
+  position: absolute;
+  bottom: var(--espace-4);
+  left: var(--espace-3);
+  right: var(--espace-3);
+  z-index: 2;
+  display: block;
+  padding: var(--espace-2) var(--espace-3);
+  border-radius: var(--rayon-s);
+  background: var(--fond-releve);
+  font-size: var(--taille-secondaire);
+}
+.zone-carte[data-etat='sans-carte'] .zone-carte-sans {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-4);
+  text-align: center;
+}
+.zone-carte[data-etat='sans-carte'] .zone-carte-attente {
+  display: none;
+}
 .bouton-chercher {
   position: absolute;
   top: var(--espace-3);
@@ -554,7 +583,9 @@ body[data-vue='carte'] .pied {
     background: var(--fond-releve);
   }
   .liste-ecoles[data-vue-actuelle='liste'] .filtres-effacer-haut {
-    display: inline;
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
     border: 0;
     background: none;
     font: inherit;

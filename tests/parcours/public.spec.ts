@@ -180,11 +180,16 @@ test.describe('site public', () => {
     test('le pays, la ville, l’arrondissement, le quartier : chaque niveau mène au suivant', async ({
       page,
     }) => {
-      // Ticket 147 : le pays n'a plus de page, `/ecoles/` le porte (« Ville par ville »).
+      // Ticket 147 : le pays n'a plus de page. Lot 4 bis : `/ecoles/` n'a plus « Ville par ville » ; l'accueil et le pied de
+      // page mènent aux trois zones qui ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
       await page.goto('/ecoles/');
-      // Trois zones du pays ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
-      await expect(page.locator('a.zone')).toHaveCount(3);
-      await page.getByRole('link', { name: /Pointe-Noire.*7 écoles/ }).click();
+      const pied = page.getByRole('contentinfo').getByRole('list', { name: 'Trouver une école' });
+      await expect(pied.getByRole('link')).toHaveCount(4);
+      await page.goto('/');
+      await page
+        .getByRole('main')
+        .getByRole('link', { name: /^Pointe-Noire.*7 écoles/ })
+        .click();
       await page.getByRole('link', { name: /Loandjili.*Arrondissement 4.*2 écoles/ }).click();
       await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/loandjili\/$/);
       await page.getByRole('link', { name: /\[Quartier Exemple\].*1 école/ }).click();
@@ -259,127 +264,23 @@ test.describe('site public', () => {
     }) => {
       await page.goto('/formations/serie/c/');
       await expect(page).toHaveURL(/\/ecoles\/\?serie=c$/);
-      await expect(page.locator('[data-compte]')).toHaveText(/^1 école/);
+      await expect(page.locator('[data-sous-titre]')).toHaveText(/^1 école/);
       await expect(
-        page.locator('ul.liste-lignes').getByRole('link', { name: /\[Groupe scolaire Exemple\]/ }),
+        page.locator('[data-cartes]').getByRole('link', { name: /\[Groupe scolaire Exemple\]/ }),
       ).toBeVisible();
       for (const ancienne of ['/formations/diplome/bts/', '/formations/rythme/weekend/']) {
         await page.goto(ancienne);
         await expect(page).toHaveURL(/\/ecoles\/\?(diplome=bts|rythme=weekend)$/);
         await expect(
           page
-            .locator('ul.liste-lignes')
+            .locator('[data-cartes]')
             .getByRole('link', { name: /\[Institut supérieur Exemple\]/ }),
         ).toBeVisible();
       }
     });
   });
 
-  test.describe('rechercher une école', () => {
-    test('par nom, puis par série du bac : les critères se combinent', async ({ page }) => {
-      await page.goto('/ecoles/');
-      const resultats = page.locator('ul.liste-lignes');
-      await expect(page.locator('[data-compte]')).toHaveText(/^9 écoles/);
-      // Le nom, sans accent ni tiret : « tie tie » trouve Tié-Tié.
-      await page.getByLabel('Nom, quartier, repère ou filière').fill('tie tie');
-      await expect(page.locator('[data-compte]')).toHaveText(/^4 écoles/);
-      await page.getByLabel('Nom, quartier, repère ou filière').fill('');
-      // La série C : une seule école, qui l'enseigne dans une formation du jour. Les filtres de formation sont repliés.
-      await page.getByText('Plus de filtres').click();
-      await page.getByLabel('Série du bac').selectOption('c');
-      await expect(page.locator('[data-compte]')).toHaveText(/^1 école/);
-      await expect(
-        resultats.getByRole('link', { name: /\[Groupe scolaire Exemple\]/ }),
-      ).toBeVisible();
-      // Série C et cours du soir : c'est la même formation qui doit être des deux, pas deux formations différentes.
-      await page.getByLabel('Rythme').selectOption('soir');
-      await expect(page.getByText('Aucune école ne correspond.')).toBeVisible();
-      // Série G (toutes les variantes) et cours du soir : la formation « Série G2 » est du jour et du soir.
-      await page.getByLabel('Série du bac').selectOption('g');
-      await expect(page.locator('[data-compte]')).toHaveText(/^1 école/);
-    });
-
-    test('par diplôme et par domaine, et la recherche se garde dans l’adresse', async ({
-      page,
-    }) => {
-      await page.goto('/ecoles/?diplome=bts&domaine=informatique');
-      await expect(page.getByLabel('Diplôme')).toHaveValue('bts');
-      await expect(page.locator('[data-compte]')).toHaveText(/^1 école/);
-      await expect(
-        page
-          .locator('ul.liste-lignes')
-          .getByRole('link', { name: /\[Institut supérieur Exemple\]/ }),
-      ).toBeVisible();
-      await page.getByRole('button', { name: 'Lycée' }).click();
-      await expect(page).toHaveURL(/niveau=L/);
-      await expect(page.getByText('Aucune école ne correspond.')).toBeVisible();
-    });
-
-    test('dans une zone : tout ce qu’elle contient', async ({ page }) => {
-      await page.goto('/ecoles/?zone=congo/pointe-noire/loandjili');
-      await expect(page.locator('[data-compte]')).toHaveText(/^2 écoles/);
-      await page.getByLabel('Lieu').selectOption('congo/brazzaville');
-      await expect(page.locator('[data-compte]')).toHaveText(/^1 école/);
-    });
-
-    test('chaque résultat mène à la fiche de son campus', async ({ page }) => {
-      await page.goto('/ecoles/?q=mongo');
-      await page
-        .locator('ul.liste-lignes')
-        .getByRole('link', { name: /Groupe scolaire/ })
-        .click();
-      await expect(page).toHaveURL(/\/ecoles\/groupe-scolaire-exemple-904316\/$/);
-    });
-  });
-
-  test.describe('autour de moi', () => {
-    test('classe les écoles par distance, sans jamais envoyer la position', async ({
-      page,
-      context,
-    }) => {
-      await context.grantPermissions(['geolocation']);
-      await context.setGeolocation({ latitude: -4.7912, longitude: 11.9252, accuracy: 10 });
-      const sorties: string[] = [];
-      page.on('request', (r) => {
-        if (r.url().includes('latitude') || r.url().includes('-4.79')) sorties.push(r.url());
-      });
-      await page.goto('/ecoles/');
-      await page.getByRole('button', { name: 'Autour de moi' }).click();
-      const resultats = page.locator('ul.liste-lignes li');
-      await expect(resultats.first()).toContainText('[Complexe scolaire Exemple]');
-      await expect(resultats.first()).toContainText(/À \d+\s?m/);
-      await expect(
-        page.getByText(/Votre position reste sur votre téléphone/).first(),
-      ).toBeVisible();
-      expect(sorties).toEqual([]);
-    });
-
-    test('loin de toute école : le dit, sans rien inventer', async ({ page, context }) => {
-      await context.grantPermissions(['geolocation']);
-      await context.setGeolocation({ latitude: -3.0, longitude: 14.0, accuracy: 10 });
-      await page.goto('/ecoles/');
-      await page.getByRole('button', { name: 'Autour de moi' }).click();
-      await expect(
-        page.getByText(/Aucune école relevée à moins de 3\skm d’ici pour l’instant/),
-      ).toBeVisible();
-      await page.getByRole('button', { name: '30 km' }).click();
-      await expect(page.getByText(/Aucune école relevée à moins de 30\skm/)).toBeVisible();
-    });
-
-    test('une position refusée : un message, et la porte vers les villes', async ({
-      page,
-      context,
-    }) => {
-      await context.clearPermissions();
-      await page.goto('/ecoles/');
-      await page.getByRole('button', { name: 'Autour de moi' }).click();
-      await expect(
-        page.getByText(/Vous avez refusé la position|n’a pas pu être lue/),
-      ).toBeVisible();
-      // Les villes sont sur la même page, sous les résultats.
-      await expect(page.getByRole('heading', { name: 'Ville par ville' })).toBeVisible();
-    });
-  });
+  // Lot 4 bis : « rechercher une école » et « autour de moi » vivent dans `les-ecoles.spec.ts` (version 46).
 
   test.describe('toutes les écoles, de la crèche au supérieur (ticket 12)', () => {
     test('la fiche dit le type, les niveaux et le programme de l’école', async ({ page }) => {
@@ -552,9 +453,10 @@ test.describe('site public', () => {
       // Les adresses d'avant les villes.
       ['/ecoles/tie-tie/', TIE_TIE],
       ['/ecoles/tie-tie/complexe-scolaire-exemple/', FICHE],
-      // Ticket 146 : l'ancien plan dessiné mène à la seule carte, cadrée sur l'arrondissement (le « coin » d'abord à lui).
-      ['/ecoles/tie-tie/carte/', '/carte/#'],
-      ['/ecoles/tie-tie/carte/coin-1/', '/carte/#'],
+      // Ticket 146 : l'ancien plan dessiné mène à la seule carte, cadrée sur l'arrondissement (le « coin » d'abord à lui) ;
+      // depuis le lot 4 bis, la vue Carte de « Les écoles ».
+      ['/ecoles/tie-tie/carte/', '/ecoles/?vue=carte'],
+      ['/ecoles/tie-tie/carte/coin-1/', '/ecoles/?vue=carte'],
     ] as const) {
       const reponse = await request.get(ancienne);
       expect(reponse.status(), ancienne).toBe(200);

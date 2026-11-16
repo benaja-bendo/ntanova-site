@@ -29,6 +29,14 @@ import {
 } from '../../modele/liste-ecoles';
 import type { LigneRecherche } from '../../modele/recherche';
 
+function webgl2(): boolean {
+  try {
+    return !!document.createElement('canvas').getContext('webgl2');
+  } catch {
+    return false;
+  }
+}
+
 /** 20 cartes, puis « Afficher plus » (décision du fondateur du 16/11). */
 export const PAR_PAGE = 20;
 
@@ -324,8 +332,13 @@ export function demarrerListe(racine: HTMLElement): void {
     });
     ecrireAdresse();
     if (vue !== 'carte') return;
-    await lire();
-    if (!trouvees.length && !nombreDeFiltres(etat) && !etat.q) calculer();
+    await lire().catch(() => undefined);
+    if (lignes && !trouvees.length && !nombreDeFiltres(etat) && !etat.q) calculer();
+    // Sans WebGL2, rien de la carte n'est téléchargé : la liste reste, la carte le dit (planche des trois états).
+    if (!webgl2()) {
+      zoneCarte.dataset.etat = 'sans-carte';
+      return;
+    }
     chargementCarte ??= import('./liste-carte').then((m) =>
       m.ouvrirLaCarte({
         zone: zoneCarte,

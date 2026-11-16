@@ -239,6 +239,15 @@ const villesDuPied = villesDeLAccueil(site.arbre);
           </p>
         </div>
         <p class="zone-carte-aucune">Aucune de ces écoles n’a de position sur la carte.</p>
+        <p class="zone-carte-note zone-carte-fond">
+          Le fond de carte ne se charge pas&nbsp;: les zones et les écoles restent là.
+        </p>
+        <div class="zone-carte-note zone-carte-sans">
+          <p>Ce téléphone ne peut pas afficher la carte. La liste, elle, reste là.</p>
+          <a class="bouton" href="/ecoles/" data-vue="liste">
+            Voir la liste
+          </a>
+        </div>
         <button type="button" class="bouton-chercher" data-chercher-zone hidden>
           <Icone nom="cible" />
           Chercher dans cette zone

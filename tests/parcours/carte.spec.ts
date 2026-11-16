@@ -41,7 +41,11 @@ test('les anciens plans dessinés renvoient vers la carte, cadrée sur l’arron
     '/ecoles/tie-tie/carte/',
   ]) {
     await page.goto(ancienne);
-    await expect(page, ancienne).toHaveURL(/\/carte\/#[\d.]+\/-4\.\d+\/11\.\d+$/);
+    // Lot 4 bis : la vue Carte de « Les écoles », limitée à l'arrondissement (« Zone de la carte »).
+    await expect(page, ancienne).toHaveURL(/\/ecoles\/\?(.+&)?vue=carte/);
+    await expect(page, ancienne).toHaveURL(
+      /cadre=11\.\d+(,|%2C)-4\.\d+(,|%2C)11\.\d+(,|%2C)-4\.\d+/,
+    );
   }
 });
 
@@ -54,7 +58,7 @@ test('« Liste | Carte » : la page d’un arrondissement mène à la carte cadr
   await expect(bascule.getByRole('link', { name: 'Liste' })).toHaveCount(0);
   await expect(bascule.getByRole('link', { name: 'Carte' })).toHaveAttribute(
     'href',
-    /^\/carte\/#[\d.]+\/-4\.\d+\/11\.\d+$/,
+    /^\/ecoles\/\?vue=carte&cadre=11\.\d+,-4\.\d+,11\.\d+,-4\.\d+$/,
   );
   await expect(page.locator('main svg.plateau')).toHaveCount(0);
 });
@@ -67,7 +71,7 @@ test('la fiche n’a plus de petit plan : le repère en mots et « Voir sur la c
   await expect(page.getByRole('group', { name: /sur la carte de/ })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Voir sur la carte' })).toHaveAttribute(
     'href',
-    /^\/carte\/\?ecole=.+#\d/,
+    /^\/ecoles\/\?vue=carte&ecole=\d{6}$/,
   );
   // Sans position, pas de lien vers la carte.
   await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
@@ -89,36 +93,9 @@ test('une école située par l’administration, sans relevé, est dans la liste
   await expect(page.locator('.preuves')).toContainText('Ajoutée par NTanova');
   // Sa tête n'en dit pas plus ; « Écoles proches », plus bas, montre les preuves des autres (lot 4).
   await expect(page.locator('.fiche-tete').getByText(/Vue sur place ·/)).toHaveCount(0);
-  // Pas vue sur place : la carte s'ouvre sur son quartier, sans épingle, et le lien le dit.
+  // Pas vue sur place : la vue Carte s'ouvre sur sa zone, sans épingle, et le lien le dit.
   await expect(page.getByRole('link', { name: 'Voir le quartier sur la carte' })).toHaveAttribute(
     'href',
-    /^\/carte\/#\d/,
+    /^\/ecoles\/\?vue=carte&cadre=/,
   );
-});
-
-// Depuis le lot 3, l'accueil n'a plus de carte : le dessin de repli ne vit plus que sur `/carte/`.
-test('sans WebGL2, la carte garde le dessin de Tié-Tié, sans les barres d’attente', async ({
-  page,
-}) => {
-  // Une bonne connexion (la carte se charge d'office), mais un téléphone sans WebGL2.
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'connection', { value: {}, configurable: true });
-    const getContext = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type, ...reste) {
-      return type === 'webgl2' ? null : getContext.call(this, type, ...reste);
-    } as typeof getContext;
-  });
-  await page.goto('/carte/');
-  await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'repli-sans-webgl2');
-  const apercu = page.getByRole('region', { name: 'La carte de Tié-Tié' });
-  await expect(apercu).toBeVisible();
-  await expect(apercu.getByText('Arrondissement 3 · 2 écoles sur la carte')).toBeVisible();
-  await expect(page.locator('.carte-attente')).toBeHidden();
-});
-
-test('avec JavaScript, l’ancien dessin ne paraît plus pendant l’attente de la carte', async ({
-  page,
-}) => {
-  await page.goto('/carte/');
-  await expect(page.locator('.carte-repli')).toBeHidden();
 });

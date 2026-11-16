@@ -83,6 +83,7 @@ const ko = (octets) => `${(octets / 1024).toFixed(1)} Ko`;
 let echec = false;
 const lignes = [];
 const totauxDesPages = new Map();
+const totauxDEmblee = new Map();
 for (const page of pages(dist)) {
   const nom = relative(dist, page);
   const html = readFileSync(page, 'utf8');
@@ -119,6 +120,17 @@ for (const page of pages(dist)) {
   for (const m of html.matchAll(/url\(\s*['"]?([^'")]+)/g)) compter(m[1]);
 
   totauxDesPages.set(nom, total);
+  // Lot 4 bis : ce que la page charge d'emblée, sans les images `loading="lazy"` (elles attendent d'approcher de l'écran ; en
+  // vue Carte, la liste est cachée au téléphone et ne montre que quelques cartes sur ordinateur). Sert au premier affichage
+  // de la carte ; le budget de la page, lui, compte tout.
+  let paresseuses = 0;
+  for (const m of charge.matchAll(/<img\b[^>]*\sloading="lazy"[^>]*>/g)) {
+    const src = /\ssrc="([^"]+)"/.exec(m[0])?.[1];
+    if (!src || !src.startsWith('/')) continue;
+    const fichier = join(dist, decodeURI(src.split(/[?#]/)[0]));
+    if (existsSync(fichier)) paresseuses += statSync(fichier).size;
+  }
+  totauxDEmblee.set(nom, total - paresseuses);
   const fautes = [];
   const budget = pageGuide.test(nom) ? budgetGuide : budgetPage;
   if (total > budget) fautes.push(`dépasse ${ko(budget)}`);
@@ -236,7 +248,7 @@ for (const [cheminCarte, nomCarte, budgetDuChargeur] of pagesAvecLaCarte) {
         : 0;
     };
     const premierAffichage =
-      (totauxDesPages.get(cheminCarte) ?? 0) +
+      (totauxDEmblee.get(cheminCarte) ?? 0) +
       Math.max(ilotGzip, ilotBrotli5) +
       servi('carte/style.json') +
       servi('carte/zones.geojson') +
