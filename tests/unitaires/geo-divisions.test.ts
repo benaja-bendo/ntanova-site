@@ -10,7 +10,9 @@ import {
   lienDivision,
   lienEcole,
   lieuAvecPreposition,
+  lieuxAvecEcoles,
   nomAffiche,
+  parentAvecEcoles,
   phraseDeCompte,
   sansRepetition,
 } from '../../src/modele/geo-divisions';
@@ -305,5 +307,24 @@ describe('les mots d’une zone', () => {
     expect(lieuAvecPreposition('Congo', 0)).toBe('au Congo-Brazzaville');
     expect(lieuAvecPreposition('Pointe-Noire', 2)).toBe('à Pointe-Noire');
     expect(lieuAvecPreposition('Ngoyo', 3)).toBe('à Ngoyo');
+  });
+});
+
+describe('aucun lien public vers un lieu sans fiche (fondateur, 16/11/2026)', () => {
+  it('les lieux proposés ont tous une école publiée, eux ou dessous', () => {
+    // Tié-Tié, ouverte aux relais, garde sa page vide ; Loandjili a une école dans son quartier.
+    const arbre = construireArbre(DIVISIONS, [ecole('a', 'mm', '[École a]')]);
+    const ville = arbre.parAdresse.get('congo/pointe-noire');
+    expect(ville?.enfants.map((p) => p.division.nom)).toEqual(['Tié-Tié', 'Loandjili']);
+    expect(lieuxAvecEcoles(ville?.enfants ?? []).map((p) => p.division.nom)).toEqual(['Loandjili']);
+  });
+
+  it('le retour d’une page vide remonte jusqu’au premier lieu qui a une école, sinon jusqu’à la liste', () => {
+    const avec = construireArbre(DIVISIONS, [ecole('a', 'mm', '[École a]')]);
+    const tieTie = avec.parAdresse.get('congo/pointe-noire/tie-tie');
+    expect(tieTie && parentAvecEcoles(tieTie)?.division.nom).toBe('Pointe-Noire');
+    const sans = construireArbre(DIVISIONS, []);
+    const vide = sans.parAdresse.get('congo/pointe-noire/tie-tie');
+    expect(vide && parentAvecEcoles(vide)).toBeNull();
   });
 });

@@ -75,9 +75,45 @@ test('la ville liste ses zones avec leur nombre d’écoles, sans état', async 
   const zone = (nom: string) => page.locator('a.zone', { hasText: nom });
   await expect(zone('Tié-Tié')).toContainText(/\d+ écoles/);
   await expect(zone('Loandjili')).toContainText('2 écoles');
-  await expect(zone('Mvou-Mvou')).toContainText('Arrondissement 2 · pas encore d’école publiée');
+  // Fondateur, 16/11/2026 : aucun lien vers un lieu sans fiche (avant : « Arrondissement 2 · pas encore d’école publiée »).
+  await expect(zone('Mvou-Mvou')).toHaveCount(0);
   await expect(page.locator('main')).not.toContainText(ETATS);
   await expect(page.locator('.etat-zone')).toHaveCount(0);
+});
+
+test('aucun lien public ne mène à un lieu sans fiche publiée, même sans JavaScript (fondateur, 16/11/2026)', async ({
+  browser,
+  baseURL,
+  request,
+}) => {
+  // L'accueil, le pied, « Écoles », une ville, une page vide (son retour), la carte (sa liste de secours) et une fiche. Un lieu
+  // sans fiche garde sa page en `noindex` (08/11) : rien ne doit y mener.
+  const contexte = await browser.newContext({ javaScriptEnabled: false, baseURL: baseURL ?? '' });
+  const page = await contexte.newPage();
+  const lieux = new Set<string>();
+  for (const adresse of [
+    '/',
+    '/ecoles/',
+    '/ecoles/pointe-noire/',
+    '/ecoles/pointe-noire/ngoyo/',
+    '/carte/',
+    '/ecoles/complexe-scolaire-exemple-482913/',
+  ]) {
+    await page.goto(adresse);
+    const liens = await page
+      .locator('a[href^="/ecoles/"]')
+      .evaluateAll((l) => l.map((a) => a.getAttribute('href') ?? ''));
+    for (const lien of liens)
+      // Un lieu : des noms (`/ecoles/pointe-noire/ngoyo/`) ; ni une fiche (`…-482913/`), ni son lien court (`/ecoles/482913/`).
+      if (/^\/ecoles\/[a-z][a-z0-9-]*\/([a-z][a-z0-9-]*\/)*$/.test(lien) && !/-\d{6}\/$/.test(lien))
+        lieux.add(lien);
+  }
+  expect(lieux.size, 'des liens de lieux trouvés').toBeGreaterThan(4);
+  for (const lieu of lieux) {
+    const html = await (await request.get(lieu)).text();
+    expect(html, `${lieu} est une page vide`).not.toMatch(/<meta name="robots" content="noindex"/);
+  }
+  await contexte.close();
 });
 
 test('le pays n’a plus de page : son adresse d’avant mène à la liste (ticket 147)', async ({

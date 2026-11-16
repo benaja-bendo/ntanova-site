@@ -8,12 +8,8 @@
 // personne. Sans JavaScript, la page garde ses villes : la recherche n'est jamais le seul chemin.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../../infra/index';
-import {
-  compterEcoles,
-  ecolesSous,
-  lienDivision,
-  type PageDivision,
-} from '../../modele/geo-divisions';
+import { villesDeLAccueil } from '../../modele/accueil';
+import { compterEcoles, ecolesSous, type PageDivision } from '../../modele/geo-divisions';
 import { libelleTypeEcole, typeInformatif } from '../../modele/libelles';
 import { listes } from '../../modele/listes';
 import { filtresAvances } from '../../modele/recherche';
@@ -49,9 +45,9 @@ const parcourir = (p: PageDivision) => {
   p.enfants.forEach(parcourir);
 };
 arbre.racines.forEach(parcourir);
-// « Ville par ville » : celles qui ont des écoles d'abord, le reste dans son ordre habituel.
-const villesDAbord = (enfants: PageDivision[]) =>
-  [...enfants].sort((a, b) => Number(ecolesSous(b).length > 0) - Number(ecolesSous(a).length > 0));
+// « Ville par ville » : les villes de l'accueil, celles qui ont des fiches, par ordre alphabétique. Aucun lien vers un lieu
+// sans fiche (fondateur, 16/11/2026).
+const villes = villesDeLAccueil(arbre);
 // Le rayon d'« Autour de moi » se choisit avant ou après l'appui ; 3 km par défaut.
 const rayons = [
   [1000, '1 km'],
@@ -188,25 +184,21 @@ const rayons = [
       <div data-vide></div>
     </section>
 
-    {arbre.racines.map((racine) => (
-      <section class="par-lieu" id="par-ville" aria-labelledby={`titre-${racine.division.slug}`}>
-        <h2 id={`titre-${racine.division.slug}`}>Ville par ville</h2>
+    {villes.length > 0 && (
+      <section class="par-lieu" id="par-ville" aria-labelledby="titre-par-ville">
+        <h2 id="titre-par-ville">Ville par ville</h2>
         <ul class="zones">
-          {villesDAbord(racine.enfants).map((enfant) => (
+          {villes.map((v) => (
             <li>
-              <a class="zone" href={lienDivision(enfant.chemin)}>
-                <span class="zone-nom">{enfant.division.nom}</span>
-                <span class="zone-detail">
-                  {ecolesSous(enfant).length > 0
-                    ? compterEcoles(ecolesSous(enfant).length)
-                    : 'pas encore d’école publiée'}
-                </span>
+              <a class="zone" href={v.lien}>
+                <span class="zone-nom">{v.nom}</span>
+                <span class="zone-detail">{compterEcoles(v.total)}</span>
               </a>
             </li>
           ))}
         </ul>
       </section>
-    ))}
+    )}
     {/* « Une école manque ? » est dans le pied de toutes les pages (lot 3, version 44) : le bloc d'ici le répétait. L'état vide
         d'une recherche garde sa propre porte (`data-manque`). */}
   </section>

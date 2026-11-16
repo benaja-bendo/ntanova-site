@@ -114,7 +114,7 @@ test.describe('site public', () => {
     });
   }
 
-  test('de l’accueil à la fiche d’une école, puis vers « Pour les écoles »', async ({ page }) => {
+  test('de l’accueil à la fiche d’une école, puis vers « Espace écoles »', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /^Brazzaville.*1 école/ })).toBeVisible();
@@ -161,7 +161,7 @@ test.describe('site public', () => {
       '[Complexe scolaire Exemple], à [Quartier], Tié-Tié, Pointe-Noire :',
     );
     expect(description).not.toContain('Congo');
-    // Ce que NTanova demande se lit sur « Pour les écoles », un lien plus bas.
+    // Ce que NTanova demande se lit sur « Espace écoles » (/pour-les-ecoles/), un lien plus bas.
     await page.getByRole('link', { name: 'Ce que nous vous demanderons' }).click();
     await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
   });

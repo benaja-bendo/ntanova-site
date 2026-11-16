@@ -333,9 +333,8 @@ test.describe('les pages de zone', () => {
     await expect(page.locator('main')).not.toContainText(/\b0 écoles?\b/);
     await expect(page.locator('main svg.plan, main .plan-carte')).toHaveCount(0);
     await expect(page.locator('main')).not.toContainText(/Relevé en cours|Déploiement programmé/);
-    await expect(page.locator('a.zone', { hasText: 'Ngoyo' })).toContainText(
-      'pas encore d’école publiée',
-    );
+    // Fondateur, 16/11/2026 : un lieu sans fiche n'a plus de lien (sa page reste, en `noindex`).
+    await expect(page.locator('a.zone', { hasText: 'Ngoyo' })).toHaveCount(0);
     // La bascule mène à la seule carte du site, cadrée sur la ville.
     await expect(
       page.getByRole('navigation', { name: 'Affichage' }).getByRole('link', { name: 'Carte' }),
