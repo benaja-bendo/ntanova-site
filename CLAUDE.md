@@ -12,8 +12,8 @@ Le site de NTanova : l'annuaire public des écoles de la République du Congo (*
 - **Lot 2, fait le 16/11** : l'administration saisit ces champs : mois facturés et **« Noter le OUI de l'école »** (Frais), séries admises (Formations), « Places et effectifs » (fiche), demandes des familles (« Aujourd'hui »). Journal : `docs/avancement-admin-v2.md`.
 - **Des frais ne sont publics qu'avec `confirmed_on`**, le jour du OUI écrit de l'école ; modifier une ligne l'efface (l'écran ne réécrit que les lignes qui changent).
 - **Lot 3, fait le 16/11** (planches « Accueil » de la version 44) : l'en-tête à trois piliers, Trouver une école · S'orienter · Espace écoles (plus de bouton Menu) ; le pied de page (« Une école manque ? », les villes, la date de l'annuaire) ; **l'accueil sans carte ni JavaScript** ; `/orienter/` de passage (chaque profil ouvre sa liste) jusqu'aux questions du lot 5. Le mode « accueil » de la carte (`chargeur.ts`, `chargement.ts`) n'est plus appelé.
-- **Le plan** : les lots 4 à 8 (fiche, S'orienter, Espace écoles, Comparer, pré-inscription) : §7 de `docs/produit/2026-11-15-site-public-trois-piliers.md`, dépôt `ntanova`.
-- **La fiche publique v2 du 14/11** (non vérifiée) attend le lot 4 sur `wip/fiche-publique-14-11` (`git rebase --onto main a1ebe51`).
+- **Le plan** (ordre du 16/11) : lot 4 réduit à la fiche mince, 4 bis (« Les écoles » et la carte), 4 ter (le reste de la fiche), puis 5 à 8 (S'orienter, Espace écoles, Comparer, pré-inscription) : §7 de `docs/produit/2026-11-15-site-public-trois-piliers.md`, dépôt `ntanova`. Aucun lot ne commence sans le feu vert du fondateur.
+- **La fiche publique v2 du 14/11** (non vérifiée) est rejouée sur `main` dans `public/lot-4-fiche`, avec la couverture de la version 44 ; ses 10 parcours rouges sont triés (16/11), rien n'est corrigé. `wip/fiche-publique-14-11` se supprime à la fusion du lot 4.
 
 ## Lancer
 
@@ -112,7 +112,7 @@ Le quota s'est épuisé le 05/11 et a bloqué une mise en production : chaque mi
 
 - Une tâche = un ticket du projet GitHub n° 29 : état des lieux, go du fondateur (rien n'est codé avant), PR « Fixes #N », tests d'abord, compte rendu (fait, vérifié, pas vérifié). Un bug corrigé arrive avec un test qui échoue sans le correctif.
 - **Un regard critique à chaque étape** : croiser maquette, ticket et code avec le contexte et dire ce qui ne colle pas ; ne jamais recopier une maquette telle quelle.
-- **Un test protège une décision, pas un ancien écran** (fondateur, 16/11/2026) : quand une planche de la version 44 contredit un test ou une ancienne route, la planche gagne ; réécrire le test et le dire dans le compte rendu. La charte (cibles de 44 px, logo, poids des pages) reste au-dessus des planches.
+- **Un test protège une décision, pas un ancien écran** (fondateur, 16/11/2026) : quand une planche de la version 44 contredit un test ou une ancienne route, la planche gagne ; réécrire le test et le dire dans le compte rendu. La charte (cibles de 44 px, logo, poids des pages) reste au-dessus des planches. **Quand la planche renverse une décision datée du registre** (exemple : couverture dessinée et « plus de petit plan », 08/11), lister d'abord les renversements au fondateur et attendre son accord avant de coder (16/11).
 - **Git** : jamais de code poussé directement sur `main` ; une branche courte par tâche, une PR, une fusion en un seul commit, la branche supprimée ; un seul clone. Commits en français, préfixe court (`site:`, `relais:`, `admin:`, `base:`, `ui:`, `outils:`, `docs:`).
 - **Phase d'essai jusqu'au 30/11/2026** : Claude peut pousser, fusionner une PR, lancer une mise en ligne, en prévenant le fondateur. **À partir du 01/12/2026, redemander avant chaque fusion, chaque mise en ligne et chaque `supabase db push`.**
 
