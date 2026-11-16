@@ -35,8 +35,9 @@ import {
   libelleTypeEcole,
   libelleTypeMission,
 } from '../../modele/libelles';
-import type { EcoleVue, PhotoVue, PortAdministration } from '../../modele/ports';
+import type { ContactEcole, EcoleVue, PhotoVue, PortAdministration } from '../../modele/ports';
 import { jour } from '../../ui/composants';
+import { CarteContacts } from './ContactsEcole';
 
 export type RubriqueFiche =
   | 'completer'
@@ -46,6 +47,7 @@ export type RubriqueFiche =
   | 'frais'
   | 'places'
   | 'contact-public'
+  | 'contacts'
   | 'inscriptions'
   | 'agrement'
   | 'mot-direction'
@@ -166,6 +168,8 @@ export function FicheEcole({
   const [photos, setPhotos] = useState<PhotoVue[]>([]);
   const [travail, setTravail] = useState<PhotoVue[]>([]);
   const [nouvelles, setNouvelles] = useState<NouvelleAdmin[]>([]);
+  // 16/11 : les contacts privés de l'école (toutes les fiches de relais du site, et ceux notés par l'administration).
+  const [contacts, setContacts] = useState<ContactEcole[] | null>(null);
   useEffect(() => {
     let vivant = true;
     const garder =
@@ -177,6 +181,7 @@ export function FicheEcole({
     garder(setPhotos, [] as PhotoVue[])(admin.photosEcole(e.id));
     garder(setTravail, [] as PhotoVue[])(admin.photosDeTravail(e.id));
     garder(setNouvelles, [] as NouvelleAdmin[])(admin.nouvellesDeLEcole(e.id));
+    garder(setContacts, [] as ContactEcole[])(admin.contactsDeLEcole(e.id));
     return () => {
       vivant = false;
     };
@@ -331,6 +336,14 @@ export function FicheEcole({
             ouvrir={ouvrir}
             figee={figee}
           />
+          <div className="mt-4">
+            <CarteContacts
+              contacts={contacts}
+              numeroEnseigne={e.numeroEnseigne}
+              gerer={() => ouvrir('contacts')}
+              figee={figee}
+            />
+          </div>
         </div>
 
         {/* Les photos. */}
@@ -539,6 +552,14 @@ export function FicheEcole({
             manques={manques}
             demandes={demandes}
             ouvrir={ouvrir}
+            figee={figee}
+          />
+        </div>
+        <div className="max-lg:hidden">
+          <CarteContacts
+            contacts={contacts}
+            numeroEnseigne={e.numeroEnseigne}
+            gerer={() => ouvrir('contacts')}
             figee={figee}
           />
         </div>

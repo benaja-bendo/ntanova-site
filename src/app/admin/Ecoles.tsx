@@ -1,3 +1,4 @@
+import { GererContacts } from './ContactsEcole';
 import { v2 } from '@/ui/v2/classes';
 import { cn } from '@/lib/utils';
 import { ChampsFiche } from './ChampsFiche';
@@ -141,6 +142,7 @@ function LigneEcole({
     | 'frais'
     | 'places'
     | 'contact-public'
+    | 'contacts'
     | 'agrement'
     | 'mot-direction'
     | 'completer'
@@ -279,6 +281,14 @@ function LigneEcole({
           places={e.places ?? []}
           effectifs={e.effectifs ?? []}
           admin={admin}
+          surChangement={signaler}
+        />
+      )}
+      {mode === 'contacts' && (
+        <GererContacts
+          admin={admin}
+          ecoleId={e.id}
+          surOccupation={setOperation}
           surChangement={signaler}
         />
       )}
@@ -778,6 +788,7 @@ function LigneEcole({
       modifier: 'En bref',
       situer: 'Position',
       'contact-public': 'Contact et inscriptions',
+      contacts: 'Contacts de l’école',
       frais: 'Frais',
       places: 'Places et effectifs',
       inscriptions: 'Inscriptions',

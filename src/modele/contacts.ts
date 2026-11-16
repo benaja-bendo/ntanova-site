@@ -8,7 +8,8 @@
 import type { Erreurs } from './fiche';
 import { libelleFonction } from './libelles';
 import type { Valeur } from './listes';
-import type { ContactASaisir, ContactDirection } from './ports';
+import type { ContactASaisir, ContactDirection, ContactEcole } from './ports';
+import { dateCourte } from './pointe-noire';
 import { afficherTelephone, normaliserTelephone } from './telephone';
 
 /** Trois personnes au plus par fiche : la base le garde aussi. */
@@ -67,7 +68,7 @@ export function versContactASaisir(personne: PersonneSaisie): ContactASaisir {
 }
 
 /** La personne telle que l'administration la corrige : ce que la base a gardé, dans les champs de la saisie. */
-export function versPersonneSaisie(contact: ContactDirection): PersonneSaisie {
+export function versPersonneSaisie(contact: Omit<ContactDirection, 'releveId'>): PersonneSaisie {
   return {
     fonction: contact.fonction,
     precision: contact.precisionFonction ?? '',
@@ -99,4 +100,18 @@ export function ficheQuiPorteLesPersonnes(
   fiche: string,
 ): string {
   return personnes[0]?.releveId ?? fiche;
+}
+
+/**
+ * Fiche d'école (16/11) : d'où vient un contact, en une ligne. « Relevé par Alice le 10 nov. 2026 · accord WhatsApp le
+ * 12 nov. 2026 », ou « Noté par l'administration le … ».
+ */
+export function provenanceContact(c: ContactEcole): string {
+  const origine =
+    c.source === 'relais'
+      ? `Relevé par ${c.relais ?? 'un relais'} le ${dateCourte(c.releveLe ?? c.recuLe)}`
+      : `Noté par l’administration le ${dateCourte(c.recuLe)}`;
+  return c.accord && c.accordLe
+    ? `${origine} · accord WhatsApp le ${dateCourte(c.accordLe)}`
+    : origine;
 }

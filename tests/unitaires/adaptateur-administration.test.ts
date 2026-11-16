@@ -384,6 +384,106 @@ describe('l’adaptateur Supabase de l’administration', () => {
       });
     });
 
+    // Fiche d'école (16/11) : les contacts de toutes les fiches du site, avec le relais et le jour de la fiche.
+    it('lit les contacts d’une école, avec le relais qui l’a rencontrée et le jour de sa fiche', async () => {
+      const { port, appels } = fausseApi({
+        contacts_of_campus: {
+          data: [
+            {
+              id: 'p1',
+              role: 'directeur',
+              role_detail: null,
+              name: '[Nom]',
+              whatsapp: '242061234567',
+              contact_agreement: true,
+              agreement_at: '2026-11-02T08:00:00Z',
+              said_note: 'Rappeler après la rentrée',
+              received_at: '2026-11-02T09:00:00Z',
+              source: 'relais',
+              submission_id: 'r1',
+              submission_taken_at: '2026-11-02T07:30:00Z',
+              relay_first_name: 'Alice',
+            },
+            {
+              id: 'p2',
+              role: 'autre',
+              role_detail: 'propriétaire',
+              name: null,
+              whatsapp: null,
+              contact_agreement: false,
+              agreement_at: null,
+              said_note: null,
+              received_at: '2026-11-03T09:00:00Z',
+              source: 'administration',
+              submission_id: null,
+              submission_taken_at: null,
+              relay_first_name: null,
+            },
+          ],
+          error: null,
+        },
+      });
+      await expect(port.contactsDeLEcole('c1')).resolves.toEqual([
+        {
+          id: 'p1',
+          fonction: 'directeur',
+          precisionFonction: null,
+          source: 'relais',
+          nom: '[Nom]',
+          whatsapp: '242061234567',
+          accord: true,
+          accordLe: '2026-11-02T08:00:00Z',
+          note: 'Rappeler après la rentrée',
+          recuLe: '2026-11-02T09:00:00Z',
+          releveId: 'r1',
+          releveLe: '2026-11-02T07:30:00Z',
+          relais: 'Alice',
+        },
+        {
+          id: 'p2',
+          fonction: 'autre',
+          precisionFonction: 'propriétaire',
+          source: 'administration',
+          nom: null,
+          whatsapp: null,
+          accord: false,
+          accordLe: null,
+          note: null,
+          recuLe: '2026-11-03T09:00:00Z',
+          releveId: null,
+          releveLe: null,
+          relais: null,
+        },
+      ]);
+      expect(appels[0]).toEqual({ nom: 'contacts_of_campus', arguments: { p_campus: 'c1' } });
+    });
+
+    it('note un contact sur l’école elle-même et rend son identifiant', async () => {
+      const { port, appels } = fausseApi({ add_campus_contact: { data: 'p9', error: null } });
+      await expect(
+        port.ajouterContactEcole('c1', {
+          fonction: 'autre',
+          precisionFonction: 'propriétaire',
+          nom: '[Nom]',
+          whatsapp: '242061234567',
+          accord: true,
+          note: 'Reçu sur WhatsApp',
+        }),
+      ).resolves.toBe('p9');
+      expect(appels[0]).toEqual({
+        nom: 'add_campus_contact',
+        arguments: {
+          p_campus: 'c1',
+          p_role: 'autre',
+          p_role_detail: 'propriétaire',
+          p_name: '[Nom]',
+          p_whatsapp: '242061234567',
+          p_agreement: true,
+          p_note: 'Reçu sur WhatsApp',
+        },
+      });
+    });
+
     it('efface une personne, pas toute la fiche', async () => {
       const { port, appels } = fausseApi();
       await port.effacerContact('p2', 'demande de la personne');
