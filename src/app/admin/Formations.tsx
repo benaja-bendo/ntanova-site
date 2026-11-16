@@ -7,12 +7,15 @@ import { v2 } from '@/ui/v2/classes';
 import { useState } from 'react';
 import {
   avecFormation,
+  avecRythmeDesSeries,
   cycleAvecFormations,
   duCycle,
   erreurFormation,
   formationSerie,
   formationVide,
+  memeFormation,
   resume,
+  rythmeDesSeries,
   sansFormation,
   SERIES_RAPIDES,
 } from '../../modele/formations';
@@ -21,24 +24,39 @@ import { listes, type Valeur } from '../../modele/listes';
 import type { DomainePublic, FormationSaisie } from '../../modele/ports';
 import { Champ, Choix } from '@/ui/v2/formulaire';
 
+/**
+ * Une formation qui n'est pas une série du bac (BTS, licence, couture…) : facultative, donc repliée derrière un lien
+ * (fondateur, 16/11) ; les pastilles de séries suffisent le plus souvent.
+ */
 function AjoutLibre({
   cycle,
   domaines,
+  deja,
   surAjout,
 }: {
   cycle: Valeur<'niveau'>;
   domaines: readonly DomainePublic[];
+  /** Les formations déjà notées pour ce cycle : une même formation (titre, à la casse près) est dite, pas ajoutée. */
+  deja: readonly FormationSaisie[];
   surAjout: (f: FormationSaisie) => void;
 }) {
+  const [ouvert, setOuvert] = useState(false);
   const [f, setF] = useState<FormationSaisie>(() => formationVide(cycle));
   const [erreur, setErreur] = useState<string | undefined>();
   const ajouter = () => {
-    const probleme = erreurFormation(f);
+    const notee = deja.find((x) => memeFormation(x, f));
+    const probleme = erreurFormation(f) ?? (notee ? `Déjà notée : ${notee.titre}.` : null);
     setErreur(probleme ?? undefined);
     if (probleme) return;
     surAjout({ ...f, titre: f.titre.trim() });
     setF(formationVide(cycle));
   };
+  if (!ouvert)
+    return (
+      <button type="button" className={`${v2.lien} self-start`} onClick={() => setOuvert(true)}>
+        + Autre formation (BTS, licence, couture…)
+      </button>
+    );
   return (
     <div
       className={v2.motif}
@@ -46,7 +64,7 @@ function AjoutLibre({
       aria-label={`Ajouter une formation (${libelleNiveau[cycle]})`}
     >
       <Champ
-        libelle="Ce qui est affiché"
+        libelle="Nom de la formation (tel qu’écrit sur le panneau)"
         erreur={erreur}
         aide="Par exemple « BTS Informatique de gestion », « Licence en droit », « Couture »."
       >
@@ -58,7 +76,11 @@ function AjoutLibre({
             autoComplete="off"
             maxLength={160}
             value={f.titre}
-            onChange={(ev) => setF({ ...f, titre: ev.target.value })}
+            onChange={(ev) => {
+              setF({ ...f, titre: ev.target.value });
+              // L'erreur s'efface dès qu'on écrit : elle revient seulement au prochain « Ajouter ».
+              setErreur(undefined);
+            }}
           />
         )}
       </Champ>
@@ -176,7 +198,11 @@ export function Formations({
                   .map((f) => f.serie)
                   .filter((s): s is Valeur<'bac_track'> => s !== null)}
                 surChoix={(serie) => {
-                  const f = formationSerie(cycle, serie);
+                  // Une série ajoutée prend le rythme commun des séries du cycle (C4).
+                  const f = {
+                    ...formationSerie(cycle, serie),
+                    rythmes: rythmeDesSeries(formations, cycle),
+                  };
                   surChangement(
                     siennes.some((x) => x.serie === serie)
                       ? sansFormation(formations, f)
@@ -185,6 +211,27 @@ export function Formations({
                 }}
               />
             )}
+            {(cycle === 'lycee' || cycle === 'technique') &&
+              siennes.some((f) => f.serie !== null) && (
+                <Choix
+                  legende={`Rythme des séries (${libelleNiveau[cycle]}, toutes à la fois)`}
+                  options={listes.study_rhythm.map((r) => ({
+                    valeur: r,
+                    libelle: libelleRythme[r],
+                  }))}
+                  valeurs={rythmeDesSeries(formations, cycle)}
+                  surChoix={(r) => {
+                    const actuel = rythmeDesSeries(formations, cycle);
+                    surChangement(
+                      avecRythmeDesSeries(
+                        formations,
+                        cycle,
+                        actuel.includes(r) ? actuel.filter((x) => x !== r) : [...actuel, r],
+                      ),
+                    );
+                  }}
+                />
+              )}
             {siennes.length > 0 && (
               <ul
                 className="m-0 flex list-none flex-col gap-2 p-0"
@@ -208,6 +255,7 @@ export function Formations({
             <AjoutLibre
               cycle={cycle}
               domaines={domaines}
+              deja={siennes}
               surAjout={(f) => surChangement(avecFormation(formations, f))}
             />
           </section>

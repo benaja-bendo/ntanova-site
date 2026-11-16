@@ -165,10 +165,16 @@ test.describe('valider un envoi : photos, formations, acceptation', () => {
     await expect(notees.getByRole('listitem')).toHaveCount(2);
     await expect(notees).toContainText('Série C · Baccalauréat');
 
+    // 16/11 : la formation libre est repliée derrière un lien, son champ dit ce qu'on recopie.
+    await formations
+      .getByRole('button', { name: '+ Autre formation (BTS, licence, couture…)' })
+      .click();
     const ajout = formations.getByRole('group', { name: 'Ajouter une formation (Lycée)' });
     await ajout.getByRole('button', { name: 'Ajouter cette formation' }).click();
-    await expect(ajout.getByText(/Écris ce qui est affiché/)).toBeVisible();
-    await ajout.getByLabel('Ce qui est affiché').fill('Comptabilité');
+    await expect(ajout.getByText(/Écris le nom de la formation/)).toBeVisible();
+    await ajout
+      .getByLabel('Nom de la formation (tel qu’écrit sur le panneau)')
+      .fill('Comptabilité');
     await ajout.getByLabel('Domaine').selectOption({ label: 'Gestion' });
     await ajout.getByLabel('Diplôme').selectOption({ label: 'Baccalauréat' });
     await ajout.getByLabel('Série du bac').selectOption({ label: 'Série G2' });
