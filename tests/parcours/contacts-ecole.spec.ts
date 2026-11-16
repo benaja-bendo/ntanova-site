@@ -49,7 +49,7 @@ test('l’administration note un contact, le corrige et l’efface depuis la fic
 }) => {
   test.setTimeout(120_000);
   const carte = await laFicheDeLEcole(page, context);
-  await carte.getByRole('button', { name: 'Gérer' }).click();
+  await carte.getByRole('button', { name: 'Gérer les contacts de l’école' }).click();
 
   const nouveau = page.getByRole('form', { name: 'Nouveau contact' });
   await page.getByRole('button', { name: 'Ajouter un contact' }).last().click();
@@ -85,7 +85,7 @@ test('l’administration note un contact, le corrige et l’efface depuis la fic
   );
 
   // Effacer (droit d'effacement) : il disparaît, le contact du relais reste.
-  await carte.getByRole('button', { name: 'Gérer' }).click();
+  await carte.getByRole('button', { name: 'Gérer les contacts de l’école' }).click();
   const aEffacer = page
     .getByRole('list', { name: 'Personnes à contacter' })
     .last()

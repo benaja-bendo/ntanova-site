@@ -50,6 +50,7 @@ export function CarteContacts({
           type="button"
           onClick={gerer}
           disabled={figee}
+          aria-label="Gérer les contacts de l’école"
           className={cn(v2.lien, 'min-h-10 text-[15px]')}
         >
           Gérer
