@@ -71,7 +71,7 @@ export function htmlCarteEcole(l: LigneRecherche, o: OptionsCarte = {}): string 
     `<span class="carte-ecole-nom">${echapper(l.n)}${l.si ? `<span class="carte-ecole-sigle"> · ${echapper(l.si)}</span>` : ''}</span>`,
   );
   if (d.niveaux) {
-    const puces = lettresDesCycles(l.c)
+    const puces = [...lettresDesCycles(l.c)]
       .map((x) => `<span class="disque disque-s c-${x}">${x}</span>`)
       .join('');
     morceaux.push(
@@ -93,9 +93,12 @@ export function htmlCarteEcole(l: LigneRecherche, o: OptionsCarte = {}): string 
       )}${confirmee ? 'Confirmée par la direction' : 'Vue sur place'}${date}</span>`,
     );
   } else {
-    morceaux.push(`<span class="carte-ecole-preuve carte-ecole-preuve-faible">${echapper(d.preuveTexte)}</span>`);
+    morceaux.push(
+      `<span class="carte-ecole-preuve carte-ecole-preuve-faible">${echapper(d.preuveTexte)}</span>`,
+    );
   }
-  const chevron = forme === 'ligne' ? '<span class="carte-ecole-chevron" aria-hidden="true">›</span>' : '';
+  const chevron =
+    forme === 'ligne' ? '<span class="carte-ecole-chevron" aria-hidden="true">›</span>' : '';
   return (
     `<a class="carte-ecole carte-ecole-${forme}" href="${echapper(l.u)}" data-ecole="${echapper(l.i)}">` +
     vignette(l, forme, !!o.prioritaire) +

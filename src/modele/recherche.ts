@@ -296,7 +296,9 @@ function champsDeLaCarte(e: EcolePubliee): Partial<LigneRecherche> {
     out.vl = vignette.large;
   }
   if (e.medias?.logo) out.lg = cheminMedia(e.medias.logo, 'logo');
-  const presents = (e.equipements ?? []).filter((x) => x.etat === 'present').map((x) => x.cle);
+  const presents = (e.equipements ?? [])
+    .filter((x) => x.etat === 'present' && x.cle !== 'autre')
+    .map((x) => x.cle);
   if (presents.length > 0) out.eq = [...new Set(presents)];
   const mensuels = (e.frais ?? [])
     .filter((f) => f.confirmeLe && f.periode === 'mois' && !f.formationId)

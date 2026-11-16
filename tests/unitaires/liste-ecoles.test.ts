@@ -13,35 +13,69 @@ import {
 } from '../../src/modele/liste-ecoles';
 import type { LigneRecherche } from '../../src/modele/recherche';
 
-const ligne = (x: Partial<LigneRecherche> & { i: string; z: string; d: string }): LigneRecherche => ({
-  n: `École ${x.i}`,
-  u: `/ecoles/${x.i}/`,
-  c: ['primaire'],
-  f: [],
-  o: 1,
-  k: 'privee',
-  ...x,
-});
+const ligne = (
+  x: Partial<LigneRecherche> & { i: string; z: string; d: string; vue?: boolean },
+): LigneRecherche => {
+  const { vue = true, ...reste } = x;
+  return {
+    n: `École ${x.i}`,
+    u: `/ecoles/${x.i}/`,
+    c: ['primaire'],
+    f: [],
+    ...(vue ? { o: 1 as const } : {}),
+    k: 'privee',
+    ...reste,
+  };
+};
 const PN = 'congo/pointe-noire';
 const NPN = 'Congo › Pointe-Noire';
 const LIGNES: LigneRecherche[] = [
-  ligne({ i: 'a', z: `${PN}/loandjili`, d: `${NPN} › Loandjili`, la: -4.79, lo: 11.86, t: '2026-11-06' }),
-  ligne({ i: 'b', z: `${PN}/loandjili`, d: `${NPN} › Loandjili`, c: ['college', 'lycee'], f: [{ c: 'lycee', t: 'Bac C', s: 'c' }, { c: 'lycee', t: 'Bac D', s: 'd' }], t: '2026-11-09' }),
+  ligne({
+    i: 'a',
+    z: `${PN}/loandjili`,
+    d: `${NPN} › Loandjili`,
+    la: -4.79,
+    lo: 11.86,
+    t: '2026-11-06',
+  }),
+  ligne({
+    i: 'b',
+    z: `${PN}/loandjili`,
+    d: `${NPN} › Loandjili`,
+    c: ['college', 'lycee'],
+    f: [
+      { c: 'lycee', t: 'Bac C', s: 'c' },
+      { c: 'lycee', t: 'Bac D', s: 'd' },
+    ],
+    t: '2026-11-09',
+  }),
   ligne({ i: 'c', z: `${PN}/ngoyo`, d: `${NPN} › Ngoyo`, t: '2026-11-04', si: 'GSSJ' }),
-  ligne({ i: 'd', z: 'congo/brazzaville/bacongo', d: 'Congo › Brazzaville › Bacongo', k: 'publique', o: undefined, t: undefined }),
+  ligne({
+    i: 'd',
+    z: 'congo/brazzaville/bacongo',
+    d: 'Congo › Brazzaville › Bacongo',
+    k: 'publique',
+    vue: false,
+  }),
 ];
 
 describe('l’adresse de la page', () => {
   it('se lit et s’écrit sans perte, les valeurs par défaut absentes', () => {
-    const etat = lireEtat(new URLSearchParams('q=lycee&ville=pointe-noire&niveau=L,S&tri=nom&vue=carte&rayon=3000'));
+    const etat = lireEtat(
+      new URLSearchParams('q=lycee&ville=pointe-noire&niveau=L,S&tri=nom&vue=carte&rayon=3000'),
+    );
     expect(etat.choix.niveau).toEqual(['L', 'S']);
-    expect(ecrireEtat(etat)).toBe('?q=lycee&ville=pointe-noire&niveau=L%2CS&rayon=3000&tri=nom&vue=carte');
+    expect(ecrireEtat(etat)).toBe(
+      '?q=lycee&ville=pointe-noire&niveau=L%2CS&rayon=3000&tri=nom&vue=carte',
+    );
     expect(ecrireEtat(lireEtat(new URLSearchParams(ecrireEtat(etat))))).toBe(ecrireEtat(etat));
     expect(ecrireEtat(etatVide())).toBe('');
   });
 
   it('comprend les anciennes adresses : zone, nom de niveau, cycle, autour', () => {
-    const etat = lireEtat(new URLSearchParams('zone=congo/pointe-noire/ngoyo&niveau=primaire&cycle=C&autour=3'));
+    const etat = lireEtat(
+      new URLSearchParams('zone=congo/pointe-noire/ngoyo&niveau=primaire&cycle=C&autour=3'),
+    );
     expect(etat.choix.ville).toEqual(['pointe-noire']);
     expect(etat.choix.arrondissement).toEqual(['ngoyo']);
     expect(etat.choix.niveau).toEqual(['P', 'C']);
@@ -65,7 +99,12 @@ describe('filtrer et trier', () => {
   });
 
   it('« Près de moi » sans position retombe sur « Récemment vues »', () => {
-    expect(filtrer(LIGNES, { ...etatVide(), tri: 'proches' }).map((t) => t.ligne.i)).toEqual(['b', 'a', 'c', 'd']);
+    expect(filtrer(LIGNES, { ...etatVide(), tri: 'proches' }).map((t) => t.ligne.i)).toEqual([
+      'b',
+      'a',
+      'c',
+      'd',
+    ]);
   });
 });
 
@@ -94,12 +133,18 @@ describe('les options des filtres', () => {
   it('une option cochée qui tombe à 0 reste, pour pouvoir revenir en arrière', () => {
     const etat = lireEtat(new URLSearchParams('ville=brazzaville&serie=c'));
     const serie = groupesAffiches(LIGNES, etat).find((g) => g.groupe === 'serie')!;
-    expect(serie.options).toEqual([{ valeur: 'c', libelle: expect.any(String), nombre: 0, choisie: true }]);
+    expect(serie.options).toEqual([
+      { valeur: 'c', libelle: expect.any(String), nombre: 0, choisie: true },
+    ]);
   });
 
   it('une option à 0 non cochée disparaît ; l’arrondissement attend une seule ville', () => {
     const groupes = groupesAffiches(LIGNES, lireEtat(new URLSearchParams('niveau=L')));
-    expect(groupes.find((g) => g.groupe === 'niveau')!.options.map((o) => o.valeur)).toEqual(['P', 'C', 'L']);
+    expect(groupes.find((g) => g.groupe === 'niveau')!.options.map((o) => o.valeur)).toEqual([
+      'P',
+      'C',
+      'L',
+    ]);
     expect(groupes.map((g) => g.groupe)).not.toContain('arrondissement');
   });
 
@@ -111,10 +156,12 @@ describe('les options des filtres', () => {
 
 describe('les mots de la page', () => {
   it('le titre dit ce qu’on a cherché', () => {
-    expect(titreDeLaListe(lireEtat(new URLSearchParams('ville=pointe-noire&niveau=P')), LIGNES)).toBe(
-      'Écoles primaires à Pointe-Noire',
+    expect(
+      titreDeLaListe(lireEtat(new URLSearchParams('ville=pointe-noire&niveau=P')), LIGNES),
+    ).toBe('Écoles primaires à Pointe-Noire');
+    expect(titreDeLaListe(lireEtat(new URLSearchParams('niveau=L,S')), LIGNES)).toBe(
+      'Lycées et supérieur',
     );
-    expect(titreDeLaListe(lireEtat(new URLSearchParams('niveau=L,S')), LIGNES)).toBe('Lycées et supérieur');
     expect(titreDeLaListe(etatVide(), LIGNES)).toBe('Les écoles');
   });
 

@@ -61,7 +61,7 @@
   padding-left: calc(var(--espace-4) + 32px);
   border-width: 2px;
 }
-.seulement-large {
+.liste-recherche .seulement-large {
   display: none;
 }
 
@@ -213,10 +213,10 @@
 }
 
 /* La feuille « Filtres » (téléphone, et vue Carte sur ordinateur) */
-.filtres {
+.liste-filtres {
   display: none;
 }
-.filtres[data-ouvert] {
+.liste-filtres[data-ouvert] {
   display: block;
   position: fixed;
   inset: 0;
@@ -344,9 +344,12 @@ body.filtres-ouverts {
   border-radius: var(--rayon-m);
   background: var(--couverture-vide);
 }
-.zone-carte-toile {
+/* Plus précis que `.maplibregl-map { position: relative }`, servie avec l'îlot : sans cela la toile n'a plus de hauteur. */
+.zone-carte .zone-carte-toile {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
 }
 .zone-carte-attente {
   position: absolute;
@@ -430,14 +433,14 @@ body.filtres-ouverts {
 .apercu-bas .carte-ecole {
   border: 0;
 }
-.apercu-actions {
+.liste-apercu-actions {
   display: flex;
   gap: var(--espace-2);
 }
-.apercu-actions .bouton {
+.liste-apercu-actions .bouton {
   flex: 1;
 }
-.apercu-fermer {
+.liste-apercu-fermer {
   flex: none;
   width: var(--cible-min);
   height: var(--cible-min);
@@ -465,13 +468,13 @@ body.filtres-ouverts {
 }
 .liste-ecoles[data-vue-actuelle='carte'] .zone-carte {
   display: block;
-  height: calc(100dvh - 15rem);
-  min-height: 22rem;
+  height: calc(100dvh - 18.5rem);
+  min-height: 20rem;
   margin-inline: calc(var(--espace-4) * -1);
   border-radius: 0;
 }
-body[data-vue='carte'] .pied,
-body[data-vue='carte'] .piliers {
+/* L'en-tête garde ses trois piliers et cache le pays (décision du 08/11, `PagePublique.astro`) ; aucun bouton « Menu ». */
+body[data-vue='carte'] .pied {
   display: none;
 }
 
@@ -500,8 +503,11 @@ body[data-vue='carte'] .piliers {
       'corps corps corps';
     column-gap: var(--espace-3);
   }
-  .seulement-large {
+  .liste-recherche .seulement-large {
     display: inline-flex;
+  }
+  .liste-puces {
+    display: contents;
   }
   .liste-recherche .champ {
     padding-right: 7.5rem;
@@ -530,7 +536,7 @@ body[data-vue='carte'] .piliers {
     align-items: start;
     gap: var(--espace-5);
   }
-  .liste-ecoles[data-vue-actuelle='liste'] .filtres {
+  .liste-ecoles[data-vue-actuelle='liste'] .liste-filtres {
     display: block;
     position: static;
   }
@@ -602,8 +608,5 @@ body[data-vue='carte'] .piliers {
   }
   .liste-ecoles[data-vue-actuelle='carte'] .liste-retour {
     display: none;
-  }
-  body[data-vue='carte'] .piliers {
-    display: flex;
   }
 }

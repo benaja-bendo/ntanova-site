@@ -69,7 +69,9 @@ const villesDuPied = villesDeLAccueil(site.arbre);
 
     <div class="liste-outils">
       <form class="liste-recherche" data-recherche action="/ecoles/" method="get" role="search">
-        <label class="visuellement-cache" for="liste-q">Chercher une école</label>
+        <label class="visuellement-cache" for="liste-q">
+          Chercher une école
+        </label>
         <Icone nom="loupe" petite={false} />
         <input
           id="liste-q"
@@ -79,14 +81,16 @@ const villesDuPied = villesDeLAccueil(site.arbre);
           autocomplete="off"
           placeholder="Nom, sigle, quartier ou repère"
         />
-        <button class="bouton seulement-large" type="submit">Chercher</button>
+        <button class="bouton seulement-large" type="submit">
+          Chercher
+        </button>
       </form>
       <label class="liste-tri">
         <span class="visuellement-cache">Trier</span>
         <select class="champ" data-tri>
-          <option value="recentes">Tri : récemment vues</option>
-          <option value="proches">Tri : près de moi</option>
-          <option value="nom">Tri : par nom</option>
+          <option value="recentes">Récemment vues</option>
+          <option value="proches">Près de moi</option>
+          <option value="nom">Par nom</option>
         </select>
       </label>
       <div class="liste-vues" role="group" aria-label="Vue">
@@ -105,9 +109,15 @@ const villesDuPied = villesDeLAccueil(site.arbre);
       <button type="button" class="pastille-choix bouton-filtres" data-ouvrir-filtres>
         <Icone nom="reglages" />
         Filtres
-        <span class="filtres-nombre" data-nombre-filtres hidden>0</span>
+        <span class="filtres-nombre" data-nombre-filtres hidden>
+          0
+        </span>
       </button>
       <div class="liste-puces" data-puces>
+        <button type="button" class="pastille-choix" data-rayon="3000" aria-pressed="false">
+          <Icone nom="cible" />
+          Autour de moi
+        </button>
         {villes.map((o) => (
           <button
             type="button"
@@ -137,7 +147,7 @@ const villesDuPied = villesDeLAccueil(site.arbre);
     </div>
 
     <div class="liste-corps">
-      <aside class="filtres" data-filtres aria-labelledby="titre-filtres">
+      <aside class="liste-filtres" data-filtres aria-labelledby="titre-filtres">
         <div class="filtres-fond" data-fond-filtres></div>
         <div class="filtres-feuille" role="dialog" aria-labelledby="titre-filtres">
           <div class="filtres-tete">
@@ -154,9 +164,15 @@ const villesDuPied = villesDeLAccueil(site.arbre);
               ×
             </button>
           </div>
-          <div class="filtres-corps" data-filtres-corps set:html={htmlFiltres(groupes, etat, null)} />
+          <div
+            class="filtres-corps"
+            data-filtres-corps
+            set:html={htmlFiltres(groupes, etat, null)}
+          />
           <div class="filtres-pied">
-            <button type="button" class="bouton bouton-secondaire" data-effacer>Effacer tout</button>
+            <button type="button" class="bouton bouton-secondaire" data-effacer>
+              Effacer tout
+            </button>
             <button type="button" class="bouton" data-voir>
               Voir {compterLesEcoles(trouvees.length)}
             </button>
@@ -170,9 +186,7 @@ const villesDuPied = villesDeLAccueil(site.arbre);
         </div>
         <ul class="cartes-liste" data-cartes aria-live="polite">
           {premieres.map((t, i) => (
-            <li
-              set:html={htmlCarteEcole(t.ligne, { forme: 'ligne', prioritaire: i < 2 })}
-            />
+            <li set:html={htmlCarteEcole(t.ligne, { forme: 'ligne', prioritaire: i < 2 })} />
           ))}
         </ul>
         <div class="liste-vide" data-vide hidden>
@@ -211,11 +225,18 @@ const villesDuPied = villesDeLAccueil(site.arbre);
         </noscript>
       </div>
 
-      <div class="zone-carte" data-zone-carte data-boite={JSON.stringify(boite)} data-etat="attente">
+      <div
+        class="zone-carte"
+        data-zone-carte
+        data-boite={JSON.stringify(boite)}
+        data-etat="attente"
+      >
         <div class="zone-carte-toile" data-toile role="region" aria-label="Carte des écoles"></div>
         <div class="zone-carte-attente" aria-hidden="true">
           <Marque />
-          <p class="zone-carte-lente">La connexion est lente&nbsp;: la liste reste là, aux mêmes filtres.</p>
+          <p class="zone-carte-lente">
+            La connexion est lente&nbsp;: la liste reste là, aux mêmes filtres.
+          </p>
         </div>
         <p class="zone-carte-aucune">Aucune de ces écoles n’a de position sur la carte.</p>
         <button type="button" class="bouton-chercher" data-chercher-zone hidden>

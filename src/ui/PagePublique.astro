@@ -50,7 +50,6 @@ const {
 const absolue = (chemin: string) => new URL(chemin, Astro.site ?? Astro.url).href;
 const canonique = absolue(Astro.url.pathname);
 const chemin = Astro.url.pathname;
-const surCarte = chemin.startsWith('/carte/');
 // Les trois piliers (décision 1A du 15/11/2026, version 44) : des choses que cherche le visiteur, pas des outils. « Trouver une
 // école », c'est l'accueil, la liste, les lieux, les fiches et la carte. Il mène à la liste, `/ecoles/` (fondateur, 16/11 ; la
 // planche le menait à l'accueil), et reste allumé sur l'accueil.
@@ -58,7 +57,7 @@ const piliers = [
   {
     href: '/ecoles/',
     texte: 'Trouver une école',
-    courant: chemin === '/' || chemin.startsWith('/ecoles') || surCarte,
+    courant: chemin === '/' || chemin.startsWith('/ecoles'),
   },
   { href: '/orienter/', texte: 'S’orienter', courant: chemin.startsWith('/orienter') },
   {
@@ -113,7 +112,7 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
       crossorigin
     />
   </head>
-  <body data-page={surCarte ? 'carte' : undefined}>
+  <body>
     <header class="entete">
       <div class="cadre entete-cadre">
         <div class="identite">
@@ -186,9 +185,6 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
               <ul aria-labelledby="pied-trouver">
                 <li>
                   <a href="/ecoles/">Les écoles</a>
-                </li>
-                <li>
-                  <a href="/carte/">Carte</a>
                 </li>
                 {villes.map((v) => (
                   <li>
@@ -404,13 +400,13 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
       font-size: var(--taille-mention);
     }
   }
-  /* Sur la carte, au téléphone : l'en-tête se réduit et le pays se cache, pour laisser la place à la carte entre les filtres
+  /* Sur la vue Carte de « Les écoles », au téléphone : l'en-tête se réduit et le pays se cache, pour laisser la place à la carte entre les filtres
      et le tiroir (arbitrage du fondateur du 08/11/2026, ticket 146). Les piliers restent. */
   @media (max-width: 47.99rem) {
-    [data-page='carte'] .pays {
+    body[data-vue='carte'] .pays {
       display: none;
     }
-    [data-page='carte'] .entete-cadre {
+    body[data-vue='carte'] .entete-cadre {
       gap: 0;
       padding-top: var(--espace-2);
     }

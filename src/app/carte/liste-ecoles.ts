@@ -7,7 +7,9 @@
  * avec le site) et ne parle à aucun autre serveur. La position n'est demandée qu'à l'appui d'« Autour de moi » ou de « Près de
  * moi » ; elle sert à compter et à classer, dans le téléphone, et n'est envoyée à personne.
  */
-import { htmlCarteEcole } from '../../modele/carte-ecole';
+import { htmlCarteEcole, htmlIcone } from '../../modele/carte-ecole';
+
+const ICONE_CIBLE = htmlIcone('cible');
 import { htmlFiltres } from '../../modele/filtres-html';
 import type { Point } from '../../modele/geo';
 import {
@@ -88,7 +90,9 @@ export function demarrerListe(racine: HTMLElement): void {
     const confirmees = trouvees.filter((t) => t.ligne.v).length;
     sousTitre.textContent = [
       compterLesEcoles(trouvees.length),
-      confirmees > 0 ? `${confirmees} confirmée${confirmees > 1 ? 's' : ''} par leur direction` : '',
+      confirmees > 0
+        ? `${confirmees} confirmée${confirmees > 1 ? 's' : ''} par leur direction`
+        : '',
       etat.tri === 'proches' && pres ? 'de la plus proche à la plus loin' : '',
     ]
       .filter(Boolean)
@@ -116,7 +120,8 @@ export function demarrerListe(racine: HTMLElement): void {
       x.textContent = String(n);
       x.hidden = n === 0;
     });
-    voir.textContent = trouvees.length === 0 ? 'Aucune école' : `Voir ${compterLesEcoles(trouvees.length)}`;
+    voir.textContent =
+      trouvees.length === 0 ? 'Aucune école' : `Voir ${compterLesEcoles(trouvees.length)}`;
     // Les puces de la barre : les choix faits, qu'une touche retire ; sans ville choisie, les villes pour aller vite.
     const choisies: string[] = [];
     for (const g of groupes)
@@ -148,7 +153,12 @@ export function demarrerListe(racine: HTMLElement): void {
               `<button type="button" class="pastille-choix avec-disque" data-groupe="niveau" data-valeur="${o.valeur}" aria-pressed="false"><span class="disque disque-s c-${o.valeur}" aria-hidden="true">${o.valeur}</span>${LIBELLES_DES_CYCLES[o.valeur] ?? o.valeur}</button>`,
           )
         : [];
-    puces.innerHTML = [...choisies, ...rapides, ...rapidesNiveaux].join('');
+    const autour = etat.rayonM
+      ? []
+      : [
+          `<button type="button" class="pastille-choix" data-rayon="3000" aria-pressed="false">${ICONE_CIBLE}Autour de moi</button>`,
+        ];
+    puces.innerHTML = [...choisies, ...autour, ...rapides, ...rapidesNiveaux].join('');
   }
 
   function calculer() {
@@ -171,7 +181,10 @@ export function demarrerListe(racine: HTMLElement): void {
   const basculer = (g: Groupe, v: string) =>
     appliquer((e) => {
       const deja = e.choix[g].includes(v);
-      const suivant = { ...e, choix: { ...e.choix, [g]: deja ? e.choix[g].filter((x) => x !== v) : [...e.choix[g], v] } };
+      const suivant = {
+        ...e,
+        choix: { ...e.choix, [g]: deja ? e.choix[g].filter((x) => x !== v) : [...e.choix[g], v] },
+      };
       // Changer de ville efface les arrondissements de l'autre.
       if (g === 'ville') suivant.choix.arrondissement = [];
       return suivant;
@@ -181,7 +194,8 @@ export function demarrerListe(racine: HTMLElement): void {
   function demanderLaPosition(): Promise<Point | null> {
     if (pres) return Promise.resolve(pres);
     if (!('geolocation' in navigator)) {
-      message.textContent = 'Ce navigateur ne donne pas la position. Choisissez une ville ou un arrondissement.';
+      message.textContent =
+        'Ce navigateur ne donne pas la position. Choisissez une ville ou un arrondissement.';
       return Promise.resolve(null);
     }
     message.textContent = 'Recherche de votre position…';
@@ -243,10 +257,18 @@ export function demarrerListe(racine: HTMLElement): void {
       await appliquer();
       return ouvrir();
     }
-    if ('fermerFiltres' in cible.dataset || 'voir' in cible.dataset || 'fondFiltres' in cible.dataset)
+    if (
+      'fermerFiltres' in cible.dataset ||
+      'voir' in cible.dataset ||
+      'fondFiltres' in cible.dataset
+    )
       return fermer();
     if ('effacer' in cible.dataset)
-      return void appliquer((e) => ({ ...lireEtat(new URLSearchParams()), tri: e.tri, vue: e.vue }));
+      return void appliquer((e) => ({
+        ...lireEtat(new URLSearchParams()),
+        tri: e.tri,
+        vue: e.vue,
+      }));
     if ('retirerCadre' in cible.dataset) return void appliquer((e) => ({ ...e, cadre: null }));
     if ('chercherZone' in cible.dataset && carte) {
       const cadre = carte.cadre();
@@ -266,7 +288,10 @@ export function demarrerListe(racine: HTMLElement): void {
   let minuteur = 0;
   champ.addEventListener('input', () => {
     window.clearTimeout(minuteur);
-    minuteur = window.setTimeout(() => void appliquer((e) => ({ ...e, q: champ.value.trim() })), 150);
+    minuteur = window.setTimeout(
+      () => void appliquer((e) => ({ ...e, q: champ.value.trim() })),
+      150,
+    );
   });
   champ.form?.addEventListener('submit', (ev) => {
     ev.preventDefault();
@@ -276,7 +301,8 @@ export function demarrerListe(racine: HTMLElement): void {
 
   tri.addEventListener('change', async () => {
     const valeur = tri.value as EtatListe['tri'];
-    if (valeur === 'proches' && !(await demanderLaPosition())) return void appliquer((e) => ({ ...e, tri: 'recentes' }));
+    if (valeur === 'proches' && !(await demanderLaPosition()))
+      return void appliquer((e) => ({ ...e, tri: 'recentes' }));
     void appliquer((e) => ({ ...e, tri: valeur }));
   });
 
@@ -317,7 +343,9 @@ export function demarrerListe(racine: HTMLElement): void {
       dessinerListe();
     }
     const lien = cartes.querySelector<HTMLElement>(`[data-ecole="${CSS.escape(id)}"]`);
-    cartes.querySelectorAll('.carte-ecole-active').forEach((x) => x.classList.remove('carte-ecole-active'));
+    cartes
+      .querySelectorAll('.carte-ecole-active')
+      .forEach((x) => x.classList.remove('carte-ecole-active'));
     lien?.classList.add('carte-ecole-active');
     lien?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
@@ -325,13 +353,17 @@ export function demarrerListe(racine: HTMLElement): void {
   // Survoler une école de la liste allume son marqueur (ordinateur).
   cartes.addEventListener('pointerover', (ev) => {
     if (!carte || ev.pointerType !== 'mouse') return;
-    const id = (ev.target as HTMLElement).closest<HTMLElement>('[data-ecole]')?.dataset.ecole ?? null;
+    const id =
+      (ev.target as HTMLElement).closest<HTMLElement>('[data-ecole]')?.dataset.ecole ?? null;
     carte.allumer(id);
   });
   cartes.addEventListener('pointerleave', () => carte?.allumer(null));
 
   // Au départ : l'état de l'adresse s'applique s'il y en a un ; sinon la liste construite reste telle quelle, et le fichier ne
   // se lit qu'au premier geste.
+  if (etat.rayonM && !pres)
+    message.textContent =
+      'Touchez « Autour de moi » pour donner votre position : elle reste dans votre téléphone.';
   racine.dataset.pret = '';
   champ.value = etat.q;
   const avecEtat = location.search.length > 1;
@@ -348,10 +380,11 @@ export function demarrerListe(racine: HTMLElement): void {
       }
     });
   } else {
-    const premierGeste = () => void lire().then(() => {
-      calculer();
-      dessinerFiltres();
-    });
+    const premierGeste = () =>
+      void lire().then(() => {
+        calculer();
+        dessinerFiltres();
+      });
     racine.addEventListener('pointerdown', premierGeste, { once: true });
     racine.addEventListener('focusin', premierGeste, { once: true });
   }

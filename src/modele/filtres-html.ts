@@ -23,9 +23,17 @@ export function groupeOuvert(g: GroupeAffiche, etat: EtatListe): boolean {
   return g.options.some((o) => o.choisie) || etat.choix.niveau.some((n) => porte.includes(n));
 }
 
-function bouton(g: Groupe, valeur: string, libelle: string, nombre: number, choisie: boolean): string {
+function bouton(
+  g: Groupe,
+  valeur: string,
+  libelle: string,
+  nombre: number,
+  choisie: boolean,
+): string {
   const disque =
-    g === 'niveau' ? `<span class="disque disque-s c-${echapper(valeur)}" aria-hidden="true">${echapper(valeur)}</span>` : '';
+    g === 'niveau'
+      ? `<span class="disque disque-s c-${echapper(valeur)}" aria-hidden="true">${echapper(valeur)}</span>`
+      : '';
   return (
     `<button type="button" class="pastille-choix filtre-option${nombre === 0 ? ' filtre-vide' : ''}" ` +
     `data-groupe="${g}" data-valeur="${echapper(valeur)}" aria-pressed="${choisie}">` +
@@ -45,7 +53,9 @@ export function htmlFiltres(
   const parties: string[] = [];
   let formationFermee = false;
   const poserRayons = () => {
-    const boutons = (rayons ?? RAYONS_M.map((r) => ({ rayonM: r, nombre: -1, choisi: etat.rayonM === r })))
+    const boutons = (
+      rayons ?? RAYONS_M.map((r) => ({ rayonM: r, nombre: -1, choisi: etat.rayonM === r }))
+    )
       .map(
         (r) =>
           `<button type="button" class="pastille-choix filtre-option" data-rayon="${r.rayonM}" aria-pressed="${r.choisi}">` +
@@ -67,7 +77,8 @@ export function htmlFiltres(
       formationFermee = true;
       continue;
     }
-    const plusieurs = g.groupe === 'niveau' ? '<span class="filtre-plusieurs">plusieurs choix</span>' : '';
+    const plusieurs =
+      g.groupe === 'niveau' ? '<span class="filtre-plusieurs">plusieurs choix</span>' : '';
     parties.push(
       `<fieldset class="filtre-groupe" data-groupe="${g.groupe}"><legend>${echapper(g.titre)}${plusieurs}</legend>` +
         `<div class="filtre-options">${g.options.map((o) => bouton(g.groupe, o.valeur, o.libelle, o.nombre, o.choisie)).join('')}</div></fieldset>`,

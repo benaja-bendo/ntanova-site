@@ -53,7 +53,13 @@ export async function ouvrirLaCarte(o: OuvertureDeLaCarte) {
       delete o.zone.dataset.lente;
       o.zone.dataset.etat = 'prete';
     },
-    surFondAbsent: () => (o.zone.dataset.fond = 'absent'),
+    // Sans fond, les zones et les épingles se dessinent quand même : la carte est prête, le fond manque.
+    surFondAbsent: () => {
+      o.zone.dataset.fond = 'absent';
+      window.clearTimeout(lente);
+      delete o.zone.dataset.lente;
+      o.zone.dataset.etat = 'prete';
+    },
     surSelection: (p) => choisir(p.id),
   });
 
@@ -73,9 +79,9 @@ export async function ouvrirLaCarte(o: OuvertureDeLaCarte) {
           : null;
       apercu.innerHTML =
         htmlCarteEcole(t.ligne, { forme: 'ligne', distanceM: t.distance, prioritaire: true }) +
-        `<div class="apercu-actions"><a class="bouton" href="${t.ligne.u}">Voir la fiche</a>${
+        `<div class="liste-apercu-actions"><a class="bouton" href="${t.ligne.u}">Voir la fiche</a>${
           itineraire ? `<a class="bouton bouton-secondaire" href="${itineraire}">Y aller</a>` : ''
-        }<button type="button" class="bouton-rond apercu-fermer" data-fermer-apercu aria-label="Fermer l’aperçu">×</button></div>`;
+        }<button type="button" class="bouton-rond liste-apercu-fermer" data-fermer-apercu aria-label="Fermer l’aperçu">×</button></div>`;
       apercu.hidden = false;
     }
   }
@@ -88,7 +94,8 @@ export async function ouvrirLaCarte(o: OuvertureDeLaCarte) {
 
   // « Chercher dans cette zone » : seulement après un déplacement fait par la personne.
   carte.on('movestart', (e) => {
-    if ((e as { originalEvent?: unknown }).originalEvent && !deplaceParLaPage) chercher.hidden = false;
+    if ((e as { originalEvent?: unknown }).originalEvent && !deplaceParLaPage)
+      chercher.hidden = false;
   });
   carte.on('moveend', () => (deplaceParLaPage = false));
 

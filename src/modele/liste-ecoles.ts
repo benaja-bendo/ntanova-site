@@ -12,6 +12,7 @@
  */
 import { lettresDesCycles } from './carte/cycles';
 import { distanceMetres, type Point } from './geo';
+import { libelleEquipement } from './equipements-ecole';
 import { libelleDiplome, libelleRythme, libelleSerie, libelleTypeEcole } from './libelles';
 import { listes, type Valeur } from './listes';
 import { normaliser, type LigneRecherche } from './recherche';
@@ -106,7 +107,7 @@ export function lireEtat(params: URLSearchParams): EtatListe {
       const lettre = v.toUpperCase();
       if ((CYCLES as readonly string[]).includes(lettre)) return [lettre];
       if ((listes.niveau as readonly string[]).includes(v))
-        return lettresDesCycles([v as Valeur<'niveau'>]);
+        return [...lettresDesCycles([v as Valeur<'niveau'>])];
       return [];
     }),
   );
@@ -117,7 +118,13 @@ export function lireEtat(params: URLSearchParams): EtatListe {
     if (arrondissement && !etat.choix.arrondissement.includes(arrondissement))
       etat.choix.arrondissement.push(arrondissement);
   }
-  const rayon = Number(params.get('rayon') ?? (params.get('autour') ?? NaN) * 1000);
+  const autour = params.get('autour');
+  const rayon =
+    params.get('rayon') !== null
+      ? Number(params.get('rayon'))
+      : autour !== null
+        ? Number(autour) * 1000
+        : NaN;
   etat.rayonM = (RAYONS_M as readonly number[]).includes(rayon) ? rayon : null;
   const tri = params.get('tri');
   etat.tri = tri === 'proches' || tri === 'nom' ? tri : 'recentes';
@@ -170,7 +177,7 @@ function valeursDe(l: LigneRecherche, g: Groupe): string[] {
     case 'arrondissement':
       return segments(l)[2] ? [segments(l)[2]!] : [];
     case 'niveau':
-      return lettresDesCycles(l.c);
+      return [...lettresDesCycles(l.c)];
     case 'type':
       return l.k ? [l.k] : [];
     case 'serie':
@@ -299,7 +306,10 @@ export function filtrer(
   etat: EtatListe,
   pres: Point | null = null,
 ): Trouvee[] {
-  return trier(retenir(lignes, etat, pres), etat.tri === 'proches' && !pres ? 'recentes' : etat.tri);
+  return trier(
+    retenir(lignes, etat, pres),
+    etat.tri === 'proches' && !pres ? 'recentes' : etat.tri,
+  );
 }
 
 // Les options et leurs compteurs ------------------------------------------------------------------------------------
@@ -351,14 +361,10 @@ function libelleDe(
   }
 }
 
-/** Les équipements filtrables : ceux qu'une famille demande d'abord (planches de la version 46). */
-export const LIBELLES_EQUIPEMENTS: Record<string, string> = {
-  cantine: 'Cantine',
-  transport: 'Transport',
-  informatique: 'Salle informatique',
-  bibliotheque: 'Bibliothèque',
-  terrain_sport: 'Terrain de sport',
-};
+/** Les équipements filtrables : tous ceux de la liste fermée, sauf « autre » (sa précision est libre), dans son ordre. */
+export const LIBELLES_EQUIPEMENTS: Record<string, string> = Object.fromEntries(
+  listes.equipment_key.filter((k) => k !== 'autre').map((k) => [k, libelleEquipement[k]]),
+);
 
 /** L'ordre des valeurs : celui des listes fermées, sinon les plus nombreuses d'abord, puis l'alphabet. */
 function ordreDe(g: Groupe): readonly string[] | null {
@@ -445,7 +451,8 @@ export function groupesAffiches(
       }))
       .filter((o) => o.nombre > 0 || o.choisie);
     const utiles = options.filter((o) => o.nombre > 0).length;
-    if (options.some((o) => o.choisie) || utiles >= 2) out.push({ groupe: g, titre: TITRES_DES_GROUPES[g], options });
+    if (options.some((o) => o.choisie) || utiles >= 2)
+      out.push({ groupe: g, titre: TITRES_DES_GROUPES[g], options });
   }
   return out;
 }
