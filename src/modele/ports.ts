@@ -579,6 +579,19 @@ export interface ContactDirection {
   releveId?: string;
 }
 
+/**
+ * Une personne à contacter, vue depuis la fiche de l'école (16/11) : celles de toutes les fiches de relais du site
+ * (d'origine, corrections, contre-visites) et celles que l'administration note sur le site. Privée.
+ */
+export interface ContactEcole extends Omit<ContactDirection, 'releveId'> {
+  /** La fiche du relais qui l'a reçue ; nul pour une personne notée par l'administration sur le site. */
+  releveId: string | null;
+  /** Le jour de cette fiche (la prise de vue sur place). */
+  releveLe: string | null;
+  /** Le prénom du relais qui l'a rencontrée. */
+  relais: string | null;
+}
+
 /** Ce que l'administration saisit pour une personne qu'elle ajoute ou corrige. Le numéro est déjà au format de la base. */
 export interface ContactASaisir {
   fonction: Valeur<'fonction_direction'> | null;
@@ -866,6 +879,13 @@ export interface PortAdministration {
   contactsReleve(id: string): Promise<ContactDirection[]>;
   /** Note une personne de plus sur la fiche (trois au plus). Rend son identifiant. `POST /admin/releves/{id}/contacts` */
   ajouterContact(releveId: string, contact: ContactASaisir): Promise<string>;
+  /**
+   * Fiche d'école (16/11) : les personnes à contacter de toutes les fiches du site, et celles notées sur le site ; celles
+   * qui ont un numéro d'abord, puis la plus récente. `GET /admin/campus/{id}/contacts`
+   */
+  contactsDeLEcole(ecoleId: string): Promise<ContactEcole[]>;
+  /** Note une personne sur le site lui-même (école importée, numéro reçu par WhatsApp). `POST /admin/campus/{id}/contacts` */
+  ajouterContactEcole(ecoleId: string, contact: ContactASaisir): Promise<string>;
   /** Corrige une personne : tous ses champs sont redonnés. `PUT /admin/contacts/{id}` */
   corrigerContact(contactId: string, contact: ContactASaisir): Promise<void>;
   /** Transforme le relevé en institution, campus ou cycle. Rend le campus. `POST /admin/releves/{id}/decision` */

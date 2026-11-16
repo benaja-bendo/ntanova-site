@@ -720,6 +720,53 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       return [];
     },
 
+    async contactsDeLEcole(ecoleId) {
+      const lignes = lireListe<{
+        id: string;
+        role: Valeur<'fonction_direction'> | null;
+        role_detail: string | null;
+        name: string | null;
+        whatsapp: string | null;
+        contact_agreement: boolean;
+        agreement_at: string | null;
+        said_note: string | null;
+        received_at: string;
+        source: 'relais' | 'administration';
+        submission_id: string | null;
+        submission_taken_at: string | null;
+        relay_first_name: string | null;
+      }>(await supabase().rpc('contacts_of_campus', { p_campus: ecoleId }));
+      return lignes.map((c) => ({
+        id: c.id,
+        fonction: c.role,
+        precisionFonction: c.role_detail,
+        source: c.source,
+        nom: c.name,
+        whatsapp: c.whatsapp,
+        accord: c.contact_agreement,
+        accordLe: c.agreement_at,
+        note: c.said_note,
+        recuLe: c.received_at,
+        releveId: c.submission_id,
+        releveLe: c.submission_taken_at,
+        relais: c.relay_first_name,
+      }));
+    },
+
+    async ajouterContactEcole(ecoleId, contact) {
+      const { data, error } = await supabase().rpc('add_campus_contact', {
+        p_campus: ecoleId,
+        p_role: contact.fonction,
+        p_role_detail: contact.precisionFonction,
+        p_name: contact.nom,
+        p_whatsapp: contact.whatsapp,
+        p_agreement: contact.accord,
+        p_note: contact.note,
+      });
+      decider(error);
+      return data as string;
+    },
+
     async ajouterContact(releveId, contact) {
       const { data, error } = await supabase().rpc('add_contact', {
         p_submission: releveId,

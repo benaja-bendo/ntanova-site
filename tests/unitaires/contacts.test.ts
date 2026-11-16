@@ -5,6 +5,7 @@ import {
   ficheQuiPorteLesPersonnes,
   libellePersonne,
   peutAjouterUnePersonne,
+  provenanceContact,
   personneVide,
   versContactASaisir,
   type PersonneSaisie,
@@ -124,5 +125,52 @@ describe('les personnes à contacter', () => {
     });
     expect(ficheQuiPorteLesPersonnes([lue('origine')], 'correction')).toBe('origine');
     expect(ficheQuiPorteLesPersonnes([], 'correction')).toBe('correction');
+  });
+});
+
+// Fiche d'école (16/11) : chaque personne dit qui l'a rencontrée, quand, et son accord.
+describe('provenanceContact', () => {
+  const base = {
+    id: 'p1',
+    fonction: 'directeur' as const,
+    precisionFonction: null,
+    nom: null,
+    whatsapp: '242061234567',
+    accord: true,
+    accordLe: '2026-11-12T10:00:00Z',
+    note: null,
+    recuLe: '2026-11-12T10:00:00Z',
+    releveLe: '2026-11-10T09:00:00Z',
+  };
+  it('dit le relais, le jour de sa fiche et le jour de l’accord', () => {
+    expect(provenanceContact({ ...base, source: 'relais', releveId: 'r1', relais: 'Alice' })).toBe(
+      'Relevé par Alice le 10 nov. 2026 · accord WhatsApp le 12 nov. 2026',
+    );
+  });
+  it('dit « un relais » quand le prénom manque, et rien de l’accord sans accord', () => {
+    expect(
+      provenanceContact({
+        ...base,
+        accord: false,
+        accordLe: null,
+        whatsapp: null,
+        source: 'relais',
+        releveId: 'r1',
+        relais: null,
+      }),
+    ).toBe('Relevé par un relais le 10 nov. 2026');
+  });
+  it('dit qu’elle est notée par l’administration, et quand', () => {
+    expect(
+      provenanceContact({
+        ...base,
+        source: 'administration',
+        releveId: null,
+        releveLe: null,
+        relais: null,
+        recuLe: '2026-11-16T10:00:00Z',
+        accordLe: '2026-11-16T10:00:00Z',
+      }),
+    ).toBe('Noté par l’administration le 16 nov. 2026 · accord WhatsApp le 16 nov. 2026');
   });
 });

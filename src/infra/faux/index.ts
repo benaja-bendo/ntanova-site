@@ -218,6 +218,8 @@ interface SemaineFausse {
 
 /** Une personne à contacter dans le faux serveur : ce que le relais envoie, plus ce que l'administration note. */
 type ContactFaux = ContactAEnvoyer & {
+  /** Fiche d'école (16/11) : une personne notée sur le site lui-même (alors `releveId` est vide). */
+  ecoleId?: string | null;
   precisionFonction?: string | null;
   source?: 'relais' | 'administration';
   recuLe?: string;
@@ -1339,6 +1341,70 @@ const admin: PortAdministration = {
       }
     }
     return [];
+  },
+  async contactsDeLEcole(ecoleId) {
+    await reseau();
+    const e = lireEtat();
+    // Comme `contacts_of_campus` : les fiches du site (acceptées, contre-visites), puis celles qu'elles corrigent.
+    const fiches = new Set<string>();
+    for (const r of Object.values(e.releves)) {
+      if (e.decisions[r.id]?.ecoleId !== ecoleId && r.doublonDe !== ecoleId) continue;
+      for (
+        let c: string | null | undefined = r.id;
+        c && !fiches.has(c);
+        c = e.releves[c]?.corrigeReleveId
+      )
+        fiches.add(c);
+    }
+    return Object.entries(e.contacts)
+      .filter(([, c]) => fiches.has(c.releveId) || (!c.releveId && c.ecoleId === ecoleId))
+      .map(([cle, c]) => {
+        const releve = c.releveId ? e.releves[c.releveId] : undefined;
+        return {
+          id: cle,
+          fonction: c.fonction,
+          precisionFonction: c.precisionFonction ?? null,
+          source: c.source ?? 'relais',
+          nom: c.nom,
+          whatsapp: c.whatsapp,
+          accord: c.accord,
+          accordLe: c.accordLe,
+          note: c.note,
+          recuLe: c.recuLe ?? c.accordLe ?? new Date().toISOString(),
+          releveId: releve ? c.releveId : null,
+          releveLe: releve?.prisLe ?? null,
+          relais: releve ? (e.relaisDesReleves?.[releve.id] ?? '[Prénom]') : null,
+        };
+      })
+      .sort(
+        (a, b) => Number(!a.whatsapp) - Number(!b.whatsapp) || b.recuLe.localeCompare(a.recuLe),
+      );
+  },
+  async ajouterContactEcole(ecoleId, contact) {
+    await reseau();
+    const e = lireEtat();
+    if (!(ecoleId in e.campus)) throw new ErreurDecision('Site introuvable.');
+    if (contact.whatsapp && !contact.accord) {
+      throw new ErreurDecision('Sans l’accord de la personne, on ne note pas son numéro.');
+    }
+    const id = crypto.randomUUID();
+    const maintenant = new Date().toISOString();
+    ecrire((etat) => {
+      etat.contacts[id] = {
+        releveId: '',
+        ecoleId,
+        fonction: contact.fonction,
+        precisionFonction: contact.fonction === 'autre' ? contact.precisionFonction : null,
+        nom: contact.nom,
+        whatsapp: contact.whatsapp,
+        accord: contact.accord,
+        accordLe: contact.accord ? maintenant : null,
+        note: contact.note,
+        source: 'administration',
+        recuLe: maintenant,
+      };
+    });
+    return id;
   },
   async ajouterContact(releveId, contact) {
     await reseau();

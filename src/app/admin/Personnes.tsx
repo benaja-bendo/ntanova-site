@@ -211,7 +211,7 @@ export function Personnes({
   );
 }
 
-function FormulairePersonne({
+export function FormulairePersonne({
   nom,
   depart,
   enregistrer,
