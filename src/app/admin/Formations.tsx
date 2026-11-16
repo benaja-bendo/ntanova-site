@@ -7,6 +7,7 @@ import { v2 } from '@/ui/v2/classes';
 import { useState } from 'react';
 import {
   avecFormation,
+  avecRythmeDesSeries,
   cycleAvecFormations,
   duCycle,
   erreurFormation,
@@ -14,6 +15,7 @@ import {
   formationVide,
   memeFormation,
   resume,
+  rythmeDesSeries,
   sansFormation,
   SERIES_RAPIDES,
 } from '../../modele/formations';
@@ -196,7 +198,11 @@ export function Formations({
                   .map((f) => f.serie)
                   .filter((s): s is Valeur<'bac_track'> => s !== null)}
                 surChoix={(serie) => {
-                  const f = formationSerie(cycle, serie);
+                  // Une série ajoutée prend le rythme commun des séries du cycle (C4).
+                  const f = {
+                    ...formationSerie(cycle, serie),
+                    rythmes: rythmeDesSeries(formations, cycle),
+                  };
                   surChangement(
                     siennes.some((x) => x.serie === serie)
                       ? sansFormation(formations, f)
@@ -205,6 +211,27 @@ export function Formations({
                 }}
               />
             )}
+            {(cycle === 'lycee' || cycle === 'technique') &&
+              siennes.some((f) => f.serie !== null) && (
+                <Choix
+                  legende={`Rythme des séries (${libelleNiveau[cycle]}, toutes à la fois)`}
+                  options={listes.study_rhythm.map((r) => ({
+                    valeur: r,
+                    libelle: libelleRythme[r],
+                  }))}
+                  valeurs={rythmeDesSeries(formations, cycle)}
+                  surChoix={(r) => {
+                    const actuel = rythmeDesSeries(formations, cycle);
+                    surChangement(
+                      avecRythmeDesSeries(
+                        formations,
+                        cycle,
+                        actuel.includes(r) ? actuel.filter((x) => x !== r) : [...actuel, r],
+                      ),
+                    );
+                  }}
+                />
+              )}
             {siennes.length > 0 && (
               <ul
                 className="m-0 flex list-none flex-col gap-2 p-0"

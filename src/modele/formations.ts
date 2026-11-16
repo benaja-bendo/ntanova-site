@@ -117,3 +117,26 @@ export function erreurFormation(f: FormationSaisie): string | null {
     return 'Ce diplôme n’est pas dans la liste.';
   return null;
 }
+
+/**
+ * Le rythme des séries du bac d'un cycle (C4, décision du fondateur du 16/11) : un seul, commun à toutes les séries cochées
+ * par pastille (« Cours du soir » pour un lycée du soir). Une formation libre garde son propre rythme.
+ */
+export function rythmeDesSeries(
+  liste: readonly FormationSaisie[],
+  cycle: Valeur<'niveau'>,
+): Valeur<'study_rhythm'>[] {
+  return liste.find((f) => f.cycle === cycle && f.serie !== null)?.rythmes ?? [];
+}
+
+/** Donne ce rythme à toutes les séries du bac de ce cycle ; le reste ne change pas. */
+export function avecRythmeDesSeries(
+  liste: readonly FormationSaisie[],
+  cycle: Valeur<'niveau'>,
+  rythmes: readonly Valeur<'study_rhythm'>[],
+): FormationSaisie[] {
+  const ordonnes = listes.study_rhythm.filter((r) => rythmes.includes(r));
+  return liste.map((f) =>
+    f.cycle === cycle && f.serie !== null ? { ...f, rythmes: ordonnes } : f,
+  );
+}

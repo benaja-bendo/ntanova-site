@@ -149,3 +149,26 @@ test('C. l’ajout libre des formations : replié, renommé, son erreur s’effa
     lycee.getByRole('list', { name: /Formations notées/ }).getByRole('listitem'),
   ).toHaveCount(1);
 });
+
+test('C4. un rythme commun aux séries du cycle : « Cours du soir » les marque toutes, une série ajoutée le prend', async ({
+  page,
+}) => {
+  const f = await ouvrirLAjout(page);
+  await f
+    .getByRole('group', { name: 'Niveaux' })
+    .getByRole('button', { name: 'Lycée', exact: true })
+    .click();
+  const lycee = f.getByRole('region', { name: 'Formations : Lycée' });
+  const rythme = lycee.getByRole('group', { name: /Rythme des séries/ });
+  // Sans série cochée, pas de rythme à choisir.
+  await expect(rythme).toHaveCount(0);
+  await lycee.getByRole('button', { name: 'Série C', exact: true }).click();
+  await lycee.getByRole('button', { name: 'Série D', exact: true }).click();
+  await rythme.getByRole('button', { name: 'Cours du soir' }).click();
+  const notees = lycee.getByRole('list', { name: 'Formations notées : Lycée' });
+  await expect(notees.getByRole('listitem').filter({ hasText: 'soir' })).toHaveCount(2);
+  await lycee.getByRole('button', { name: 'Série A', exact: true }).click();
+  await expect(notees.getByRole('listitem').filter({ hasText: 'soir' })).toHaveCount(3);
+  await rythme.getByRole('button', { name: 'Cours du soir' }).click();
+  await expect(notees.getByRole('listitem').filter({ hasText: 'soir' })).toHaveCount(0);
+});
