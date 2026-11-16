@@ -343,8 +343,8 @@ test.describe('« Où est l’école »', () => {
     const lien = page.getByRole('link', { name: 'Voir sur la carte', exact: true });
     await expect(lien).toHaveAttribute(
       'href',
-      // Ticket 147 : l'école se désigne par son identifiant.
-      '/carte/?ecole=527064#15/-4.798/11.931',
+      // Ticket 147 : l'école se désigne par son identifiant ; depuis le lot 4 bis, sur la vue Carte de « Les écoles ».
+      '/ecoles/?vue=carte&ecole=527064',
     );
   });
 
@@ -354,7 +354,11 @@ test.describe('« Où est l’école »', () => {
     await page.goto(BRAZZAVILLE);
     await expect(page.getByRole('group', { name: /sur la carte de/ })).toHaveCount(0);
     const lien = page.getByRole('link', { name: 'Voir le quartier sur la carte' });
-    await expect(lien).toHaveAttribute('href', '/carte/#15/-4.2634/15.2429');
+    // Lot 4 bis : la vue Carte de « Les écoles », limitée à une petite zone autour de l'école.
+    await expect(lien).toHaveAttribute(
+      'href',
+      /^\/ecoles\/\?vue=carte&cadre=15\.2\d+,-4\.2\d+,15\.2\d+,-4\.2\d+$/,
+    );
     await expect(page.getByRole('link', { name: 'Voir sur la carte', exact: true })).toHaveCount(0);
   });
 
@@ -365,7 +369,7 @@ test.describe('« Où est l’école »', () => {
     await expect(page.getByRole('group', { name: /sur la carte de/ })).toHaveCount(0);
     await expect(
       page.getByRole('link', { name: 'Voir sur la carte', exact: true }),
-    ).toHaveAttribute('href', /^\/carte\/\?ecole=.+#15\/-4\.79105\/11\.925$/);
+    ).toHaveAttribute('href', /^\/ecoles\/\?vue=carte&ecole=\d{6}$/);
   });
 
   test('sans position ni repère : aucun bloc de localisation vide', async ({ page }) => {
@@ -465,9 +469,10 @@ test.describe('l’en-tête du téléphone', () => {
     await expect(piliers.getByRole('link', { name: 'Trouver une école' })).not.toHaveAttribute(
       'aria-current',
     );
-    // La carte reste à un geste : au pied de page.
-    await page.getByRole('contentinfo').getByRole('link', { name: 'Carte', exact: true }).click();
-    await expect(page).toHaveURL(/\/carte\/$/);
+    // Lot 4 bis : la carte est la vue Carte de « Les écoles » ; le pied de page n'a plus de lien « Carte ».
+    await expect(
+      page.getByRole('contentinfo').getByRole('link', { name: 'Carte', exact: true }),
+    ).toHaveCount(0);
     await contexte.close();
   });
 
@@ -524,8 +529,8 @@ test.describe('l’accueil', () => {
     await page.getByRole('button', { name: 'Chercher' }).click();
     await expect(page).toHaveURL(/\/ecoles\/\?q=mongo$/);
     await page
-      .locator('ul.liste-lignes')
-      .getByRole('link', { name: /Groupe scolaire/ })
+      .locator('[data-cartes]')
+      .getByRole('link', { name: /Groupe scolaire.*Mongo-Mpoukou/ })
       .click();
     await expect(page).toHaveURL(/\/ecoles\/groupe-scolaire-exemple-904316\/$/);
   });
@@ -534,7 +539,7 @@ test.describe('l’accueil', () => {
     await page.goto('/');
     await expect(page.locator('main canvas, main .carte, main [data-carte]')).toHaveCount(0);
     await page.getByRole('main').getByRole('link', { name: 'Voir la carte' }).click();
-    await expect(page).toHaveURL(/\/carte\/$/);
+    await expect(page).toHaveURL(/\/ecoles\/\?vue=carte$/);
   });
 
   test('la carte d’une ville mène à sa page, chaque puce à son arrondissement', async ({

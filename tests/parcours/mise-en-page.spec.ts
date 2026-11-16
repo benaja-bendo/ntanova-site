@@ -41,12 +41,6 @@ const CHARNIERE_ADMIN = 1024;
 
 const largeurDe = (page: Page) => page.viewportSize()?.width ?? 0;
 
-type Rectangle = { x: number; y: number; width: number; height: number };
-
-/** Deux rectangles de l'écran se recouvrent-ils, même d'un pixel ? */
-const seRecouvrent = (a: Rectangle, b: Rectangle) =>
-  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-
 /** La barre de l'administration : en haut sans s'étirer, ou une colonne sur toute la hauteur. */
 async function verifierLaBarre(page: Page, nom: string) {
   // Admin v2 : sous 1 024 px, une barre en haut (le titre) et une barre en bas à cinq cases ; au-delà, la barre de côté
@@ -264,7 +258,8 @@ test.describe('site public', () => {
     // Pas de mise à jour automatique : tant que ce n'est pas vrai, on ne le dit pas.
     await expect(page.getByText(/mettent la fiche à jour/)).toHaveCount(0);
     const pied = page.getByRole('contentinfo');
-    for (const nom of ['Carte', 'Méthode', 'Données', 'À propos']) {
+    // Lot 4 bis : plus de lien « Carte » au pied, la carte est la vue Carte de « Les écoles ».
+    for (const nom of ['Méthode', 'Données', 'À propos']) {
       await expect(pied.getByRole('link', { name: nom, exact: true })).toBeVisible();
     }
   });
@@ -312,50 +307,6 @@ test.describe('site public', () => {
     for (const image of await page.locator('main img').all()) {
       const boite = await image.boundingBox();
       expect(boite?.y ?? 0, 'une image au premier écran').toBeGreaterThanOrEqual(hauteur);
-    }
-  });
-
-  test('carte sans WebGL2 : le cartouche et la légende du dessin, posés sur lui dès 1 024 px, ne cachent aucune école', async ({
-    page,
-  }) => {
-    // Ticket 146 : le dessin ne paraît plus qu'en repli (sans WebGL2, sans JavaScript, ou après un échec). Depuis le lot 3,
-    // seule `/carte/` le porte.
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, 'connection', { value: {}, configurable: true });
-      const getContext = HTMLCanvasElement.prototype.getContext;
-      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type, ...reste) {
-        return type === 'webgl2' ? null : getContext.call(this, type, ...reste);
-      } as typeof getContext;
-    });
-    await page.goto('/carte/');
-    await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'repli-sans-webgl2');
-    const apercu = page.getByRole('region', { name: 'La carte de Tié-Tié' });
-    const dessin = await apercu.locator('svg.plateau:visible').boundingBox();
-    const cartouche = await apercu.locator('.apercu-cartouche').boundingBox();
-    const legende = apercu.locator('.apercu-legende');
-    if (!dessin || !cartouche) throw new Error('l’aperçu de la carte est introuvable');
-    if (largeurDe(page) >= ORDINATEUR) {
-      const maisons = await apercu.locator('svg.plateau:visible g.marque').all();
-      expect(maisons.length, 'des écoles sur l’aperçu').toBeGreaterThan(0);
-      const boiteLegende = await legende.boundingBox();
-      if (!boiteLegende) throw new Error('la légende est introuvable');
-      // La légende explique un dessin que le lecteur d'écran ne voit pas : elle est cachée comme lui.
-      await expect(
-        apercu.getByRole('list', { name: 'Légende de la carte' }),
-        'la légende est lue par le lecteur d’écran',
-      ).toHaveCount(0);
-      for (const maison of maisons) {
-        const boite = await maison.boundingBox();
-        if (!boite) throw new Error('une école de l’aperçu est introuvable');
-        expect(seRecouvrent(boite, cartouche), 'le cartouche cache une école').toBe(false);
-        expect(seRecouvrent(boite, boiteLegende), 'la légende cache une école').toBe(false);
-      }
-    } else {
-      // Avant 1 024 px, le cartouche suit la carte, et la légende n'y est pas.
-      expect(cartouche.y, 'le cartouche suit la carte').toBeGreaterThanOrEqual(
-        dessin.y + dessin.height - 1,
-      );
-      await expect(legende).toBeHidden();
     }
   });
 
@@ -463,48 +414,6 @@ test.use({
   launchOptions: {
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
   },
-});
-test.describe('application carte', () => {
-  test('carte : tiroir ou panneau, sans débordement et commandes au clavier', async ({
-    page,
-    context,
-  }) => {
-    await servirLesTuiles(context);
-    await page.goto('/carte/');
-    // Le rendu WebGL peut attendre le GPU partagé des trois formats ; ce n’est pas une mesure de vitesse.
-    await expect(page.locator('.explorateur')).toHaveAttribute('data-active', 'oui', {
-      timeout: 30_000,
-    });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true,
-    );
-    const panneau = await page.locator('.panneau-carte').boundingBox();
-    // Plus de légende des zones (ticket 146) : les zones n'ont plus d'état ; « Voir en liste » est dans le tiroir.
-    const surOrdinateur = (page.viewportSize()?.width ?? 0) >= 1024;
-    await expect(page.locator('.legende-carte, .legende-tiroir')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Voir en liste' })).toHaveAttribute(
-      'href',
-      '/ecoles/',
-    );
-    if (surOrdinateur) expect(panneau?.width).toBeCloseTo(400, 0);
-    else {
-      const bouton = page.getByRole('button', { name: 'Voir les écoles', exact: true });
-      await bouton.focus();
-      await page.keyboard.press('Enter');
-      await expect(bouton).toHaveAttribute('aria-expanded', 'true');
-      await page.keyboard.press('Escape');
-      await expect(bouton).toHaveAttribute('aria-expanded', 'false');
-    }
-    await page.getByRole('searchbox').fill('Groupe scolaire quartier');
-    await page.getByRole('searchbox').press('Enter');
-    const choix = page.locator('[data-resultats]').getByRole('button').first();
-    await choix.focus();
-    await choix.press('Enter');
-    await expect(page.locator('.carte-apercu')).toBeFocused();
-    await page.keyboard.press('Escape');
-    await expect(page.locator('.carte-apercu')).toHaveCount(0);
-    await expect(page.getByRole('searchbox')).toBeVisible();
-  });
 });
 
 test('administration : accueil et écoles tiennent dans l’écran, gestion et focus au clavier', async ({

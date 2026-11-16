@@ -19,6 +19,8 @@ import {
 import { listes, type Valeur } from './listes';
 import type { DomainePublic, EcolePubliee } from './ports';
 import { lienEcole, sansRepetition } from './geo-divisions';
+import { vignetteDeLaCarte } from './fiche-mince';
+import { cheminMedia } from './vitrine';
 
 /** Sans accent, en minuscules, les tirets et les apostrophes lus comme des espaces : « Tié-Tié » = « tie tie ». */
 export function normaliser(texte: string): string {
@@ -200,6 +202,17 @@ export interface LigneRecherche {
   t?: string;
   /** Le type de l'école, quand il est connu (la ligne d'une école l'écrit). */
   k?: Valeur<'type_ecole'>;
+  /** Lot 4 bis : le sigle (« GSB »), cherché et écrit après le nom. */
+  si?: string;
+  /** Lot 4 bis : la vignette de la carte d'école, carrée et large (couverture, sinon photo d'enseigne). */
+  vc?: string;
+  vl?: string;
+  /** Lot 4 bis : le rond d'une école sans photo, son logo (chemin) ou son sigle ; sinon la lettre de son cycle. */
+  lg?: string;
+  /** Lot 4 bis : les équipements présents (filtre « Équipements »). */
+  eq?: string[];
+  /** Lot 4 bis : le plus petit montant mensuel des frais qui ont le OUI daté de l'école (filtre « Frais par mois »). */
+  fm?: number;
 }
 
 /** Les autres écritures des zones, par adresse de zone (`congo/pointe-noire/tie-tie`, sans répétition). */
@@ -269,7 +282,29 @@ export function ligneDe(e: EcolePubliee): LigneRecherche {
     ...(e.origine === 'school' ? { g: 1 as const } : {}),
     ...(typeInformatif(e.typeEcole) ? { k: e.typeEcole } : {}),
     ...(dateDeLaPreuveForte(e) ? { t: dateDeLaPreuveForte(e) as string } : {}),
+    ...champsDeLaCarte(e),
   };
+}
+
+/** Lot 4 bis : ce que la carte d'école et les filtres de la page « Les écoles » lisent en plus. */
+function champsDeLaCarte(e: EcolePubliee): Partial<LigneRecherche> {
+  const out: Partial<LigneRecherche> = {};
+  if (e.sigle) out.si = e.sigle;
+  const vignette = vignetteDeLaCarte(e);
+  if (vignette) {
+    out.vc = vignette.carree;
+    out.vl = vignette.large;
+  }
+  if (e.medias?.logo) out.lg = cheminMedia(e.medias.logo, 'logo');
+  const presents = (e.equipements ?? [])
+    .filter((x) => x.etat === 'present' && x.cle !== 'autre')
+    .map((x) => x.cle);
+  if (presents.length > 0) out.eq = [...new Set(presents)];
+  const mensuels = (e.frais ?? [])
+    .filter((f) => f.confirmeLe && f.periode === 'mois' && !f.formationId)
+    .map((f) => f.minimum);
+  if (mensuels.length > 0) out.fm = Math.min(...mensuels);
+  return out;
 }
 
 /** Le jour de la preuve la plus forte, dans l'ordre de `provenanceDe` : l'accord, le passage, puis la déclaration. */
@@ -339,7 +374,7 @@ export function chercher(lignes: readonly LigneRecherche[], criteres: Criteres):
     }
     if (mots.length > 0) {
       const motsDeLEcole = normaliser(
-        [ligne.n, ligne.e, ligne.d, ligne.a, ligne.q, ligne.r, ...ligne.f.map((f) => f.t)]
+        [ligne.n, ligne.e, ligne.si, ligne.d, ligne.a, ligne.q, ligne.r, ...ligne.f.map((f) => f.t)]
           .filter(Boolean)
           .join(' '),
       ).split(' ');

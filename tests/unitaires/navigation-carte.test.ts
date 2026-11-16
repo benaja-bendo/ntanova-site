@@ -52,13 +52,24 @@ describe('état partageable de la carte', () => {
   });
 });
 
+// Lot 4 bis (16/11/2026) : la carte vit dans « Les écoles » ; le lien d'un lieu ouvre la vue Carte limitée à sa zone.
+// Avant : `/carte/#zoom/lat/lon`.
 describe('la carte cadrée sur un lieu (ticket 146 : les anciens plans et les pages de lieu y mènent)', () => {
-  const vue = (lien: string) => {
-    expect(lien.startsWith('/carte/#')).toBe(true);
-    return lireVue(lien.slice('/carte/'.length));
+  const cadre = (lien: string) => {
+    expect(lien.startsWith('/ecoles/?vue=carte&cadre=')).toBe(true);
+    const [o, s, e, n] = new URLSearchParams(lien.split('?')[1])
+      .get('cadre')!
+      .split(',')
+      .map(Number);
+    return {
+      longitude: (o! + e!) / 2,
+      latitude: (s! + n!) / 2,
+      largeur: e! - o!,
+      hauteur: n! - s!,
+    };
   };
-  it('cadre le contour quand la base le connaît', () => {
-    const v = vue(
+  it('cadre le contour quand la base le connaît, avec une marge', () => {
+    const c = cadre(
       lienCarteDuLieu({
         contour: [
           [
@@ -74,26 +85,26 @@ describe('la carte cadrée sur un lieu (ticket 146 : les anciens plans et les pa
         position: null,
       }),
     );
-    expect(v).not.toBeNull();
-    expect(v!.longitude).toBeCloseTo(11.875, 3);
-    expect(v!.latitude).toBeCloseTo(-4.8, 3);
-    expect(v!.zoom).toBeGreaterThan(11);
-    expect(v!.zoom).toBeLessThan(15);
+    expect(c.longitude).toBeCloseTo(11.875, 3);
+    expect(c.latitude).toBeCloseTo(-4.8, 3);
+    expect(c.largeur).toBeGreaterThan(0.05);
   });
-  it('sans contour, ses écoles situées ; sans elles, son point ; sans rien, la carte par défaut', () => {
+  it('sans contour, ses écoles situées ; sans elles, son point ; sans rien, la vue Carte par défaut', () => {
     const ecoles = [
       { latitude: -4.8, longitude: 11.86 },
       { latitude: null, longitude: null },
     ];
-    const parEcoles = vue(lienCarteDuLieu({ contour: null, position: null, ecoles }));
-    expect(parEcoles!.longitude).toBeCloseTo(11.86, 4);
-    const parPoint = vue(
-      lienCarteDuLieu({ contour: null, position: { latitude: -4.26, longitude: 15.28 } }),
+    expect(cadre(lienCarteDuLieu({ contour: null, position: null, ecoles })).longitude).toBeCloseTo(
+      11.86,
+      4,
     );
-    expect(parPoint!.latitude).toBeCloseTo(-4.26, 4);
-    expect(lienCarteDuLieu({ contour: null, position: null })).toBe('/carte/');
+    expect(
+      cadre(lienCarteDuLieu({ contour: null, position: { latitude: -4.26, longitude: 15.28 } }))
+        .latitude,
+    ).toBeCloseTo(-4.26, 4);
+    expect(lienCarteDuLieu({ contour: null, position: null })).toBe('/ecoles/?vue=carte');
     expect(lienCarteDuLieu({ contour: null, position: null, ecoles: [ecoles[1]!] })).toBe(
-      '/carte/',
+      '/ecoles/?vue=carte',
     );
   });
 });

@@ -24,9 +24,9 @@ export const adresseVue = (v: VueCarte): string =>
   `#${Number(v.zoom.toFixed(2))}/${Number(v.latitude.toFixed(5))}/${Number(v.longitude.toFixed(5))}`;
 
 /**
- * La carte centrée sur un lieu (ticket 146) : les anciens plans dessinés et les pages de lieux y mènent. Le cadre couvre le
- * contour de la zone quand la base le connaît, sinon ses écoles situées, sinon son point ; sans rien de tout cela, la carte
- * s'ouvre sur son cadre par défaut.
+ * La carte cadrée sur un lieu (ticket 146 ; depuis le lot 4 bis, la vue Carte de « Les écoles ») : les anciens plans dessinés
+ * et les pages de lieux y mènent. Le cadre couvre le contour de la zone quand la base le connaît, sinon ses écoles situées,
+ * sinon son point ; sans rien de tout cela, la vue Carte s'ouvre sur son cadre par défaut.
  */
 export function lienCarteDuLieu(lieu: {
   contour: MultiPolygone | null;
@@ -48,16 +48,21 @@ export function lienCarteDuLieu(lieu: {
     sud = Math.min(sud, lat);
     nord = Math.max(nord, lat);
   }
-  if (!Number.isFinite(ouest)) return '/carte/';
-  const longitude = (ouest + est) / 2;
-  const latitude = (sud + nord) / 2;
-  // Un téléphone de 360 px montre environ 1,4 tuile : à ce zoom, l'écart le plus grand de la boîte tient dans l'écran.
-  const ecart = Math.max(est - ouest, (nord - sud) * 1.3, 0.004);
-  const zoom = Math.max(
-    ZOOM_MIN_DE_LA_CARTE,
-    Math.min(Math.log2(360 / ecart) - 0.4, zoomMaxEn(longitude, latitude)),
-  );
-  return `/carte/${adresseVue({ zoom, latitude, longitude })}`;
+  // Lot 4 bis (16/11/2026) : la carte vit dans « Les écoles » ; le lieu devient la « Zone de la carte » de la vue Carte.
+  if (!Number.isFinite(ouest)) return '/ecoles/?vue=carte';
+  return lienZoneCarte([ouest, sud, est, nord]);
+}
+
+/** « Les écoles », vue Carte, limitée à une zone (ouest, sud, est, nord), avec une petite marge autour. */
+export function lienZoneCarte([ouest, sud, est, nord]: readonly [
+  number,
+  number,
+  number,
+  number,
+]): string {
+  const marge = Math.max((est - ouest) * 0.08, (nord - sud) * 0.08, 0.004);
+  const cadre = [ouest - marge, sud - marge, est + marge, nord + marge].map((x) => x.toFixed(4));
+  return `/ecoles/?vue=carte&cadre=${cadre.join(',')}`;
 }
 export function filtrerEcoles(
   ecoles: readonly FeatureEcole[],

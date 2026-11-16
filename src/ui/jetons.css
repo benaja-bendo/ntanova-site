@@ -166,6 +166,10 @@
   --carte-nom-actif: var(--vert-profond);
   --carte-repere: var(--rouge);
 
+  /* Lot 4 bis (16/11) : le voile sous la feuille « Filtres » et le point bleu de la position dans la vue Carte. */
+  --voile: rgb(18 26 23 / 0.45);
+  --position: var(--bleu-primaire);
+  --position-halo: color-mix(in srgb, var(--bleu-primaire) 18%, transparent);
   /*
    * La carte de position (src/app/commun/CartePosition.tsx) : des tuiles d'OpenStreetMap, un repère et le cercle de la
    * précision. Le fond se voit tant que les tuiles ne sont pas là, ou sans réseau.

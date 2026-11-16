@@ -83,6 +83,7 @@ const ko = (octets) => `${(octets / 1024).toFixed(1)} Ko`;
 let echec = false;
 const lignes = [];
 const totauxDesPages = new Map();
+const totauxDEmblee = new Map();
 for (const page of pages(dist)) {
   const nom = relative(dist, page);
   const html = readFileSync(page, 'utf8');
@@ -119,6 +120,17 @@ for (const page of pages(dist)) {
   for (const m of html.matchAll(/url\(\s*['"]?([^'")]+)/g)) compter(m[1]);
 
   totauxDesPages.set(nom, total);
+  // Lot 4 bis : ce que la page charge d'emblée, sans les images `loading="lazy"` (elles attendent d'approcher de l'écran ; en
+  // vue Carte, la liste est cachée au téléphone et ne montre que quelques cartes sur ordinateur). Sert au premier affichage
+  // de la carte ; le budget de la page, lui, compte tout.
+  let paresseuses = 0;
+  for (const m of charge.matchAll(/<img\b[^>]*\sloading="lazy"[^>]*>/g)) {
+    const src = /\ssrc="([^"]+)"/.exec(m[0])?.[1];
+    if (!src || !src.startsWith('/')) continue;
+    const fichier = join(dist, decodeURI(src.split(/[?#]/)[0]));
+    if (existsSync(fichier)) paresseuses += statSync(fichier).size;
+  }
+  totauxDEmblee.set(nom, total - paresseuses);
   const fautes = [];
   const budget = pageGuide.test(nom) ? budgetGuide : budgetPage;
   if (total > budget) fautes.push(`dépasse ${ko(budget)}`);
@@ -201,10 +213,15 @@ function ilotDeLaCarte(html) {
   return { chargeur: [...avecLaPage], ilot };
 }
 
-for (const cheminCarte of ['carte/index.html']) {
+// Lot 4 bis (16/11/2026) : la carte vit dans « Les écoles » (`?vue=carte`) ; `/carte/` n'est plus qu'un renvoi. Le script de la
+// page (20 Ko au plus, compté avec elle) charge l'îlot au toucher de « Carte » : on suit ses `import()` comme ceux d'un chargeur.
+const pagesAvecLaCarte = [
+  ['carte/index.html', 'carte', budgetChargeurCarte],
+  ['ecoles/index.html', 'ecoles', budgetPetitJavaScript],
+];
+for (const [cheminCarte, nomCarte, budgetDuChargeur] of pagesAvecLaCarte) {
   const pageDeLaCarte = join(dist, cheminCarte);
   if (!existsSync(pageDeLaCarte)) continue;
-  const nomCarte = 'carte';
   const html = readFileSync(pageDeLaCarte, 'utf8');
   const trouve = ilotDeLaCarte(html);
   const total = (fichiers, mesure) =>
@@ -212,7 +229,7 @@ for (const cheminCarte of ['carte/index.html']) {
   if (!trouve || trouve.ilot.length === 0) {
     echec = true;
     lignes.push(
-      `✗ ${`${nomCarte} : îlot`.padEnd(32)} introuvable : le chargeur de /carte/ n’importe plus rien.`,
+      `✗ ${`${nomCarte} : îlot`.padEnd(32)} introuvable : le script de /${nomCarte}/ n’importe plus la carte.`,
     );
   } else {
     const { chargeur, ilot } = trouve;
@@ -231,7 +248,7 @@ for (const cheminCarte of ['carte/index.html']) {
         : 0;
     };
     const premierAffichage =
-      (totauxDesPages.get(cheminCarte) ?? 0) +
+      (totauxDEmblee.get(cheminCarte) ?? 0) +
       Math.max(ilotGzip, ilotBrotli5) +
       servi('carte/style.json') +
       servi('carte/zones.geojson') +
@@ -239,8 +256,8 @@ for (const cheminCarte of ['carte/index.html']) {
       servi('polices/carte/NotoSans-Regular/0-255.pbf') +
       tuilesDeLaVilleEnOctets;
     const fautes = [];
-    if (octetsChargeur > budgetChargeurCarte)
-      fautes.push(`le chargeur dépasse ${ko(budgetChargeurCarte)}`);
+    if (octetsChargeur > budgetDuChargeur)
+      fautes.push(`le chargeur dépasse ${ko(budgetDuChargeur)}`);
     if (Math.max(ilotGzip, ilotBrotli5) > budgetIlot)
       fautes.push(`l’îlot dépasse ${ko(budgetIlot)}`);
     if (premierAffichage > budgetPremierAffichage)

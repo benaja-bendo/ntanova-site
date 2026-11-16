@@ -1,7 +1,7 @@
 ---
 // L'accueil du site à trois piliers (lot 3 ; planches « Accueil · téléphone » et « Accueil · ordinateur » de la version 44 du
 // canevas, validées le 15/11/2026). Plus de carte : le premier écran n'a ni image ni carte, seulement la recherche et les villes
-// (décision du 15/11, qui remplace le bloc de carte du 03/11 et l'aperçu du 14/11). `/carte/` ne change pas.
+// (décision du 15/11, qui remplace le bloc de carte du 03/11 et l'aperçu du 14/11). `/carte/` est devenue la vue Carte de « Les écoles » (lot 4 bis).
 //
 // Aucun JavaScript : la recherche est un formulaire qui ouvre « Écoles » (`/ecoles/?q=…`), les puces sont des liens. Les
 // chiffres sont calculés à la construction (`modele/accueil.ts`).
@@ -96,7 +96,7 @@ const recentes = vuesRecemment(ecoles);
             <Icone nom="cible" />
             Autour de moi
           </a>
-          <a class="lien-fort" href="/carte/">
+          <a class="lien-fort" href="/ecoles/?vue=carte">
             <Icone nom="plan" />
             Voir la carte
           </a>

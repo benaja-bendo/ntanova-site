@@ -1,0 +1,643 @@
+/*
+ * « Les écoles », Liste et Carte (lot 4 bis, planches de la version 46, 16/11/2026). Globale : les filtres et les cartes sont
+ * réécrits par le navigateur. Téléphone d'abord ; à partir de 64 rem, les filtres deviennent une colonne et la vue Carte
+ * coupe l'écran en deux. Couleurs : jetons seulement.
+ */
+.liste-ecoles {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'tete tete'
+    'recherche recherche'
+    'barre barre'
+    'tri vues'
+    'corps corps';
+  gap: var(--espace-3);
+  padding-block: var(--espace-4) var(--espace-6);
+}
+.liste-ecoles p {
+  margin: 0;
+}
+.liste-ecoles h1 {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-size: var(--taille-titre-page);
+  line-height: var(--interligne-titre);
+}
+.liste-ecoles h2 {
+  margin: 0;
+  font-family: var(--police-titre);
+  font-size: var(--taille-intertitre);
+}
+.liste-tete {
+  grid-area: tete;
+  display: grid;
+  gap: var(--espace-1);
+}
+.liste-outils {
+  display: contents;
+}
+
+/* La recherche */
+.liste-recherche {
+  grid-area: recherche;
+  position: relative;
+  display: flex;
+  gap: var(--espace-2);
+  min-width: 0;
+}
+.liste-recherche > .ico {
+  position: absolute;
+  top: 50%;
+  left: var(--espace-4);
+  color: var(--texte-doux);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.liste-recherche .champ {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  padding-left: calc(var(--espace-4) + 32px);
+  border-width: 2px;
+}
+.liste-recherche .seulement-large {
+  display: none;
+}
+
+/* Le tri et la bascule Liste / Carte */
+.liste-tri {
+  grid-area: tri;
+  justify-self: start;
+}
+.liste-tri .champ {
+  min-height: var(--cible-min);
+  border-radius: var(--rayon-pilule);
+  font-weight: 700;
+}
+.liste-vues {
+  grid-area: vues;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-pilule);
+  background: var(--fond-releve);
+}
+.liste-vue {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+  min-height: 40px;
+  padding: 0 var(--espace-4);
+  border-radius: var(--rayon-pilule);
+  color: var(--marque);
+  font-weight: 700;
+  text-decoration: none;
+}
+.liste-vue[aria-pressed='true'] {
+  background: var(--marque);
+  color: var(--texte-sur-marque);
+}
+
+/* La barre : « Filtres », les choix faits, puis les villes et les niveaux pour aller vite. Elle défile au doigt. */
+.liste-barre {
+  grid-area: barre;
+  display: flex;
+  gap: var(--espace-2);
+  min-width: 0;
+  margin-inline: calc(var(--espace-4) * -1);
+  padding-inline: var(--espace-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.liste-puces {
+  display: flex;
+  gap: var(--espace-2);
+}
+.liste-barre .pastille-choix {
+  flex: none;
+  white-space: nowrap;
+}
+.bouton-filtres {
+  border-color: var(--marque);
+  color: var(--marque-appuyee);
+}
+.filtres-nombre {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--rayon-pilule);
+  background: var(--marque);
+  color: var(--texte-sur-marque);
+  font-size: var(--taille-mention);
+}
+.filtres-nombre[hidden] {
+  display: none;
+}
+.puce-choisie {
+  border-color: var(--marque);
+  background: var(--vert-pale);
+}
+.filtre-nombre {
+  color: var(--texte-doux);
+  font-weight: 400;
+}
+.filtre-croix {
+  margin-left: 2px;
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+/* Le corps : les filtres (cachés sur téléphone), les résultats, la carte (seulement en vue Carte). */
+.liste-corps {
+  grid-area: corps;
+  display: grid;
+  gap: var(--espace-4);
+  min-width: 0;
+}
+.liste-resultats {
+  display: grid;
+  align-content: start;
+  gap: var(--espace-3);
+  min-width: 0;
+}
+.liste-message:empty {
+  display: none;
+}
+.cartes-liste {
+  display: grid;
+  gap: var(--espace-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.liste-plus {
+  justify-self: stretch;
+}
+.liste-plus[hidden] {
+  display: none;
+}
+.liste-affiche {
+  text-align: center;
+  font-size: var(--taille-secondaire);
+}
+.liste-affiche[hidden] {
+  display: none;
+}
+
+/* Le résultat vide : chaque sortie dit ce qu'elle débloque. */
+.liste-vide {
+  display: grid;
+  gap: var(--espace-3);
+  padding: var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+}
+.liste-vide[hidden] {
+  display: none;
+}
+.liste-sorties {
+  display: grid;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.liste-sorties .bouton {
+  width: 100%;
+}
+
+/* La feuille « Filtres » (téléphone, et vue Carte sur ordinateur) */
+.liste-filtres {
+  display: none;
+}
+.liste-filtres[data-ouvert] {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+.filtres-fond {
+  position: absolute;
+  inset: 0;
+  background: var(--voile);
+}
+.filtres-feuille {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 90dvh;
+  border-radius: var(--rayon-l) var(--rayon-l) 0 0;
+  background: var(--fond);
+}
+.filtres-tete {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-4);
+}
+.filtres-tete h2 {
+  flex: 1;
+}
+.filtres-effacer-haut {
+  display: none;
+}
+.filtres-fermer {
+  flex: none;
+  width: var(--cible-min);
+  height: var(--cible-min);
+  border: 1px solid var(--trait);
+  border-radius: 50%;
+  background: var(--fond-releve);
+  color: var(--texte);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+.filtres-corps {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 var(--espace-4) var(--espace-4);
+}
+.filtres-pied {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--espace-3);
+  padding: var(--espace-3) var(--espace-4) calc(var(--espace-3) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--trait);
+  background: var(--fond-releve);
+}
+.filtre-groupe {
+  margin: 0 0 var(--espace-4);
+  padding: 0;
+  border: 0;
+}
+.filtre-groupe legend {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: var(--espace-2);
+  padding: 0;
+  color: var(--texte-doux);
+  font-family: var(--police-interface);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.filtre-plusieurs {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.filtre-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+}
+.filtre-option {
+  padding-inline: var(--espace-3);
+}
+.filtre-option.avec-disque,
+.filtre-option .disque {
+  flex: none;
+}
+.filtre-option[aria-pressed='true'] {
+  border-color: var(--marque);
+  background: var(--marque);
+  color: var(--texte-sur-marque);
+}
+.filtre-option[aria-pressed='true'] .filtre-nombre {
+  color: inherit;
+}
+/* Une option cochée tombée à 0 reste, grisée, pour revenir en arrière. */
+.filtre-option.filtre-vide[aria-pressed='true'] {
+  border-color: var(--trait);
+  background: var(--fond-bande);
+  color: var(--texte-doux);
+}
+.filtre-note,
+.filtre-info {
+  margin-top: var(--espace-2);
+  color: var(--texte-doux);
+  font-size: var(--taille-mention);
+}
+.filtre-info {
+  padding: var(--espace-3);
+  border-radius: var(--rayon-s);
+  background: var(--fond-bande);
+}
+body.filtres-ouverts {
+  overflow: hidden;
+}
+
+/* La carte : seulement en vue Carte */
+.zone-carte {
+  display: none;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--rayon-m);
+  background: var(--couverture-vide);
+}
+/* Plus précis que `.maplibregl-map { position: relative }`, servie avec l'îlot : sans cela la toile n'a plus de hauteur. */
+.zone-carte .zone-carte-toile {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.zone-carte-attente {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--espace-3);
+  pointer-events: none;
+}
+.zone-carte[data-etat='prete'] .zone-carte-attente {
+  display: none;
+}
+.zone-carte-lente {
+  display: none;
+  max-width: 18rem;
+  text-align: center;
+}
+.zone-carte[data-lente] .zone-carte-lente {
+  display: block;
+}
+.zone-carte-aucune {
+  display: none;
+}
+.zone-carte[data-aucune='oui'][data-etat='prete'] .zone-carte-aucune {
+  position: absolute;
+  top: var(--espace-4);
+  left: 50%;
+  display: block;
+  padding: var(--espace-2) var(--espace-4);
+  border-radius: var(--rayon-pilule);
+  background: var(--fond-releve);
+  font-weight: 700;
+  transform: translateX(-50%);
+}
+.zone-carte-note {
+  display: none;
+}
+.zone-carte[data-fond='absent'] .zone-carte-fond {
+  position: absolute;
+  bottom: var(--espace-4);
+  left: var(--espace-3);
+  right: var(--espace-3);
+  z-index: 2;
+  display: block;
+  padding: var(--espace-2) var(--espace-3);
+  border-radius: var(--rayon-s);
+  background: var(--fond-releve);
+  font-size: var(--taille-secondaire);
+}
+.zone-carte[data-etat='sans-carte'] .zone-carte-sans {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-4);
+  text-align: center;
+}
+.zone-carte[data-etat='sans-carte'] .zone-carte-attente {
+  display: none;
+}
+.bouton-chercher {
+  position: absolute;
+  top: var(--espace-3);
+  left: 50%;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: var(--cible-min);
+  padding: 0 var(--espace-4);
+  border: 0;
+  border-radius: var(--rayon-pilule);
+  background: var(--fond-releve);
+  box-shadow: var(--ombre-flottante);
+  color: var(--marque);
+  font: inherit;
+  font-weight: 700;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+.bouton-chercher[hidden] {
+  display: none;
+}
+.liste-retour {
+  position: absolute;
+  bottom: var(--espace-4);
+  left: 50%;
+  z-index: 2;
+  box-shadow: var(--ombre-flottante);
+  transform: translateX(-50%);
+}
+.apercu-bas {
+  position: absolute;
+  inset: auto var(--espace-3) var(--espace-3);
+  z-index: 3;
+  display: grid;
+  gap: var(--espace-2);
+  padding: var(--espace-2);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  box-shadow: var(--ombre-flottante);
+}
+.apercu-bas[hidden] {
+  display: none;
+}
+.apercu-bas .carte-ecole {
+  border: 0;
+}
+.liste-apercu-actions {
+  display: flex;
+  gap: var(--espace-2);
+}
+.liste-apercu-actions .bouton {
+  flex: 1;
+}
+.liste-apercu-fermer {
+  flex: none;
+  width: var(--cible-min);
+  height: var(--cible-min);
+  border: 1px solid var(--trait);
+  border-radius: 50%;
+  background: var(--fond-releve);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+.carte-moi {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--fond-releve);
+  border-radius: 50%;
+  background: var(--position);
+  box-shadow: 0 0 0 10px var(--position-halo);
+}
+
+/* Vue Carte sur téléphone : l'en-tête se réduit (décision du 08/11), la carte prend l'écran, la liste attend derrière « Liste ». */
+.liste-ecoles[data-vue-actuelle='carte'] .liste-tete,
+.liste-ecoles[data-vue-actuelle='carte'] .liste-resultats,
+.liste-ecoles[data-vue-actuelle='carte'] .liste-tri {
+  display: none;
+}
+.liste-ecoles[data-vue-actuelle='carte'] .zone-carte {
+  display: block;
+  height: calc(100dvh - 18.5rem);
+  min-height: 20rem;
+  margin-inline: calc(var(--espace-4) * -1);
+  border-radius: 0;
+}
+/* L'en-tête garde ses trois piliers et cache le pays (décision du 08/11, `PagePublique.astro`) ; aucun bouton « Menu ». */
+body[data-vue='carte'] .pied {
+  display: none;
+}
+
+@media (min-width: 48rem) {
+  .cartes-liste {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .liste-plus {
+    justify-self: center;
+  }
+  .filtres-feuille {
+    inset: 0 0 0 auto;
+    width: 26rem;
+    max-height: none;
+    border-radius: 0;
+  }
+}
+
+@media (min-width: 64rem) {
+  .liste-ecoles {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'tete tete tete'
+      'recherche tri vues'
+      'barre barre barre'
+      'corps corps corps';
+    column-gap: var(--espace-3);
+  }
+  .liste-recherche .seulement-large {
+    display: inline-flex;
+  }
+  .liste-puces {
+    display: contents;
+  }
+  .liste-recherche .champ {
+    padding-right: 7.5rem;
+  }
+  .liste-recherche .bouton {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    bottom: 4px;
+  }
+  .liste-barre {
+    margin-inline: 0;
+    padding-inline: 0;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  /* Vue Liste : les filtres en colonne, toujours ouverts ; la barre ne garde que les choix faits. */
+  .liste-ecoles[data-vue-actuelle='liste'] .bouton-filtres {
+    display: none;
+  }
+  .liste-ecoles[data-vue-actuelle='liste'] .liste-puces > :not(.puce-choisie) {
+    display: none;
+  }
+  .liste-ecoles[data-vue-actuelle='liste'] .liste-corps {
+    grid-template-columns: 17rem minmax(0, 1fr);
+    align-items: start;
+    gap: var(--espace-5);
+  }
+  .liste-ecoles[data-vue-actuelle='liste'] .liste-filtres {
+    display: block;
+    position: static;
+  }
+  .liste-ecoles[data-vue-actuelle='liste'] .filtres-fond,
+  .liste-ecoles[data-vue-actuelle='liste'] .filtres-fermer,
+  .liste-ecoles[data-vue-actuelle='liste'] .filtres-pied {
+    display: none;
+  }
+  .liste-ecoles[data-vue-actuelle='liste'] .filtres-feuille {
+    position: static;
+    max-height: none;
+    width: auto;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .liste-ecoles[data-vue-actuelle='liste'] .filtres-effacer-haut {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: var(--taille-secondaire);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .liste-ecoles[data-vue-actuelle='liste'] .filtres-corps {
+    overflow: visible;
+  }
+
+  /* Vue Carte : l'écran coupé en deux, la liste à gauche (440 px), la carte à droite ; pas de pied de page. */
+  .liste-ecoles[data-vue-actuelle='carte'] .liste-tete {
+    display: none;
+  }
+  .liste-ecoles[data-vue-actuelle='carte'] .liste-tri {
+    display: block;
+  }
+  .liste-ecoles[data-vue-actuelle='carte'] .liste-corps {
+    grid-template-columns: 27.5rem minmax(0, 1fr);
+    gap: 0;
+    height: calc(100dvh - 13rem);
+    min-height: 32rem;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    overflow: hidden;
+  }
+  .liste-ecoles[data-vue-actuelle='carte'] .liste-resultats {
+    display: grid;
+    overflow-y: auto;
+    padding: var(--espace-3);
+    border-right: 1px solid var(--trait);
+  }
+  .liste-ecoles[data-vue-actuelle='carte'] .cartes-liste {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Dans la colonne de 440 px, la carte d'école reste en ligne. */
+  .liste-ecoles[data-vue-actuelle='carte'] .carte-ecole-ligne {
+    flex-direction: row;
+    align-items: center;
+  }
+  .liste-ecoles[data-vue-actuelle='carte'] .carte-ecole-ligne .vignette-ecole {
+    width: 76px;
+    height: 76px;
+  }
+  .liste-ecoles[data-vue-actuelle='carte'] .zone-carte {
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    border-radius: 0;
+  }
+  .liste-ecoles[data-vue-actuelle='carte'] .liste-retour {
+    display: none;
+  }
+}

@@ -1,392 +1,269 @@
 ---
-// « Écoles » : la seule liste du site (décision du fondateur du 08/11/2026, ticket 146). On y cherche par nom, quartier,
-// repère ou filière, par niveau, par lieu et par type, et « autour de moi » ; la bascule mène à la carte.
-// Rechercher, Autour de moi et les pages de formations n'existent plus que comme renvois vers cette page.
+// « Les écoles » : une page, deux vues (lot 4 bis ; planches « Les écoles » de la version 46, feu vert du fondateur le
+// 16/11/2026). Liste par défaut ; « Carte » ajoute `?vue=carte`. Recherche, filtres, tri et adresse sont les mêmes dans les deux
+// vues : le lien partagé rouvre exactement ce qu'on voyait. `/carte/`, `/recherche/` et `/formations/` renvoient ici (301).
 //
-// C'est la page publique qui filtre dans le navigateur : un petit script lit `/recherche.json` (construit avec le site). La
-// position n'est demandée qu'à l'appui du bouton « Autour de moi », sert à classer des écoles déjà chargées et n'est envoyée à
-// personne. Sans JavaScript, la page garde ses villes : la recherche n'est jamais le seul chemin.
+// La page construite montre déjà les 20 premières écoles (les vues sur place d'abord, les plus récentes en tête) et les filtres
+// sans choix, avec leurs compteurs : la première école paraît au premier écran du téléphone, sans JavaScript. Le script de la
+// page (`app/carte/liste-ecoles.ts`) lit `/recherche.json` au premier geste ; MapLibre ne vient qu'au toucher de « Carte ».
+// La position n'est demandée qu'à l'appui d'« Autour de moi » ou de « Près de moi », et n'est envoyée à personne.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../../infra/index';
+import { donneesDeLaCarte } from '../../modele/carte/instantane';
+import { htmlCarteEcole } from '../../modele/carte-ecole';
+import { htmlFiltres } from '../../modele/filtres-html';
 import { villesDeLAccueil } from '../../modele/accueil';
-import { compterEcoles, ecolesSous, type PageDivision } from '../../modele/geo-divisions';
-import { libelleTypeEcole, typeInformatif } from '../../modele/libelles';
-import { listes } from '../../modele/listes';
-import { filtresAvances } from '../../modele/recherche';
+import { compterEcoles } from '../../modele/geo-divisions';
+import {
+  compterLesEcoles,
+  etatVide,
+  filtrer,
+  groupesAffiches,
+  LIBELLES_DES_CYCLES,
+} from '../../modele/liste-ecoles';
 import { avecMessage, lienWhatsApp } from '../../modele/whatsapp';
-import BasculeVue from '../../ui/BasculeVue.astro';
 import Icone from '../../ui/Icone.astro';
-import '../../ui/carte-pieces.css';
+import Marque from '../../ui/Marque.astro';
 import PagePublique from '../../ui/PagePublique.astro';
+import '../../ui/carte-pieces.css';
+import '../../ui/carte-ecole.css';
+import '../../ui/liste-ecoles.css';
+import { PAR_PAGE } from '../../app/carte/liste-ecoles';
 
-const { facettes, arbre, ecoles } = await obtenirSite();
+const site = await obtenirSite();
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
 const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
-const valeursDe = (facette: string) => facettes.filter((f) => f.facette === facette);
-// La lettre du cycle (celle de l'épingle), le mot de la puce, les mots complets en infobulle : les mêmes puces que la carte.
-const cycles = [
-  ['M', 'Maternelle', 'Crèche et maternelle'],
-  ['P', 'Primaire', 'Primaire'],
-  ['C', 'Collège', 'Collège'],
-  ['L', 'Lycée', 'Lycée'],
-  ['T', 'Technique', 'Technique et professionnel'],
-  ['S', 'Supérieur', 'Supérieur et formation'],
-] as const;
-// Les filtres de formation : seulement ceux qui ont au moins une valeur dans les données construites, dans un volet replié.
-const avances = filtresAvances(facettes);
-// Les types présents parmi les écoles publiées, dans l'ordre de la liste fermée : jamais un choix qui ne donne rien.
-const types = listes.type_ecole.filter(
-  (t) => typeInformatif(t) && ecoles.some((e) => e.typeEcole === t),
-);
-// Les lieux où chercher : tous ceux qui ont des écoles, du pays au quartier (la page d'un lieu y renvoie avec `?zone=`).
-const zones: PageDivision[] = [];
-const parcourir = (p: PageDivision) => {
-  if (ecolesSous(p).length > 0) zones.push(p);
-  p.enfants.forEach(parcourir);
-};
-arbre.racines.forEach(parcourir);
-// « Ville par ville » : les villes de l'accueil, celles qui ont des fiches, par ordre alphabétique. Aucun lien vers un lieu
-// sans fiche (fondateur, 16/11/2026).
-const villes = villesDeLAccueil(arbre);
-// Le rayon d'« Autour de moi » se choisit avant ou après l'appui ; 3 km par défaut.
-const rayons = [
-  [1000, '1 km'],
-  [3000, '3 km'],
-  [10000, '10 km'],
-  [30000, '30 km'],
-] as const;
+const lignes = site.recherche;
+const domaines = new Map(site.domaines.map((d) => [d.slug, d.nom]));
+const etat = etatVide();
+const trouvees = filtrer(lignes, etat);
+const groupes = groupesAffiches(lignes, etat, null, domaines);
+const premieres = trouvees.slice(0, PAR_PAGE);
+const confirmees = trouvees.filter((t) => t.ligne.v).length;
+const villes = groupes.find((g) => g.groupe === 'ville')?.options ?? [];
+const niveaux = groupes.find((g) => g.groupe === 'niveau')?.options ?? [];
+const boite = donneesDeLaCarte(site).cadre.boite;
+// Sans JavaScript, « Afficher plus » ne peut rien : les pages des villes gardent toutes leurs écoles.
+const villesDuPied = villesDeLAccueil(site.arbre);
 ---
 
 <PagePublique
   titre="Les écoles du Congo-Brazzaville · NTanova"
-  description="Les écoles du Congo-Brazzaville, de la crèche au supérieur : par nom, quartier, repère, niveau, formation ou type, près de vous, ou ville par ville."
+  description="Les écoles du Congo-Brazzaville, de la crèche au supérieur : par nom, quartier, repère, niveau, formation ou type, près de vous, en liste ou sur la carte."
   whatsapp={whatsapp}
 >
-  <section class="cadre page recherche" data-recherche data-manque={manque ?? undefined}>
-    <div class="titre-page">
-      <h1>Les écoles</h1>
-      <p class="texte-doux">
-        De la crèche au supérieur, publiques et privées. Chaque fiche dit ce qui a été vu, et quand.
+  <section
+    class="cadre liste-ecoles"
+    data-liste
+    data-vue-actuelle="liste"
+    data-domaines={JSON.stringify([...domaines])}
+  >
+    <div class="liste-tete">
+      <h1 data-titre>Les écoles</h1>
+      <p class="texte-doux" data-sous-titre>
+        {compterLesEcoles(trouvees.length)}
+        {confirmees > 0 &&
+          ` · ${confirmees} confirmée${confirmees > 1 ? 's' : ''} par leur direction`}
       </p>
     </div>
 
-    <form
-      class="criteres"
-      role="search"
-      aria-label="Chercher une école"
-      autocomplete="off"
-      action="/ecoles/"
-    >
-      <label class="champ-recherche">
-        <span class="visuellement-cache">Nom, quartier, repère ou filière</span>
+    <div class="liste-outils">
+      <form class="liste-recherche" data-recherche action="/ecoles/" method="get" role="search">
+        <label class="visuellement-cache" for="liste-q">
+          Chercher une école
+        </label>
         <Icone nom="loupe" petite={false} />
         <input
+          id="liste-q"
           class="champ"
           type="search"
           name="q"
-          placeholder="Nom, quartier, repère ou filière"
+          autocomplete="off"
+          placeholder="Nom, sigle, quartier ou repère"
         />
-      </label>
-      <div class="groupe-puces groupe-puces-defile" data-niveaux role="group" aria-label="Niveau">
-        <button type="button" class="pastille-choix" data-cycle="" aria-pressed="true">
-          Tous
+        <button class="bouton seulement-large" type="submit">
+          Chercher
         </button>
-        {cycles.map(([lettre, mot, complet]) => (
-          <button
-            type="button"
-            class="pastille-choix avec-disque"
-            data-cycle={lettre}
-            aria-pressed="false"
-            title={complet}
-          >
-            <span class={`disque c-${lettre}`} aria-hidden="true">
-              {lettre}
-            </span>
-            {mot}
-          </button>
-        ))}
+      </form>
+      <label class="liste-tri">
+        <span class="visuellement-cache">Trier</span>
+        <select class="champ" data-tri>
+          <option value="recentes">Récemment vues</option>
+          <option value="proches">Près de moi</option>
+          <option value="nom">Par nom</option>
+        </select>
+      </label>
+      <div class="liste-vues" role="group" aria-label="Vue">
+        <a class="liste-vue" href="/ecoles/" data-vue="liste" aria-pressed="true">
+          <Icone nom="liste" />
+          Liste
+        </a>
+        <a class="liste-vue" href="/ecoles/?vue=carte" data-vue="carte" aria-pressed="false">
+          <Icone nom="plan" />
+          Carte
+        </a>
       </div>
-      <div class="rangee-filtres">
-        <label class="filtre">
-          <span class="visuellement-cache">Lieu</span>
-          <select class="champ" name="zone">
-            <option value="">Lieu : partout</option>
-            {zones.map((p) => (
-              <option value={p.adresse.join('/')}>
-                {p.division.niveau === 0 ? 'Congo-Brazzaville' : p.noms.slice(1).join(' › ')}
-              </option>
-            ))}
-          </select>
-        </label>
-        {types.length > 1 && (
-          <label class="filtre">
-            <span class="visuellement-cache">Type d'école</span>
-            <select class="champ" name="type">
-              <option value="">Type : tous</option>
-              {types.map((t) => (
-                <option value={t}>{libelleTypeEcole[t]}</option>
-              ))}
-            </select>
-          </label>
-        )}
-        <button type="button" class="pastille-choix autour-de-moi" data-position>
+    </div>
+
+    <div class="liste-barre">
+      <button type="button" class="pastille-choix bouton-filtres" data-ouvrir-filtres>
+        <Icone nom="reglages" />
+        Filtres
+        <span class="filtres-nombre" data-nombre-filtres hidden>
+          0
+        </span>
+      </button>
+      <div class="liste-puces" data-puces>
+        <button type="button" class="pastille-choix" data-rayon="3000" aria-pressed="false">
           <Icone nom="cible" />
           Autour de moi
         </button>
-        <BasculeVue liste="/ecoles/" carte="/carte/" actuelle="liste" />
+        {villes.map((o) => (
+          <button
+            type="button"
+            class="pastille-choix"
+            data-groupe="ville"
+            data-valeur={o.valeur}
+            aria-pressed="false"
+          >
+            {o.libelle} <span class="filtre-nombre">({o.nombre})</span>
+          </button>
+        ))}
+        {niveaux.map((o) => (
+          <button
+            type="button"
+            class="pastille-choix avec-disque"
+            data-groupe="niveau"
+            data-valeur={o.valeur}
+            aria-pressed="false"
+          >
+            <span class={`disque disque-s c-${o.valeur}`} aria-hidden="true">
+              {o.valeur}
+            </span>
+            {LIBELLES_DES_CYCLES[o.valeur]}
+          </button>
+        ))}
       </div>
-      <div class="rayons" data-rayons-bande hidden>
-        <span class="titre-champ" id="titre-rayon">
-          Jusqu’à
-        </span>
-        <div class="groupe-puces" data-rayons role="group" aria-labelledby="titre-rayon">
-          {rayons.map(([metres, mot]) => (
+    </div>
+
+    <div class="liste-corps">
+      <aside class="liste-filtres" data-filtres aria-labelledby="titre-filtres">
+        <div class="filtres-fond" data-fond-filtres></div>
+        <div class="filtres-feuille" role="dialog" aria-labelledby="titre-filtres">
+          <div class="filtres-tete">
+            <h2 id="titre-filtres">Filtres</h2>
+            <button type="button" class="lien-fort filtres-effacer-haut" data-effacer>
+              Effacer tout
+            </button>
             <button
               type="button"
-              class="pastille-choix"
-              data-rayon={metres}
-              aria-pressed={metres === 3000 ? 'true' : 'false'}
+              class="bouton-rond filtres-fermer"
+              data-fermer-filtres
+              aria-label="Fermer les filtres"
             >
-              {mot}
+              ×
             </button>
-          ))}
-        </div>
-      </div>
-      <p class="texte-doux message" role="status" data-message></p>
-      {avances.length > 0 && (
-        <details class="plus-de-filtres">
-          <summary>Plus de filtres</summary>
-          <div class="filtres-avances">
-            {avances.map(({ facette, titre, tous }) => (
-              <label class="champ-groupe">
-                {titre}
-                <select class="champ" name={facette}>
-                  <option value="">{tous}</option>
-                  {valeursDe(facette).map((v) => (
-                    <option value={v.valeur}>{v.libelle}</option>
-                  ))}
-                </select>
-              </label>
-            ))}
           </div>
-        </details>
-      )}
-    </form>
+          <div
+            class="filtres-corps"
+            data-filtres-corps
+            set:html={htmlFiltres(groupes, etat, null)}
+          />
+          <div class="filtres-pied">
+            <button type="button" class="bouton bouton-secondaire" data-effacer>
+              Effacer tout
+            </button>
+            <button type="button" class="bouton" data-voir>
+              Voir {compterLesEcoles(trouvees.length)}
+            </button>
+          </div>
+        </div>
+      </aside>
 
-    <section data-resultats aria-live="polite" class="resultats">
-      <noscript>
-        <p class="carte">
-          La recherche a besoin de JavaScript. Sans lui, choisissez votre ville ci-dessous.
-        </p>
-      </noscript>
-      <p class="compte" data-compte></p>
-      <ul class="liste-lignes"></ul>
-      <div data-vide></div>
-    </section>
-
-    {villes.length > 0 && (
-      <section class="par-lieu" id="par-ville" aria-labelledby="titre-par-ville">
-        <h2 id="titre-par-ville">Ville par ville</h2>
-        <ul class="zones">
-          {villes.map((v) => (
-            <li>
-              <a class="zone" href={v.lien}>
-                <span class="zone-nom">{v.nom}</span>
-                <span class="zone-detail">{compterEcoles(v.total)}</span>
-              </a>
-            </li>
+      <div class="liste-resultats">
+        <div class="resultats-tete">
+          <p class="texte-doux liste-message" role="status" data-message></p>
+        </div>
+        <ul class="cartes-liste" data-cartes aria-live="polite">
+          {premieres.map((t, i) => (
+            <li set:html={htmlCarteEcole(t.ligne, { forme: 'ligne', prioritaire: i < 2 })} />
           ))}
         </ul>
-      </section>
-    )}
-    {/* « Une école manque ? » est dans le pied de toutes les pages (lot 3, version 44) : le bloc d'ici le répétait. L'état vide
-        d'une recherche garde sa propre porte (`data-manque`). */}
+        <div class="liste-vide" data-vide hidden>
+          <h2>Aucune école ne répond à tous ces choix</h2>
+          <p>Retirez un choix&nbsp;:</p>
+          <ul class="liste-sorties" data-sorties></ul>
+          {manque && (
+            <p>
+              Une école manque&nbsp;? <a href={manque}>Dites-le-nous sur WhatsApp</a>
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          class="bouton bouton-secondaire liste-plus"
+          data-plus
+          hidden={trouvees.length <= PAR_PAGE}
+        >
+          Afficher {Math.min(trouvees.length - PAR_PAGE, PAR_PAGE)} de plus
+        </button>
+        <p class="texte-doux liste-affiche" data-affiche>
+          {premieres.length} sur {trouvees.length} écoles affichées
+        </p>
+        <noscript>
+          <p class="liste-sans-js">
+            Toutes les écoles, ville par ville&nbsp;:
+            {villesDuPied.map((v, i) => (
+              <>
+                {i > 0 && ' · '}
+                <a href={v.lien}>
+                  {v.nom} ({compterEcoles(v.total)})
+                </a>
+              </>
+            ))}
+          </p>
+        </noscript>
+      </div>
+
+      <div
+        class="zone-carte"
+        data-zone-carte
+        data-boite={JSON.stringify(boite)}
+        data-etat="attente"
+      >
+        <div class="zone-carte-toile" data-toile role="region" aria-label="Carte des écoles"></div>
+        <div class="zone-carte-attente" aria-hidden="true">
+          <Marque />
+          <p class="zone-carte-lente">
+            La connexion est lente&nbsp;: la liste reste là, aux mêmes filtres.
+          </p>
+        </div>
+        <p class="zone-carte-aucune">Aucune de ces écoles n’a de position sur la carte.</p>
+        <p class="zone-carte-note zone-carte-fond">
+          Le fond de carte ne se charge pas&nbsp;: les zones et les écoles restent là.
+        </p>
+        <div class="zone-carte-note zone-carte-sans">
+          <p>Ce téléphone ne peut pas afficher la carte. La liste, elle, reste là.</p>
+          <a class="bouton" href="/ecoles/" data-vue="liste">
+            Voir la liste
+          </a>
+        </div>
+        <button type="button" class="bouton-chercher" data-chercher-zone hidden>
+          <Icone nom="cible" />
+          Chercher dans cette zone
+        </button>
+        <a class="bouton liste-retour" href="/ecoles/" data-vue="liste">
+          <Icone nom="liste" />
+          Liste
+        </a>
+        <div class="apercu-bas" data-apercu hidden></div>
+      </div>
+    </div>
   </section>
 </PagePublique>
 
 <script>
-  import { demarrerRecherche } from '../../ui/recherche-client';
-  const racine = document.querySelector<HTMLElement>('[data-recherche]');
-  if (racine) demarrerRecherche(racine);
+  import { demarrerListe } from '../../app/carte/liste-ecoles';
+  const racine = document.querySelector<HTMLElement>('[data-liste]');
+  if (racine) demarrerListe(racine);
 </script>
-
-<style is:global>
-  .recherche {
-    display: grid;
-    gap: var(--espace-4);
-  }
-  .recherche .titre-page {
-    display: grid;
-    gap: var(--espace-1);
-  }
-  .recherche h1 {
-    margin: 0;
-    color: var(--marque-appuyee);
-    font-family: var(--police-titre);
-    font-size: var(--taille-titre-page);
-    line-height: var(--interligne-titre);
-  }
-  .recherche h2 {
-    margin: 0;
-    font-family: var(--police-titre);
-    font-size: var(--taille-intertitre);
-  }
-  .recherche p {
-    margin: 0;
-  }
-  .recherche .criteres {
-    display: grid;
-    gap: var(--espace-3);
-  }
-  /* Une rangée de puces qui défile ne doit pas élargir la page : ses parents se rétrécissent jusqu'à la largeur de l'écran. */
-  .recherche .criteres > * {
-    min-width: 0;
-  }
-  .recherche .champ-recherche {
-    position: relative;
-    display: block;
-  }
-  .recherche .champ-recherche .ico {
-    position: absolute;
-    top: 50%;
-    left: var(--espace-4);
-    color: var(--texte-doux);
-    transform: translateY(-50%);
-    pointer-events: none;
-  }
-  .recherche .champ-recherche .champ {
-    width: 100%;
-    padding-left: calc(var(--espace-4) + 32px);
-    border-radius: var(--rayon-pilule);
-  }
-  .recherche .rangee-filtres {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--ecart-cibles);
-  }
-  .recherche .filtre .champ {
-    min-height: var(--cible-min);
-    border-radius: var(--rayon-pilule);
-    font-size: var(--taille-secondaire);
-    font-weight: 700;
-  }
-  .recherche .autour-de-moi .ico {
-    width: 18px;
-    height: 18px;
-    color: var(--marque);
-  }
-  .recherche .rayons {
-    display: grid;
-    gap: var(--espace-2);
-  }
-  .recherche .rayons[hidden] {
-    display: none;
-  }
-  .recherche .message:empty {
-    display: none;
-  }
-  .recherche .titre-champ {
-    font-family: var(--police-interface);
-    font-size: var(--taille-secondaire);
-    font-weight: 700;
-  }
-  .recherche .compte {
-    font-family: var(--police-interface);
-    font-size: var(--taille-intertitre);
-    font-weight: 700;
-  }
-  .recherche .compte:empty {
-    display: none;
-  }
-  .recherche .resultats {
-    display: grid;
-    gap: var(--espace-3);
-  }
-  /* « Plus de filtres » : replié, avec le « + » qui dit qu'on peut l'ouvrir et le « − » qui dit qu'on peut le refermer. */
-  .recherche .plus-de-filtres summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--espace-3);
-    min-height: var(--cible-min);
-    list-style: none;
-    color: var(--marque);
-    font-family: var(--police-interface);
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .recherche .plus-de-filtres summary::-webkit-details-marker {
-    display: none;
-  }
-  .recherche .plus-de-filtres summary::after {
-    content: '+';
-    font-size: var(--taille-titre-fiche);
-    line-height: 1;
-  }
-  .recherche .plus-de-filtres[open] summary::after {
-    content: '−';
-  }
-  .recherche .filtres-avances {
-    display: grid;
-    gap: var(--espace-3);
-    padding-top: var(--espace-3);
-  }
-  .recherche .par-lieu {
-    display: grid;
-    gap: var(--espace-3);
-    padding-top: var(--espace-4);
-    border-top: 1px solid var(--trait);
-  }
-  .recherche .zones {
-    display: grid;
-    gap: var(--espace-2);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .recherche .zone {
-    display: grid;
-    gap: var(--espace-1);
-    min-height: var(--cible-principale);
-    padding: var(--espace-3) var(--espace-4);
-    border: 2px solid var(--trait);
-    border-radius: var(--rayon-m);
-    background: var(--fond-releve);
-    color: var(--texte);
-    text-decoration: none;
-  }
-  .recherche .zone:hover {
-    border-color: var(--marque);
-  }
-  .recherche .zone-nom {
-    font-family: var(--police-titre);
-    font-weight: 700;
-  }
-  .recherche .zone-detail {
-    color: var(--texte-doux);
-    font-size: var(--taille-secondaire);
-  }
-  @media (min-width: 48rem) {
-    .recherche {
-      gap: var(--espace-5);
-      padding-block: var(--espace-7);
-    }
-    .recherche h1 {
-      font-size: var(--taille-titre-public);
-    }
-    .recherche .groupe-puces-defile {
-      flex-wrap: wrap;
-    }
-    .recherche .bascule {
-      margin-left: auto;
-    }
-    .recherche .filtres-avances {
-      grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-    }
-    .recherche .zones {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
-      gap: var(--espace-3);
-    }
-  }
-</style>

@@ -39,11 +39,9 @@ test.describe('l’accueil', () => {
       );
     await niveaux.getByRole('link', { name: 'Lycée', exact: true }).click();
     await expect(page).toHaveURL(/\/ecoles\/\?niveau=L$/);
-    await expect(page.locator('[data-niveaux] [data-cycle="L"]')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    await expect(page.locator('ul.liste-lignes')).toContainText('[Groupe scolaire Exemple]');
+    // Lot 4 bis : le choix fait se lit dans la barre de « Les écoles », comme une puce qu'on retire.
+    await expect(page.locator('[data-puces] .puce-choisie[data-valeur="L"]')).toBeVisible();
+    await expect(page.locator('[data-cartes]')).toContainText('[Groupe scolaire Exemple]');
   });
 
   test('« Après le BEPC ou le bac » : « S’orienter », et le nombre d’établissements du supérieur', async ({
@@ -66,12 +64,10 @@ test.describe('l’accueil', () => {
   }) => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Autour de moi' }).click();
-    await expect(page).toHaveURL(/\/ecoles\/\?autour=3$/);
-    await expect(page.locator('[data-rayons-bande]')).toBeVisible();
-    await expect(page.locator('[data-rayons] [data-rayon="3000"]')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    // Lot 4 bis : l'adresse devient `?rayon=3000` ; la position attend toujours l'appui sur « Autour de moi ».
+    await expect(page).toHaveURL(/\/ecoles\/\?rayon=3000$/);
+    await expect(page.locator('[data-message]')).toContainText('Touchez « Autour de moi »');
+    await expect(page.locator('[data-puces] .puce-choisie[data-rayon="3000"]')).toBeVisible();
   });
 
   test('« Vues sur place récemment » : quatre cartes, chacune un seul lien vers sa fiche, avec sa preuve datée', async ({
@@ -185,20 +181,18 @@ test.describe('« S’orienter », avant les questions du lot 5', () => {
     await page.goto('/orienter/');
     await page.getByRole('link', { name: /^Au lycée, ou j’ai le bac/ }).click();
     await expect(page).toHaveURL(/\/ecoles\/\?niveau=S$/);
-    await expect(page.locator('[data-niveaux] [data-cycle="S"]')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    await expect(page.locator('[data-compte]')).toHaveText(/^2 écoles/);
+    await expect(page.locator('[data-puces] .puce-choisie[data-valeur="S"]')).toBeVisible();
+    await expect(page.locator('[data-sous-titre]')).toHaveText(/^2 écoles/);
   });
 
-  test('« Je travaille » : la liste des cours du soir, le volet des filtres ouvert sur ce qui la réduit', async ({
+  test('« Je travaille » : la liste des cours du soir, le choix lisible dans la barre', async ({
     page,
   }) => {
     await page.goto('/orienter/');
     await page.getByRole('link', { name: /^Je travaille/ }).click();
     await expect(page).toHaveURL(/\/ecoles\/\?rythme=soir$/);
-    await expect(page.locator('details.plus-de-filtres')).toHaveAttribute('open', '');
-    await expect(page.locator('[data-compte]')).toHaveText(/^[1-9]\d* écoles?/);
+    // Lot 4 bis : le rythme choisi se lit dans la barre ; la feuille « Filtres » montre le groupe ouvert.
+    await expect(page.locator('[data-puces] .puce-choisie[data-valeur="soir"]')).toBeVisible();
+    await expect(page.locator('[data-sous-titre]')).toHaveText(/^[1-9]\d* écoles?/);
   });
 });

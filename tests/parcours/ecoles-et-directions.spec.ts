@@ -92,9 +92,10 @@ test('page introuvable : un accès direct aux écoles et à la carte, et le What
     'href',
     '/ecoles/',
   );
+  // Lot 4 bis : la carte est la vue Carte de « Les écoles ».
   await expect(principal.getByRole('link', { name: 'Voir la carte' })).toHaveAttribute(
     'href',
-    '/carte/',
+    '/ecoles/?vue=carte',
   );
   await expect(principal.getByRole('link', { name: /Revenir à l.accueil/ })).toBeVisible();
   await expect(
@@ -110,8 +111,8 @@ test('le pied de page : trois groupes de liens, et la phrase « NTanova · Congo
   // Ticket 146 : Rechercher et Autour de moi sont des filtres de la page « Écoles ». Lot 3 (version 44) : les villes qui ont
   // des fiches, dans l'ordre de l'accueil.
   await expect(pied.getByRole('list', { name: 'Trouver une école' }).getByRole('link')).toHaveText([
+    // Lot 4 bis (version 46) : plus de lien « Carte », la carte est une vue de « Les écoles ».
     'Les écoles',
-    'Carte',
     'Brazzaville',
     'Dolisie',
     'Pointe-Noire',
