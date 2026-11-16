@@ -155,8 +155,9 @@ const cycles = [
           <div class="listes-repli">
             <h2>Les zones</h2>
             <ul>
+              {/* Aucun lien vers un lieu sans fiche (16/11/2026) : sa page reste en `noindex`, rien ne la propose. */}
               {zones.features
-                .filter((z) => z.properties.genre === 'zone')
+                .filter((z) => z.properties.genre === 'zone' && z.properties.ecoles > 0)
                 .map((z) => (
                   <li>
                     <a href={z.properties.lien}>{z.properties.nom}</a>
@@ -175,7 +176,7 @@ const cycles = [
           <p class="carte-liens">
             <a href="/ecoles/">Toutes les écoles</a> ·{' '}
             <a href="/methode/">Comment les fiches sont tenues</a> ·{' '}
-            <a href="/pour-les-ecoles/">Pour les écoles</a>
+            <a href="/pour-les-ecoles/">Espace écoles</a>
           </p>
           <p class="confidentialite-position" hidden>
             NTanova ne conserve pas votre position. Elle sert à vous situer sur la carte. Le fond de

@@ -163,7 +163,7 @@ const pagesPubliques = [
   ['fiche d’une école', '/ecoles/complexe-scolaire-exemple-482913/'],
   ['une ville et ses arrondissements', '/ecoles/pointe-noire/'],
   ['la page « Écoles » (recherche et autour de moi)', '/ecoles/'],
-  ['« Pour les écoles »', '/pour-les-ecoles/'],
+  ['« Espace écoles »', '/pour-les-ecoles/'],
   ['« À propos »', '/a-propos/'],
   ['« Méthode »', '/methode/'],
   ['« Données »', '/donnees/'],
@@ -424,7 +424,7 @@ test.describe('site public', () => {
     }
   });
 
-  test('« Pour les écoles » : les gains viennent avant l’action ; à partir de 1 024 px, ce qu’on demande est à côté', async ({
+  test('« Espace écoles » : les gains viennent avant l’action ; à partir de 1 024 px, ce qu’on demande est à côté', async ({
     page,
   }) => {
     await page.goto('/pour-les-ecoles/');

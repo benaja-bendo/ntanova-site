@@ -85,6 +85,7 @@ supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parco
 - Un ton factuel : ni « gratuit », ni audience inventée, aucune phrase qui se fait passer pour un parent. Des nombres, jamais un objectif ni un seuil de mesure.
 - Aucune donnée personnelle dans le dépôt. Le numéro WhatsApp vient de `PUBLIC_WHATSAPP`, jamais écrit dans le code (un parcours ne l'attend jamais en dur).
 - L'administration ne promet ni nuit ni heure de mise en ligne : « à la prochaine mise à jour du site ».
+- Aucun lien public vers un lieu sans fiche publiée (`lieuxAvecEcoles`, 16/11) ; sa page existe, en `noindex` (08/11). Le lien vers `/pour-les-ecoles/` s'appelle « Espace écoles », comme le pilier (l'adresse change au lot 6, l'ancienne renverra en 301).
 
 ## Budgets des pages
 
@@ -111,6 +112,7 @@ Le quota s'est épuisé le 05/11 et a bloqué une mise en production : chaque mi
 
 - Une tâche = un ticket du projet GitHub n° 29 : état des lieux, go du fondateur (rien n'est codé avant), PR « Fixes #N », tests d'abord, compte rendu (fait, vérifié, pas vérifié). Un bug corrigé arrive avec un test qui échoue sans le correctif.
 - **Un regard critique à chaque étape** : croiser maquette, ticket et code avec le contexte et dire ce qui ne colle pas ; ne jamais recopier une maquette telle quelle.
+- **Un test protège une décision, pas un ancien écran** (fondateur, 16/11/2026) : quand une planche de la version 44 contredit un test ou une ancienne route, la planche gagne ; réécrire le test et le dire dans le compte rendu. La charte (cibles de 44 px, logo, poids des pages) reste au-dessus des planches.
 - **Git** : jamais de code poussé directement sur `main` ; une branche courte par tâche, une PR, une fusion en un seul commit, la branche supprimée ; un seul clone. Commits en français, préfixe court (`site:`, `relais:`, `admin:`, `base:`, `ui:`, `outils:`, `docs:`).
 - **Phase d'essai jusqu'au 30/11/2026** : Claude peut pousser, fusionner une PR, lancer une mise en ligne, en prévenant le fondateur. **À partir du 01/12/2026, redemander avant chaque fusion, chaque mise en ligne et chaque `supabase db push`.**
 

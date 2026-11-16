@@ -12,8 +12,10 @@ import {
   ecolesSous,
   lienDivision,
   lieuAvecPreposition,
+  lieuxAvecEcoles,
   nomAffiche,
   NOM_NIVEAU,
+  parentAvecEcoles,
   phraseDeCompte,
   type PageDivision,
 } from '../modele/geo-divisions';
@@ -35,15 +37,15 @@ const nom = page.division.nom;
 const niveau = page.division.niveau;
 const genre = NOM_NIVEAU[niveau] ?? 'zone';
 const ordinal = page.division.ordinal;
-const parent = page.parent;
+// Aucun lien vers un lieu sans fiche (16/11/2026) : ni dans la liste des lieux, ni au retour d'une page vide.
+const parent = parentAvecEcoles(page);
+const enfants = lieuxAvecEcoles(page.enfants);
 const lieu = lieuAvecPreposition(nom, niveau);
-const detailDeZone = (enfant: PageDivision) => {
-  const n = ecolesSous(enfant).length;
-  return [
+const detailDeZone = (enfant: PageDivision) =>
+  [
     enfant.division.ordinal ? `Arrondissement ${enfant.division.ordinal}` : null,
-    n > 0 ? compterEcoles(n) : 'pas encore d’école publiée',
+    compterEcoles(ecolesSous(enfant).length),
   ].filter((x): x is string => x !== null);
-};
 const adresseTexte = page.adresse.join('/');
 const carte = lienCarteDuLieu({
   contour: page.division.contour,
@@ -77,10 +79,10 @@ const carte = lienCarteDuLieu({
 
   {sous.length > 0 && <p class="compte">{phraseDeCompte(sous.length, vues, verifiees)}</p>}
 
-  {page.enfants.length > 0 && (
+  {enfants.length > 0 && (
     <section aria-label={`Les lieux de ${nom}`}>
       <ul class="zones">
-        {page.enfants.map((enfant) => (
+        {enfants.map((enfant) => (
           <li>
             <a class="zone" href={lienDivision(enfant.chemin)}>
               <span class="zone-nom">{enfant.division.nom}</span>
@@ -94,7 +96,7 @@ const carte = lienCarteDuLieu({
 
   {page.ecoles.length > 0 && (
     <section aria-label={`Les écoles de ${nom}`} class="ecoles-ici">
-      {page.enfants.length > 0 && <h2>Les écoles de {nom}</h2>}
+      {enfants.length > 0 && <h2>Les écoles de {nom}</h2>}
       <ListeEcoles ecoles={page.ecoles} />
     </section>
   )}

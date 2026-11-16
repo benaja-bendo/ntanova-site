@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test('« Pour les écoles » : un seul bouton plein, qui écrit sur WhatsApp, et les gains avant lui', async ({
+test('« Espace écoles » (/pour-les-ecoles/) : un seul bouton plein, qui écrit sur WhatsApp, et les gains avant lui', async ({
   page,
 }) => {
   await page.goto('/pour-les-ecoles/');
@@ -27,7 +27,7 @@ test('« Pour les écoles » : un seul bouton plein, qui écrit sur WhatsApp, et
   await expect(page.locator('main')).not.toContainText(/référenc/i);
 });
 
-test('« Pour les écoles » : le message WhatsApp principal dit confirmer ou ajouter', async ({
+test('« Espace écoles » : le message WhatsApp principal dit confirmer ou ajouter', async ({
   page,
 }) => {
   await page.goto('/pour-les-ecoles/');
@@ -117,7 +117,7 @@ test('le pied de page : trois groupes de liens, et la phrase « NTanova · Congo
     'Pointe-Noire',
   ]);
   await expect(pied.getByRole('list', { name: 'NTanova' }).getByRole('link')).toHaveText([
-    'Pour les écoles',
+    'Espace écoles',
     'À propos',
     'Écrire à NTanova sur WhatsApp',
   ]);

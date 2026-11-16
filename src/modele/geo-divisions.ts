@@ -96,6 +96,21 @@ export function ecolesSous(page: PageDivision): EcolePubliee[] {
   return [...page.ecoles, ...page.enfants.flatMap(ecolesSous)];
 }
 
+/**
+ * Les lieux qui ont au moins une école publiée, eux ou dessous. Aucun lien public ne mène à un lieu sans fiche (fondateur,
+ * 16/11/2026) : sa page existe, en `noindex` (08/11), mais rien ne la propose.
+ */
+export function lieuxAvecEcoles(pages: readonly PageDivision[]): PageDivision[] {
+  return pages.filter((p) => ecolesSous(p).length > 0);
+}
+
+/** Le premier lieu au-dessus qui a une école publiée : le retour d'une page vide ne mène pas à une autre page vide. */
+export function parentAvecEcoles(page: PageDivision): PageDivision | null {
+  let p = page.parent;
+  while (p && ecolesSous(p).length === 0) p = p.parent;
+  return p;
+}
+
 const collateur = new Intl.Collator('fr', { sensitivity: 'base' });
 
 /**
