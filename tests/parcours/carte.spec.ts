@@ -87,7 +87,8 @@ test('une école située par l’administration, sans relevé, est dans la liste
   await page.goto('/ecoles/ecole-ajoutee-exemple-639158/');
   await expect(page.getByText('Ajoutée par NTanova · 3 nov. 2026')).toBeVisible();
   await expect(page.locator('.preuves')).toContainText('Ajoutée par NTanova');
-  await expect(page.getByText(/Vue sur place ·/)).toHaveCount(0);
+  // Sa tête n'en dit pas plus ; « Écoles proches », plus bas, montre les preuves des autres (lot 4).
+  await expect(page.locator('.fiche-tete').getByText(/Vue sur place ·/)).toHaveCount(0);
   // Pas vue sur place : la carte s'ouvre sur son quartier, sans épingle, et le lien le dit.
   await expect(page.getByRole('link', { name: 'Voir le quartier sur la carte' })).toHaveAttribute(
     'href',

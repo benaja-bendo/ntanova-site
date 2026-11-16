@@ -36,16 +36,8 @@ import ProprietesEcole from './ProprietesEcole.astro';
 import EquipementsEcole from './EquipementsEcole.astro';
 import FormationsEcole from './FormationsEcole.astro';
 import Icone from './Icone.astro';
-import Carte from './Carte.astro';
-import {
-  arrondissementDeLaPosition,
-  arrondissementsDessines,
-  cadreEcole,
-  marqueDe,
-  planer,
-  ruesDe,
-  situees,
-} from '../modele/carte/plan';
+import CarteEcole from './CarteEcole.astro';
+import { couvertureDeLaFiche } from '../modele/fiche-mince';
 import InscriptionsEcole from './InscriptionsEcole.astro';
 import LigneAgrement from './LigneAgrement.astro';
 import MotDirectionEcole from './MotDirectionEcole.astro';
@@ -62,7 +54,6 @@ import {
   cheminMedia,
   dossiersOuverts,
   estDuSuperieur,
-  ficheCourte,
   ligneDIdentite,
   lignesDeFraisDeLEcole,
   nouvellesAMontrer,
@@ -80,8 +71,29 @@ interface Props {
   erreur: string | null;
   /** « Je dirige cette école et je souhaite confirmer sa fiche » : le lien WhatsApp avec son nom et son adresse, s'il est configuré. */
   confirmer?: string | null;
+  /** Lot 4 : « Écoles proches », vues sur place, avec leur distance (`ecolesProches`). */
+  proches?: { ecole: EcolePubliee; distanceM: number }[];
+  /** Lot 4 : la photo de couverture est prise en hauteur (elle se montre entière, sur le fond pierre). */
+  couvertureEnHauteur?: boolean;
+  /** Lot 4 : « Demander la vérification », où l'envoyer (`pointDesDemandes`) ; sans lui, le bloc n'a pas le bouton. */
+  demandes?: { url: string; cle: string } | 'faux' | null;
+  /** Lot 4 : « Vous avez son prospectus ? », le lien WhatsApp avec le nom de l'école. */
+  prospectus?: string | null;
+  /** Lot 4 : « Voir les écoles de Loandjili », la page du lieu, quand elle a des fiches. */
+  lieuDesProches?: { nom: string; lien: string } | null;
 }
-const { e, zone, autres, erreur, confirmer = null } = Astro.props;
+const {
+  e,
+  zone,
+  autres,
+  erreur,
+  confirmer = null,
+  proches = [],
+  couvertureEnHauteur = false,
+  demandes = null,
+  prospectus = null,
+  lieuDesProches = null,
+} = Astro.props;
 
 // Le fil d'Ariane : les lieux qui ont une page, du plus grand au plus fin (un département n'en a pas, ticket 147).
 const ariane: { nom: string; lien: string }[] = [];
@@ -155,14 +167,14 @@ const aujourdhui = jourDuCongo();
 const superieur = estDuSuperieur(e);
 const rond = rondDeLEcole(e);
 const suiteIdentite = ligneDIdentite({ ...e, etiquette: null }, 1);
-const couverture = e.medias?.couverture ?? null;
 const galerie = e.medias?.galerie ?? [];
-// Version 44 (planches « Fiche d'école » et « Fiche mince ») : la couverture est la photo choisie comme telle ; sans elle, le
-// fond pierre et « Pas encore de photo ». La photo d'enseigne et la galerie restent dans « Photos ».
-const imageCouverture = couverture ? cheminMedia(couverture, 'couverture') : null;
-// La photo d'enseigne (choisie ou retenue d'office) : seule, dans « Photos », quand l'école n'a pas de galerie. Elle n'est plus
-// jamais la couverture (version 44), elle ne fait donc jamais double emploi.
-const photoSeule = galerie.length === 0 ? (e.photo ?? null) : null;
+// Lot 4 (fondateur, 16/11) : la couverture choisie, sinon la photo d'enseigne ; sans photo, aucun bandeau ni phrase (règle du
+// 09/11) : la fiche commence par le rond et le nom.
+const couverture = couvertureDeLaFiche(e);
+// La photo d'enseigne seule, dans « Photos », quand l'école n'a pas de galerie, et jamais deux fois : devenue couverture, elle
+// n'y revient pas.
+const photoSeule =
+  galerie.length === 0 && couverture?.genre !== 'enseigne' ? (e.photo ?? null) : null;
 const nouvelles = nouvellesAMontrer(e.nouvelles ?? [], aujourdhui);
 const admission = admissionAMontrer(e.admission, aujourdhui) ? (e.admission ?? null) : null;
 const ouverts = dossiersOuverts(e.admission, aujourdhui);
@@ -190,34 +202,6 @@ const rubriques = rubriquesDeLaFiche({
   frais: fraisEcole.length > 0 || fraisAn,
   nouvelles: nouvelles.length > 0,
 });
-const courte = ficheCourte(e);
-// Lot 3 (planche « Où trouver ») : le petit plan revient, dessiné à la construction (aucun JavaScript), seulement là où
-// l'arrondissement est dessiné ; tout le dessin mène à la carte, la vraie porte reste « Voir sur la carte ».
-const pointEcole =
-  e.latitude !== null && e.longitude !== null
-    ? { latitude: e.latitude, longitude: e.longitude }
-    : null;
-const arrondissementDuPlan = pointEcole ? arrondissementDeLaPosition(pointEcole) : null;
-const plan =
-  pointEcole && arrondissementDuPlan && ruesDe(arrondissementDuPlan.slug) && lienSurLaCarte
-    ? (() => {
-        const { boite, projection } = cadreEcole(pointEcole);
-        const marques = planer(
-          boite,
-          situees([e, ...autres]).map((x) => marqueDe(x)),
-          projection,
-        ).marques;
-        return {
-          projection,
-          marques,
-          roles: arrondissementsDessines.map((a) => ({
-            arrondissement: a,
-            role: a.slug === arrondissementDuPlan.slug ? ('focus' as const) : ('voisin' as const),
-          })),
-          rues: ruesDe(arrondissementDuPlan.slug),
-        };
-      })()
-    : null;
 const lienPhotos = `${lienEcole(e)}photos/`;
 const joursRestants = (n: number) =>
   n <= 0 ? 'Dernier jour.' : n === 1 ? 'Plus qu’un jour.' : `Plus que ${n} jours.`;
@@ -238,27 +222,21 @@ const joursRestants = (n: number) =>
   </nav>
 
   <div class="fiche-entete">
-    {/* Lot 4 (version 44) : la photo de couverture, sinon le fond pierre, l'appareil et « Pas encore de photo ». */}
-    <div class="fiche-couverture">
-      {imageCouverture ? (
+    {couverture && (
+      <div class="fiche-couverture">
         <img
-          class="couverture-photo"
-          src={imageCouverture}
-          alt={`Vue de ${e.nom}`}
+          class:list={['couverture-photo', { 'couverture-entiere': couvertureEnHauteur }]}
+          src={couverture.src}
+          alt={couverture.genre === 'enseigne' ? `Enseigne de ${e.nom}` : `Vue de ${e.nom}`}
           width="720"
           height="300"
           decoding="async"
           fetchpriority="high"
         />
-      ) : (
-        <div class="couverture-vide">
-          <Icone nom="appareil" petite={false} />
-          Pas encore de photo
-        </div>
-      )}
-    </div>
+      </div>
+    )}
 
-    <div class="fiche-tete">
+    <div class:list={['fiche-tete', { 'sans-couverture': !couverture }]}>
       <div class="fiche-nom fiche-identite">
         {rond.genre === 'logo' ? (
           <span class="rond-ecole rond-logo">
@@ -386,6 +364,26 @@ const joursRestants = (n: number) =>
   {/* Sur téléphone, une seule colonne dans l'ordre du canevas (`o-…`) ; à partir de 64 rem, deux colonnes. */}
   <div class="fiche-corps">
     <div class="fiche-principale">
+      {aSavoir && (
+        <section class="contact o-4" aria-labelledby="titre-a-savoir" id={ancre('savoir')}>
+          <h2 id="titre-a-savoir">À savoir</h2>
+          <div class="carte-contact">
+            <ProprietesEcole e={e} diplomes={superieur ? null : diplomes} />
+            {e.agrement && <LigneAgrement agrement={e.agrement} />}
+            {ouverts ? (
+              <a class="contact-alerte seulement-ordi" href="#admission">
+                Dossiers jusqu’au {dateLongue(ouverts.jusquau)} · voir l’admission
+              </a>
+            ) : (
+              inscription && (
+                <p class="contact-alerte seulement-ordi">
+                  Inscriptions jusqu’au {dateLongue(inscription.limite)}
+                </p>
+              )
+            )}
+          </div>
+        </section>
+      )}
       {e.formations.length > 0 && (
         <div class="o-1">
           {superieur ? <FormationsDuSuperieur e={e} /> : <FormationsEcole e={e} />}
@@ -431,6 +429,59 @@ const joursRestants = (n: number) =>
           <NouvellesEcole nouvelles={nouvelles} />
         </div>
       )}
+      {/* Lot 4 : « Cette école vous intéresse ? », une demande comptée sans nom ni numéro (lot 1, `count_family_demand`), et
+          « Vous avez son prospectus ? » sur une fiche sans frais. */}
+      {!confirmee && (demandes || (prospectus && fraisEcole.length === 0)) && (
+        <section class="interet o-11" aria-labelledby="titre-interet">
+          <h2 id="titre-interet">Cette école vous intéresse&nbsp;?</h2>
+          {demandes && (
+            <div
+              class="interet-demande"
+              data-demande
+              data-campus={e.id}
+              data-url={demandes === 'faux' ? '' : demandes.url}
+              data-cle={demandes === 'faux' ? '' : demandes.cle}
+            >
+              <p>Demandez à NTanova de vérifier ses tarifs et ses inscriptions en priorité.</p>
+              <button class="bouton" type="button" data-demande-bouton>
+                Demander la vérification
+              </button>
+              <p class="interet-note" role="status" data-demande-etat>
+                Un seul geste. Aucun nom, aucun numéro.
+              </p>
+            </div>
+          )}
+          {prospectus && fraisEcole.length === 0 && (
+            <div class="interet-prospectus">
+              <Icone nom="appareil" petite={false} />
+              <div>
+                <b>Vous avez son prospectus&nbsp;?</b>
+                <p>
+                  Envoyez-nous sa photo&nbsp;: nous demandons à l’école de confirmer ses frais avant
+                  de les publier.
+                </p>
+                <a href={prospectus}>
+                  <Icone nom="bulle" />
+                  Envoyer la photo sur WhatsApp
+                </a>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+      {!confirmee && (
+        <aside class="ecoles-appel o-11" aria-labelledby="titre-dirigez">
+          <h2 id="titre-dirigez">{invitationDirection(e.nom)}</h2>
+          <p>
+            Complétez cette fiche&nbsp;: photos, frais, contact. Rien n’est publié sans votre
+            accord.
+          </p>
+          <a class="bouton" href={confirmer ?? '/pour-les-ecoles/'}>
+            <Icone nom="bulle" />
+            Compléter cette fiche
+          </a>
+        </aside>
+      )}
     </div>
 
     <div class="fiche-cote">
@@ -444,26 +495,6 @@ const joursRestants = (n: number) =>
             {joursRestants(ouverts.joursRestants)} La date vient de l’école&nbsp;: vérifiez-la avant
             de vous déplacer.
           </p>
-        </section>
-      )}
-      {aSavoir && (
-        <section class="contact o-4" aria-label="Contact" id={ancre('savoir')}>
-          <h2>Contact</h2>
-          <div class="carte-contact">
-            <ProprietesEcole e={e} diplomes={superieur ? null : diplomes} />
-            {e.agrement && <LigneAgrement agrement={e.agrement} />}
-            {ouverts ? (
-              <a class="contact-alerte seulement-ordi" href="#admission">
-                Dossiers jusqu’au {dateLongue(ouverts.jusquau)} · voir l’admission
-              </a>
-            ) : (
-              inscription && (
-                <p class="contact-alerte seulement-ordi">
-                  Inscriptions jusqu’au {dateLongue(inscription.limite)}
-                </p>
-              )
-            )}
-          </div>
         </section>
       )}
       {fraisEcole.length > 0 && (
@@ -480,23 +511,6 @@ const joursRestants = (n: number) =>
       {(e.repere || lienSurLaCarte || e.memeLieu) && (
         <section class="bloc ou o-10" aria-label="Où est l'école">
           <h2>{titreOuTrouver(e.nom)}</h2>
-          {plan && (
-            <div class="ou-plan">
-              <Carte
-                id="plan-fiche"
-                titre={`Plan autour de ${e.nom}`}
-                projection={plan.projection}
-                arrondissements={plan.roles}
-                rues={plan.rues}
-                marques={plan.marques}
-                halo={pointEcole!}
-                apercu={lienSurLaCarte!}
-              />
-              <span class="ou-plan-lien" aria-hidden="true">
-                Ouvrir la carte
-              </span>
-            </div>
-          )}
           {e.repere && (
             <p class="apercu-repere">
               <Icone nom="repere" petite={false} />
@@ -516,35 +530,6 @@ const joursRestants = (n: number) =>
             </a>
           )}
         </section>
-      )}
-
-      {!confirmee && courte && (
-        <aside class="ecoles-appel ecoles-appel-court o-11">
-          <h2>Vous êtes de l’école&nbsp;?</h2>
-          <p>
-            Complétez cette fiche&nbsp;: photos, frais, contact. Rien n’est publié sans votre
-            accord.
-          </p>
-          <a class="bouton" href={confirmer ?? '/pour-les-ecoles/'}>
-            <Icone nom="bulle" />
-            Compléter cette fiche
-          </a>
-        </aside>
-      )}
-      {!confirmee && !courte && (
-        <aside class="ecoles-appel o-11">
-          <h2>{invitationDirection(e.nom)}</h2>
-          <p>
-            Confirmez sa fiche avec nous&nbsp;: la date de votre accord y paraîtra. Ajoutez vos
-            filières, vos frais et votre contact. Ce que vous nous transmettez n’est publié qu’avec
-            votre accord.
-          </p>
-          <a class="bouton" href={confirmer ?? '/pour-les-ecoles/'}>
-            <Icone nom="bulle" />
-            Confirmer cette fiche
-          </a>
-          {confirmer && <a href="/pour-les-ecoles/">Ce que nous vous demanderons</a>}
-        </aside>
       )}
 
       <div class="liens-fiche o-12">
@@ -577,6 +562,35 @@ const joursRestants = (n: number) =>
         <p>Fiche mise à jour le {dateLongue(e.misAJourLe)}</p>
       </div>
     </div>
+    {proches.length > 0 && (
+      <section class="proches" aria-labelledby="titre-proches">
+        <div class="proches-tete">
+          <div>
+            <h2 id="titre-proches">Écoles proches</h2>
+            <p class="texte-doux">
+              Vues sur place, à moins de 5&nbsp;km, avec un niveau en commun.
+            </p>
+          </div>
+          {lieuDesProches && (
+            <a class="lien-fort seulement-ordi" href={lieuDesProches.lien}>
+              Voir les écoles {lieuDesProches.nom} ›
+            </a>
+          )}
+        </div>
+        <ul class="proches-liste">
+          {proches.map((p) => (
+            <li>
+              <CarteEcole ecole={p.ecole} forme="ligne" distanceM={p.distanceM} />
+            </li>
+          ))}
+        </ul>
+        {lieuDesProches && (
+          <a class="lien-fort cache-ordi" href={lieuDesProches.lien}>
+            Voir les écoles {lieuDesProches.nom} ›
+          </a>
+        )}
+      </section>
+    )}
   </div>
 </article>
 
@@ -612,6 +626,62 @@ const joursRestants = (n: number) =>
             location.href = a.href;
           },
         );
+      }
+    });
+  })();
+</script>
+
+{/* « Demander la vérification » (lot 4) : une demande comptée sans nom ni numéro. Le navigateur tire une clé au hasard, une fois,
+    et n'envoie que l'empreinte (SHA-256) de la clé et du jour : au plus une demande par téléphone, fiche et jour. Sans
+    JavaScript, le bouton ne fait rien ; sous le faux serveur (`data-url` vide), la page répond elle-même. */}
+<script is:inline>
+  (function () {
+    const b = document.querySelector('[data-demande]');
+    if (!b) return;
+    const bt = b.querySelector('[data-demande-bouton]');
+    const et = b.querySelector('[data-demande-etat]');
+    bt.addEventListener('click', async function () {
+      bt.disabled = true;
+      try {
+        let k;
+        try {
+          k = localStorage.getItem('ntanova-cle');
+          if (!k) localStorage.setItem('ntanova-cle', (k = crypto.randomUUID()));
+        } catch {
+          k = crypto.randomUUID();
+        }
+        const h = await crypto.subtle.digest(
+          'SHA-256',
+          new TextEncoder().encode(k + new Date().toISOString().slice(0, 10)),
+        );
+        const e = Array.from(new Uint8Array(h), (o) => o.toString(16).padStart(2, '0')).join('');
+        let r = 'comptee';
+        const u = b.dataset.url;
+        if (u) {
+          const c = b.dataset.cle;
+          const q = await fetch(u, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: c,
+              Authorization: 'Bearer ' + c,
+            },
+            body: JSON.stringify({
+              p_kind: 'verification',
+              p_device_day_key: e,
+              p_campus: b.dataset.campus,
+            }),
+          });
+          if (!q.ok) throw 0;
+          r = await q.json();
+        }
+        et.textContent =
+          r === 'deja_comptee'
+            ? 'Votre demande est déjà comptée aujourd’hui. Merci.'
+            : 'Merci, votre demande est comptée. Aucun nom, aucun numéro.';
+      } catch {
+        bt.disabled = false;
+        et.textContent = 'La demande n’est pas partie. Vérifiez la connexion, puis réessayez.';
       }
     });
   })();
@@ -856,32 +926,21 @@ const joursRestants = (n: number) =>
     scroll-margin-top: 3.5rem;
   }
 
-  /* La couverture : une vraie photo, recadrée ; sans photo, le fond pierre de la version 44 et « Pas encore de photo ». */
-  .couverture-photo,
-  .couverture-vide {
+  /* La couverture : la photo, recadrée ; prise en hauteur, entière sur le fond pierre (lot 4). */
+  .couverture-photo {
     display: block;
     width: 100%;
     height: 168px;
     object-fit: cover;
     background: var(--couverture-vide);
   }
-  .couverture-vide {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--espace-1);
-    color: var(--texte-doux);
-    font-family: var(--police-interface);
-    font-size: 0.8125rem;
-    font-weight: 700;
+  .couverture-entiere {
+    object-fit: contain;
   }
-  .couverture-vide :global(svg) {
-    width: 28px;
-    height: 28px;
-    stroke-width: 1.6;
+  /* Sans photo, aucun bandeau : la fiche commence par le rond et le nom (règle du 09/11). */
+  .fiche-tete.sans-couverture {
+    margin-top: 0;
   }
-  /* Le rond de l'école : son logo, sinon son sigle sur le vert foncé (décision du 12/11). */
   .rond-ecole {
     display: inline-flex;
     align-items: center;
@@ -1008,23 +1067,89 @@ const joursRestants = (n: number) =>
   .ou-carte {
     justify-self: stretch;
   }
-  .ou-plan {
-    position: relative;
-    overflow: hidden;
+
+  /* « Cette école vous intéresse ? » (lot 4) : la carte bordée de vert de la planche. */
+  .interet {
+    display: grid;
+    gap: var(--espace-3);
+    padding: var(--espace-4);
+    border: 2px solid var(--marque);
     border-radius: var(--rayon-m);
-  }
-  .ou-plan-lien {
-    position: absolute;
-    pointer-events: none;
-    top: var(--espace-2);
-    right: var(--espace-2);
-    padding: 2px var(--espace-3);
-    border-radius: var(--rayon-pilule);
     background: var(--fond-releve);
-    color: var(--marque);
+  }
+  .interet-demande {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .interet-demande .bouton {
+    justify-self: stretch;
+  }
+  .interet-note {
+    color: var(--texte-doux);
+    font-size: var(--taille-mention);
+  }
+  .interet-prospectus {
+    display: flex;
+    gap: var(--espace-3);
+    padding-top: var(--espace-3);
+    border-top: 1px solid var(--trait);
     font-size: var(--taille-secondaire);
+  }
+  .interet-demande + .interet-prospectus {
+    margin-top: var(--espace-1);
+  }
+  .interet-prospectus > :global(svg) {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    color: var(--marque);
+  }
+  .interet-prospectus div {
+    display: grid;
+    gap: var(--espace-1);
+  }
+  .interet-prospectus a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espace-2);
+    min-height: var(--cible-min);
+    color: var(--marque);
     font-weight: 700;
-    text-decoration: none;
+  }
+
+  /* « Écoles proches » (lot 4) : la carte d'école partagée, en ligne sur téléphone, en trois colonnes sur ordinateur. */
+  .proches {
+    order: 10;
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .proches-tete {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--espace-3);
+  }
+  .proches-tete p {
+    font-size: var(--taille-secondaire);
+  }
+  .proches-liste {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .lien-fort {
+    color: var(--marque);
+    font-weight: 700;
+  }
+  .proches .lien-fort {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+  }
+  .proches .lien-fort.seulement-ordi {
+    display: none;
   }
 
   /* L'invitation aux directions : le bandeau clair de la maquette, pas le bandeau sombre des pages de zone. */
@@ -1117,6 +1242,21 @@ const joursRestants = (n: number) =>
     .fiche-nom > .disque-fiche {
       margin-top: -50px;
     }
+    .fiche-tete.sans-couverture {
+      padding-left: 0;
+    }
+    .fiche-tete.sans-couverture .fiche-nom > .rond-ecole,
+    .fiche-tete.sans-couverture .fiche-nom > .disque-fiche {
+      margin-top: 0;
+    }
+    .fiche-tete.sans-couverture > .rangee-puces,
+    .fiche-tete.sans-couverture > .lien-methode,
+    .fiche-tete.sans-couverture > .fiche-actions {
+      margin-left: 0;
+    }
+    .interet-demande .bouton {
+      justify-self: start;
+    }
     .fiche-titres {
       gap: var(--espace-1);
       padding-top: var(--espace-2);
@@ -1154,8 +1294,11 @@ const joursRestants = (n: number) =>
     .ligne-identite::before {
       content: ' · ' / '';
     }
-    .couverture-photo,
-    .couverture-vide {
+    .proches-liste {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--espace-4);
+    }
+    .couverture-photo {
       height: 260px;
       border-radius: var(--rayon-l);
     }
@@ -1219,6 +1362,15 @@ const joursRestants = (n: number) =>
     }
     .galerie-avant {
       order: 5;
+    }
+    .proches {
+      grid-column: 1 / -1;
+    }
+    .proches > .lien-fort.cache-ordi {
+      display: none;
+    }
+    .proches .lien-fort.seulement-ordi {
+      display: inline-flex;
     }
     /* Sur ordinateur, la carte « Contact » porte son titre (planche). */
     .contact {

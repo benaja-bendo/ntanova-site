@@ -372,14 +372,18 @@ test.describe('site public', () => {
     }
   });
 
-  test('fiche : à partir de 1 024 px, l’appel aux directions passe à droite', async ({ page }) => {
+  // Planche « Fiche mince » de la version 44 (lot 4, 16/11) : « Vous dirigez cette école ? » suit « À savoir » dans la colonne
+  // principale ; à droite, « Où trouver ». Avant : l'appel passait à droite à partir de 1 024 px.
+  test('fiche : à partir de 1 024 px, « Où trouver » à droite, l’appel aux directions sous « À savoir »', async ({
+    page,
+  }) => {
     await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
-    const proprietes = await page.locator('.proprietes').boundingBox();
+    const savoir = await page.locator('.proprietes').boundingBox();
     const appel = await page.getByRole('complementary').boundingBox();
+    const ou = await page.getByRole('region', { name: /Où est l.école/ }).boundingBox();
+    expect(appel?.y ?? 0).toBeGreaterThan((savoir?.y ?? 0) + (savoir?.height ?? 0));
     if (largeurDe(page) >= ORDINATEUR) {
-      expect(appel?.x ?? 0).toBeGreaterThanOrEqual((proprietes?.x ?? 0) + (proprietes?.width ?? 0));
-    } else {
-      expect(appel?.y ?? 0).toBeGreaterThan((proprietes?.y ?? 0) + (proprietes?.height ?? 0));
+      expect(ou?.x ?? 0).toBeGreaterThanOrEqual((savoir?.x ?? 0) + (savoir?.width ?? 0));
     }
   });
 

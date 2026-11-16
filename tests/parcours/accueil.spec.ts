@@ -93,15 +93,17 @@ test.describe('l’accueil', () => {
     }
     // Le passage le plus récent d'abord.
     await expect(cartes.first()).toContainText('[Institut supérieur Exemple]');
-    // Une photo de couverture : sa vignette, chargée à la demande. Sans photo, la vignette de la version 44 (lot 4) : le fond
-    // pierre et le rond de l'école (sigle sur le vert foncé, sinon la lettre de son niveau), jamais les anciennes vignettes
-    // bleues à grande lettre. Jamais la photo d'enseigne.
-    const photo = page.locator('.cartes-recentes img.vignette-ecole');
-    await expect(photo).toHaveCount(1);
-    await expect(photo).toHaveAttribute('loading', 'lazy');
-    await expect(photo).toHaveAttribute('src', /-vignette\.webp$/);
+    // La couverture choisie, sinon la photo d'enseigne (fondateur, 16/11 ; avant : « jamais la photo d'enseigne ») : sa
+    // vignette, chargée à la demande. Sans photo, la vignette de la version 44 : le fond pierre et le rond de l'école (sigle
+    // sur le vert foncé, sinon la lettre de son niveau), jamais les anciennes vignettes bleues à grande lettre.
+    const photos = page.locator('.cartes-recentes img.vignette-ecole');
+    await expect(photos).toHaveCount(2);
+    for (const photo of await photos.all()) {
+      await expect(photo).toHaveAttribute('loading', 'lazy');
+      await expect(photo).toHaveAttribute('src', /(-vignette|\/photos\/vignettes\/.+-large)\.webp$/);
+    }
     const vides = page.locator('.cartes-recentes .vignette-vide');
-    await expect(vides).toHaveCount(3);
+    await expect(vides).toHaveCount(2);
     for (const vide of await vides.all())
       await expect(vide.locator('.vignette-rond')).toHaveCount(1);
     await expect(page.locator('.cartes-recentes .recente-dessinee')).toHaveCount(0);

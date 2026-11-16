@@ -12,7 +12,9 @@
 // (`/ecoles/congo/…`, `/ecoles/tie-tie/…`, l'ancien nom d'une fiche renommée, un doublon fusionné) renvoie en un saut.
 import type { GetStaticPaths } from 'astro';
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
-import { obtenirSite } from '../../infra/index';
+import { obtenirPhotoPublique, obtenirSite, pointDesDemandes } from '../../infra/index';
+import { couvertureDeLaFiche, ecolesProches } from '../../modele/fiche-mince';
+import { estEnHauteur } from '../../partage/photos';
 import { lienCarteDuLieu } from '../../modele/carte/navigation';
 import {
   deLieu,
@@ -154,6 +156,23 @@ const confirmer =
         `Bonjour NTanova, je dirige ${e.nom}${e.etiquette ? ` (${e.etiquette})` : ''}, à ${lieuDeLaFiche}, et je souhaite ${e.etat === 'verifiee' ? 'mettre à jour' : 'confirmer'} sa fiche : ${new URL(lienEcole(e), Astro.site ?? Astro.url).href}`,
       )
     : null;
+// Lot 4 (16/11) : « Écoles proches », la couverture prise en hauteur, « Demander la vérification » et le prospectus.
+const proches = e ? ecolesProches(e, site.ecoles) : [];
+const couvertureDeE = e ? couvertureDeLaFiche(e) : null;
+const couvertureEnHauteur =
+  couvertureDeE?.genre === 'enseigne'
+    ? await estEnHauteur(await obtenirPhotoPublique(couvertureDeE.photo.id))
+    : false;
+const prospectus = e
+  ? lienWhatsApp(
+      PUBLIC_WHATSAPP,
+      `Bonjour NTanova, voici la photo du prospectus de ${e.nom} (${new URL(lienEcole(e), Astro.site ?? Astro.url).href}) : `,
+    )
+  : null;
+const lieuDesProches =
+  zone && proches.length > 0 && ecolesSous(zone).length > 1
+    ? { nom: deLieu(zone.division.nom, zone.division.niveau), lien: lienDivision(zone.chemin) }
+    : null;
 ---
 
 {cas.genre === 'renvoi' ? (
@@ -195,6 +214,17 @@ const confirmer =
     image={{ chemin: cheminImagePartage(e), alt: `${e.nom} : ${preuveDePartage(e).texte}` }}
     donnees={donneesEcole(e, new URL(lienEcole(e), Astro.site ?? Astro.url).href)}
   >
-    <FicheEcole e={e} zone={zone} autres={autres} erreur={erreur} confirmer={confirmer} />
+    <FicheEcole
+      e={e}
+      zone={zone}
+      autres={autres}
+      erreur={erreur}
+      confirmer={confirmer}
+      proches={proches}
+      couvertureEnHauteur={couvertureEnHauteur}
+      demandes={pointDesDemandes()}
+      prospectus={prospectus}
+      lieuDesProches={lieuDesProches}
+    />
   </PagePublique>
 ) : null}

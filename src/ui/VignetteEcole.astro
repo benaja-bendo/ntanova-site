@@ -1,31 +1,50 @@
 ---
-// La vignette d'une école dans une carte (accueil, « Écoles proches », et plus tard la liste du lot 4 bis) : planches de la
-// version 44. Sa photo de couverture, réduite ; sans photo, le fond pierre et le rond de l'école : son logo, sinon son
-// sigle sur le vert foncé, sinon la lettre de son niveau le plus élevé dans la couleur du cycle (`rondDeLEcole`).
-// Jamais la photo d'enseigne (elle reste dans « Photos »), jamais les anciennes vignettes bleues à grande lettre.
+// La vignette d'une école dans une carte d'école (accueil, « Écoles proches », plus tard la liste du lot 4 bis) : planches de la
+// version 44 et décision du fondateur du 16/11. La couverture choisie, sinon la photo d'enseigne, réduites à la construction ;
+// sans photo, le fond pierre et le rond de l'école : son logo, sinon son sigle sur le vert foncé, sinon la lettre de son niveau
+// le plus élevé dans la couleur du cycle (`rondDeLEcole`). Jamais les anciennes vignettes bleues à grande lettre.
 import type { EcolePubliee } from '../modele/ports';
+import { vignetteDeLaCarte } from '../modele/fiche-mince';
 import { cheminMedia, rondDeLEcole } from '../modele/vitrine';
 
 interface Props {
-  ecole: Pick<EcolePubliee, 'medias' | 'sigle' | 'niveaux'>;
-  /** `large` : la bande d'une carte de l'accueil ; `carree` : la vignette carrée d'une ligne de liste. */
-  forme?: 'large' | 'carree';
+  ecole: Pick<EcolePubliee, 'medias' | 'sigle' | 'niveaux' | 'photo'>;
+  /**
+   * `large` : la bande d'une carte en colonne ; `adaptee` : carrée sur téléphone (carte en ligne), large à partir de 48 rem ;
+   * le navigateur ne charge que l'une des deux.
+   */
+  forme?: 'large' | 'adaptee';
 }
 const { ecole, forme = 'large' } = Astro.props;
-const couverture = ecole.medias?.couverture ?? null;
+const image = vignetteDeLaCarte(ecole);
 const rond = rondDeLEcole(ecole);
 ---
 
-{couverture ? (
-  <img
-    class:list={['vignette-ecole', `vignette-${forme}`]}
-    src={cheminMedia(couverture, 'vignette')}
-    alt=""
-    width="400"
-    height="300"
-    loading="lazy"
-    decoding="async"
-  />
+{image ? (
+  forme === 'adaptee' ? (
+    <picture>
+      <source media="(min-width: 48rem)" srcset={image.large} width="400" height="208" />
+      <img
+        class="vignette-ecole vignette-adaptee"
+        src={image.carree}
+        alt=""
+        width="152"
+        height="152"
+        loading="lazy"
+        decoding="async"
+      />
+    </picture>
+  ) : (
+    <img
+      class="vignette-ecole vignette-large"
+      src={image.large}
+      alt=""
+      width="400"
+      height="208"
+      loading="lazy"
+      decoding="async"
+    />
+  )
 ) : (
   <span class:list={['vignette-ecole', 'vignette-vide', `vignette-${forme}`]} aria-hidden="true">
     {rond.genre === 'logo' ? (
@@ -41,6 +60,10 @@ const rond = rondDeLEcole(ecole);
 )}
 
 <style>
+  /* La vignette adaptée choisit sa source ; c'est l'image qui se place dans la carte. */
+  picture {
+    display: contents;
+  }
   .vignette-ecole {
     display: block;
     width: 100%;
@@ -49,9 +72,9 @@ const rond = rondDeLEcole(ecole);
     object-fit: cover;
   }
   .vignette-large {
-    aspect-ratio: 2 / 1;
+    aspect-ratio: 400 / 208;
   }
-  .vignette-carree {
+  .vignette-adaptee {
     aspect-ratio: 1;
   }
   .vignette-vide {
@@ -59,7 +82,7 @@ const rond = rondDeLEcole(ecole);
     align-items: center;
     justify-content: center;
   }
-  /* Le rond de la planche : 56 px, comme dans les cartes de la liste. */
+  /* Le rond de la planche : 56 px dans une carte en colonne, 40 px dans une carte en ligne. */
   .vignette-rond {
     display: inline-flex;
     flex: none;
@@ -69,6 +92,10 @@ const rond = rondDeLEcole(ecole);
     height: 56px;
     overflow: hidden;
     border-radius: 50%;
+  }
+  .vignette-adaptee .vignette-rond {
+    width: 40px;
+    height: 40px;
   }
   .vignette-sigle {
     padding: 4px;
@@ -81,8 +108,14 @@ const rond = rondDeLEcole(ecole);
     text-align: center;
     overflow-wrap: anywhere;
   }
+  .vignette-adaptee .vignette-sigle {
+    font-size: 0.6875rem;
+  }
   .vignette-cycle {
     font-size: 1.375rem;
+  }
+  .vignette-adaptee .vignette-cycle {
+    font-size: 1.125rem;
   }
   .vignette-logo {
     background: var(--fond-releve);
@@ -91,5 +124,20 @@ const rond = rondDeLEcole(ecole);
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+  @media (min-width: 48rem) {
+    .vignette-adaptee {
+      aspect-ratio: 400 / 208;
+    }
+    .vignette-adaptee .vignette-rond {
+      width: 56px;
+      height: 56px;
+    }
+    .vignette-adaptee .vignette-sigle {
+      font-size: 0.9375rem;
+    }
+    .vignette-adaptee .vignette-cycle {
+      font-size: 1.375rem;
+    }
   }
 </style>

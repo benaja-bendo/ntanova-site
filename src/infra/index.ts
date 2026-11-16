@@ -140,3 +140,17 @@ export async function obtenirMedia(id: string, miniature: boolean): Promise<Uint
   if (!c.lireMedia) throw new Error('Lecture des images publiques indisponible.');
   return c.lireMedia(id, miniature);
 }
+
+/**
+ * Lot 4 (16/11/2026) : où une page publique envoie « Demander la vérification », la demande d'une famille comptée sans nom ni
+ * numéro (`count_family_demand`, lot 1). Le petit script de la fiche poste à cette adresse avec la clé publique ; sous le faux
+ * serveur, il répond lui-même ; sans adresse de base, la fiche n'a pas le bouton.
+ */
+export function pointDesDemandes(): { url: string; cle: string } | 'faux' | null {
+  if (PUBLIC_ADAPTATEUR === 'faux') return 'faux';
+  if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_PUBLISHABLE_KEY) return null;
+  return {
+    url: new URL('/rest/v1/rpc/count_family_demand', PUBLIC_SUPABASE_URL).href,
+    cle: PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  };
+}

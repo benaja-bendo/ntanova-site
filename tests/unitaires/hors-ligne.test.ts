@@ -38,8 +38,16 @@ describe('fiches et photos : IndexedDB, jamais localStorage', () => {
       .flatMap(fichiersDe)
       .filter((f) => STOCKAGES_DU_NAVIGATEUR.test(code(f)))
       .map((f) => relative('.', f));
-    // Le seul endroit : la reprise, une fois, d'une session ouverte par la version d'avant, aussitôt retirée de là.
-    expect(fautifs).toEqual(['src/infra/supabase/stockage-session.ts']);
+    // La reprise, une fois, d'une session ouverte par la version d'avant, aussitôt retirée de là ; et, depuis le lot 4
+    // (16/11/2026), la clé tirée au hasard de « Demander la vérification » sur la fiche publique : ni fiche ni photo, seulement
+    // `ntanova-cle`, dont la base ne reçoit que l'empreinte.
+    expect(fautifs).toEqual(['src/infra/supabase/stockage-session.ts', 'src/ui/FicheEcole.astro']);
+    const fiche = code('src/ui/FicheEcole.astro');
+    expect(fiche.match(/localStorage\.\w+\('[^']*'/g)).toEqual([
+      "localStorage.getItem('ntanova-cle'",
+      "localStorage.setItem('ntanova-cle'",
+    ]);
+    expect(fiche).not.toMatch(/sessionStorage/);
     const reprise = code('src/infra/supabase/stockage-session.ts');
     expect(reprise).toContain('localStorage.removeItem');
     expect(reprise).not.toContain('localStorage.setItem');
