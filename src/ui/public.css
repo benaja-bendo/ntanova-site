@@ -60,72 +60,6 @@
   margin: 0;
 }
 
-/*
- * La bande de l'accueil : sur téléphone, la phrase et le bouton ; à partir de 48 rem, un
- * surtitre, une phrase plus grande, un détail, et le texte du bouton qui dit l'action.
- */
-.appel-surtitre,
-.appel-detail,
-.appel-long {
-  display: none;
-}
-
-@media (min-width: 48rem) {
-  .ecoles-appel-large {
-    justify-items: start;
-    gap: var(--espace-5);
-    padding: var(--espace-6) var(--espace-7);
-  }
-
-  .ecoles-appel-large .appel-texte {
-    display: grid;
-    gap: var(--espace-2);
-  }
-
-  .ecoles-appel-large .appel-surtitre,
-  .ecoles-appel-large .appel-detail {
-    display: block;
-  }
-
-  .ecoles-appel-large .appel-surtitre {
-    color: var(--accent);
-    font-family: var(--police-interface);
-    font-size: var(--taille-mention);
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-  }
-
-  .ecoles-appel-large .appel-titre {
-    font-family: var(--police-titre);
-    font-size: var(--taille-titre-section);
-    font-weight: 700;
-    line-height: 1.15;
-  }
-
-  .ecoles-appel-large .appel-detail {
-    color: var(--vert-pale);
-  }
-
-  .ecoles-appel-large .appel-court {
-    display: none;
-  }
-
-  .ecoles-appel-large .appel-long {
-    display: inline;
-  }
-}
-
-/* À partir de 64 rem, le texte d'un côté, le bouton de l'autre. */
-@media (min-width: 64rem) {
-  .ecoles-appel-large {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    justify-items: stretch;
-    gap: var(--espace-6);
-  }
-}
-
 .ecoles-appel a:not(.bouton) {
   display: inline-flex;
   align-items: center;
@@ -135,9 +69,10 @@
   font-weight: 700;
 }
 
-.bouton-accent,
-.bouton-accent:hover,
-.bouton-accent:active {
+/* Deux classes : depuis la refonte (15/11), cette feuille peut se charger avant celle de `.bouton`, qui l'emportait. */
+.bouton.bouton-accent,
+.bouton.bouton-accent:hover,
+.bouton.bouton-accent:active {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--texte);

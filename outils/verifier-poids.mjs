@@ -46,7 +46,8 @@ const seulementLePartage = (html) => {
 // La carte interactive (ticket #103) : la troisième exception. La page /carte/ reste dans son budget de page ; elle porte
 // un petit chargeur (le seul JavaScript de la page), qui décide puis charge l'îlot (MapLibre, les tuiles) par `import()`.
 // L'îlot n'est lié à aucune page : on le trouve en suivant les `import()` du chargeur (voir `ilotDeLaCarte`).
-const pageCarte = /^(carte\/|index\.html$)/;
+// L'accueil n'a plus de carte depuis le lot 3 (version 44, 15/11/2026) : il redevient une page sans aucun JavaScript.
+const pageCarte = /^carte\//;
 const budgetChargeurCarte = 8 * 1024;
 // Plafonds confirmés par le fondateur le 04/11 après mesure servie et essai téléphone : l'îlot (MapLibre,
 // son worker, sa feuille de style, notre code ; SANS les tuiles) et le premier affichage interactif en tout.
@@ -193,10 +194,10 @@ function ilotDeLaCarte(html) {
   return { chargeur: [...avecLaPage], ilot };
 }
 
-for (const cheminCarte of ['carte/index.html', 'index.html']) {
+for (const cheminCarte of ['carte/index.html']) {
   const pageDeLaCarte = join(dist, cheminCarte);
   if (!existsSync(pageDeLaCarte)) continue;
-  const nomCarte = cheminCarte === 'index.html' ? 'accueil' : 'carte';
+  const nomCarte = 'carte';
   const html = readFileSync(pageDeLaCarte, 'utf8');
   const trouve = ilotDeLaCarte(html);
   const total = (fichiers, mesure) =>

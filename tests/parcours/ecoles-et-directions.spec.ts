@@ -46,9 +46,12 @@ test('les pages de zone et l’accueil parlent de « Ajouter mon école » et de
   );
   await expect(page.locator('main')).not.toContainText('Référencez');
   await page.goto('/');
-  await expect(
-    page.getByRole('link', { name: /Pour les écoles|Confirmer la fiche de mon école/ }).last(),
-  ).toBeVisible();
+  // Lot 3 : la porte des directions est « Espace écoles », en bas de l'accueil.
+  await expect(page.getByRole('link', { name: 'Ouvrir l’Espace écoles' })).toHaveAttribute(
+    'href',
+    '/pour-les-ecoles/',
+  );
+  await expect(page.locator('main')).not.toContainText(/référenc/i);
 });
 
 test('« Qui sommes-nous ? » dit qui est NTanova, sans périmètre écrit à la main, et renvoie vers les quatre pages de transparence (ticket 149)', async ({
@@ -99,15 +102,19 @@ test('page introuvable : un accès direct aux écoles et à la carte, et le What
   ).toHaveAttribute('href', /wa\.me/);
 });
 
-test('le pied de page : trois groupes de liens, et la phrase « République du Congo » tient sur une ligne', async ({
+test('le pied de page : trois groupes de liens, et la phrase « NTanova · Congo-Brazzaville » tient sur une ligne', async ({
   page,
 }) => {
   await page.goto('/ecoles/');
   const pied = page.locator('footer');
-  // Ticket 146 : Rechercher et Autour de moi sont des filtres de la page « Écoles ».
+  // Ticket 146 : Rechercher et Autour de moi sont des filtres de la page « Écoles ». Lot 3 (version 44) : les villes qui ont
+  // des fiches, dans l'ordre de l'accueil.
   await expect(pied.getByRole('list', { name: 'Trouver une école' }).getByRole('link')).toHaveText([
     'Les écoles',
     'Carte',
+    'Brazzaville',
+    'Dolisie',
+    'Pointe-Noire',
   ]);
   await expect(pied.getByRole('list', { name: 'NTanova' }).getByRole('link')).toHaveText([
     'Pour les écoles',
@@ -122,7 +129,7 @@ test('le pied de page : trois groupes de liens, et la phrase « République du C
     'Mentions légales',
   ]);
   // La phrase : une seule ligne à toutes les largeurs.
-  const phrase = pied.getByText('NTanova · République du Congo');
+  const phrase = pied.getByText('NTanova · Congo-Brazzaville');
   const boite = await phrase.boundingBox();
   const ligne = await phrase.evaluate((e) => parseFloat(getComputedStyle(e).lineHeight));
   expect(boite!.height).toBeLessThan(ligne * 1.5);
@@ -131,37 +138,49 @@ test('le pied de page : trois groupes de liens, et la phrase « République du C
     expect((await lien.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 });
 
-test('le pied de page de téléphone n’occupe plus qu’environ la moitié de la hauteur d’avant', async ({
+test('le pied de page de téléphone reste serré : deux groupes côte à côte, « Transparence » dessous, des lignes de 44 px et pas plus', async ({
   page,
 }) => {
   test.skip((page.viewportSize()?.width ?? 0) > 400, 'téléphone seulement');
   await page.goto('/ecoles/');
-  const liens = await page.locator('footer nav').boundingBox();
-  // Une seule colonne de cinq liens de 44 px faisait 220 px, plus ses titres. Depuis le ticket 149 : deux colonnes (≈ 3 lignes), puis le
-  // groupe « Transparence » (quatre liens sur deux colonnes, 2 lignes) : 268 px mesurés, pour neuf liens au lieu de cinq.
-  expect(liens!.height).toBeLessThanOrEqual(280);
+  const pied = page.locator('footer');
+  // Planche « Accueil · téléphone » de la version 44 : « Trouver une école » et « NTanova » côte à côte, « Transparence »
+  // dessous. Au doigt, chaque lien est une ligne de 44 px (la cible de la charte), sans rien de plus.
+  const [trouver, ntanova, transparence] = await Promise.all(
+    ['Trouver une école', 'NTanova', 'Transparence'].map((nom) =>
+      pied.getByRole('list', { name: nom }).boundingBox(),
+    ),
+  );
+  expect(Math.abs(trouver!.y - ntanova!.y), 'deux groupes sur la même ligne').toBeLessThan(2);
+  expect(ntanova!.x).toBeGreaterThan(trouver!.x + trouver!.width);
+  expect(transparence!.y).toBeGreaterThanOrEqual(trouver!.y + trouver!.height);
+  for (const lien of await pied.locator('nav').getByRole('link').all()) {
+    const boite = (await lien.boundingBox())!;
+    expect(boite.height, await lien.innerText()).toBeLessThanOrEqual(46);
+  }
 });
 
-test('l’accueil : les liens sous les villes ne se touchent pas, et les deux boutons ont la même hauteur', async ({
+test('l’accueil : « Autour de moi » et « Voir la carte » ne se touchent pas et ont la même hauteur ; « Chercher » tient dans le champ', async ({
   page,
 }) => {
   await page.goto('/');
-  const liens = await page.locator('.liens-villes a').all();
-  expect(liens.length).toBe(2);
-  const boites = await Promise.all(liens.map((l) => l.boundingBox()));
-  for (let i = 1; i < boites.length; i++) {
-    const avant = boites[i - 1]!;
-    const apres = boites[i]!;
-    const memeLigne = Math.abs(avant.y - apres.y) < 4;
-    if (memeLigne) expect(apres.x - (avant.x + avant.width)).toBeGreaterThanOrEqual(16);
-    else expect(apres.y).toBeGreaterThanOrEqual(avant.y + avant.height);
-  }
-  // D17 : « Explorer la carte » et « Chercher une école » mesurent 48 px, ni plus ni moins.
-  for (const nom of ['Explorer la carte', 'Chercher une école']) {
-    const bouton = await page
-      .locator('.actions-accueil')
-      .getByRole('link', { name: nom, exact: true })
-      .boundingBox();
-    expect(bouton!.height, nom).toBeCloseTo(48, 0);
-  }
+  const [autour, carte] = await Promise.all(
+    ['Autour de moi', 'Voir la carte'].map((nom) =>
+      page.locator('.ou-actions').getByRole('link', { name: nom, exact: true }).boundingBox(),
+    ),
+  );
+  const memeLigne = Math.abs(autour!.y - carte!.y) < 4;
+  if (memeLigne) expect(carte!.x - (autour!.x + autour!.width)).toBeGreaterThanOrEqual(16);
+  else expect(carte!.y).toBeGreaterThanOrEqual(autour!.y + autour!.height);
+  // D17 : deux portes voisines, une seule hauteur (la cible de 44 px de la charte).
+  expect(autour!.height).toBeCloseTo(44, 0);
+  expect(carte!.height).toBeCloseTo(44, 0);
+  // Le bouton est posé dans le champ (planche « Accueil »), sans en déborder.
+  const champ = (await page.getByRole('searchbox', { name: 'Chercher une école' }).boundingBox())!;
+  const bouton = (await page.getByRole('button', { name: 'Chercher' }).boundingBox())!;
+  expect(bouton.x).toBeGreaterThan(champ.x);
+  expect(bouton.x + bouton.width).toBeLessThanOrEqual(champ.x + champ.width);
+  expect(bouton.y).toBeGreaterThanOrEqual(champ.y);
+  expect(bouton.y + bouton.height).toBeLessThanOrEqual(champ.y + champ.height);
+  expect(bouton.height).toBeGreaterThanOrEqual(44);
 });

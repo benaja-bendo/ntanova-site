@@ -47,6 +47,18 @@ export const ICONES = {
   document: ['M6 3.5h8l4 4V20.5H6z', 'M14 3.5v4h4', 'M9 13h6M9 16.5h4'],
   bulle: ['M4 19.5l1.4-4.2A7.5 7.5 0 1 1 8.7 18.6z'],
   bouclierVide: ['M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z'],
+  // S'orienter (lot 3, planches de la version 44) : la boussole du bouton jaune de l'accueil ; le livre (après le BEPC), la
+  // toque (après le bac) et la mallette (je travaille) des trois profils ; le « i » d'une précaution.
+  boussole: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M15.5 8.5l-2 5-5 2 2-5z'],
+  livre: [
+    'M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5z',
+  ],
+  toque: ['M2.5 9.5L12 5l9.5 4.5L12 14z', 'M6.5 11.5v4.5c3 2 8 2 11 0v-4.5M21.5 9.5v5'],
+  mallette: [
+    'M5 7.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z',
+    'M8.5 7.5V5.5a1.5 1.5 0 0 1 1.5-1.5h4a1.5 1.5 0 0 1 1.5 1.5v2M3 12.5h18',
+  ],
+  info: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 11v5M12 8h.01'],
 } as const;
 
 export type NomIcone = keyof typeof ICONES;

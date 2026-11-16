@@ -17,7 +17,11 @@ test.beforeEach(async ({ page, context }) => {
 
 test('de la ville à la fiche, par la liste', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' }).click();
+  // La carte de la ville, dans « Où ? » (lot 3) : son nom et son nombre de fiches.
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: /^Pointe-Noire \d+ écoles sur NTanova$/ })
+    .click();
   await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pointe-Noire');
   await page.locator('a.zone', { hasText: 'Tié-Tié' }).click();
@@ -91,7 +95,10 @@ test('une école située par l’administration, sans relevé, est dans la liste
   );
 });
 
-test('sans WebGL2, l’accueil garde le dessin de Tié-Tié, qui mène à la carte', async ({ page }) => {
+// Depuis le lot 3, l'accueil n'a plus de carte : le dessin de repli ne vit plus que sur `/carte/`.
+test('sans WebGL2, la carte garde le dessin de Tié-Tié, sans les barres d’attente', async ({
+  page,
+}) => {
   // Une bonne connexion (la carte se charge d'office), mais un téléphone sans WebGL2.
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'connection', { value: {}, configurable: true });
@@ -100,14 +107,12 @@ test('sans WebGL2, l’accueil garde le dessin de Tié-Tié, qui mène à la car
       return type === 'webgl2' ? null : getContext.call(this, type, ...reste);
     } as typeof getContext;
   });
-  await page.goto('/');
+  await page.goto('/carte/');
   await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'repli-sans-webgl2');
   const apercu = page.getByRole('region', { name: 'La carte de Tié-Tié' });
   await expect(apercu).toBeVisible();
   await expect(apercu.getByText('Arrondissement 3 · 2 écoles sur la carte')).toBeVisible();
   await expect(page.locator('.carte-attente')).toBeHidden();
-  await apercu.getByRole('link', { name: 'Voir la carte de Tié-Tié' }).click();
-  await expect(page).toHaveURL(/\/carte\/$/);
 });
 
 test('avec JavaScript, l’ancien dessin ne paraît plus pendant l’attente de la carte', async ({
@@ -115,18 +120,4 @@ test('avec JavaScript, l’ancien dessin ne paraît plus pendant l’attente de 
 }) => {
   await page.goto('/carte/');
   await expect(page.locator('.carte-repli')).toBeHidden();
-  await page.goto('/');
-  // L'accueil d'un téléphone qui économise ses données : les barres immobiles, pas le dessin.
-  await expect(page.locator('#carte')).toHaveAttribute('data-attente', 'appui');
-  await expect(page.locator('.carte-repli')).toBeHidden();
-  await expect(page.locator('.carte-attente .marque')).toBeVisible();
-});
-
-test('« Les arrondissements de Pointe-Noire » garde son espace à l’écran', async ({ page }) => {
-  await page.goto('/');
-  const lien = page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' });
-  // Le nom accessible garde l'espace même quand l'écran le perd (un lien en `inline-flex` ne
-  // compte pas l'espace qui précède un `span`) : on lit le texte tel qu'il s'affiche.
-  const affiche = await lien.evaluate((a) => (a as HTMLElement).innerText);
-  expect(affiche).toBe('Les arrondissements de Pointe-Noire');
 });

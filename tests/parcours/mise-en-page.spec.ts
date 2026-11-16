@@ -229,67 +229,97 @@ test.describe('site public', () => {
     });
   }
 
-  test('accueil : navigation du haut à partir de la tablette (le menu avant), villes côte à côte, étapes visibles partout', async ({
+  test('accueil : les trois piliers à toutes les largeurs, deux villes côte à côte, étapes visibles partout', async ({
     page,
   }) => {
+    // Lot 3 (version 44 du canevas, décision 1A du 15/11) : plus de bouton Menu, les trois piliers restent visibles ; Carte,
+    // Méthode, Données et À propos passent au pied de page.
     await page.goto('/');
-    const largeur = largeurDe(page);
     const navigation = page.getByRole('navigation', { name: 'Navigation principale' });
-    const etapes = page.getByRole('heading', { name: 'Comment les fiches sont tenues' });
-    const [premier, second] = await page.locator('a.quartier').all();
-    const [a, b] = await Promise.all([premier?.boundingBox(), second?.boundingBox()]);
-    if (largeur >= TABLETTE) {
-      // Ticket 146 : quatre entrées, Rechercher et Autour de moi vivent dans `/ecoles/`.
-      await expect(navigation.getByRole('link')).toHaveText([
-        'Écoles',
-        'Carte',
-        'Pour les écoles',
-        'À propos',
-      ]);
-      await expect(etapes).toBeVisible();
-      expect(a?.y, 'les deux villes sont sur la même ligne').toBe(b?.y);
-    } else {
-      await expect(navigation).toBeHidden();
-      // D14 : la preuve de la page, « Comment les fiches sont tenues », se lit aussi sur téléphone.
-      await expect(etapes).toBeVisible();
-      expect(b?.y ?? 0, 'au téléphone, les villes se suivent').toBeGreaterThan(
-        (a?.y ?? 0) + (a?.height ?? 0) - 1,
+    await expect(navigation).toBeVisible();
+    await expect(navigation.getByRole('link')).toHaveText([
+      'Trouver une école',
+      'S’orienter',
+      'Espace écoles',
+    ]);
+    await expect(navigation.getByRole('link', { name: 'Trouver une école' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await expect(page.locator('summary', { hasText: 'Menu' })).toHaveCount(0);
+    for (const lien of await navigation.getByRole('link').all()) {
+      const boite = await lien.boundingBox();
+      expect(boite!.x + boite!.width, 'un pilier sort de l’écran').toBeLessThanOrEqual(
+        largeurDe(page),
       );
     }
-    // Pas de mise à jour automatique : tant que ce n'est pas vrai, on ne le dit pas. La carte,
-    // elle, existe (ticket 15) : l'accueil y mène.
-    await expect(page.getByText(/mettent la fiche à jour/)).toHaveCount(0);
+    // Les deux premières villes côte à côte, même au téléphone (planche « Accueil · téléphone »).
+    const [premiere, seconde] = await page.locator('section.ville-carte').all();
+    const [a, b] = await Promise.all([premiere?.boundingBox(), seconde?.boundingBox()]);
+    expect(a?.y, 'les deux villes sont sur la même ligne').toBe(b?.y);
+    // D14 : la preuve de la page, « Comment les fiches sont tenues », se lit partout.
     await expect(
-      page.getByRole('link', { name: 'Les arrondissements de Pointe-Noire' }),
+      page.getByRole('heading', { name: 'Comment les fiches sont tenues' }),
     ).toBeVisible();
+    // Pas de mise à jour automatique : tant que ce n'est pas vrai, on ne le dit pas.
+    await expect(page.getByText(/mettent la fiche à jour/)).toHaveCount(0);
+    const pied = page.getByRole('contentinfo');
+    for (const nom of ['Carte', 'Méthode', 'Données', 'À propos']) {
+      await expect(pied.getByRole('link', { name: nom, exact: true })).toBeVisible();
+    }
   });
 
-  test('accueil : la ville qui a le plus de fiches passe avant les autres', async ({ page }) => {
-    // Pointe-Noire (sept écoles) avant Brazzaville et Dolisie (une chacune, par ordre alphabétique). Ticket 147 : les villes,
-    // jamais leur département (Dolisie, et non le Niari).
+  test('accueil : les villes par ordre alphabétique, leurs arrondissements du plus fourni au moins fourni', async ({
+    page,
+  }) => {
+    // Planche « Accueil » de la version 44 : Brazzaville, puis Pointe-Noire ; une troisième ville paraît d'elle-même. Ticket
+    // 147 : les villes, jamais leur département (Dolisie, et non le Niari). Un arrondissement sans fiche n'a pas de puce.
     await page.goto('/');
-    await expect(page.locator('a.quartier').first()).toContainText('Pointe-Noire');
-    await expect(page.locator('a.quartier').nth(1)).toContainText('Brazzaville');
-    await expect(page.locator('a.quartier').nth(2)).toContainText('Dolisie');
+    await expect(page.locator('section.ville-carte .ville-lien b')).toHaveText([
+      'Brazzaville',
+      'Dolisie',
+      'Pointe-Noire',
+    ]);
+    const pointeNoire = page.getByRole('region', { name: 'Pointe-Noire', exact: true });
+    await expect(pointeNoire.getByText('7 écoles sur NTanova')).toBeVisible();
+    await expect(pointeNoire.locator('.puces-lieux a')).toHaveText([
+      /Tié-Tié\s*4/,
+      /Loandjili\s*2/,
+      /Mongo-Mpoukou\s*1/,
+    ]);
+    // Le lecteur d'écran entend le nombre en mots ; la puce mène à la page de l'arrondissement.
+    await expect(pointeNoire.getByRole('link', { name: /^Tié-Tié\s*: 4 écoles$/ })).toHaveAttribute(
+      'href',
+      '/ecoles/pointe-noire/tie-tie/',
+    );
   });
 
-  test('accueil : l’aperçu de la carte est à droite de l’ouverture dès 1 024 px, dessous avant', async ({
+  test('accueil : « Où ? » à droite de l’ouverture dès 1 024 px, dessous avant ; ni carte ni image au premier écran', async ({
     page,
   }) => {
     await page.goto('/');
     const titre = await position(page, 'Trouvez une école au Congo-Brazzaville.');
-    const apercu = await page.locator('.explorateur').boundingBox();
+    const ou = await position(page, /^Où/);
     if (largeurDe(page) >= ORDINATEUR) {
-      expect(apercu?.x ?? 0, 'à droite du titre').toBeGreaterThanOrEqual(titre.x + titre.width);
+      expect(ou.x, 'à droite du titre').toBeGreaterThanOrEqual(titre.x + titre.width);
     } else {
-      expect(apercu?.y ?? 0, 'sous le titre').toBeGreaterThan(titre.y + titre.height);
+      expect(ou.y, 'sous le titre').toBeGreaterThan(titre.y + titre.height);
+    }
+    // Plus de carte sur l'accueil (décision du 15/11) ; les seules images (les couvertures de « Vues sur place récemment »)
+    // sont sous le premier écran.
+    await expect(page.locator('.explorateur, #carte')).toHaveCount(0);
+    const hauteur = page.viewportSize()?.height ?? 0;
+    for (const image of await page.locator('main img').all()) {
+      const boite = await image.boundingBox();
+      expect(boite?.y ?? 0, 'une image au premier écran').toBeGreaterThanOrEqual(hauteur);
     }
   });
 
-  test('accueil sans WebGL2 : le cartouche et la légende du dessin, posés sur lui dès 1 024 px, ne cachent aucune école', async ({
+  test('carte sans WebGL2 : le cartouche et la légende du dessin, posés sur lui dès 1 024 px, ne cachent aucune école', async ({
     page,
   }) => {
-    // Ticket 146 : le dessin ne paraît plus qu'en repli (sans WebGL2, sans JavaScript, ou après un échec).
+    // Ticket 146 : le dessin ne paraît plus qu'en repli (sans WebGL2, sans JavaScript, ou après un échec). Depuis le lot 3,
+    // seule `/carte/` le porte.
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'connection', { value: {}, configurable: true });
       const getContext = HTMLCanvasElement.prototype.getContext;
@@ -297,7 +327,7 @@ test.describe('site public', () => {
         return type === 'webgl2' ? null : getContext.call(this, type, ...reste);
       } as typeof getContext;
     });
-    await page.goto('/');
+    await page.goto('/carte/');
     await expect(page.locator('#carte')).toHaveAttribute('data-etat', 'repli-sans-webgl2');
     const apercu = page.getByRole('region', { name: 'La carte de Tié-Tié' });
     const dessin = await apercu.locator('svg.plateau:visible').boundingBox();

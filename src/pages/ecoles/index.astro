@@ -207,17 +207,8 @@ const rayons = [
         </ul>
       </section>
     ))}
-
-    {manque && (
-      <div class="encadre-pointille manque">
-        <h2>Une école manque&nbsp;?</h2>
-        <p>
-          Vous la connaissez ou vous la dirigez&nbsp;? Écrivez-nous&nbsp;: nous la noterons pour le
-          prochain passage.
-        </p>
-        <a href={manque}>Écrire sur WhatsApp</a>
-      </div>
-    )}
+    {/* « Une école manque ? » est dans le pied de toutes les pages (lot 3, version 44) : le bloc d'ici le répétait. L'état vide
+        d'une recherche garde sa propre porte (`data-manque`). */}
   </section>
 </PagePublique>
 
@@ -384,18 +375,6 @@ const rayons = [
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
   }
-  .recherche .manque {
-    display: grid;
-    gap: var(--espace-2);
-  }
-  .recherche .manque a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--cible-min);
-    color: var(--marque);
-    font-weight: 700;
-  }
-
   @media (min-width: 48rem) {
     .recherche {
       gap: var(--espace-5);

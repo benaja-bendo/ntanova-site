@@ -95,6 +95,8 @@ L'écran a trois contextes :
 | Cibles | 48 et 44 px | 48 et 44 px | 36 px à la souris, 44 au doigt |
 | Aide | visible dans la page | une ligne au moment du geste, un exemple en image | détail au clic, règles dans un tiroir |
 
+Site public, une cible de 44 px dans un dessin plus serré (lot 3 : marque, piliers, puces, pied de page) : un rembourrage et une marge négative égale, la boîte grandit sans rien déplacer. Au doigt (`pointer: coarse`), des liens empilés reprennent chacun une ligne de 44 px.
+
 ## 4. Quelle situation, quel composant
 
 | Situation | Composant (motif shadcn) | Dans le code | Interdit |

@@ -170,8 +170,13 @@ test('plus de légende des zones (ticket 146) : le tiroir dit le compte de la vu
 test('sur téléphone, l’en-tête de la carte est réduit et le pays masqué', async ({ page }) => {
   await ouvrir(page);
   await expect(page.locator('header details.pays')).toBeHidden();
+  // Ticket 146 : la marque, sans le pays. Depuis le lot 3 (décision 1A du 15/11/2026), la rangée des trois piliers (44 px)
+  // remplace le bouton « Menu » posé à côté de la marque : 72 px avant, deux rangées et 82 px au plus depuis. Une autre page
+  // garde le pays : l'en-tête de la carte reste plus bas qu'elle.
   const entete = await boite(page, 'header');
-  expect(entete.height).toBeLessThanOrEqual(72);
+  expect(entete.height).toBeLessThanOrEqual(82);
+  await page.goto('/ecoles/');
+  expect((await boite(page, 'header')).height).toBeGreaterThan(entete.height + 15);
 });
 
 test('toucher la recherche ouvre le tiroir en grand ; le clavier ne fait pas sauter la page', async ({
@@ -236,21 +241,12 @@ test('la recherche validée referme le clavier, et la poignée replie le tiroir'
   await expect(champ).not.toBeFocused();
 });
 
-test('le zoom de la carte est une cible de doigt de 44 px, sur /carte/ comme sur l’accueil', async ({
-  page,
-}) => {
+// Depuis le lot 3, l'accueil n'a plus de carte : `/carte/` est la seule.
+test('le zoom de la carte est une cible de doigt de 44 px', async ({ page }) => {
   await ouvrir(page);
   for (const nom of ['Zoomer', 'Dézoomer']) {
     const b = await boite(page, `button[aria-label="${nom}"]`);
     expect(b.width, `${nom} : largeur`).toBeGreaterThanOrEqual(44);
     expect(b.height, `${nom} : hauteur`).toBeGreaterThanOrEqual(44);
   }
-  // L'aperçu de l'accueil dessine la même carte avec les mêmes commandes.
-  await page.goto('/');
-  await page.locator('.explorateur').scrollIntoViewIfNeeded();
-  const zoom = page.getByRole('button', { name: 'Zoomer', exact: true });
-  await expect(zoom).toBeVisible({ timeout: 30_000 });
-  const b = (await zoom.boundingBox())!;
-  expect(b.width).toBeGreaterThanOrEqual(44);
-  expect(b.height).toBeGreaterThanOrEqual(44);
 });

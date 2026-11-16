@@ -1,0 +1,200 @@
+---
+// « S'orienter », deuxième pilier (décision 1A du 15/11/2026). La planche « S'orienter, départ » de la version 44 mène à un test
+// de trois ou quatre questions, qui viendra au lot 5.
+//
+// État de passage, en attendant le lot 5 : la même page de départ, mais chaque profil ouvre la liste « Écoles » filtrée qui lui
+// correspond (`orientationDePassage`). Elle ne promet ni questions ni piste, et ne montre pas « Dates à retenir » (aucun
+// communiqué en main : sans communiqué, pas de date). Au lot 5, les liens mèneront aux questions et le texte d'ouverture
+// redeviendra celui de la planche.
+import { obtenirSite } from '../../infra/index';
+import { orientationDePassage } from '../../modele/accueil';
+import Icone from '../../ui/Icone.astro';
+import PagePublique from '../../ui/PagePublique.astro';
+import '../../ui/carte-pieces.css';
+
+const { ecoles, facettes } = await obtenirSite();
+const { profils, technique } = orientationDePassage(
+  ecoles,
+  facettes.filter((f) => f.facette === 'rythme').map((f) => f.valeur),
+);
+---
+
+<PagePublique
+  titre="S’orienter après le BEPC ou le bac · NTanova"
+  description="Après le BEPC ou le bac, ou pour se former en travaillant : les lycées, les établissements du supérieur et les formations du Congo-Brazzaville relevés par NTanova."
+>
+  <div class="cadre orienter">
+    <section class="orienter-haut" aria-labelledby="titre-orienter">
+      <p class="surtitre">S’orienter</p>
+      <h1 id="titre-orienter">Quelle suite après le BEPC ou le bac&nbsp;?</h1>
+      <p class="texte-doux">
+        Choisissez où vous en êtes : vous voyez les établissements qui correspondent, avec ce qui a
+        été vu sur place.
+      </p>
+    </section>
+    <section class="orienter-profils" aria-labelledby="titre-profils">
+      <h2 id="titre-profils">Où en êtes-vous&nbsp;?</h2>
+      {profils.length > 0 ? (
+        <ul class="profils">
+          {profils.map((p) => (
+            <li>
+              <a class="profil" href={p.lien}>
+                <span class={`profil-icone c-${p.lettre}`} aria-hidden="true">
+                  <Icone nom={p.icone} petite={false} />
+                </span>
+                <span class="profil-texte">
+                  <b>{p.titre}</b>
+                  <span>{p.detail}</span>
+                </span>
+                <Icone nom="suite" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="texte-doux">
+          Les premières adresses arrivent au fil du relevé. <a href="/ecoles/">Voir les écoles</a>
+        </p>
+      )}
+      {technique && (
+        <a class="lien-fort" href={technique}>
+          Voir aussi l’enseignement technique et professionnel ›
+        </a>
+      )}
+      <p class="orienter-note">
+        <Icone nom="info" />
+        <span>
+          Des adresses, pas un avis officiel d’orientation : parlez-en aussi avec un professeur ou
+          un conseiller.
+        </span>
+      </p>
+    </section>
+  </div>
+</PagePublique>
+
+<style>
+  /* La planche « S'orienter, départ · téléphone » ; sur ordinateur, la même colonne, centrée. */
+  .orienter {
+    display: grid;
+    gap: var(--espace-4);
+    max-width: 40rem;
+    padding-top: 20px;
+    padding-bottom: 28px;
+  }
+  .orienter-haut {
+    display: grid;
+    gap: 10px;
+  }
+  .surtitre {
+    color: var(--texte-doux);
+    font-family: var(--police-interface);
+    font-size: var(--taille-mention);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .orienter h1 {
+    font-size: 1.875rem;
+    line-height: 1.12;
+    text-wrap: balance;
+  }
+  .orienter-profils {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .orienter-profils h2 {
+    font-size: 1.25rem;
+    line-height: 1.45;
+  }
+  .profils {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .profil {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 76px;
+    padding: 14px;
+    border: 2px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  @media (hover: hover) {
+    .profil:hover {
+      border-color: var(--marque);
+    }
+  }
+  .profil-icone {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--rayon-m);
+    background: var(--cycle);
+    color: var(--cycle-lettre);
+  }
+  .profil-icone :global(svg) {
+    stroke-width: 1.9;
+  }
+  .profil-texte {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .profil-texte b {
+    font-family: var(--police-interface);
+    font-size: 1.0625rem;
+    line-height: 1.25;
+  }
+  .profil-texte span {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .profil > :global(svg:last-child) {
+    color: var(--texte-doux);
+  }
+  /* Le lien de l'accueil, « › » compris : une cible de 44 px, à la largeur de son texte. */
+  .lien-fort {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-family: var(--police-interface);
+    font-weight: 700;
+  }
+  .orienter-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+    border-radius: var(--rayon-m);
+    background: var(--fond-bande);
+    font-size: var(--taille-secondaire);
+  }
+  .orienter-note :global(svg) {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    color: var(--marque);
+  }
+  @media (min-width: 48rem) {
+    .orienter {
+      padding-top: var(--espace-6);
+      padding-bottom: var(--espace-7);
+    }
+    .orienter h1 {
+      font-size: 2.25rem;
+    }
+  }
+</style>
