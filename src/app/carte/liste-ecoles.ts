@@ -191,7 +191,7 @@ export function demarrerListe(racine: HTMLElement): void {
     dessinerListe();
     dessinerFiltres();
     ecrireAdresse();
-    carte?.montrer(trouvees);
+    carte?.montrer(trouvees, etat);
   }
 
   const basculer = (g: Groupe, v: string) =>
@@ -248,7 +248,9 @@ export function demarrerListe(racine: HTMLElement): void {
     const cible = (ev.target as HTMLElement).closest<HTMLElement>(
       '[data-groupe][data-valeur], [data-rayon], [data-sortie], [data-plus], [data-ouvrir-filtres], [data-fermer-filtres], [data-voir], [data-effacer], [data-vue], [data-retirer-cadre], [data-chercher-zone], [data-fond-filtres]',
     );
-    if (!cible) return;
+    // `closest` remonte jusqu'à `<body>`, qui porte aussi `data-vue` : un clic hors des boutons de la page (une école de la
+    // liste) passait pour « Liste » ou « Carte » et n'ouvrait plus rien après un aller-retour (vu le 17/11).
+    if (!cible || !racine.contains(cible)) return;
     if (cible.dataset.groupe && cible.dataset.valeur !== undefined)
       return void basculer(cible.dataset.groupe as Groupe, cible.dataset.valeur);
     if (cible.dataset.rayon) {
@@ -293,7 +295,7 @@ export function demarrerListe(racine: HTMLElement): void {
     }
     if (cible.dataset.vue) {
       ev.preventDefault();
-      return void changerDeVue(cible.dataset.vue === 'carte' ? 'carte' : 'liste');
+      return void changerDeVue(cible.dataset.vue === 'carte' ? 'carte' : 'liste', true);
     }
   });
 
@@ -323,13 +325,26 @@ export function demarrerListe(racine: HTMLElement): void {
   });
 
   // La vue Carte : le moteur ne se charge qu'au premier toucher de « Carte ».
-  async function changerDeVue(vue: EtatListe['vue']) {
+  async function changerDeVue(vue: EtatListe['vue'], glisser = false) {
     etat = { ...etat, vue };
-    racine.dataset.vueActuelle = vue;
-    document.body.dataset.vue = vue;
-    racine.querySelectorAll<HTMLElement>('.liste-vue[data-vue]').forEach((b) => {
-      b.setAttribute('aria-pressed', String(b.dataset.vue === vue));
-    });
+    const basculer = () => {
+      racine.dataset.vueActuelle = vue;
+      document.body.dataset.vue = vue;
+      racine.querySelectorAll<HTMLElement>('.liste-vue[data-vue]').forEach((b) => {
+        b.setAttribute('aria-pressed', String(b.dataset.vue === vue));
+      });
+    };
+    // Liste → Carte glisse vers la gauche, Carte → Liste vers la droite (View Transitions du navigateur : aucun script de
+    // plus). Sans elles, ou quand le téléphone demande moins d'animations, la vue change d'un coup, comme avant.
+    if (
+      glisser &&
+      'startViewTransition' in document &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      document.documentElement.dataset.sens = vue === 'carte' ? 'avant' : 'arriere';
+      // Un onglet caché ou un second toucher l'interrompt : la vue change quand même, sans erreur dans la console.
+      document.startViewTransition(basculer).ready.catch(() => undefined);
+    } else basculer();
     ecrireAdresse();
     if (vue !== 'carte') return;
     await lire().catch(() => undefined);
@@ -343,12 +358,13 @@ export function demarrerListe(racine: HTMLElement): void {
       m.ouvrirLaCarte({
         zone: zoneCarte,
         surChoix: (id) => montrerDansLaListe(id),
+        surFermeture: () => activer(null),
         position: () => pres,
       }),
     );
     try {
       carte = await chargementCarte;
-      carte.montrer(trouvees);
+      carte.montrer(trouvees, etat);
     } catch (e) {
       console.error('carte :', e);
       zoneCarte.dataset.etat = 'echec';
@@ -363,13 +379,34 @@ export function demarrerListe(racine: HTMLElement): void {
       montrees = Math.ceil((i + 1) / PAR_PAGE) * PAR_PAGE;
       dessinerListe();
     }
-    const lien = cartes.querySelector<HTMLElement>(`[data-ecole="${CSS.escape(id)}"]`);
+    activer(id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  /** L'école choisie, encadrée dans la liste ; `null` n'en encadre aucune. */
+  function activer(id: string | null): HTMLElement | null {
     cartes
       .querySelectorAll('.carte-ecole-active')
       .forEach((x) => x.classList.remove('carte-ecole-active'));
+    if (!id) return null;
+    const lien = cartes.querySelector<HTMLElement>(`[data-ecole="${CSS.escape(id)}"]`);
     lien?.classList.add('carte-ecole-active');
-    lien?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    return lien;
   }
+
+  // Vue Carte sur ordinateur (option A du fondateur, 17/11) : le premier clic sur une école de la liste fait voler la carte
+  // vers elle et ouvre l'aperçu (« Voir la fiche ») ; un second clic sur la même école ouvre sa fiche. Un clic avec Ctrl,
+  // ⌘, Maj ou la molette garde son sens habituel, et une école sans position ouvre sa fiche.
+  cartes.addEventListener('click', (ev) => {
+    if (!carte || racine.dataset.vueActuelle !== 'carte') return;
+    if (!window.matchMedia('(min-width: 64rem)').matches) return;
+    if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+    const lien = (ev.target as HTMLElement).closest<HTMLElement>('[data-ecole]');
+    const id = lien?.dataset.ecole;
+    if (!lien || !id || lien.classList.contains('carte-ecole-active')) return;
+    if (!carte.choisir(id, true)) return;
+    ev.preventDefault();
+    activer(id);
+  });
 
   // Survoler une école de la liste allume son marqueur (ordinateur).
   cartes.addEventListener('pointerover', (ev) => {
