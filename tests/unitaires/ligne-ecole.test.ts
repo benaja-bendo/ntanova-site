@@ -141,7 +141,7 @@ describe('la ligne d’une école, écrite à la construction et dans le navigat
       ligneDeEcole(ecole({ origine: 'school', releveeLe: null, declareeLe: '2026-11-06' })),
     ).toMatchObject({ preuveTexte: 'Déclarée par l’école le 6 nov. 2026', preuveDate: null });
     expect(ligneDeEcole(ecole({ releveeLe: null })).preuveTexte).toBe(
-      'Ajoutée par NTanova, pas encore vue sur place',
+      'Ajoutée par NTanova · pas encore vue sur place',
     );
   });
 

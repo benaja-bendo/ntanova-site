@@ -103,3 +103,31 @@ test('les images : chaque vide se dit ; un fichier se prépare, se publie s’il
   await images.getByRole('button', { name: 'Retirer' }).click();
   await expect(images).toContainText('Pas d’image dans la galerie');
 });
+
+// Décision du fondateur du 17/11/2026 (option B) : une école ajoutée par NTanova a son épingle en tirets ; sa fiche dit que
+// la visite sur place manque, à confier à un relais en un clic (vu sur « La Colombe de Mavie »).
+test('une école ajoutée par NTanova : « Visite sur place » manque, et un relais peut la faire', async ({
+  page,
+}) => {
+  await seConnecter(page, '/admin/#valider');
+  await ouvrirLesEcoles(page);
+  await page
+    .getByRole('button', { name: 'Ajouter une école', exact: true })
+    .filter({ visible: true })
+    .click();
+  const f = page.getByRole('form', { name: 'Ajouter une école' });
+  await f.getByLabel('Nom de l’école').fill('[École de la Colline]');
+  await f.getByLabel(/^Position/).fill('-4.76147, 11.86637');
+  await f.getByRole('button', { name: 'Ajouter l’école' }).click();
+  await expect(page.getByRole('status').first()).toContainText('est ajoutée');
+  await ouvrirLesEcoles(page);
+  await ouvrirGestion(page.getByRole('row', { name: /\[École de la Colline\]/ }), 'À compléter');
+  const bloc = ficheOuverte(page).getByRole('region', { name: 'À compléter' });
+  await expect(bloc).toContainText('Visite sur place');
+  // Seul un relais peut la faire : « Un relais » est déjà choisi, et la mission se prépare avec sa tâche.
+  const qui = bloc.getByRole('group', { name: /^Visite sur place : à qui le demander \?$/ });
+  await expect(qui.getByRole('button', { name: 'Un relais' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+});

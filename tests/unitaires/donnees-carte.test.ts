@@ -153,9 +153,31 @@ describe('les écoles de la carte', () => {
   const sansPosition = ecole('sans', { latitude: null, longitude: null });
   const collection = ecolesGeoJSON([vue, confirmee, ajoutee, sansPosition]);
 
-  it('ne contient que les écoles vues sur place et situées', () => {
+  // Décision du fondateur du 17/11/2026 (option B), qui abroge celle du 03/11 (« seulement les écoles vues sur place ») :
+  // toute école publiée et située a son épingle ; aucune école de la liste n'est absente de la carte.
+  it('contient toutes les écoles situées, et pas celles sans position', () => {
     expect(collection.type).toBe('FeatureCollection');
-    expect(collection.features.map((f) => f.properties.id)).toEqual(['vue', 'conf']);
+    expect(collection.features.map((f) => f.properties.id)).toEqual(['vue', 'conf', 'ajoutee']);
+  });
+
+  it('la forme dit la preuve : pleine (vue, confirmée), en tirets (ajoutée par NTanova)', () => {
+    const preuve = (id: string) =>
+      collection.features.find((f) => f.properties.id === id)?.properties.preuve;
+    expect([preuve('vue'), preuve('conf'), preuve('ajoutee')]).toEqual([
+      'terrain',
+      'direction',
+      'ajoutee',
+    ]);
+    expect(
+      collection.features.find((f) => f.properties.id === 'ajoutee')?.properties.preuveTexte,
+    ).toBe('Ajoutée par NTanova · pas encore vue sur place');
+  });
+
+  it('confirmée par la direction sans passage d’un relais : épingle pleine', () => {
+    const seule = ecolesGeoJSON([
+      ecole('c2', { etat: 'verifiee', verifieeLe: '2026-11-04', releveeLe: null }),
+    ]);
+    expect(seule.features[0]?.properties.preuve).toBe('direction');
   });
 
   it('partage uniquement le chemin local de la photo publique avec les aperçus', () => {

@@ -129,6 +129,7 @@ export const listes = {
     'contact',
     'admission',
     'horaires',
+    'visite',
     'autre',
   ],
   request_target: ['ecole', 'relais'],

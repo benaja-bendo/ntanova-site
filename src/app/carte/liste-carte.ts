@@ -120,6 +120,8 @@ export async function ouvrirLaCarte(o: OuvertureDeLaCarte) {
     carte.flyTo({
       center: [lng, lat],
       zoom: Math.min(Math.max(carte.getZoom(), 15), zoomMaxEn(lng, lat)),
+      // L'aperçu s'ouvre en bas de la carte : l'école se pose plus haut, et ses voisines restent visibles (17/11).
+      offset: [0, -Math.round(carte.getContainer().clientHeight * 0.2)],
       duration: sansAnimation() ? 0 : DUREE_DU_VOL,
     });
   }

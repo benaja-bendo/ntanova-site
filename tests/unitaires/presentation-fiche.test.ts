@@ -57,7 +57,7 @@ describe('les preuves d’une fiche (canevas du 08/11/2026)', () => {
   it('« Ajoutée par NTanova » ne s’empile jamais avec « Pas encore confirmée »', () => {
     expect(
       textes({ ...FICHE, releveeLe: null, origine: 'import', situeeLe: '2026-11-03T09:00:00Z' }),
-    ).toEqual(['Ajoutée par NTanova · 3 nov. 2026']);
+    ).toEqual(['Ajoutée par NTanova · pas encore vue sur place']);
   });
   it('une école qui s’est déclarée elle-même attend encore sa confirmation', () => {
     expect(

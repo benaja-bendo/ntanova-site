@@ -2264,9 +2264,13 @@ const admin: PortAdministration = {
       ...(medias.some((m) => m.genre === 'gallery') ? [] : (['photos'] as const)),
       ...((c.frais ?? []).length > 0 ? [] : (['frais'] as const)),
       ...(c.contactPublic ? [] : (['contact'] as const)),
+      // 17/11 : ni passage d'un relais ni confirmation (le faux n'a pas la date de passage : son origine la dit).
+      ...((c.origine === 'admin' || c.origine === 'school') && !c.verifieeLe
+        ? (['visite'] as const)
+        : []),
     ];
     const qui = (s: Manque['sujet']): Manque['quiPeut'] =>
-      s === 'logo' ? ['ecole'] : s === 'contact' ? ['ecole', 'relais'] : ['ecole', 'relais'];
+      s === 'logo' ? ['ecole'] : s === 'visite' ? ['relais'] : ['ecole', 'relais'];
     return [
       ...calcules.map((sujet) => {
         const d = ouvertes.find((x) => x.sujet === sujet && !x.detail);

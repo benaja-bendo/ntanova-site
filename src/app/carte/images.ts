@@ -66,11 +66,16 @@ function tracerEcusson(ctx: CanvasRenderingContext2D, x: number, y: number) {
 /** L'épingle de l'école choisie est celle des autres, 28 % plus grande : dessinée à sa taille, elle reste nette. */
 const ECHELLE_CHOISIE = 1.28;
 
-/** Une épingle : le corps a la couleur du cycle, la lettre est blanche, l'écusson dit la confirmation de la direction. */
+/**
+ * Une épingle : le corps a la couleur du cycle, la lettre est blanche, l'écusson dit la confirmation de la direction.
+ * Ajoutée par NTanova, ni vue ni confirmée (17/11) : creuse, au contour en tirets de la couleur du cycle, la lettre de la
+ * même couleur ; elle se lit sans la couleur.
+ */
 function dessinerEpingle(
   lettre: string | null,
   confirmee: boolean,
   choisie: boolean,
+  ajoutee = false,
 ): ImageDessinee {
   const echelle = choisie ? ECHELLE_CHOISIE : 1;
   const t = toile(Math.ceil(40 * echelle), Math.ceil(46 * echelle));
@@ -87,13 +92,24 @@ function dessinerEpingle(
   ctx.bezierCurveTo(cx + r, cy + 7, cx + 7, pointe - 11, cx, pointe);
   ctx.closePath();
   const cycle = lettre ? JETON_DU_CYCLE[lettre as keyof typeof JETON_DU_CYCLE] : null;
-  ctx.fillStyle = jeton(cycle ?? 'carte-epingle-neutre');
-  ctx.fill();
-  ctx.lineWidth = 2.5;
-  ctx.strokeStyle = jeton('carte-epingle-contour');
-  ctx.stroke();
+  const couleur = jeton(cycle ?? 'carte-epingle-neutre');
+  if (ajoutee) {
+    ctx.fillStyle = jeton('carte-epingle-contour');
+    ctx.fill();
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = couleur;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  } else {
+    ctx.fillStyle = couleur;
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = jeton('carte-epingle-contour');
+    ctx.stroke();
+  }
   if (lettre) {
-    ctx.fillStyle = jeton('cycle-lettre');
+    ctx.fillStyle = ajoutee ? couleur : jeton('cycle-lettre');
     ctx.font = `700 17px ${jeton('police-interface')}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -113,18 +129,24 @@ function dessinerEcusson(): ImageDessinee {
 export function imageDeLaCarte(nom: string): ImageDessinee | null {
   if (nom === IMAGE_ECUSSON) return dessinerEcusson();
   const epingle = lireLEpingle(nom);
-  return epingle ? dessinerEpingle(epingle.lettre, epingle.confirmee, epingle.choisie) : null;
+  return epingle
+    ? dessinerEpingle(epingle.lettre, epingle.confirmee, epingle.choisie, epingle.ajoutee)
+    : null;
 }
 
 /**
  * Tous les noms d'image que le style peut demander : l'écusson, et une épingle par lettre de cycle (plus la
- * neutre), avec et sans écusson. Enregistrés d'un coup, avant que MapLibre en ait besoin : le rattrapage à la demande
+ * neutre), avec et sans écusson, et en tirets. Enregistrés d'un coup, avant que MapLibre en ait besoin : le rattrapage à la demande
  * (`styleimagemissing`) arrive trop tard pour la première mise en place des marqueurs, qui n'apparaissent alors pas.
  */
 export function nomsDesImages(): string[] {
   const lettres: (string | null)[] = [...LETTRES_DES_CYCLES, null];
   return [
     IMAGE_ECUSSON,
-    ...lettres.flatMap((l) => [nomDeLEpingle(l, false), nomDeLEpingle(l, true)]),
+    ...lettres.flatMap((l) => [
+      nomDeLEpingle(l, false),
+      nomDeLEpingle(l, true),
+      nomDeLEpingle(l, false, false, true),
+    ]),
   ];
 }

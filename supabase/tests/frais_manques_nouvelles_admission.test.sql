@@ -54,7 +54,8 @@ select ok(not (select is_public from public.field_submission_photos where id = '
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated"}', true);
 select is((select string_agg(topic, ',' order by topic) from public.campus_gaps('ed000000-0000-4000-8000-000000000001')),
-  'agrement,contact,logo,photos', 'Ce qui manque : agrément, contact, logo, photos (les frais sont là)');
+  'agrement,contact,logo,photos,visite',
+  'Ce qui manque : agrément, contact, logo, photos, et la visite sur place (ajoutée par NTanova ; les frais sont là)');
 select lives_ok($$select public.record_campus_request('ed000000-0000-4000-8000-000000000001', 'logo', null, 'ecole')$$,
   'Au retour de WhatsApp : le logo est demandé à l''école');
 select lives_ok($$select public.record_campus_request('ed000000-0000-4000-8000-000000000001', 'frais', 'Frais de la 3e, illisible sur le prospectus', 'ecole')$$,

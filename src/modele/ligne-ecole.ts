@@ -135,7 +135,7 @@ export function preuveDeLaLigne(
         date: null,
       };
     case 'ajoutee':
-      return { texte: 'Ajoutée par NTanova, pas encore vue sur place', date: null };
+      return { texte: 'Ajoutée par NTanova · pas encore vue sur place', date: null };
   }
 }
 

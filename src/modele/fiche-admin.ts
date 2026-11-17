@@ -22,6 +22,7 @@ export const libelleSujetDemande: Record<Valeur<'request_topic'>, string> = {
   contact: 'Contact',
   admission: 'Admission',
   horaires: 'Horaires et langue',
+  visite: 'Visite sur place',
   autre: 'Autre',
 };
 
@@ -31,6 +32,8 @@ export const tacheDuManque: Partial<Record<Valeur<'request_topic'>, string>> = {
   photos: 'Photographier la cour et une salle vides, sans enfant.',
   contact: 'Demander le contact de la direction, avec son accord.',
   admission: 'Photographier l’affiche des inscriptions ou de l’admission.',
+  // 17/11 : une école ajoutée par NTanova ; le passage du relais rend son épingle pleine.
+  visite: 'Passer à l’école : photographier l’enseigne et vérifier sa position sur la carte.',
 };
 
 /**

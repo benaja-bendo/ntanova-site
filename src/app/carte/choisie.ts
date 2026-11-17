@@ -17,6 +17,7 @@ export function montrerLEcoleChoisie(carte: MapLibreMap, ecole?: FeatureEcole): 
       ecole.properties.lettre,
       ecole.properties.preuve === 'direction',
       true,
+      ecole.properties.preuve === 'ajoutee',
     );
     const image = carte.hasImage(nom) ? null : imageDeLaCarte(nom);
     if (image) carte.addImage(nom, image.data, { pixelRatio: image.pixelRatio });

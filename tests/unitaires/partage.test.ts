@@ -44,7 +44,7 @@ describe('la preuve écrite sur l’image', () => {
     });
     expect(preuveDePartage({ ...e, releveeLe: null })).toEqual({
       genre: 'ajoutee',
-      texte: 'Ajoutée par NTanova',
+      texte: 'Ajoutée par NTanova · pas encore vue sur place',
     });
   });
 });

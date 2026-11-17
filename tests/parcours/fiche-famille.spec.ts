@@ -80,7 +80,7 @@ test.describe('la fiche d’une école', () => {
     await expect(page.locator('.preuve-direction')).toHaveCount(0);
     const vide = page.locator('.preuve-vide');
     await expect(vide).toHaveCount(1);
-    await expect(vide).toContainText('Ajoutée par NTanova · 3 nov. 2026');
+    await expect(vide).toContainText('Ajoutée par NTanova · pas encore vue sur place');
     await expect(vide).not.toContainText('Vue sur place');
   });
 
@@ -348,18 +348,16 @@ test.describe('« Où est l’école »', () => {
     );
   });
 
-  test('une école située mais pas encore vue sur place : la carte s’ouvre sur son quartier, sans promettre d’épingle', async ({
+  // Décision du fondateur du 17/11/2026 (option B) : toute école située a son épingle ; plus de « Voir le quartier ».
+  test('une école située mais pas encore vue sur place : « Voir sur la carte » l’ouvre choisie, en épingle en tirets', async ({
     page,
   }) => {
     await page.goto(BRAZZAVILLE);
     await expect(page.getByRole('group', { name: /sur la carte de/ })).toHaveCount(0);
-    const lien = page.getByRole('link', { name: 'Voir le quartier sur la carte' });
-    // Lot 4 bis : la vue Carte de « Les écoles », limitée à une petite zone autour de l'école.
-    await expect(lien).toHaveAttribute(
-      'href',
-      /^\/ecoles\/\?vue=carte&cadre=15\.2\d+,-4\.2\d+,15\.2\d+,-4\.2\d+$/,
-    );
-    await expect(page.getByRole('link', { name: 'Voir sur la carte', exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole('link', { name: 'Voir sur la carte', exact: true }),
+    ).toHaveAttribute('href', /^\/ecoles\/\?vue=carte&ecole=\d{6}$/);
+    await expect(page.getByRole('link', { name: 'Voir le quartier sur la carte' })).toHaveCount(0);
   });
 
   test('même avec des rues dessinées (Tié-Tié), plus de petit plan : « Voir sur la carte » mène à la seule carte (ticket 146)', async ({

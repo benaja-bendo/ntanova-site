@@ -90,13 +90,21 @@ const estUneZone = ['==', ['get', 'genre'], 'zone'];
 const estUneVille = ['==', ['get', 'genre'], 'ville'];
 const police = [POLICE_DE_LA_CARTE];
 const aucuneEcole = { type: 'FeatureCollection', features: [] } as const;
-/** Le nom du marqueur d'une école, comme `couches` le demande à l'îlot : lettre, écusson si confirmée, et grandeur. */
+/** Le nom du marqueur d'une école, comme `couches` le demande à l'îlot : lettre, écusson si confirmée, tirets si ajoutée par
+ * NTanova sans passage (17/11), et grandeur. */
 const imageDeLEpingle = (suffixe: string) =>
   expr([
     'concat',
     'epingle-',
     ['coalesce', ['get', 'lettre'], 'neutre'],
-    ['case', ['==', ['get', 'preuve'], 'direction'], '-confirmee', ''],
+    [
+      'case',
+      ['==', ['get', 'preuve'], 'direction'],
+      '-confirmee',
+      ['==', ['get', 'preuve'], 'ajoutee'],
+      '-ajoutee',
+      '',
+    ],
     suffixe,
   ]);
 

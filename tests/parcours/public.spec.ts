@@ -350,7 +350,7 @@ test.describe('site public', () => {
       await expect(liste).not.toContainText('Repère pas encore relevé');
       // Ajoutée par NTanova : une seule mention, la preuve.
       await expect(liste.getByRole('link', { name: /École sans détail/ })).toHaveText(
-        /^–\s*\[École sans détail Exemple\]\s*Tié-Tié · Pointe-Noire\s*Ajoutée par NTanova, pas encore vue sur place$/,
+        /^–\s*\[École sans détail Exemple\]\s*Tié-Tié · Pointe-Noire\s*Ajoutée par NTanova · pas encore vue sur place$/,
       );
       await expect(liste).not.toContainText('Pas indiqué');
     });
@@ -540,7 +540,8 @@ test.describe('le partage d’un lien', () => {
 
 // Ticket 102 : les données de la carte, construites avec le site (le même instantané que les pages).
 test.describe('les données de la carte', () => {
-  test('les écoles : celles que des relais ont vues sur place, avec tous leurs cycles, et rien de privé', async ({
+  // Décision du fondateur du 17/11/2026 (option B, abroge celle du 03/11) : toutes les écoles situées ; la preuve dit la forme.
+  test('les écoles : toutes celles qui sont situées, avec tous leurs cycles et leur preuve, et rien de privé', async ({
     request,
   }) => {
     const reponse = await request.get('/carte/ecoles.geojson');
@@ -554,8 +555,13 @@ test.describe('les données de la carte', () => {
     expect(ecoles.type).toBe('FeatureCollection');
     const noms = ecoles.features.map((f) => f.properties.nom);
     expect(noms).toContain('[Complexe scolaire Exemple]');
-    // Ajoutée par NTanova, ou sans position : pas sur la carte.
-    expect(noms).not.toContain('[École ajoutée Exemple]');
+    // Ajoutée par NTanova et située : sur la carte, en tirets ; sans position : pas sur la carte.
+    expect(
+      ecoles.features.find((f) => f.properties.nom === '[École ajoutée Exemple]')?.properties,
+    ).toMatchObject({
+      preuve: 'ajoutee',
+      preuveTexte: 'Ajoutée par NTanova · pas encore vue sur place',
+    });
     expect(noms).not.toContain('[École sans détail Exemple]');
     const complexe = ecoles.features.find(
       (f) => f.properties.nom === '[Complexe scolaire Exemple]',

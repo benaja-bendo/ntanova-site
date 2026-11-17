@@ -72,7 +72,8 @@ export function preuveDePartage(
       genre: 'ajoutee',
       texte: `${libelleProvenance.declaree}${e.declareeLe ? ` le ${dateLongue(e.declareeLe)}` : ''}`,
     };
-  return { genre: 'ajoutee', texte: libelleProvenance.ajoutee };
+  // 17/11 : la même mention que l'aperçu de la carte et la fiche.
+  return { genre: 'ajoutee', texte: `${libelleProvenance.ajoutee} · pas encore vue sur place` };
 }
 
 export interface CouleursDePartage {
