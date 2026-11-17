@@ -604,11 +604,26 @@ body[data-vue='carte'] .pied {
   .liste-ecoles[data-vue-actuelle='carte'] .liste-tri {
     display: block;
   }
+  /* La page tient dans l'écran et la carte prend toute la hauteur qui reste, même quand les puces passent sur deux lignes
+     (17/11 : le bas de la carte, et le sud du pays, sortaient de l'écran). */
+  body[data-vue='carte'] {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+  body[data-vue='carte'] > .contenu {
+    flex: 1;
+    min-height: 0;
+  }
+  .liste-ecoles[data-vue-actuelle='carte'] {
+    height: 100%;
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+    padding-block-end: var(--espace-4);
+  }
   .liste-ecoles[data-vue-actuelle='carte'] .liste-corps {
     grid-template-columns: 27.5rem minmax(0, 1fr);
     gap: 0;
-    height: calc(100dvh - 13rem);
-    min-height: 32rem;
+    min-height: 24rem;
     border: 1px solid var(--trait);
     border-radius: var(--rayon-m);
     overflow: hidden;
@@ -639,5 +654,68 @@ body[data-vue='carte'] .pied {
   }
   .liste-ecoles[data-vue-actuelle='carte'] .liste-retour {
     display: none;
+  }
+}
+
+/* Liste ↔ Carte (17/11/2026) : le corps de la page glisse, vers la gauche pour la carte, vers la droite pour la liste.
+   View Transitions du navigateur, sans script de plus ; ailleurs, ou avec moins d'animations demandées, la vue change d'un coup. */
+@media (prefers-reduced-motion: no-preference) {
+  .liste-corps {
+    view-transition-name: liste-corps;
+  }
+  ::view-transition-group(liste-corps) {
+    animation-duration: 340ms;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  ::view-transition-old(liste-corps),
+  ::view-transition-new(liste-corps) {
+    height: 100%;
+    animation-duration: 340ms;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation-fill-mode: both;
+  }
+  html[data-sens='avant']::view-transition-old(liste-corps) {
+    animation-name: vue-sort-a-gauche;
+  }
+  html[data-sens='avant']::view-transition-new(liste-corps) {
+    animation-name: vue-entre-par-la-droite;
+  }
+  html[data-sens='arriere']::view-transition-old(liste-corps) {
+    animation-name: vue-sort-a-droite;
+  }
+  html[data-sens='arriere']::view-transition-new(liste-corps) {
+    animation-name: vue-entre-par-la-gauche;
+  }
+}
+@keyframes vue-sort-a-gauche {
+  to {
+    opacity: 0;
+    transform: translateX(-16%);
+  }
+}
+@keyframes vue-entre-par-la-droite {
+  from {
+    opacity: 0;
+    transform: translateX(16%);
+  }
+}
+@keyframes vue-sort-a-droite {
+  to {
+    opacity: 0;
+    transform: translateX(16%);
+  }
+}
+@keyframes vue-entre-par-la-gauche {
+  from {
+    opacity: 0;
+    transform: translateX(-16%);
+  }
+}
+
+/* Sur ordinateur, l'aperçu de l'école choisie se pose en bas à gauche de la carte, sans cacher les crédits. */
+@media (min-width: 64rem) {
+  .apercu-bas {
+    inset: auto auto var(--espace-4) var(--espace-4);
+    width: min(25rem, calc(100% - 2 * var(--espace-4)));
   }
 }

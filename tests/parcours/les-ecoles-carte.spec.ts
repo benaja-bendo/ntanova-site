@@ -125,3 +125,90 @@ test.describe('au téléphone', () => {
     await expect(apercu).toBeHidden();
   });
 });
+
+// La carte qui suit la personne (17/11/2026, feu vert du fondateur) : le pays entier, un vol vers la ville choisie, et le
+// premier clic sur une école de la liste qui fait voler la carte vers elle (option A).
+const carteDeLaPage = (page: Page) =>
+  page.evaluate(() => {
+    const c = (
+      window as unknown as {
+        ntanovaCarte: {
+          getZoom(): number;
+          getBounds(): { toArray(): number[][] };
+          isMoving(): boolean;
+        };
+      }
+    ).ntanovaCarte;
+    return { zoom: c.getZoom(), boite: c.getBounds().toArray().flat(), bouge: c.isMoving() };
+  });
+const carteImmobile = async (page: Page) => {
+  await expect.poll(async () => (await carteDeLaPage(page)).bouge, { timeout: 10_000 }).toBe(false);
+  return carteDeLaPage(page);
+};
+
+test.describe('sur ordinateur, la carte suit la personne', () => {
+  test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
+
+  test('sans choix, le pays entier est à l’écran, nord compris', async ({ page }) => {
+    await page.goto('/ecoles/?vue=carte');
+    await expect(page.locator('[data-zone-carte]')).toHaveAttribute('data-etat', 'prete', {
+      timeout: 30_000,
+    });
+    const [ouest, sud, est, nord] = (await carteImmobile(page)).boite;
+    expect(ouest).toBeLessThanOrEqual(11.1);
+    expect(sud).toBeLessThanOrEqual(-5.1);
+    expect(est).toBeGreaterThanOrEqual(18.7);
+    expect(nord).toBeGreaterThanOrEqual(3.8);
+  });
+
+  test('choisir Pointe-Noire fait voler la carte vers la ville', async ({ page }) => {
+    await page.goto('/ecoles/?vue=carte');
+    await expect(page.locator('[data-zone-carte]')).toHaveAttribute('data-etat', 'prete', {
+      timeout: 30_000,
+    });
+    const avant = await carteImmobile(page);
+    await page.locator('[data-puces] [data-groupe="ville"][data-valeur="pointe-noire"]').click();
+    await expect.poll(async () => (await carteImmobile(page)).zoom).toBeGreaterThan(11);
+    expect(avant.zoom).toBeLessThan(7);
+  });
+
+  test('le premier clic sur une école la montre sur la carte ; le second ouvre sa fiche', async ({
+    page,
+  }) => {
+    await page.goto('/ecoles/?vue=carte');
+    await expect(page.locator('[data-zone-carte]')).toHaveAttribute('data-etat', 'prete', {
+      timeout: 30_000,
+    });
+    await carteImmobile(page);
+    const ecole = page.locator('[data-cartes] a[href="/ecoles/complexe-scolaire-exemple-482913/"]');
+    await ecole.click();
+    await expect(page).toHaveURL(/\/ecoles\/\?vue=carte$/);
+    await expect(ecole).toHaveClass(/carte-ecole-active/);
+    const apercu = page.locator('[data-apercu]');
+    await expect(apercu).toBeVisible();
+    await expect(apercu.getByRole('link', { name: 'Voir la fiche' })).toHaveAttribute(
+      'href',
+      '/ecoles/complexe-scolaire-exemple-482913/',
+    );
+    await expect.poll(async () => (await carteImmobile(page)).zoom).toBeGreaterThanOrEqual(15);
+    await ecole.click();
+    await expect(page).toHaveURL(/\/ecoles\/complexe-scolaire-exemple-482913\/$/);
+  });
+});
+
+test('après un aller-retour Carte → Liste, une école de la liste ouvre toujours sa fiche', async ({
+  page,
+}) => {
+  // Le 17/11 : `<body data-vue>` captait le clic d'une école et la vue rebasculait au lieu d'ouvrir la fiche.
+  await page.goto('/ecoles/');
+  await page.locator('.liste-vue[data-vue="carte"]').click();
+  await expect(page).toHaveURL(/vue=carte/);
+  await page
+    .locator('.liste-vue[data-vue="liste"], .liste-retour')
+    .filter({ visible: true })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/ecoles\/$/);
+  await page.locator('[data-cartes] a[href="/ecoles/complexe-scolaire-exemple-482913/"]').click();
+  await expect(page).toHaveURL(/\/ecoles\/complexe-scolaire-exemple-482913\/$/);
+});
