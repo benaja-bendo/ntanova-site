@@ -1286,14 +1286,18 @@ function FormulairePosition({
   const [erreurChamp, setErreurChamp] = useState<string | undefined>();
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  // 17/11 : publiée près d'une limite, sa vraie position peut tomber dans le contour voisin (les contours sont
+  // approximatifs). Après le refus de la base, on offre de garder la division de la fiche.
+  const [garder, setGarder] = useState(false);
   useEffect(() => {
     surOccupation(enCours);
     return () => surOccupation(false);
   }, [enCours, surOccupation]);
 
-  const enregistrer = async (ev: { preventDefault: () => void }) => {
+  const enregistrer = async (ev: { preventDefault: () => void }, forcer = false) => {
     ev.preventDefault();
     setErreur(null);
+    setGarder(false);
     const { position, erreur: illisible } = lireChampPosition(texte);
     if (!position) {
       setErreurChamp(illisible ?? 'Colle la position de l’école.');
@@ -1302,7 +1306,11 @@ function FormulairePosition({
     setErreurChamp(undefined);
     setEnCours(true);
     try {
-      const ou = await admin.situerEcole(e.id, position, divisionId || null);
+      const ou = await admin.situerEcole(
+        e.id,
+        position,
+        (forcer ? e.divisionId : divisionId) || null,
+      );
       surEnregistre(
         `${e.nom} est située à ${ou}.` +
           (e.publication === 'brouillon'
@@ -1312,7 +1320,18 @@ function FormulairePosition({
               : ''),
       );
     } catch (err) {
-      setErreur(message(err));
+      const texteErreur = message(err);
+      if (
+        publiee &&
+        e.divisionId &&
+        e.division &&
+        /adresse publique changerait/.test(texteErreur)
+      ) {
+        setGarder(true);
+        setErreur(
+          `D’après nos contours, ce point est dans un autre arrondissement que ${e.division}. Les contours sont approximatifs : si l’école est bien à ${e.division}, garde ${e.division}. Sinon, retire d’abord la fiche du site.`,
+        );
+      } else setErreur(texteErreur);
     } finally {
       setEnCours(false);
     }
@@ -1367,6 +1386,16 @@ function FormulairePosition({
         <Bouton type="submit" enCours={enCours}>
           Enregistrer la position
         </Bouton>
+        {garder && e.division && (
+          <button
+            type="button"
+            className={v2.boutonSecondaire}
+            disabled={enCours}
+            onClick={(ev) => void enregistrer(ev, true)}
+          >
+            Garder {e.division}
+          </button>
+        )}
         <button
           type="button"
           className={v2.boutonSecondaire}
