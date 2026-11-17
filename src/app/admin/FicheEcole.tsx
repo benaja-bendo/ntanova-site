@@ -26,6 +26,7 @@ import {
 import { libelleEquipement } from '../../modele/equipements-ecole';
 import { etatDuOui } from '../../modele/frais-ecole';
 import { jourDuCongo } from '../../modele/date-declaration';
+import { ecrirePosition } from '../../modele/coordonnees';
 import { annonceEnCours, nomDeClasse, trierParClasse } from '../../modele/places-effectifs';
 import { dateCourte, jourEtMois } from '../../modele/pointe-noire';
 import {
@@ -296,6 +297,24 @@ export function FicheEcole({
             <span className={pastilleEtat[etat]}>{libelleEtat[etat]}</span>
             {e.verifieeLe && <span className={v2.pastilleSucces}>Confirmée par la direction</span>}
           </p>
+          {/* 17/11 : une position recopiée d'un autre site se corrige ici (le tiroir « Position »). */}
+          {e.position && (
+            <p className="m-0 text-sm text-muted-foreground">
+              Position : {ecrirePosition(e.position)}
+              {!figee && (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    className={cn(v2.lien, 'min-h-0')}
+                    onClick={() => ouvrir('situer')}
+                  >
+                    Corriger la position
+                  </button>
+                </>
+              )}
+            </p>
+          )}
           {memeLieu && (
             <p className="m-0 text-sm text-muted-foreground">
               Même lieu que{' '}
