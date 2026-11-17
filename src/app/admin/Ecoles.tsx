@@ -1281,6 +1281,8 @@ function FormulairePosition({
 }) {
   const [texte, setTexte] = useState(e.position ? ecrirePosition(e.position) : '');
   const [divisionId, setDivisionId] = useState('');
+  // Publiée, elle ne change pas de division (la base refuse : son adresse publique changerait).
+  const publiee = e.publication === 'publiee';
   const [erreurChamp, setErreurChamp] = useState<string | undefined>();
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
@@ -1324,32 +1326,41 @@ function FormulairePosition({
       onSubmit={(ev) => void enregistrer(ev)}
     >
       <ChampPosition valeur={texte} surChange={setTexte} erreur={erreurChamp} />
-      <Champ
-        libelle="Division"
-        facultatif
-        aide="Laisse « Détectée d’après la position » : la base cherche l’arrondissement ou la ville. Choisis-la seulement quand aucun contour n’est connu à cet endroit."
-      >
-        {(a) => (
-          <select
-            {...a}
-            className={v2.champ}
-            value={divisionId}
-            onChange={(ev) => setDivisionId(ev.target.value)}
-          >
-            <option value="">Détectée d’après la position</option>
-            {divisions
-              .filter((d) => d.niveau >= 2)
-              .map((d) => (
-                <option key={d.id} value={d.id}>
-                  {cheminLisible(d.id, divisions)}
-                </option>
-              ))}
-          </select>
-        )}
-      </Champ>
+      {!publiee && (
+        <Champ
+          libelle="Division"
+          facultatif
+          aide="Laisse « Détectée d’après la position » : la base cherche l’arrondissement ou la ville. Choisis-la seulement quand aucun contour n’est connu à cet endroit."
+        >
+          {(a) => (
+            <select
+              {...a}
+              className={v2.champ}
+              value={divisionId}
+              onChange={(ev) => setDivisionId(ev.target.value)}
+            >
+              <option value="">Détectée d’après la position</option>
+              {divisions
+                .filter((d) => d.niveau >= 2)
+                .map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {cheminLisible(d.id, divisions)}
+                  </option>
+                ))}
+            </select>
+          )}
+        </Champ>
+      )}
       {erreur && (
         <p className={v2.erreurLarge} role="alert">
           {erreur}
+        </p>
+      )}
+      {publiee && (
+        <p className={v2.mentionLarge}>
+          Elle est publiée : son adresse publique ne change pas, la position doit rester
+          {e.division ? ` à ${e.division}` : ' dans sa division'}. La nouvelle position paraît sur
+          ntanova.com après la prochaine mise à jour du site.
         </p>
       )}
       <div className={v2.actionsLarge}>
