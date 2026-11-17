@@ -32,11 +32,13 @@ import {
   libelleEtatPlaces,
   libelleNiveau,
   libelleRolePhotoCourt,
+  libelleSujetMedia,
   libelleTypeEcole,
   libelleTypeMission,
 } from '../../modele/libelles';
 import type { ContactEcole, EcoleVue, PhotoVue, PortAdministration } from '../../modele/ports';
 import { jour } from '../../ui/composants';
+import type { Valeur } from '../../modele/listes';
 import { CarteContacts } from './ContactsEcole';
 
 export type RubriqueFiche =
@@ -147,7 +149,8 @@ export function FicheEcole({
   sites: EcoleVue[];
   etat: 'a_situer' | 'prete' | 'publiee' | 'retiree' | 'corbeille' | 'brouillon';
   admin: PortAdministration;
-  ouvrir: (rubrique: RubriqueFiche) => void;
+  /** `genre` : la place d'image à ouvrir (« Changer la couverture », « Ajouter le logo »). */
+  ouvrir: (rubrique: RubriqueFiche, genre?: Valeur<'media_kind'>) => void;
   memeLieu: EcoleVue | null;
   retirerMemeLieu: () => void;
   /** « Publier » quand la fiche est prête (absent sinon). */
@@ -194,6 +197,8 @@ export function FicheEcole({
   const superieur = e.niveaux.some((n) => n === 'superieur' || n === 'technique');
   const publiques = photos.filter((p) => p.publique).length;
   const aRelire = photos.filter((p) => !p.publiable).length;
+  const imagesDeLaFiche = (medias ?? []).filter((m) => m.genre !== 'logo');
+  const resumePhotos = `${imagesDeLaFiche.length} de la fiche · ${publiques} des relais publique${publiques > 1 ? 's' : ''} · ${aRelire} à relire · ${travail.length} de travail`;
   const equipementsVus = (e.equipements ?? []).filter((x) => x.etat !== 'absent');
   const derniereInscription = (e.inscriptions ?? [])
     .map((i) => i.limite)
@@ -233,7 +238,7 @@ export function FicheEcole({
             )}
             <button
               type="button"
-              onClick={() => ouvrir('images')}
+              onClick={() => ouvrir('images', 'cover')}
               disabled={figee}
               className="absolute right-3 bottom-3 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border-0 bg-card px-3 font-sans text-sm font-bold text-foreground shadow-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring max-lg:size-10 max-lg:justify-center max-lg:rounded-full max-lg:px-0"
               aria-label="Changer la couverture"
@@ -244,7 +249,7 @@ export function FicheEcole({
           </div>
           <button
             type="button"
-            onClick={() => ouvrir('images')}
+            onClick={() => ouvrir('images', 'logo')}
             disabled={figee}
             aria-label={logo ? 'Changer le logo' : 'Ajouter le logo'}
             className={cn(
@@ -351,8 +356,7 @@ export function FicheEcole({
           <h2 className="m-0 flex items-baseline justify-between gap-3 font-serif text-xl font-bold">
             Photos
             <span className="font-sans text-sm font-normal text-muted-foreground max-lg:hidden">
-              {publiques} publique{publiques > 1 ? 's' : ''} · {aRelire} à relire · {travail.length}{' '}
-              de travail
+              {resumePhotos}
             </span>
             <button
               type="button"
@@ -363,6 +367,31 @@ export function FicheEcole({
             </button>
           </h2>
           <ul className="m-0 grid list-none grid-cols-3 gap-2.5 p-0 lg:grid-cols-6 max-lg:flex max-lg:overflow-x-auto">
+            {/* 17/11 : les images ajoutées par l'administration (couverture, galerie), avant les photos des relais. */}
+            {imagesDeLaFiche.map((m) => (
+              <li key={m.id} className="max-lg:w-[110px] max-lg:shrink-0">
+                <button
+                  type="button"
+                  onClick={() => ouvrir('images', m.genre)}
+                  disabled={figee}
+                  aria-label={`Image de la fiche : ${m.legende ?? libelleSujetMedia[m.sujet]}`}
+                  className={cn(
+                    'relative flex aspect-[4/3] w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-muted p-0 outline-none focus-visible:ring-[3px] focus-visible:ring-ring',
+                    m.publique ? 'border-0' : 'border-2 border-ambre',
+                  )}
+                >
+                  {m.adresse && <img src={m.adresse} alt="" className="size-full object-cover" />}
+                  <span
+                    className={cn(
+                      'absolute bottom-1.5 left-1.5 rounded-sm px-1.5 py-px text-[11px] font-bold',
+                      m.publique ? 'bg-card' : 'bg-attention',
+                    )}
+                  >
+                    {!m.publique ? 'Pas publique' : m.genre === 'cover' ? 'Couverture' : 'Galerie'}
+                  </span>
+                </button>
+              </li>
+            ))}
             {[...photos, ...travail].map((p) => {
               const deTravail = travail.includes(p);
               return (
@@ -404,10 +433,7 @@ export function FicheEcole({
               </button>
             </li>
           </ul>
-          <p className="m-0 text-sm text-muted-foreground lg:hidden">
-            {publiques} publique{publiques > 1 ? 's' : ''} · {aRelire} à relire · {travail.length}{' '}
-            de travail
-          </p>
+          <p className="m-0 text-sm text-muted-foreground lg:hidden">{resumePhotos}</p>
         </section>
 
         {/* Les rubriques. */}

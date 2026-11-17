@@ -110,7 +110,8 @@ function LigneEcole({
   relais: RelaisVu[];
   divisions: DivisionVue[];
   admin: PortAdministration;
-  surChangement: (texte: string) => void;
+  /** `dejaDit` : le panneau ouvert l'a déjà dit ; la page relit, sans le redire (17/11 : message en double). */
+  surChangement: (texte: string, dejaDit?: boolean) => void;
   /** Admin v2 : la fiche de l'école en plein écran (`#ecoles/fiche/<id>`), à la place du tiroir « Gérer ». */
   pleinEcran?: boolean;
 }) {
@@ -169,8 +170,10 @@ function LigneEcole({
   }, [retour]);
   const signaler = (texte: string) => {
     setRetour(texte);
-    surChangement(texte);
+    surChangement(texte, true);
   };
+  // 17/11 : « Changer la couverture » et « Ajouter le logo » ouvrent le formulaire des images sur leur place.
+  const [genreImages, setGenreImages] = useState<Valeur<'media_kind'> | null>(null);
 
   const agir = async (action: () => Promise<unknown>, texte: string) => {
     setEnCours(true);
@@ -235,7 +238,14 @@ function LigneEcole({
       {mode === 'formations' && (
         <FormationsSuperieur ecoleId={e.id} nom={e.nom} admin={admin} surChangement={signaler} />
       )}
-      {mode === 'images' && <ImagesEcole ecoleId={e.id} admin={admin} surChangement={signaler} />}
+      {mode === 'images' && (
+        <ImagesEcole
+          ecoleId={e.id}
+          admin={admin}
+          genreVoulu={genreImages}
+          surChangement={signaler}
+        />
+      )}
       {mode === 'photo-publique' && (
         <PhotoPublique
           surOccupation={setOperation}
@@ -924,8 +934,9 @@ function LigneEcole({
           </nav>
           {gestes}
         </div>
-        {retour && (
-          <p ref={zoneRetour} className={v2.bandeSucces} role="status">
+        {/* Panneau ouvert : il dit lui-même le retour ; la fiche le redit une fois le panneau fermé. */}
+        {retour && (!mode || confirmation) && (
+          <p ref={mode ? undefined : zoneRetour} className={v2.bandeSucces} role="status">
             {retour}
           </p>
         )}
@@ -941,9 +952,10 @@ function LigneEcole({
           admin={admin}
           memeLieu={memeLieu}
           gestes={gestes}
-          ouvrir={(r) => {
+          ouvrir={(r, genre) => {
             setErreur(null);
             setRetour(null);
+            setGenreImages(genre ?? null);
             setMode(r);
           }}
           retirerMemeLieu={() =>
@@ -1375,6 +1387,12 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   const [annonce, setAnnonce] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [ajout, setAjout] = useState(false);
+  // 17/11 : le message d'une fiche ne suit pas sur la fiche d'un autre site.
+  const [adresseDeLAnnonce, setAdresseDeLAnnonce] = useState(`${sousAdresse}/${zoneDeLAdresse}`);
+  if (adresseDeLAnnonce !== `${sousAdresse}/${zoneDeLAdresse}`) {
+    setAdresseDeLAnnonce(`${sousAdresse}/${zoneDeLAdresse}`);
+    if (sousAdresse === 'fiche') setAnnonce(null);
+  }
 
   const charger = useCallback(() => {
     Promise.all([admin.ecoles(), admin.relais(), admin.divisions()])
@@ -1484,8 +1502,8 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           relais={relais}
           divisions={divisions}
           admin={admin}
-          surChangement={(texte) => {
-            setAnnonce(texte);
+          surChangement={(texte, dejaDit) => {
+            if (!dejaDit) setAnnonce(texte);
             charger();
           }}
         />
