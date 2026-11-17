@@ -20,33 +20,55 @@ const GENRES: { valeur: Valeur<'media_kind'>; libelle: string }[] = [
  * galerie. Un fichier est réduit dans le navigateur avant l'envoi (« Préparation… ») ; une image n'est publique qu'après la
  * case « Sans enfant ni personne reconnaissable ». Le prospectus et les programmes n'entrent jamais ici (la base le refuse).
  */
+/** La place que prend une nouvelle image : celle demandée si elle est libre, sinon la galerie, sinon la première libre. */
+function placeDuFormulaire(
+  libres: Record<Valeur<'media_kind'>, boolean>,
+  voulu?: Valeur<'media_kind'> | null,
+): Valeur<'media_kind'> {
+  if (voulu) return voulu;
+  if (libres.gallery) return 'gallery';
+  return GENRES.find((g) => libres[g.valeur])?.valeur ?? 'gallery';
+}
+
 export function ImagesEcole({
   ecoleId,
   admin,
   surChangement,
+  genreVoulu = null,
 }: {
   ecoleId: string;
   admin: PortAdministration;
   surChangement: (texte: string) => void;
+  /** 17/11 : « Changer la couverture » ouvre sur Couverture, « Ajouter le logo » sur Logo. */
+  genreVoulu?: Valeur<'media_kind'> | null;
 }) {
   const [medias, setMedias] = useState<MediaAdmin[] | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [etape, setEtape] = useState<'repos' | 'preparation' | 'envoi'>('repos');
-  const [genre, setGenre] = useState<Valeur<'media_kind'>>('gallery');
-  const [sujet, setSujet] = useState<Valeur<'media_subject'>>('cour');
-  const [legende, setLegende] = useState('');
+  const [genre, setGenre] = useState<Valeur<'media_kind'>>(genreVoulu ?? 'gallery');
+  const [sujet, setSujet] = useState<Valeur<'media_subject'>>(
+    genreVoulu === 'cover' ? 'batiment' : 'cour',
+  );
+  // 17/11 : plusieurs fichiers d'un coup dans la galerie, chacun sa légende.
+  const [fichiers, setFichiers] = useState<File[]>([]);
+  const [legendes, setLegendes] = useState<string[]>([]);
   const [controle, setControle] = useState(false);
-  const [fichier, setFichier] = useState<File | null>(null);
+  // Le champ « Le fichier » se vide en renaissant (un champ de fichier ne se vide pas par sa valeur).
+  const [champFichier, setChampFichier] = useState(0);
   const lire = useCallback(() => admin.mediasDeLEcole(ecoleId), [admin, ecoleId]);
   useEffect(() => {
     let vivant = true;
     void lire()
-      .then((m) => vivant && setMedias(m))
+      .then((m) => {
+        if (!vivant) return;
+        setMedias(m);
+        if (!genreVoulu) setGenre(placeDuFormulaire(placesLibres(m)));
+      })
       .catch((e: unknown) => vivant && setErreur(messageErreur(e)));
     return () => {
       vivant = false;
     };
-  }, [lire]);
+  }, [lire, genreVoulu]);
 
   if (medias === null)
     return erreur ? <p className={v2.erreur}>{erreur}</p> : <p aria-busy="true">Chargement…</p>;
@@ -64,8 +86,15 @@ export function ImagesEcole({
       setErreur(messageErreur(e));
     }
   };
+  const plusieurs = genre === 'gallery';
+  const choisir = (liste: File[]) => {
+    const gardes = plusieurs ? liste : liste.slice(0, 1);
+    setFichiers(gardes);
+    setLegendes(gardes.map(() => ''));
+  };
+  const placesGalerie = 12 - medias.filter((m) => m.genre === 'gallery').length;
   const ajouter = async () => {
-    if (!fichier) return setErreur('Choisis une image.');
+    if (fichiers.length === 0) return setErreur('Choisis une image.');
     if (!libres[genre])
       return setErreur(
         genre === 'logo'
@@ -74,26 +103,54 @@ export function ImagesEcole({
             ? 'Ce site a déjà une couverture : retire-la d’abord.'
             : 'Douze images au plus dans la galerie : retires-en une d’abord.',
       );
+    if (genre === 'gallery' && fichiers.length > placesGalerie)
+      return setErreur(
+        `La galerie n’a plus que ${placesGalerie} place${placesGalerie > 1 ? 's' : ''} : choisis moins d’images.`,
+      );
     setErreur(null);
-    setEtape('preparation');
+    let envoyees = 0;
     try {
-      const image = await preparerImage(fichier);
-      setEtape('envoi');
-      await admin.ajouterMedia(ecoleId, {
-        genre,
-        sujet: genre === 'logo' ? 'logo' : sujet,
-        legende: legende.trim() || null,
-        controle,
-        publique: controle,
-        image,
-      });
-      setFichier(null);
-      setLegende('');
+      for (const [i, f] of fichiers.entries()) {
+        setEtape('preparation');
+        const image = await preparerImage(f);
+        setEtape('envoi');
+        await admin.ajouterMedia(ecoleId, {
+          genre,
+          sujet: genre === 'logo' ? 'logo' : sujet,
+          legende: legendes[i]?.trim() || null,
+          controle,
+          publique: controle,
+          image,
+        });
+        envoyees += 1;
+      }
+      const n = envoyees;
+      const texte =
+        n > 1
+          ? `${n} images ajoutées${controle ? ' et publiées' : ', pas encore publiques'}.`
+          : controle
+            ? 'Image ajoutée et publiée.'
+            : 'Image ajoutée, pas encore publique.';
+      // Tout se vide ; la liste quitte une place désormais prise.
+      setFichiers([]);
+      setLegendes([]);
       setControle(false);
-      await relire(controle ? 'Image ajoutée et publiée.' : 'Image ajoutée, pas encore publique.');
+      setChampFichier((c) => c + 1);
+      const m = await lire();
+      setMedias(m);
+      setGenre(placeDuFormulaire(placesLibres(m)));
+      surChangement(texte);
     } catch (e) {
-      // Le fichier reste choisi : on réessaie sans le reprendre.
-      setErreur(e instanceof ImageIllisible ? e.message : messageErreur(e));
+      // Les fichiers pas encore partis restent choisis : on réessaie sans les reprendre.
+      if (envoyees > 0) {
+        setFichiers(fichiers.slice(envoyees));
+        setLegendes(legendes.slice(envoyees));
+        setMedias(await lire().catch(() => medias));
+      }
+      const raison = e instanceof ImageIllisible ? e.message : messageErreur(e);
+      setErreur(
+        envoyees > 0 ? `${envoyees} envoyée${envoyees > 1 ? 's' : ''}, puis : ${raison}` : raison,
+      );
     } finally {
       setEtape('repos');
     }
@@ -194,7 +251,14 @@ export function ImagesEcole({
               {...a}
               className={v2.champ}
               value={genre}
-              onChange={(ev) => setGenre(ev.target.value as Valeur<'media_kind'>)}
+              onChange={(ev) => {
+                const g = ev.target.value as Valeur<'media_kind'>;
+                setGenre(g);
+                if (g !== 'gallery' && fichiers.length > 1) {
+                  setFichiers(fichiers.slice(0, 1));
+                  setLegendes(legendes.slice(0, 1));
+                }
+              }}
             >
               {GENRES.map((g) => (
                 <option key={g.valeur} value={g.valeur} disabled={!libres[g.valeur]}>
@@ -225,42 +289,71 @@ export function ImagesEcole({
             )}
           </Champ>
         )}
-        <Champ libelle="Le fichier" aide="JPEG, PNG ou WebP ; il est réduit avant l’envoi.">
+        <Champ
+          libelle="Le fichier"
+          aide={
+            plusieurs
+              ? 'JPEG, PNG ou WebP ; plusieurs d’un coup si tu veux. Chacun est réduit avant l’envoi.'
+              : 'JPEG, PNG ou WebP ; il est réduit avant l’envoi.'
+          }
+        >
           {(a) => (
             <input
               {...a}
+              key={champFichier}
               className={v2.champ}
               type="file"
+              multiple={plusieurs}
               accept="image/jpeg,image/png,image/webp"
-              onChange={(ev) => setFichier(ev.target.files?.[0] ?? null)}
+              onChange={(ev) => choisir([...(ev.target.files ?? [])])}
             />
           )}
         </Champ>
-        <Champ libelle="Légende" facultatif>
-          {(a) => (
-            <input
-              {...a}
-              className={v2.champ}
-              maxLength={60}
-              value={legende}
-              onChange={(ev) => setLegende(ev.target.value)}
-            />
-          )}
-        </Champ>
+        {fichiers.length > 1 ? (
+          fichiers.map((f, i) => (
+            <Champ key={`${f.name}-${i}`} libelle={`Légende de ${f.name}`} facultatif>
+              {(a) => (
+                <input
+                  {...a}
+                  className={v2.champ}
+                  maxLength={60}
+                  value={legendes[i] ?? ''}
+                  onChange={(ev) =>
+                    setLegendes(legendes.map((l, j) => (j === i ? ev.target.value : l)))
+                  }
+                />
+              )}
+            </Champ>
+          ))
+        ) : (
+          <Champ libelle="Légende" facultatif>
+            {(a) => (
+              <input
+                {...a}
+                className={v2.champ}
+                maxLength={60}
+                value={legendes[0] ?? ''}
+                onChange={(ev) => setLegendes([ev.target.value])}
+              />
+            )}
+          </Champ>
+        )}
         <label className={v2.case}>
           <input
             type="checkbox"
             checked={controle}
             onChange={(ev) => setControle(ev.target.checked)}
           />
-          Sans enfant ni personne reconnaissable : la publier
+          {fichiers.length > 1
+            ? 'Sans enfant ni personne reconnaissable, sur aucune : les publier'
+            : 'Sans enfant ni personne reconnaissable : la publier'}
         </label>
         <Bouton
           type="submit"
           enCours={etape !== 'repos'}
           texteEnCours={etape === 'preparation' ? 'Préparation…' : 'Envoi…'}
         >
-          Ajouter l’image
+          {fichiers.length > 1 ? `Ajouter les ${fichiers.length} images` : 'Ajouter l’image'}
         </Bouton>
         <p className={v2.mention}>Visible à la prochaine mise à jour du site.</p>
       </form>
