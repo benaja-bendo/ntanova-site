@@ -76,6 +76,7 @@ supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parco
 ## Système de design
 
 - **Lire `DESIGN_SYSTEM.md`** avant de créer ou de modifier un composant. Le code est la source ; canevas et artefacts en sont des copies.
+- **Les règles de design et de produit sont sur la page « Règles » du canevas « NTanova v2 : admin et relais »** (https://claude.ai/artifact/XJ6z1jbqfeA7vogNbpp5aM, depuis le 17/11) : ce qui paraît au public, collecter / accepter / publier, écrire un écran, ce qui reste interne, de la planche au code. Avant de coder un écran, lire cette page ; une règle nouvelle s'y ajoute, datée, et nulle part ailleurs. Pour les composants, `DESIGN_SYSTEM.md` et le code restent la source.
 - **Administration et espace relais : Tailwind v4 et shadcn (Radix)** depuis la refonte v2. Composants dans `src/ui/shadcn/` ; pièces communes dans `src/ui/v2/` (`classes.ts` : `v2.bouton`, `v2.champ`, `v2.puce`… ; `admin.tsx` : `Bouton`, `Dialogue`, `ActionsSecondaires` ; `formulaire.tsx` : `Champ`, `Bandeau`). Icônes copiées (`src/ui/shadcn/icones.ts`), jamais lucide-react ni Iconify. Le site public reste en CSS simple ; un fichier est soit en Tailwind, soit en classes du site.
 - **Couleurs** : seulement dans `src/ui/jetons.css` (`pnpm couleurs` refuse le reste, même le `rgb()` d'une ombre).
 - Texte à 16 px ; Source Serif 4 et Nunito Sans servies par le site ; cibles de 48 px (44 au moins) ; thème clair d'abord ; survol seulement avec une souris. Chaque composant entre dans le catalogue (`src/pages/dev/`).
