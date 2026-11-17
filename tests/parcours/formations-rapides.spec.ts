@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  attendreLaFicheGardee,
   ouvrirLaFiche,
   prendrePhotoEtPosition,
   seConnecter,
@@ -134,7 +135,8 @@ test.describe('les filières du supérieur se cochent sans clavier', () => {
       notees.getByRole('button', { name: 'Retirer : Licence Pâtisserie' }),
     ).toBeVisible();
 
-    // Gardé dans le téléphone : un rechargement les retrouve.
+    // Gardé dans le téléphone : un rechargement les retrouve (une fois l'écriture faite, pas avant : 17/11).
+    await attendreLaFicheGardee(page, 'formationsVues', 4);
     await page.reload();
     await expect(page.getByRole('heading', { name: ETAPE2 })).toBeVisible();
     await expect(

@@ -35,10 +35,15 @@ test('« À compléter » : les manques et qui peut les donner ; WhatsApp les no
   const [onglet] = await Promise.all([page.context().waitForEvent('page'), whatsapp.click()]);
   await onglet.close();
   await expect(bloc).toContainText(/demandé à l’école le/);
-  await bloc.getByRole('button', { name: 'Annuler la demande' }).first().click();
-  await expect(bloc.getByRole('button', { name: 'Annuler la demande' })).toHaveCount(
-    await bloc.getByText(/demandé à l’école le/).count(),
-  );
+  // Une demande notée = une mention datée et son « Annuler » ; en annuler une les retire toutes deux. Les nombres sont
+  // attendus, pas lus pendant que l'écran se redessine (17/11 : « 4 au lieu de 3 », environ 1 fois sur 25).
+  const annuler = bloc.getByRole('button', { name: 'Annuler la demande' });
+  const demandes = bloc.getByText(/demandé à l’école le/);
+  const avant = await demandes.count();
+  await expect(annuler).toHaveCount(avant);
+  await annuler.first().click();
+  await expect(demandes).toHaveCount(avant - 1);
+  await expect(annuler).toHaveCount(avant - 1);
 });
 
 test('« Confier à un relais » ouvre la mission, la tâche préremplie ; la date et la paie partent avec elle', async ({
