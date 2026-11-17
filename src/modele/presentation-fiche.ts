@@ -56,7 +56,12 @@ export function preuvesDeLaFiche(
   if (e.releveeLe)
     preuves.push({ genre: 'terrain', icone: 'oeil', texte: `Vue sur place${date(e.releveeLe)}` });
   if (!e.releveeLe && !declaree)
-    preuves.push({ genre: 'vide', icone: null, texte: `Ajoutée par NTanova${date(e.situeeLe)}` });
+    preuves.push({
+      genre: 'vide',
+      icone: null,
+      // 17/11 : la mention de l'épingle en tirets ; elle part dès qu'un relais passe.
+      texte: 'Ajoutée par NTanova · pas encore vue sur place',
+    });
   else if (!confirmee)
     preuves.push({
       genre: 'vide',

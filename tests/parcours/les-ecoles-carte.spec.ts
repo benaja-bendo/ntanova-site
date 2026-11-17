@@ -212,3 +212,34 @@ test('après un aller-retour Carte → Liste, une école de la liste ouvre toujo
   await page.locator('[data-cartes] a[href="/ecoles/complexe-scolaire-exemple-482913/"]').click();
   await expect(page).toHaveURL(/\/ecoles\/complexe-scolaire-exemple-482913\/$/);
 });
+
+// Décision du fondateur du 17/11/2026 (option B) : une école ajoutée par NTanova, située, a son épingle en tirets ; aucune
+// école de la liste n'est absente de la carte (vu en ligne : « La Colombe de Mavie », trois sites sans épingle).
+test.describe('sur ordinateur, une école ajoutée par NTanova', () => {
+  test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
+
+  test('« Voir sur la carte » l’ouvre choisie, en épingle en tirets, avec sa mention', async ({
+    page,
+  }) => {
+    await page.goto('/ecoles/ecole-ajoutee-exemple-639158/');
+    await page.getByRole('link', { name: 'Voir sur la carte', exact: true }).click();
+    await expect(page.locator('[data-zone-carte]')).toHaveAttribute('data-etat', 'prete', {
+      timeout: 30_000,
+    });
+    const apercu = page.locator('[data-apercu]');
+    await expect(apercu).toBeVisible();
+    await expect(apercu).toContainText('[École ajoutée Exemple]');
+    await expect(apercu).toContainText('Ajoutée par NTanova · pas encore vue sur place');
+    // L'épingle choisie est celle en tirets (et l'école n'est pas cachée de la carte).
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          (window as unknown as { ntanovaCarte: { listImages(): string[] } }).ntanovaCarte
+            .listImages()
+            .some((n) => /^epingle-.*-ajoutee-choisie$/.test(n)),
+        ),
+      )
+      .toBe(true);
+    await expect(page.locator('[data-zone-carte]')).toHaveAttribute('data-aucune', 'non');
+  });
+});

@@ -78,24 +78,25 @@ test('la fiche n’a plus de petit plan : le repère en mots et « Voir sur la c
   await expect(page.getByRole('link', { name: /Voir .*sur la carte/ })).toHaveCount(0);
 });
 
-// Ticket #99 (décision du fondateur du 03/11) : la carte est la vitrine de la preuve de terrain.
+// Ticket #99, puis décision du fondateur du 17/11/2026 (option B, qui abroge celle du 03/11) : l'école ajoutée par NTanova
+// est dans la liste ET sur la carte, en épingle en tirets, avec sa mention.
 test('une école située par l’administration, sans relevé, est dans la liste avec sa mention, sans « Repère pas encore relevé »', async ({
   page,
 }) => {
   await page.goto('/ecoles/pointe-noire/tie-tie/');
   const carte = page.locator('ul.liste-lignes li', { hasText: '[École ajoutée Exemple]' });
   await expect(carte.locator('.ligne-preuve')).toHaveText(
-    'Ajoutée par NTanova, pas encore vue sur place',
+    'Ajoutée par NTanova · pas encore vue sur place',
   );
   await expect(carte).not.toContainText('Repère pas encore relevé');
   await page.goto('/ecoles/ecole-ajoutee-exemple-639158/');
-  await expect(page.getByText('Ajoutée par NTanova · 3 nov. 2026')).toBeVisible();
+  await expect(page.getByText('Ajoutée par NTanova · pas encore vue sur place')).toBeVisible();
   await expect(page.locator('.preuves')).toContainText('Ajoutée par NTanova');
   // Sa tête n'en dit pas plus ; « Écoles proches », plus bas, montre les preuves des autres (lot 4).
   await expect(page.locator('.fiche-tete').getByText(/Vue sur place ·/)).toHaveCount(0);
-  // Pas vue sur place : la vue Carte s'ouvre sur sa zone, sans épingle, et le lien le dit.
-  await expect(page.getByRole('link', { name: 'Voir le quartier sur la carte' })).toHaveAttribute(
+  // Située : elle a son épingle (en tirets), et le lien l'ouvre choisie sur la carte (17/11).
+  await expect(page.getByRole('link', { name: 'Voir sur la carte', exact: true })).toHaveAttribute(
     'href',
-    /^\/ecoles\/\?vue=carte&cadre=/,
+    '/ecoles/?vue=carte&ecole=639158',
   );
 });

@@ -3,7 +3,8 @@
  * la lettre et la couleur disent le cycle le plus élevé ; les deux se lisent sans la couleur).
  *
  * - une **épingle** pour une école vue sur place ; la même épingle avec un **écusson à coche** pour une école confirmée
- *   par sa direction (jamais fusionnées) ;
+ *   par sa direction (jamais fusionnées) ; une **épingle en tirets**, creuse, pour une école ajoutée par NTanova sans
+ *   passage ni confirmation (17/11/2026, option B) ;
  * - la **lettre** (M, P, C, L, T, S) et la couleur du cycle ; une école dont aucun niveau n'est noté a une épingle neutre
  *   et pas de lettre.
  *
@@ -28,6 +29,8 @@ export const IMAGE_ECUSSON = 'ecusson';
 
 const PREFIXE = 'epingle-';
 const SUFFIXE_CONFIRMEE = '-confirmee';
+/** Ni vue sur place ni confirmée : l'épingle en tirets (17/11). */
+const SUFFIXE_AJOUTEE = '-ajoutee';
 /** L'école choisie : la même épingle, plus grande (le halo et le nom sont des couches à part). */
 const SUFFIXE_CHOISIE = '-choisie';
 const NEUTRE = 'neutre';
@@ -36,25 +39,32 @@ export function estUneLettreDeCycle(texte: string | null | undefined): texte is 
   return (LETTRES_DES_CYCLES as readonly string[]).includes(texte ?? '');
 }
 
-/** Le nom de l'image d'un marqueur : `epingle-P`, `epingle-P-confirmee`, `epingle-neutre`, `epingle-P-choisie`. */
+/**
+ * Le nom de l'image d'un marqueur : `epingle-P`, `epingle-P-confirmee`, `epingle-P-ajoutee`, `epingle-neutre`,
+ * `epingle-P-choisie`. Une école confirmée n'est jamais dite ajoutée.
+ */
 export function nomDeLEpingle(
   lettre: string | null | undefined,
   confirmee: boolean,
   choisie = false,
+  ajoutee = false,
 ): string {
-  return `${PREFIXE}${estUneLettreDeCycle(lettre) ? lettre : NEUTRE}${confirmee ? SUFFIXE_CONFIRMEE : ''}${choisie ? SUFFIXE_CHOISIE : ''}`;
+  const preuve = confirmee ? SUFFIXE_CONFIRMEE : ajoutee ? SUFFIXE_AJOUTEE : '';
+  return `${PREFIXE}${estUneLettreDeCycle(lettre) ? lettre : NEUTRE}${preuve}${choisie ? SUFFIXE_CHOISIE : ''}`;
 }
 
 /** L'inverse : ce qu'il faut dessiner pour ce nom ; rien quand le nom n'est pas celui d'un marqueur. */
 export function lireLEpingle(
   nom: string,
-): { lettre: LettreDeCycle | null; confirmee: boolean; choisie: boolean } | null {
+): { lettre: LettreDeCycle | null; confirmee: boolean; choisie: boolean; ajoutee: boolean } | null {
   if (!nom.startsWith(PREFIXE)) return null;
   let reste = nom.slice(PREFIXE.length);
   const choisie = reste.endsWith(SUFFIXE_CHOISIE);
   if (choisie) reste = reste.slice(0, -SUFFIXE_CHOISIE.length);
   const confirmee = reste.endsWith(SUFFIXE_CONFIRMEE);
   if (confirmee) reste = reste.slice(0, -SUFFIXE_CONFIRMEE.length);
-  if (reste === NEUTRE) return { lettre: null, confirmee, choisie };
-  return estUneLettreDeCycle(reste) ? { lettre: reste, confirmee, choisie } : null;
+  const ajoutee = !confirmee && reste.endsWith(SUFFIXE_AJOUTEE);
+  if (ajoutee) reste = reste.slice(0, -SUFFIXE_AJOUTEE.length);
+  if (reste === NEUTRE) return { lettre: null, confirmee, choisie, ajoutee };
+  return estUneLettreDeCycle(reste) ? { lettre: reste, confirmee, choisie, ajoutee } : null;
 }

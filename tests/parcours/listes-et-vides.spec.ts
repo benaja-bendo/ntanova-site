@@ -60,7 +60,7 @@ test.describe('la ligne d’une école est la même à la construction et dans l
     const sans = page.locator('ul.liste-lignes li').filter({ hasText: 'École sans détail' });
     await expect(sans.locator('.disque-l')).toHaveClass(/disque-vide/);
     await expect(sans.locator('.ligne-preuve')).toHaveText(
-      'Ajoutée par NTanova, pas encore vue sur place',
+      'Ajoutée par NTanova · pas encore vue sur place',
     );
     // Décision du fondateur du 08/11/2026 : plus jamais « Repère pas encore relevé », avec ou sans « Ajoutée par NTanova ».
     await expect(sans).not.toContainText('Repère pas encore relevé');

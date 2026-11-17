@@ -6,8 +6,10 @@
  *   (écoles publiées, vues sur place, confirmées par la direction, dernier passage) ; aucun seuil du registre, aucun
  *   « complet ». Leur réglage (`etat`) ne sert plus qu'à cadrer la carte : la carte ne l'écrit plus (« relevé en cours »,
  *   « déploiement programmé »), décision du fondateur du 08/11/2026, ticket 146 ;
- * - les **écoles** sont celles qu'un relais a vues sur place (la carte est la vitrine de la preuve de terrain) ;
- *   chacune porte tous ses cycles (l'aperçu les liste) et le plus élevé (le marqueur : sa lettre et sa couleur).
+ * - les **écoles** sont toutes les écoles publiées et situées (décision du fondateur du 17/11/2026, option B, qui abroge
+ *   celle du 03/11) : aucune école de la liste n'est absente de la carte. La forme dit la preuve : épingle pleine, vue sur
+ *   place ou confirmée par la direction ; épingle en tirets, ajoutée par NTanova (ou déclarée par l'école) sans l'une ni
+ *   l'autre. Chacune porte tous ses cycles (l'aperçu les liste) et le plus élevé (le marqueur : sa lettre et sa couleur).
  *
  * Des fonctions pures : les fichiers sont écrits par `src/pages/carte/`.
  */
@@ -77,7 +79,8 @@ export interface FeatureEcole {
     type: string | null;
     /** Le repère en mots, sur une ligne (80 caractères au plus) ; rien quand il n'y en a pas. */
     repere: string | null;
-    preuve: 'direction' | 'terrain';
+    /** La forme de l'épingle : pleine avec écusson, pleine, ou en tirets (ni passage ni confirmation). */
+    preuve: 'direction' | 'terrain' | 'ajoutee';
     preuveTexte: string;
     photo?: string | null;
     passage?: string | null;
@@ -85,7 +88,7 @@ export interface FeatureEcole {
   };
 }
 
-/** Les écoles de la carte : vues sur place, et situées. Rien de privé. */
+/** Les écoles de la carte : toutes les publiées situées (17/11). Rien de privé. */
 export function ecolesGeoJSON(
   ecoles: readonly EcolePubliee[],
   villeDe: (e: EcolePubliee) => string | null = () => null,
@@ -94,7 +97,7 @@ export function ecolesGeoJSON(
   features: FeatureEcole[];
 } {
   const features: FeatureEcole[] = [];
-  for (const e of vuesSurPlace(ecoles)) {
+  for (const e of ecoles) {
     if (e.latitude === null || e.longitude === null) continue;
     const preuve = preuveDePartage(e);
     const cycle = cycleLePlusEleve(e.niveaux);
@@ -116,7 +119,8 @@ export function ecolesGeoJSON(
         lettres: lettresDesCycles(e.niveaux),
         type: typeInformatif(e.typeEcole) ? libelleTypeEcole[e.typeEcole] : null,
         repere: repereCourt(e.repere),
-        preuve: preuve.genre === 'direction' ? 'direction' : 'terrain',
+        preuve:
+          preuve.genre === 'direction' || preuve.genre === 'terrain' ? preuve.genre : 'ajoutee',
         preuveTexte: preuve.texte,
         photo: e.photo ? cheminPhotoPublique(e.photo) : null,
         passage: e.releveeLe,

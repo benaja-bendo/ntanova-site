@@ -7,7 +7,6 @@
 // bouton est un lien WhatsApp. Une institution à plusieurs campus a une fiche par campus, qui renvoient l'une vers l'autre.
 import './carte-pieces.css';
 import { cycleLePlusEleve, lettresDesCycles } from '../modele/carte/cycles';
-import { lienZoneCarte } from '../modele/carte/navigation';
 import {
   ligneDeLieu,
   lienCourt,
@@ -136,14 +135,10 @@ const whatsappEcole =
 const nombreActions = 1 + Number(!!itineraire) + Number(!!numeroAppel) + Number(!!whatsappEcole);
 
 // « Voir sur la carte » : la vue Carte de « Les écoles » (lot 4 bis), l'école choisie. La fiche n'a plus de petit plan dessiné (ticket 146 : une
-// seule carte) ; elle dit le repère en mots. L'école n'a son épingle sur la carte que vue sur place ; sinon la carte s'ouvre
-// sur son quartier, et le lien le dit.
-const vueSurPlace = e.releveeLe !== null;
+// seule carte) ; elle dit le repère en mots. Toute école située a son épingle (17/11/2026, option B) : pleine ou en tirets.
 const lienSurLaCarte =
   e.latitude !== null && e.longitude !== null
-    ? vueSurPlace
-      ? `/ecoles/?${new URLSearchParams({ vue: 'carte', ecole: e.numero })}`
-      : lienZoneCarte([e.longitude, e.latitude, e.longitude, e.latitude])
+    ? `/ecoles/?${new URLSearchParams({ vue: 'carte', ecole: e.numero })}`
     : null;
 // Plus d'état vide négatif (décision du fondateur du 08/11/2026) : sans repère, sans séries ni filières, la ligne ou le bloc
 // disparaît, au lieu d'écrire « Repère pas encore relevé » ou « Pas encore renseignées ». L'invitation faite à la direction
@@ -531,7 +526,7 @@ const joursRestants = (n: number) =>
           {lienSurLaCarte && (
             <a class="bouton bouton-secondaire ou-carte" href={lienSurLaCarte}>
               <Icone nom="plan" />
-              {vueSurPlace ? 'Voir sur la carte' : 'Voir le quartier sur la carte'}
+              Voir sur la carte
             </a>
           )}
         </section>

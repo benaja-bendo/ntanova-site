@@ -302,11 +302,15 @@ describe('le nom des marqueurs', () => {
     for (const lettre of LETTRES_DES_CYCLES) {
       for (const confirmee of [false, true]) {
         for (const choisie of [false, true]) {
-          expect(lireLEpingle(nomDeLEpingle(lettre, confirmee, choisie))).toEqual({
-            lettre,
-            confirmee,
-            choisie,
-          });
+          for (const ajoutee of [false, true]) {
+            // Une école confirmée n'est jamais dite ajoutée (17/11).
+            expect(lireLEpingle(nomDeLEpingle(lettre, confirmee, choisie, ajoutee))).toEqual({
+              lettre,
+              confirmee,
+              choisie,
+              ajoutee: ajoutee && !confirmee,
+            });
+          }
         }
       }
     }
@@ -314,7 +318,9 @@ describe('le nom des marqueurs', () => {
       lettre: null,
       confirmee: true,
       choisie: false,
+      ajoutee: false,
     });
+    expect(nomDeLEpingle('P', false, true, true)).toBe('epingle-P-ajoutee-choisie');
   });
 
   it('nomme l’épingle de l’école choisie sans toucher aux autres', () => {
