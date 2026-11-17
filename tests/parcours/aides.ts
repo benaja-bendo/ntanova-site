@@ -497,3 +497,42 @@ export async function toutEstEnvoye(page: Page, timeout = 15_000) {
   if (avant.startsWith('#fiches')) await barre.getByRole('link', { name: 'Mes fiches' }).click();
   else await page.evaluate((h) => (location.hash = h), avant);
 }
+
+/**
+ * Attend que la fiche en cours soit écrite dans le téléphone (IndexedDB `fiches`) avec ce qu'on vient d'y mettre.
+ * L'écran se met à jour avant l'écriture (`modifier`, `Ajouter.tsx`) : un rechargement juste après un toucher perdrait le
+ * dernier choix (17/11 : « 3 filières au lieu de 4 », environ 1 fois sur 8). On attend l'écriture, jamais un délai.
+ */
+export async function attendreLaFicheGardee(
+  page: Page,
+  champ: string,
+  longueur: number,
+): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          ({ champ }) =>
+            new Promise<number>((resoudre) => {
+              const q = indexedDB.open('ntanova-relais');
+              q.onerror = () => resoudre(-1);
+              q.onsuccess = () => {
+                const l = q.result.transaction('fiches').objectStore('fiches').getAll();
+                l.onsuccess = () =>
+                  resoudre(
+                    Math.max(
+                      -1,
+                      ...(l.result as Record<string, unknown>[]).map((f) =>
+                        Array.isArray(f[champ]) ? (f[champ] as unknown[]).length : -1,
+                      ),
+                    ),
+                  );
+                l.onerror = () => resoudre(-1);
+              };
+            }),
+          { champ },
+        ),
+      { timeout: 10_000 },
+    )
+    .toBe(longueur);
+}
