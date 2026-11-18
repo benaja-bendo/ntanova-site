@@ -121,7 +121,7 @@ function PontPour({
             {(a) => (
               <textarea
                 {...a}
-                className={v2.champ}
+                className={v2.zone}
                 rows={9}
                 value={texte}
                 onChange={(ev) => setTexte(ev.target.value)}

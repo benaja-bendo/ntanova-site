@@ -271,7 +271,7 @@ export function RenommerZone({
         {(a) => (
           <textarea
             {...a}
-            className={v2.champ}
+            className={v2.zone}
             rows={3}
             maxLength={(LONGUEUR_MAX_ECRITURE + 1) * 20}
             value={ecritures}

@@ -593,7 +593,7 @@ function Importation({
           {(a) => (
             <textarea
               {...a}
-              className={v2.champ}
+              className={v2.zone}
               rows={8}
               spellCheck={false}
               value={texte}

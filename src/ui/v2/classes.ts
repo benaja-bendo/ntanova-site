@@ -11,8 +11,9 @@ const pastille =
   'inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-xs leading-5 font-bold whitespace-nowrap';
 const bande = 'm-0 flex items-start gap-2.5 rounded-md px-3 py-2.5 text-sm [&_p]:m-0';
 const actions = 'flex flex-wrap items-center gap-2.5';
-const motif =
-  'grid grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] items-start gap-3 rounded-lg p-4';
+// 18/11 : une colonne. La grille à colonnes automatiques d'avant éclatait les tiroirs (le titre, l'avertissement et
+// chaque champ dans une case, côte à côte) ; deux champs courts se rangent ensemble avec `v2.deuxColonnes`.
+const motif = 'flex min-w-0 flex-col gap-4 rounded-lg p-4';
 
 export const v2 = {
   champ: classeChamp,
@@ -47,7 +48,7 @@ export const v2 = {
   large: 'col-span-full',
   actions,
   actionsLarge: cn('col-span-full', actions),
-  /** Un petit formulaire posé dans la page (motif, note, montant) : la bande du fond, champs en colonnes. */
+  /** Un petit formulaire posé dans la page ou un tiroir (motif, note, montant) : la bande du fond, un champ par ligne. */
   motif: cn(motif, 'bg-background'),
   motifPile: 'flex flex-col gap-2 rounded-lg bg-background p-4',
   motifBlanc: cn(motif, 'border border-border bg-card'),

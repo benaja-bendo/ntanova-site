@@ -1119,6 +1119,12 @@ export interface PortAdministration {
   ): Promise<import('./fiche-admin').EcoleSimilaire[]>;
   /** Lot F : les formations du supérieur et du technique d'un site, avec leur détail. `GET /admin/ecoles/{id}/formations` */
   formationsDeLEcole(ecoleId: string): Promise<import('./fiche-admin').FormationDuSuperieur[]>;
+  /**
+   * 18/11 : une formation ajoutée depuis la fiche (une école créée sans formation n'en recevait jamais). L'intitulé seul :
+   * le reste se dit ensuite dans le tiroir de la formation. Rend son identifiant.
+   * `POST /admin/ecoles/{id}/formations`
+   */
+  ajouterFormation(ecoleId: string, cycle: Valeur<'niveau'>, titre: string): Promise<string>;
   /** Lot F : le détail d'une formation, dit par l'école. `PUT /admin/formations/{id}/details` */
   enregistrerDetailsFormation(
     formationId: string,

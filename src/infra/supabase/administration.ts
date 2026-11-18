@@ -234,7 +234,11 @@ interface LigneCampus {
   retirement_note: string | null;
   replaced_by_campus_id: string | null;
   same_place_as_campus_id?: string | null;
-  institutions: { name: string; kind: string } | null;
+  institutions: {
+    name: string;
+    kind: string;
+    institution_statements?: { body: string; stated_on: string } | { body: string; stated_on: string }[] | null;
+  } | null;
   geo_divisions: { name: string } | null;
   missions: {
     relay_id: string;
@@ -304,8 +308,14 @@ const versAgrement = (a: LigneAgrement): AgrementEnregistre => ({
     : null,
 });
 
-const versMot = (ligne: LigneCampus['campus_statements']): MotDirection | null => {
-  const m = Array.isArray(ligne) ? ligne[0] : ligne;
+type LigneMot = LigneCampus['campus_statements'];
+
+/**
+ * Le mot de la direction est celui de l'école depuis le 13/11 (`institution_statements`, choix C1) : `set_campus_statement`
+ * l'écrit là et vide celui du site. Un ancien mot posé sur un site ne sert que si l'école n'en a pas (comme la vue publique).
+ */
+const versMot = (ecole: LigneMot, site: LigneMot): MotDirection | null => {
+  const m = (Array.isArray(ecole) ? ecole[0] : ecole) ?? (Array.isArray(site) ? site[0] : site);
   return m ? { texte: m.body, ditLe: m.stated_on } : null;
 };
 
@@ -315,7 +325,7 @@ const versMot = (ligne: LigneCampus['campus_statements']): MotDirection | null =
 const COLONNES_CAMPUS =
   'id, public_number, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
   'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, same_place_as_campus_id, ' +
-  'institutions(name, kind), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
+  'institutions(name, kind, institution_statements(body, stated_on)), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
   'campus_cycles(cycle, campus_programs(id, title)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*), ' +
   'campus_openings(*), campus_class_sizes(*)';
 
@@ -401,7 +411,7 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     formations: e.campus_cycles.reduce((n, c) => n + c.campus_programs.length, 0),
     filieres: e.campus_cycles.flatMap((c) => c.campus_programs.map((p) => ({ id: p.id, titre: p.title }))),
     agrements: (e.campus_accreditations ?? []).map(versAgrement),
-    motDirection: versMot(e.campus_statements),
+    motDirection: versMot(e.institutions?.institution_statements, e.campus_statements),
     inscriptions: (e.campus_enrollment_deadlines ?? []).map((d) => ({
       id: d.id,
       anneeScolaire: d.school_year,
@@ -2040,6 +2050,15 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         p_declared_on: d.ditLe,
       });
       decider(error);
+    },
+    async ajouterFormation(ecoleId, cycle, titre) {
+      const { data, error } = await supabase().rpc('add_campus_program', {
+        p_campus: ecoleId,
+        p_cycle: cycle,
+        p_title: titre.trim(),
+      });
+      decider(error);
+      return data as string;
     },
     async enregistrerFormation(formationId, f) {
       const { data, error } = await supabase().rpc('save_program_sheet', {

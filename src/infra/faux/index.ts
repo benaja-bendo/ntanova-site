@@ -2857,6 +2857,32 @@ const admin: PortAdministration = {
       };
     });
   },
+  async ajouterFormation(ecoleId, cycle, titre) {
+    await reseau();
+    const c = lireEtat().campus[ecoleId];
+    if (!c) throw new ErreurDecision('École introuvable.');
+    const nom = titre.trim();
+    if (!nom) throw new ErreurDecision('Écris l’intitulé de la formation.');
+    if (!['superieur', 'technique', 'autre_formation'].includes(cycle))
+      throw new ErreurDecision('Ce cycle n’a pas de formations à détailler.');
+    if (!(c.niveaux ?? []).includes(cycle))
+      throw new ErreurDecision(
+        'Ce site n’enseigne pas ce cycle : ajoute-le d’abord dans « En bref ».',
+      );
+    const id = `${cycle}|${nom}`;
+    if (
+      (c.formations ?? []).some((f) => `${f.cycle}|${f.titre}`.toLowerCase() === id.toLowerCase())
+    )
+      throw new ErreurDecision('Une formation de ce cycle porte déjà cet intitulé.');
+    ecrire((e) => {
+      const campus = e.campus[ecoleId]!;
+      campus.formations = [
+        ...(campus.formations ?? []),
+        { cycle, titre: nom, domaine: null, serie: null, diplome: null, rythmes: [] },
+      ];
+    });
+    return id;
+  },
   async enregistrerFormation(formationId, fiche) {
     await reseau();
     const erreur = erreurDeLaFiche(fiche, jourDuCongo());

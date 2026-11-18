@@ -34,7 +34,7 @@ export function ContactPublic({
   surOccupation?: (occupe: boolean) => void;
 }) {
   const [numero, setNumero] = useState(contact?.numero ?? '');
-  const [accordLe, setAccordLe] = useState('');
+  const [accordLe, setAccordLe] = useState(jourDuCongo());
   const [fonction, setFonction] = useState('');
   const [canal, setCanal] = useState('');
   const [autorise, setAutorise] = useState(false);
@@ -58,7 +58,7 @@ export function ContactPublic({
       await admin.enregistrerContactPublic(ecoleId, resultat.contact);
       setAutorise(false);
       setNumero(resultat.contact?.numero ?? '');
-      setAccordLe('');
+      setAccordLe(jourDuCongo());
       setFonction('');
       setCanal('');
       surChangement(

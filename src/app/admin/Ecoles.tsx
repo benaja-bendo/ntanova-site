@@ -236,7 +236,13 @@ function LigneEcole({
         <AdmissionEcole ecoleId={e.id} admin={admin} surChangement={signaler} />
       )}
       {mode === 'formations' && (
-        <FormationsSuperieur ecoleId={e.id} nom={e.nom} admin={admin} surChangement={signaler} />
+        <FormationsSuperieur
+          ecoleId={e.id}
+          nom={e.nom}
+          niveaux={e.niveaux}
+          admin={admin}
+          surChangement={signaler}
+        />
       )}
       {mode === 'images' && (
         <ImagesEcole
