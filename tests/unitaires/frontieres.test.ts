@@ -12,7 +12,9 @@ async function interdit(fichier: string, source: string): Promise<boolean> {
   return (resultat?.messages ?? []).some((m) => m.ruleId === 'no-restricted-imports');
 }
 
-describe('frontières entre dossiers', () => {
+// Le premier appel charge toute la configuration d'ESLint : plusieurs secondes sous charge (la suite entière en
+// parallèle). Une limite large évite un échec qui n'en est pas un (18/11 : 5,7 s pendant `pnpm verif`).
+describe('frontières entre dossiers', { timeout: 30_000 }, () => {
   it('Supabase seulement dans src/infra/', async () => {
     expect(await interdit('src/infra/supabase/client.ts', '@supabase/supabase-js')).toBe(false);
     expect(await interdit('src/app/relais/Envoi.tsx', '@supabase/supabase-js')).toBe(true);

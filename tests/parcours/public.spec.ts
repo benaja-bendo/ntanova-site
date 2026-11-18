@@ -118,63 +118,69 @@ test.describe('site public', () => {
     });
   }
 
-  test('de l’accueil à la fiche d’une école, puis vers « Espace écoles »', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ })).toBeVisible();
-    await expect(page.getByRole('link', { name: /^Brazzaville.*1 école/ })).toBeVisible();
-    await page.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ }).click();
+  test(
+    'de l’accueil à la fiche d’une école, puis vers « Espace écoles »',
+    { tag: '@critique' },
+    async ({ page }) => {
+      await page.goto('/');
+      await expect(page.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ })).toBeVisible();
+      await expect(page.getByRole('link', { name: /^Brazzaville.*1 école/ })).toBeVisible();
+      await page.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ }).click();
 
-    // La ville : le département de même nom n'a pas de page à lui ; ses arrondissements en sont les zones.
-    await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/$/);
-    await expect(page.getByRole('heading', { name: 'Pointe-Noire', level: 1 })).toBeVisible();
-    await page
-      .getByRole('link', { name: /Tié-Tié.*Arrondissement 3.*4 écoles/ })
-      .first()
-      .click();
+      // La ville : le département de même nom n'a pas de page à lui ; ses arrondissements en sont les zones.
+      await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/$/);
+      await expect(page.getByRole('heading', { name: 'Pointe-Noire', level: 1 })).toBeVisible();
+      await page
+        .getByRole('link', { name: /Tié-Tié.*Arrondissement 3.*4 écoles/ })
+        .first()
+        .click();
 
-    await expect(page.getByRole('heading', { name: 'Tié-Tié', level: 1 })).toBeVisible();
-    await page.getByRole('link', { name: /\[Complexe scolaire Exemple\]/ }).click();
+      await expect(page.getByRole('heading', { name: 'Tié-Tié', level: 1 })).toBeVisible();
+      await page.getByRole('link', { name: /\[Complexe scolaire Exemple\]/ }).click();
 
-    await expect(page.getByRole('heading', { name: '[Complexe scolaire Exemple]' })).toBeVisible();
-    // Les preuves de la fiche (sa tête) : « Écoles proches », plus bas, a les siennes (lot 4).
-    const tete = page.locator('.fiche-tete');
-    await expect(tete.getByText(/Vue sur place · 2 nov. 2026/)).toBeVisible();
-    await expect(tete.getByText(/Confirmée par la direction/)).toHaveCount(0);
-    const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
-    await expect(puces.getByRole('listitem').filter({ hasText: 'Maternelle' })).toBeVisible();
-    await expect(puces.getByRole('listitem').filter({ hasText: 'Primaire' })).toBeVisible();
-    // « À savoir » (version 44) : un seul numéro, celui que l'école a communiqué ; il passe avant celui de l'enseigne.
-    await expect(page.getByRole('link', { name: '+242 06 000 00 09' })).toHaveAttribute(
-      'href',
-      'tel:+242060000009',
-    );
-    await expect(page.getByRole('link', { name: 'Y aller' })).toHaveAttribute(
-      'href',
-      'https://www.google.com/maps/dir/?api=1&destination=-4.79105,11.925',
-    );
-    // « Compléter cette fiche » (planche « Fiche mince », lot 4 ; avant : « Confirmer cette fiche ») ouvre WhatsApp avec le nom de l'école, son lieu et l'adresse de sa fiche : NTanova sait de
-    // quelle fiche il s'agit sans rien redemander.
-    const confirmer = page.getByRole('link', { name: 'Compléter cette fiche' });
-    const message = decodeURIComponent((await confirmer.getAttribute('href')) ?? '');
-    expect(message).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
-    expect(message).toContain('je dirige [Complexe scolaire Exemple]');
-    expect(message).toContain('/ecoles/complexe-scolaire-exemple-482913/');
-    // Le lieu s'écrit du plus fin au plus large, sans le pays : jamais « à Congo, Pointe-Noire, Tié-Tié ».
-    expect(message).toContain('à [Quartier], Tié-Tié, Pointe-Noire, et je souhaite');
-    expect(message).not.toContain('à Congo');
-    // La description de la fiche (ce que Google et les aperçus de lien montrent) dit le même lieu.
-    const description = await page.locator('meta[name="description"]').getAttribute('content');
-    expect(description).toContain(
-      '[Complexe scolaire Exemple], à [Quartier], Tié-Tié, Pointe-Noire :',
-    );
-    expect(description).not.toContain('Congo');
-    // Ce que NTanova demande se lit sur « Espace écoles » (/pour-les-ecoles/), le troisième pilier de l'en-tête.
-    await page
-      .getByRole('navigation', { name: 'Navigation principale' })
-      .getByRole('link', { name: 'Espace écoles' })
-      .click();
-    await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
-  });
+      await expect(
+        page.getByRole('heading', { name: '[Complexe scolaire Exemple]' }),
+      ).toBeVisible();
+      // Les preuves de la fiche (sa tête) : « Écoles proches », plus bas, a les siennes (lot 4).
+      const tete = page.locator('.fiche-tete');
+      await expect(tete.getByText(/Vue sur place · 2 nov. 2026/)).toBeVisible();
+      await expect(tete.getByText(/Confirmée par la direction/)).toHaveCount(0);
+      const puces = page.getByRole('list', { name: 'Niveaux et type d’école' });
+      await expect(puces.getByRole('listitem').filter({ hasText: 'Maternelle' })).toBeVisible();
+      await expect(puces.getByRole('listitem').filter({ hasText: 'Primaire' })).toBeVisible();
+      // « À savoir » (version 44) : un seul numéro, celui que l'école a communiqué ; il passe avant celui de l'enseigne.
+      await expect(page.getByRole('link', { name: '+242 06 000 00 09' })).toHaveAttribute(
+        'href',
+        'tel:+242060000009',
+      );
+      await expect(page.getByRole('link', { name: 'Y aller' })).toHaveAttribute(
+        'href',
+        'https://www.google.com/maps/dir/?api=1&destination=-4.79105,11.925',
+      );
+      // « Compléter cette fiche » (planche « Fiche mince », lot 4 ; avant : « Confirmer cette fiche ») ouvre WhatsApp avec le nom de l'école, son lieu et l'adresse de sa fiche : NTanova sait de
+      // quelle fiche il s'agit sans rien redemander.
+      const confirmer = page.getByRole('link', { name: 'Compléter cette fiche' });
+      const message = decodeURIComponent((await confirmer.getAttribute('href')) ?? '');
+      expect(message).toMatch(/^https:\/\/wa\.me\/\d+\?text=/);
+      expect(message).toContain('je dirige [Complexe scolaire Exemple]');
+      expect(message).toContain('/ecoles/complexe-scolaire-exemple-482913/');
+      // Le lieu s'écrit du plus fin au plus large, sans le pays : jamais « à Congo, Pointe-Noire, Tié-Tié ».
+      expect(message).toContain('à [Quartier], Tié-Tié, Pointe-Noire, et je souhaite');
+      expect(message).not.toContain('à Congo');
+      // La description de la fiche (ce que Google et les aperçus de lien montrent) dit le même lieu.
+      const description = await page.locator('meta[name="description"]').getAttribute('content');
+      expect(description).toContain(
+        '[Complexe scolaire Exemple], à [Quartier], Tié-Tié, Pointe-Noire :',
+      );
+      expect(description).not.toContain('Congo');
+      // Ce que NTanova demande se lit sur « Espace écoles » (/pour-les-ecoles/), le troisième pilier de l'en-tête.
+      await page
+        .getByRole('navigation', { name: 'Navigation principale' })
+        .getByRole('link', { name: 'Espace écoles' })
+        .click();
+      await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
+    },
+  );
 
   test.describe('du pays au quartier, plusieurs villes, un campus parmi d’autres', () => {
     test('le pays, la ville, l’arrondissement, le quartier : chaque niveau mène au suivant', async ({
@@ -541,44 +547,46 @@ test.describe('le partage d’un lien', () => {
 // Ticket 102 : les données de la carte, construites avec le site (le même instantané que les pages).
 test.describe('les données de la carte', () => {
   // Décision du fondateur du 17/11/2026 (option B, abroge celle du 03/11) : toutes les écoles situées ; la preuve dit la forme.
-  test('les écoles : toutes celles qui sont situées, avec tous leurs cycles et leur preuve, et rien de privé', async ({
-    request,
-  }) => {
-    const reponse = await request.get('/carte/ecoles.geojson');
-    expect(reponse.status()).toBe(200);
-    expect(reponse.headers()['content-type']).toContain('geo+json');
-    const brut = await reponse.text();
-    const ecoles = JSON.parse(brut) as {
-      type: string;
-      features: { geometry: { coordinates: number[] }; properties: Record<string, unknown> }[];
-    };
-    expect(ecoles.type).toBe('FeatureCollection');
-    const noms = ecoles.features.map((f) => f.properties.nom);
-    expect(noms).toContain('[Complexe scolaire Exemple]');
-    // Ajoutée par NTanova et située : sur la carte, en tirets ; sans position : pas sur la carte.
-    expect(
-      ecoles.features.find((f) => f.properties.nom === '[École ajoutée Exemple]')?.properties,
-    ).toMatchObject({
-      preuve: 'ajoutee',
-      preuveTexte: 'Ajoutée par NTanova · pas encore vue sur place',
-    });
-    expect(noms).not.toContain('[École sans détail Exemple]');
-    const complexe = ecoles.features.find(
-      (f) => f.properties.nom === '[Complexe scolaire Exemple]',
-    );
-    expect(complexe?.properties).toMatchObject({
-      niveaux: ['Maternelle', 'Primaire'],
-      cycle: 'primaire',
-      lettre: 'P',
-      // Ticket 113 : de quoi trier, filtrer par cycle et composer l'aperçu sans table de correspondance dans l'îlot.
-      rang: 2,
-      lettres: 'MP',
-      type: 'Privée',
-      repere: '[face au marché]',
-      preuve: 'terrain',
-    });
-    expect(brut).not.toMatch(/0600000|whatsapp|contact/i);
-  });
+  test(
+    'les écoles : toutes celles qui sont situées, avec tous leurs cycles et leur preuve, et rien de privé',
+    { tag: '@critique' },
+    async ({ request }) => {
+      const reponse = await request.get('/carte/ecoles.geojson');
+      expect(reponse.status()).toBe(200);
+      expect(reponse.headers()['content-type']).toContain('geo+json');
+      const brut = await reponse.text();
+      const ecoles = JSON.parse(brut) as {
+        type: string;
+        features: { geometry: { coordinates: number[] }; properties: Record<string, unknown> }[];
+      };
+      expect(ecoles.type).toBe('FeatureCollection');
+      const noms = ecoles.features.map((f) => f.properties.nom);
+      expect(noms).toContain('[Complexe scolaire Exemple]');
+      // Ajoutée par NTanova et située : sur la carte, en tirets ; sans position : pas sur la carte.
+      expect(
+        ecoles.features.find((f) => f.properties.nom === '[École ajoutée Exemple]')?.properties,
+      ).toMatchObject({
+        preuve: 'ajoutee',
+        preuveTexte: 'Ajoutée par NTanova · pas encore vue sur place',
+      });
+      expect(noms).not.toContain('[École sans détail Exemple]');
+      const complexe = ecoles.features.find(
+        (f) => f.properties.nom === '[Complexe scolaire Exemple]',
+      );
+      expect(complexe?.properties).toMatchObject({
+        niveaux: ['Maternelle', 'Primaire'],
+        cycle: 'primaire',
+        lettre: 'P',
+        // Ticket 113 : de quoi trier, filtrer par cycle et composer l'aperçu sans table de correspondance dans l'îlot.
+        rang: 2,
+        lettres: 'MP',
+        type: 'Privée',
+        repere: '[face au marché]',
+        preuve: 'terrain',
+      });
+      expect(brut).not.toMatch(/0600000|whatsapp|contact/i);
+    },
+  );
 
   test('les zones : leur réglage, leurs compteurs, jamais d’état écrit ni « complet » (ticket 146)', async ({
     request,

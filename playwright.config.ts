@@ -5,7 +5,8 @@ import { portDesParcours } from './playwright.port';
 // production (pages 404, barres obliques, en-têtes), dans un téléphone Android de
 // 360 px de large : la taille des écrans des relais et des familles. La mise en page
 // (mise-en-page.spec.ts) tourne aussi sur une tablette (768 px) et un ordinateur
-// (1 280 px).
+// (1 280 px), mais seulement les tests marqués `@largeurs` (règle des tests du 18/11) : ce qui
+// change vraiment selon la largeur (barre, charnières, deux colonnes, raccourcis du clavier).
 // Réglable par `PLAYWRIGHT_PORT` (voir `playwright.port.ts`) : deux suites sur un même Mac ne se disputent plus le port.
 const port = portDesParcours();
 
@@ -23,14 +24,14 @@ export default defineConfig({
     { name: 'android-360', use: { ...devices['Moto G4'] } },
     {
       name: 'tablette-768',
-      testMatch:
-        /(mise-en-page|tableau-de-bord|admin-v2|lot-g|champs-site-public|contacts-ecole)\.spec\.ts/,
+      testMatch: /(mise-en-page|tableau-de-bord|lot-g)\.spec\.ts/,
+      grep: /@largeurs/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 768, height: 1024 } },
     },
     {
       name: 'ordinateur-1280',
-      testMatch:
-        /(mise-en-page|tableau-de-bord|admin-v2|lot-g|champs-site-public|contacts-ecole)\.spec\.ts/,
+      testMatch: /(mise-en-page|tableau-de-bord|lot-g)\.spec\.ts/,
+      grep: /@largeurs/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
   ],

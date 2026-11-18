@@ -84,21 +84,22 @@ test('À valider : « Comme sur l’enseigne / Différent » et « Sur la photo 
   await expect(publique.getByText('Sur la photo', { exact: true })).toBeVisible();
 });
 
-test('À valider sur ordinateur : J ouvre la fiche suivante, Échap revient à la liste', async ({
-  page,
-  context,
-}) => {
-  test.skip(!large(page), 'Les raccourcis sont pour l’ordinateur.');
-  test.setTimeout(120_000);
-  await uneFicheEnvoyee(page, context);
-  await page.goto('/admin/#valider');
-  await expect(page.getByRole('link', { name: /\[École 1\]/ })).toBeVisible();
-  await page.keyboard.press('j');
-  await expect(page).toHaveURL(/#valider\/[0-9a-f-]+$/);
-  await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page).toHaveURL(/#valider$/);
-});
+test(
+  'À valider sur ordinateur : J ouvre la fiche suivante, Échap revient à la liste',
+  { tag: '@largeurs' },
+  async ({ page, context }) => {
+    test.skip(!large(page), 'Les raccourcis sont pour l’ordinateur.');
+    test.setTimeout(120_000);
+    await uneFicheEnvoyee(page, context);
+    await page.goto('/admin/#valider');
+    await expect(page.getByRole('link', { name: /\[École 1\]/ })).toBeVisible();
+    await page.keyboard.press('j');
+    await expect(page).toHaveURL(/#valider\/[0-9a-f-]+$/);
+    await expect(page.getByRole('heading', { name: '[École 1]', level: 2 })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(/#valider$/);
+  },
+);
 
 test('« Même lieu » : une nouvelle école distincte, qui dit son voisin dans la liste des écoles', async ({
   page,

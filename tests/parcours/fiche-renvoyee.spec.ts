@@ -96,21 +96,25 @@ test.describe('l’administration retrouve une fiche renvoyée', () => {
 });
 
 test.describe('le relais, quand NTanova a déjà renvoyé sa fiche', () => {
-  test('lit un seul message : celui de NTanova, et le bon geste', async ({ page, context }) => {
-    await uneFicheEnvoyee(page, context);
-    await renvoyer(page, 'Reprenez la photo de l’enseigne.');
-    await garderLeRefusDeLaPhoto(page);
+  test(
+    'lit un seul message : celui de NTanova, et le bon geste',
+    { tag: '@critique' },
+    async ({ page, context }) => {
+      await uneFicheEnvoyee(page, context);
+      await renvoyer(page, 'Reprenez la photo de l’enseigne.');
+      await garderLeRefusDeLaPhoto(page);
 
-    await page.goto('/relais/#fiches');
-    await expect(
-      ligneDeFiche(page, '[École 1]').getByText(/Reprenez la photo de l’enseigne\./),
-    ).toBeVisible();
-    const fiche = await ouvrirMaFiche(page, '[École 1]');
-    await expect(fiche.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
-    // NTanova est déjà prévenue : plus de « prévenez NTanova », et « Réessayer » ne peut pas redonner une photo perdue.
-    await expect(fiche.getByText(/n’a pas pu être reçue|Prévenez NTanova/)).toHaveCount(0);
-    await expect(fiche.getByRole('button', { name: 'Réessayer' })).toHaveCount(0);
-  });
+      await page.goto('/relais/#fiches');
+      await expect(
+        ligneDeFiche(page, '[École 1]').getByText(/Reprenez la photo de l’enseigne\./),
+      ).toBeVisible();
+      const fiche = await ouvrirMaFiche(page, '[École 1]');
+      await expect(fiche.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
+      // NTanova est déjà prévenue : plus de « prévenez NTanova », et « Réessayer » ne peut pas redonner une photo perdue.
+      await expect(fiche.getByText(/n’a pas pu être reçue|Prévenez NTanova/)).toHaveCount(0);
+      await expect(fiche.getByRole('button', { name: 'Réessayer' })).toHaveCount(0);
+    },
+  );
 
   test('tant que NTanova n’a pas décidé, le refus reste : la fiche est arrivée sans sa photo', async ({
     page,

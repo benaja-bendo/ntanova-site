@@ -53,68 +53,69 @@ function serveur(page: Page) {
 test.describe('espace relais', () => {
   test.use({ permissions: ['geolocation'] });
 
-  test('trois fiches faites hors ligne partent quand le réseau revient, et le contact disparaît du téléphone', async ({
-    page,
-    context,
-  }) => {
-    test.setTimeout(90_000);
-    await page.goto('/relais/');
-    await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
-    await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    // Le secteur et les écoles connues sont gardés dans le téléphone, pour servir hors ligne : on attend qu'ils y
-    // soient avant de couper le réseau.
-    await attendreLaLecture(page);
+  test(
+    'trois fiches faites hors ligne partent quand le réseau revient, et le contact disparaît du téléphone',
+    { tag: '@critique' },
+    async ({ page, context }) => {
+      test.setTimeout(90_000);
+      await page.goto('/relais/');
+      await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
+      await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+      // Le secteur et les écoles connues sont gardés dans le téléphone, pour servir hors ligne : on attend qu'ils y
+      // soient avant de couper le réseau.
+      await attendreLaLecture(page);
 
-    // L'application est gardée dans le téléphone : elle s'ouvre sans réseau.
-    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
-    await context.setOffline(true);
-    await page.reload();
-    await expect(page.getByText('Hors ligne', { exact: true })).toBeVisible();
+      // L'application est gardée dans le téléphone : elle s'ouvre sans réseau.
+      await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+      await context.setOffline(true);
+      await page.reload();
+      await expect(page.getByText('Hors ligne', { exact: true })).toBeVisible();
 
-    for (const n of [1, 2, 3]) {
-      // Une école tous les 200 m : aucune n'est un doublon de l'autre.
-      await context.setGeolocation({ latitude: -4.8 + n * 0.0018, longitude: 11.9, accuracy: 8 });
-      await ajouterUneEcole(page, n);
-    }
+      for (const n of [1, 2, 3]) {
+        // Une école tous les 200 m : aucune n'est un doublon de l'autre.
+        await context.setGeolocation({ latitude: -4.8 + n * 0.0018, longitude: 11.9, accuracy: 8 });
+        await ajouterUneEcole(page, n);
+      }
 
-    await expect(page.getByText('3 fiches attendent le réseau.')).toBeVisible();
+      await expect(page.getByText('3 fiches attendent le réseau.')).toBeVisible();
 
-    // En rouvrant l'application, « Tout est envoyé » ne doit jamais s'afficher,
-    // même un instant, tant que des fiches attendent (le relais fermerait l'application).
-    await page.addInitScript(() => {
-      new MutationObserver(() => {
-        if (document.body?.innerText.includes('Tout est envoyé')) {
-          (window as unknown as { toutEnvoyeVu: boolean }).toutEnvoyeVu = true;
-        }
-      }).observe(document, { childList: true, subtree: true, characterData: true });
-    });
-    await page.reload();
-    await expect(page.getByText('3 fiches attendent le réseau.')).toBeVisible();
-    expect(
-      await page.evaluate(() => (window as unknown as { toutEnvoyeVu?: boolean }).toutEnvoyeVu),
-    ).toBeUndefined();
-    expect(await telephone(page)).toEqual({ fiches: 3, photos: 3, contacts: 3 });
-    expect((await serveur(page)).releves).toBe(0);
+      // En rouvrant l'application, « Tout est envoyé » ne doit jamais s'afficher,
+      // même un instant, tant que des fiches attendent (le relais fermerait l'application).
+      await page.addInitScript(() => {
+        new MutationObserver(() => {
+          if (document.body?.innerText.includes('Tout est envoyé')) {
+            (window as unknown as { toutEnvoyeVu: boolean }).toutEnvoyeVu = true;
+          }
+        }).observe(document, { childList: true, subtree: true, characterData: true });
+      });
+      await page.reload();
+      await expect(page.getByText('3 fiches attendent le réseau.')).toBeVisible();
+      expect(
+        await page.evaluate(() => (window as unknown as { toutEnvoyeVu?: boolean }).toutEnvoyeVu),
+      ).toBeUndefined();
+      expect(await telephone(page)).toEqual({ fiches: 3, photos: 3, contacts: 3 });
+      expect((await serveur(page)).releves).toBe(0);
 
-    await context.setOffline(false);
-    await toutEstEnvoye(page, 20_000);
+      await context.setOffline(false);
+      await toutEstEnvoye(page, 20_000);
 
-    const recu = await serveur(page);
-    expect(recu.releves).toBe(3);
-    expect(recu.photos).toBe(3);
-    expect(recu.contacts.map((c) => c.whatsapp).sort()).toEqual([
-      '242061234561',
-      '242061234562',
-      '242061234563',
-    ]);
-    expect(await telephone(page)).toEqual({ fiches: 3, photos: 0, contacts: 0 });
+      const recu = await serveur(page);
+      expect(recu.releves).toBe(3);
+      expect(recu.photos).toBe(3);
+      expect(recu.contacts.map((c) => c.whatsapp).sort()).toEqual([
+        '242061234561',
+        '242061234562',
+        '242061234563',
+      ]);
+      expect(await telephone(page)).toEqual({ fiches: 3, photos: 0, contacts: 0 });
 
-    await page.getByRole('link', { name: 'Mes fiches' }).click();
-    await expect(
-      page.locator('li[data-fiche]').getByText('En attente', { exact: true }),
-    ).toHaveCount(3);
-    await expect(page.getByText('06 123')).toHaveCount(0);
-  });
+      await page.getByRole('link', { name: 'Mes fiches' }).click();
+      await expect(
+        page.locator('li[data-fiche]').getByText('En attente', { exact: true }),
+      ).toHaveCount(3);
+      await expect(page.getByText('06 123')).toHaveCount(0);
+    },
+  );
 
   // Le secteur est un conseil, jamais une barrière (ticket n° 67) : le téléphone ne dit rien de la distance au
   // secteur, et la fiche continue. Le secteur du faux serveur est un carré dont le bord est à 11,95° de longitude :
@@ -200,7 +201,7 @@ test.describe('espace relais', () => {
     ).toBeVisible();
   });
 
-  test('sans accord, le numéro ne peut pas être noté', async ({ page }) => {
+  test('sans accord, le numéro ne peut pas être noté', { tag: '@critique' }, async ({ page }) => {
     await page.goto('/relais/');
     await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
     await page.goto('/relais/#ajouter/3');

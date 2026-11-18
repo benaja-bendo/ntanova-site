@@ -148,26 +148,27 @@ test.describe('les photos d’une fiche', () => {
     ]);
   });
 
-  test('les photos partent avec la fiche, chacune sous le poids de 200 Ko', async ({
-    page,
-    context,
-  }) => {
-    await arriverALEtape1(page, context);
-    await finirLaFiche(page, '[École 1]', 'Primaire');
-    await allerAuBonus(page);
-    await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
-    await expect(page.getByRole('region', { name: /Photos en plus/ })).toContainText('1 sur 5');
-    await envoyerDepuisLeBonus(page);
-    await toutEstEnvoye(page, 15_000);
+  test(
+    'les photos partent avec la fiche, chacune sous le poids de 200 Ko',
+    { tag: '@critique' },
+    async ({ page, context }) => {
+      await arriverALEtape1(page, context);
+      await finirLaFiche(page, '[École 1]', 'Primaire');
+      await allerAuBonus(page);
+      await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
+      await expect(page.getByRole('region', { name: /Photos en plus/ })).toContainText('1 sur 5');
+      await envoyerDepuisLeBonus(page);
+      await toutEstEnvoye(page, 15_000);
 
-    const recu = await serveur(page);
-    expect(recu.releves).toHaveLength(1);
-    expect(recu.photos.map((p) => p.role).sort()).toEqual(['programs_board', 'signboard']);
-    for (const p of recu.photos) {
-      expect(p.octets, p.role).toBeLessThan(200_000);
-      expect(['image/webp', 'image/jpeg']).toContain(p.mime);
-    }
-  });
+      const recu = await serveur(page);
+      expect(recu.releves).toHaveLength(1);
+      expect(recu.photos.map((p) => p.role).sort()).toEqual(['programs_board', 'signboard']);
+      for (const p of recu.photos) {
+        expect(p.octets, p.role).toBeLessThan(200_000);
+        expect(['image/webp', 'image/jpeg']).toContain(p.mime);
+      }
+    },
+  );
 
   test('une photo de plusieurs mégaoctets est allégée à moins de 200 Ko avant d’être gardée', async ({
     page,
@@ -291,58 +292,59 @@ test.describe('les séries et filières vues', () => {
 });
 
 test.describe('hors ligne', () => {
-  test('fiches et photos restent dans IndexedDB, jamais dans localStorage, jusqu’à ce que le réseau revienne', async ({
-    page,
-    context,
-  }) => {
-    test.setTimeout(90_000);
-    await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
-    await seConnecter(page, '/relais/');
-    await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
-    await attendreLaLecture(page);
-    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  test(
+    'fiches et photos restent dans IndexedDB, jamais dans localStorage, jusqu’à ce que le réseau revienne',
+    { tag: '@critique' },
+    async ({ page, context }) => {
+      test.setTimeout(90_000);
+      await context.setGeolocation({ latitude: -4.8, longitude: 11.9, accuracy: 8 });
+      await seConnecter(page, '/relais/');
+      await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeVisible();
+      await attendreLaLecture(page);
+      await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
-    await context.setOffline(true);
-    await page.reload();
-    await expect(page.getByText('Hors ligne', { exact: true })).toBeVisible();
+      await context.setOffline(true);
+      await page.reload();
+      await expect(page.getByText('Hors ligne', { exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Ajouter une école' }).click();
-    await page.locator('input[type=file]').first().setInputFiles(photo);
-    await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
-    await expect(page.getByText('Position prise')).toBeVisible();
-    await page.getByLabel('Comment la trouver ?').fill('Face au marché');
-    await finirLaFiche(page, '[École hors ligne]', 'Lycée');
-    await page
-      .getByRole('region', { name: 'Séries et formations' })
-      .getByLabel(/Précisions sur les séries/)
-      .fill('Série C');
-    await allerAuBonus(page);
-    await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
-    await page.getByRole('button', { name: 'Envoyer la fiche' }).click();
-    await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
-    await expect(page.getByText('1 fiche attend le réseau.')).toBeVisible();
+      await page.getByRole('button', { name: 'Ajouter une école' }).click();
+      await page.locator('input[type=file]').first().setInputFiles(photo);
+      await expect(page.getByAltText("La photo de l'enseigne")).toBeVisible();
+      await expect(page.getByText('Position prise')).toBeVisible();
+      await page.getByLabel('Comment la trouver ?').fill('Face au marché');
+      await finirLaFiche(page, '[École hors ligne]', 'Lycée');
+      await page
+        .getByRole('region', { name: 'Séries et formations' })
+        .getByLabel(/Précisions sur les séries/)
+        .fill('Série C');
+      await allerAuBonus(page);
+      await ajouterUneAutrePhoto(page, /Panneau ou affiche des formations/);
+      await page.getByRole('button', { name: 'Envoyer la fiche' }).click();
+      await expect(page.getByRole('heading', { name: 'Mes fiches' })).toBeVisible();
+      await expect(page.getByText('1 fiche attend le réseau.')).toBeVisible();
 
-    // Le téléphone garde la fiche et ses deux photos, dans IndexedDB ...
-    const gardees = await photosDuTelephone(page);
-    expect(gardees.map((p) => p.role).sort()).toEqual(['programs_board', 'signboard']);
-    for (const p of gardees) expect(p.taille, p.role).toBeLessThan(200_000);
-    // ... et nulle part dans localStorage ou sessionStorage : rien de la fiche ne s'y lit.
-    const stockages = await page.evaluate(() =>
-      JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }),
-    );
-    expect(stockages).not.toContain('[École hors ligne]');
-    expect(stockages).not.toContain('programmesVus');
-    expect(stockages).not.toContain('signboard');
-    expect((await serveur(page)).releves).toHaveLength(0);
+      // Le téléphone garde la fiche et ses deux photos, dans IndexedDB ...
+      const gardees = await photosDuTelephone(page);
+      expect(gardees.map((p) => p.role).sort()).toEqual(['programs_board', 'signboard']);
+      for (const p of gardees) expect(p.taille, p.role).toBeLessThan(200_000);
+      // ... et nulle part dans localStorage ou sessionStorage : rien de la fiche ne s'y lit.
+      const stockages = await page.evaluate(() =>
+        JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }),
+      );
+      expect(stockages).not.toContain('[École hors ligne]');
+      expect(stockages).not.toContain('programmesVus');
+      expect(stockages).not.toContain('signboard');
+      expect((await serveur(page)).releves).toHaveLength(0);
 
-    await context.setOffline(false);
-    await toutEstEnvoye(page, 20_000);
-    const recu = await serveur(page);
-    expect(recu.releves).toHaveLength(1);
-    expect(recu.photos).toHaveLength(2);
-    // Une fois reçues, les photos quittent le téléphone.
-    expect((await photosDuTelephone(page)).filter((p) => p.taille > 0)).toEqual([]);
-  });
+      await context.setOffline(false);
+      await toutEstEnvoye(page, 20_000);
+      const recu = await serveur(page);
+      expect(recu.releves).toHaveLength(1);
+      expect(recu.photos).toHaveLength(2);
+      // Une fois reçues, les photos quittent le téléphone.
+      expect((await photosDuTelephone(page)).filter((p) => p.taille > 0)).toEqual([]);
+    },
+  );
 
   test('une école à moins de 40 m d’une école connue est signalée sans réseau', async ({
     page,
