@@ -7,6 +7,7 @@ import { dateCourte, dateLongue } from '../../modele/pointe-noire';
 import type { FormationPublique } from '../../modele/ports';
 import { calendrierAMontrer, type AdmissionPublique } from '../../modele/vitrine';
 import { francsCFA } from '../../modele/frais-ecole';
+import { nombresInsecables } from '../../modele/presentation-fiche';
 interface Props {
   admission: AdmissionPublique;
   formations: FormationPublique[];
@@ -69,7 +70,7 @@ const quand = (debut: string, fin: string | null) =>
           <h3>Pièces à fournir</h3>
           <ul class="pieces">
             {a.pieces.map((p) => (
-              <li>{p}</li>
+              <li>{nombresInsecables(p)}</li>
             ))}
           </ul>
         </div>
@@ -77,7 +78,7 @@ const quand = (debut: string, fin: string | null) =>
       {(a.ouDeposer || a.surPlaceSeulement) && (
         <div class="carte-admission">
           <h3>Où déposer le dossier</h3>
-          {a.ouDeposer && <p>{a.ouDeposer}</p>}
+          {a.ouDeposer && <p>{nombresInsecables(a.ouDeposer)}</p>}
           {a.surPlaceSeulement && (
             <p class="sur-place">
               Dossiers reçus sur place uniquement, d’après l’école le {dateLongue(a.declareeLe)}

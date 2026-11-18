@@ -194,3 +194,11 @@ export function periodeCourte(f: {
   if (f.periode === 'annee') return '/ an';
   return f.precisionPeriode ? `· ${f.precisionPeriode}` : '';
 }
+
+/**
+ * Un texte tapé par l'école (note de frais, pièces, où déposer) : un montant écrit « 50 000 » ne se coupe plus en fin de
+ * ligne (espace fine insécable entre les milliers, comme `Intl.NumberFormat`), ni « 20 000 FCFA » ou « 10 % » avant leur
+ * unité. Une année suivie d'une autre (« 2026 2027 ») ne bouge pas : un groupe de milliers a exactement trois chiffres.
+ */
+export const nombresInsecables = (texte: string): string =>
+  texte.replace(/(\d) (?=\d{3}(?!\d))/g, '$1\u202f').replace(/(\d) (FCFA|%)/g, '$1\u00a0$2');

@@ -66,6 +66,8 @@ export const FORMATS_MEDIA = {
   couverture: { largeur: 720, hauteur: 300, budget: 28 * 1024 },
   vignette: { largeur: 400, hauteur: 300, budget: 10 * 1024 },
   logo: { largeur: 152, hauteur: 152, budget: 6 * 1024 },
+  // La visionneuse (19/11/2026) : la photo entière, 1 080 px au plus grand côté, chargée seulement quand on l'ouvre.
+  grande: { largeur: 1080, hauteur: 1080, budget: 90 * 1024 },
 } as const;
 export type FormatMedia = keyof typeof FORMATS_MEDIA;
 export const cheminMedia = (m: Pick<MediaPublic, 'id'>, format: FormatMedia): string =>
@@ -124,8 +126,13 @@ export function ligneDIdentite(
 }
 
 /** Le site web, sans « https:// » ni barre finale : ce qu'on lit et recopie. */
+// Seul le domaine se lit sur la fiche (cas extrêmes, 18/11/2026) : une adresse longue se cassait en cinq lignes ; le lien
+// garde l'adresse entière.
 export const siteWebLisible = (url: string): string =>
-  url.replace(/^https:\/\//, '').replace(/\/$/, '');
+  url
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/[/?#].*$/, '');
 
 /** Une nouvelle d'événement dont la date est passée depuis plus de 60 jours sort de la page ; les trois plus récentes restent. */
 export function nouvellesAMontrer(

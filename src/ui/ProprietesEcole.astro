@@ -2,7 +2,7 @@
 // La carte « Contact » de la fiche (lot 3, planche « Fiche publique ») : une ligne par propriété, le libellé à gauche, la
 // valeur à droite. D'où vient le numéro se dit en note, comme les frais : « Chaque information dit sa source et sa date ».
 import type { EcolePubliee } from '../modele/ports';
-import { libelleProgramme } from '../modele/presentation-fiche';
+import { libelleProgramme, nombresInsecables } from '../modele/presentation-fiche';
 import { libelleLangue } from '../modele/libelles';
 import { dateLongue } from '../modele/pointe-noire';
 import { siteWebLisible } from '../modele/vitrine';
@@ -12,6 +12,9 @@ interface Props {
   diplomes: string | null;
 }
 const { e, diplomes } = Astro.props;
+// Cas extrêmes (18/11/2026) : au-delà, la valeur passe sous son libellé, alignée à gauche, au lieu d'une colonne étroite
+// alignée à droite.
+const LONGUE = 40;
 const contact = e.contactPublic ?? null;
 const source = contact
   ? `Numéro communiqué par l’école, publication autorisée le ${dateLongue(contact.accordLe)}.${
@@ -39,9 +42,9 @@ const source = contact
     </li>
   )}
   {e.programme && (
-    <li>
+    <li class:list={[{ longue: e.programme.length > LONGUE }]}>
       <span class="libelle">{libelleProgramme(e.programme)}</span>
-      <b>{e.programme}</b>
+      <b>{nombresInsecables(e.programme)}</b>
     </li>
   )}
   {diplomes && (
@@ -69,6 +72,15 @@ const source = contact
     font-weight: 700;
     text-align: end;
     overflow-wrap: anywhere;
+  }
+  .proprietes :global(li.longue) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--espace-1);
+  }
+  .proprietes :global(li.longue b) {
+    font-weight: 400;
+    text-align: start;
   }
   .lien-cible {
     display: inline-flex;

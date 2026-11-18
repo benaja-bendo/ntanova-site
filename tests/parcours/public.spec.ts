@@ -92,14 +92,19 @@ test.describe('site public', () => {
         return;
       }
       // Sur une fiche, rien à télécharger : « Partager », et, depuis le lot 4 (16/11), sur une fiche que la direction n'a pas
-      // confirmée, « Demander la vérification ». Deux petits scripts écrits dans la page, rien d'autre.
+      // confirmée, « Demander la vérification » ; depuis le 19/11 (fondateur), la visionneuse des photos. Trois petits
+      // scripts écrits dans la page au plus, rien d'autre.
       await expect(page.locator('script[src]')).toHaveCount(0);
       const textes = await scripts.evaluateAll((s) => s.map((x) => x.innerHTML));
       expect(textes.length).toBeGreaterThanOrEqual(1);
-      expect(textes.length).toBeLessThanOrEqual(2);
+      expect(textes.length).toBeLessThanOrEqual(3);
       expect(textes.some((x) => x.includes('data-partager'))).toBe(true);
       for (const x of textes)
-        expect(x.includes('data-partager') || x.includes('data-demande')).toBe(true);
+        expect(
+          x.includes('data-partager') ||
+            x.includes('data-demande') ||
+            x.includes('data-visionneuse'),
+        ).toBe(true);
     });
   }
 

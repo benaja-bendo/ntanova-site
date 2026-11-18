@@ -54,8 +54,11 @@ const source = (e: Equipement): string => {
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
   }
-  .source {
-    text-align: end;
+  /* Cas extrêmes (18/11/2026) : qui l'affirme passe sous le nom, sur chaque ligne ; à droite, un nom long le renvoyait
+     seul à la ligne et la liste perdait son rythme. */
+  .equipements-ecole li {
+    flex-direction: column;
+    gap: 0;
   }
   .absent b {
     font-weight: 400;

@@ -1,0 +1,243 @@
+---
+// La visionneuse des photos d'une école (fondateur, 19/11/2026) : toucher une photo l'ouvre en plein écran ; on glisse du doigt
+// (ou les flèches, ou le clavier) d'une photo à l'autre ; le compteur dit « 3 / 5 » ; la légende se lit en entier. Une fenêtre
+// native (`<dialog>`) et un script écrit dans la page, 2 Ko au plus (`pnpm poids`), sans React : la charte du site public tient.
+// Les grandes images (`grande`, 1 080 px) ne se chargent qu'à l'ouverture, la photo montrée et ses deux voisines. Sans
+// JavaScript, les vignettes restent ce qu'elles étaient : des images.
+import { libelleSujetMedia } from '../../modele/libelles';
+import { dateLongue } from '../../modele/pointe-noire';
+import { cheminMedia, type MediaPublic } from '../../modele/vitrine';
+import Icone from '../Icone.astro';
+interface Props {
+  galerie: MediaPublic[];
+  nom: string;
+}
+const { galerie, nom } = Astro.props;
+const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
+---
+
+{galerie.length > 0 && (
+  <dialog class="visionneuse" data-visionneuse aria-label={`Photos de ${nom}`}>
+    <div class="tete">
+      <span class="compteur" data-compteur aria-live="polite">
+        1 / {galerie.length}
+      </span>
+      <button type="button" class="rond" data-fermer aria-label="Fermer">
+        <Icone nom="croix" />
+      </button>
+    </div>
+    <ul class="piste" data-piste>
+      {galerie.map((m) => (
+        <li>
+          <figure>
+            <img
+              data-grande={cheminMedia(m, 'grande')}
+              alt={`${libelle(m)}, ${nom}`}
+              decoding="async"
+            />
+            <figcaption>
+              {libelle(m)}
+              {m.prisLe && <span>Photo du {dateLongue(m.prisLe)}</span>}
+            </figcaption>
+          </figure>
+        </li>
+      ))}
+    </ul>
+    {galerie.length > 1 && (
+      <>
+        <button
+          type="button"
+          class="rond fleche precedente"
+          data-precedente
+          aria-label="Photo précédente"
+        >
+          <Icone nom="retour" />
+        </button>
+        <button
+          type="button"
+          class="rond fleche suivante"
+          data-suivante
+          aria-label="Photo suivante"
+        >
+          <Icone nom="suite" />
+        </button>
+      </>
+    )}
+  </dialog>
+)}
+
+{galerie.length > 0 && <script is:inline>
+  (function () {
+    const d = document.querySelector('dialog[data-visionneuse]');
+    if (!d || !d.showModal) return;
+    const piste = d.querySelector('[data-piste]');
+    const photos = piste.children;
+    const compteur = d.querySelector('[data-compteur]');
+    const n = photos.length;
+    let courante = 0;
+    const doux = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function charger(i) {
+      const img = photos[i] && photos[i].querySelector('img');
+      if (img && !img.src) img.src = img.getAttribute('data-grande');
+    }
+    function marquer(i) {
+      courante = i;
+      charger(i - 1);
+      charger(i);
+      charger(i + 1);
+      compteur.textContent = i + 1 + ' / ' + n;
+    }
+    function montrer(i, anime) {
+      i = Math.max(0, Math.min(n - 1, i));
+      marquer(i);
+      piste.scrollTo({ left: i * piste.clientWidth, behavior: anime && doux ? 'smooth' : 'auto' });
+    }
+    document.querySelectorAll('[data-ouvrir-photo]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        d.showModal();
+        montrer(+b.getAttribute('data-ouvrir-photo'), false);
+      });
+    });
+    function sur(attr, faire) {
+      const b = d.querySelector('[' + attr + ']');
+      if (b) b.addEventListener('click', faire);
+    }
+    sur('data-fermer', function () {
+      d.close();
+    });
+    sur('data-precedente', function () {
+      montrer(courante - 1, true);
+    });
+    sur('data-suivante', function () {
+      montrer(courante + 1, true);
+    });
+    let minuteur;
+    piste.addEventListener('scroll', function () {
+      clearTimeout(minuteur);
+      minuteur = setTimeout(function () {
+        const i = Math.round(piste.scrollLeft / piste.clientWidth);
+        if (i !== courante) marquer(i);
+      }, 80);
+    });
+    d.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowLeft') montrer(courante - 1, true);
+      if (e.key === 'ArrowRight') montrer(courante + 1, true);
+    });
+  })();
+</script>}
+
+<style>
+  .visionneuse {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--encre);
+    color: var(--blanc);
+    overscroll-behavior: contain;
+  }
+  .visionneuse::backdrop {
+    background: var(--voile);
+  }
+  /* La page derrière ne défile pas pendant que la visionneuse est ouverte (iPhone compris). */
+  :global(html:has(dialog[data-visionneuse][open])) {
+    overflow: hidden;
+  }
+  .tete {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: max(var(--espace-2), env(safe-area-inset-top)) var(--espace-3) var(--espace-2);
+  }
+  .compteur {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .rond {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--cible-principale);
+    height: var(--cible-principale);
+    padding: 0;
+    border: 1px solid var(--filet-sur-sombre);
+    border-radius: var(--rayon-pilule);
+    background: var(--encre);
+    color: var(--blanc);
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .rond:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus-sur-marque);
+    outline-offset: 2px;
+  }
+  .piste {
+    display: flex;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+    list-style: none;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .piste::-webkit-scrollbar {
+    display: none;
+  }
+  .piste > li {
+    display: flex;
+    flex: 0 0 100%;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+  }
+  figure {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    width: 100%;
+    margin: 0;
+    padding: calc(var(--cible-principale) + var(--espace-4)) 0 0;
+  }
+  img {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    object-fit: contain;
+  }
+  figcaption {
+    display: grid;
+    gap: var(--espace-1);
+    max-width: var(--largeur-texte);
+    margin-inline: auto;
+    padding: var(--espace-3) var(--espace-4) max(var(--espace-4), env(safe-area-inset-bottom));
+    text-align: center;
+  }
+  figcaption span {
+    font-size: var(--taille-secondaire);
+    opacity: 0.75;
+  }
+  .fleche {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .precedente {
+    left: var(--espace-3);
+  }
+  .suivante {
+    right: var(--espace-3);
+  }
+  /* Sur téléphone, on glisse du doigt : les flèches ne couvrent pas la photo. */
+  @media (hover: none) and (pointer: coarse) {
+    .fleche {
+      display: none;
+    }
+  }
+</style>
