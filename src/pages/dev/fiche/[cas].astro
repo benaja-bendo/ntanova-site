@@ -1,0 +1,75 @@
+---
+// La fiche d'une école, poussée à bout (skill « break-ui », 18/11/2026). Réservé au développement : en production,
+// getStaticPaths ne renvoie rien et ces pages n'existent pas. La vraie fiche de GMU (ou, sur le faux serveur, de
+// l'institut d'exemple), puis ses cas extrêmes ; la bascule en bas de l'écran passe de l'un à l'autre.
+import { obtenirSite, pointDesDemandes } from '../../../infra/index';
+import { ecolesProches } from '../../../modele/fiche-mince';
+import FicheEcole from '../../../ui/FicheEcole.astro';
+import PagePublique from '../../../ui/PagePublique.astro';
+import { CAS, LIBELLES_CAS, casDeLaFiche, type CasFiche } from '../_fiche-cas';
+
+export function getStaticPaths() {
+  return import.meta.env.DEV ? CAS.map((cas) => ({ params: { cas } })) : [];
+}
+
+const cas = Astro.params.cas as CasFiche;
+const site = await obtenirSite();
+const base =
+  site.ecoles.find((x) => x.numero === '723564') ??
+  site.ecoles.find((x) => x.niveaux.includes('superieur')) ??
+  site.ecoles[0];
+if (!base) throw new Error('Aucune école publiée à pousser à bout.');
+const e = casDeLaFiche(base)[cas];
+const zone = site.arbre.parId.get(e.divisionId);
+if (!zone) throw new Error(`Pas de lieu pour ${e.nom}`);
+const proches = cas === 'vide' ? [] : ecolesProches(e, site.ecoles);
+---
+
+<PagePublique titre={`${LIBELLES_CAS[cas]} · fiche · dev`} description="" whatsapp={null}>
+  <FicheEcole
+    e={e}
+    zone={zone}
+    autres={[]}
+    erreur={cas === 'vide' ? null : 'https://wa.me/'}
+    confirmer={cas === 'vide' ? null : 'https://wa.me/'}
+    proches={proches}
+    demandes={pointDesDemandes()}
+    prospectus="https://wa.me/"
+    lieuDesProches={null}
+  />
+  <nav class="bascule-dev" aria-label="Jeu de données">
+    {CAS.map((c) => (
+      <a href={`/dev/fiche/${c}/`} aria-current={c === cas ? 'page' : undefined}>
+        {LIBELLES_CAS[c]}
+      </a>
+    ))}
+  </nav>
+</PagePublique>
+
+<style>
+  .bascule-dev {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    z-index: 100;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 999px;
+    background: var(--fond-bande);
+    font:
+      600 13px system-ui,
+      sans-serif;
+    transform: translateX(-50%);
+  }
+  .bascule-dev a {
+    padding: 6px 10px;
+    border-radius: 999px;
+    color: var(--texte);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .bascule-dev a[aria-current='page'] {
+    background: var(--fond-releve);
+  }
+</style>

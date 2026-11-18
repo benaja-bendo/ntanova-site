@@ -37,7 +37,9 @@ const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
             loading="lazy"
             decoding="async"
           />
-          <span class="etiquette-photo">{libelle(m)}</span>
+          <span class="etiquette-photo" title={libelle(m)}>
+            {libelle(m)}
+          </span>
           {i === nTel - 1 && resteTel > 0 && (
             <a
               class="plus plus-tel"
@@ -124,9 +126,14 @@ const libelle = (m: MediaPublic) => m.legende ?? libelleSujetMedia[m.sujet];
     font-size: var(--taille-mention);
     font-weight: 700;
   }
+  /* Cas extrêmes (18/11/2026) : une légende de 60 signes couvrait toute une petite vignette ; une ligne, coupée au bout. */
   .etiquette-photo {
     left: var(--espace-2);
     bottom: var(--espace-2);
+    max-width: calc(100% - 2 * var(--espace-2));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     background: var(--fond-releve);
     color: var(--texte);
   }

@@ -124,8 +124,13 @@ export function ligneDIdentite(
 }
 
 /** Le site web, sans « https:// » ni barre finale : ce qu'on lit et recopie. */
+// Seul le domaine se lit sur la fiche (cas extrêmes, 18/11/2026) : une adresse longue se cassait en cinq lignes ; le lien
+// garde l'adresse entière.
 export const siteWebLisible = (url: string): string =>
-  url.replace(/^https:\/\//, '').replace(/\/$/, '');
+  url
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/[/?#].*$/, '');
 
 /** Une nouvelle d'événement dont la date est passée depuis plus de 60 jours sort de la page ; les trois plus récentes restent. */
 export function nouvellesAMontrer(

@@ -6,6 +6,7 @@ import {
   invitationDirection,
   libelleProgramme,
   messageFiliere,
+  nombresInsecables,
   nomDUneFormation,
   preuvesDeLaFiche,
   rythmesEnMots,
@@ -125,4 +126,16 @@ describe('les formations', () => {
       'Bonjour, je vous contacte depuis NTanova au sujet de la filière Informatique de gestion : ',
     );
   });
+});
+
+// Cas extrêmes de la fiche (18/11/2026) : une note de frais tapée par l'école coupait « 50 000 » en fin de ligne.
+it('ne coupe jamais un montant tapé avec des espaces', () => {
+  expect(nombresInsecables('Frais annexes : 75 000 (kit) et 50 000.')).toBe(
+    'Frais annexes : 75\u202f000 (kit) et 50\u202f000.',
+  );
+  expect(nombresInsecables('1 250 000 FCFA')).toBe('1\u202f250\u202f000\u00a0FCFA');
+  expect(nombresInsecables('2 photos d’identité, 10 % de réduction')).toBe(
+    '2 photos d’identité, 10\u00a0% de réduction',
+  );
+  expect(nombresInsecables('en 2026 2027')).toBe('en 2026 2027');
 });

@@ -12,7 +12,7 @@ import {
   lignesDeFraisDeLEcole,
   sourceDesFrais,
 } from '../../modele/vitrine';
-import { periodeCourte } from '../../modele/presentation-fiche';
+import { nombresInsecables, periodeCourte } from '../../modele/presentation-fiche';
 interface Props {
   frais: FraisEcole[];
 }
@@ -54,7 +54,7 @@ const notes = [...new Set(lignes.map((f) => f.note).filter((n): n is string => !
         )}
       </ul>
       {notes.map((n) => (
-        <p class="doux">{n}</p>
+        <p class="doux">{nombresInsecables(n)}</p>
       ))}
       {source && (
         <p class="doux">

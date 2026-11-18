@@ -314,7 +314,8 @@ test('la page publique du supérieur dit le détail d’une formation, sa date, 
   // Planche « supérieur » (version 44) : une carte par formation ; son admission en une ligne.
   const formations = page.locator('.carte-formation', { hasText: 'BTS Informatique de gestion' });
   await expect(formations).toContainText('[Bac, toutes séries] · dossier');
-  await expect(formations).toContainText(/dossier 15\s000\sFCFA/);
+  // Cas extrêmes (18/11/2026) : les frais de dossier ont leur propre ligne, nommée, au lieu de suivre l'admission.
+  await expect(formations).toContainText(/Frais de dossier\s*15\s000\sFCFA/);
   await expect(formations).toContainText('D’après l’école, le 5 novembre 2026');
   await expect(formations).toContainText('vue sur le document');
   await expect(page.locator('body')).not.toContainText(/reconnue? par l.État/);

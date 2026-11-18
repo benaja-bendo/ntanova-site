@@ -65,6 +65,10 @@ describe('la ligne sous le nom', () => {
   });
   it('le site web se lit sans https ni barre finale', () => {
     expect(siteWebLisible('https://exemple.cg/')).toBe('exemple.cg');
+    // Cas extrêmes (18/11/2026) : une adresse longue se cassait en cinq lignes ; on n'en garde que le domaine.
+    expect(siteWebLisible('http://www.ecole-longue.cg/formations/admissions-2026?x=1')).toBe(
+      'ecole-longue.cg',
+    );
   });
 });
 

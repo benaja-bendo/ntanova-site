@@ -82,17 +82,16 @@ const admission = (f: FormationPublique) =>
                 ))}
               </p>
             )}
-            {(admission(f) || f.fraisDossier != null) && (
+            {admission(f) && (
               <p class="ligne">
                 <span>Admission</span>
-                <b>
-                  {[
-                    admission(f),
-                    f.fraisDossier != null ? `dossier ${francsCFA(f.fraisDossier)}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </b>
+                <b>{admission(f)}</b>
+              </p>
+            )}
+            {f.fraisDossier != null && (
+              <p class="ligne">
+                <span>Frais de dossier</span>
+                <b>{francsCFA(f.fraisDossier)}</b>
               </p>
             )}
             {ligneFrais && (
@@ -228,17 +227,14 @@ const admission = (f: FormationPublique) =>
     font-size: var(--taille-secondaire);
     font-weight: 700;
   }
+  /* Cas extrêmes (18/11/2026) : le libellé au-dessus de la valeur, toujours. À droite, une admission longue se cassait en
+     colonne étroite et « 20 000 FCFA » s'y lisait comme des frais d'études. */
   .ligne {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--espace-3);
+    display: grid;
   }
   .ligne span {
-    flex: none;
     color: var(--texte-doux);
-  }
-  .ligne b {
-    text-align: end;
+    font-size: var(--taille-secondaire);
   }
   .autorisation {
     display: flex;
@@ -260,11 +256,9 @@ const admission = (f: FormationPublique) =>
     cursor: pointer;
   }
   @media (min-width: 64rem) {
+    /* Deux formations prennent chacune la moitié, plutôt que deux tiers de trois colonnes étroites. */
     .cartes {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-    .ligne {
-      font-size: var(--taille-secondaire);
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
     }
   }
 </style>

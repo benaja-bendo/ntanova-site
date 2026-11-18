@@ -994,6 +994,11 @@ const joursRestants = (n: number) =>
     overflow-x: auto;
     border-block: 1px solid var(--trait);
     background: var(--fond);
+    /* Cas extrêmes (18/11/2026) : sur téléphone, « Frais » sortait de l'écran sans le dire ; le bord droit s'efface. */
+    mask-image: linear-gradient(to left, transparent, var(--texte) var(--espace-6));
+  }
+  .rubriques a:last-child {
+    padding-inline-end: var(--espace-6);
   }
   .rubriques a {
     display: inline-flex;
