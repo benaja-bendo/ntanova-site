@@ -96,6 +96,7 @@ supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parco
   - `/ecoles/` : script de filtrage de 20 Ko et `/recherche.json` de 300 Ko au plus (compressés) ; la position, demandée au seul bouton « Autour de moi », n'est envoyée à personne ;
   - la vue Carte de `/ecoles/` (lot 4 bis) : script de la page 20 Ko, îlot MapLibre 500 Ko servis, premier affichage 700 Ko sans les images `loading="lazy"` ; `/carte/` n'est plus qu'un renvoi ;
   - « Partager » sur une fiche : un script de 2 Ko au plus, sinon un lien WhatsApp.
+  - la visionneuse des photos (fiche et page des photos, fondateur, 19/11) : un `<dialog>` natif et un script de 2 Ko au plus ; les grandes images (`grande`, 1 080 px, 90 Ko) n'ont de `src` qu'à l'ouverture. Jamais shadcn ni React sur le site public.
 - **À venir (fondateur, 15/11)** : calculateur, test d'orientation et Comparer s'affichent d'abord en HTML et CSS dans les 200 Ko ; leur JavaScript ne se charge qu'à la demande (script natif ou îlot `client:visible`), déclaré à `pnpm poids`.
 
 ## Budget GitHub Actions (fondateur, 05/11/2026)

@@ -5,6 +5,7 @@ import { lienEcole } from '../../modele/geo-divisions';
 import { libelleSujetMedia } from '../../modele/libelles';
 import type { EcolePubliee } from '../../modele/ports';
 import { cheminMedia } from '../../modele/vitrine';
+import Visionneuse from './Visionneuse.astro';
 interface Props {
   e: EcolePubliee;
 }
@@ -18,23 +19,31 @@ const galerie = e.medias?.galerie ?? [];
   </a>
   <h1>Les photos</h1>
   <ul>
-    {galerie.map((m) => (
+    {galerie.map((m, i) => (
       <li>
         <figure>
-          <img
-            src={cheminMedia(m, 'vignette')}
-            alt={`${m.legende ?? libelleSujetMedia[m.sujet]}, ${e.nom}`}
-            width="400"
-            height="300"
-            loading="lazy"
-            decoding="async"
-          />
+          <button
+            type="button"
+            class="ouvrir"
+            data-ouvrir-photo={i}
+            aria-label={`Agrandir la photo : ${m.legende ?? libelleSujetMedia[m.sujet]}`}
+          >
+            <img
+              src={cheminMedia(m, 'vignette')}
+              alt=""
+              width="400"
+              height="300"
+              loading="lazy"
+              decoding="async"
+            />
+          </button>
           <figcaption>{m.legende ?? libelleSujetMedia[m.sujet]}</figcaption>
         </figure>
       </li>
     ))}
   </ul>
   <p class="doux">Photos contrôlées par NTanova : aucun enfant, aucune personne reconnaissable.</p>
+  <Visionneuse galerie={galerie} nom={e.nom} />
 </section>
 
 <style>
@@ -61,6 +70,20 @@ const galerie = e.medias?.galerie ?? [];
     display: grid;
     gap: var(--espace-1);
     margin: 0;
+  }
+  .ouvrir {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: zoom-in;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ouvrir:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--rayon-m);
   }
   img {
     width: 100%;

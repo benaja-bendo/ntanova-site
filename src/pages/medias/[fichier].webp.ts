@@ -15,7 +15,10 @@ export const getStaticPaths = (async () => {
     poser(e.medias?.logo, 'logo');
     poser(e.medias?.couverture, 'couverture');
     poser(e.medias?.couverture, 'vignette');
-    for (const m of e.medias?.galerie ?? []) poser(m, 'vignette');
+    for (const m of e.medias?.galerie ?? []) {
+      poser(m, 'vignette');
+      poser(m, 'grande');
+    }
     for (const n of e.nouvelles ?? []) poser(n.media, 'vignette');
   }
   return [...chemins].map(([fichier, props]) => ({ params: { fichier }, props }));
@@ -23,7 +26,8 @@ export const getStaticPaths = (async () => {
 
 export const GET: APIRoute = async ({ props }) => {
   const { id, format } = props as { id: string; format: FormatMedia };
-  const source = await obtenirMedia(id, format !== 'couverture');
+  // La miniature posée par l'administration sert aux petites images ; la couverture et la grande partent de l'original.
+  const source = await obtenirMedia(id, format === 'vignette' || format === 'logo');
   return new Response(
     new Uint8Array(await mediaPourLeSite(source, FORMATS_MEDIA[format], format === 'logo')),
     { headers: { 'Content-Type': 'image/webp' } },

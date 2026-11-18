@@ -82,11 +82,32 @@ test('cinq photos : trois vignettes sur la fiche, toutes sur la page des photos'
   await expect(galerie.locator('img').filter({ visible: true })).toHaveCount(3);
   await galerie.getByRole('link', { name: 'Voir les 5', exact: true }).click();
   await expect(page).toHaveURL(/\/ecoles\/groupe-scolaire-exemple-158427\/photos\/$/);
-  await expect(page.locator('figure img')).toHaveCount(5);
+  await expect(page.getByRole('button', { name: /^Agrandir la photo/ })).toHaveCount(5);
   await expect(page.getByRole('link', { name: /Groupe scolaire Exemple/ })).toHaveAttribute(
     'href',
     COMPLETE,
   );
+});
+
+// La visionneuse (fondateur, 19/11/2026) : toucher une vignette ouvre la photo en grand ; les grandes images n'existent pas
+// dans la page avant l'ouverture (budget), puis seulement la photo montrée et ses voisines.
+test('toucher une photo l’ouvre en grand ; on passe à la suivante ; on referme', async ({
+  page,
+}) => {
+  await page.goto(COMPLETE);
+  const visionneuse = page.getByRole('dialog', { name: /^Photos de/ });
+  await expect(visionneuse.locator('img[src]')).toHaveCount(0);
+  await page
+    .getByRole('button', { name: /^Agrandir la photo/ })
+    .nth(1)
+    .click();
+  await expect(visionneuse).toBeVisible();
+  await expect(visionneuse).toContainText('2 / 5');
+  await expect(visionneuse.locator('img[src*="-grande.webp"]')).toHaveCount(3);
+  await page.keyboard.press('ArrowRight');
+  await expect(visionneuse).toContainText('3 / 5');
+  await page.keyboard.press('Escape');
+  await expect(visionneuse).toBeHidden();
 });
 
 test('le supérieur : formations détaillées, admission en cours, « Dossiers ouverts », sans JavaScript', async ({

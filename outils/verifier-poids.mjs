@@ -34,19 +34,24 @@ const scriptsDeLaPage = (html) =>
 // Lot 4 (16/11/2026) : « Demander la vérification », la cinquième exception, sur la fiche seulement. Un second script écrit
 // dans la page, repéré par `data-demande`, de 2 Ko au plus : il compte une demande sans nom ni numéro (`count_family_demand`).
 // La page porte le bloc qu'il sert.
+// 19/11/2026 : la visionneuse des photos (fondateur), la sixième exception, sur la fiche et la page des photos. Un script écrit
+// dans la page, repéré par `data-visionneuse`, de 2 Ko au plus ; la page porte la fenêtre (`<dialog data-visionneuse>`) qu'il
+// ouvre. Ses grandes images ne sont pas comptées : leur adresse est dans `data-grande`, pas dans `src`, avant l'ouverture.
 const scriptPermis = (html, s) =>
   !s.externe &&
   Buffer.byteLength(s.texte) <= budgetScriptPartage &&
   ((s.texte.includes('data-partager') && /<a\b[^>]*\sdata-partager\b/.test(html)) ||
-    (s.texte.includes('data-demande') && /<div\b[^>]*\sdata-demande\b/.test(html)));
+    (s.texte.includes('data-demande') && /<div\b[^>]*\sdata-demande\b/.test(html)) ||
+    (s.texte.includes('data-visionneuse') && /<dialog\b[^>]*\sdata-visionneuse\b/.test(html)));
 const seulementLePartage = (html) => {
   const scripts = scriptsDeLaPage(html);
   return (
     scripts.length >= 1 &&
-    scripts.length <= 2 &&
+    scripts.length <= 3 &&
     scripts.every((s) => scriptPermis(html, s)) &&
     // Le partage reste là où il y a un bouton « Partager ».
-    scripts.some((s) => s.texte.includes('data-partager'))
+    (!/<a\b[^>]*\sdata-partager\b/.test(html) ||
+      scripts.some((s) => s.texte.includes('data-partager')))
   );
 };
 
