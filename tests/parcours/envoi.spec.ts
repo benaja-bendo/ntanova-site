@@ -61,55 +61,56 @@ async function ouvrirLEspace(page: Page, context: BrowserContext) {
 }
 
 test.describe('une fiche que la base refuse', () => {
-  test('sort de la file avec sa raison, n’est pas rejouée, et part après « Réessayer »', async ({
-    page,
-    context,
-  }) => {
-    test.setTimeout(60_000);
-    await ouvrirLEspace(page, context);
-    await regler(page, 'ntanova-faux-rejet', '42501|Compte relais inactif.');
-    await ajouterUneEcole(page, 1);
+  test(
+    'sort de la file avec sa raison, n’est pas rejouée, et part après « Réessayer »',
+    { tag: '@critique' },
+    async ({ page, context }) => {
+      test.setTimeout(60_000);
+      await ouvrirLEspace(page, context);
+      await regler(page, 'ntanova-faux-rejet', '42501|Compte relais inactif.');
+      await ajouterUneEcole(page, 1);
 
-    // Sur « Mon secteur » : plus de fiche qui « attend », mais une fiche à regarder.
-    await expect(page.getByText(/1 fiche n'a pas pu être envoyée/)).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByText(/attend d'être envoyée/)).toHaveCount(0);
+      // Sur « Mon secteur » : plus de fiche qui « attend », mais une fiche à regarder.
+      await expect(page.getByText(/1 fiche n'a pas pu être envoyée/)).toBeVisible({
+        timeout: 15_000,
+      });
+      await expect(page.getByText(/attend d'être envoyée/)).toHaveCount(0);
 
-    await page.getByRole('link', { name: 'Mes fiches' }).click();
-    await expect(
-      ligneDeFiche(page, '[École 1]').getByText('Refusée', { exact: true }),
-    ).toBeVisible();
-    const fiche = await ouvrirMaFiche(page, '[École 1]');
-    await expect(fiche.getByText(/Compte relais inactif\./)).toBeVisible();
-    await expect(fiche.getByRole('button', { name: /Réessayer/ })).toBeVisible();
-    await expect(fiche.getByRole('button', { name: 'Retirer du téléphone' })).toBeVisible();
+      await page.getByRole('link', { name: 'Mes fiches' }).click();
+      await expect(
+        ligneDeFiche(page, '[École 1]').getByText('Refusée', { exact: true }),
+      ).toBeVisible();
+      const fiche = await ouvrirMaFiche(page, '[École 1]');
+      await expect(fiche.getByText(/Compte relais inactif\./)).toBeVisible();
+      await expect(fiche.getByRole('button', { name: /Réessayer/ })).toBeVisible();
+      await expect(fiche.getByRole('button', { name: 'Retirer du téléphone' })).toBeVisible();
 
-    // La base a refusé une fois ; rouvrir l'application ne rejoue pas ce qu'elle refuse.
-    expect((await serveur(page)).refus).toBe(1);
-    await page.goto('/relais/#fiches');
-    await page.reload();
-    await expect(
-      ligneDeFiche(page, '[École 1]').getByText('Refusée', { exact: true }),
-    ).toBeVisible();
-    await page.waitForTimeout(1500);
-    expect((await serveur(page)).refus).toBe(1);
+      // La base a refusé une fois ; rouvrir l'application ne rejoue pas ce qu'elle refuse.
+      expect((await serveur(page)).refus).toBe(1);
+      await page.goto('/relais/#fiches');
+      await page.reload();
+      await expect(
+        ligneDeFiche(page, '[École 1]').getByText('Refusée', { exact: true }),
+      ).toBeVisible();
+      await page.waitForTimeout(1500);
+      expect((await serveur(page)).refus).toBe(1);
 
-    // Le relais a écrit à NTanova, le compte est actif : « Réessayer » remet la fiche en file.
-    await regler(page, 'ntanova-faux-rejet', null);
-    await (
-      await ouvrirMaFiche(page, '[École 1]')
-    )
-      .getByRole('button', { name: /Réessayer/ })
-      .click();
-    await page.goto('/relais/#fiches');
-    await expect(
-      ligneDeFiche(page, '[École 1]').getByText('En attente', { exact: true }),
-    ).toBeVisible({
-      timeout: 15_000,
-    });
-    expect((await serveur(page)).noms).toEqual(['[École 1]']);
-  });
+      // Le relais a écrit à NTanova, le compte est actif : « Réessayer » remet la fiche en file.
+      await regler(page, 'ntanova-faux-rejet', null);
+      await (
+        await ouvrirMaFiche(page, '[École 1]')
+      )
+        .getByRole('button', { name: /Réessayer/ })
+        .click();
+      await page.goto('/relais/#fiches');
+      await expect(
+        ligneDeFiche(page, '[École 1]').getByText('En attente', { exact: true }),
+      ).toBeVisible({
+        timeout: 15_000,
+      });
+      expect((await serveur(page)).noms).toEqual(['[École 1]']);
+    },
+  );
 
   test('se retire du téléphone, après confirmation', async ({ page, context }) => {
     await ouvrirLEspace(page, context);

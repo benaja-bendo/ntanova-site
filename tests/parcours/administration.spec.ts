@@ -23,84 +23,93 @@ import {
 test.use({ permissions: ['geolocation'] });
 
 test.describe('administration', () => {
-  test('une fiche acceptée devient prête, se publie, et le relais la voit « Acceptée »', async ({
-    page,
-    context,
-  }) => {
-    await uneFicheEnvoyee(page, context);
-    await ouvrirLaFiche(page);
-    await ouvrirContacts(page);
+  test(
+    'une fiche acceptée devient prête, se publie, et le relais la voit « Acceptée »',
+    { tag: '@critique' },
+    async ({ page, context }) => {
+      await uneFicheEnvoyee(page, context);
+      await ouvrirLaFiche(page);
+      await ouvrirContacts(page);
 
-    // Le contact de la direction n'est lisible que par l'administration.
-    await expect(page.getByText('+242 06 123 45 61')).toBeVisible();
-    // Le pont : un message déjà écrit, honnête (ni prix, ni gratuité, ni audience), pour la personne qui a donné son accord.
-    const ecrire = page.getByRole('link', { name: /Écrire à la direction sur WhatsApp/ });
-    await expect(ecrire).toHaveAttribute('href', /^https:\/\/wa\.me\/242061234561\?text=/);
-    const message =
-      decodeURIComponent((await ecrire.getAttribute('href')) ?? '').split('?text=')[1] ?? '';
-    expect(message).toContain('[École 1]');
-    expect(message).not.toMatch(/gratuit|FCFA|prix|tarif|visiteurs|audience/i);
-    await ouvrirContacts(page);
-    await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
-    await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
+      // Le contact de la direction n'est lisible que par l'administration.
+      await expect(page.getByText('+242 06 123 45 61')).toBeVisible();
+      // Le pont : un message déjà écrit, honnête (ni prix, ni gratuité, ni audience), pour la personne qui a donné son accord.
+      const ecrire = page.getByRole('link', { name: /Écrire à la direction sur WhatsApp/ });
+      await expect(ecrire).toHaveAttribute('href', /^https:\/\/wa\.me\/242061234561\?text=/);
+      const message =
+        decodeURIComponent((await ecrire.getAttribute('href')) ?? '').split('?text=')[1] ?? '';
+      expect(message).toContain('[École 1]');
+      expect(message).not.toMatch(/gratuit|FCFA|prix|tarif|visiteurs|audience/i);
+      await ouvrirContacts(page);
+      await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
+      await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
 
-    await fermerContacts(page);
+      await fermerContacts(page);
 
-    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
-    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
-    await expect(page.getByText('Rien à valider pour le moment.')).toBeVisible();
+      await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+      await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+      await expect(page.getByText('Rien à valider pour le moment.')).toBeVisible();
 
-    // Accepter ne publie pas : l'école attend le geste « Publier ».
-    await ouvrirLesEcoles(page);
-    const ligne = page.getByRole('row', { name: /\[École 1\]/ });
-    await expect(ligne.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
-    await ligne.getByRole('button', { name: 'Publier', exact: true }).click();
-    // Elle paraît à la prochaine mise à jour du site : la nuit ne met à jour qu'essai, aucune heure n'est promise.
-    await expect(page.getByRole('status')).toHaveText(/est publiée.*prochaine mise à jour du site/);
-    await expect(page.getByRole('status')).not.toHaveText(/cette nuit|2 h/);
-    await expect(
-      page
-        .getByRole('row', { name: /\[École 1\]/ })
-        .getByText('Publiée', { exact: true })
-        .filter({ visible: true }),
-    ).toBeVisible();
+      // Accepter ne publie pas : l'école attend le geste « Publier ».
+      await ouvrirLesEcoles(page);
+      const ligne = page.getByRole('row', { name: /\[École 1\]/ });
+      await expect(ligne.getByRole('button', { name: 'Publier', exact: true })).toBeVisible();
+      await ligne.getByRole('button', { name: 'Publier', exact: true }).click();
+      // Elle paraît à la prochaine mise à jour du site : la nuit ne met à jour qu'essai, aucune heure n'est promise.
+      await expect(page.getByRole('status')).toHaveText(
+        /est publiée.*prochaine mise à jour du site/,
+      );
+      await expect(page.getByRole('status')).not.toHaveText(/cette nuit|2 h/);
+      await expect(
+        page
+          .getByRole('row', { name: /\[École 1\]/ })
+          .getByText('Publiée', { exact: true })
+          .filter({ visible: true }),
+      ).toBeVisible();
 
-    await page.goto('/relais/#fiches');
-    // v2 : la liste dit « En ligne » ; la fiche ouverte dit ses étapes, dont « Acceptée ».
-    await expect(page.getByText('En ligne', { exact: true }).last()).toBeVisible({
-      timeout: 15_000,
-    });
-    await ouvrirMaFiche(page, '[École 1]');
-    await expect(page.getByRole('list', { name: 'Où en est la fiche' })).toContainText('Acceptée');
-    await expect(page.getByText('Confirmé · promoteur')).toBeVisible();
-  });
+      await page.goto('/relais/#fiches');
+      // v2 : la liste dit « En ligne » ; la fiche ouverte dit ses étapes, dont « Acceptée ».
+      await expect(page.getByText('En ligne', { exact: true }).last()).toBeVisible({
+        timeout: 15_000,
+      });
+      await ouvrirMaFiche(page, '[École 1]');
+      await expect(page.getByRole('list', { name: 'Où en est la fiche' })).toContainText(
+        'Acceptée',
+      );
+      await expect(page.getByText('Confirmé · promoteur')).toBeVisible();
+    },
+  );
 
-  test('une demande de correction arrive au relais avec son message', async ({ page, context }) => {
-    await uneFicheEnvoyee(page, context);
-    await ouvrirLaFiche(page);
-    await ouvrirContacts(page);
+  test(
+    'une demande de correction arrive au relais avec son message',
+    { tag: '@critique' },
+    async ({ page, context }) => {
+      await uneFicheEnvoyee(page, context);
+      await ouvrirLaFiche(page);
+      await ouvrirContacts(page);
 
-    await fermerContacts(page);
+      await fermerContacts(page);
 
-    await page.getByRole('button', { name: 'Demander une correction' }).click();
-    await page.getByLabel('Motif').selectOption('photo_floue');
-    await page.getByLabel(/Message au relais/).fill('La photo est floue, reprenez-la de face.');
-    await page.getByRole('button', { name: 'Envoyer la demande' }).click();
-    await expect(page.getByRole('status')).toHaveText(/correction part au relais/);
+      await page.getByRole('button', { name: 'Demander une correction' }).click();
+      await page.getByLabel('Motif').selectOption('photo_floue');
+      await page.getByLabel(/Message au relais/).fill('La photo est floue, reprenez-la de face.');
+      await page.getByRole('button', { name: 'Envoyer la demande' }).click();
+      await expect(page.getByRole('status')).toHaveText(/correction part au relais/);
 
-    await page.goto('/relais/#fiches');
-    await expect(page.getByText('La photo est floue, reprenez-la de face.')).toBeVisible({
-      timeout: 15_000,
-    });
-    await ouvrirMaFiche(page, '[École 1]');
-    await expect(page.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
+      await page.goto('/relais/#fiches');
+      await expect(page.getByText('La photo est floue, reprenez-la de face.')).toBeVisible({
+        timeout: 15_000,
+      });
+      await ouvrirMaFiche(page, '[École 1]');
+      await expect(page.getByRole('button', { name: 'Corriger la fiche' })).toBeVisible();
 
-    // L'écran dit ce que le relais fait : il corrige une fiche, il n'ajoute pas une école.
-    await page.getByRole('button', { name: 'Corriger la fiche' }).click();
-    await expect(
-      page.getByRole('banner').getByText('Corriger une fiche', { exact: true }),
-    ).toBeVisible();
-  });
+      // L'écran dit ce que le relais fait : il corrige une fiche, il n'ajoute pas une école.
+      await page.getByRole('button', { name: 'Corriger la fiche' }).click();
+      await expect(
+        page.getByRole('banner').getByText('Corriger une fiche', { exact: true }),
+      ).toBeVisible();
+    },
+  );
 
   test('une école publiée se retire avec un motif, puis se republie', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);
@@ -385,16 +394,20 @@ test.describe('administration', () => {
     ).toHaveCount(0);
   });
 
-  test('un compte qui n’est pas administrateur ne voit rien', async ({ page }) => {
-    await page.goto('/admin/#valider');
-    await page.evaluate(() =>
-      localStorage.setItem('ntanova-faux-serveur', JSON.stringify({ admin: false })),
-    );
-    await page.reload();
-    await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
-    await expect(page.getByRole('heading', { name: 'Accès refusé' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'À valider' })).toHaveCount(0);
-  });
+  test(
+    'un compte qui n’est pas administrateur ne voit rien',
+    { tag: '@critique' },
+    async ({ page }) => {
+      await page.goto('/admin/#valider');
+      await page.evaluate(() =>
+        localStorage.setItem('ntanova-faux-serveur', JSON.stringify({ admin: false })),
+      );
+      await page.reload();
+      await page.getByRole('button', { name: 'Continuer avec mon compte Google' }).click();
+      await expect(page.getByRole('heading', { name: 'Accès refusé' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'À valider' })).toHaveCount(0);
+    },
+  );
 
   test('tient dans 360 px sans défilement horizontal de la page', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);

@@ -91,13 +91,15 @@ async function aucunDefilementDeCote(page: Page, nom: string) {
 }
 
 test.describe('administration', () => {
-  test('la barre est en haut jusqu’à 1 024 px sans s’étirer, puis sur le côté sur toute la hauteur', async ({
-    page,
-  }) => {
-    await seConnecter(page, '/admin/');
-    await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeAttached();
-    await verifierLaBarre(page, 'Aujourd’hui');
-  });
+  test(
+    'la barre est en haut jusqu’à 1 024 px sans s’étirer, puis sur le côté sur toute la hauteur',
+    { tag: '@largeurs' },
+    async ({ page }) => {
+      await seConnecter(page, '/admin/');
+      await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeAttached();
+      await verifierLaBarre(page, 'Aujourd’hui');
+    },
+  );
 
   test('quand les cinq onglets ne tiennent plus sur une ligne (340 px), ils passent sur une deuxième sans étirer la barre', async ({
     page,
@@ -121,32 +123,28 @@ test.describe('administration', () => {
     });
   }
 
-  test('dès la tablette, les tableaux tiennent dans leur cadre', async ({ page }) => {
-    test.skip(largeurDe(page) < 768, 'au téléphone, les tableaux défilent dans leur cadre');
-    await seConnecter(page, '/admin/');
-    // « Aujourd'hui » (admin v2) n'a plus de tableau à l'écran : son détail est replié.
-    for (const ecran of ['ecoles', 'zones', 'relais', 'sante', 'paie']) {
-      await page.goto(`/admin/#${ecran}`);
-      await expect(page.locator('h1').locator('visible=true').first()).toBeVisible();
-      await verifierLesTableaux(page, ecran);
-    }
-  });
-
-  test('aux largeurs charnières, la barre et les tableaux suivent', async ({ page }, info) => {
-    test.skip(info.project.name !== 'ordinateur-1280', 'une seule fois, avec ses propres largeurs');
-    await seConnecter(page, '/admin/');
-    for (const largeur of [820, 1000, CHARNIERE_ADMIN, CHARNIERE_ADMIN + 1, 1440]) {
-      await page.setViewportSize({ width: largeur, height: 800 });
-      for (const ecran of ['accueil', 'ecoles', 'zones', 'relais', 'sante', 'paie']) {
-        await page.goto(`/admin/#${ecran}`);
-        await expect(page.locator('h1').locator('visible=true').first()).toBeVisible();
-        const nom = `${ecran} à ${largeur} px`;
-        await aucunDefilementDeCote(page, nom);
-        await verifierLaBarre(page, nom);
-        if (ecran !== 'accueil') await verifierLesTableaux(page, nom);
+  test(
+    'aux largeurs charnières, la barre et les tableaux suivent',
+    { tag: '@largeurs' },
+    async ({ page }, info) => {
+      test.skip(
+        info.project.name !== 'ordinateur-1280',
+        'une seule fois, avec ses propres largeurs',
+      );
+      await seConnecter(page, '/admin/');
+      for (const largeur of [820, 1000, CHARNIERE_ADMIN, CHARNIERE_ADMIN + 1, 1440]) {
+        await page.setViewportSize({ width: largeur, height: 800 });
+        for (const ecran of ['accueil', 'ecoles', 'zones', 'relais', 'sante', 'paie']) {
+          await page.goto(`/admin/#${ecran}`);
+          await expect(page.locator('h1').locator('visible=true').first()).toBeVisible();
+          const nom = `${ecran} à ${largeur} px`;
+          await aucunDefilementDeCote(page, nom);
+          await verifierLaBarre(page, nom);
+          if (ecran !== 'accueil') await verifierLesTableaux(page, nom);
+        }
       }
-    }
-  });
+    },
+  );
 });
 
 // --- Le site public -------------------------------------------------------------------------
@@ -338,46 +336,49 @@ test.describe('site public', () => {
     }
   });
 
-  test('fiche : les panneaux suivent le cadre et les paragraphes restent lisibles', async ({
-    page,
-  }) => {
-    const largeurInitiale = largeurDe(page);
-    const largeurs = largeurInitiale >= ORDINATEUR ? [1024, 1280, 1920] : [largeurInitiale];
-    for (const largeur of largeurs) {
-      await page.setViewportSize({ width: largeur, height: 900 });
-      await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
-      const mesures = await page.locator('article.fiche').evaluate((el) => {
-        const cadre = el.getBoundingClientRect(),
-          style = getComputedStyle(el);
-        // v2 (13/11) : sur téléphone les colonnes s'effacent (`display: contents`) ; on mesure alors le corps de la fiche.
-        const colonne = (sel: string) => {
-          const c = el.querySelector(sel)!;
-          return getComputedStyle(c).display === 'contents'
-            ? el.querySelector('.fiche-corps')!.getBoundingClientRect()
-            : c.getBoundingClientRect();
-        };
-        const principale = colonne('.fiche-principale');
-        const cote = colonne('.fiche-cote');
-        return {
-          gauche: cadre.left + parseFloat(style.paddingLeft),
-          droite: cadre.right - parseFloat(style.paddingRight),
-          principale: { gauche: principale.left, droite: principale.right },
-          cote: { gauche: cote.left, droite: cote.right },
-          paragraphes: [...el.querySelectorAll('p, .photo-ecole figcaption')].map(
-            (p) => p.getBoundingClientRect().width,
-          ),
-          debordement: document.documentElement.scrollWidth > innerWidth,
-        };
-      });
-      expect(mesures.debordement).toBe(false);
-      expect(Math.abs(mesures.principale.gauche - mesures.gauche)).toBeLessThanOrEqual(1);
-      for (const largeurTexte of mesures.paragraphes) expect(largeurTexte).toBeLessThanOrEqual(576);
-      if (largeur >= ORDINATEUR) {
-        expect(mesures.cote.gauche).toBeGreaterThan(mesures.principale.droite);
-        expect(Math.abs(mesures.cote.droite - mesures.droite)).toBeLessThanOrEqual(1);
+  test(
+    'fiche : les panneaux suivent le cadre et les paragraphes restent lisibles',
+    { tag: '@largeurs' },
+    async ({ page }) => {
+      const largeurInitiale = largeurDe(page);
+      const largeurs = largeurInitiale >= ORDINATEUR ? [1024, 1280, 1920] : [largeurInitiale];
+      for (const largeur of largeurs) {
+        await page.setViewportSize({ width: largeur, height: 900 });
+        await page.goto('/ecoles/complexe-scolaire-exemple-482913/');
+        const mesures = await page.locator('article.fiche').evaluate((el) => {
+          const cadre = el.getBoundingClientRect(),
+            style = getComputedStyle(el);
+          // v2 (13/11) : sur téléphone les colonnes s'effacent (`display: contents`) ; on mesure alors le corps de la fiche.
+          const colonne = (sel: string) => {
+            const c = el.querySelector(sel)!;
+            return getComputedStyle(c).display === 'contents'
+              ? el.querySelector('.fiche-corps')!.getBoundingClientRect()
+              : c.getBoundingClientRect();
+          };
+          const principale = colonne('.fiche-principale');
+          const cote = colonne('.fiche-cote');
+          return {
+            gauche: cadre.left + parseFloat(style.paddingLeft),
+            droite: cadre.right - parseFloat(style.paddingRight),
+            principale: { gauche: principale.left, droite: principale.right },
+            cote: { gauche: cote.left, droite: cote.right },
+            paragraphes: [...el.querySelectorAll('p, .photo-ecole figcaption')].map(
+              (p) => p.getBoundingClientRect().width,
+            ),
+            debordement: document.documentElement.scrollWidth > innerWidth,
+          };
+        });
+        expect(mesures.debordement).toBe(false);
+        expect(Math.abs(mesures.principale.gauche - mesures.gauche)).toBeLessThanOrEqual(1);
+        for (const largeurTexte of mesures.paragraphes)
+          expect(largeurTexte).toBeLessThanOrEqual(576);
+        if (largeur >= ORDINATEUR) {
+          expect(mesures.cote.gauche).toBeGreaterThan(mesures.principale.droite);
+          expect(Math.abs(mesures.cote.droite - mesures.droite)).toBeLessThanOrEqual(1);
+        }
       }
-    }
-  });
+    },
+  );
 
   test('« Espace écoles » : les gains viennent avant l’action ; à partir de 1 024 px, ce qu’on demande est à côté', async ({
     page,
@@ -652,46 +653,48 @@ test('relais : confirmation accessible, annulation sans perte et suppression ré
   await expect(page.getByRole('heading', { name: /Bonjour/ })).toBeFocused();
 });
 
-test('en-tête public : polices retardées et texte agrandi sans débordement', async ({
-  page,
-}, info) => {
-  let liberer!: () => void;
-  const attente = new Promise<void>((fin) => {
-    liberer = fin;
-  });
-  await page.route('**/polices/*.woff2', async (route) => {
-    await attente;
-    await route.continue();
-  });
-  try {
-    await page.goto('/ecoles/pointe-noire/', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Pointe-Noire', exact: true })).toBeVisible();
-    await aucunDefilementDeCote(page, 'page ville avant les polices');
-  } finally {
-    liberer();
-  }
-  await page.evaluate(() => document.fonts.ready);
-  // Un texte de navigation plus grand reproduit aussi les métriques d'une police de repli large.
-  await page.addStyleTag({ content: '.entete { font-size: 18px; }' });
-  const largeurs =
-    info.project.name === 'tablette-768' ? [767, 768, 769, 820, 1023, 1024] : [largeurDe(page)];
-  for (const largeur of largeurs) {
-    await page.setViewportSize({ width: largeur, height: 1024 });
-    await aucunDefilementDeCote(page, `en-tête avec texte agrandi à ${largeur} px`);
-    if (largeur >= 768) {
-      const navigation = page.getByRole('navigation', { name: 'Navigation principale' });
-      await expect(navigation).toBeVisible();
-      for (const lien of await navigation.getByRole('link').all()) {
-        const boite = await lien.boundingBox();
-        expect(boite!.x).toBeGreaterThanOrEqual(0);
-        expect(boite!.x + boite!.width).toBeLessThanOrEqual(largeur);
-        expect(boite!.height).toBeGreaterThanOrEqual(44);
-        await lien.focus();
-        await expect(lien).toBeFocused();
+test(
+  'en-tête public : polices retardées et texte agrandi sans débordement',
+  { tag: '@largeurs' },
+  async ({ page }, info) => {
+    let liberer!: () => void;
+    const attente = new Promise<void>((fin) => {
+      liberer = fin;
+    });
+    await page.route('**/polices/*.woff2', async (route) => {
+      await attente;
+      await route.continue();
+    });
+    try {
+      await page.goto('/ecoles/pointe-noire/', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Pointe-Noire', exact: true })).toBeVisible();
+      await aucunDefilementDeCote(page, 'page ville avant les polices');
+    } finally {
+      liberer();
+    }
+    await page.evaluate(() => document.fonts.ready);
+    // Un texte de navigation plus grand reproduit aussi les métriques d'une police de repli large.
+    await page.addStyleTag({ content: '.entete { font-size: 18px; }' });
+    const largeurs =
+      info.project.name === 'tablette-768' ? [767, 768, 769, 820, 1023, 1024] : [largeurDe(page)];
+    for (const largeur of largeurs) {
+      await page.setViewportSize({ width: largeur, height: 1024 });
+      await aucunDefilementDeCote(page, `en-tête avec texte agrandi à ${largeur} px`);
+      if (largeur >= 768) {
+        const navigation = page.getByRole('navigation', { name: 'Navigation principale' });
+        await expect(navigation).toBeVisible();
+        for (const lien of await navigation.getByRole('link').all()) {
+          const boite = await lien.boundingBox();
+          expect(boite!.x).toBeGreaterThanOrEqual(0);
+          expect(boite!.x + boite!.width).toBeLessThanOrEqual(largeur);
+          expect(boite!.height).toBeGreaterThanOrEqual(44);
+          await lien.focus();
+          await expect(lien).toBeFocused();
+        }
       }
     }
-  }
-});
+  },
+);
 
 test('divisions : noms longs et chemin complet restent lisibles dans le cadre', async ({
   page,

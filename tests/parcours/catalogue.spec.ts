@@ -211,63 +211,64 @@ test.describe('valider un envoi : photos, formations, acceptation', () => {
     ).toBeVisible();
   });
 
-  test('une nouvelle implantation se rattache à l’école connue, sans la dédoubler', async ({
-    page,
-    context,
-  }) => {
-    test.setTimeout(90_000);
-    await relaisConnecte(page, context);
-    await envoyerUneFicheCourte(page, '[Lycée A]');
-    // Une seconde école, 200 m plus loin : pas de doublon.
-    await context.setGeolocation({ latitude: -4.8018, longitude: 11.9, accuracy: 8 });
-    await envoyerUneFicheCourte(page, '[Lycée A annexe]');
+  test(
+    'une nouvelle implantation se rattache à l’école connue, sans la dédoubler',
+    { tag: '@critique' },
+    async ({ page, context }) => {
+      test.setTimeout(90_000);
+      await relaisConnecte(page, context);
+      await envoyerUneFicheCourte(page, '[Lycée A]');
+      // Une seconde école, 200 m plus loin : pas de doublon.
+      await context.setGeolocation({ latitude: -4.8018, longitude: 11.9, accuracy: 8 });
+      await envoyerUneFicheCourte(page, '[Lycée A annexe]');
 
-    await ouvrirLEnvoi(page, '[Lycée A]');
-    await fermerContacts(page);
-    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
-    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+      await ouvrirLEnvoi(page, '[Lycée A]');
+      await fermerContacts(page);
+      await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+      await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
-    // Admin v2 : sur téléphone, la fiche suivante s'ouvre seule ; on la rouvre depuis la liste.
-    await ouvrirLEnvoi(page, '[Lycée A annexe]');
-    // Planche : aucune école connue à moins de 50 m, donc pas d'encart ; « Accepter » crée l'école, et « C'est un site
-    // de… » (menu « ⋯ » de sa fiche) la range sous l'école connue.
-    await fermerContacts(page);
-    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
-    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
-    await ouvrirLesEcoles(page);
-    await ouvrirFiche(page.getByRole('row', { name: /\[Lycée A annexe\]/ }));
-    await page
-      .locator('summary[aria-label^="Autres actions pour "]')
-      .filter({ visible: true })
-      .first()
-      .click();
-    await page
-      .getByRole('button', { name: 'C’est un site de…' })
-      .filter({ visible: true })
-      .first()
-      .click();
-    const rattacher = page.getByRole('form', {
-      name: 'Rattacher [Lycée A annexe] à une autre école',
-    });
-    const choix = rattacher.getByLabel('L’école');
-    const valeur = await choix
-      .locator('option', { hasText: '[Lycée A]' })
-      .filter({ hasNotText: 'annexe' })
-      .getAttribute('value');
-    await choix.selectOption(valeur ?? '');
-    await rattacher.getByRole('button', { name: 'Rattacher ce site' }).click();
-    await expect(page.getByRole('status').first()).toContainText(
-      'Ce site est maintenant un site de [Lycée A]',
-    );
+      // Admin v2 : sur téléphone, la fiche suivante s'ouvre seule ; on la rouvre depuis la liste.
+      await ouvrirLEnvoi(page, '[Lycée A annexe]');
+      // Planche : aucune école connue à moins de 50 m, donc pas d'encart ; « Accepter » crée l'école, et « C'est un site
+      // de… » (menu « ⋯ » de sa fiche) la range sous l'école connue.
+      await fermerContacts(page);
+      await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+      await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+      await ouvrirLesEcoles(page);
+      await ouvrirFiche(page.getByRole('row', { name: /\[Lycée A annexe\]/ }));
+      await page
+        .locator('summary[aria-label^="Autres actions pour "]')
+        .filter({ visible: true })
+        .first()
+        .click();
+      await page
+        .getByRole('button', { name: 'C’est un site de…' })
+        .filter({ visible: true })
+        .first()
+        .click();
+      const rattacher = page.getByRole('form', {
+        name: 'Rattacher [Lycée A annexe] à une autre école',
+      });
+      const choix = rattacher.getByLabel('L’école');
+      const valeur = await choix
+        .locator('option', { hasText: '[Lycée A]' })
+        .filter({ hasNotText: 'annexe' })
+        .getAttribute('value');
+      await choix.selectOption(valeur ?? '');
+      await rattacher.getByRole('button', { name: 'Rattacher ce site' }).click();
+      await expect(page.getByRole('status').first()).toContainText(
+        'Ce site est maintenant un site de [Lycée A]',
+      );
 
-    // Une institution, deux sites : la liste les range sous le nom de l'école.
-    const campus = (await campusDuServeur(page)).filter((c) => c.nom === '[Lycée A]');
-    expect(campus).toHaveLength(2);
-    await retourAuxEcoles(page);
-    const ecole = page.getByRole('rowgroup', { name: '[Lycée A]' });
-    await expect(ecole.getByText(/2 sites/).filter({ visible: true })).toBeVisible();
-    await expect(page.getByRole('row', { name: /\[Lycée A annexe\]/ })).toHaveCount(0);
-  });
+      // Une institution, deux sites : la liste les range sous le nom de l'école.
+      const campus = (await campusDuServeur(page)).filter((c) => c.nom === '[Lycée A]');
+      expect(campus).toHaveLength(2);
+      await retourAuxEcoles(page);
+      const ecole = page.getByRole('rowgroup', { name: '[Lycée A]' });
+      await expect(ecole.getByText(/2 sites/).filter({ visible: true })).toBeVisible();
+      await expect(page.getByRole('row', { name: /\[Lycée A annexe\]/ })).toHaveCount(0);
+    },
+  );
 });
 
 test.describe('le pont avec la direction', () => {
@@ -660,57 +661,58 @@ test.describe('zones et lots', () => {
 });
 
 test.describe('la paie du vendredi', () => {
-  test('ce qui est dû, la clôture, le paiement noté avec sa référence, et rien de compté deux fois', async ({
-    page,
-    context,
-  }) => {
-    test.setTimeout(120_000);
-    await relaisConnecte(page, context);
-    await envoyerUnLycee(page, '[Lycée A]');
-    await ouvrirLEnvoi(page, '[Lycée A]');
-    await ouvrirContacts(page);
-    await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
-    await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
-    await fermerContacts(page);
-    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
-    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+  test(
+    'ce qui est dû, la clôture, le paiement noté avec sa référence, et rien de compté deux fois',
+    { tag: '@critique' },
+    async ({ page, context }) => {
+      test.setTimeout(120_000);
+      await relaisConnecte(page, context);
+      await envoyerUnLycee(page, '[Lycée A]');
+      await ouvrirLEnvoi(page, '[Lycée A]');
+      await ouvrirContacts(page);
+      await page.getByRole('button', { name: 'Confirmer sa fonction' }).click();
+      await expect(page.getByText('Fonction confirmée', { exact: true })).toBeVisible();
+      await fermerContacts(page);
+      await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+      await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
 
-    await ouvrirEcranAdmin(page, 'Paie');
-    await expect(page.getByRole('heading', { name: 'Paie' })).toBeVisible();
-    const du = page.getByRole('region', { name: 'Ce qui est dû' });
+      await ouvrirEcranAdmin(page, 'Paie');
+      await expect(page.getByRole('heading', { name: 'Paie' })).toBeVisible();
+      const du = page.getByRole('region', { name: 'Ce qui est dû' });
 
-    // Une fiche acceptée (500 FCFA) et un contact confirmé (300 FCFA).
-    const ligne = du.getByRole('row', { name: /\[Prénom\]/ });
-    await expect(ligne).toBeVisible();
-    await expect(ligne.getByRole('cell').nth(1)).toHaveText('1');
-    await expect(ligne.getByRole('cell').nth(2)).toHaveText('1');
-    await expect(du.getByText(/Total\s*:\s*800\sFCFA/)).toBeVisible();
+      // Une fiche acceptée (500 FCFA) et un contact confirmé (300 FCFA).
+      const ligne = du.getByRole('row', { name: /\[Prénom\]/ });
+      await expect(ligne).toBeVisible();
+      await expect(ligne.getByRole('cell').nth(1)).toHaveText('1');
+      await expect(ligne.getByRole('cell').nth(2)).toHaveText('1');
+      await expect(du.getByText(/Total\s*:\s*800\sFCFA/)).toBeVisible();
 
-    // Le numéro Mobile Money se note une fois.
-    await du.getByRole('textbox', { name: 'Numéro Mobile Money' }).fill('242 06 123 45 99');
-    await du.getByRole('button', { name: 'Noter le numéro' }).click();
-    await expect(ligne.getByText('noté', { exact: true })).toBeVisible();
+      // Le numéro Mobile Money se note une fois.
+      await du.getByRole('textbox', { name: 'Numéro Mobile Money' }).fill('242 06 123 45 99');
+      await du.getByRole('button', { name: 'Noter le numéro' }).click();
+      await expect(ligne.getByText('noté', { exact: true })).toBeVisible();
 
-    // Clôturer : en deux gestes.
-    await du.getByRole('button', { name: 'Clôturer la semaine' }).click();
-    await du.getByRole('button', { name: 'Confirmer : clôturer la semaine' }).click();
-    await expect(page.getByRole('status')).toHaveText(/est clôturée : 800\sFCFA à payer/);
-    // Ce qui est clôturé n'est plus dû.
-    await expect(du.getByText('Rien n’est dû jusqu’à ce vendredi.')).toBeVisible();
+      // Clôturer : en deux gestes.
+      await du.getByRole('button', { name: 'Clôturer la semaine' }).click();
+      await du.getByRole('button', { name: 'Confirmer : clôturer la semaine' }).click();
+      await expect(page.getByRole('status')).toHaveText(/est clôturée : 800\sFCFA à payer/);
+      // Ce qui est clôturé n'est plus dû.
+      await expect(du.getByText('Rien n’est dû jusqu’à ce vendredi.')).toBeVisible();
 
-    // Le détail de la semaine s'ouvre : on note le paiement avec la référence de l'opération.
-    const paiements = page.getByLabel(/Paiements du \d{4}-\d{2}-\d{2}/);
-    await expect(paiements.getByText('+242 06 123 45 99')).toBeVisible();
-    const noter = paiements.getByRole('button', { name: 'Noter payé' });
-    await expect(noter).toBeDisabled();
-    await paiements.getByLabel('Référence du paiement de [Prénom]').fill('MM-0001');
-    await noter.click();
-    await expect(page.getByRole('status')).toHaveText(
-      /\[Prénom\] : 800\sFCFA noté payé \(référence MM-0001\)\./,
-    );
-    await expect(paiements.getByText(/Payé .* · MM-0001/)).toBeVisible();
-    await expect(page.getByRole('row', { name: /1 \/ 1/ })).toBeVisible();
-  });
+      // Le détail de la semaine s'ouvre : on note le paiement avec la référence de l'opération.
+      const paiements = page.getByLabel(/Paiements du \d{4}-\d{2}-\d{2}/);
+      await expect(paiements.getByText('+242 06 123 45 99')).toBeVisible();
+      const noter = paiements.getByRole('button', { name: 'Noter payé' });
+      await expect(noter).toBeDisabled();
+      await paiements.getByLabel('Référence du paiement de [Prénom]').fill('MM-0001');
+      await noter.click();
+      await expect(page.getByRole('status')).toHaveText(
+        /\[Prénom\] : 800\sFCFA noté payé \(référence MM-0001\)\./,
+      );
+      await expect(paiements.getByText(/Payé .* · MM-0001/)).toBeVisible();
+      await expect(page.getByRole('row', { name: /1 \/ 1/ })).toBeVisible();
+    },
+  );
 
   test('on ne clôt qu’un vendredi', async ({ page }) => {
     await seConnecter(page, '/admin/#valider');

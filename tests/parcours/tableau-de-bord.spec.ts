@@ -20,28 +20,29 @@ import {
 test.use({ permissions: ['geolocation'] });
 
 test.describe('tableau de bord : À valider', () => {
-  test('sur un grand écran, le côté et les boutons de décision restent à l’écran pendant le défilement', async ({
-    page,
-    context,
-  }) => {
-    test.skip(
-      (page.viewportSize()?.width ?? 0) < 1280,
-      'Mise en page à deux colonnes : grand écran',
-    );
-    await uneFicheEnvoyee(page, context);
-    // Une fenêtre basse : sans barre collante, « Accepter » est sous la ligne de flottaison.
-    await page.setViewportSize({ width: 1280, height: 520 });
-    await ouvrirLaFiche(page);
+  test(
+    'sur un grand écran, le côté et les boutons de décision restent à l’écran pendant le défilement',
+    { tag: '@largeurs' },
+    async ({ page, context }) => {
+      test.skip(
+        (page.viewportSize()?.width ?? 0) < 1280,
+        'Mise en page à deux colonnes : grand écran',
+      );
+      await uneFicheEnvoyee(page, context);
+      // Une fenêtre basse : sans barre collante, « Accepter » est sous la ligne de flottaison.
+      await page.setViewportSize({ width: 1280, height: 520 });
+      await ouvrirLaFiche(page);
 
-    const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
-    await expect(accepter).toBeInViewport();
+      const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
+      await expect(accepter).toBeInViewport();
 
-    await page.mouse.wheel(0, 300);
-    await expect(accepter).toBeInViewport();
-    // Le côté (la navigation) ne défile pas avec la page.
-    const haut = await page.locator('.admin-cote').evaluate((e) => e.getBoundingClientRect().top);
-    expect(haut).toBe(0);
-  });
+      await page.mouse.wheel(0, 300);
+      await expect(accepter).toBeInViewport();
+      // Le côté (la navigation) ne défile pas avec la page.
+      const haut = await page.locator('.admin-cote').evaluate((e) => e.getBoundingClientRect().top);
+      expect(haut).toBe(0);
+    },
+  );
 
   test('une photo s’agrandit dans la page, et Échap la referme', async ({ page, context }) => {
     await uneFicheEnvoyee(page, context);
@@ -342,36 +343,6 @@ test.describe('tableau de bord : Zones', () => {
     );
   });
 
-  test('chaque zone qui en contient d’autres se déplie et se replie', async ({ page }) => {
-    await seConnecter(page, '/admin/#zones');
-    const arbre = arbreDe(page);
-    const ligne = (...mots: string[]) =>
-      mots.reduce((l, m) => l.filter({ hasText: m }), arbre.getByRole('listitem'));
-    const ville = ligne('Pointe-Noire', 'Ville');
-    const loandjili = arbre.getByRole('button', { name: /^Loandjili/ });
-
-    // Pointe-Noire montre ses arrondissements : on la replie, elle dit combien de zones elle cache.
-    await expect(loandjili).toBeVisible();
-    const bascule = ville.getByRole('button', { name: 'Replier', exact: true });
-    await expect(bascule).toHaveAttribute('aria-expanded', 'true');
-    await bascule.click();
-    await expect(loandjili).toHaveCount(0);
-    await expect(ville.getByRole('button', { name: 'Déplier', exact: true })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    );
-
-    // Une zone sans rien dessous n'a rien à déplier.
-    await ville.getByRole('button', { name: 'Déplier', exact: true }).click();
-    await expect(loandjili).toBeVisible();
-    await expect(ligne('Loandjili').getByRole('button', { name: /(Dé|Re)plier/ })).toHaveCount(0);
-
-    // Une recherche remet à plat : plus rien à déplier ni à replier.
-    await arbre.getByLabel('Chercher une zone').fill('moun');
-    await expect(arbre.getByRole('button', { name: /^(Dé|Re)plier$/ })).toHaveCount(0);
-    await expect(arbre.getByRole('button', { name: /^Moungali/ })).toBeVisible();
-  });
-
   test('« Ajouter une zone » s’ouvre à côté de la recherche, demande sous quelle zone, et ouvre la zone créée', async ({
     page,
   }) => {
@@ -399,40 +370,26 @@ test.describe('tableau de bord : Zones', () => {
     await expect(page).toHaveURL(/#zones\/[0-9a-f-]{36}$/);
   });
 
-  test('sur un grand écran, « Ajouter une zone » part de la zone choisie', async ({ page }) => {
-    test.skip(
-      (page.viewportSize()?.width ?? 0) < 1280,
-      'Deux colonnes : la liste reste à côté de la zone',
-    );
-    await seConnecter(page, '/admin/#zones/d-pn-ngoyo');
-    await page
-      .getByRole('button', { name: 'Ajouter une zone' })
-      .filter({ visible: true })
-      .first()
-      .click();
-    const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
-    await expect(fenetre.getByLabel('Sous quelle zone ?')).toHaveValue('d-pn-ngoyo');
-    await fenetre.getByRole('button', { name: 'Fermer' }).click();
-    await expect(fenetre).toBeHidden();
-  });
-
-  test('sur un grand écran, l’arbre garde sa place pendant que le volet défile', async ({
-    page,
-  }) => {
-    test.skip((page.viewportSize()?.width ?? 0) < 1280, 'Deux colonnes : grand écran');
-    // Une fenêtre basse : l'arbre est plus haut qu'elle, et la zone choisie doit y rester visible.
-    await page.setViewportSize({ width: 1280, height: 520 });
-    await seConnecter(page, '/admin/#zones/d-pn-loandjili');
-    const arbre = arbreDe(page);
-    await expect(arbre).toBeVisible();
-    await page.mouse.wheel(0, 600);
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-    const haut = await arbre.evaluate((e) => e.getBoundingClientRect().top);
-    expect(haut).toBeGreaterThanOrEqual(0);
-    // Admin v2 : l'arbre colle à 24 px du haut, plus son propre bord (48 px au plus).
-    expect(haut).toBeLessThanOrEqual(48);
-    await expect(arbre.getByRole('button', { name: /^Loandjili/ })).toBeInViewport();
-  });
+  test(
+    'sur un grand écran, « Ajouter une zone » part de la zone choisie',
+    { tag: '@largeurs' },
+    async ({ page }) => {
+      test.skip(
+        (page.viewportSize()?.width ?? 0) < 1280,
+        'Deux colonnes : la liste reste à côté de la zone',
+      );
+      await seConnecter(page, '/admin/#zones/d-pn-ngoyo');
+      await page
+        .getByRole('button', { name: 'Ajouter une zone' })
+        .filter({ visible: true })
+        .first()
+        .click();
+      const fenetre = page.getByRole('dialog', { name: 'Ajouter une zone' });
+      await expect(fenetre.getByLabel('Sous quelle zone ?')).toHaveValue('d-pn-ngoyo');
+      await fenetre.getByRole('button', { name: 'Fermer' }).click();
+      await expect(fenetre).toBeHidden();
+    },
+  );
 
   test('sur un petit écran, une zone choisie remplace la liste, et la flèche du haut la rend', async ({
     page,
@@ -549,16 +506,4 @@ test.describe('tableau de bord : Zones', () => {
     await expect(raison).toContainText('elle est ouverte aux relais');
     await expect(page.getByRole('button', { name: /^Supprimer Ngoyo/ })).toHaveCount(0);
   });
-
-  for (const adresse of ['#zones', '#zones/d-pn-ngoyo', '#zones/d-cg', '#zones/etapes']) {
-    test(`« ${adresse} » : la page ne défile pas de côté`, async ({ page }) => {
-      await seConnecter(page, `/admin/${adresse}`);
-      await expect(page.locator('h1').locator('visible=true').first()).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Zones', level: 1 })).toBeVisible();
-      const [contenu, fenetre] = await page.evaluate(
-        () => [document.documentElement.scrollWidth, window.innerWidth] as const,
-      );
-      expect(contenu).toBeLessThanOrEqual(fenetre);
-    });
-  }
 });

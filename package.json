@@ -29,6 +29,7 @@
     "test:en-ligne": "playwright test -c playwright.en-ligne.config.ts",
     "test:parcours:preparer": "PUBLIC_ADAPTATEUR=faux PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} astro build && PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} pnpm guide:exporter",
     "test:parcours:exec": "playwright test",
+    "test:critique": "playwright test --grep @critique --project=android-360",
     "verif:ci": "PUBLIC_ADAPTATEUR=faux PUBLIC_WHATSAPP=${PUBLIC_WHATSAPP:-242000000000} pnpm verif"
   },
   "dependencies": {
