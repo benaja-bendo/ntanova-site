@@ -1,6 +1,6 @@
 import { v2 } from '@/ui/v2/classes';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
   detailsVides,
@@ -75,18 +75,123 @@ const titreCarte = 'm-0 text-[17px] font-bold';
  * l'admission et les frais (niveau demandé, sélection, frais de dossier, frais par an, dits par l'école à une date), et
  * l'autorisation de cette formation (référence de l'arrêté, date, sur quoi elle a été vue). Tout part d'un seul geste.
  */
+/** Les cycles dont les formations se détaillent ici (le reste se lit en séries, dans « En bref »). */
+const CYCLES_A_FORMATIONS = ['superieur', 'technique', 'autre_formation'] as const;
+
+/**
+ * 18/11 : ajouter une formation depuis la fiche (une école créée sans formation n'en recevait jamais). L'intitulé seul,
+ * dans un cycle que le site enseigne ; le tiroir de la formation s'ouvre ensuite pour tout le reste.
+ */
+function AjoutFormation({
+  ecoleId,
+  cycles,
+  admin,
+  surAjout,
+}: {
+  ecoleId: string;
+  cycles: readonly Valeur<'niveau'>[];
+  admin: PortAdministration;
+  surAjout: (id: string, titre: string) => void;
+}) {
+  const [titre, setTitre] = useState('');
+  const [cycle, setCycle] = useState<Valeur<'niveau'>>(cycles[0] ?? 'superieur');
+  const [erreur, setErreur] = useState<string | undefined>();
+  const [enCours, setEnCours] = useState(false);
+  if (cycles.length === 0)
+    return (
+      <p className={v2.mention}>
+        Pour ajouter une formation, ajoute d’abord le supérieur, le technique ou une autre formation
+        aux niveaux du site (« En bref »).
+      </p>
+    );
+  const ajouter = async () => {
+    const t = titre.trim();
+    if (!t) return setErreur('Écris l’intitulé de la formation.');
+    setEnCours(true);
+    setErreur(undefined);
+    try {
+      const id = await admin.ajouterFormation(ecoleId, cycle, t);
+      setTitre('');
+      surAjout(id, t);
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
+  return (
+    <form
+      aria-label="Ajouter une formation"
+      className="flex flex-col gap-3 rounded-xl border border-dashed border-border bg-card p-4"
+      onSubmit={(ev) => {
+        ev.preventDefault();
+        void ajouter();
+      }}
+    >
+      <h4 className={titreCarte}>Ajouter une formation</h4>
+      <Champ
+        libelle="Intitulé, tel que l’école l’écrit"
+        aide="Par exemple « Licence en droit des affaires ». Le diplôme, la durée, les frais et l’autorisation se disent ensuite."
+        erreur={erreur}
+      >
+        {(a) => (
+          <input
+            {...a}
+            className={v2.champ}
+            type="text"
+            autoComplete="off"
+            maxLength={160}
+            value={titre}
+            onChange={(ev) => {
+              setTitre(ev.target.value);
+              setErreur(undefined);
+            }}
+          />
+        )}
+      </Champ>
+      {cycles.length > 1 && (
+        <Champ libelle="Cycle">
+          {(a) => (
+            <select
+              {...a}
+              className={v2.champ}
+              value={cycle}
+              onChange={(ev) => setCycle(ev.target.value as Valeur<'niveau'>)}
+            >
+              {cycles.map((c) => (
+                <option key={c} value={c}>
+                  {libelleNiveau[c]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Champ>
+      )}
+      <button className={cn(v2.bouton, 'self-start')} type="submit" disabled={enCours}>
+        {enCours ? 'Ajout…' : 'Ajouter et détailler'}
+      </button>
+    </form>
+  );
+}
+
 export function FormationsSuperieur({
   ecoleId,
   nom,
+  niveaux = [],
   admin,
   surChangement,
 }: {
   ecoleId: string;
   /** Le nom du site, sous le titre du tiroir. */
   nom?: string;
+  /** Les niveaux du site : on n'ajoute une formation que dans un cycle qu'il enseigne. */
+  niveaux?: readonly Valeur<'niveau'>[];
   admin: PortAdministration;
   surChangement: (texte: string) => void;
 }) {
+  const cycles = CYCLES_A_FORMATIONS.filter((c) => niveaux.includes(c));
+  // Une formation qui vient d'être ajoutée : son tiroir s'ouvre dès que la liste relue la contient.
+  const aOuvrir = useRef<string | null>(null);
   const [formations, setFormations] = useState<FormationDuSuperieur[] | null>(null);
   const [domaines, setDomaines] = useState<DomainePublic[]>([]);
   const [ouverte, setOuverte] = useState<FormationDuSuperieur | null>(null);
@@ -97,7 +202,13 @@ export function FormationsSuperieur({
     let vivant = true;
     void admin
       .formationsDeLEcole(ecoleId)
-      .then((f) => vivant && setFormations(f))
+      .then((f) => {
+        if (!vivant) return;
+        setFormations(f);
+        const nouvelle = aOuvrir.current ? f.find((x) => x.id === aOuvrir.current) : undefined;
+        aOuvrir.current = null;
+        if (nouvelle) setOuverte(nouvelle);
+      })
       .catch((e: unknown) => vivant && setErreur(messageErreur(e)));
     return () => {
       vivant = false;
@@ -121,10 +232,7 @@ export function FormationsSuperieur({
     <section className={v2.motifPile} aria-label="Formations du supérieur">
       <h3>Formations du supérieur</h3>
       {formations.length === 0 ? (
-        <p className={v2.doux}>
-          Aucune formation notée pour ce site. Elles s’ajoutent depuis le relevé (« À valider ») ou
-          les informations de l’école.
-        </p>
+        <p className={v2.doux}>Aucune formation notée pour ce site.</p>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-2.5 p-0 [&>li]:flex [&>li]:flex-col [&>li]:gap-1.5 [&>li]:rounded-lg [&>li]:border [&>li]:border-border [&>li]:p-3 [&_p]:m-0">
           {formations.map((f) => (
@@ -151,6 +259,16 @@ export function FormationsSuperieur({
           ))}
         </ul>
       )}
+      <AjoutFormation
+        ecoleId={ecoleId}
+        cycles={cycles}
+        admin={admin}
+        surAjout={(id, titre) => {
+          aOuvrir.current = id;
+          setVersion((v) => v + 1);
+          surChangement(`Formation ajoutée : ${titre}. Détaille-la ci-dessous.`);
+        }}
+      />
       {erreur && (
         <p className={v2.erreur} role="alert">
           {erreur}
@@ -343,7 +461,7 @@ function TiroirFormation({
                     {...x}
                     className={v2.champ}
                     inputMode="decimal"
-                    placeholder="3"
+                    placeholder="ex. 3"
                     value={duree}
                     onChange={(e) => setDuree(e.target.value)}
                   />
@@ -382,7 +500,7 @@ function TiroirFormation({
                   {...x}
                   className={v2.champ}
                   maxLength={120}
-                  placeholder="L’établissement, ou l’université partenaire"
+                  placeholder="ex. l’université partenaire"
                   value={delivrePar}
                   onChange={(e) => setDelivrePar(e.target.value)}
                 />
@@ -399,7 +517,7 @@ function TiroirFormation({
                     {...x}
                     className={v2.champ}
                     maxLength={80}
-                    placeholder="Bac"
+                    placeholder="ex. Bac, toutes séries"
                     value={niveau}
                     onChange={(e) => setNiveau(e.target.value)}
                   />
@@ -430,7 +548,7 @@ function TiroirFormation({
                     {...x}
                     className={v2.champ}
                     inputMode="numeric"
-                    placeholder="15000"
+                    placeholder="ex. 15000"
                     value={fraisDossier}
                     onChange={(e) => setFraisDossier(e.target.value)}
                   />

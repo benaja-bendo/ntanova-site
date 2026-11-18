@@ -406,7 +406,7 @@ export function FraisEcole({
             <input
               className={cn(champ, 'w-full lg:w-40')}
               maxLength={30}
-              placeholder="2026-2027"
+              placeholder="ex. 2026-2027"
               value={annee}
               onChange={(e) => setAnnee(e.target.value)}
             />

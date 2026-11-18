@@ -319,3 +319,25 @@ test('la page publique du supérieur dit le détail d’une formation, sa date, 
   await expect(formations).toContainText('vue sur le document');
   await expect(page.locator('body')).not.toContainText(/reconnue? par l.État/);
 });
+
+// 18/11 : une formation s'ajoutait seulement depuis un relevé ; la fiche d'une école créée sans formation n'en recevait jamais.
+test('une formation s’ajoute depuis la fiche, puis son tiroir s’ouvre pour la détailler', async ({
+  page,
+}) => {
+  const ligne = await unInstitut(page);
+  await ouvrirGestion(ligne, 'Formations du supérieur');
+  const section = page.getByRole('region', { name: 'Formations du supérieur' });
+  const ajout = section.getByRole('form', { name: 'Ajouter une formation' });
+  await ajout.getByRole('button', { name: 'Ajouter et détailler' }).click();
+  await expect(ajout).toContainText('Écris l’intitulé de la formation.');
+  await ajout.getByLabel(/^Intitulé/).fill('bts exemple');
+  await ajout.getByRole('button', { name: 'Ajouter et détailler' }).click();
+  await expect(ajout).toContainText('porte déjà cet intitulé');
+  await ajout.getByLabel(/^Intitulé/).fill('Licence en droit des affaires');
+  await ajout.getByRole('button', { name: 'Ajouter et détailler' }).click();
+  const tiroir = page.getByRole('form', { name: 'Détail de Licence en droit des affaires' });
+  await expect(tiroir.getByLabel('Intitulé')).toHaveValue('Licence en droit des affaires');
+  // Sur téléphone, le tiroir couvre la page : la liste se relit une fois le tiroir fermé.
+  await page.keyboard.press('Escape');
+  await expect(section).toContainText('Licence en droit des affaires');
+});

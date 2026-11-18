@@ -1475,7 +1475,7 @@ function Detail({
                       {(a) => (
                         <textarea
                           {...a}
-                          className={v2.champ}
+                          className={v2.zone}
                           rows={2}
                           maxLength={500}
                           placeholder="Ex. : la photo est floue, reprenez-la de face."

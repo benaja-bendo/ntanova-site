@@ -127,7 +127,7 @@ test.describe('dans l’administration', () => {
     await expect(dialog).toContainText('Confirme que la direction accepte');
     await mot.getByLabel('La direction accepte la publication de ce mot.').check();
     await mot.getByRole('button', { name: 'Enregistrer le mot' }).click();
-    await expect(mot).toContainText('Enregistré : mot du');
+    await expect(mot).toContainText('Mot enregistré, daté du');
     await mot.getByRole('button', { name: 'Retirer le mot' }).click();
     await expect(mot.getByRole('button', { name: 'Retirer le mot' })).toHaveCount(0);
 

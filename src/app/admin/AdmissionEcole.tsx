@@ -101,7 +101,7 @@ export function AdmissionEcole({
           <input
             {...x}
             className={v2.champ}
-            placeholder="2026-2027"
+            placeholder="ex. 2026-2027"
             value={a.anneeScolaire}
             onChange={(e) => setA({ ...a, anneeScolaire: e.target.value })}
           />
@@ -145,7 +145,7 @@ export function AdmissionEcole({
         {(x) => (
           <textarea
             {...x}
-            className={v2.champ}
+            className={v2.zone}
             rows={4}
             value={pieces}
             onChange={(e) => setPieces(e.target.value)}
