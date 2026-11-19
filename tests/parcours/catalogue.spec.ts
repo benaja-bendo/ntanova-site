@@ -728,6 +728,42 @@ test.describe('la paie : un solde et des versements', () => {
     },
   );
 
+  test('un travail hors de l’application : un gain ajouté compte dans le reste dû, le relais lit ses mots', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(120_000);
+    await relaisConnecte(page, context);
+    await envoyerUnLycee(page, '[Lycée C]');
+    await ouvrirLEnvoi(page, '[Lycée C]');
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+    await ouvrirEcranAdmin(page, 'Paie');
+    await expect(page.getByRole('region', { name: 'Reste dû aux relais' })).toContainText(
+      /500\sFCFA/,
+    );
+
+    await page.getByRole('button', { name: 'Ajouter un gain' }).click();
+    const feuille = page.getByRole('dialog', { name: 'Ajouter un gain' });
+    await feuille.getByRole('combobox', { name: 'Relais' }).selectOption({ label: '[Prénom]' });
+    await feuille.getByRole('textbox', { name: 'Pour quel travail' }).fill('Contacts du supérieur');
+    await feuille.getByRole('textbox', { name: 'Montant' }).fill('5000');
+    await expect(feuille).toContainText(/lira dans sa paie\s*:\s*Contacts du supérieur · 5\s000/);
+    await feuille.getByRole('button', { name: /Ajouter 5\s000\sFCFA/ }).click();
+    await expect(page.getByRole('status')).toHaveText(/5\s000\sFCFA ajoutés/);
+    await expect(page.getByRole('region', { name: 'Reste dû aux relais' })).toContainText(
+      /5\s500\sFCFA/,
+    );
+    await expect(page.getByRole('region', { name: 'Gains ajoutés' })).toContainText(
+      'Contacts du supérieur',
+    );
+
+    await page.goto('/relais/#paie');
+    const doit = page.getByRole('region', { name: 'Ce que NTanova vous doit' });
+    await expect(doit).toContainText('5 500 FCFA', { timeout: 15_000 });
+    await expect(doit).toContainText('Contacts du supérieur');
+  });
+
   test('tout versé : le relais passe dans « à jour, rien à verser »', async ({ page, context }) => {
     test.setTimeout(120_000);
     await relaisConnecte(page, context);

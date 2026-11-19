@@ -1086,6 +1086,26 @@ describe('l’adaptateur Supabase de l’administration', () => {
       expect(appels[0]).toEqual({ nom: 'payout_balances', arguments: undefined });
     });
 
+    it('ajoute un gain (travail hors de l’application) et l’annule', async () => {
+      const { port, appels } = fausseApi({ record_payout_credit: { data: 'g-1', error: null } });
+      await expect(
+        port.ajouterGain('a', 5000, '2026-11-13', 'Contacts du supérieur'),
+      ).resolves.toBe('g-1');
+      await port.annulerGain('g-1', '[erreur]');
+      expect(appels).toEqual([
+        {
+          nom: 'record_payout_credit',
+          arguments: {
+            p_relay: 'a',
+            p_amount_xaf: 5000,
+            p_earned_on: '2026-11-13',
+            p_reason: 'Contacts du supérieur',
+          },
+        },
+        { nom: 'cancel_payout_credit', arguments: { p_credit: 'g-1', p_reason: '[erreur]' } },
+      ]);
+    });
+
     it('note un versement, l’annule, enregistre un numéro Mobile Money', async () => {
       const { port, appels } = fausseApi({ record_payout_transfer: { data: 'v-1', error: null } });
       await expect(port.noterVersement('a', 1200, '2026-11-18', 'MP-123')).resolves.toBe('v-1');

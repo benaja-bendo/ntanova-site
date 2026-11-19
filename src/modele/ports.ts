@@ -313,6 +313,8 @@ export interface SoldeDuRelais {
   versements: { verseLe: string; montantXaf: number; reference: string | null }[];
   /** Les fiches (relevés) couvertes par les versements. */
   fichesPayees: string[];
+  /** Les gains ajoutés par NTanova pour un travail fait hors de l'application, avec leur motif. */
+  gains?: { gagneLe: string; montantXaf: number; motif: string }[];
 }
 
 /** Une ligne de la paie : le genre, le tarif unitaire, la quantité, et les fiches qu'elle paie (aucune pour l'essai). */
@@ -847,6 +849,21 @@ export interface VersementVu {
   montantXaf: number;
   verseLe: string;
   reference: string | null;
+  /** Une note pour l'administration seule (« estimation, versé avant le 19/11 »). */
+  note: string | null;
+  notePar: string | null;
+  annuleLe: string | null;
+  motifAnnulation: string | null;
+}
+
+/** Un gain ajouté à la main : un travail fait hors de l'application, avec son motif (que le relais lit). */
+export interface GainVu {
+  id: string;
+  relaisId: string;
+  prenom: string;
+  montantXaf: number;
+  gagneLe: string;
+  motif: string;
   notePar: string | null;
   annuleLe: string | null;
   motifAnnulation: string | null;
@@ -1187,6 +1204,17 @@ export interface PortAdministration {
   annulerVersement(versementId: string, motif: string): Promise<void>;
   /** Les derniers versements, annulés compris. */
   versements(): Promise<VersementVu[]>;
+  /** Un travail fait hors de l'application : il compte dans le gagné ; le relais lit son motif. */
+  ajouterGain(
+    relaisId: string,
+    montantXaf: number,
+    gagneLe: string,
+    motif: string,
+  ): Promise<string>;
+  /** Refusé si le relais a déjà reçu cet argent (annuler d'abord le versement). */
+  annulerGain(gainId: string, motif: string): Promise<void>;
+  /** Les derniers gains ajoutés, annulés compris. */
+  gains(): Promise<GainVu[]>;
   enregistrerMobileMoney(
     relaisId: string,
     operateur: 'mtn' | 'airtel' | 'autre',

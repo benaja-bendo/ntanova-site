@@ -353,6 +353,7 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         balance_xaf?: number | null;
         transfers?: { paid_on: string; amount_xaf: number; reference: string | null }[] | null;
         paid_submissions?: string[] | null;
+        credits?: { earned_on: string; amount_xaf: number; reason: string }[] | null;
       }>(await supabase().rpc('my_payout'));
       const genres: Record<string, LigneDeFacture['genre']> = {
         submission: 'fiche',
@@ -394,6 +395,11 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
                   reference: t.reference,
                 })),
                 fichesPayees: l.paid_submissions ?? [],
+                gains: (l.credits ?? []).map((c) => ({
+                  gagneLe: c.earned_on,
+                  montantXaf: c.amount_xaf,
+                  motif: c.reason,
+                })),
               },
             }
           : {}),

@@ -213,6 +213,17 @@ interface VersementFaux {
   motif: string | null;
 }
 
+interface GainFaux {
+  id: string;
+  relaisId: string;
+  montantXaf: number;
+  gagneLe: string;
+  motif: string;
+  noteLe: string;
+  annuleLe: string | null;
+  motifAnnulation: string | null;
+}
+
 interface SemaineFausse {
   id: string;
   vendredi: string;
@@ -301,6 +312,8 @@ interface Etat {
     deja: string[];
     /** 19/11 : les versements notés par l'administration (absents d'un état gardé avant). */
     versements?: VersementFaux[];
+    /** 19/11 au soir : les gains ajoutés à la main (travail hors de l'application). */
+    gains?: GainFaux[];
   };
   /** Les relevés qu'un autre relais a envoyés et qui attendent : ils apparaissent dans les lieux connus. */
   autresReleves: { id: string; nom: string; latitude: number; longitude: number }[];
@@ -579,7 +592,10 @@ async function soldeDuFaux(relaisId: string) {
         : [];
     }),
   ].sort((x, y) => y.verseLe.localeCompare(x.verseLe));
-  return { gagne: ouvert + missions + clos, recus };
+  const gains = (e.paie.gains ?? [])
+    .filter((g) => g.relaisId === relaisId && !g.annuleLe)
+    .reduce((t, g) => t + g.montantXaf, 0);
+  return { gagne: ouvert + missions + clos + gains, recus };
 }
 
 /** Les lignes de la paie du faux serveur, aux tarifs qu'il applique (500 la fiche, 300 le contact, 1 500 l'essai). */
@@ -962,6 +978,9 @@ const relais: PortRelais = {
           resteXaf: gagne - recu,
           versements: recus,
           fichesPayees,
+          gains: (e.paie.gains ?? [])
+            .filter((g) => g.relaisId === MOI && !g.annuleLe)
+            .map((g) => ({ gagneLe: g.gagneLe, montantXaf: g.montantXaf, motif: g.motif })),
         },
         vendredi,
         etat: 'acquis' as const,
@@ -3154,6 +3173,7 @@ const admin: PortAdministration = {
       ...(e.paieMissions?.length ? [MOI] : []),
       ...e.paie.semaines.flatMap((x) => x.lignes.map((l) => l.relaisId)),
       ...(e.paie.versements ?? []).map((v) => v.relaisId),
+      ...(e.paie.gains ?? []).map((g) => g.relaisId),
     ]);
     const soldes = await Promise.all(
       [...ids].map(async (id) => {
@@ -3228,9 +3248,68 @@ const admin: PortAdministration = {
         montantXaf: v.montantXaf,
         verseLe: v.verseLe,
         reference: v.reference,
+        note: null,
         notePar: '[Prénom]',
         annuleLe: v.annuleLe,
         motifAnnulation: v.motif,
+      }));
+  },
+  async ajouterGain(relaisId, montantXaf, gagneLe, motif) {
+    await reseau();
+    if (!Number.isInteger(montantXaf) || montantXaf <= 0)
+      throw new ErreurDecision('Le montant doit être plus grand que 0.');
+    if (motif.trim().length < 2)
+      throw new ErreurDecision('Dites pour quel travail : le relais le lira.');
+    if (gagneLe > jourABrazzaville(new Date()))
+      throw new ErreurDecision('La date du travail ne peut pas être dans le futur.');
+    const id = crypto.randomUUID();
+    ecrire((e) =>
+      (e.paie.gains ??= []).push({
+        id,
+        relaisId,
+        montantXaf,
+        gagneLe,
+        motif: motif.trim(),
+        noteLe: new Date().toISOString(),
+        annuleLe: null,
+        motifAnnulation: null,
+      }),
+    );
+    return id;
+  },
+  async annulerGain(gainId, motif) {
+    await reseau();
+    if (motif.trim().length < 2) throw new ErreurDecision('Dites pourquoi ce gain est annulé.');
+    const g = (lireEtat().paie.gains ?? []).find((x) => x.id === gainId);
+    if (!g || g.annuleLe) throw new ErreurDecision('Gain introuvable ou déjà annulé.');
+    const { gagne, recus } = await soldeDuFaux(g.relaisId);
+    if (gagne - g.montantXaf < recus.reduce((t, v) => t + v.montantXaf, 0))
+      throw new ErreurDecision(
+        'Le relais a déjà reçu cet argent : annulez d’abord le versement qui le paie.',
+      );
+    ecrire((e) => {
+      const x = (e.paie.gains ?? []).find((y) => y.id === gainId);
+      if (x) {
+        x.annuleLe = new Date().toISOString();
+        x.motifAnnulation = motif.trim();
+      }
+    });
+  },
+  async gains() {
+    await reseau();
+    const e = lireEtat();
+    return [...(e.paie.gains ?? [])]
+      .sort((x, y) => y.gagneLe.localeCompare(x.gagneLe) || y.noteLe.localeCompare(x.noteLe))
+      .map((g) => ({
+        id: g.id,
+        relaisId: g.relaisId,
+        prenom: prenomDuFaux(e, g.relaisId),
+        montantXaf: g.montantXaf,
+        gagneLe: g.gagneLe,
+        motif: g.motif,
+        notePar: '[Prénom]',
+        annuleLe: g.annuleLe,
+        motifAnnulation: g.motifAnnulation,
       }));
   },
   async enregistrerMobileMoney(relaisId, operateur, numero, titulaire) {

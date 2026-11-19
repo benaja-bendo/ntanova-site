@@ -6,9 +6,15 @@
  */
 import { v2 } from '@/ui/v2/classes';
 import { cn } from '@/lib/utils';
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import { francs, chiffres, jourABrazzaville, jourCourt, lireMontant } from '../../modele/paie';
-import type { PortAdministration, SoldeRelais, VersementVu } from '../../modele/ports';
+import type {
+  GainVu,
+  PortAdministration,
+  RelaisVu,
+  SoldeRelais,
+  VersementVu,
+} from '../../modele/ports';
 import { afficherTelephone } from '../../modele/telephone';
 import { Bandeau, Champ } from '@/ui/v2/formulaire';
 import { Bouton, Dialogue } from '@/ui/v2/admin';
@@ -38,6 +44,9 @@ export function Paie({ admin }: { admin: PortAdministration }) {
   const [aVerser, setAVerser] = useState<SoldeRelais | null>(null);
   const [aNumeroter, setANumeroter] = useState<SoldeRelais | null>(null);
   const [aAnnuler, setAAnnuler] = useState<VersementVu | null>(null);
+  const [gains, setGains] = useState<GainVu[] | null>(null);
+  const [aAnnulerGain, setAAnnulerGain] = useState<GainVu | null>(null);
+  const [ajoutGain, setAjoutGain] = useState(false);
   const [aJourOuverts, setAJourOuverts] = useState(false);
 
   const charger = useCallback(() => {
@@ -48,6 +57,10 @@ export function Paie({ admin }: { admin: PortAdministration }) {
     admin
       .versements()
       .then(setVersements)
+      .catch((e: unknown) => setErreur(messageErreur(e)));
+    admin
+      .gains()
+      .then(setGains)
       .catch((e: unknown) => setErreur(messageErreur(e)));
   }, [admin]);
   useEffect(charger, [charger]);
@@ -113,7 +126,12 @@ export function Paie({ admin }: { admin: PortAdministration }) {
       </div>
 
       <section aria-label="À verser" className="flex flex-col gap-2.5">
-        <h2 className={cn(v2.surtitre, 'mt-1')}>À verser</h2>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+          <h2 className={v2.surtitre}>À verser</h2>
+          <Bouton type="button" variante="discret" onClick={() => setAjoutGain(true)}>
+            Ajouter un gain
+          </Bouton>
+        </div>
         <div
           role="table"
           aria-label="Reste dû par relais"
@@ -192,6 +210,7 @@ export function Paie({ admin }: { admin: PortAdministration }) {
       </section>
 
       <Versements versements={versements} annuler={setAAnnuler} />
+      <Gains gains={gains} annuler={setAAnnulerGain} />
 
       {aVerser && (
         <NoterUnVersement
@@ -225,15 +244,56 @@ export function Paie({ admin }: { admin: PortAdministration }) {
         </Dialogue>
       )}
       {aAnnuler && (
-        <AnnulerUnVersement
-          admin={admin}
-          v={aAnnuler}
+        <ConfirmerAnnulation
+          titre="Annuler ce versement"
+          resume={
+            <>
+              {jourCourt(aAnnuler.verseLe)} · {aAnnuler.prenom || '[sans prénom]'} ·{' '}
+              <b>{francs(aAnnuler.montantXaf)}</b>. Le montant redevient dû ; le versement reste
+              lisible ici, le relais ne le voit plus.
+            </>
+          }
+          libelleBouton="Annuler le versement"
+          annuler={(motif) => admin.annulerVersement(aAnnuler.id, motif)}
           fermer={() => setAAnnuler(null)}
           surFait={() => {
             setAnnonce(
               `Versement du ${jourCourt(aAnnuler.verseLe)} annulé : ${francs(aAnnuler.montantXaf)} redeviennent dus à ${aAnnuler.prenom || 'ce relais'}.`,
             );
             setAAnnuler(null);
+            charger();
+          }}
+        />
+      )}
+      {aAnnulerGain && (
+        <ConfirmerAnnulation
+          titre="Annuler ce gain"
+          resume={
+            <>
+              {jourCourt(aAnnulerGain.gagneLe)} · {aAnnulerGain.prenom || '[sans prénom]'} ·{' '}
+              {aAnnulerGain.motif} · <b>{francs(aAnnulerGain.montantXaf)}</b>. Il ne compte plus
+              dans ce qui est dû ; il reste lisible ici.
+            </>
+          }
+          libelleBouton="Annuler le gain"
+          annuler={(motif) => admin.annulerGain(aAnnulerGain.id, motif)}
+          fermer={() => setAAnnulerGain(null)}
+          surFait={() => {
+            setAnnonce(
+              `Gain annulé : ${francs(aAnnulerGain.montantXaf)} de moins dus à ${aAnnulerGain.prenom || 'ce relais'}.`,
+            );
+            setAAnnulerGain(null);
+            charger();
+          }}
+        />
+      )}
+      {ajoutGain && (
+        <AjouterUnGain
+          admin={admin}
+          fermer={() => setAjoutGain(false)}
+          surFait={(prenom, montant) => {
+            setAjoutGain(false);
+            setAnnonce(`${prenom} : ${francs(montant)} ajoutés à ce que NTanova lui doit.`);
             charger();
           }}
         />
@@ -533,6 +593,7 @@ function Versements({
                   className="min-w-0 text-sm [overflow-wrap:anywhere] max-lg:col-span-2 lg:px-4 lg:py-3"
                 >
                   {v.reference ? `réf. ${v.reference}` : 'sans référence'}
+                  {v.note && <span className="block text-muted-foreground">{v.note}</span>}
                   <span className="lg:hidden">{v.notePar ? ` · noté par ${v.notePar}` : ''}</span>
                 </span>
                 <span role="cell" className="text-sm max-lg:hidden lg:px-4 lg:py-3">
@@ -563,14 +624,19 @@ function Versements({
   );
 }
 
-function AnnulerUnVersement({
-  admin,
-  v,
+/** Annuler une ligne (versement ou gain) : le motif est demandé, la ligne reste lisible. */
+function ConfirmerAnnulation({
+  titre,
+  resume,
+  libelleBouton,
+  annuler,
   fermer,
   surFait,
 }: {
-  admin: PortAdministration;
-  v: VersementVu;
+  titre: string;
+  resume: ReactNode;
+  libelleBouton: string;
+  annuler: (motif: string) => Promise<void>;
   fermer: () => void;
   surFait: () => void;
 }) {
@@ -578,11 +644,11 @@ function AnnulerUnVersement({
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const id = useId();
-  const annuler = async () => {
+  const confirmer = async () => {
     setEnCours(true);
     setErreur(null);
     try {
-      await admin.annulerVersement(v.id, motif.trim());
+      await annuler(motif.trim());
       surFait();
     } catch (e) {
       setErreur(messageErreur(e));
@@ -592,17 +658,14 @@ function AnnulerUnVersement({
   };
   return (
     <Dialogue
-      titre="Annuler ce versement"
-      entete={<b>Annuler ce versement ?</b>}
+      titre={titre}
+      entete={<b>{titre} ?</b>}
       fermer={fermer}
       variante="confirmation"
       libelleFermeture="Garder"
       occupe={enCours}
     >
-      <p className="m-0 text-[15px]">
-        {jourCourt(v.verseLe)} · {v.prenom || '[sans prénom]'} · <b>{francs(v.montantXaf)}</b>. Le
-        montant redevient dû ; le versement reste lisible ici, le relais ne le voit plus.
-      </p>
+      <p className="m-0 text-[15px]">{resume}</p>
       <div className={v2.groupe}>
         <label htmlFor={id}>Pourquoi ?</label>
         <input
@@ -622,11 +685,207 @@ function AnnulerUnVersement({
         disabled={motif.trim().length < 2}
         enCours={enCours}
         texteEnCours="Annulation…"
-        onClick={() => void annuler()}
+        onClick={() => void confirmer()}
       >
-        Annuler le versement
+        {libelleBouton}
       </Bouton>
     </Dialogue>
+  );
+}
+
+/** Ajouter un gain : un travail fait hors de l'application (contacts du supérieur, mission confiée de vive voix…). */
+function AjouterUnGain({
+  admin,
+  fermer,
+  surFait,
+}: {
+  admin: PortAdministration;
+  fermer: () => void;
+  surFait: (prenom: string, montant: number) => void;
+}) {
+  const aujourdhui = jourABrazzaville(new Date());
+  const [relais, setRelais] = useState<RelaisVu[] | null>(null);
+  const [relaisId, setRelaisId] = useState('');
+  const [montant, setMontant] = useState('');
+  const [le, setLe] = useState(aujourdhui);
+  const [motif, setMotif] = useState('');
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  useEffect(() => {
+    admin
+      .relais()
+      .then((l) =>
+        setRelais(
+          [...l]
+            .filter((r) => r.statut !== 'en_attente')
+            .sort((x, y) => x.prenom.localeCompare(y.prenom, 'fr')),
+        ),
+      )
+      .catch((e: unknown) => setErreur(messageErreur(e)));
+  }, [admin]);
+  const lu = lireMontant(montant);
+  const erreurMontant =
+    montant.trim() !== '' && (lu === null || lu <= 0)
+      ? 'Un montant en francs, plus grand que 0.'
+      : undefined;
+  const erreurDate = le > aujourdhui ? 'Pas de date dans le futur.' : undefined;
+  const choisi = relais?.find((r) => r.id === relaisId);
+  const pret =
+    !!choisi && lu !== null && lu > 0 && !erreurDate && le !== '' && motif.trim().length >= 2;
+
+  const ajouter = async (ev: { preventDefault: () => void }) => {
+    ev.preventDefault();
+    if (!pret || lu === null || !choisi) return;
+    setEnCours(true);
+    setErreur(null);
+    try {
+      await admin.ajouterGain(choisi.id, lu, le, motif.trim());
+      surFait(choisi.prenom || 'Le relais', lu);
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <Dialogue
+      titre="Ajouter un gain"
+      entete={<b>Ajouter un gain</b>}
+      description="Un travail fait hors de l’application. Il s’ajoute à ce que NTanova doit au relais."
+      fermer={fermer}
+      variante="feuille"
+      occupe={enCours}
+    >
+      <form className="flex flex-col gap-4" onSubmit={(ev) => void ajouter(ev)}>
+        <Champ libelle="Relais">
+          {(a) => (
+            <select
+              {...a}
+              className={v2.champ}
+              value={relaisId}
+              onChange={(ev) => setRelaisId(ev.target.value)}
+            >
+              <option value="">{relais === null ? 'Chargement…' : 'Choisir un relais'}</option>
+              {(relais ?? []).map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.prenom || '[sans prénom]'}
+                </option>
+              ))}
+            </select>
+          )}
+        </Champ>
+        <Champ libelle="Pour quel travail" aide="Le relais lira ces mots dans sa paie.">
+          {(a) => (
+            <input
+              {...a}
+              className={v2.champ}
+              type="text"
+              maxLength={120}
+              placeholder="ex. Contacts du supérieur"
+              value={motif}
+              onChange={(ev) => setMotif(ev.target.value)}
+            />
+          )}
+        </Champ>
+        <Champ libelle="Montant" erreur={erreurMontant}>
+          {(a) => (
+            <span className="relative flex">
+              <input
+                {...a}
+                className={cn(v2.champ, 'pr-16 font-bold tabular-nums')}
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                value={montant}
+                onChange={(ev) => setMontant(ev.target.value)}
+              />
+              <span
+                className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 font-bold text-muted-foreground"
+                aria-hidden
+              >
+                FCFA
+              </span>
+            </span>
+          )}
+        </Champ>
+        <Champ libelle="Date du travail" erreur={erreurDate}>
+          {(a) => (
+            <input
+              {...a}
+              className={cn(v2.champ, 'w-full sm:w-56')}
+              type="date"
+              max={aujourdhui}
+              value={le}
+              onChange={(ev) => setLe(ev.target.value)}
+            />
+          )}
+        </Champ>
+        {pret && lu !== null && choisi && (
+          <p className={v2.bandeSucces}>
+            <span>
+              {choisi.prenom || 'Le relais'} lira dans sa paie&nbsp;:{' '}
+              <b>
+                {motif.trim()} · {chiffres(lu)}
+              </b>
+              .
+            </span>
+          </p>
+        )}
+        {erreur && <p className={v2.erreur}>{erreur}</p>}
+        <Bouton type="submit" className="w-full" disabled={!pret} enCours={enCours}>
+          {pret && lu !== null ? `Ajouter ${francs(lu)}` : 'Ajouter le gain'}
+        </Bouton>
+      </form>
+    </Dialogue>
+  );
+}
+
+/** Les gains ajoutés à la main : la date du travail, le relais, le motif, le montant ; « Annuler » sur ceux qui comptent. */
+function Gains({ gains, annuler }: { gains: GainVu[] | null; annuler: (g: GainVu) => void }) {
+  if (!gains || gains.length === 0) return null;
+  return (
+    <section aria-label="Gains ajoutés" className="flex flex-col gap-2.5">
+      <h2 className={cn(v2.titreSection, 'mt-2')}>Gains ajoutés</h2>
+      <ul className="m-0 flex list-none flex-col rounded-xl border border-border bg-card p-0">
+        {gains.map((g, i) => {
+          const annule = g.annuleLe !== null;
+          return (
+            <li
+              key={g.id}
+              className={cn(
+                'flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 tabular-nums',
+                i > 0 && 'border-t border-border',
+                annule && 'text-muted-foreground',
+              )}
+            >
+              <span
+                className={cn('min-w-0 flex-1 [overflow-wrap:anywhere]', annule && 'line-through')}
+              >
+                {jourCourt(g.gagneLe)} · {g.prenom || '[sans prénom]'} · {g.motif}
+              </span>
+              {annule ? <s>{chiffres(g.montantXaf)}</s> : <b>{chiffres(g.montantXaf)}</b>}
+              <span className="basis-full">
+                {annule ? (
+                  <span className={cn(v2.pastilleAttention, 'whitespace-normal')}>
+                    Annulé{g.motifAnnulation ? ` : ${g.motifAnnulation}` : ''}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className={v2.lien}
+                    aria-label={`Annuler le gain du ${jourCourt(g.gagneLe)} de ${g.prenom || 'ce relais'}`}
+                    onClick={() => annuler(g)}
+                  >
+                    Annuler
+                  </button>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

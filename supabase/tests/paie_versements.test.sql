@@ -1,7 +1,7 @@
 -- Paie des relais, 19/11/2026 : un solde (gagné − versé), des versements notés à tout moment, tout ou partie, jamais plus.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(34);
 
 select public.register_relay('00000000-0000-4000-8000-0000000000d1', 'google-vers-admin', '[Admin]');
 select public.register_relay('00000000-0000-4000-8000-0000000000a1', 'google-vers-relais-a', '[Relais A]');
@@ -104,6 +104,36 @@ select is((select earned_xaf || '|' || balance_xaf from public.payout_balances()
 select public.mark_statement_paid((select id from public.payout_batches limit 1), '00000000-0000-4000-8000-0000000000b1', 'MM-B');
 select is((select balance_xaf from public.payout_balances() where relay_id = '00000000-0000-4000-8000-0000000000b1'), 0,
   'Une semaine notée « payée » compte comme reçue');
+reset role;
+
+-- Un gain ajouté à la main : un travail fait hors de l'application ------------------------------------------------------------------------------------
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000a1","role":"authenticated"}', true);
+select throws_ok($$select public.record_payout_credit('00000000-0000-4000-8000-0000000000a1', 5000, current_date, '[Travail]')$$, '42501', null,
+  'Un relais ne s''ajoute pas de gain');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated"}', true);
+select throws_ok($$select public.record_payout_credit('00000000-0000-4000-8000-0000000000a1', 5000, current_date, ' ')$$, '22023', null,
+  'Un gain dit pour quel travail');
+select throws_ok($$select public.record_payout_credit('00000000-0000-4000-8000-0000000000a1', 5000, current_date + 2, '[Travail]')$$, '22023', null,
+  'Un gain daté dans le futur est refusé');
+select lives_ok($$select public.record_payout_credit('00000000-0000-4000-8000-0000000000a1', 5000, date '2026-11-13', '  Contacts du supérieur  ')$$,
+  'L''admin ajoute 5 000 pour des contacts relevés hors de l''application');
+select is((select earned_xaf || '|' || balance_xaf from public.payout_balances() where relay_id = '00000000-0000-4000-8000-0000000000a1'), '7000|6700',
+  'Le gain compte dans le gagné et le reste dû');
+select lives_ok($$select public.record_payout_transfer('00000000-0000-4000-8000-0000000000a1', 6700)$$,
+  'Un versement peut maintenant payer ce travail : le plafond suit le gagné');
+select throws_ok($$select public.cancel_payout_credit((select id from public.payout_credits_list() limit 1), '[erreur]')$$, '22023', null,
+  'Annuler un gain déjà payé est refusé : il faudrait d''abord annuler le versement');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000a1","role":"authenticated"}', true);
+select is((select credits from public.my_payout() where state = 'acquis'),
+  '[{"reason": "Contacts du supérieur", "amount_xaf": 5000, "earned_on": "2026-11-13"}]'::jsonb, 'Le relais lit le gain et son motif');
+select is((select balance_xaf from public.my_payout() where state = 'acquis'), 0, 'Et tout est réglé');
 reset role;
 
 select * from finish();

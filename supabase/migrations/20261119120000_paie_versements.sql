@@ -12,6 +12,9 @@
 --     solde (pas d'avance). Référence Mobile Money facultative. Une erreur s'ANNULE (date, motif, qui) : rien ne s'efface.
 --     Une semaine close notée « payée » (l'ancien geste) compte aussi comme reçue.
 --   * Une fiche est « payée » quand les versements la couvrent, les plus anciennes d'abord.
+--   * GAIN AJOUTÉ (`payout_credits`, 19/11 au soir) : un travail fait hors de l'application (contacts du supérieur, mission
+--     confiée de vive voix…), noté par l'administration avec son motif. Il compte dans le gagné et le relais le lit dans sa
+--     facture. Comme un versement, il s'annule et ne s'efface pas.
 --
 -- Additive : les tables et fonctions des semaines restent, aucune n'est retirée ni renommée. `my_payout` gagne des colonnes
 -- (le téléphone d'avant la mise à jour lit toujours les siennes).
@@ -42,6 +45,26 @@ alter table public.payout_transfers enable row level security;
 revoke all on public.payout_transfers from public, anon, authenticated;
 -- Aucune lecture directe : l'administration et le relais passent par les fonctions ci-dessous.
 
+-- 1 bis. Les gains ajoutés à la main (travail hors de l'application) ------------------------------------------------------------------------------
+create table public.payout_credits (
+  id uuid primary key default gen_random_uuid(),
+  relay_id uuid not null references public.relais (id),
+  amount_xaf integer not null check (amount_xaf > 0 and amount_xaf <= 10000000),
+  earned_on date not null,
+  reason text not null check (char_length(btrim(reason)) between 2 and 120),
+  recorded_at timestamptz not null default now(),
+  recorded_by uuid default public.current_user_id(),
+  cancelled_at timestamptz,
+  cancelled_by uuid,
+  cancel_reason text check (cancel_reason is null or char_length(btrim(cancel_reason)) between 2 and 200),
+  constraint payout_credits_annulation_complete check ((cancelled_at is null) = (cancel_reason is null))
+);
+comment on table public.payout_credits is
+  'Un travail fait hors de l''application, payé par NTanova : noté par l''administration avec son motif (que le relais lit), compté dans le gagné. Ne s''efface jamais : il s''annule.';
+create index payout_credits_relais on public.payout_credits (relay_id, earned_on desc);
+alter table public.payout_credits enable row level security;
+revoke all on public.payout_credits from public, anon, authenticated;
+
 -- 2. Ce qu'un relais a gagné, élément par élément, avec sa date ---------------------------------------------------------------------------------------
 -- La date sert à couvrir les plus anciens d'abord : acceptation de la fiche (ou de la fiche qui ferme la mission), confirmation
 -- du contact ; l'essai passe avant tout (il vient en premier dans la vie d'un relais).
@@ -60,7 +83,11 @@ language sql stable security definer set search_path = '' as $$
               when i.kind = 'trial_bundle' then '-infinity'::timestamptz
               else coalesce(s.decided_at, '-infinity'::timestamptz) end
   from items i
-  left join public.field_submissions s on s.id = i.submission_id;
+  left join public.field_submissions s on s.id = i.submission_id
+  union all
+  select c.relay_id, 'credit'::text, null::uuid, c.amount_xaf, (c.earned_on::timestamp at time zone 'Africa/Brazzaville')
+  from public.payout_credits c
+  where c.cancelled_at is null and (p_relay is null or c.relay_id = p_relay);
 $$;
 revoke all on function prive.relay_earned_items(uuid) from public, anon, authenticated;
 
@@ -188,6 +215,84 @@ $$;
 revoke all on function public.payout_transfers_list(integer) from public, anon, authenticated;
 grant execute on function public.payout_transfers_list(integer) to authenticated;
 
+-- 6 bis. Ajouter un gain (travail hors de l'application), l'annuler, les lire -------------------------------------------------------------------
+create function public.record_payout_credit(p_relay uuid, p_amount_xaf integer, p_earned_on date, p_reason text) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_id uuid;
+begin
+  perform public.exiger_admin_session();
+  perform 1 from public.relais r where r.id = p_relay for update;
+  if not found then
+    raise exception 'Relais introuvable.' using errcode = 'P0002';
+  end if;
+  if p_amount_xaf is null or p_amount_xaf <= 0 then
+    raise exception 'Le montant doit être plus grand que 0.' using errcode = '22023';
+  end if;
+  if coalesce(char_length(btrim(p_reason)), 0) < 2 then
+    raise exception 'Dites pour quel travail : le relais le lira.' using errcode = '22023';
+  end if;
+  if p_earned_on is null or p_earned_on > (now() at time zone 'Africa/Brazzaville')::date or p_earned_on < date '2026-10-01' then
+    raise exception 'La date du travail ne peut pas être dans le futur.' using errcode = '22023';
+  end if;
+  insert into public.payout_credits (relay_id, amount_xaf, earned_on, reason)
+  values (p_relay, p_amount_xaf, p_earned_on, btrim(p_reason))
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke all on function public.record_payout_credit(uuid, integer, date, text) from public, anon, authenticated;
+grant execute on function public.record_payout_credit(uuid, integer, date, text) to authenticated;
+
+-- Annuler un gain : refusé s'il ferait passer le reçu au-dessus du gagné (il faudrait d'abord annuler un versement).
+create function public.cancel_payout_credit(p_credit uuid, p_reason text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_relais uuid;
+  v_montant integer;
+begin
+  perform public.exiger_admin_session();
+  if coalesce(char_length(btrim(p_reason)), 0) < 2 then
+    raise exception 'Dites pourquoi ce gain est annulé.' using errcode = '22023';
+  end if;
+  select c.relay_id, c.amount_xaf into v_relais, v_montant from public.payout_credits c
+  where c.id = p_credit and c.cancelled_at is null;
+  if not found then
+    raise exception 'Gain introuvable ou déjà annulé.' using errcode = 'P0002';
+  end if;
+  perform 1 from public.relais r where r.id = v_relais for update;
+  if coalesce((select sum(e.amount_xaf) from prive.relay_earned_items(v_relais) e), 0) - v_montant
+     < coalesce((select sum(t.amount_xaf) from prive.relay_received(v_relais) t), 0) then
+    raise exception 'Le relais a déjà reçu cet argent : annulez d''abord le versement qui le paie.' using errcode = '22023';
+  end if;
+  update public.payout_credits c
+  set cancelled_at = now(), cancelled_by = (select public.current_user_id()), cancel_reason = btrim(p_reason)
+  where c.id = p_credit;
+end;
+$$;
+revoke all on function public.cancel_payout_credit(uuid, text) from public, anon, authenticated;
+grant execute on function public.cancel_payout_credit(uuid, text) to authenticated;
+
+create function public.payout_credits_list(p_limit integer default 100)
+returns table (
+  id uuid, relay_id uuid, first_name text, amount_xaf integer, earned_on date, reason text,
+  recorded_at timestamptz, recorded_by_name text, cancelled_at timestamptz, cancel_reason text
+)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform public.exiger_admin_session();
+  return query
+  select c.id, c.relay_id, r.prenom, c.amount_xaf, c.earned_on, c.reason, c.recorded_at, a.prenom, c.cancelled_at, c.cancel_reason
+  from public.payout_credits c
+  join public.relais r on r.id = c.relay_id
+  left join public.relais a on a.id = c.recorded_by
+  order by c.earned_on desc, c.recorded_at desc
+  limit least(greatest(coalesce(p_limit, 100), 1), 500);
+end;
+$$;
+revoke all on function public.payout_credits_list(integer) from public, anon, authenticated;
+grant execute on function public.payout_credits_list(integer) to authenticated;
+
 -- 7. « Ma paie » : le solde, ce qui est reçu, et les fiches couvertes ------------------------------------------------------------------------------------
 -- Les colonnes d'avant ne changent pas ; la ligne « acquis » porte en plus le solde et les versements (les semaines closes
 -- les portent à null).
@@ -196,7 +301,7 @@ create function public.my_payout(p_friday date default null)
 returns table (
   friday date, state text, submissions integer, contacts integer, trial_bundles integer, total_xaf integer,
   not_payable integer, has_payment_details boolean, paid_at timestamptz, reference text, missions integer, lines jsonb,
-  earned_xaf integer, received_xaf integer, balance_xaf integer, transfers jsonb, paid_submissions jsonb
+  earned_xaf integer, received_xaf integer, balance_xaf integer, transfers jsonb, paid_submissions jsonb, credits jsonb
 )
 language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -210,6 +315,7 @@ declare
   v_recu integer;
   v_versements jsonb;
   v_couvertes jsonb;
+  v_gains jsonb;
 begin
   if not public.est_relais_actif() then
     return;
@@ -222,6 +328,12 @@ begin
     select jsonb_agg(jsonb_build_object('paid_on', t.paid_on, 'amount_xaf', t.amount_xaf, 'reference', t.reference)
                      order by t.paid_on desc, t.recorded_at desc)
     from prive.relay_received(v_me) t
+  ), '[]'::jsonb);
+  -- Les gains ajoutés à la main, avec leur motif (jamais les annulés).
+  v_gains := coalesce((
+    select jsonb_agg(jsonb_build_object('earned_on', c.earned_on, 'amount_xaf', c.amount_xaf, 'reason', c.reason)
+                     order by c.earned_on, c.recorded_at)
+    from public.payout_credits c where c.relay_id = v_me and c.cancelled_at is null
   ), '[]'::jsonb);
   -- Les fiches couvertes par les versements, les plus anciennes d'abord : une fiche est payée quand tout ce qui la précède
   -- et elle-même tiennent dans ce qui est reçu.
@@ -253,7 +365,7 @@ begin
                         array_position(array['submission', 'mission', 'contact', 'trial_bundle'], i.kind) as ordre
                  from items i group by i.kind, i.amount_xaf) g
          ), '[]'::jsonb),
-         v_gagne, v_recu, v_gagne - v_recu, v_versements, v_couvertes;
+         v_gagne, v_recu, v_gagne - v_recu, v_versements, v_couvertes, v_gains;
 
   return query
   select b.friday, (case when st.paid_at is null then 'a_payer' else 'paye' end)::text,
@@ -271,7 +383,7 @@ begin
                  from public.payout_lines l where l.batch_id = st.batch_id and l.relay_id = st.relay_id
                  group by l.kind, l.amount_xaf) g
          ), '[]'::jsonb),
-         null::integer, null::integer, null::integer, null::jsonb, null::jsonb
+         null::integer, null::integer, null::integer, null::jsonb, null::jsonb, null::jsonb
   from public.payout_statements st
   join public.payout_batches b on b.id = st.batch_id
   where st.relay_id = v_me

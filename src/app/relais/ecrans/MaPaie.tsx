@@ -137,7 +137,15 @@ function Solde({
   lignes: readonly LigneDeFacture[];
   nonPayables: number;
 }) {
-  const facture = factureCourte({ fiches: 0, contacts: 0, essais: 0, lignes: reunir(lignes) });
+  // Les gains ajoutés par NTanova (un travail fait hors de l'application) : une ligne chacun, avec ses mots.
+  const facture = [
+    ...factureCourte({ fiches: 0, contacts: 0, essais: 0, lignes: reunir(lignes) }),
+    ...(solde.gains ?? []).map((g) => ({
+      libelle: g.motif,
+      calcul: null,
+      sousTotal: g.montantXaf,
+    })),
+  ];
   const ligne =
     'grid grid-cols-[1fr_auto_auto] items-baseline gap-x-4 border-t border-border py-3.5 text-base tabular-nums';
   return (
@@ -151,9 +159,9 @@ function Solde({
       </p>
       {facture.length > 0 ? (
         <ul className="m-0 list-none p-0" aria-label="Le détail">
-          {facture.map((l) => (
-            <li key={`${l.libelle}|${l.calcul ?? ''}`} className={ligne}>
-              <span>{l.libelle}</span>
+          {facture.map((l, i) => (
+            <li key={`${i}|${l.libelle}`} className={ligne}>
+              <span className="min-w-0 [overflow-wrap:anywhere]">{l.libelle}</span>
               <span className="text-[15px] whitespace-nowrap text-muted-foreground">
                 {l.calcul ?? ''}
               </span>

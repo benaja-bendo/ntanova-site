@@ -40,6 +40,7 @@ import {
   type ReleveAValider,
   type ReleveDecide,
   type ResultatCreation,
+  type GainVu,
   type SoldeRelais,
   type VersementVu,
   type VueEnsemble,
@@ -2199,6 +2200,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         amount_xaf: number;
         paid_on: string;
         reference: string | null;
+        note?: string | null;
         recorded_by_name: string | null;
         cancelled_at: string | null;
         cancel_reason: string | null;
@@ -2210,6 +2212,51 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         montantXaf: entier(l.amount_xaf),
         verseLe: l.paid_on,
         reference: l.reference,
+        note: l.note ?? null,
+        notePar: l.recorded_by_name,
+        annuleLe: l.cancelled_at,
+        motifAnnulation: l.cancel_reason,
+      }));
+    },
+
+    async ajouterGain(relaisId, montantXaf, gagneLe, motif) {
+      const { data, error } = await supabase().rpc('record_payout_credit', {
+        p_relay: relaisId,
+        p_amount_xaf: montantXaf,
+        p_earned_on: gagneLe,
+        p_reason: motif,
+      });
+      decider(error);
+      return data as string;
+    },
+
+    async annulerGain(gainId, motif) {
+      const { error } = await supabase().rpc('cancel_payout_credit', {
+        p_credit: gainId,
+        p_reason: motif,
+      });
+      decider(error);
+    },
+
+    async gains(): Promise<GainVu[]> {
+      const lignes = lireListe<{
+        id: string;
+        relay_id: string;
+        first_name: string;
+        amount_xaf: number;
+        earned_on: string;
+        reason: string;
+        recorded_by_name: string | null;
+        cancelled_at: string | null;
+        cancel_reason: string | null;
+      }>(await supabase().rpc('payout_credits_list', { p_limit: 100 }));
+      return lignes.map((l) => ({
+        id: l.id,
+        relaisId: l.relay_id,
+        prenom: l.first_name,
+        montantXaf: entier(l.amount_xaf),
+        gagneLe: l.earned_on,
+        motif: l.reason,
         notePar: l.recorded_by_name,
         annuleLe: l.cancelled_at,
         motifAnnulation: l.cancel_reason,
