@@ -53,12 +53,17 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
     await expect(accepter).toBeDisabled();
     await expect(
-      page.getByText(/Dis si le numéro de l’enseigne est sur la photo/).first(),
+      page.getByText(/Le numéro de l’enseigne est-il sur la photo/).first(),
     ).toBeVisible();
 
-    // « Vérifié sur la photo » : l'école est acceptée avec son numéro.
+    // La phrase de la barre du bas ramène au choix (19/11) : « Oui » prend le focus.
     const choix = page.getByRole('group', { name: 'Le numéro, sur la photo ?' });
-    await choix.getByRole('button', { name: 'Sur la photo', exact: true }).click();
+    await page.getByRole('button', { name: /Le numéro de l’enseigne est-il sur la photo/ }).click();
+    await expect(choix.getByRole('button', { name: 'Oui', exact: true })).toBeFocused();
+
+    // « Vérifié sur la photo » : l'école est acceptée avec son numéro, et l'écran dit ce que ça fait.
+    await choix.getByRole('button', { name: 'Oui', exact: true }).click();
+    await expect(page.getByText('Public, avec un bouton « Appeler ».')).toBeVisible();
     await expect(accepter).toBeEnabled();
     await expect(page.getByRole('group', { name: 'Accepter, corriger ou refuser' })).toContainText(
       'Accepter crée l’école sans la publier.',
@@ -80,7 +85,7 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     await expect(accepter).toBeDisabled();
     await page
       .getByRole('group', { name: 'Le numéro, sur la photo ?' })
-      .getByRole('button', { name: 'Pas sur la photo', exact: true })
+      .getByRole('button', { name: 'Non', exact: true })
       .click();
     await accepter.click();
     await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
@@ -170,7 +175,7 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     await expect(accepter).toBeDisabled();
     await page
       .getByRole('group', { name: 'Le numéro, sur la photo ?' })
-      .getByRole('button', { name: 'Pas sur la photo', exact: true })
+      .getByRole('button', { name: 'Non', exact: true })
       .click();
     await accepter.click();
     await expect(page.getByRole('status')).toHaveText(/est mise à jour/);

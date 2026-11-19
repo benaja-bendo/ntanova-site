@@ -81,10 +81,13 @@ test.describe('les séries du lycée se cochent', () => {
     // L'administration les voit cochées dans « À valider », déjà dans la liste des formations, et rien n'est publié.
     await ouvrirLaFiche(page);
     // Planche : la ligne « Formations » des faits les dit ; leur tiroir les corrige avant d'accepter.
-    await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText(
-      'Série D, Série C',
-    );
-    await page.getByRole('button', { name: 'Corriger les formations' }).click();
+    // Une formation par ligne (19/11 : à la file, des titres longs ne se lisaient plus), et le crayon garde sa taille
+    // à côté d'eux (il était écrasé à 20 px de large sur téléphone).
+    const formations = page.getByRole('region', { name: 'Partie publique' }).getByRole('listitem');
+    await expect(formations).toHaveText(['Série D', 'Série C']);
+    const crayon = page.getByRole('button', { name: 'Corriger les formations' });
+    expect((await crayon.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(40);
+    await crayon.click();
     await expect(page.getByRole('button', { name: 'Retirer Série C' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Retirer Série D' })).toBeVisible();
   });

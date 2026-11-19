@@ -81,14 +81,14 @@ test.describe('avant d’accepter, la barre dit ce qui se passe et ce qui manque
     // Le numéro attend qu'on dise s'il est sur la photo ; la barre le dit, le bouton attend.
     const fiche = page.getByRole('region', { name: 'Envoi sélectionné' });
     await expect(fiche).toContainText('10 chiffres après +242');
-    await expect(barre(page)).toContainText('Dis si le numéro de l’enseigne est sur la photo');
+    await expect(barre(page)).toContainText('Le numéro de l’enseigne est-il sur la photo');
     const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
     await expect(accepter).toBeDisabled();
 
     // Le numéro relu sur la photo : plus rien ne bloque, et l'avertissement sur les 10 chiffres reste lisible.
     await page
       .getByRole('group', { name: 'Le numéro, sur la photo ?' })
-      .getByRole('button', { name: 'Sur la photo', exact: true })
+      .getByRole('button', { name: 'Oui', exact: true })
       .click();
     await expect(barre(page)).toContainText('Accepter crée l’école sans la publier.');
     await expect(fiche).toContainText('10 chiffres après +242');

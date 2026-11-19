@@ -183,7 +183,7 @@ export function ceQuiManqueDuNumero(
   choix: ChoixNumero | null,
 ): string | null {
   return aConfirmer !== null && choix === null
-    ? 'Dis si le numéro de l’enseigne est sur la photo : il sera public, avec un bouton « Appeler ».'
+    ? 'Le numéro de l’enseigne est-il sur la photo ?'
     : null;
 }
 
