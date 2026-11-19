@@ -932,6 +932,8 @@ function Detail({
   const ligneFait =
     'flex flex-col gap-1 border-b border-border py-3 first:pt-0 last:border-b-0 last:pb-0';
   const libelleFait = 'text-[13px] font-bold text-muted-foreground';
+  const choixOuiNon =
+    'min-h-10 min-w-11 cursor-pointer border-0 bg-card px-2.5 font-sans text-sm font-bold text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring aria-pressed:bg-succes aria-pressed:text-primary-strong';
   const nombreAccords = personnes.filter((p) => p.accord).length;
   const avecFormations =
     valeurs.niveaux.some(cycleAvecFormations) || detail.indiceFormations || formations.length > 0;
@@ -1039,7 +1041,7 @@ function Detail({
               {nouvelleEcole && !lectureSeule && (
                 <button
                   type="button"
-                  className="cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4 max-lg:flex max-lg:size-10 max-lg:items-center max-lg:justify-center max-lg:rounded-md max-lg:border max-lg:border-input max-lg:text-foreground max-lg:no-underline"
+                  className="shrink-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4 max-lg:flex max-lg:size-10 max-lg:items-center max-lg:justify-center max-lg:rounded-md max-lg:border max-lg:border-input max-lg:text-foreground max-lg:no-underline"
                   aria-label="Corriger le type"
                   onClick={() => setDemandeCorrection((n) => n + 1)}
                 >
@@ -1056,7 +1058,7 @@ function Detail({
               {nouvelleEcole && !lectureSeule && (
                 <button
                   type="button"
-                  className="cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4 max-lg:flex max-lg:size-10 max-lg:items-center max-lg:justify-center max-lg:rounded-md max-lg:border max-lg:border-input max-lg:text-foreground max-lg:no-underline"
+                  className="shrink-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4 max-lg:flex max-lg:size-10 max-lg:items-center max-lg:justify-center max-lg:rounded-md max-lg:border max-lg:border-input max-lg:text-foreground max-lg:no-underline"
                   aria-label="Corriger les niveaux"
                   onClick={() => setDemandeCorrection((n) => n + 1)}
                 >
@@ -1069,12 +1071,20 @@ function Detail({
           {avecFormations && (
             <div className={ligneFait}>
               <dt className={libelleFait}>Formations</dt>
-              <dd className="flex items-baseline justify-between gap-3">
-                <span>{formationsRetenues.map((f) => f.titre).join(', ') || '—'}</span>
+              <dd className="flex items-start justify-between gap-3">
+                {formationsRetenues.length === 0 ? (
+                  <span>—</span>
+                ) : (
+                  <ul className="m-0 flex min-w-0 list-none flex-col gap-1 p-0">
+                    {formationsRetenues.map((f, i) => (
+                      <li key={i}>{f.titre}</li>
+                    ))}
+                  </ul>
+                )}
                 {!lectureSeule && (
                   <button
                     type="button"
-                    className="cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4 max-lg:flex max-lg:size-10 max-lg:items-center max-lg:justify-center max-lg:rounded-md max-lg:border max-lg:border-input max-lg:text-foreground max-lg:no-underline"
+                    className="shrink-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4 max-lg:flex max-lg:size-10 max-lg:items-center max-lg:justify-center max-lg:rounded-md max-lg:border max-lg:border-input max-lg:text-foreground max-lg:no-underline"
                     aria-label="Corriger les formations"
                     onClick={() => setFormationsOuvertes(true)}
                   >
@@ -1105,11 +1115,44 @@ function Detail({
             </div>
           )}
           <div className={ligneFait}>
-            <dt className={libelleFait}>Numéro sur l'enseigne</dt>
-            <dd className="flex flex-wrap items-center gap-2">
-              {valeurs.numeroEnseigne ? afficherTelephone(valeurs.numeroEnseigne) : '—'}
-              {aConfirmer !== null && !lectureSeule && choixNumero === null && (
-                <span className={v2.pastilleAttention}>Sur la photo ?</span>
+            <dt className={libelleFait}>
+              Numéro sur l'enseigne
+              {aConfirmer !== null && !lectureSeule && ' · sur la photo ?'}
+            </dt>
+            {/* Planche « À valider · une fiche » (fondateur, 19/11) : la question dans le libellé, le numéro à gauche,
+                « Oui | Non » à droite sur la même ligne ; l'effet du choix en une ligne dessous. */}
+            <dd className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <span className="tabular-nums">
+                {valeurs.numeroEnseigne ? afficherTelephone(valeurs.numeroEnseigne) : '—'}
+              </span>
+              {aConfirmer !== null && !lectureSeule && (
+                <span
+                  id="numero-sur-la-photo"
+                  className="flex shrink-0 scroll-mt-24 items-center gap-2"
+                  role="group"
+                  aria-label="Le numéro, sur la photo ?"
+                >
+                  <span className="inline-flex overflow-hidden rounded-md border border-input">
+                    <button
+                      type="button"
+                      className={choixOuiNon}
+                      aria-pressed={choixNumero === 'verifie'}
+                      onClick={() => setChoixNumero('verifie')}
+                    >
+                      Oui
+                    </button>
+                    {numeroPeutEtreRetire(detail) && (
+                      <button
+                        type="button"
+                        className={cn(choixOuiNon, 'border-l border-input')}
+                        aria-pressed={choixNumero === 'retire'}
+                        onClick={() => setChoixNumero('retire')}
+                      >
+                        Non
+                      </button>
+                    )}
+                  </span>
+                </span>
               )}
             </dd>
             {numeroSuspect && (
@@ -1118,39 +1161,17 @@ function Detail({
                 sur la photo.
               </span>
             )}
-            {aConfirmer !== null && !lectureSeule && (
-              <>
-                <span
-                  className="flex flex-wrap gap-2 pt-1"
-                  role="group"
-                  aria-label="Le numéro, sur la photo ?"
-                >
-                  <button
-                    type="button"
-                    className={v2.puceCarree}
-                    aria-pressed={choixNumero === 'verifie'}
-                    onClick={() => setChoixNumero('verifie')}
-                  >
-                    Sur la photo
-                  </button>
-                  {numeroPeutEtreRetire(detail) && (
-                    <button
-                      type="button"
-                      className={v2.puceCarree}
-                      aria-pressed={choixNumero === 'retire'}
-                      onClick={() => setChoixNumero('retire')}
-                    >
-                      Pas sur la photo
-                    </button>
-                  )}
-                </span>
+            {aConfirmer !== null &&
+              !lectureSeule &&
+              (choixNumero !== null || !numeroPeutEtreRetire(detail)) && (
                 <span className="text-[13px] text-muted-foreground">
-                  {numeroPeutEtreRetire(detail)
-                    ? 'Publié tel quel, avec « Appeler » ; « Pas sur la photo » : il ne sera pas publié.'
-                    : 'Pour ne pas le publier, accepte puis retire-le dans la fiche de l’école.'}
+                  {choixNumero === 'verifie'
+                    ? 'Public, avec un bouton « Appeler ».'
+                    : choixNumero === 'retire'
+                      ? 'Ne sera pas publié.'
+                      : 'Pour ne pas le publier : accepte, puis retire-le dans la fiche de l’école.'}
                 </span>
-              </>
-            )}
+              )}
           </div>
           <div className={ligneFait}>
             <dt className={libelleFait}>Où</dt>
@@ -1171,7 +1192,7 @@ function Detail({
               </span>
               {position && (
                 <a
-                  className="text-[15px] text-primary underline underline-offset-4"
+                  className="inline-flex min-h-10 shrink-0 items-center text-[15px] text-primary underline underline-offset-4"
                   href={`https://www.openstreetmap.org/?mlat=${position.latitude}&mlon=${position.longitude}#map=18/${position.latitude}/${position.longitude}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1238,7 +1259,7 @@ function Detail({
                 type="button"
                 onClick={() => setContactsOuverts(true)}
                 aria-label="Contact et échanges avec la direction"
-                className="cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-bold text-primary underline underline-offset-4"
+                className="inline-flex min-h-10 shrink-0 cursor-pointer items-center border-0 bg-transparent p-0 font-sans text-[15px] font-bold text-primary underline underline-offset-4"
               >
                 {personnes.length === 0 ? 'Ajouter' : 'Voir'}
               </button>
@@ -1376,11 +1397,28 @@ function Detail({
                 )}
                 role={manque && !detail.essai ? 'status' : undefined}
               >
-                {manque && !detail.essai
-                  ? manque
-                  : detail.essai
-                    ? 'Lot d’essai : cette fiche ne sera jamais publiée.'
-                    : 'Accepter crée l’école sans la publier.'}
+                {manque && !detail.essai ? (
+                  manque === ceQuiManqueDuNumero(aConfirmer, choixNumero) ? (
+                    // Le numéro attend sa réponse : toucher la phrase ramène au « Oui | Non ».
+                    <button
+                      type="button"
+                      className="cursor-pointer border-0 bg-transparent p-0 font-sans text-sm font-bold text-bonus underline underline-offset-4"
+                      onClick={() => {
+                        const choix = document.getElementById('numero-sur-la-photo');
+                        choix?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                        choix?.querySelector('button')?.focus({ preventScroll: true });
+                      }}
+                    >
+                      {manque}
+                    </button>
+                  ) : (
+                    manque
+                  )
+                ) : detail.essai ? (
+                  'Lot d’essai : cette fiche ne sera jamais publiée.'
+                ) : (
+                  'Accepter crée l’école sans la publier.'
+                )}
               </span>
               <button
                 type="button"

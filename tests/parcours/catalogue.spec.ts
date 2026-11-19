@@ -186,9 +186,10 @@ test.describe('valider un envoi : photos, formations, acceptation', () => {
     await expect(notees).not.toContainText('Série D');
     await expect(notees.getByRole('listitem')).toHaveCount(2);
     await tiroir.getByRole('button', { name: 'Fermer' }).click();
+    // Une formation par ligne (19/11).
     await expect(
-      page.getByRole('region', { name: 'Partie publique' }).getByText('Série C, Comptabilité'),
-    ).toBeVisible();
+      page.getByRole('region', { name: 'Partie publique' }).getByRole('listitem'),
+    ).toHaveText(['Série C', 'Comptabilité']);
 
     await fermerContacts(page);
 

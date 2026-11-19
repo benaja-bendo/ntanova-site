@@ -79,9 +79,9 @@ test('À valider : « Comme sur l’enseigne / Différent » et « Sur la photo 
   await expect(publique.getByText('Sur la photo ?')).toBeVisible();
   await page
     .getByRole('group', { name: 'Le numéro, sur la photo ?' })
-    .getByRole('button', { name: 'Sur la photo', exact: true })
+    .getByRole('button', { name: 'Oui', exact: true })
     .click();
-  await expect(publique.getByText('Sur la photo', { exact: true })).toBeVisible();
+  await expect(publique.getByText('Public, avec un bouton « Appeler ».')).toBeVisible();
 });
 
 test(
