@@ -32,9 +32,7 @@ import {
   type EntreeCatalogue,
   type FormationSaisie,
   type InstitutionVue,
-  type LignePaie,
   type LotVu,
-  type PaiementVu,
   type PhotoVue,
   type PortAdministration,
   type RapportImport,
@@ -42,7 +40,9 @@ import {
   type ReleveAValider,
   type ReleveDecide,
   type ResultatCreation,
-  type SemainePaie,
+  type GainVu,
+  type SoldeRelais,
+  type VersementVu,
   type VueEnsemble,
 } from '../../modele/ports';
 import { decider, lire, lireListe, toutesLesLignes, traduire } from './erreurs';
@@ -2146,94 +2146,121 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
 
     // La paie --------------------------------------------------------------------------------------------
 
-    async apercuPaie(vendredi): Promise<LignePaie[]> {
+    async soldesPaie(): Promise<SoldeRelais[]> {
       const lignes = lireListe<{
         relay_id: string;
         first_name: string;
-        submissions: number;
-        contacts: number;
-        trial_bundles: number;
-        total_xaf: number;
-        has_payment_details: boolean;
-      }>(await supabase().rpc('payout_preview', { p_friday: vendredi }));
+        earned_xaf: number;
+        paid_xaf: number;
+        balance_xaf: number;
+        operator: string | null;
+        msisdn: string | null;
+        holder_name: string | null;
+        last_paid_on: string | null;
+        last_paid_xaf: number | null;
+      }>(await supabase().rpc('payout_balances'));
       return lignes.map((l) => ({
         relaisId: l.relay_id,
         prenom: l.first_name,
-        fiches: l.submissions,
-        contacts: l.contacts,
-        essais: l.trial_bundles,
-        totalXaf: entier(l.total_xaf),
-        numeroConnu: l.has_payment_details,
+        gagneXaf: entier(l.earned_xaf),
+        verseXaf: entier(l.paid_xaf),
+        resteXaf: entier(l.balance_xaf),
+        operateur: l.operator,
+        numero: l.msisdn,
+        titulaire: l.holder_name,
+        dernierLe: l.last_paid_on,
+        dernierXaf: l.last_paid_xaf === null ? null : entier(l.last_paid_xaf),
       }));
     },
 
-    async cloturerPaie(vendredi) {
-      const { data, error } = await supabase().rpc('close_payout_week', { p_friday: vendredi });
+    async noterVersement(relaisId, montantXaf, verseLe, reference) {
+      const { data, error } = await supabase().rpc('record_payout_transfer', {
+        p_relay: relaisId,
+        p_amount_xaf: montantXaf,
+        p_paid_on: verseLe,
+        p_reference: reference,
+      });
       decider(error);
       return data as string;
     },
 
-    async semainesPaie(): Promise<SemainePaie[]> {
-      const [semaines, paiements] = await Promise.all([
-        supabase().from('payout_batches').select('id, friday').order('friday', { ascending: false }).limit(60),
-        toutesLesLignes<{ batch_id: string; relay_id: string; total_xaf: number; paid_at: string | null }>(
-          (de, a) =>
-            supabase()
-              .from('payout_statements')
-              .select('batch_id, relay_id, total_xaf, paid_at')
-              .order('batch_id')
-              .order('relay_id')
-              .range(de, a),
-        ),
-      ]);
-      return lireListe<{ id: string; friday: string }>(semaines).map((s) => {
-        const siens = paiements.filter((p) => p.batch_id === s.id);
-        return {
-          id: s.id,
-          vendredi: s.friday,
-          totalXaf: siens.reduce((n, p) => n + entier(p.total_xaf), 0),
-          relais: siens.length,
-          payes: siens.filter((p) => p.paid_at !== null).length,
-        };
+    async annulerVersement(versementId, motif) {
+      const { error } = await supabase().rpc('cancel_payout_transfer', {
+        p_transfer: versementId,
+        p_reason: motif,
       });
+      decider(error);
     },
 
-    async paiementsDeLaSemaine(semaineId): Promise<PaiementVu[]> {
+    async versements(): Promise<VersementVu[]> {
       const lignes = lireListe<{
+        id: string;
         relay_id: string;
         first_name: string;
-        total_xaf: number;
-        submissions: number;
-        contacts: number;
-        trial_bundles: number;
-        operator: string | null;
-        msisdn: string | null;
-        paid_at: string | null;
+        amount_xaf: number;
+        paid_on: string;
         reference: string | null;
-        holder_name?: string | null;
-      }>(await supabase().rpc('payout_statements_of', { p_batch: semaineId }));
+        note?: string | null;
+        recorded_by_name: string | null;
+        cancelled_at: string | null;
+        cancel_reason: string | null;
+      }>(await supabase().rpc('payout_transfers_list', { p_limit: 100 }));
       return lignes.map((l) => ({
+        id: l.id,
         relaisId: l.relay_id,
         prenom: l.first_name,
-        totalXaf: entier(l.total_xaf),
-        fiches: l.submissions,
-        contacts: l.contacts,
-        essais: l.trial_bundles,
-        operateur: l.operator,
-        numero: l.msisdn,
-        titulaire: l.holder_name ?? null,
-        payeLe: l.paid_at,
+        montantXaf: entier(l.amount_xaf),
+        verseLe: l.paid_on,
         reference: l.reference,
+        note: l.note ?? null,
+        notePar: l.recorded_by_name,
+        annuleLe: l.cancelled_at,
+        motifAnnulation: l.cancel_reason,
       }));
     },
 
-    async noterPaye(semaineId, relaisId, reference) {
-      const { error } = await supabase().rpc('mark_statement_paid', {
-        p_batch: semaineId,
+    async ajouterGain(relaisId, montantXaf, gagneLe, motif) {
+      const { data, error } = await supabase().rpc('record_payout_credit', {
         p_relay: relaisId,
-        p_reference: reference,
+        p_amount_xaf: montantXaf,
+        p_earned_on: gagneLe,
+        p_reason: motif,
       });
       decider(error);
+      return data as string;
+    },
+
+    async annulerGain(gainId, motif) {
+      const { error } = await supabase().rpc('cancel_payout_credit', {
+        p_credit: gainId,
+        p_reason: motif,
+      });
+      decider(error);
+    },
+
+    async gains(): Promise<GainVu[]> {
+      const lignes = lireListe<{
+        id: string;
+        relay_id: string;
+        first_name: string;
+        amount_xaf: number;
+        earned_on: string;
+        reason: string;
+        recorded_by_name: string | null;
+        cancelled_at: string | null;
+        cancel_reason: string | null;
+      }>(await supabase().rpc('payout_credits_list', { p_limit: 100 }));
+      return lignes.map((l) => ({
+        id: l.id,
+        relaisId: l.relay_id,
+        prenom: l.first_name,
+        montantXaf: entier(l.amount_xaf),
+        gagneLe: l.earned_on,
+        motif: l.reason,
+        notePar: l.recorded_by_name,
+        annuleLe: l.cancelled_at,
+        motifAnnulation: l.cancel_reason,
+      }));
     },
 
     async enregistrerMobileMoney(relaisId, operateur, numero, titulaire) {

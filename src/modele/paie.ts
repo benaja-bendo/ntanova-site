@@ -148,7 +148,8 @@ export function factureDeLaPaie(ligne: {
 /** Ce qu'une fiche rapporte, d'après la paie : acquis pour vendredi, à payer, ou payé. Nul si elle n'est dans aucune ligne. */
 export interface PaieDUneFiche {
   montantXaf: number;
-  etat: 'acquis' | 'a_payer' | 'paye';
+  /** 19/11 : `du` = comptée dans le solde, pas encore couverte par un versement. */
+  etat: 'acquis' | 'a_payer' | 'paye' | 'du';
   vendredi: string;
   payeLe: string | null;
   /** « fiche » : la fiche elle-même ; « mission » : la mission qu'elle ferme ; « contact » : le contact confirmé. */
@@ -162,6 +163,7 @@ export function paieDeLaFiche(
       etat: 'acquis' | 'a_payer' | 'paye';
       payeLe: string | null;
       lignes?: readonly LigneDeFacture[];
+      solde?: { fichesPayees: readonly string[] };
     };
     historique: readonly {
       vendredi: string;
@@ -175,9 +177,11 @@ export function paieDeLaFiche(
   for (const semaine of [paie.acquis, ...paie.historique]) {
     const siennes = (semaine.lignes ?? []).filter((l) => l.fiches.includes(releveId));
     if (siennes.length === 0) continue;
+    // 19/11 : avec le solde, une fiche de l'acquis est payée quand les versements la couvrent, sinon due.
+    const solde = semaine === paie.acquis ? paie.acquis.solde : undefined;
     return {
       montantXaf: siennes.reduce((t, l) => t + l.tarifXaf, 0),
-      etat: semaine.etat,
+      etat: solde ? (solde.fichesPayees.includes(releveId) ? 'paye' : 'du') : semaine.etat,
       vendredi: semaine.vendredi,
       payeLe: semaine.payeLe,
       genres: siennes.map((l) => l.genre),
@@ -237,4 +241,24 @@ export function resumeDeLaSemaine(ligne: {
   if (ligne.contacts > 0) morceaux.push(`${ligne.contacts} contact${s(ligne.contacts)}`);
   if (ligne.essais > 0) morceaux.push(morceaux.length ? 'essai' : 'Essai');
   return morceaux.join(' · ');
+}
+
+// 19/11 : un solde et des versements -------------------------------------------------------------------------------------------------------
+
+const formatJour = (options: Intl.DateTimeFormatOptions) => (jour: string) => {
+  const [a = 0, m = 1, j = 1] = jour.slice(0, 10).split('-').map(Number);
+  return new Intl.DateTimeFormat('fr-FR', { ...options, timeZone: 'UTC' }).format(
+    new Date(Date.UTC(a, m - 1, j)),
+  );
+};
+/** « 19 nov. » */
+export const jourCourt = formatJour({ day: 'numeric', month: 'short' });
+/** « 19 novembre » */
+export const jourLong = formatJour({ day: 'numeric', month: 'long' });
+
+/** Un montant tapé (« 5 000 », « 5000 FCFA ») en francs entiers ; nul s'il n'en est pas un. */
+export function lireMontant(texte: string): number | null {
+  const chiffres_ = texte.replace(/fcfa/i, '').replace(/[\s\u00a0\u202f.]/g, '');
+  if (!/^\d{1,8}$/.test(chiffres_)) return null;
+  return Number(chiffres_);
 }

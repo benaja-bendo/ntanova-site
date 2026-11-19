@@ -249,6 +249,11 @@ function phraseDeLaPaie(
     const quoi = p.genres.includes('mission') ? 'La mission' : 'Cette fiche';
     if (p.etat === 'paye')
       return { texte: `${quoi} : payée${p.payeLe ? ` le ${jour(p.payeLe)}` : ''}`, montant };
+    if (p.etat === 'du')
+      return {
+        texte: `${quoi} : pas encore payée, comptée dans ce que NTanova vous doit`,
+        montant,
+      };
     if (p.etat === 'a_payer')
       return { texte: `${quoi} : à payer (semaine du ${vendrediLong(p.vendredi)} close)`, montant };
     return { texte: `Comptée dans la paie du ${vendrediLong(p.vendredi)}`, montant };

@@ -347,6 +347,13 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
         reference: string | null;
         /** Lot F (M10) : absente d'une base d'avant la migration. */
         lines?: { kind: string; unit_xaf: number; count: number; submissions?: string[] | null }[] | null;
+        /** 19/11 : le solde, sur la ligne de l'acquis ; absents d'une base d'avant la migration. */
+        earned_xaf?: number | null;
+        received_xaf?: number | null;
+        balance_xaf?: number | null;
+        transfers?: { paid_on: string; amount_xaf: number; reference: string | null }[] | null;
+        paid_submissions?: string[] | null;
+        credits?: { earned_on: string; amount_xaf: number; reason: string }[] | null;
       }>(await supabase().rpc('my_payout'));
       const genres: Record<string, LigneDeFacture['genre']> = {
         submission: 'fiche',
@@ -374,6 +381,26 @@ export function creerPortRelais(supabase: () => SupabaseClient): PortRelais {
                   ? [{ genre, tarifXaf: x.unit_xaf, nombre: x.count, fiches: x.submissions ?? [] }]
                   : [];
               }),
+            }
+          : {}),
+        ...(typeof l.balance_xaf === 'number'
+          ? {
+              solde: {
+                gagneXaf: l.earned_xaf ?? 0,
+                recuXaf: l.received_xaf ?? 0,
+                resteXaf: l.balance_xaf,
+                versements: (l.transfers ?? []).map((t) => ({
+                  verseLe: t.paid_on,
+                  montantXaf: t.amount_xaf,
+                  reference: t.reference,
+                })),
+                fichesPayees: l.paid_submissions ?? [],
+                gains: (l.credits ?? []).map((c) => ({
+                  gagneLe: c.earned_on,
+                  montantXaf: c.amount_xaf,
+                  motif: c.reason,
+                })),
+              },
             }
           : {}),
       });

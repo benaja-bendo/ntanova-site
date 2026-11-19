@@ -13,7 +13,7 @@ import { choisirLaZone, ouvrirFiche, retourAuxEcoles, retourAuxZones, seConnecte
 
 // Chantier 3 : l'administration comme poste de pilotage du catalogue. Les photos côte à côte, les formations
 // lues sur le panneau, quatre façons d'accepter un relevé, le pont WhatsApp avec la direction, l'amorçage par
-// création ou par import (avec simulation), les zones et les lots, la paie du vendredi. Construit avec le faux
+// création ou par import (avec simulation), les zones et les lots, la paie (solde et versements). Construit avec le faux
 // serveur : l'utilisateur est à la fois relais (lot Tié-Tié) et administrateur.
 
 test.use({ permissions: ['geolocation'] });
@@ -660,9 +660,12 @@ test.describe('zones et lots', () => {
   });
 });
 
-test.describe('la paie du vendredi', () => {
+// 19/11 : la clôture du vendredi quitte l'écran (décision du fondateur). Chaque relais a un solde ; on note un versement à
+// tout moment, tout ou partie, jamais plus ; une erreur s'annule et reste lisible. Ce parcours remplace « la paie du
+// vendredi » (clôture puis « Noter payé »).
+test.describe('la paie : un solde et des versements', () => {
   test(
-    'ce qui est dû, la clôture, le paiement noté avec sa référence, et rien de compté deux fois',
+    'le reste dû, un versement partiel, le plafond, puis une annulation qui remonte le reste dû',
     { tag: '@critique' },
     async ({ page, context }) => {
       test.setTimeout(120_000);
@@ -678,54 +681,110 @@ test.describe('la paie du vendredi', () => {
 
       await ouvrirEcranAdmin(page, 'Paie');
       await expect(page.getByRole('heading', { name: 'Paie' })).toBeVisible();
-      const du = page.getByRole('region', { name: 'Ce qui est dû' });
-
       // Une fiche acceptée (500 FCFA) et un contact confirmé (300 FCFA).
-      const ligne = du.getByRole('row', { name: /\[Prénom\]/ });
-      await expect(ligne).toBeVisible();
-      await expect(ligne.getByRole('cell').nth(1)).toHaveText('1');
-      await expect(ligne.getByRole('cell').nth(2)).toHaveText('1');
-      await expect(du.getByText(/Total\s*:\s*800\sFCFA/)).toBeVisible();
-
-      // Le numéro Mobile Money se note une fois.
-      await du.getByRole('textbox', { name: 'Numéro Mobile Money' }).fill('242 06 123 45 99');
-      await du.getByRole('button', { name: 'Noter le numéro' }).click();
-      await expect(ligne.getByText('noté', { exact: true })).toBeVisible();
-
-      // Clôturer : en deux gestes.
-      await du.getByRole('button', { name: 'Clôturer la semaine' }).click();
-      await du.getByRole('button', { name: 'Confirmer : clôturer la semaine' }).click();
-      await expect(page.getByRole('status')).toHaveText(/est clôturée : 800\sFCFA à payer/);
-      // Ce qui est clôturé n'est plus dû.
-      await expect(du.getByText('Rien n’est dû jusqu’à ce vendredi.')).toBeVisible();
-
-      // Le détail de la semaine s'ouvre : on note le paiement avec la référence de l'opération.
-      const paiements = page.getByLabel(/Paiements du \d{4}-\d{2}-\d{2}/);
-      await expect(paiements.getByText('+242 06 123 45 99')).toBeVisible();
-      const noter = paiements.getByRole('button', { name: 'Noter payé' });
-      await expect(noter).toBeDisabled();
-      await paiements.getByLabel('Référence du paiement de [Prénom]').fill('MM-0001');
-      await noter.click();
-      await expect(page.getByRole('status')).toHaveText(
-        /\[Prénom\] : 800\sFCFA noté payé \(référence MM-0001\)\./,
+      await expect(page.getByRole('region', { name: 'Reste dû aux relais' })).toContainText(
+        /800\sFCFA/,
       );
-      await expect(paiements.getByText(/Payé .* · MM-0001/)).toBeVisible();
-      await expect(page.getByRole('row', { name: /1 \/ 1/ })).toBeVisible();
+      const ligne = page.getByRole('row', { name: '[Prénom]', exact: true });
+      await expect(ligne).toContainText('Numéro Mobile Money manquant');
+
+      // Sans numéro, on ne verse pas : on l'ajoute d'abord.
+      await ligne.getByRole('button', { name: 'Ajouter son numéro' }).click();
+      const feuille = page.getByRole('dialog', { name: 'Numéro Mobile Money' });
+      await feuille.getByRole('textbox', { name: 'Numéro Mobile Money' }).fill('242 06 123 45 99');
+      await feuille.getByRole('button', { name: 'Noter le numéro' }).click();
+      await expect(ligne).toContainText('+242 06 123 45 99');
+
+      // Le montant est pré-rempli au reste dû ; plus que le reste dû est refusé.
+      await ligne.getByRole('button', { name: 'Noter un versement' }).click();
+      const versement = page.getByRole('dialog', { name: 'Noter un versement' });
+      const montant = versement.getByRole('textbox', { name: 'Montant versé' });
+      await expect(montant).toHaveValue(/^800$/);
+      await montant.fill('900');
+      await expect(versement.getByText(/Plus que le reste dû \(800\sFCFA\)/)).toBeVisible();
+      await expect(versement.getByRole('button', { name: 'Noter le versement' })).toBeDisabled();
+
+      // Un versement partiel, avec sa référence : la conséquence se lit avant le geste.
+      await montant.fill('500');
+      await versement.getByRole('textbox', { name: /Référence Mobile Money/ }).fill('MM-0001');
+      await expect(versement).toContainText(/NTanova vous doit 300\sFCFA/);
+      await versement.getByRole('button', { name: /Noter 500\sFCFA versés/ }).click();
+      await expect(page.getByRole('status')).toHaveText(
+        /\[Prénom\] : 500\sFCFA versés\. Il lit maintenant 300\sFCFA dus\./,
+      );
+      await expect(ligne).toContainText(/300\sFCFA/);
+      const liste = page.getByRole('table', { name: 'Derniers versements' });
+      await expect(liste).toContainText('réf. MM-0001');
+
+      // Une erreur s'annule, avec son motif : le reste dû remonte, la ligne reste lisible.
+      await liste.getByRole('button', { name: /Annuler le versement du/ }).click();
+      const annuler = page.getByRole('alertdialog', { name: 'Annuler ce versement' });
+      await expect(annuler.getByRole('button', { name: 'Annuler le versement' })).toBeDisabled();
+      await annuler.getByRole('textbox', { name: 'Pourquoi ?' }).fill('erreur de montant');
+      await annuler.getByRole('button', { name: 'Annuler le versement' }).click();
+      await expect(page.getByRole('status')).toHaveText(/annulé : 500\sFCFA redeviennent dus/);
+      await expect(ligne).toContainText(/800\sFCFA/);
+      await expect(liste).toContainText('Annulé : erreur de montant');
     },
   );
 
-  test('on ne clôt qu’un vendredi', async ({ page }) => {
-    await seConnecter(page, '/admin/#valider');
+  test('un travail hors de l’application : un gain ajouté compte dans le reste dû, le relais lit ses mots', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(120_000);
+    await relaisConnecte(page, context);
+    await envoyerUnLycee(page, '[Lycée C]');
+    await ouvrirLEnvoi(page, '[Lycée C]');
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
     await ouvrirEcranAdmin(page, 'Paie');
-    const champ = page.getByLabel('Jusqu’au vendredi');
-    const vendredi = await champ.inputValue();
-    expect(new Date(`${vendredi}T12:00:00Z`).getUTCDay()).toBe(5);
-    await expect(page.getByText('Rien n’est dû jusqu’à ce vendredi.')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Reste dû aux relais' })).toContainText(
+      /500\sFCFA/,
+    );
 
-    const samedi = new Date(`${vendredi}T12:00:00Z`);
-    samedi.setUTCDate(samedi.getUTCDate() + 1);
-    await champ.fill(samedi.toISOString().slice(0, 10));
-    await expect(page.getByText('Choisis un vendredi.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Clôturer la semaine' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Ajouter un gain' }).click();
+    const feuille = page.getByRole('dialog', { name: 'Ajouter un gain' });
+    await feuille.getByRole('combobox', { name: 'Relais' }).selectOption({ label: '[Prénom]' });
+    await feuille.getByRole('textbox', { name: 'Pour quel travail' }).fill('Contacts du supérieur');
+    await feuille.getByRole('textbox', { name: 'Montant' }).fill('5000');
+    await expect(feuille).toContainText(/lira dans sa paie\s*:\s*Contacts du supérieur · 5\s000/);
+    await feuille.getByRole('button', { name: /Ajouter 5\s000\sFCFA/ }).click();
+    await expect(page.getByRole('status')).toHaveText(/5\s000\sFCFA ajoutés/);
+    await expect(page.getByRole('region', { name: 'Reste dû aux relais' })).toContainText(
+      /5\s500\sFCFA/,
+    );
+    await expect(page.getByRole('region', { name: 'Gains ajoutés' })).toContainText(
+      'Contacts du supérieur',
+    );
+
+    await page.goto('/relais/#paie');
+    const doit = page.getByRole('region', { name: 'Ce que NTanova vous doit' });
+    await expect(doit).toContainText('5 500 FCFA', { timeout: 15_000 });
+    await expect(doit).toContainText('Contacts du supérieur');
+  });
+
+  test('tout versé : le relais passe dans « à jour, rien à verser »', async ({ page, context }) => {
+    test.setTimeout(120_000);
+    await relaisConnecte(page, context);
+    await envoyerUnLycee(page, '[Lycée B]');
+    await ouvrirLEnvoi(page, '[Lycée B]');
+    await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+    await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+    await ouvrirEcranAdmin(page, 'Paie');
+    const ligne = page.getByRole('row', { name: '[Prénom]', exact: true });
+    await ligne.getByRole('button', { name: 'Ajouter son numéro' }).click();
+    const feuille = page.getByRole('dialog', { name: 'Numéro Mobile Money' });
+    await feuille.getByRole('textbox', { name: 'Numéro Mobile Money' }).fill('242 06 123 45 99');
+    await feuille.getByRole('button', { name: 'Noter le numéro' }).click();
+    await ligne.getByRole('button', { name: 'Noter un versement' }).click();
+    await page
+      .getByRole('dialog', { name: 'Noter un versement' })
+      .getByRole('button', { name: /Noter 500\sFCFA versés/ })
+      .click();
+    await expect(page.getByText('Rien à verser.')).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: '1 relais à jour, rien à verser' }),
+    ).toBeVisible();
   });
 });

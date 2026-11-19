@@ -63,7 +63,7 @@ import { peutParaitreSurLeSite, type EtatPhotoPublique } from '../../modele/phot
 import { distanceMetres, type Point } from '../../modele/geo';
 import { messageManquant } from '../../modele/decision';
 import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
-import { prochainVendredi } from '../../modele/paie';
+import { jourABrazzaville, prochainVendredi } from '../../modele/paie';
 import { etatDesPlanches } from './scenario-planches';
 import { etatDesPlanchesAdmin } from './scenario-admin';
 import {
@@ -202,6 +202,28 @@ interface LotFaux {
   divisionId: string;
 }
 
+interface VersementFaux {
+  id: string;
+  relaisId: string;
+  montantXaf: number;
+  verseLe: string;
+  reference: string | null;
+  noteLe: string;
+  annuleLe: string | null;
+  motif: string | null;
+}
+
+interface GainFaux {
+  id: string;
+  relaisId: string;
+  montantXaf: number;
+  gagneLe: string;
+  motif: string;
+  noteLe: string;
+  annuleLe: string | null;
+  motifAnnulation: string | null;
+}
+
 interface SemaineFausse {
   id: string;
   vendredi: string;
@@ -288,6 +310,10 @@ interface Etat {
     semaines: SemaineFausse[];
     numeros: Record<string, { operateur: string; numero: string; titulaire?: string | null }>;
     deja: string[];
+    /** 19/11 : les versements notés par l'administration (absents d'un état gardé avant). */
+    versements?: VersementFaux[];
+    /** 19/11 au soir : les gains ajoutés à la main (travail hors de l'application). */
+    gains?: GainFaux[];
   };
   /** Les relevés qu'un autre relais a envoyés et qui attendent : ils apparaissent dans les lieux connus. */
   autresReleves: { id: string; nom: string; latitude: number; longitude: number }[];
@@ -491,6 +517,85 @@ function etatPhotoFaux(e: Etat, ecoleId: string): EtatPhotoPublique {
     retenueId = controlees.find((p) => p.id === choix && p.publique === true)?.id ?? null;
   }
   return { mode, choisieId: typeof choix === 'string' ? choix : null, publiee, retenueId };
+}
+
+/** Ce qui n'est pas clos, comme `payable_items_for` : le faux serveur n'a qu'un relais, l'utilisateur. */
+async function apercuDuFaux() {
+  await reseau();
+  const e = lireEtat();
+  const lignes = new Map<string, { fiches: number; contacts: number; essais: number }>();
+  const ligne = () => lignes.get(MOI) ?? { fiches: 0, contacts: 0, essais: 0 };
+  for (const r of Object.values(e.releves)) {
+    const d = e.decisions[r.id];
+    if (!d || e.paie.deja.includes(`${r.id}|fiche`)) continue;
+    const essai = lotDe(r.lotId, e).essai;
+    if (!essai && d.statut === 'accepte' && d.payable && r.type !== 'correction') {
+      lignes.set(MOI, { ...ligne(), fiches: ligne().fiches + 1 });
+    }
+    if (
+      !essai &&
+      d.statut === 'accepte' &&
+      d.contactConfirmeLe &&
+      d.contactFonction !== 'secretariat' &&
+      !e.paie.deja.includes(`${r.id}|contact`)
+    ) {
+      lignes.set(MOI, { ...ligne(), contacts: ligne().contacts + 1 });
+    }
+  }
+  const validesEssai = Object.values(e.releves).filter(
+    (r) => lotDe(r.lotId, e).essai && e.decisions[r.id]?.essaiValideLe,
+  ).length;
+  if (validesEssai >= 3 && !e.paie.deja.includes('essai')) {
+    lignes.set(MOI, { ...ligne(), essais: 1 });
+  }
+  return [...lignes.entries()].map(([relaisId, l]) => ({
+    relaisId,
+    prenom: '[Prénom]',
+    fiches: l.fiches,
+    contacts: l.contacts,
+    essais: l.essais,
+    totalXaf: l.fiches * 500 + l.contacts * 300 + l.essais * 1500,
+    numeroConnu: relaisId in e.paie.numeros,
+  }));
+}
+
+/** Le prénom d'un relais du faux serveur : celui d'une semaine close s'il en a une (cas extrêmes), sinon « [Prénom] ». */
+function prenomDuFaux(e: Etat, relaisId: string): string {
+  return (
+    e.paie.semaines.flatMap((x) => x.lignes).find((l) => l.relaisId === relaisId)?.prenom ??
+    '[Prénom]'
+  );
+}
+
+/**
+ * 19/11 : le solde d'un relais dans le faux serveur. Gagné : ce qui n'est pas clos (et les missions de l'utilisateur), plus
+ * les semaines closes. Reçu : les versements non annulés et les semaines notées « payées », le plus récent d'abord.
+ */
+async function soldeDuFaux(relaisId: string) {
+  const e = lireEtat();
+  const ouvert = (await apercuDuFaux()).find((l) => l.relaisId === relaisId)?.totalXaf ?? 0;
+  const missions =
+    relaisId === MOI ? (e.paieMissions ?? []).reduce((t, m) => t + m.tarifXaf * m.nombre, 0) : 0;
+  const clos = e.paie.semaines.reduce(
+    (t, x) => t + (x.lignes.find((l) => l.relaisId === relaisId)?.totalXaf ?? 0),
+    0,
+  );
+  const recus = [
+    ...(e.paie.versements ?? [])
+      .filter((v) => v.relaisId === relaisId && !v.annuleLe)
+      .map((v) => ({ verseLe: v.verseLe, montantXaf: v.montantXaf, reference: v.reference })),
+    ...e.paie.semaines.flatMap((x) => {
+      const p = x.payes[relaisId];
+      const l = x.lignes.find((y) => y.relaisId === relaisId);
+      return p && l && l.totalXaf > 0
+        ? [{ verseLe: p.le.slice(0, 10), montantXaf: l.totalXaf, reference: p.reference || null }]
+        : [];
+    }),
+  ].sort((x, y) => y.verseLe.localeCompare(x.verseLe));
+  const gains = (e.paie.gains ?? [])
+    .filter((g) => g.relaisId === relaisId && !g.annuleLe)
+    .reduce((t, g) => t + g.montantXaf, 0);
+  return { gagne: ouvert + missions + clos + gains, recus };
 }
 
 /** Les lignes de la paie du faux serveur, aux tarifs qu'il applique (500 la fiche, 300 le contact, 1 500 l'essai). */
@@ -806,7 +911,7 @@ const relais: PortRelais = {
     // Comme `my_payout` : l'acquis du prochain vendredi (le calcul de l'administration, pour le seul relais), puis les
     // semaines closes. Les montants sont ceux de l'administration : le faux serveur n'en invente pas d'autres.
     const vendredi = prochainVendredi();
-    const [ligne] = await admin.apercuPaie(vendredi);
+    const [ligne] = await apercuDuFaux();
     const nonPayables = Object.values(e.releves).filter((r) => {
       const d = e.decisions[r.id];
       return (
@@ -850,8 +955,33 @@ const relais: PortRelais = {
       .map((r) => r.id);
     const missions = e.paieMissions ?? [];
     const enMissions = missions.reduce((t, m) => t + m.tarifXaf * m.nombre, 0);
+    // 19/11 : le solde, et les fiches couvertes par ce qui est reçu (les semaines closes d'abord, plus anciennes).
+    const { gagne, recus } = await soldeDuFaux(MOI);
+    const recu = recus.reduce((t, v) => t + v.montantXaf, 0);
+    let couvre =
+      recu -
+      e.paie.semaines.reduce(
+        (t, x) => t + (x.lignes.find((l) => l.relaisId === MOI)?.totalXaf ?? 0),
+        0,
+      );
+    const fichesPayees: string[] = [];
+    for (const id of payees) {
+      if (couvre < 500) break;
+      couvre -= 500;
+      fichesPayees.push(id);
+    }
     return {
       acquis: {
+        solde: {
+          gagneXaf: gagne,
+          recuXaf: recu,
+          resteXaf: gagne - recu,
+          versements: recus,
+          fichesPayees,
+          gains: (e.paie.gains ?? [])
+            .filter((g) => g.relaisId === MOI && !g.annuleLe)
+            .map((g) => ({ gagneLe: g.gagneLe, montantXaf: g.montantXaf, motif: g.motif })),
+        },
         vendredi,
         etat: 'acquis' as const,
         fiches: ligne?.fiches ?? 0,
@@ -3035,112 +3165,152 @@ const admin: PortAdministration = {
     ecrire((e) => (e.messages[campusId] ??= new Date().toISOString()));
   },
 
-  async apercuPaie(vendredi) {
+  async soldesPaie() {
     await reseau();
     const e = lireEtat();
-    const lignes = new Map<string, { fiches: number; contacts: number; essais: number }>();
-    const ligne = () => lignes.get(MOI) ?? { fiches: 0, contacts: 0, essais: 0 };
-    for (const r of Object.values(e.releves)) {
-      const d = e.decisions[r.id];
-      if (!d || e.paie.deja.includes(`${r.id}|fiche`)) continue;
-      const essai = lotDe(r.lotId, e).essai;
-      if (!essai && d.statut === 'accepte' && d.payable && r.type !== 'correction') {
-        lignes.set(MOI, { ...ligne(), fiches: ligne().fiches + 1 });
-      }
-      if (
-        !essai &&
-        d.statut === 'accepte' &&
-        d.contactConfirmeLe &&
-        d.contactFonction !== 'secretariat' &&
-        !e.paie.deja.includes(`${r.id}|contact`)
-      ) {
-        lignes.set(MOI, { ...ligne(), contacts: ligne().contacts + 1 });
-      }
-    }
-    const validesEssai = Object.values(e.releves).filter(
-      (r) => lotDe(r.lotId, e).essai && e.decisions[r.id]?.essaiValideLe,
-    ).length;
-    if (validesEssai >= 3 && !e.paie.deja.includes('essai')) {
-      lignes.set(MOI, { ...ligne(), essais: 1 });
-    }
-    void vendredi;
-    return [...lignes.entries()].map(([relaisId, l]) => ({
-      relaisId,
-      prenom: '[Prénom]',
-      fiches: l.fiches,
-      contacts: l.contacts,
-      essais: l.essais,
-      totalXaf: l.fiches * 500 + l.contacts * 300 + l.essais * 1500,
-      numeroConnu: relaisId in e.paie.numeros,
-    }));
+    const ids = new Set([
+      ...(await apercuDuFaux()).map((l) => l.relaisId),
+      ...(e.paieMissions?.length ? [MOI] : []),
+      ...e.paie.semaines.flatMap((x) => x.lignes.map((l) => l.relaisId)),
+      ...(e.paie.versements ?? []).map((v) => v.relaisId),
+      ...(e.paie.gains ?? []).map((g) => g.relaisId),
+    ]);
+    const soldes = await Promise.all(
+      [...ids].map(async (id) => {
+        const { gagne, recus } = await soldeDuFaux(id);
+        const verse = recus.reduce((t, v) => t + v.montantXaf, 0);
+        const n = e.paie.numeros[id];
+        return {
+          relaisId: id,
+          prenom: prenomDuFaux(e, id),
+          gagneXaf: gagne,
+          verseXaf: verse,
+          resteXaf: gagne - verse,
+          operateur: n?.operateur ?? null,
+          numero: n?.numero ?? null,
+          titulaire: n?.titulaire ?? null,
+          dernierLe: recus[0]?.verseLe ?? null,
+          dernierXaf: recus[0]?.montantXaf ?? null,
+        };
+      }),
+    );
+    return soldes.sort((x, y) => y.resteXaf - x.resteXaf);
   },
-  async cloturerPaie(vendredi) {
+  async noterVersement(relaisId, montantXaf, verseLe, reference) {
     await reseau();
-    const e0 = lireEtat();
-    if (new Date(`${vendredi}T12:00:00Z`).getUTCDay() !== 5)
-      throw new ErreurDecision('La semaine se clôt un vendredi.');
-    if (e0.paie.semaines.some((s) => s.vendredi === vendredi)) {
-      throw new ErreurDecision(`La semaine du ${vendredi} est déjà clôturée.`);
-    }
-    const lignes = (await admin.apercuPaie(vendredi)).map((l) => ({
-      relaisId: l.relaisId,
-      prenom: l.prenom,
-      fiches: l.fiches,
-      contacts: l.contacts,
-      essais: l.essais,
-      totalXaf: l.totalXaf,
-    }));
+    if (!Number.isInteger(montantXaf) || montantXaf <= 0)
+      throw new ErreurDecision('Le montant versé doit être plus grand que 0.');
+    if (verseLe > jourABrazzaville(new Date()))
+      throw new ErreurDecision('La date du versement ne peut pas être dans le futur.');
+    const { gagne, recus } = await soldeDuFaux(relaisId);
+    const reste = gagne - recus.reduce((t, v) => t + v.montantXaf, 0);
+    if (montantXaf > reste)
+      throw new ErreurDecision(
+        `Plus que le reste dû (${Math.max(reste, 0)} FCFA). Une avance n'est pas permise.`,
+      );
     const id = crypto.randomUUID();
-    ecrire((e) => {
-      e.paie.semaines.push({ id, vendredi, lignes, payes: {} });
-      for (const r of Object.values(e.releves)) {
-        if (e.decisions[r.id]?.statut === 'accepte')
-          e.paie.deja.push(`${r.id}|fiche`, `${r.id}|contact`);
-      }
-      if (lignes.some((l) => l.essais > 0)) e.paie.deja.push('essai');
-    });
+    ecrire((e) =>
+      (e.paie.versements ??= []).push({
+        id,
+        relaisId,
+        montantXaf,
+        verseLe,
+        reference: reference?.trim() || null,
+        noteLe: new Date().toISOString(),
+        annuleLe: null,
+        motif: null,
+      }),
+    );
     return id;
   },
-  async semainesPaie() {
+  async annulerVersement(versementId, motif) {
     await reseau();
-    return lireEtat().paie.semaines.map((s) => ({
-      id: s.id,
-      vendredi: s.vendredi,
-      totalXaf: s.lignes.reduce((t, l) => t + l.totalXaf, 0),
-      relais: s.lignes.length,
-      payes: Object.keys(s.payes).length,
-    }));
+    if (motif.trim().length < 2)
+      throw new ErreurDecision('Dites pourquoi ce versement est annulé.');
+    const v = (lireEtat().paie.versements ?? []).find((x) => x.id === versementId);
+    if (!v || v.annuleLe) throw new ErreurDecision('Versement introuvable ou déjà annulé.');
+    ecrire((e) => {
+      const x = (e.paie.versements ?? []).find((y) => y.id === versementId);
+      if (x) {
+        x.annuleLe = new Date().toISOString();
+        x.motif = motif.trim();
+      }
+    });
   },
-  async paiementsDeLaSemaine(semaineId) {
+  async versements() {
+    await reseau();
+    return [...(lireEtat().paie.versements ?? [])]
+      .sort((x, y) => y.verseLe.localeCompare(x.verseLe) || y.noteLe.localeCompare(x.noteLe))
+      .map((v) => ({
+        id: v.id,
+        relaisId: v.relaisId,
+        prenom: prenomDuFaux(lireEtat(), v.relaisId),
+        montantXaf: v.montantXaf,
+        verseLe: v.verseLe,
+        reference: v.reference,
+        note: null,
+        notePar: '[Prénom]',
+        annuleLe: v.annuleLe,
+        motifAnnulation: v.motif,
+      }));
+  },
+  async ajouterGain(relaisId, montantXaf, gagneLe, motif) {
+    await reseau();
+    if (!Number.isInteger(montantXaf) || montantXaf <= 0)
+      throw new ErreurDecision('Le montant doit être plus grand que 0.');
+    if (motif.trim().length < 2)
+      throw new ErreurDecision('Dites pour quel travail : le relais le lira.');
+    if (gagneLe > jourABrazzaville(new Date()))
+      throw new ErreurDecision('La date du travail ne peut pas être dans le futur.');
+    const id = crypto.randomUUID();
+    ecrire((e) =>
+      (e.paie.gains ??= []).push({
+        id,
+        relaisId,
+        montantXaf,
+        gagneLe,
+        motif: motif.trim(),
+        noteLe: new Date().toISOString(),
+        annuleLe: null,
+        motifAnnulation: null,
+      }),
+    );
+    return id;
+  },
+  async annulerGain(gainId, motif) {
+    await reseau();
+    if (motif.trim().length < 2) throw new ErreurDecision('Dites pourquoi ce gain est annulé.');
+    const g = (lireEtat().paie.gains ?? []).find((x) => x.id === gainId);
+    if (!g || g.annuleLe) throw new ErreurDecision('Gain introuvable ou déjà annulé.');
+    const { gagne, recus } = await soldeDuFaux(g.relaisId);
+    if (gagne - g.montantXaf < recus.reduce((t, v) => t + v.montantXaf, 0))
+      throw new ErreurDecision(
+        'Le relais a déjà reçu cet argent : annulez d’abord le versement qui le paie.',
+      );
+    ecrire((e) => {
+      const x = (e.paie.gains ?? []).find((y) => y.id === gainId);
+      if (x) {
+        x.annuleLe = new Date().toISOString();
+        x.motifAnnulation = motif.trim();
+      }
+    });
+  },
+  async gains() {
     await reseau();
     const e = lireEtat();
-    const semaine = e.paie.semaines.find((s) => s.id === semaineId);
-    if (!semaine) throw new ErreurDecision('Semaine introuvable.');
-    return semaine.lignes.map((l) => ({
-      relaisId: l.relaisId,
-      prenom: l.prenom,
-      totalXaf: l.totalXaf,
-      fiches: l.fiches,
-      contacts: l.contacts,
-      essais: l.essais,
-      operateur: e.paie.numeros[l.relaisId]?.operateur ?? null,
-      numero: e.paie.numeros[l.relaisId]?.numero ?? null,
-      titulaire: e.paie.numeros[l.relaisId]?.titulaire ?? null,
-      payeLe: semaine.payes[l.relaisId]?.le ?? null,
-      reference: semaine.payes[l.relaisId]?.reference ?? null,
-    }));
-  },
-  async noterPaye(semaineId, relaisId, reference) {
-    await reseau();
-    if (reference.trim() === '')
-      throw new ErreurDecision('Il faut la référence de l’opération Mobile Money.');
-    const semaine = lireEtat().paie.semaines.find((s) => s.id === semaineId);
-    if (!semaine || relaisId in semaine.payes)
-      throw new ErreurDecision('Paiement introuvable ou déjà noté.');
-    ecrire((e) => {
-      const s = e.paie.semaines.find((x) => x.id === semaineId);
-      if (s) s.payes[relaisId] = { le: new Date().toISOString(), reference: reference.trim() };
-    });
+    return [...(e.paie.gains ?? [])]
+      .sort((x, y) => y.gagneLe.localeCompare(x.gagneLe) || y.noteLe.localeCompare(x.noteLe))
+      .map((g) => ({
+        id: g.id,
+        relaisId: g.relaisId,
+        prenom: prenomDuFaux(e, g.relaisId),
+        montantXaf: g.montantXaf,
+        gagneLe: g.gagneLe,
+        motif: g.motif,
+        notePar: '[Prénom]',
+        annuleLe: g.annuleLe,
+        motifAnnulation: g.motifAnnulation,
+      }));
   },
   async enregistrerMobileMoney(relaisId, operateur, numero, titulaire) {
     await reseau();
