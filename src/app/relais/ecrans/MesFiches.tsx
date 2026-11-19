@@ -228,7 +228,7 @@ function rang(l: Ligne): number {
 }
 
 /** La phrase sous le nom : ce que NTanova a dit, sinon ce qui se passe. */
-function phraseDe(l: Ligne, payees: ReadonlySet<string> = new Set()): string {
+function phraseDe(l: Ligne, payees: ReadonlySet<string> = new Set(), avecSolde = false): string {
   if (l.message) return `NTanova : « ${l.message} »`;
   if (l.repasser) return `À repasser : ${l.repasser}`;
   if (l.peutAjouterLeContact) return 'À repasser : la direction était absente';
@@ -244,7 +244,9 @@ function phraseDe(l: Ligne, payees: ReadonlySet<string> = new Set()): string {
   if (l.enLigne) return 'Sa page est en ligne';
   if (l.fiche.classe === 'etat-verifiee')
     return payees.has(l.id)
-      ? 'Comptée dans la paie de vendredi'
+      ? avecSolde
+        ? 'Acceptée · payée'
+        : 'Comptée dans la paie de vendredi'
       : `Acceptée · relevée ${quand(l.date)}`;
   if (l.fiche.libelle === 'Correction envoyée') return 'Correction envoyée · NTanova la regarde';
   if (l.fiche.classe === 'etat-envoye') return 'Reçue par NTanova';
@@ -280,9 +282,13 @@ export function MesFiches() {
   const paie = useRequete(async () => (await lireMemoire('paie')) ?? null);
   if (locales === undefined || recusLus === undefined || paie === undefined)
     return <ChargementEcran titre="Mes fiches" />;
-  // Les fiches que la paie de vendredi compte déjà (« Comptée dans la paie de vendredi »).
+  // 19/11 : avec le solde, les fiches que les versements couvrent (« payée ») ; sans (paie gardée avant la mise à jour),
+  // celles que la paie de vendredi compte déjà.
+  const solde = paie?.acquis.solde;
   const payees = new Set(
-    (paie?.acquis.lignes ?? []).filter((x) => x.genre === 'fiche').flatMap((x) => x.fiches),
+    solde
+      ? solde.fichesPayees
+      : (paie?.acquis.lignes ?? []).filter((x) => x.genre === 'fiche').flatMap((x) => x.fiches),
   );
   const recus = recusLus ?? [];
 
@@ -374,7 +380,7 @@ export function MesFiches() {
                         aspect === 'corriger' ? 'text-foreground' : 'text-muted-foreground',
                       )}
                     >
-                      {phraseDe(l, payees)}
+                      {phraseDe(l, payees, !!solde)}
                     </span>
                   </span>
                   <Badge

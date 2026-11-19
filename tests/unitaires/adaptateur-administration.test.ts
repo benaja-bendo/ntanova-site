@@ -1049,52 +1049,60 @@ describe('l’adaptateur Supabase de l’administration', () => {
   });
 
   describe('la paie', () => {
-    it('lit ce qui est dû dans les termes du modèle', async () => {
+    it('lit le solde de chaque relais dans les termes du modèle (19/11)', async () => {
       const { port, appels } = fausseApi({
-        payout_preview: {
+        payout_balances: {
           data: [
             {
               relay_id: 'a',
               first_name: '[A]',
-              submissions: 4,
-              contacts: 1,
-              trial_bundles: 0,
-              total_xaf: 2300,
-              has_payment_details: true,
+              earned_xaf: 2000,
+              paid_xaf: 1500,
+              balance_xaf: 500,
+              operator: 'mtn',
+              msisdn: '242061234567',
+              holder_name: '[Titulaire]',
+              last_paid_on: '2026-11-18',
+              last_paid_xaf: 1200,
             },
           ],
           error: null,
         },
       });
-      await expect(port.apercuPaie('2026-11-06')).resolves.toEqual([
+      await expect(port.soldesPaie()).resolves.toEqual([
         {
           relaisId: 'a',
           prenom: '[A]',
-          fiches: 4,
-          contacts: 1,
-          essais: 0,
-          totalXaf: 2300,
-          numeroConnu: true,
+          gagneXaf: 2000,
+          verseXaf: 1500,
+          resteXaf: 500,
+          operateur: 'mtn',
+          numero: '242061234567',
+          titulaire: '[Titulaire]',
+          dernierLe: '2026-11-18',
+          dernierXaf: 1200,
         },
       ]);
-      expect(appels[0]).toEqual({ nom: 'payout_preview', arguments: { p_friday: '2026-11-06' } });
+      expect(appels[0]).toEqual({ nom: 'payout_balances', arguments: undefined });
     });
 
-    it('clôture la semaine, note un paiement, enregistre un numéro Mobile Money', async () => {
-      const { port, appels } = fausseApi({ close_payout_week: { data: 'semaine-1', error: null } });
-      await expect(port.cloturerPaie('2026-11-06')).resolves.toBe('semaine-1');
-      await port.noterPaye('semaine-1', 'a', 'MP-123');
+    it('note un versement, l’annule, enregistre un numéro Mobile Money', async () => {
+      const { port, appels } = fausseApi({ record_payout_transfer: { data: 'v-1', error: null } });
+      await expect(port.noterVersement('a', 1200, '2026-11-18', 'MP-123')).resolves.toBe('v-1');
+      await port.annulerVersement('v-1', '[erreur de montant]');
       await port.enregistrerMobileMoney('a', 'mtn', '242061234567');
       expect(appels.map((a) => a.nom)).toEqual([
-        'close_payout_week',
-        'mark_statement_paid',
+        'record_payout_transfer',
+        'cancel_payout_transfer',
         'set_relay_payment_details',
       ]);
-      expect(appels[1]?.arguments).toEqual({
-        p_batch: 'semaine-1',
+      expect(appels[0]?.arguments).toEqual({
         p_relay: 'a',
+        p_amount_xaf: 1200,
+        p_paid_on: '2026-11-18',
         p_reference: 'MP-123',
       });
+      expect(appels[1]?.arguments).toEqual({ p_transfer: 'v-1', p_reason: '[erreur de montant]' });
       expect(appels[2]?.arguments).toEqual({
         p_relay: 'a',
         p_operator: 'mtn',

@@ -67,19 +67,22 @@ test('« Une de mes fiches » : son état, ce qui vient du relevé, ce qui manqu
     '/ecoles/158427/',
   );
   await expect(page.getByRole('region', { name: 'Ce qu’elle rapporte' })).toContainText(
-    /Comptée dans la paie du vendredi \d+ \p{L}+\s*500\sFCFA/u,
+    // 19/11 : la fiche est comptée dans le solde tant qu'aucun versement ne la couvre.
+    /pas encore payée, comptée dans ce que NTanova vous doit\s*500\sFCFA/u,
   );
   await context.setOffline(false);
 
   // « Ma paie » se lit comme une facture : N × tarif = sous-total, puis le total.
   await page.getByRole('link', { name: 'Ma paie' }).click();
   const detail = page
-    .getByRole('region', { name: 'Acquis' })
+    .getByRole('region', { name: 'Ce que NTanova vous doit' })
     .getByRole('list', { name: 'Le détail' });
   // v2 : la facture de la planche, « Fiches acceptées · 1 × 500 · 500 », le total en tête.
   await expect(detail).toContainText('Fiches acceptées');
   await expect(detail).toContainText('1 × 500');
-  await expect(page.getByRole('region', { name: 'Acquis' })).toContainText(/500\sFCFA/);
+  await expect(page.getByRole('region', { name: 'Ce que NTanova vous doit' })).toContainText(
+    /500\sFCFA/,
+  );
 });
 
 test('« Une de mes fiches » : la raison de NTanova quand elle demande une correction, et le bouton pour corriger', async ({

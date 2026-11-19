@@ -171,7 +171,7 @@ export default function App() {
   ];
   const rares: Onglet[] = [
     { chemin: 'zones', libelle: 'Zones', compte: null },
-    { chemin: 'paie', libelle: 'Paie', compte: null, detail: 'vendredi' },
+    { chemin: 'paie', libelle: 'Paie', compte: null, detail: 'versements' },
     { chemin: 'sante', libelle: 'Santé des envois', compte: null },
   ];
 

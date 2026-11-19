@@ -9,7 +9,7 @@
  */
 import { useEffect, useState } from 'react';
 import { ageDe } from '../../modele/age';
-import { francs, prochainVendredi, vendrediLong } from '../../modele/paie';
+import { francs } from '../../modele/paie';
 import {
   ErreurDecision,
   type DivisionVue,
@@ -254,13 +254,13 @@ export function Aujourdhui({
       .then((n) => !abandonne && setPretes(n))
       .catch(() => undefined);
     void admin
-      .apercuPaie(prochainVendredi())
+      .soldesPaie()
       .then(
         (l) =>
           !abandonne &&
           setPaie({
-            relais: l.filter((x) => x.totalXaf > 0).length,
-            total: l.reduce((t, x) => t + x.totalXaf, 0),
+            relais: l.filter((x) => x.resteXaf > 0).length,
+            total: l.reduce((t, x) => t + Math.max(x.resteXaf, 0), 0),
           }),
       )
       .catch(() => undefined);
@@ -366,12 +366,10 @@ export function Aujourdhui({
                 {...(renvoyees && renvoyees.nombre > 0 ? { chemin: 'valider' } : {})}
               />
               <Attente
-                titre="paie à clôturer"
+                titre="relais à payer"
                 nombre={paie?.relais ?? 0}
                 detail={
-                  paie && paie.total > 0
-                    ? `${francs(paie.total)} · ${vendrediLong(prochainVendredi())}`
-                    : `rien à payer ${vendrediLong(prochainVendredi())}`
+                  paie && paie.total > 0 ? `${francs(paie.total)} restent dus` : 'aucun reste dû'
                 }
                 geste="Payer"
                 {...(paie && paie.total > 0 ? { chemin: 'paie' } : {})}

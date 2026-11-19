@@ -297,6 +297,22 @@ export interface LigneDeMaPaie {
   nonPayables: number;
   payeLe: string | null;
   reference: string | null;
+  /**
+   * 19/11 : sur la ligne de l'acquis seulement, le solde (gagné − reçu), les versements reçus (jamais les annulés) et les
+   * fiches qu'ils couvrent, les plus anciennes d'abord. Absents d'une base d'avant la migration ou d'une paie gardée par le
+   * téléphone avant la mise à jour : l'écran revient alors à l'acquis.
+   */
+  solde?: SoldeDuRelais;
+}
+
+/** Ce que NTanova doit au relais : tout ce qu'il a gagné, moins ce qu'il a reçu. */
+export interface SoldeDuRelais {
+  gagneXaf: number;
+  recuXaf: number;
+  resteXaf: number;
+  versements: { verseLe: string; montantXaf: number; reference: string | null }[];
+  /** Les fiches (relevés) couvertes par les versements. */
+  fichesPayees: string[];
 }
 
 /** Une ligne de la paie : le genre, le tarif unitaire, la quantité, et les fiches qu'elle paie (aucune pour l'essai). */
@@ -809,40 +825,31 @@ export interface RapportImport {
   erreurs: { ligne: number; nom: string | null; message: string }[];
 }
 
-/** Ce que NTanova doit à un relais jusqu'à un vendredi, avant clôture. */
-export interface LignePaie {
+/** 19/11 : ce que NTanova doit à un relais, tout compris : gagné, versé, reste dû, et de quoi le payer. */
+export interface SoldeRelais {
   relaisId: string;
   prenom: string;
-  fiches: number;
-  contacts: number;
-  /** 1 quand l'essai (trois fiches validées) est dû. */
-  essais: number;
-  totalXaf: number;
-  /** Son numéro Mobile Money est-il noté ? */
-  numeroConnu: boolean;
-}
-
-export interface SemainePaie {
-  id: string;
-  vendredi: string;
-  totalXaf: number;
-  relais: number;
-  payes: number;
-}
-
-export interface PaiementVu {
-  relaisId: string;
-  prenom: string;
-  totalXaf: number;
-  fiches: number;
-  contacts: number;
-  essais: number;
+  gagneXaf: number;
+  verseXaf: number;
+  resteXaf: number;
   operateur: string | null;
   numero: string | null;
-  /** Lot I : le nom du titulaire donné par le relais, à comparer avec celui que l'opérateur affiche. */
   titulaire: string | null;
-  payeLe: string | null;
+  dernierLe: string | null;
+  dernierXaf: number | null;
+}
+
+/** Un versement noté par l'administration ; annulé, il reste lisible. */
+export interface VersementVu {
+  id: string;
+  relaisId: string;
+  prenom: string;
+  montantXaf: number;
+  verseLe: string;
   reference: string | null;
+  notePar: string | null;
+  annuleLe: string | null;
+  motifAnnulation: string | null;
 }
 
 export interface PortAdministration {
@@ -1167,14 +1174,19 @@ export interface PortAdministration {
   noterMessageEnvoye(campusId: string): Promise<void>;
 
   // La paie
-  /** Ce qui serait payé le vendredi donné. `GET /admin/paie?vendredi=…` */
-  apercuPaie(vendredi: string): Promise<LignePaie[]>;
-  /** Clôture la semaine ; rend son identifiant. `POST /admin/paie` */
-  cloturerPaie(vendredi: string): Promise<string>;
-  semainesPaie(): Promise<SemainePaie[]>;
-  paiementsDeLaSemaine(semaineId: string): Promise<PaiementVu[]>;
-  /** Après l'envoi du Mobile Money : la référence de l'opération. */
-  noterPaye(semaineId: string, relaisId: string, reference: string): Promise<void>;
+  /** 19/11 : le solde de chaque relais qui a gagné ou reçu quelque chose, le plus grand reste dû d'abord. */
+  soldesPaie(): Promise<SoldeRelais[]>;
+  /** Un versement fait (tout ou partie du reste dû, jamais plus) ; rend son identifiant. */
+  noterVersement(
+    relaisId: string,
+    montantXaf: number,
+    verseLe: string,
+    reference: string | null,
+  ): Promise<string>;
+  /** Une erreur s'annule avec son motif ; elle reste lisible. */
+  annulerVersement(versementId: string, motif: string): Promise<void>;
+  /** Les derniers versements, annulés compris. */
+  versements(): Promise<VersementVu[]>;
   enregistrerMobileMoney(
     relaisId: string,
     operateur: 'mtn' | 'airtel' | 'autre',
