@@ -26,6 +26,7 @@ import { Bouton, Dialogue } from '@/ui/v2/admin';
 import { Champ } from '@/ui/v2/formulaire';
 import { ImageIllisible, preparerImage } from '../commun/image';
 import { messageErreur } from './ChampPosition';
+import { titreDesFormations } from '../../modele/formations';
 
 /** « 2 ans · Bac · Sur dossier · dossier 15 000 FCFA » : le résumé d'une formation dans la liste. */
 function resumeDesDetails(d: DetailsFormation): string {
@@ -228,9 +229,11 @@ export function FormationsSuperieur({
   if (!formations)
     return erreur ? <p className={v2.erreur}>{erreur}</p> : <p aria-busy="true">Chargement…</p>;
 
+  // Sans formation encore notée, le titre suit les cycles du site qui en reçoivent.
+  const titre = titreDesFormations(formations.length > 0 ? formations.map((f) => f.cycle) : cycles);
   return (
-    <section className={v2.motifPile} aria-label="Formations du supérieur">
-      <h3>Formations du supérieur</h3>
+    <section className={v2.motifPile} aria-label={titre}>
+      <h3>{titre}</h3>
       {formations.length === 0 ? (
         <p className={v2.doux}>Aucune formation notée pour ce site.</p>
       ) : (
