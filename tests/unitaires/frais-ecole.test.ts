@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dansLOrdreDeSaisie,
+  erreurDesChampsCommuns,
   erreurDuOui,
   etatDuOui,
   ligneChangee,
@@ -161,5 +163,49 @@ describe('frais : mois facturés et OUI de l’école (lot 2 du site public)', (
       ]),
     ).toBe(10);
     expect(moisFacturesDesLignes([ligne({ moisFactures: null })])).toBeNull();
+  });
+});
+
+describe('frais : sûreté (ticket 199)', () => {
+  it('A23 : « à partir de » n’a pas de maximum, et se lit ainsi', () => {
+    const f = lireFraisEcole(
+      { ...base, minimum: '40 000', maximum: '', aPartirDe: true },
+      '2026-11-04',
+    ).frais!;
+    expect(f.minimum).toBe(40000);
+    expect(f.maximum).toBeNull();
+    expect(montantFrais(f)).toBe('à partir de 40 000 FCFA');
+  });
+  it('A23 : sans la case, un maximum vide reste un montant unique', () => {
+    const f = lireFraisEcole({ ...base, minimum: '40 000', maximum: '' }, '2026-11-04').frais!;
+    expect(f.maximum).toBe(40000);
+  });
+  it('A12 : une note trop longue est nommée, avec sa longueur', () => {
+    const { erreur } = lireFraisEcole({ ...base, note: 'x'.repeat(312) }, '2026-11-04');
+    expect(erreur).toBe('La note fait 312 caractères : 300 au plus.');
+    expect(erreurDesChampsCommuns({ anneeScolaire: '', note: 'x'.repeat(312) })).toBe(
+      'La note fait 312 caractères : 300 au plus.',
+    );
+    expect(erreurDesChampsCommuns({ anneeScolaire: '2026-2027', note: 'Tenue' })).toBeNull();
+  });
+  it('A12 : la classe et l’année trop longues sont nommées aussi', () => {
+    expect(lireFraisEcole({ ...base, classe: 'c'.repeat(41) }, '2026-11-04').erreur).toBe(
+      'La classe fait 41 caractères : 40 au plus.',
+    );
+    expect(lireFraisEcole({ ...base, anneeScolaire: 'a'.repeat(31) }, '2026-11-04').erreur).toBe(
+      'L’année scolaire fait 31 caractères : 30 au plus.',
+    );
+  });
+  it('A14 : les lignes se rangent dans l’ordre de leur saisie', () => {
+    const l = (id: string, creeLe: string | null): FraisEcole => ({
+      ...lireFraisEcole(base, '2026-11-04').frais!,
+      id,
+      creeLe,
+    });
+    expect(
+      dansLOrdreDeSaisie([l('c', '2026-11-20T03'), l('a', '2026-11-20T01'), l('b', null)]).map(
+        (f) => f.id,
+      ),
+    ).toEqual(['a', 'c', 'b']);
   });
 });

@@ -48,12 +48,13 @@ export interface SaisieClasse {
   ditLe: string;
 }
 
-export const saisieClasseVide = (cycle = '', aujourdHui = jourDuCongo()): SaisieClasse => ({
+/** Ticket 199 (A2) : le jour où l'école l'a dit reste à taper, jamais aujourd'hui par défaut. */
+export const saisieClasseVide = (cycle = ''): SaisieClasse => ({
   cycle,
   classe: '',
   valeur: '',
   precision: '',
-  ditLe: aujourdHui,
+  ditLe: '',
 });
 
 export const saisieDePlaces = (p: PlacesASaisir): SaisieClasse => ({

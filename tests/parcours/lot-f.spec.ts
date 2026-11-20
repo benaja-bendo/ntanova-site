@@ -254,6 +254,9 @@ test('le détail d’une formation du supérieur : daté par l’école, une dur
   await form.getByLabel(/Niveau demandé/).fill('Bac, toutes séries');
   await form.getByLabel(/Sélection/).selectOption('dossier');
   await form.getByLabel(/Diplôme délivré par/).fill('[L’établissement]');
+  // Ticket 199 (A2) : le jour où l'école l'a dit se tape, jamais pré-rempli.
+  await expect(form.getByLabel('Dit par l’école le')).toHaveValue('');
+  await form.getByLabel('Dit par l’école le').fill('2026-11-10');
   await form.getByLabel(/Référence de l’arrêté/).fill('[n° 123]');
   await form.getByLabel(/^Le/).fill('2024-09-01');
   await form.getByRole('button', { name: 'Enregistrer' }).click();

@@ -52,6 +52,11 @@ test('frais : les mois facturés, puis le OUI daté de l’école ; un montant m
   await premiere.getByLabel('Classe', { exact: true }).fill('CP1');
   await premiere.getByLabel('Montant (FCFA)').fill('20 000');
   await premiere.getByLabel('Période', { exact: true }).selectOption('mois');
+  // Ticket 199 (A2) : le jour de la déclaration n'est jamais pré-rempli ; sans lui, rien ne part.
+  await expect(frais.getByLabel('Déclarés par l’école le')).toHaveValue('');
+  await frais.getByRole('button', { name: 'Enregistrer 1 ligne publiable' }).click();
+  await expect(frais.getByRole('alert')).toBeVisible();
+  await frais.getByLabel('Déclarés par l’école le').fill(jourDuCongo());
   await frais.getByRole('button', { name: 'Enregistrer 1 ligne publiable' }).click();
   // Une ligne enregistrée ne paraît pas avant le OUI de l'école : l'écran ne promet plus « visible à la mise à jour ».
   await expect(page.getByRole('status').first()).toContainText(
@@ -131,6 +136,8 @@ test('places et effectifs : une annonce vaut 30 jours, un effectif se dit en tra
   const effectif = effectifs.getByRole('row', { name: 'Effectif en cours d’écriture' });
   await effectif.getByLabel('Classe', { exact: true }).fill('CP1');
   await effectif.getByLabel('Tranche d’effectif').selectOption('35_a_49');
+  // Ticket 199 (A2) : le jour où l'école l'a dit se tape.
+  await effectif.getByLabel('Dit par l’école le').fill(jourDuCongo());
   await effectif.getByRole('button', { name: 'Enregistrer l’effectif' }).click();
   await expect(effectifs.getByRole('row', { name: 'Effectif : CP1' })).toContainText(
     '35 à 49 élèves',

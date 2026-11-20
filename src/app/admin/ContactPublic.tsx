@@ -34,7 +34,8 @@ export function ContactPublic({
   surOccupation?: (occupe: boolean) => void;
 }) {
   const [numero, setNumero] = useState(contact?.numero ?? '');
-  const [accordLe, setAccordLe] = useState(jourDuCongo());
+  // Ticket 199 (A2) : le jour de l'accord se tape, jamais aujourd'hui par défaut.
+  const [accordLe, setAccordLe] = useState('');
   const [fonction, setFonction] = useState('');
   const [canal, setCanal] = useState('');
   const [autorise, setAutorise] = useState(false);
@@ -58,7 +59,7 @@ export function ContactPublic({
       await admin.enregistrerContactPublic(ecoleId, resultat.contact);
       setAutorise(false);
       setNumero(resultat.contact?.numero ?? '');
-      setAccordLe(jourDuCongo());
+      setAccordLe('');
       setFonction('');
       setCanal('');
       surChangement(

@@ -243,7 +243,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           diploma_issuer?: string | null;
           details_declared_on?: string | null;
         }>('public_campus_programs?select=*&order=campus_id,cycle,title'),
-        lireTout<LigneFrais>('campus_fees?select=*&order=id'),
+        lireTout<LigneFrais>('campus_fees?select=*&order=campus_id,created_at,id'),
         lireTout<LigneEquipement>('campus_facts?select=*&order=id'),
         lireTout<{campus_id:string;id:string;taken_at:string|null}>('public_campus_photos?select=campus_id,id,taken_at&order=campus_id'),
         lireTout<LigneAgrementPublic>('public_campus_accreditations?select=*&order=campus_id'),

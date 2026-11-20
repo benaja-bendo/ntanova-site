@@ -56,7 +56,8 @@ function PontPour({
     contact.fonction ?? detail.contactFonction ?? 'directeur',
   );
   const [confirmee, setConfirmee] = useState(detail.contactConfirmeLe !== null);
-  const [accordLe, setAccordLe] = useState(aujourdhui());
+  // Ticket 199 (A2) : le jour de l'accord se tape, jamais aujourd'hui par défaut.
+  const [accordLe, setAccordLe] = useState('');
   const [canal, setCanal] = useState<Canal>('whatsapp');
   const [note, setNote] = useState('');
   const [verifiee, setVerifiee] = useState(false);

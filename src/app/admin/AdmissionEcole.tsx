@@ -1,6 +1,5 @@
 import { v2 } from '@/ui/v2/classes';
 import { useEffect, useState } from 'react';
-import { jourDuCongo } from '../../modele/date-declaration';
 import { erreurDuCalendrier, type AdmissionASaisir } from '../../modele/fiche-admin';
 import { libelleEtapeAdmission } from '../../modele/libelles';
 import { listes } from '../../modele/listes';
@@ -38,7 +37,8 @@ export function AdmissionEcole({
           pieces: [],
           ouDeposer: null,
           surPlaceSeulement: false,
-          declareeLe: jourDuCongo(),
+          // Ticket 199 (A2) : le jour où l'école l'a dit se tape.
+          declareeLe: '',
           etapes: [],
         };
         setA(base);

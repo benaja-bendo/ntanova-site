@@ -1,6 +1,7 @@
 import { versEquipement, type LigneEquipement } from './equipements';
 import { versFrais, type LigneFrais } from './frais';
 import { finDeLAnnonce } from '../../modele/places-effectifs';
+import { dansLOrdreDeSaisie } from '../../modele/frais-ecole';
 import type { DemandeFamille } from '../../modele/demandes-familles';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Point } from '../../modele/geo';
@@ -247,7 +248,17 @@ interface LigneCampus {
     status: Valeur<'mission_status'>;
     relais: { prenom: string } | null;
   }[];
-  campus_cycles: { cycle: string; campus_programs: { id: string; title: string }[] }[];
+  campus_cycles: {
+    cycle: string;
+    campus_programs: {
+      id: string;
+      title: string;
+      /** Ticket 199 (A1) : le frais de dossier, son jour et le OUI de l'école. */
+      application_fee_xaf?: number | null;
+      application_fee_confirmed_on?: string | null;
+      details_declared_on?: string | null;
+    }[];
+  }[];
   campus_accreditations?: LigneAgrement[];
   // Un lien « un pour un » (la clé du mot est celle de l'école) : l'API rend un objet, ou rien.
   campus_statements?: { body: string; stated_on: string } | { body: string; stated_on: string }[] | null;
@@ -326,7 +337,7 @@ const COLONNES_CAMPUS =
   'id, public_number, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
   'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, same_place_as_campus_id, ' +
   'institutions(name, kind, institution_statements(body, stated_on)), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
-  'campus_cycles(cycle, campus_programs(id, title)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*), ' +
+  'campus_cycles(cycle, campus_programs(id, title, application_fee_xaf, application_fee_confirmed_on, details_declared_on)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*), ' +
   'campus_openings(*), campus_class_sizes(*)';
 
 /** La réponse de `campus_purge_preview`, lue avec tolérance : un champ qui manque vaut zéro, jamais une erreur. */
@@ -388,7 +399,22 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     programme: e.curriculum_note,
     repere: e.landmark,
     numeroEnseigne: e.sign_phone,
-    frais: (e.campus_fees ?? []).map(versFrais),
+    frais: dansLOrdreDeSaisie((e.campus_fees ?? []).map(versFrais)),
+    fraisDeDossier: e.campus_cycles.flatMap((c) =>
+      (c.campus_programs ?? []).flatMap((p) =>
+        p.application_fee_xaf == null
+          ? []
+          : [
+              {
+                formationId: p.id,
+                titre: p.title,
+                montant: p.application_fee_xaf,
+                ditLe: p.details_declared_on ?? null,
+                confirmeLe: p.application_fee_confirmed_on ?? null,
+              },
+            ],
+      ),
+    ),
     places: (e.campus_openings ?? []).map((o) => ({
       id: o.id,
       cycle: o.cycle,
@@ -1981,7 +2007,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const { data, error } = await supabase()
         .from('campus_cycles')
         .select(
-          'cycle, campus_programs(id, title, duration_years, admission_level, selection, application_fee_xaf, diploma_issuer, details_declared_on, diploma, rhythms, accepted_bac_tracks, education_domains(slug), campus_fees(minimum, period, declared_on), campus_accreditations(id, reference, issued_on, evidence))',
+          'cycle, campus_programs(id, title, duration_years, admission_level, selection, application_fee_xaf, application_fee_confirmed_on, diploma_issuer, details_declared_on, diploma, rhythms, accepted_bac_tracks, education_domains(slug), campus_fees(minimum, period, declared_on), campus_accreditations(id, reference, issued_on, evidence))',
         )
         .eq('campus_id', ecoleId)
         .in('cycle', ['superieur', 'technique', 'autre_formation']);
@@ -1995,6 +2021,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           admission_level: string | null;
           selection: Valeur<'selection_kind'> | null;
           application_fee_xaf: number | null;
+          application_fee_confirmed_on?: string | null;
           diploma_issuer: string | null;
           details_declared_on: string | null;
           diploma: Valeur<'diploma_kind'> | null;
@@ -2017,6 +2044,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
               niveauDemande: p.admission_level,
               selection: p.selection,
               fraisDossier: p.application_fee_xaf,
+              fraisDossierConfirmeLe: p.application_fee_confirmed_on ?? null,
               delivrePar: p.diploma_issuer,
               ditLe: p.details_declared_on,
             },

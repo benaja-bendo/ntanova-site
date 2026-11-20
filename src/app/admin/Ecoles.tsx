@@ -283,6 +283,7 @@ function LigneEcole({
           nom={e.nom}
           cycles={e.niveaux}
           frais={e.frais ?? []}
+          fraisDeDossier={e.fraisDeDossier ?? []}
           admin={admin}
           fermer={() => setMode(null)}
           surChangement={signaler}

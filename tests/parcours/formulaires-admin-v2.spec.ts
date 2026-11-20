@@ -133,6 +133,8 @@ test('l’admission du supérieur : une étape qui finit avant de commencer est 
   await dossiers.getByLabel(/^au/).fill('2026-07-15');
   await form.getByLabel(/Pièces à fournir/).fill('[Un acte de naissance]\n[4 photos d’identité]');
   await form.getByLabel('Dossiers reçus sur place uniquement').check();
+  // Ticket 199 (A2) : le jour où l'école l'a dit se tape, jamais pré-rempli.
+  await form.getByLabel('Dit par l’école le').fill('2026-11-10');
   await form.getByRole('button', { name: 'Enregistrer l’admission' }).click();
   await expect(page.getByRole('status').first()).toContainText('Admission enregistrée');
 });

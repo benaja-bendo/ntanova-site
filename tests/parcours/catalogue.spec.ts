@@ -338,7 +338,9 @@ test.describe('le pont avec la direction', () => {
     await page.getByRole('link', { name: /\[Lycée A\]/ }).click();
     await ouvrirContacts(page);
     const accord = page.getByRole('region', { name: 'Écrire à la direction' });
-    await expect(accord.getByLabel(/Date de l.accord/)).toBeVisible();
+    // Ticket 199 (A2) : le jour de l'accord se tape, jamais pré-rempli.
+    await expect(accord.getByLabel(/Date de l.accord/)).toHaveValue('');
+    await accord.getByLabel(/Date de l.accord/).fill(new Date().toISOString().slice(0, 10));
     await accord.getByLabel('Comment l’accord a été donné').selectOption({ label: 'Par WhatsApp' });
     await accord.getByRole('button', { name: /Noter l.accord de la direction/ }).click();
     await expect(page.getByRole('status')).toHaveText(
