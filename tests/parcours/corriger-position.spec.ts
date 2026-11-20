@@ -16,7 +16,7 @@ test('corriger la position d’une école déjà située et publiée, depuis sa 
   const ligne = page.getByRole('row', { name: /\[École à situer\]/ });
   await ligne.getByRole('button', { name: 'Situer', exact: true }).click();
   let formulaire = page.getByRole('form', { name: 'Situer [École à situer]' });
-  await formulaire.getByLabel('Position').fill('-4.79105, 11.92500');
+  await formulaire.getByLabel('Position', { exact: true }).fill('-4.79105, 11.92500');
   await formulaire.getByRole('button', { name: 'Enregistrer la position' }).click();
   await expect(page.getByRole('status')).toHaveText(/est située à Tié-Tié/);
   await page
@@ -37,7 +37,7 @@ test('corriger la position d’une école déjà située et publiée, depuis sa 
   await fiche.getByRole('button', { name: 'Corriger la position' }).click();
 
   formulaire = page.getByRole('form', { name: 'Situer [École à situer]' });
-  const position = formulaire.getByLabel('Position');
+  const position = formulaire.getByLabel('Position', { exact: true });
   await expect(position).toHaveValue('-4.79105, 11.92500');
   // Publiée : près du bouton, ce que la correction change et ce qu'elle ne change pas.
   await expect(
@@ -73,7 +73,7 @@ test('une école publiée dont la position tombe dans le contour voisin garde sa
     .getByRole('button', { name: 'Situer', exact: true })
     .click();
   let formulaire = page.getByRole('form', { name: 'Situer [École à situer]' });
-  await formulaire.getByLabel('Position').fill('-4.79105, 11.92500');
+  await formulaire.getByLabel('Position', { exact: true }).fill('-4.79105, 11.92500');
   await formulaire.getByRole('button', { name: 'Enregistrer la position' }).click();
   await expect(page.getByRole('status')).toHaveText(/est située à Tié-Tié/);
   await page
@@ -94,7 +94,7 @@ test('une école publiée dont la position tombe dans le contour voisin garde sa
   // Avant d'envoyer, rien n'est offert : la plupart des corrections restent dans la division.
   await expect(formulaire.getByRole('button', { name: 'Garder Tié-Tié' })).toHaveCount(0);
 
-  await formulaire.getByLabel('Position').fill('-4.86, 11.92');
+  await formulaire.getByLabel('Position', { exact: true }).fill('-4.86, 11.92');
   await formulaire.getByRole('button', { name: 'Enregistrer la position' }).click();
   await expect(formulaire.getByRole('alert')).toHaveText(
     'D’après nos contours, ce point est dans un autre arrondissement que Tié-Tié. Les contours sont approximatifs : si l’école est bien à Tié-Tié, garde Tié-Tié. Sinon, retire d’abord la fiche du site.',

@@ -732,6 +732,8 @@ export interface EcoleVue {
    * « Noter le OUI de l'école »). `confirmeLe` nul : le frais n'est pas public.
    */
   fraisDeDossier?: FraisDeDossier[];
+  /** Ticket 201 (A35) : d'où vient la position du site ; nul : pas dit. */
+  sourcePosition?: import('./fiche-admin').SourcePosition | null;
   contactPublic?: ContactPublic | null;
   agrements?: AgrementEnregistre[];
   motDirection?: MotDirection | null;
@@ -1071,7 +1073,13 @@ export interface PortAdministration {
    * Donne la position d'un campus connu (prise sur une carte). Rend le nom de la division où elle tombe ;
    * `divisionId` quand aucun contour connu ne la contient. `PUT /admin/ecoles/{id}/position`
    */
-  situerEcole(ecoleId: string, position: Point, divisionId?: string | null): Promise<string>;
+  /** Ticket 201 (A35) : `source`, d'où vient la position ; absent ou nul : pas dit. */
+  situerEcole(
+    ecoleId: string,
+    position: Point,
+    divisionId?: string | null,
+    source?: import('./fiche-admin').SourcePosition | null,
+  ): Promise<string>;
   /** Un campus prêt (ou retiré) passe en ligne. `POST /admin/ecoles/{id}/publication` */
   publierEcole(ecoleId: string): Promise<void>;
   /** Tous les campus prêts d'une division et de ce qu'elle contient ; rend leur nombre. */

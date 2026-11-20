@@ -23,4 +23,9 @@ describe('le verdict de proximité', () => {
     expect(verdictDeProximite(2000, 0.2)).toBeNull();
     expect(verdictDeProximite(null, 0.2)).toBeNull();
   });
+  it('ticket 201 (A18) : le même nom, une école connue sans position, c’est « déjà dans la base »', () => {
+    expect(verdictDeProximite(null, 0.6, false)).toBe('deja_la');
+    expect(verdictDeProximite(null, 0.6, true)).toBe('autre_site');
+    expect(verdictDeProximite(null, 0.2, false)).toBeNull();
+  });
 });

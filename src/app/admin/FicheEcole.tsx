@@ -27,6 +27,7 @@ import { libelleEquipement } from '../../modele/equipements-ecole';
 import { etatDuOuiAvecDossier } from '../../modele/frais-ecole';
 import { jourDuCongo } from '../../modele/date-declaration';
 import { ecrirePosition } from '../../modele/coordonnees';
+import { libelleSourcePosition } from '../../modele/fiche-admin';
 import { annonceEnCours, nomDeClasse, trierParClasse } from '../../modele/places-effectifs';
 import { dateCourte, jourEtMois } from '../../modele/pointe-noire';
 import {
@@ -301,6 +302,8 @@ export function FicheEcole({
           {e.position && (
             <p className="m-0 text-sm text-muted-foreground">
               Position : {ecrirePosition(e.position)}
+              {/* Ticket 201 (A35) : d'où elle vient, en trois mots ; rien quand ce n'est pas dit. */}
+              {e.sourcePosition ? ` · ${libelleSourcePosition[e.sourcePosition]}` : ''}
               {!figee && (
                 <>
                   {' · '}

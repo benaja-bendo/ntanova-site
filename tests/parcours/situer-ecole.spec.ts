@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { seConnecter, ouvrirLesEcoles } from './aides';
+import { ouvrirFiche, seConnecter, ouvrirLesEcoles } from './aides';
 
 // L'administration situe elle-même une école qu'elle connaît, ou en ajoute une (ticket 15) :
 // la position collée depuis Google Maps. Construit avec le faux serveur, qui connaît
@@ -20,7 +20,7 @@ test('situer une école connue : la position se lit avant d’être enregistrée
   await ligne.getByRole('button', { name: 'Situer', exact: true }).click();
 
   const formulaire = page.getByRole('form', { name: 'Situer [École à situer]' });
-  const position = formulaire.getByLabel('Position');
+  const position = formulaire.getByLabel('Position', { exact: true });
 
   // Inversée (la longitude d'abord) : aucun contour connu, et la base demande de choisir la division.
   await position.fill('11.925, -4.79105');
@@ -42,6 +42,10 @@ test('situer une école connue : la position se lit avant d’être enregistrée
     'href',
     'https://www.google.com/maps/search/?api=1&query=-4.791050,11.925000',
   );
+  // Ticket 201 (A35) : d'où vient la position, rien de choisi d'avance.
+  const source = formulaire.getByLabel(/D’où vient cette position/);
+  await expect(source).toHaveValue('');
+  await source.selectOption('carte_en_ligne');
   await formulaire.getByRole('button', { name: 'Enregistrer la position' }).click();
   await expect(page.getByRole('status')).toHaveText(
     '[École à situer] est située à Tié-Tié. Elle est prête : publie-la quand tu veux.',
@@ -56,6 +60,8 @@ test('situer une école connue : la position se lit avant d’être enregistrée
       .getByText('Publiée', { exact: true })
       .filter({ visible: true }),
   ).toBeVisible();
+  await ouvrirFiche(page.getByRole('row', { name: /\[École à situer\]/ }));
+  await expect(page.getByText(/d’après une carte en ligne/).first()).toBeVisible();
 });
 
 test('ajouter une école : avec sa position elle est prête, sans elle attend d’être située', async ({

@@ -1001,6 +1001,8 @@ describe('l’adaptateur Supabase de l’administration', () => {
         p_latitude: -4.79,
         p_longitude: 11.92,
         p_division: 'd-9',
+        // Ticket 201 (A35) : d'où vient la position ; non dite ici.
+        p_source: null,
       });
     });
 

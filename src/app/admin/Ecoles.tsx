@@ -24,6 +24,7 @@ import { MotDirectionEcole } from './MotDirectionEcole';
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ecrirePosition } from '../../modele/coordonnees';
+import type { SourcePosition } from '../../modele/fiche-admin';
 import {
   erreursFormulaireEcole,
   formulaireDe,
@@ -1288,6 +1289,8 @@ function FormulairePosition({
 }) {
   const [texte, setTexte] = useState(e.position ? ecrirePosition(e.position) : '');
   const [divisionId, setDivisionId] = useState('');
+  // Ticket 201 (A35) : d'où vient la position ; rien de choisi d'avance (vide : pas dit).
+  const [source, setSource] = useState<SourcePosition | ''>('');
   // Publiée, elle ne change pas de division (la base refuse : son adresse publique changerait).
   const publiee = e.publication === 'publiee';
   const [erreurChamp, setErreurChamp] = useState<string | undefined>();
@@ -1317,6 +1320,7 @@ function FormulairePosition({
         e.id,
         position,
         (forcer ? e.divisionId : divisionId) || null,
+        source || null,
       );
       surEnregistre(
         `${e.nom} est située à ${ou}.` +
@@ -1352,6 +1356,21 @@ function FormulairePosition({
       onSubmit={(ev) => void enregistrer(ev)}
     >
       <ChampPosition valeur={texte} surChange={setTexte} erreur={erreurChamp} />
+      <Champ libelle="D’où vient cette position ?" facultatif>
+        {(a) => (
+          <select
+            {...a}
+            className={v2.champ}
+            value={source}
+            onChange={(ev) => setSource(ev.target.value as SourcePosition | '')}
+          >
+            <option value="">Je ne sais pas</option>
+            <option value="carte_en_ligne">Une carte en ligne</option>
+            <option value="ecole">L’école</option>
+            <option value="relais">Un relais</option>
+          </select>
+        )}
+      </Champ>
       {!publiee && (
         <Champ
           libelle="Division"
