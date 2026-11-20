@@ -13,12 +13,15 @@ const GENRES: { valeur: Valeur<'media_kind'>; libelle: string }[] = [
   { valeur: 'logo', libelle: 'Logo' },
   { valeur: 'cover', libelle: 'Couverture' },
   { valeur: 'gallery', libelle: 'Galerie' },
+  // Ticket 205 (A6) : un prospectus ou un document reçu (tarifs), gardé comme preuve ; la base refuse de le publier.
+  { valeur: 'document', libelle: 'Prospectus ou document (jamais public)' },
 ];
 
 /**
  * Les images d'une école (lot D du ticket 165) : son logo (commun à tous ses sites), la couverture du site, douze images de
  * galerie. Un fichier est réduit dans le navigateur avant l'envoi (« Préparation… ») ; une image n'est publique qu'après la
- * case « Sans enfant ni personne reconnaissable ». Le prospectus et les programmes n'entrent jamais ici (la base le refuse).
+ * case « Sans enfant ni personne reconnaissable ». Un prospectus entre ici comme document (ticket 205), jamais public : la base
+ * refuse de le publier.
  */
 /** La place que prend une nouvelle image : celle demandée si elle est libre, sinon la galerie, sinon la première libre. */
 function placeDuFormulaire(
@@ -53,6 +56,8 @@ export function ImagesEcole({
   const [fichiers, setFichiers] = useState<File[]>([]);
   const [legendes, setLegendes] = useState<string[]>([]);
   const [controle, setControle] = useState(false);
+  // Ticket 205 (A34) : d'où vient l'image (un lien, la page Facebook…), privé.
+  const [source, setSource] = useState('');
   // Le champ « Le fichier » se vide en renaissant (un champ de fichier ne se vide pas par sa valeur).
   const [champFichier, setChampFichier] = useState(0);
   const lire = useCallback(() => admin.mediasDeLEcole(ecoleId), [admin, ecoleId]);
@@ -114,27 +119,32 @@ export function ImagesEcole({
         setEtape('preparation');
         const image = await preparerImage(f);
         setEtape('envoi');
+        const document = genre === 'document';
         await admin.ajouterMedia(ecoleId, {
           genre,
-          sujet: genre === 'logo' ? 'logo' : sujet,
+          sujet: genre === 'logo' ? 'logo' : document ? 'prospectus' : sujet,
           legende: legendes[i]?.trim() || null,
-          controle,
-          publique: controle,
+          controle: !document && controle,
+          publique: !document && controle,
           image,
+          origine: source.trim() || null,
         });
         envoyees += 1;
       }
       const n = envoyees;
       const texte =
-        n > 1
-          ? `${n} images ajoutées${controle ? ' et publiées' : ', pas encore publiques'}.`
-          : controle
-            ? 'Image ajoutée et publiée.'
-            : 'Image ajoutée, pas encore publique.';
+        genre === 'document'
+          ? 'Document ajouté. Il reste privé.'
+          : n > 1
+            ? `${n} images ajoutées${controle ? ' et publiées' : ', pas encore publiques'}.`
+            : controle
+              ? 'Image ajoutée et publiée.'
+              : 'Image ajoutée, pas encore publique.';
       // Tout se vide ; la liste quitte une place désormais prise.
       setFichiers([]);
       setLegendes([]);
       setControle(false);
+      setSource('');
       setChampFichier((c) => c + 1);
       const m = await lire();
       setMedias(m);
@@ -163,7 +173,7 @@ export function ImagesEcole({
         return (
           <div key={valeur} className={v2.pileSerree}>
             <h3>
-              {libelle}
+              {valeur === 'document' ? 'Documents, jamais publics' : libelle}
               {valeur === 'gallery' && <span className={v2.mention}> · {liste.length} sur 12</span>}
             </h3>
             {liste.length === 0 ? (
@@ -172,7 +182,9 @@ export function ImagesEcole({
                   ? 'Pas de logo : la page montre le sigle, ou la lettre du cycle.'
                   : valeur === 'cover'
                     ? 'Pas de couverture : la page montre la bannière dessinée.'
-                    : 'Pas d’image dans la galerie : la rubrique « Photos » n’existe pas sur la page.'}
+                    : valeur === 'document'
+                      ? 'Aucun document.'
+                      : 'Pas d’image dans la galerie : la rubrique « Photos » n’existe pas sur la page.'}
               </p>
             ) : (
               <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 [&_img]:aspect-[4/3] [&_img]:w-full [&_img]:rounded-md [&_img]:object-cover">
@@ -184,15 +196,33 @@ export function ImagesEcole({
                     <span>
                       <b>{m.legende ?? libelleSujetMedia[m.sujet]}</b>
                       <span className={v2.mentionBloc}>
-                        {m.publique
-                          ? 'Publique'
-                          : m.controleLe
-                            ? 'Contrôlée, pas publique'
-                            : 'À contrôler'}
+                        {m.genre === 'document'
+                          ? 'Jamais publique'
+                          : m.publique
+                            ? 'Publique'
+                            : m.controleLe
+                              ? 'Contrôlée, pas publique'
+                              : 'À contrôler'}
                       </span>
+                      {m.origine && <span className={v2.mentionBloc}>Vient de : {m.origine}</span>}
                     </span>
                     <span className={v2.actions}>
-                      {!m.controleLe && (
+                      {/* Ticket 205 (A32) : l'ancienne couverture prend sa place dans la galerie. */}
+                      {m.genre === 'gallery' && (
+                        <button
+                          type="button"
+                          className={v2.lien}
+                          onClick={() =>
+                            void agir(
+                              () => admin.mettreEnCouverture(m.id),
+                              'Image mise en couverture ; l’ancienne est dans la galerie.',
+                            )
+                          }
+                        >
+                          En couverture
+                        </button>
+                      )}
+                      {m.genre !== 'document' && !m.controleLe && (
                         <button
                           type="button"
                           className={v2.lien}
@@ -206,7 +236,7 @@ export function ImagesEcole({
                           Sans enfant : publier
                         </button>
                       )}
-                      {m.controleLe && (
+                      {m.genre !== 'document' && m.controleLe && (
                         <button
                           type="button"
                           className={v2.lien}
@@ -269,7 +299,7 @@ export function ImagesEcole({
             </select>
           )}
         </Champ>
-        {genre !== 'logo' && (
+        {genre !== 'logo' && genre !== 'document' && (
           <Champ libelle="Elle montre">
             {(a) => (
               <select
@@ -338,16 +368,29 @@ export function ImagesEcole({
             )}
           </Champ>
         )}
-        <label className={v2.case}>
-          <input
-            type="checkbox"
-            checked={controle}
-            onChange={(ev) => setControle(ev.target.checked)}
-          />
-          {fichiers.length > 1
-            ? 'Sans enfant ni personne reconnaissable, sur aucune : les publier'
-            : 'Sans enfant ni personne reconnaissable : la publier'}
-        </label>
+        <Champ libelle="D’où vient l’image ?" facultatif>
+          {(a) => (
+            <input
+              {...a}
+              className={v2.champ}
+              maxLength={300}
+              value={source}
+              onChange={(ev) => setSource(ev.target.value)}
+            />
+          )}
+        </Champ>
+        {genre !== 'document' && (
+          <label className={v2.case}>
+            <input
+              type="checkbox"
+              checked={controle}
+              onChange={(ev) => setControle(ev.target.checked)}
+            />
+            {fichiers.length > 1
+              ? 'Sans enfant ni personne reconnaissable, sur aucune : les publier'
+              : 'Sans enfant ni personne reconnaissable : la publier'}
+          </label>
+        )}
         <Bouton
           type="submit"
           enCours={etape !== 'repos'}

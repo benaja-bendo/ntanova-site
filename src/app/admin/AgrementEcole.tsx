@@ -28,8 +28,15 @@ const VIDE = {
   sourceTexte: '',
   sourceLien: '',
   controleLe: '',
-  documentVu: false,
+  // Ticket 205 (A22) : sur quoi l'agrément a été vu ; rien de choisi d'avance.
+  preuve: '' as string,
 };
+
+/** Ticket 205 (A22) : le document vu, ou l'agrément cité par l'école (sa date devient facultative). */
+const PREUVES = [
+  { valeur: 'document_vu', libelle: 'Le document' },
+  { valeur: 'dit_ecole', libelle: 'Cité par l’école, document pas encore vu' },
+] as const;
 
 /**
  * L'agrément d'une école ou d'une filière (ticket 148) : la référence d'un document que l'administration a vu. Une ligne par
@@ -105,8 +112,9 @@ export function AgrementEcole({
       >
         <h3>Référence officielle</h3>
         <p>
-          Seulement le document que tu as vu, avec ses mots à lui. Sans ligne ici, la fiche n’écrit
-          rien. Cette ligne cite un document : ni badge, ni garantie de NTanova.
+          Le document que tu as vu, avec ses mots à lui, ou l’agrément que l’école cite. Sans ligne
+          ici, la fiche n’écrit rien. Cette ligne cite un document : ni badge, ni garantie de
+          NTanova.
         </p>
         {agrements.length > 0 && (
           <ul className="m-0 flex list-none flex-col gap-2.5 p-0 [&>li]:flex [&>li]:flex-col [&>li]:gap-1.5 [&>li]:rounded-lg [&>li]:border [&>li]:border-border [&>li]:p-3 [&_p]:m-0">
@@ -116,7 +124,10 @@ export function AgrementEcole({
                   {cible(a)} · {intituleAgrement(a)}
                 </b>
                 <p>
-                  {referenceEnMots(a)} · {a.sourceTexte} · vu le {dateLongue(a.controleLe)}
+                  {referenceEnMots(a)} · {a.sourceTexte} ·{' '}
+                  {a.preuve === 'dit_ecole'
+                    ? `cité par l’école le ${dateLongue(a.controleLe)}, document pas encore vu`
+                    : `vu le ${dateLongue(a.controleLe)}`}
                 </p>
                 <button
                   type="button"
@@ -129,11 +140,11 @@ export function AgrementEcole({
                       genre: a.genre,
                       precision: a.precision ?? '',
                       reference: a.reference,
-                      delivreLe: a.delivreLe,
+                      delivreLe: a.delivreLe ?? '',
                       sourceTexte: a.sourceTexte,
                       sourceLien: a.sourceLien ?? '',
                       controleLe: a.controleLe,
-                      documentVu: false,
+                      preuve: a.preuve ?? '',
                     });
                     setErreur(null);
                   }}
@@ -214,8 +225,28 @@ export function AgrementEcole({
             onChange={(e) => changer({ reference: e.target.value })}
           />
         </label>
+        <div role="group" aria-label="Vue sur" className="flex flex-col gap-1.5">
+          <span className="text-sm font-bold">Vue sur</span>
+          {saisie.preuve === 'photo' ? (
+            <p className={v2.mention}>La photo du document, jointe ci-dessus.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {PREUVES.map((p) => (
+                <button
+                  key={p.valeur}
+                  type="button"
+                  className={v2.puce}
+                  aria-pressed={saisie.preuve === p.valeur}
+                  onClick={() => changer({ preuve: saisie.preuve === p.valeur ? '' : p.valeur })}
+                >
+                  {p.libelle}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <label className={v2.groupe}>
-          Date du document
+          {saisie.preuve === 'dit_ecole' ? 'Date du document (facultative)' : 'Date du document'}
           <input
             className={v2.champ}
             type="date"
@@ -245,7 +276,9 @@ export function AgrementEcole({
           />
         </label>
         <label className={v2.groupe}>
-          Jour où tu as vu le document (jamais publié)
+          {saisie.preuve === 'dit_ecole'
+            ? 'Jour où l’école l’a dit (jamais publié)'
+            : 'Jour où tu as vu le document (jamais publié)'}
           <input
             className={v2.champ}
             type="date"
@@ -253,14 +286,6 @@ export function AgrementEcole({
             value={saisie.controleLe}
             onChange={(e) => changer({ controleLe: e.target.value })}
           />
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={saisie.documentVu}
-            onChange={(e) => changer({ documentVu: e.target.checked })}
-          />{' '}
-          J’ai vu ce document.
         </label>
         {erreur && (
           <Bandeau ton="erreur" icone="alerte">

@@ -200,8 +200,12 @@ export function FicheEcole({
   const superieur = e.niveaux.some((n) => n === 'superieur' || n === 'technique');
   const publiques = photos.filter((p) => p.publique).length;
   const aRelire = photos.filter((p) => !p.publiable).length;
-  const imagesDeLaFiche = (medias ?? []).filter((m) => m.genre !== 'logo');
-  const resumePhotos = `${imagesDeLaFiche.length} de la fiche · ${publiques} des relais publique${publiques > 1 ? 's' : ''} · ${aRelire} à relire · ${travail.length} de travail`;
+  // Ticket 205 (A6) : un document (prospectus) n'est pas une image de la fiche ; il compte avec les photos de travail.
+  const documents = (medias ?? []).filter((m) => m.genre === 'document');
+  const imagesDeLaFiche = (medias ?? []).filter(
+    (m) => m.genre !== 'logo' && m.genre !== 'document',
+  );
+  const resumePhotos = `${imagesDeLaFiche.length} de la fiche · ${publiques} des relais publique${publiques > 1 ? 's' : ''} · ${aRelire} à relire · ${travail.length + documents.length} de travail`;
   const equipementsVus = (e.equipements ?? []).filter((x) => x.etat !== 'absent');
   const derniereInscription = (e.inscriptions ?? [])
     .map((i) => i.limite)
@@ -210,6 +214,10 @@ export function FicheEcole({
   // Lot 2 du site public (15/11) : le OUI de l'école sur ses frais ; les places annoncées encore sur le site.
   const ouiFrais = etatDuOuiAvecDossier(e.frais ?? [], e.fraisDeDossier ?? []);
   const titreFiche = titreDeFiche(e);
+  // Ticket 205 (A22) : un agrément cité par l'école attend que NTanova voie le document.
+  const agrementAVoir = (e.agrements ?? []).some((a) => a.preuve === 'dit_ecole')
+    ? 'Document de l’agrément à voir'
+    : null;
   const placesEnCours = trierParClasse(
     (e.places ?? []).filter((p) => annonceEnCours(p, jourDuCongo())),
   );
@@ -480,7 +488,7 @@ export function FicheEcole({
                   .slice(0, 3)
                   .join(' · ') || null
               }
-              manque={e.formations === 0 ? 'Aucune formation saisie' : null}
+              manque={e.formations === 0 ? 'Aucune formation saisie' : agrementAVoir}
               ouvrir={() => ouvrir('formations')}
             />
           ) : (
@@ -489,7 +497,7 @@ export function FicheEcole({
               titre="En bref"
               resume={[etendue(e.niveaux), e.programme].filter(Boolean).join(' · ')}
               detail={e.repere ? `Repère : ${e.repere}` : null}
-              manque={e.repere ? null : 'Le repère manque'}
+              manque={e.repere ? agrementAVoir : 'Le repère manque'}
               ouvrir={() => ouvrir('modifier')}
             />
           )}

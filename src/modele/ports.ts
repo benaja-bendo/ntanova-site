@@ -531,6 +531,10 @@ export interface FormationSaisie {
   serie: Valeur<'bac_track'> | null;
   diplome: Valeur<'diploma_kind'> | null;
   rythmes: Valeur<'study_rhythm'>[];
+  /** Ticket 205 (A11) : le détail venu d'un import, avec le jour où l'école l'a dit. */
+  dureeAnnees?: number | null | undefined;
+  niveauDemande?: string | null | undefined;
+  ditLe?: string | null | undefined;
 }
 
 /**
@@ -608,6 +612,11 @@ export interface ContactEcole extends Omit<ContactDirection, 'releveId'> {
   releveLe: string | null;
   /** Le prénom du relais qui l'a rencontrée. */
   relais: string | null;
+  /** Ticket 205 (A8, A19) : une personne, ou le numéro de l'école lu sur un document (privé, sans accord de personne). */
+  genre?: 'personne' | 'numero_ecole';
+  luSur?: import('./contacts').LuSur | null;
+  /** Le numéro est illisible en partie : la lecture est dans `note`. */
+  illisible?: boolean;
 }
 
 /** Ce que l'administration saisit pour une personne qu'elle ajoute ou corrige. Le numéro est déjà au format de la base. */
@@ -734,6 +743,10 @@ export interface EcoleVue {
   fraisDeDossier?: FraisDeDossier[];
   /** Ticket 203 (A4, A13) : le sigle de l'école (commun à ses sites) ; nul : pas de sigle. */
   sigle?: string | null;
+  /** Ticket 205 (A21) : l'année de création, le site web et la page Facebook de l'école. */
+  anneeCreation?: number | null;
+  siteWeb?: string | null;
+  facebook?: string | null;
   /** Ticket 201 (A35) : d'où vient la position du site ; nul : pas dit. */
   sourcePosition?: import('./fiche-admin').SourcePosition | null;
   contactPublic?: ContactPublic | null;
@@ -799,6 +812,10 @@ export interface CorrectionEcole {
   sigle?: string | null;
   /** Ticket 203 (A4) : le nom du site (« Site 2 · Mpita »), propre à ce site. */
   etiquette?: string | null;
+  /** Ticket 205 (A21) : l'année de création, le site web et la page Facebook de l'école (tous ses sites). */
+  anneeCreation?: number | null;
+  siteWeb?: string | null;
+  facebook?: string | null;
   typeEcole?: Valeur<'type_ecole'>;
   niveaux?: Valeur<'niveau'>[];
   programme?: string | null;
@@ -930,6 +947,8 @@ export interface PortAdministration {
   contactsDeLEcole(ecoleId: string): Promise<ContactEcole[]>;
   /** Note une personne sur le site lui-même (école importée, numéro reçu par WhatsApp). `POST /admin/campus/{id}/contacts` */
   ajouterContactEcole(ecoleId: string, contact: ContactASaisir): Promise<string>;
+  /** Ticket 205 (A8, A19) : le numéro de l'école, lu sur un document ou sur l'enseigne ; illisible, il se garde en mots. */
+  ajouterNumeroEcole(ecoleId: string, numero: import('./contacts').NumeroEcole): Promise<string>;
   /** Corrige une personne : tous ses champs sont redonnés. `PUT /admin/contacts/{id}` */
   corrigerContact(contactId: string, contact: ContactASaisir): Promise<void>;
   /** Transforme le relevé en institution, campus ou cycle. Rend le campus. `POST /admin/releves/{id}/decision` */
@@ -1070,6 +1089,8 @@ export interface PortAdministration {
   ): Promise<void>;
   /** v2 : retire une image ; ses fichiers envoyés sont effacés du stockage. `DELETE /admin/medias/{id}` */
   retirerMedia(mediaId: string): Promise<void>;
+  /** Ticket 205 (A32) : une image de la galerie passe en couverture ; l'ancienne couverture repasse dans la galerie. */
+  mettreEnCouverture(mediaId: string): Promise<void>;
   reprendreEcole(ecoleId: string): Promise<void>;
   /** Corrige une fiche (brouillon, prête ou publiée) sans repasser par le relais. `PATCH /admin/ecoles/{id}` */
   modifierEcole(ecoleId: string, correction: CorrectionEcole): Promise<void>;
@@ -1215,7 +1236,7 @@ export interface PortAdministration {
     campusId: string,
     accordLe: string,
     fonction: Valeur<'fonction_direction'>,
-    canal: 'whatsapp' | 'appel' | 'sur_place' | 'autre',
+    canal: 'whatsapp' | 'appel' | 'sur_place' | 'autre' | 'fondateur',
     note: string | null,
   ): Promise<void>;
   /** Note que le premier message a été envoyé (une date, jamais son contenu). */

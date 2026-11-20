@@ -438,6 +438,10 @@ describe('l’adaptateur Supabase de l’administration', () => {
           releveId: 'r1',
           releveLe: '2026-11-02T07:30:00Z',
           relais: 'Alice',
+          // Ticket 205 (A8, A19) : une personne, pas le numéro de l'école (une base d'avant ne le dit pas).
+          genre: 'personne',
+          luSur: null,
+          illisible: false,
         },
         {
           id: 'p2',
@@ -453,6 +457,9 @@ describe('l’adaptateur Supabase de l’administration', () => {
           releveId: null,
           releveLe: null,
           relais: null,
+          genre: 'personne',
+          luSur: null,
+          illisible: false,
         },
       ]);
       expect(appels[0]).toEqual({ nom: 'contacts_of_campus', arguments: { p_campus: 'c1' } });

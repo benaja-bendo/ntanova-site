@@ -1,3 +1,4 @@
+import type { LuSur } from '../../modele/contacts';
 import { photoExemple, photoExempleAdresse } from './photo-exemple';
 import { jourDuCongo } from '../../modele/date-declaration';
 import type {
@@ -133,6 +134,10 @@ interface CampusFaux {
   etiquette: string | null;
   /** Ticket 203 : le sigle de l'école (le faux le garde sur chaque site). */
   sigle?: string | null;
+  /** Ticket 205 (A21) : l'année, le site web, la page Facebook de l'école (gardés sur chaque site). */
+  anneeCreation?: number | null;
+  siteWeb?: string | null;
+  facebook?: string | null;
   quartier: string | null;
   publication: Valeur<'publication'>;
   origine: Valeur<'origin_kind'>;
@@ -251,6 +256,10 @@ type ContactFaux = ContactAEnvoyer & {
   precisionFonction?: string | null;
   source?: 'relais' | 'administration';
   recuLe?: string;
+  /** Ticket 205 (A8, A19) : le numéro de l'école, lu sur un document. */
+  genre?: 'personne' | 'numero_ecole';
+  luSur?: LuSur | null;
+  illisible?: boolean;
 };
 
 /** Les personnes notées pour une fiche, la première reçue d'abord. */
@@ -1189,6 +1198,9 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     nom: c.nom,
     etiquette: c.etiquette,
     sigle: c.sigle ?? null,
+    anneeCreation: c.anneeCreation ?? null,
+    siteWeb: c.siteWeb ?? null,
+    facebook: c.facebook ?? null,
     numeroPublic: 158427,
     quartier: c.quartier,
     division: division?.nom ?? null,
@@ -1549,11 +1561,43 @@ const admin: PortAdministration = {
           releveId: releve ? c.releveId : null,
           releveLe: releve?.prisLe ?? null,
           relais: releve ? (e.relaisDesReleves?.[releve.id] ?? '[Prénom]') : null,
+          genre: c.genre ?? 'personne',
+          luSur: c.luSur ?? null,
+          illisible: c.illisible ?? false,
         };
       })
       .sort(
-        (a, b) => Number(!a.whatsapp) - Number(!b.whatsapp) || b.recuLe.localeCompare(a.recuLe),
+        (a, b) =>
+          Number(a.genre === 'numero_ecole') - Number(b.genre === 'numero_ecole') ||
+          Number(!a.whatsapp) - Number(!b.whatsapp) ||
+          b.recuLe.localeCompare(a.recuLe),
       );
+  },
+  // Ticket 205 : comme `add_school_number`.
+  async ajouterNumeroEcole(ecoleId, n) {
+    await reseau();
+    if (!(ecoleId in lireEtat().campus)) throw new ErreurDecision('Site introuvable.');
+    if (n.illisible ? !n.lecture : !n.numero)
+      throw new ErreurDecision('Écris le numéro, ou coche « Illisible en partie ».');
+    const id = crypto.randomUUID();
+    ecrire((etat) => {
+      etat.contacts[id] = {
+        releveId: '',
+        ecoleId,
+        fonction: null,
+        nom: null,
+        whatsapp: n.illisible ? null : n.numero,
+        accord: false,
+        accordLe: null,
+        note: n.lecture,
+        source: 'administration',
+        recuLe: new Date().toISOString(),
+        genre: 'numero_ecole',
+        luSur: n.luSur,
+        illisible: n.illisible,
+      };
+    });
+    return id;
   },
   async ajouterContactEcole(ecoleId, contact) {
     await reseau();
@@ -2407,9 +2451,13 @@ const admin: PortAdministration = {
       if (correction.numeroEnseigne !== undefined) ecole.numeroEnseigne = correction.numeroEnseigne;
       // Ticket 203 : le nom du site est celui de ce site ; le sigle, celui de l'école (tous ses sites).
       if (correction.etiquette !== undefined) ecole.etiquette = correction.etiquette;
-      if (correction.sigle !== undefined)
-        for (const x of Object.values(e.campus))
-          if (x.institutionId === ecole.institutionId) x.sigle = correction.sigle;
+      for (const x of Object.values(e.campus)) {
+        if (x.institutionId !== ecole.institutionId) continue;
+        if (correction.sigle !== undefined) x.sigle = correction.sigle;
+        if (correction.anneeCreation !== undefined) x.anneeCreation = correction.anneeCreation;
+        if (correction.siteWeb !== undefined) x.siteWeb = correction.siteWeb;
+        if (correction.facebook !== undefined) x.facebook = correction.facebook;
+      }
     });
   },
   async confierEcole(ecoleId, relaisId, genre, note, details) {
@@ -2517,6 +2565,8 @@ const admin: PortAdministration = {
       throw new ErreurDecision('Douze images au plus dans la galerie.');
     if (m.publique && !m.controle)
       throw new ErreurDecision('Une image non contrôlée ne se publie pas.');
+    if (m.genre === 'document' && m.publique)
+      throw new ErreurDecision('Un document ne se publie jamais.');
     const id = crypto.randomUUID();
     ecrire((e) => {
       e.medias = [
@@ -2531,10 +2581,24 @@ const admin: PortAdministration = {
           controleLe: m.controle ? new Date().toISOString() : null,
           publique: m.publique,
           source: m.photoDuReleve ? 'terrain' : 'administration',
+          origine: m.origine ?? null,
         },
       ];
     });
     return id;
+  },
+  // Ticket 205 (A32) : comme `set_campus_cover`.
+  async mettreEnCouverture(mediaId) {
+    await reseau();
+    const m = (lireEtat().medias ?? []).find((x) => x.id === mediaId);
+    if (!m) throw new ErreurDecision('Image introuvable.');
+    if (m.genre !== 'gallery')
+      throw new ErreurDecision('Seule une image de la galerie passe en couverture.');
+    ecrire((e) => {
+      for (const x of e.medias ?? [])
+        if (x.campusId === m.campusId && x.genre === 'cover') x.genre = 'gallery';
+        else if (x.id === mediaId) x.genre = 'cover';
+    });
   },
   async modifierMedia(mediaId, champs) {
     await reseau();
@@ -2924,12 +2988,15 @@ const admin: PortAdministration = {
     await reseau();
     const c = lireEtat().campus[ecoleId];
     if (!c) throw new ErreurDecision('École introuvable.');
+    const deja0 = (c.agrements ?? []).find((a) => a.formationId === agrement.formationId);
     const resultat = lireAgrement({
       ...agrement,
       formationId: agrement.formationId ?? '',
       precision: agrement.precision ?? '',
       sourceLien: agrement.sourceLien ?? '',
-      documentVu: true,
+      delivreLe: agrement.delivreLe ?? '',
+      // Ticket 205 (A22) : la preuve dite ici, sinon celle déjà gardée.
+      preuve: agrement.preuve ?? (deja0?.preuve === 'dit_ecole' ? 'dit_ecole' : 'document_vu'),
     });
     if (!resultat.agrement) throw new ErreurDecision(resultat.erreur!);
     const deja = (c.agrements ?? []).find((a) => a.formationId === agrement.formationId);
@@ -2942,8 +3009,8 @@ const admin: PortAdministration = {
         {
           ...resultat.agrement!,
           id,
-          preuve: deja?.preuve ?? null,
-          preuveDetail: deja?.preuveDetail ?? null,
+          preuve: agrement.preuve ?? deja?.preuve ?? null,
+          preuveDetail: agrement.preuve ? null : (deja?.preuveDetail ?? null),
         },
       ];
     });

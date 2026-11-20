@@ -88,7 +88,11 @@ test.describe('dans l’administration', () => {
     await agrement.getByLabel(/^Source, en mots/).fill('copie remise par l’établissement');
     await agrement.getByLabel(/^Lien vers le document/).fill('http://exemple.cg');
     await agrement.getByLabel(/^Jour où tu as vu/).fill(hier());
-    await agrement.getByLabel('J’ai vu ce document.').check();
+    // Ticket 205 (A22) : la case « J’ai vu ce document » devient le choix de la preuve.
+    await agrement
+      .getByRole('group', { name: 'Vue sur' })
+      .getByRole('button', { name: 'Le document' })
+      .click();
     await agrement.getByRole('button', { name: 'Enregistrer l’agrément' }).click();
     await expect(dialog).toContainText('Un lien commence par https://');
     await agrement.getByLabel(/^Lien vers le document/).fill('');

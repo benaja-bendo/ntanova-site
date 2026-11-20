@@ -36,7 +36,10 @@ const quand = (debut: string, fin: string | null) =>
             {x.etat === 'en_cours' && ' · en cours'}
             {x.etat === 'passee' && ' · passée'}
           </span>
-          <b>{libelleEtapeAdmission[x.etape]}</b>
+          <b>
+            {libelleEtapeAdmission[x.etape]}
+            {x.libelle ? ` · ${x.libelle}` : ''}
+          </b>
           <span>{quand(x.debut, x.fin)}</span>
         </li>
       ))}

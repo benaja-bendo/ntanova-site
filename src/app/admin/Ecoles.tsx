@@ -24,6 +24,7 @@ import { MotDirectionEcole } from './MotDirectionEcole';
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ecrirePosition } from '../../modele/coordonnees';
+import { jourDuCongo } from '../../modele/date-declaration';
 import type { SourcePosition } from '../../modele/fiche-admin';
 import {
   erreursFormulaireEcole,
@@ -1229,7 +1230,10 @@ function FormulaireEcole({
   const enregistrer = async (ev: { preventDefault: () => void }) => {
     ev.preventDefault();
     setErreur(null);
-    const trouvees = { ...erreursFormulaireEcole(champs), ...erreursIdentite(identite) };
+    const trouvees = {
+      ...erreursFormulaireEcole(champs),
+      ...erreursIdentite(identite, jourDuCongo()),
+    };
     setErreurs(trouvees);
     if (Object.keys(trouvees).length > 0) return;
     const correction = { ...versCorrection(e, champs), ...versCorrectionIdentite(e, identite) };
@@ -1289,6 +1293,56 @@ function FormulaireEcole({
                   value={identite.etiquette}
                   onChange={(ev) => {
                     setIdentite((x) => ({ ...x, etiquette: ev.target.value }));
+                    setRienADire(false);
+                  }}
+                />
+              )}
+            </Champ>
+            {/* Ticket 205 (A21) : l'école, pour tous ses sites. */}
+            <Champ libelle="Créée en" facultatif erreur={erreurs['anneeCreation']}>
+              {(a) => (
+                <input
+                  {...a}
+                  className={v2.champ}
+                  type="text"
+                  autoComplete="off"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={identite.anneeCreation ?? ''}
+                  onChange={(ev) => {
+                    setIdentite((x) => ({ ...x, anneeCreation: ev.target.value }));
+                    setRienADire(false);
+                  }}
+                />
+              )}
+            </Champ>
+            <Champ libelle="Site web" facultatif erreur={erreurs['siteWeb']}>
+              {(a) => (
+                <input
+                  {...a}
+                  className={v2.champ}
+                  type="url"
+                  autoComplete="off"
+                  placeholder="https://"
+                  value={identite.siteWeb ?? ''}
+                  onChange={(ev) => {
+                    setIdentite((x) => ({ ...x, siteWeb: ev.target.value }));
+                    setRienADire(false);
+                  }}
+                />
+              )}
+            </Champ>
+            <Champ libelle="Page Facebook" facultatif erreur={erreurs['facebook']}>
+              {(a) => (
+                <input
+                  {...a}
+                  className={v2.champ}
+                  type="url"
+                  autoComplete="off"
+                  placeholder="https://www.facebook.com/…"
+                  value={identite.facebook ?? ''}
+                  onChange={(ev) => {
+                    setIdentite((x) => ({ ...x, facebook: ev.target.value }));
                     setRienADire(false);
                   }}
                 />

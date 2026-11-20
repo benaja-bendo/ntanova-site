@@ -153,6 +153,10 @@ export const libelleDiplome: Record<Valeur<'diploma_kind'>, string> = {
   cap: 'CAP',
   certificat: 'Certificat',
   autre: 'Autre diplôme',
+  ingenieur: 'Diplôme d’ingénieur',
+  bachelor: 'Bachelor',
+  dut: 'DUT',
+  cqp: 'CQP',
 };
 
 export const libelleRythme: Record<Valeur<'study_rhythm'>, string> = {
@@ -189,6 +193,7 @@ export const libelleSujetMedia: Record<Valeur<'media_subject'>, string> = {
   terrain: 'Terrain',
   activite: 'Activité',
   autre: 'Photo',
+  prospectus: 'Prospectus',
 };
 
 /** v2 (13/11) : le genre d'une nouvelle. */

@@ -498,13 +498,17 @@ function Importation({
   const [texte, setTexte] = useState('');
   // Le résultat de la dernière simulation, avec le texte qu'elle a lu : changer le texte l'écarte, car on ne
   // confirme jamais la simulation d'un autre texte.
+  // Ticket 205 (A11) : le jour où l'école a dit le détail des formations, pour toute la liste ; rien d'avance.
+  const [ditLe, setDitLe] = useState('');
   const [simulation, setSimulation] = useState<{
     texte: string;
+    ditLe: string;
     lecture: LectureImport;
     rapport: RapportImport | null;
   } | null>(null);
-  const lecture = simulation?.texte === texte ? simulation.lecture : null;
-  const rapport = simulation?.texte === texte ? simulation.rapport : null;
+  const aJour = simulation?.texte === texte && simulation.ditLe === ditLe;
+  const lecture = aJour ? simulation.lecture : null;
+  const rapport = aJour ? simulation.rapport : null;
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
 
@@ -516,9 +520,12 @@ function Importation({
     setErreur(null);
     setEnCours(true);
     try {
-      const lu = lireImportation(texte, { domaines: domaines.map((d) => d.slug) });
+      const lu = lireImportation(texte, {
+        domaines: domaines.map((d) => d.slug),
+        ditLe: ditLe || null,
+      });
       const rapport = lu.entrees.length > 0 ? await admin.importerEcoles(lu.entrees, true) : null;
-      setSimulation({ texte, lecture: lu, rapport });
+      setSimulation({ texte, ditLe, lecture: lu, rapport });
     } catch (e) {
       setErreur(messageErreur(e));
     } finally {
@@ -573,7 +580,9 @@ function Importation({
           Colonnes : reference, nom, genre, etiquette, division (chemin ou identifiant), quartier,
           repere, numero, latitude, longitude, programme, cycles (séparés par « | »), formations (
           <code>cycle:titre:domaine:série:diplôme:rythmes</code>, séparées par « | », rythmes
-          séparés par « + »). Le JSON suit le même modèle (voir <code>supabase/schema.md</code>).
+          séparés par « + »). Le JSON suit le même modèle (voir <code>supabase/schema.md</code>) ;
+          une formation y dit aussi <code>dureeAnnees</code>, <code>niveauDemande</code> et{' '}
+          <code>ditLe</code> (le jour où l’école l’a dit).
         </p>
         <pre className={v2.mention}>{EXEMPLE_CSV}</pre>
       </details>
@@ -602,6 +611,18 @@ function Importation({
           )}
         </Champ>
       </div>
+      <Champ libelle="Détail des formations dit par l’école le" facultatif>
+        {(a) => (
+          <input
+            {...a}
+            className={v2.champ}
+            type="date"
+            max={jourDuCongo()}
+            value={ditLe}
+            onChange={(ev) => setDitLe(ev.target.value)}
+          />
+        )}
+      </Champ>
       <div className={v2.actionsLarge}>
         <button
           type="button"

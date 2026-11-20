@@ -19,6 +19,8 @@ const CANAUX = [
   { valeur: 'appel', libelle: 'Appel' },
   { valeur: 'sur_place', libelle: 'Sur place' },
   { valeur: 'autre', libelle: 'Autre' },
+  // Ticket 205 (A28) : l'accord donné au fondateur.
+  { valeur: 'fondateur', libelle: 'Au fondateur' },
 ] as const;
 
 /**

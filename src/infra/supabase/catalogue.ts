@@ -281,7 +281,7 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
           where_to_apply: string | null;
           on_site_only: boolean;
           declared_on: string;
-          steps: { step: string; starts_on: string; ends_on: string | null }[];
+          steps: { step: string; starts_on: string; ends_on: string | null; label?: string | null }[];
         }>('public_campus_admissions?select=*&order=campus_id,school_year'),
       ]);
 
@@ -332,7 +332,12 @@ export function creerCatalogue(url: string, cle: string): PortCatalogue {
       for (const a of admissions) {
         const etapes = (a.steps ?? [])
           .filter((x) => (listes.admission_step as readonly string[]).includes(x.step))
-          .map((x) => ({ etape: x.step as AdmissionPublique['etapes'][number]['etape'], debut: x.starts_on, fin: x.ends_on }));
+          .map((x) => ({
+            etape: x.step as AdmissionPublique['etapes'][number]['etape'],
+            debut: x.starts_on,
+            fin: x.ends_on,
+            libelle: x.label ?? null,
+          }));
         const deja = admissionDe.get(a.campus_id);
         if (deja && deja.anneeScolaire.localeCompare(a.school_year) > 0) continue;
         admissionDe.set(a.campus_id, {
