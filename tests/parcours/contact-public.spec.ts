@@ -31,7 +31,8 @@ test('contact public : accord distinct, ajout, relecture et retrait sans badge',
   await expect(ficheOuverte(page)).not.toContainText('vérifiée par la direction');
   await page.reload();
   await ouvrirGestion(ligne, 'Contact public');
-  await expect(f.getByLabel('Numéro public', { exact: true })).toHaveValue('242060000001');
+  // Ticket 207 (A27) : le numéro se relit écrit comme sur le site, plus en chiffres bruts.
+  await expect(f.getByLabel('Numéro public', { exact: true })).toHaveValue('+242 06 000 00 01');
   await expect(
     f.getByLabel('La direction autorise la publication de ce numéro sur le site.'),
   ).not.toBeChecked();

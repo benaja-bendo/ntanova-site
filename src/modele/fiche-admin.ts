@@ -2,6 +2,7 @@
  * La fiche d'une école dans l'administration, v2 (lot D du ticket 165, canevas « Fiche d'école », planches admin) : ce qui
  * manque et qui peut le donner, les demandes faites, les images de l'école. Pur : ni DOM, ni réseau.
  */
+import { libelleDiplome } from './libelles';
 import type { Valeur } from './listes';
 
 /** Un manque : ce qui manque au site (calculé par la base, ou une demande précisée), qui peut le donner, et sa demande. */
@@ -494,4 +495,33 @@ export function formationsACopier<F extends Pick<FormationDuSuperieur, 'id' | 't
 ): (F & { dejaLa: boolean })[] {
   const presentes = new Set(cible.map((f) => `${f.cycle}|${normaliser(f.titre)}`));
   return source.map((f) => ({ ...f, dejaLa: presentes.has(`${f.cycle}|${normaliser(f.titre)}`) }));
+}
+
+// Ticket 207 : le confort ------------------------------------------------------------------------------------------------
+
+/**
+ * A7 : une école répond à la recherche par son nom, son sigle, le nom de son site ou son quartier (sans accent ni casse).
+ * Une recherche vide les garde toutes.
+ */
+export function correspondALaRecherche(
+  e: { nom: string; sigle?: string | null; etiquette?: string | null; quartier?: string | null },
+  recherche: string,
+): boolean {
+  const cherche = normaliser(recherche);
+  if (!cherche) return true;
+  return [e.nom, e.sigle, e.etiquette, e.quartier].some(
+    (x) => !!x && normaliser(x).includes(cherche),
+  );
+}
+
+/** A10 : « Licence · Informatique », la tête du résumé d'une formation ; nul quand ni l'un ni l'autre n'est dit. */
+export function teteDeLaFormation(
+  f: Pick<FormationDuSuperieur, 'diplome' | 'domaine'>,
+  nomDuDomaine: string | null,
+): string | null {
+  const morceaux = [
+    f.diplome ? libelleDiplome[f.diplome] : null,
+    f.domaine ? (nomDuDomaine ?? null) : null,
+  ];
+  return morceaux.filter(Boolean).join(' · ') || null;
 }

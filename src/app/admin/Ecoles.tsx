@@ -25,7 +25,7 @@ import { MotDirectionEcole } from './MotDirectionEcole';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ecrirePosition } from '../../modele/coordonnees';
 import { jourDuCongo } from '../../modele/date-declaration';
-import type { SourcePosition } from '../../modele/fiche-admin';
+import { correspondALaRecherche, type SourcePosition } from '../../modele/fiche-admin';
 import {
   erreursFormulaireEcole,
   erreursIdentite,
@@ -1583,21 +1583,13 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   }, [charger]);
 
   const compte = (etat: Etat) => ecoles?.filter((e) => etatDe(e) === etat).length ?? 0;
+  // Ticket 207 (A7) : une recherche porte sur toutes les écoles, quel que soit l'onglet (la corbeille garde la sienne).
+  const chercheTout = recherche.trim() !== '' && filtre !== 'corbeille' && filtre !== 'toutes';
   const visibles = (ecoles ?? []).filter(
     (e) =>
       // « Toutes » ne montre pas la corbeille : elle a son propre filtre.
-      (filtre === 'toutes' ? etatDe(e) !== 'corbeille' : etatDe(e) === filtre) &&
-      e.nom
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLocaleLowerCase('fr')
-        .includes(
-          recherche
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .trim()
-            .toLocaleLowerCase('fr'),
-        ) &&
+      (filtre === 'toutes' || chercheTout ? etatDe(e) !== 'corbeille' : etatDe(e) === filtre) &&
+      correspondALaRecherche(e, recherche) &&
       (!divisionFiltre ||
         e.divisionId === divisionFiltre ||
         divisions
@@ -1845,6 +1837,11 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
         {ecoles === null && !erreur && (
           <p className="m-0 px-4 py-4 text-muted-foreground" aria-busy="true">
             Chargement des écoles…
+          </p>
+        )}
+        {chercheTout && (
+          <p className="m-0 px-4 pt-3 text-sm text-muted-foreground" aria-live="polite">
+            Recherche dans toutes les écoles.
           </p>
         )}
         {ecoles !== null && visibles.length === 0 && (

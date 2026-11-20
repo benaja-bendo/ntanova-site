@@ -1,4 +1,5 @@
 import { v2 } from '@/ui/v2/classes';
+import { afficherTelephone } from '../../modele/telephone';
 import { cn } from '@/lib/utils';
 import { IconeLieu, IconeMessage } from '@/ui/shadcn/icones';
 import { useCallback, useEffect, useState } from 'react';
@@ -183,7 +184,9 @@ export function ManquesEcole({
                 À l’école · {aDemander.length} chose{aDemander.length > 1 ? 's' : ''}
               </b>
               <span className="text-[13px] text-muted-foreground">
-                {numero ? `Numéro ${numero}` : 'Pas de numéro : WhatsApp demandera à qui écrire'}
+                {numero
+                  ? `Numéro ${afficherTelephone(numero)}`
+                  : 'Pas de numéro : WhatsApp demandera à qui écrire'}
               </span>
             </span>
           </div>

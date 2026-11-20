@@ -33,7 +33,8 @@ export function ContactPublic({
   integre?: boolean;
   surOccupation?: (occupe: boolean) => void;
 }) {
-  const [numero, setNumero] = useState(contact?.numero ?? '');
+  // Ticket 207 (A27) : le numéro se relit écrit comme sur le site (« +242 05 524 59 55 »).
+  const [numero, setNumero] = useState(contact?.numero ? afficherTelephone(contact.numero) : '');
   // Ticket 199 (A2) : le jour de l'accord se tape, jamais aujourd'hui par défaut.
   const [accordLe, setAccordLe] = useState('');
   const [fonction, setFonction] = useState('');
@@ -58,7 +59,7 @@ export function ContactPublic({
     try {
       await admin.enregistrerContactPublic(ecoleId, resultat.contact);
       setAutorise(false);
-      setNumero(resultat.contact?.numero ?? '');
+      setNumero(resultat.contact?.numero ? afficherTelephone(resultat.contact.numero) : '');
       setAccordLe('');
       setFonction('');
       setCanal('');
