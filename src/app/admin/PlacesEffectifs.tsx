@@ -288,8 +288,9 @@ export function PlacesEffectifs({
                       onClick={() =>
                         ouvrir('places', p.id, {
                           ...saisieDePlaces(p),
-                          // Redire une annonce passée, c'est la redater : le jour où l'école la redit.
-                          ditLe: annonceEnCours(p, aujourdhui) ? p.ditLe : aujourdhui,
+                          // Redire une annonce passée, c'est la redater : le jour où l'école la redit, à taper
+                          // (ticket 199, A2 : jamais aujourd'hui par défaut).
+                          ditLe: annonceEnCours(p, aujourdhui) ? p.ditLe : '',
                         })
                       }
                     >

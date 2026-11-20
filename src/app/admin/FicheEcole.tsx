@@ -24,7 +24,7 @@ import {
   type NouvelleAdmin,
 } from '../../modele/fiche-admin';
 import { libelleEquipement } from '../../modele/equipements-ecole';
-import { etatDuOui } from '../../modele/frais-ecole';
+import { etatDuOuiAvecDossier } from '../../modele/frais-ecole';
 import { jourDuCongo } from '../../modele/date-declaration';
 import { ecrirePosition } from '../../modele/coordonnees';
 import { annonceEnCours, nomDeClasse, trierParClasse } from '../../modele/places-effectifs';
@@ -206,7 +206,7 @@ export function FicheEcole({
     .sort()
     .at(-1);
   // Lot 2 du site public (15/11) : le OUI de l'école sur ses frais ; les places annoncées encore sur le site.
-  const ouiFrais = etatDuOui(e.frais ?? []);
+  const ouiFrais = etatDuOuiAvecDossier(e.frais ?? [], e.fraisDeDossier ?? []);
   const placesEnCours = trierParClasse(
     (e.places ?? []).filter((p) => annonceEnCours(p, jourDuCongo())),
   );
@@ -510,10 +510,10 @@ export function FicheEcole({
               ouiFrais.etat === 'confirme' ? `OUI de l’école le ${dateCourte(ouiFrais.le)}` : null
             }
             manque={
-              (e.frais ?? []).length === 0
-                ? 'À demander'
-                : ouiFrais.etat === 'attend'
-                  ? 'En attente du OUI de l’école'
+              ouiFrais.etat === 'attend'
+                ? 'En attente du OUI de l’école'
+                : (e.frais ?? []).length === 0
+                  ? 'À demander'
                   : null
             }
             ouvrir={() => ouvrir('frais')}

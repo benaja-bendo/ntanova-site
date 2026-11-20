@@ -713,11 +713,25 @@ export interface ApercuSuppression {
   contacts: number;
 }
 
+/** Ticket 199 (A1) : le frais de dossier d'une formation, son jour (« dit le ») et le OUI de l'école. */
+export interface FraisDeDossier {
+  formationId: string;
+  titre: string;
+  montant: number;
+  ditLe: string | null;
+  confirmeLe: string | null;
+}
+
 export interface EcoleVue {
   /** Le numéro public du site : son lien court `/ecoles/<numero>/` (refonte v2 : « Aperçu »). */
   numeroPublic?: number | null;
   equipements?: Equipement[];
   frais?: FraisEcole[];
+  /**
+   * Ticket 199 (A1) : les frais de dossier des formations du site, qui suivent le OUI de l'école comme ses frais (le même
+   * « Noter le OUI de l'école »). `confirmeLe` nul : le frais n'est pas public.
+   */
+  fraisDeDossier?: FraisDeDossier[];
   contactPublic?: ContactPublic | null;
   agrements?: AgrementEnregistre[];
   motDirection?: MotDirection | null;

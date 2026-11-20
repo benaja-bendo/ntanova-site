@@ -331,7 +331,8 @@ function TiroirFormation({
   const [selection, setSelection] = useState<Valeur<'selection_kind'> | null>(d.selection);
   const [fraisDossier, setFraisDossier] = useState(d.fraisDossier?.toString() ?? '');
   const [fraisAn, setFraisAn] = useState(f.fraisParAn?.toString() ?? '');
-  const [ditLe, setDitLe] = useState(d.ditLe ?? jourDuCongo());
+  // Ticket 199 (A2) : jamais aujourd'hui par défaut ; on tape le jour où l'école l'a dit.
+  const [ditLe, setDitLe] = useState(d.ditLe ?? '');
   const [reference, setReference] = useState(f.autorisation?.reference ?? '');
   const [leArrete, setLeArrete] = useState(f.autorisation?.le ?? '');
   const [preuve, setPreuve] = useState<GenrePreuve | null>(f.autorisation?.preuve ?? null);
@@ -545,7 +546,16 @@ function TiroirFormation({
                   </select>
                 )}
               </Champ>
-              <Champ libelle="Frais de dossier (FCFA)" facultatif>
+              {/* Ticket 199 (A1) : le frais de dossier suit le OUI de l'école, comme les frais par an. */}
+              <Champ
+                libelle="Frais de dossier (FCFA)"
+                facultatif
+                aide={
+                  d.fraisDossierConfirmeLe && fraisDossier === (d.fraisDossier?.toString() ?? '')
+                    ? `OUI de l’école le ${dateLongue(d.fraisDossierConfirmeLe)}.`
+                    : 'Sur le site avec le OUI de l’école (Frais).'
+                }
+              >
                 {(x) => (
                   <input
                     {...x}

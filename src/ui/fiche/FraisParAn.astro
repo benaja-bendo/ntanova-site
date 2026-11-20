@@ -19,10 +19,17 @@ const parDiplome = listes.diploma_kind
     const sienne = lignes.filter((f) => ids.has(f.formationId!));
     if (sienne.length === 0) return null;
     const min = Math.min(...sienne.map((f) => f.minimum));
-    const max = Math.max(...sienne.map((f) => f.maximum));
+    // Ticket 199 (A23) : une ligne « à partir de » n'a pas de plafond ; la fourchette non plus.
+    const plafonds = sienne.map((f) => f.maximum);
+    const max = plafonds.includes(null) ? null : Math.max(...(plafonds as number[]));
     return {
       libelle: libelleDiplome[d],
-      montant: min === max ? francsCFA(min) : `${nombre(min)} à ${francsCFA(max)}`,
+      montant:
+        max === null
+          ? `à partir de ${francsCFA(min)}`
+          : min === max
+            ? francsCFA(min)
+            : `${nombre(min)} à ${francsCFA(max)}`,
     };
   })
   .filter((x): x is { libelle: string; montant: string } => x !== null);

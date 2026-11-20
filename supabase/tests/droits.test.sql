@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(59);
+select plan(60);
 
 -- Mise en place (rôle postgres) -----------------------------------------------------------------------------------------
 
@@ -162,8 +162,13 @@ select is((select string_agg(table_name, ',' order by table_name) from informati
   null, 'Un visiteur n''a que le droit de lire (jamais d''écrire)');
 select is((select string_agg(table_name, ',' order by table_name) from information_schema.role_table_grants
            where grantee = 'anon' and table_schema = 'public' and privilege_type = 'SELECT'),
-  'campus_class_sizes,campus_cycles,campus_enrollment_deadlines,campus_facts,campus_fees,campus_openings,campus_programs,campuses,education_domains,geo_divisions,institutions,public_campus_accreditations,public_campus_admissions,public_campus_cycles,public_campus_former_addresses,public_campus_media,public_campus_photos,public_campus_posts,public_campus_programs,public_campus_redirects,public_campus_statements,public_campuses,public_institution_sites,public_verification_demands',
+  'campus_class_sizes,campus_cycles,campus_enrollment_deadlines,campus_facts,campus_fees,campus_openings,campuses,education_domains,geo_divisions,institutions,public_campus_accreditations,public_campus_admissions,public_campus_cycles,public_campus_former_addresses,public_campus_media,public_campus_photos,public_campus_posts,public_campus_programs,public_campus_redirects,public_campus_statements,public_campuses,public_institution_sites,public_verification_demands',
   'Le visiteur ne lit que le catalogue publié, la géographie et les domaines');
+-- Ticket 199 (A1) : les formations se lisent colonne par colonne ; le frais de dossier n'est public que par la vue, avec le OUI.
+select is((select string_agg(column_name, ',' order by column_name) from information_schema.role_column_grants
+           where grantee = 'anon' and table_schema = 'public' and table_name = 'campus_programs' and privilege_type = 'SELECT'),
+  'accepted_bac_tracks,admission_level,bac_track,campus_cycle_id,created_at,details_declared_on,diploma,diploma_issuer,domain_id,duration_years,id,origin,rhythms,selection,source_submission_id,title',
+  'Le visiteur lit les formations, sans le frais de dossier ni son OUI');
 select is((select count(*)::int from information_schema.role_table_grants
            where grantee in ('anon', 'authenticated', 'public') and table_schema = 'prive'), 0,
   'Aucun rôle de l''API n''a de droit sur le schéma privé');

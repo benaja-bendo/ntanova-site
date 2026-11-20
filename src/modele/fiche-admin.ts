@@ -195,6 +195,8 @@ export interface DetailsFormation {
   delivrePar: string | null;
   /** Le jour où l'école l'a dit ; obligatoire dès qu'un détail est rempli. */
   ditLe: string | null;
+  /** Ticket 199 (A1) : le jour du OUI de l'école sur le frais de dossier (lu seulement ; nul : il n'est pas public). */
+  fraisDossierConfirmeLe?: string | null;
 }
 
 export interface FormationDuSuperieur {

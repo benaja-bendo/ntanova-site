@@ -164,6 +164,8 @@ test('Frais : « Même inscription sur toutes les lignes » en un geste', async 
   }
   await frais.getByRole('button', { name: 'Même inscription sur toutes les lignes' }).click();
   await expect(lignes.nth(1).getByLabel('Inscription (FCFA)')).toHaveValue(/5\s*000/);
+  // Ticket 199 (A2) : le jour de la déclaration se tape, jamais pré-rempli.
+  await frais.getByLabel('Déclarés par l’école le').fill('2026-11-10');
   await frais.getByRole('button', { name: 'Enregistrer 2 lignes publiables' }).click();
   await expect(page.getByRole('status').first()).toContainText('2 lignes de frais enregistrées');
 });

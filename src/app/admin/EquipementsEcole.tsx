@@ -94,7 +94,8 @@ export function EquipementsEcole({
       cle,
       etat: 'present',
       source: 'ecole',
-      constateLe: jourDuCongo(),
+      // Ticket 199 (A2) : le jour du constat se tape.
+      constateLe: '',
     });
     setErreur(null);
   };

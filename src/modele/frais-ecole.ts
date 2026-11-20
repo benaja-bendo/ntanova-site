@@ -10,7 +10,8 @@ export type PeriodeFrais = keyof typeof periodesFrais;
 export interface FraisASaisir {
   cycle: Valeur<'niveau'>;
   minimum: number;
-  maximum: number;
+  /** Égal au minimum pour un montant unique ; nul : « à partir de » le minimum (ticket 199, A23). */
+  maximum: number | null;
   periode: PeriodeFrais;
   precisionPeriode: string | null;
   inscription: number | null;
@@ -35,6 +36,8 @@ export interface FraisEcole extends FraisASaisir {
    * ne paraît pas sur le site. Une ligne modifiée le perd (la base l'efface).
    */
   confirmeLe?: string | null;
+  /** Ticket 199 (A14) : quand la ligne a été saisie ; les lignes se lisent dans cet ordre. */
+  creeLe?: string | null;
 }
 export interface SaisieFrais {
   cycle: string;
@@ -53,6 +56,8 @@ export interface SaisieFrais {
   formationId?: string | null;
   /** Lot 2 : les mois facturés, tels que tapés (« 10 ») ; vide : pas dit. */
   moisFactures?: string;
+  /** Ticket 199 (A23) : « à partir de » le minimum, sans maximum. */
+  aPartirDe?: boolean;
 }
 export const saisieFraisVide = (): SaisieFrais => ({
   cycle: '',
@@ -72,7 +77,8 @@ export const saisieFraisVide = (): SaisieFrais => ({
 export const saisieDeFrais = (f: FraisEcole): SaisieFrais => ({
   ...f,
   minimum: String(f.minimum),
-  maximum: String(f.maximum),
+  maximum: f.maximum === null ? '' : String(f.maximum),
+  aPartirDe: f.maximum === null,
   inscription: f.inscription === null ? '' : String(f.inscription),
   precisionPeriode: f.precisionPeriode ?? '',
   anneeScolaire: f.anneeScolaire ?? '',
@@ -82,6 +88,33 @@ export const saisieDeFrais = (f: FraisEcole): SaisieFrais => ({
   photoPreuve: f.photoPreuve ?? null,
   moisFactures: f.moisFactures == null ? '' : String(f.moisFactures),
 });
+/** Les limites des champs d'une ligne (celles de la base), et leur nom dans un message. */
+const LIMITES = {
+  anneeScolaire: { nom: 'L’année scolaire', max: 30 },
+  precisionPeriode: { nom: 'La précision de la période', max: 80 },
+  note: { nom: 'La note', max: 300 },
+  classe: { nom: 'La classe', max: 40 },
+} as const;
+
+/** Ticket 199 (A12) : le premier champ trop long, nommé avec sa longueur ; ou null. */
+function erreurDeLongueur(champs: Partial<Record<keyof typeof LIMITES, string>>): string | null {
+  for (const [cle, { nom, max }] of Object.entries(LIMITES)) {
+    const n = (champs[cle as keyof typeof LIMITES] ?? '').trim().length;
+    if (n > max) return `${nom} fait ${n} caractères : ${max} au plus.`;
+  }
+  return null;
+}
+
+/** Ce qui vaut pour toutes les lignes (année, note) : vérifié avant les lignes, l'erreur ne nomme alors aucune ligne. */
+export const erreurDesChampsCommuns = (
+  s: { anneeScolaire: string; note: string; declaresLe?: string },
+  aujourdHui = jourDuCongo(),
+): string | null =>
+  erreurDeLongueur(s) ??
+  (s.declaresLe !== undefined && !dateDeclareeValide(s.declaresLe, aujourdHui)
+    ? 'Indique le jour où l’école a déclaré ces frais (pas une date future).'
+    : null);
+
 function entier(s: string): number | null {
   const n = s.trim().replace(/[\s\u00a0\u202f]/g, '');
   return /^\d+$/.test(n) && Number(n) <= 2147483647 ? Number(n) : null;
@@ -91,16 +124,15 @@ export function lireFraisEcole(
   aujourdHui = jourDuCongo(),
 ): { frais: FraisASaisir | null; erreur: string | null } {
   const minimum = entier(s.minimum),
-    maximum = s.maximum.trim() === '' ? minimum : entier(s.maximum),
+    maximum = s.aPartirDe ? null : s.maximum.trim() === '' ? minimum : entier(s.maximum),
     inscription = s.inscription.trim() === '' ? null : entier(s.inscription),
     moisTapes = (s.moisFactures ?? '').trim(),
     mois = moisTapes === '' ? null : entier(moisTapes);
-  let erreur: string | null = null;
+  let erreur: string | null;
   if (!listes.niveau.includes(s.cycle as Valeur<'niveau'>)) erreur = 'Choisis le cycle concerné.';
   else if (
     minimum === null ||
-    maximum === null ||
-    maximum < minimum ||
+    (!s.aPartirDe && (maximum === null || maximum < minimum)) ||
     (s.inscription.trim() !== '' && inscription === null)
   )
     erreur =
@@ -117,13 +149,7 @@ export function lireFraisEcole(
     erreur = 'Indique la date réelle de déclaration, pas une date future.';
   else if (!s.declarationConfirmee)
     erreur = 'Confirme que ces frais ont été communiqués par l’école pour être affichés.';
-  else if (
-    s.anneeScolaire.trim().length > 30 ||
-    s.precisionPeriode.trim().length > 80 ||
-    s.note.trim().length > 300 ||
-    (s.classe ?? '').trim().length > 40
-  )
-    erreur = 'Raccourcis l’année scolaire, la période, la classe ou la précision.';
+  else erreur = erreurDeLongueur({ ...s, classe: s.classe ?? '' });
   return {
     erreur,
     frais: erreur
@@ -131,7 +157,7 @@ export function lireFraisEcole(
       : {
           cycle: s.cycle as Valeur<'niveau'>,
           minimum: minimum!,
-          maximum: maximum!,
+          maximum,
           periode: s.periode as PeriodeFrais,
           precisionPeriode: s.periode === 'autre' ? s.precisionPeriode.trim() : null,
           inscription,
@@ -198,6 +224,19 @@ export function etatDuOui(
   };
 }
 
+/**
+ * Ticket 199 (A1) : le OUI de l'école sur ses lignes de frais et sur les frais de dossier de ses formations, qu'un même
+ * « Noter le OUI de l'école » confirme ensemble.
+ */
+export const etatDuOuiAvecDossier = (
+  frais: readonly Pick<FraisEcole, 'confirmeLe' | 'declaresLe'>[],
+  dossier: readonly { confirmeLe: string | null; ditLe: string | null }[] = [],
+): EtatDuOui =>
+  etatDuOui([
+    ...frais,
+    ...dossier.map((d) => ({ confirmeLe: d.confirmeLe, declaresLe: d.ditLe ?? '' })),
+  ]);
+
 /** Le jour du OUI : une date réelle, pas dans le futur, pas avant les frais qu'il confirme. L'erreur, ou null. */
 export function erreurDuOui(
   le: string,
@@ -248,6 +287,17 @@ export function inscriptionLaPlusFrequente(frais: readonly FraisEcole[]): number
 export const lireMontant = (s: string): number | null => entier(s);
 export const francsCFA = (n: number): string => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 export const montantFrais = (f: Pick<FraisASaisir, 'minimum' | 'maximum'>): string =>
-  f.minimum === f.maximum
-    ? francsCFA(f.minimum)
-    : `${new Intl.NumberFormat('fr-FR').format(f.minimum)} à ${francsCFA(f.maximum)}`;
+  f.maximum === null
+    ? `à partir de ${francsCFA(f.minimum)}`
+    : f.minimum === f.maximum
+      ? francsCFA(f.minimum)
+      : `${new Intl.NumberFormat('fr-FR').format(f.minimum)} à ${francsCFA(f.maximum)}`;
+
+/** Ticket 199 (A14) : les lignes dans l'ordre de leur saisie ; une ligne sans date (faux serveur, ancienne) vient après. */
+export const dansLOrdreDeSaisie = <T extends Pick<FraisEcole, 'id' | 'creeLe'>>(
+  frais: readonly T[],
+): T[] =>
+  [...frais].sort(
+    (a, b) =>
+      (a.creeLe ?? '\uffff').localeCompare(b.creeLe ?? '\uffff') || a.id.localeCompare(b.id),
+  );

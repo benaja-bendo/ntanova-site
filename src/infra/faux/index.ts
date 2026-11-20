@@ -26,7 +26,7 @@ import {
 } from '../../modele/equipements-ecole';
 import {
   erreurDuOui,
-  etatDuOui,
+  etatDuOuiAvecDossier,
   ligneChangee,
   lireFraisEcole,
   saisieDeFrais,
@@ -76,6 +76,7 @@ import {
   type EcoleVue,
   type EntreeCatalogue,
   type ErreurAEnvoyer,
+  type FraisDeDossier,
   type FormationSaisie,
   type PortAdministration,
   type PortRelais,
@@ -1146,6 +1147,35 @@ function divisionPar(e: Etat, reference: string | null): DivisionFausse | null {
   );
 }
 
+/** Ticket 199 (A1) : les frais de dossier des formations d'un site, et leur OUI (comme `campus_programs` en base). */
+function fraisDeDossierDuCampus(c: CampusFaux): FraisDeDossier[] {
+  return Object.entries(c.detailsFormations ?? {}).flatMap(([id, d]) =>
+    d.fraisDossier == null
+      ? []
+      : [
+          {
+            formationId: id,
+            titre: id.slice(id.indexOf('|') + 1),
+            montant: d.fraisDossier,
+            ditLe: d.ditLe,
+            confirmeLe: d.fraisDossierConfirmeLe ?? null,
+          },
+        ],
+  );
+}
+
+/** Comme `set_program_details` : le OUI du frais de dossier reste tant que son montant ne change pas. */
+const avecLeOuiDuDossier = (
+  avant: DetailsFormation | undefined,
+  d: DetailsFormation,
+): DetailsFormation => ({
+  ...d,
+  fraisDossierConfirmeLe:
+    avant?.fraisDossierConfirmeLe && avant.fraisDossier === d.fraisDossier
+      ? avant.fraisDossierConfirmeLe
+      : null,
+});
+
 function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
   const division = c.divisionId ? e.divisions[c.divisionId] : undefined;
   return {
@@ -1178,6 +1208,7 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     repere: c.repere ?? null,
     numeroEnseigne: c.numeroEnseigne ?? null,
     frais: c.frais ?? [],
+    fraisDeDossier: fraisDeDossierDuCampus(c),
     places: c.places ?? [],
     effectifs: c.effectifs ?? [],
     equipements: c.equipements ?? [],
@@ -2750,15 +2781,16 @@ const admin: PortAdministration = {
         : null;
     ecrire((e) => {
       const c = e.campus[ecoleId]!;
-      c.frais = [
-        ...(c.frais ?? []).filter((f) => f.id !== identifiant),
-        {
-          ...resultat.frais!,
-          id: identifiant,
-          preuve: resultat.frais!.photoPreuve ? 'prospectus' : 'declaration',
-          confirmeLe: garde,
-        },
-      ];
+      const ligne = {
+        ...resultat.frais!,
+        id: identifiant,
+        preuve: resultat.frais!.photoPreuve ? ('prospectus' as const) : ('declaration' as const),
+        confirmeLe: garde,
+      };
+      // Ticket 199 (A14) : une ligne modifiée garde sa place ; une ligne neuve va à la fin.
+      c.frais = (c.frais ?? []).some((f) => f.id === identifiant)
+        ? (c.frais ?? []).map((f) => (f.id === identifiant ? ligne : f))
+        : [...(c.frais ?? []), ligne];
     });
     return identifiant;
   },
@@ -2766,7 +2798,8 @@ const admin: PortAdministration = {
     await reseau();
     const c = lireEtat().campus[ecoleId];
     if (!c) throw new ErreurDecision('École introuvable.');
-    const oui = etatDuOui(c.frais ?? []);
+    // Ticket 199 (A1) : le OUI vaut aussi pour les frais de dossier des formations.
+    const oui = etatDuOuiAvecDossier(c.frais ?? [], fraisDeDossierDuCampus(c));
     if (oui.etat !== 'attend')
       throw new ErreurDecision('Aucune ligne de frais n’attend le OUI de cette école.');
     const erreur = erreurDuOui(confirmeLe, oui.auPlusTot);
@@ -2774,6 +2807,14 @@ const admin: PortAdministration = {
     ecrire((e) => {
       const campus = e.campus[ecoleId]!;
       campus.frais = (campus.frais ?? []).map((f) => (f.confirmeLe ? f : { ...f, confirmeLe }));
+      campus.detailsFormations = Object.fromEntries(
+        Object.entries(campus.detailsFormations ?? {}).map(([id, d]) => [
+          id,
+          d.fraisDossier != null && !d.fraisDossierConfirmeLe
+            ? { ...d, fraisDossierConfirmeLe: confirmeLe }
+            : d,
+        ]),
+      );
     });
     return oui.lignes;
   },
@@ -2983,7 +3024,9 @@ const admin: PortAdministration = {
       const campus = e.campus[c.id]!;
       campus.detailsFormations = {
         ...(campus.detailsFormations ?? {}),
-        [formationId]: sansDetail(d) ? detailsVides() : d,
+        [formationId]: sansDetail(d)
+          ? detailsVides()
+          : avecLeOuiDuDossier(campus.detailsFormations?.[formationId], d),
       };
     });
   },
@@ -3054,7 +3097,9 @@ const admin: PortAdministration = {
       const fiches = { ...(campus.ficheFormations ?? {}) };
       delete detailsF[formationId];
       delete fiches[formationId];
-      detailsF[nouvelId] = sansDetail(details) ? detailsVides() : details;
+      detailsF[nouvelId] = sansDetail(details)
+        ? detailsVides()
+        : avecLeOuiDuDossier(campus.detailsFormations?.[formationId], details);
       // Comme `save_program_sheet` : une liste vide se lit « pas dit » ; absente, la fiche garde ce qu'elle avait.
       const series =
         fiche.seriesAdmises === undefined

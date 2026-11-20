@@ -24,8 +24,10 @@ import {
 } from '@/ui/shadcn/icones';
 import { jourDuCongo } from '../../modele/date-declaration';
 import {
+  erreurDesChampsCommuns,
   erreurDuOui,
-  etatDuOui,
+  etatDuOuiAvecDossier,
+  francsCFA,
   inscriptionLaPlusFrequente,
   ligneChangee,
   lireFraisEcole,
@@ -37,7 +39,7 @@ import {
 import { libelleNiveau } from '../../modele/libelles';
 import { dateCourte, dateLongue, jourEtMois } from '../../modele/pointe-noire';
 import type { Valeur } from '../../modele/listes';
-import type { PhotoVue, PortAdministration } from '../../modele/ports';
+import type { FraisDeDossier, PhotoVue, PortAdministration } from '../../modele/ports';
 import { messageErreur } from './ChampPosition';
 
 /** Une ligne du tableau, telle qu'on la tape. `id` : la ligne enregistrée qu'elle modifie ; `avant`, ce qu'elle était. */
@@ -50,13 +52,15 @@ interface Ligne {
   periode: string;
   inscription: string;
   illisible: boolean;
+  /** Ticket 199 (A23) : « à partir de » le montant, sans plafond. */
+  aPartirDe: boolean;
   /** La formation du supérieur de la ligne : gardée quand on l'enregistre de nouveau. */
   formationId: string | null;
   avant: Frais | null;
 }
 
 const montantEnTexte = (f: Frais) =>
-  f.minimum === f.maximum ? String(f.minimum) : `${f.minimum}-${f.maximum}`;
+  f.maximum === null || f.minimum === f.maximum ? String(f.minimum) : `${f.minimum}-${f.maximum}`;
 
 /** « 15000 » ou « 15000-20000 » (une fourchette), espaces permis. */
 function lireMontantOuFourchette(t: string): { minimum: string; maximum: string } {
@@ -74,6 +78,7 @@ const nouvelle = (cycle = ''): Ligne => ({
   periode: 'mois',
   inscription: '',
   illisible: false,
+  aPartirDe: false,
   formationId: null,
   avant: null,
 });
@@ -82,6 +87,7 @@ const nouvelle = (cycle = ''): Ligne => ({
 const retouchee = (l: Ligne) =>
   !l.avant ||
   l.illisible ||
+  l.aPartirDe !== (l.avant.maximum === null) ||
   l.cycle !== l.avant.cycle ||
   l.classe !== (l.avant.classe ?? '') ||
   l.montant !== montantEnTexte(l.avant) ||
@@ -95,6 +101,7 @@ export function FraisEcole({
   nom,
   cycles,
   frais,
+  fraisDeDossier = [],
   admin,
   fermer,
   surOccupation,
@@ -104,6 +111,8 @@ export function FraisEcole({
   nom: string;
   cycles: Valeur<'niveau'>[];
   frais: Frais[];
+  /** Ticket 199 (A1) : les frais de dossier des formations, que le même OUI de l'école confirme. */
+  fraisDeDossier?: FraisDeDossier[];
   admin: PortAdministration;
   fermer: () => void;
   /** Toujours dans la fiche depuis la refonte v2 ; gardé pour les appels d'avant. */
@@ -122,6 +131,7 @@ export function FraisEcole({
           periode: f.periode,
           inscription: f.inscription === null ? '' : String(f.inscription),
           illisible: false,
+          aPartirDe: f.maximum === null,
           formationId: f.formationId ?? null,
           avant: f,
         }))
@@ -130,7 +140,8 @@ export function FraisEcole({
   const [retirees, setRetirees] = useState<string[]>([]);
   const depart = {
     annee: frais[0]?.anneeScolaire ?? '',
-    declaresLe: frais[0]?.declaresLe ?? jourDuCongo(),
+    // Ticket 199 (A2) : jamais aujourd'hui par défaut ; on tape le jour où l'école a déclaré ses frais.
+    declaresLe: frais[0]?.declaresLe ?? '',
     note: frais[0]?.note ?? '',
     mois: String(moisFacturesDesLignes(frais) ?? ''),
   };
@@ -139,9 +150,11 @@ export function FraisEcole({
   const [note, setNote] = useState(depart.note);
   // Lot 2 : les mois facturés dans l'année, dits par l'école ; ils valent pour chaque ligne au mois.
   const [mois, setMois] = useState(depart.mois);
-  const oui = etatDuOui(frais);
+  const oui = etatDuOuiAvecDossier(frais, fraisDeDossier);
+  const dossierEnAttente = fraisDeDossier.filter((d) => !d.confirmeLe);
+  const aConfirmer = frais.length + fraisDeDossier.length;
   const [noterOui, setNoterOui] = useState(false);
-  const [jourOui, setJourOui] = useState(jourDuCongo());
+  const [jourOui, setJourOui] = useState('');
   const [erreurOui, setErreurOui] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
@@ -188,6 +201,9 @@ export function FraisEcole({
 
   const enregistrer = async () => {
     setErreur(null);
+    // Ce qui vaut pour toutes les lignes se dit sans nommer de ligne (ticket 199, A12).
+    const commun = erreurDesChampsCommuns({ anneeScolaire: annee, note, declaresLe });
+    if (commun) return setErreur(commun);
     const saisies = publiables.map((l) => {
       const { minimum, maximum } = lireMontantOuFourchette(l.montant);
       return {
@@ -204,6 +220,7 @@ export function FraisEcole({
           declaresLe,
           note,
           moisFactures: mois,
+          aPartirDe: l.aPartirDe,
           // Planche : enregistrer les lignes recopiées vaut déclaration de l'école (le prospectus en est la preuve).
           declarationConfirmee: true,
           photoPreuve: l.avant?.photoPreuve ?? photo?.id ?? null,
@@ -370,7 +387,7 @@ export function FraisEcole({
                 className={v2.petit}
                 disabled={enCours || nonEnregistre}
                 onClick={() => {
-                  setJourOui(jourDuCongo());
+                  setJourOui('');
                   setErreurOui(null);
                   setNoterOui(true);
                 }}
@@ -381,9 +398,9 @@ export function FraisEcole({
           >
             <p>
               <b>En attente du OUI de l’école</b> :{' '}
-              {oui.lignes === frais.length
-                ? `${frais.length > 1 ? `les ${frais.length} lignes ne paraissent` : 'la ligne ne paraît'} pas sur le site.`
-                : `${oui.lignes} ligne${oui.lignes > 1 ? 's' : ''} sur ${frais.length} ne ${oui.lignes > 1 ? 'paraissent' : 'paraît'} pas sur le site.`}
+              {oui.lignes === aConfirmer
+                ? `${aConfirmer > 1 ? `les ${aConfirmer} lignes ne paraissent` : 'la ligne ne paraît'} pas sur le site.`
+                : `${oui.lignes} ligne${oui.lignes > 1 ? 's' : ''} sur ${aConfirmer} ne ${oui.lignes > 1 ? 'paraissent' : 'paraît'} pas sur le site.`}
             </p>
             <p>
               {nonEnregistre
@@ -515,6 +532,7 @@ export function FraisEcole({
                         ) : (
                           <span className="flex flex-col items-end text-right">
                             <b className="text-[17px]">
+                              {l.aPartirDe && l.montant.trim() ? 'dès ' : ''}
                               {l.montant.trim() || '—'} /{' '}
                               {(
                                 periodesFrais[l.periode as keyof typeof periodesFrais] ?? ''
@@ -566,6 +584,16 @@ export function FraisEcole({
                         value={l.illisible ? '' : l.montant}
                         onChange={(e) => changer(l.cle, { montant: e.target.value })}
                       />
+                      {/* Ticket 199 (A23) : « à partir de 40 000 », sans plafond ; le site l'écrit ainsi. */}
+                      <button
+                        type="button"
+                        aria-pressed={l.aPartirDe}
+                        disabled={l.illisible}
+                        onClick={() => changer(l.cle, { aPartirDe: !l.aPartirDe })}
+                        className="mt-1.5 inline-flex min-h-9 cursor-pointer items-center rounded-full border border-input bg-card px-3 font-sans text-sm font-bold text-foreground disabled:cursor-not-allowed disabled:opacity-50 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                      >
+                        À partir de
+                      </button>
                     </td>
                     <td role="cell" className="px-2 py-1.5">
                       <select
@@ -642,10 +670,21 @@ export function FraisEcole({
         )}
 
         <label className="flex flex-col gap-1.5 rounded-xl border border-border bg-card p-3 text-sm font-bold">
-          Note (tenue, fournitures…)
+          <span className="flex items-baseline justify-between gap-3">
+            Note (tenue, fournitures…)
+            {/* Ticket 199 (A12) : rien n'est coupé en silence ; le compteur dit la limite de la base. */}
+            <span
+              className={cn(
+                'font-normal tabular-nums',
+                note.trim().length > 300 ? 'font-bold text-destructive' : 'text-muted-foreground',
+              )}
+            >
+              {note.trim().length} / 300
+            </span>
+          </span>
           <input
             className={champ}
-            maxLength={300}
+            aria-invalid={note.trim().length > 300 || undefined}
             placeholder="Tenue : …"
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -703,6 +742,11 @@ export function FraisEcole({
                   {(periodesFrais[f.periode] ?? '').toLocaleLowerCase('fr')}
                 </li>
               ))}
+            {dossierEnAttente.map((d) => (
+              <li key={d.formationId}>
+                <b>Frais de dossier · {d.titre}</b> : {francsCFA(d.montant)}
+              </li>
+            ))}
           </ul>
           <Champ libelle="Le jour où l’école a répondu OUI" erreur={erreurOui ?? undefined}>
             {(x) => (
