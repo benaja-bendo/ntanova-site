@@ -24,7 +24,8 @@ import {
   type MediaAdmin,
   type NouvelleAdmin,
 } from '../../modele/fiche-admin';
-import { libelleEquipement } from '../../modele/equipements-ecole';
+import { nomEquipementCourt } from '../../modele/equipements-ecole';
+import { afficherTelephone } from '../../modele/telephone';
 import { etatDuOuiAvecDossier } from '../../modele/frais-ecole';
 import { jourDuCongo } from '../../modele/date-declaration';
 import { ecrirePosition } from '../../modele/coordonnees';
@@ -507,7 +508,8 @@ export function FicheEcole({
             resume={
               equipementsVus.length > 0
                 ? equipementsVus
-                    .map((x) => libelleEquipement[x.cle].toLocaleLowerCase('fr'))
+                    // Ticket 207 (A26) : un « autre » garde son libellé.
+                    .map((x) => nomEquipementCourt(x))
                     .join(', ')
                 : 'Rien de noté'
             }
@@ -573,7 +575,8 @@ export function FicheEcole({
             titre={superieur ? 'Contact' : 'Contact et inscriptions'}
             resume={
               [
-                e.contactPublic?.numero ?? null,
+                // Ticket 207 (A27).
+                e.contactPublic?.numero ? afficherTelephone(e.contactPublic.numero) : null,
                 derniereInscription ? `jusqu'au ${jourEtMois(derniereInscription)}` : null,
               ]
                 .filter(Boolean)

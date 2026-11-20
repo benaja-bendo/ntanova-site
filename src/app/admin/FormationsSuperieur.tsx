@@ -7,6 +7,7 @@ import {
   erreurDeLaFiche,
   formationsACopier,
   libelleGenrePreuve,
+  teteDeLaFormation,
   sansDetail,
   type DetailsFormation,
   type FicheFormation,
@@ -398,7 +399,15 @@ export function FormationsSuperieur({
                 {f.titre}
                 <span className={v2.mention}> · {libelleNiveau[f.cycle]}</span>
               </b>
-              <p className={v2.mention}>{resumeDesDetails(f.details)}</p>
+              <p className={v2.mention}>
+                {/* Ticket 207 (A10) : le diplôme et le domaine d'abord. */}
+                {[
+                  teteDeLaFormation(f, domaines.find((d) => d.slug === f.domaine)?.nom ?? null),
+                  resumeDesDetails(f.details),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
               {(f.seriesAdmises ?? []).length > 0 && (
                 <p className={v2.mention}>
                   Séries admises : {(f.seriesAdmises ?? []).map(serieCourte).join(', ')}

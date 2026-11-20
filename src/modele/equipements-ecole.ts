@@ -100,6 +100,9 @@ export const nomEquipement = (e: Pick<EquipementASaisir, 'cle' | 'precision'>): 
   e.cle === 'autre'
     ? (e.precision ?? libelleEquipement.autre)
     : (libelleEquipement[e.cle] ?? 'Équipement à préciser');
+/** Ticket 207 (A26) : le nom d'un équipement dans une phrase (« clôture, électricité ») ; un « autre » garde son libellé saisi. */
+export const nomEquipementCourt = (e: Pick<EquipementASaisir, 'cle' | 'precision'>): string =>
+  e.cle === 'autre' && e.precision ? e.precision : nomEquipement(e).toLocaleLowerCase('fr');
 export function etatPublicEquipement(e: { source: string; etat: string }): string {
   if (e.source === 'terrain')
     return e.etat === 'present' ? 'Observé sur place' : 'Constat à préciser';
