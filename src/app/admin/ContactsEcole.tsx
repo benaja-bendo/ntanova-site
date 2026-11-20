@@ -11,13 +11,19 @@ import { v2 } from '@/ui/v2/classes';
 import { Bouton } from '@/ui/v2/admin';
 import { IconeAjouter, IconeCadenas, IconeMessage, IconeTelephone } from '@/ui/shadcn/icones';
 import {
+  libelleLuSur,
+  libelleNumeroEcole,
   libellePersonne,
+  lireNumeroEcole,
   personneVide,
   provenanceContact,
   versContactASaisir,
   versPersonneSaisie,
+  type LuSur,
+  type NumeroEcoleSaisi,
   type PersonneSaisie,
 } from '../../modele/contacts';
+import { Champ } from '@/ui/v2/formulaire';
 import { lienWhatsApp } from '../../modele/whatsapp';
 import type { ContactEcole, PortAdministration } from '../../modele/ports';
 import { afficherTelephone } from '../../modele/telephone';
@@ -98,7 +104,35 @@ export function CarteContacts({
   );
 }
 
+/** Ticket 205 (A8, A19) : le numéro de l'école, lu sur un document ; « Appeler » seulement (aucune personne n'a donné d'accord). */
+function NumeroDeLEcole({ c }: { c: ContactEcole }) {
+  return (
+    <li className="flex flex-col gap-1.5 border-t border-border py-3">
+      <b className="text-[15px]">{libelleNumeroEcole(c)}</b>
+      {c.whatsapp ? (
+        <>
+          <span className="text-xl font-bold tracking-wide tabular-nums">
+            {afficherTelephone(c.whatsapp)}
+          </span>
+          <a
+            className={cn(v2.boutonSecondairePetit, 'h-10 w-fit text-sm')}
+            href={`tel:+${c.whatsapp}`}
+          >
+            <IconeTelephone className="size-4" aria-hidden />
+            Appeler
+          </a>
+        </>
+      ) : (
+        <span className="text-sm">Illisible en partie : « {c.note} »</span>
+      )}
+      <span className={v2.mention}>{provenanceContact(c)}</span>
+      {c.whatsapp && c.note && <span className="text-sm italic">« {c.note} »</span>}
+    </li>
+  );
+}
+
 function Personne({ c }: { c: ContactEcole }) {
+  if (c.genre === 'numero_ecole') return <NumeroDeLEcole c={c} />;
   const whatsapp = c.whatsapp ? lienWhatsApp(c.whatsapp) : null;
   return (
     <li className="flex flex-col gap-1.5 border-t border-border py-3">
@@ -138,7 +172,115 @@ function Personne({ c }: { c: ContactEcole }) {
   );
 }
 
-type Edition = { mode: 'ajout' } | { mode: 'correction'; contact: ContactEcole } | null;
+type Edition =
+  { mode: 'ajout' } | { mode: 'numero' } | { mode: 'correction'; contact: ContactEcole } | null;
+
+const NUMERO_VIDE: NumeroEcoleSaisi = { numero: '', luSur: '', illisible: false, lecture: '' };
+
+/** Ticket 205 (A8, A19) : « Ajouter le numéro de l'école » : où il a été lu, rien de choisi d'avance. */
+function FormulaireNumeroEcole({
+  enregistrer,
+  annuler,
+}: {
+  enregistrer: (s: NumeroEcoleSaisi) => Promise<void>;
+  annuler: () => void;
+}) {
+  const [s, setS] = useState(NUMERO_VIDE);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+  const envoyer = async () => {
+    const { erreur: refus } = lireNumeroEcole(s);
+    if (refus) return setErreur(refus);
+    setErreur(null);
+    setEnCours(true);
+    try {
+      await enregistrer(s);
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
+  return (
+    <form
+      className={v2.motif}
+      aria-label="Numéro de l’école"
+      noValidate
+      onSubmit={(ev) => {
+        ev.preventDefault();
+        void envoyer();
+      }}
+    >
+      <Champ libelle="Lu sur">
+        {(a) => (
+          <select
+            {...a}
+            className={v2.champ}
+            value={s.luSur}
+            onChange={(ev) => setS({ ...s, luSur: ev.target.value as LuSur | '' })}
+          >
+            <option value="">Choisir</option>
+            {(Object.keys(libelleLuSur) as LuSur[]).map((x) => (
+              <option key={x} value={x}>
+                {libelleLuSur[x]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Champ>
+      <label className={v2.case}>
+        <input
+          type="checkbox"
+          checked={s.illisible}
+          onChange={(ev) => setS({ ...s, illisible: ev.target.checked })}
+        />
+        Illisible en partie
+      </label>
+      {s.illisible ? (
+        <Champ libelle="Ce qu’on lit">
+          {(a) => (
+            <input
+              {...a}
+              className={v2.champ}
+              maxLength={300}
+              placeholder="06 506 ou 508 …"
+              value={s.lecture}
+              onChange={(ev) => setS({ ...s, lecture: ev.target.value })}
+            />
+          )}
+        </Champ>
+      ) : (
+        <Champ libelle="Numéro">
+          {(a) => (
+            <input
+              {...a}
+              className={v2.champ}
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              placeholder="+242 …"
+              value={s.numero}
+              onChange={(ev) => setS({ ...s, numero: ev.target.value })}
+            />
+          )}
+        </Champ>
+      )}
+      {erreur && (
+        <p className={v2.erreurLarge} role="alert">
+          {erreur}
+        </p>
+      )}
+      <div className={v2.actionsLarge}>
+        <Bouton type="submit" enCours={enCours}>
+          Enregistrer le numéro
+        </Bouton>
+        <button type="button" className={v2.boutonSecondaire} disabled={enCours} onClick={annuler}>
+          Annuler
+        </button>
+      </div>
+    </form>
+  );
+}
 
 /** La rubrique « Gérer » : ajouter, corriger, effacer, une personne à la fois. */
 export function GererContacts({
@@ -234,13 +376,17 @@ export function GererContacts({
               className="flex flex-col gap-1 border-b border-border px-4 py-3 last:border-b-0"
             >
               <span className="flex items-start justify-between gap-2">
-                <b>{libellePersonne(c)}</b>
+                <b>{c.genre === 'numero_ecole' ? libelleNumeroEcole(c) : libellePersonne(c)}</b>
                 <span className={v2.pastilleNeutre}>
                   {c.source === 'relais' ? 'Relais' : 'Administration'}
                 </span>
               </span>
               <span className="font-bold">
-                {c.whatsapp ? afficherTelephone(c.whatsapp) : 'Pas de numéro'}
+                {c.whatsapp
+                  ? afficherTelephone(c.whatsapp)
+                  : c.genre === 'numero_ecole'
+                    ? 'Illisible en partie'
+                    : 'Pas de numéro'}
               </span>
               <span className={v2.mention}>{provenanceContact(c)}</span>
               {c.note && <span className="text-sm italic">« {c.note} »</span>}
@@ -265,13 +411,15 @@ export function GererContacts({
                 </span>
               ) : (
                 <span className="flex flex-wrap gap-x-4">
-                  <button
-                    type="button"
-                    className={v2.lien}
-                    onClick={() => setEdition({ mode: 'correction', contact: c })}
-                  >
-                    Corriger
-                  </button>
+                  {c.genre !== 'numero_ecole' && (
+                    <button
+                      type="button"
+                      className={v2.lien}
+                      onClick={() => setEdition({ mode: 'correction', contact: c })}
+                    >
+                      Corriger
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={cn(v2.lien, 'text-destructive')}
@@ -285,7 +433,24 @@ export function GererContacts({
           ))}
         </ul>
       )}
-      {edition ? (
+      {edition?.mode === 'numero' ? (
+        <FormulaireNumeroEcole
+          enregistrer={async (saisie) => {
+            const { numero } = lireNumeroEcole(saisie);
+            setErreur(null);
+            surOccupation(true);
+            try {
+              await admin.ajouterNumeroEcole(ecoleId, numero!);
+              surChangement('Le numéro de l’école est noté (privé).');
+              await relire();
+              setEdition(null);
+            } finally {
+              surOccupation(false);
+            }
+          }}
+          annuler={() => setEdition(null)}
+        />
+      ) : edition ? (
         <FormulairePersonne
           key={edition.mode === 'correction' ? edition.contact.id : 'ajout'}
           nom={edition.mode === 'correction' ? 'Corriger le contact' : 'Nouveau contact'}
@@ -305,6 +470,17 @@ export function GererContacts({
         >
           <IconeAjouter className="size-4" aria-hidden />
           Ajouter un contact
+        </button>
+      )}
+      {!edition && (
+        <button
+          type="button"
+          className={cn(v2.boutonSecondairePetit, 'w-fit')}
+          onClick={() => setEdition({ mode: 'numero' })}
+          disabled={contacts === null}
+        >
+          <IconeAjouter className="size-4" aria-hidden />
+          Ajouter le numéro de l’école
         </button>
       )}
     </div>

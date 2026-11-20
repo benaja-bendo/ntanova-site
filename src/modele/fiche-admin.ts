@@ -85,6 +85,8 @@ export interface MediaAdmin {
   controleLe: string | null;
   publique: boolean;
   source: Valeur<'media_source'>;
+  /** Ticket 205 (A34) : d'où vient l'image (un lien, la page Facebook…), privé ; nul : pas dit. */
+  origine?: string | null;
 }
 
 /** Ce que l'administration envoie pour une image : déjà réduite dans le navigateur, avec sa miniature. */
@@ -106,6 +108,8 @@ export interface NouveauMedia {
   /** Une photo d'un relevé (reprise telle quelle), ou un fichier envoyé. */
   photoDuReleve?: string;
   image?: ImagePreparee;
+  /** Ticket 205 (A34) : d'où vient l'image, privé. */
+  origine?: string | null;
 }
 
 export const GALERIE_MAX = 12;
@@ -116,6 +120,8 @@ export function placesLibres(medias: MediaAdmin[]): Record<Valeur<'media_kind'>,
     logo: !medias.some((m) => m.genre === 'logo'),
     cover: !medias.some((m) => m.genre === 'cover'),
     gallery: medias.filter((m) => m.genre === 'gallery').length < GALERIE_MAX,
+    // Ticket 205 (A6) : les documents (prospectus, tarifs) ne sont pas comptés.
+    document: true,
   };
 }
 
@@ -146,7 +152,7 @@ export interface NouvelleASaisir {
   fournieParLEcole: boolean;
   accord: {
     qui: Valeur<'fonction_direction'>;
-    canal: 'whatsapp' | 'appel' | 'sur_place' | 'autre';
+    canal: 'whatsapp' | 'appel' | 'sur_place' | 'autre' | 'fondateur';
     le: string;
   } | null;
 }
@@ -167,13 +173,32 @@ export interface AdmissionASaisir {
   ouDeposer: string | null;
   surPlaceSeulement: boolean;
   declareeLe: string;
-  etapes: { etape: Valeur<'admission_step'>; debut: string; fin: string | null }[];
+  /** Ticket 205 (A25) : une rentrée de plus porte un libellé (« 2e rentrée », « Master »). */
+  etapes: {
+    etape: Valeur<'admission_step'>;
+    debut: string;
+    fin: string | null;
+    libelle?: string | null;
+  }[];
 }
+
+/** Ticket 205 (A25) : cinq rentrées au plus dans une année, la principale comprise. */
+export const RENTREES_MAX = 5;
 
 /** Une étape dont la fin précède le début ne part pas : la phrase le dit, étape par étape. */
 export function erreurDuCalendrier(a: AdmissionASaisir): string | null {
   for (const e of a.etapes)
     if (e.fin && e.fin < e.debut) return 'Une étape finit avant de commencer : vérifie ses dates.';
+  const autres = a.etapes.filter(
+    (e) => e.etape === 'rentree' && e.libelle !== undefined && e.libelle !== null,
+  );
+  if (autres.some((e) => !e.libelle!.trim() || e.libelle!.trim().length > 40))
+    return 'Une rentrée de plus porte un libellé (« 2e rentrée », « Master »), 40 caractères au plus.';
+  if (autres.some((e) => !e.debut)) return 'Une rentrée de plus a sa date.';
+  const libelles = autres.map((e) => e.libelle!.trim().toLocaleLowerCase('fr'));
+  if (new Set(libelles).size !== libelles.length) return 'Deux rentrées portent le même libellé.';
+  if (a.etapes.filter((e) => e.etape === 'rentree').length > RENTREES_MAX)
+    return `${RENTREES_MAX} rentrées au plus dans une année.`;
   if (!a.anneeScolaire.trim() || !a.declareeLe)
     return 'L’année scolaire et la date où l’école l’a dit sont requises.';
   if (a.pieces.length > 10) return 'Dix pièces au plus.';
@@ -250,7 +275,12 @@ export function erreurDeLaFiche(f: FicheFormation, aujourdHui: string): string |
     return 'Indique le jour où l’école a donné les frais (pas une date future).';
   if (f.autorisation) {
     if (!f.autorisation.reference.trim()) return 'Écris la référence de l’arrêté.';
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(f.autorisation.le) || f.autorisation.le > aujourdHui)
+    // Ticket 205 (A22) : une autorisation citée par l'école se note sans la date de l'arrêté.
+    const sansDate = f.autorisation.preuve === 'dit_ecole' && !f.autorisation.le;
+    if (
+      !sansDate &&
+      (!/^\d{4}-\d{2}-\d{2}$/.test(f.autorisation.le) || f.autorisation.le > aujourdHui)
+    )
       return 'Indique la date de l’arrêté (pas une date future).';
   }
   return null;

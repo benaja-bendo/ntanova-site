@@ -7,7 +7,7 @@ export interface ContactPublic {
 }
 export interface AccordContactPublic extends ContactPublic {
   fonction: Valeur<'fonction_direction'>;
-  canal: 'whatsapp' | 'appel' | 'sur_place' | 'autre';
+  canal: 'whatsapp' | 'appel' | 'sur_place' | 'autre' | 'fondateur';
 }
 export function lireAccordContactPublic(
   s: { numero: string; accordLe: string; fonction: string; canal: string; autorise: boolean },
@@ -22,7 +22,7 @@ export function lireAccordContactPublic(
     erreur = 'Indique la date réelle de l’accord, pas une date future.';
   else if (
     !listes.fonction_direction.includes(s.fonction as Valeur<'fonction_direction'>) ||
-    !['whatsapp', 'appel', 'sur_place', 'autre'].includes(s.canal)
+    !['whatsapp', 'appel', 'sur_place', 'autre', 'fondateur'].includes(s.canal)
   )
     erreur = 'Indique la fonction et le canal de l’accord.';
   return {

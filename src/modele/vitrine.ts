@@ -43,6 +43,8 @@ export interface EtapeAdmission {
   etape: Valeur<'admission_step'>;
   debut: string;
   fin: string | null;
+  /** Ticket 205 (A25) : le libellé d'une rentrée de plus (« 2e rentrée », « Master ») ; nul pour la rentrée principale. */
+  libelle?: string | null;
 }
 
 /** L'admission d'un site du supérieur, pour une année : pièces, où déposer, calendrier. */

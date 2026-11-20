@@ -1,6 +1,6 @@
 import { v2 } from '@/ui/v2/classes';
 import { useEffect, useState } from 'react';
-import { erreurDuCalendrier, type AdmissionASaisir } from '../../modele/fiche-admin';
+import { RENTREES_MAX, erreurDuCalendrier, type AdmissionASaisir } from '../../modele/fiche-admin';
 import { libelleEtapeAdmission } from '../../modele/libelles';
 import { listes } from '../../modele/listes';
 import type { PortAdministration } from '../../modele/ports';
@@ -52,14 +52,28 @@ export function AdmissionEcole({
   if (!a)
     return erreur ? <p className={v2.erreur}>{erreur}</p> : <p aria-busy="true">Chargement…</p>;
 
+  // Ticket 205 (A25) : une rentrée de plus porte un libellé ; l'étape principale n'en a pas.
+  const principale = (x: AdmissionASaisir['etapes'][number]) =>
+    x.libelle === undefined || x.libelle === null;
   const etape = (cle: (typeof listes.admission_step)[number]) =>
-    a.etapes.find((x) => x.etape === cle);
+    a.etapes.find((x) => x.etape === cle && principale(x));
+  const rentreesEnPlus = a.etapes.filter((x) => x.etape === 'rentree' && !principale(x));
+  const changerRentree = (i: number, champ: 'libelle' | 'debut' | 'fin', valeur: string) =>
+    setA({
+      ...a,
+      etapes: [
+        ...a.etapes.filter((x) => !rentreesEnPlus.includes(x)),
+        ...rentreesEnPlus.map((x, j) =>
+          j === i ? { ...x, [champ]: champ === 'fin' ? valeur || null : valeur } : x,
+        ),
+      ],
+    });
   const poser = (
     cle: (typeof listes.admission_step)[number],
     champ: 'debut' | 'fin',
     valeur: string,
   ) => {
-    const autres = a.etapes.filter((x) => x.etape !== cle);
+    const autres = a.etapes.filter((x) => x.etape !== cle || !principale(x));
     const actuelle = etape(cle) ?? { etape: cle, debut: '', fin: null };
     const nouvelle = { ...actuelle, [champ]: valeur || (champ === 'fin' ? null : '') };
     setA({ ...a, etapes: nouvelle.debut ? [...autres, nouvelle] : autres });
@@ -140,6 +154,72 @@ export function AdmissionEcole({
             </Champ>
           </div>
         ))}
+        {rentreesEnPlus.map((x, i) => (
+          <div
+            key={i}
+            className={v2.pileSerree}
+            role="group"
+            aria-label={`Rentrée de plus ${i + 1}`}
+          >
+            <Champ libelle="Libellé de la rentrée">
+              {(y) => (
+                <input
+                  {...y}
+                  className={v2.champ}
+                  maxLength={40}
+                  placeholder="2e rentrée, Master…"
+                  value={x.libelle ?? ''}
+                  onChange={(e) => changerRentree(i, 'libelle', e.target.value)}
+                />
+              )}
+            </Champ>
+            <div className={v2.deuxColonnes}>
+              <Champ libelle="du">
+                {(y) => (
+                  <input
+                    {...y}
+                    className={v2.champ}
+                    type="date"
+                    value={x.debut}
+                    onChange={(e) => changerRentree(i, 'debut', e.target.value)}
+                  />
+                )}
+              </Champ>
+              <Champ libelle="au" facultatif>
+                {(y) => (
+                  <input
+                    {...y}
+                    className={v2.champ}
+                    type="date"
+                    value={x.fin ?? ''}
+                    onChange={(e) => changerRentree(i, 'fin', e.target.value)}
+                  />
+                )}
+              </Champ>
+            </div>
+            <button
+              type="button"
+              className={v2.lienDanger}
+              onClick={() => setA({ ...a, etapes: a.etapes.filter((y) => y !== x) })}
+            >
+              Retirer cette rentrée
+            </button>
+          </div>
+        ))}
+        {rentreesEnPlus.length < RENTREES_MAX - 1 && (
+          <button
+            type="button"
+            className={v2.boutonSecondairePetit}
+            onClick={() =>
+              setA({
+                ...a,
+                etapes: [...a.etapes, { etape: 'rentree', debut: '', fin: null, libelle: '' }],
+              })
+            }
+          >
+            Ajouter une rentrée
+          </button>
+        )}
       </fieldset>
       <Champ libelle="Pièces à fournir" facultatif aide="Une par ligne, dix au plus.">
         {(x) => (

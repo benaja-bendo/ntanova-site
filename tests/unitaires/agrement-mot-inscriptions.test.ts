@@ -17,7 +17,8 @@ describe('la saisie d’un agrément', () => {
     sourceTexte: 'Journal officiel [numéro]',
     sourceLien: '',
     controleLe: '2026-11-05',
-    documentVu: true,
+    // Ticket 205 (A22) : la case « J’ai vu ce document » devient le choix de la preuve.
+    preuve: 'document_vu',
   };
   const erreur = (autre: Partial<typeof saisie>) =>
     lireAgrement({ ...saisie, ...autre }, JOUR).erreur;
@@ -45,7 +46,7 @@ describe('la saisie d’un agrément', () => {
     ['un lien avec une espace', { sourceLien: 'https://exemple.cg/un doc' }],
     ['un contrôle dans le futur', { controleLe: '2026-11-09' }],
     ['un contrôle avant le document', { controleLe: '2024-01-01' }],
-    ['un document pas vu', { documentVu: false }],
+    ['sans dire sur quoi l’agrément a été vu', { preuve: '' }],
   ])('refuse %s', (_cas, autre) => {
     expect(erreur(autre as Partial<typeof saisie>)).toBeTruthy();
   });

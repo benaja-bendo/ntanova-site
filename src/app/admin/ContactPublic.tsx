@@ -136,6 +136,7 @@ export function ContactPublic({
             <option value="appel">Appel</option>
             <option value="sur_place">Sur place</option>
             <option value="autre">Autre</option>
+            <option value="fondateur">Au fondateur</option>
           </select>
         </label>
         <label>

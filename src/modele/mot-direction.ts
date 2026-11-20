@@ -14,7 +14,7 @@ export interface MotDirection {
 
 export interface AccordMotDirection extends MotDirection {
   fonction: Valeur<'fonction_direction'>;
-  canal: 'whatsapp' | 'appel' | 'sur_place' | 'autre';
+  canal: 'whatsapp' | 'appel' | 'sur_place' | 'autre' | 'fondateur';
 }
 
 export function lireMotDirection(
@@ -29,7 +29,7 @@ export function lireMotDirection(
     erreur = 'Indique la date réelle du mot, pas une date future.';
   else if (
     !listes.fonction_direction.includes(s.fonction as Valeur<'fonction_direction'>) ||
-    !['whatsapp', 'appel', 'sur_place', 'autre'].includes(s.canal)
+    !['whatsapp', 'appel', 'sur_place', 'autre', 'fondateur'].includes(s.canal)
   )
     erreur = 'Indique la fonction et le canal de l’accord.';
   else if (!s.accord) erreur = 'Confirme que la direction accepte la publication de ce mot.';

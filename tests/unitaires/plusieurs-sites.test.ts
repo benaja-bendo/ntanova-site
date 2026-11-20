@@ -37,11 +37,12 @@ function fausseApi(rpc: Record<string, unknown> = {}, tables: Record<string, unk
 
 describe('A4 : le nom du site et le sigle', () => {
   it('le formulaire part de ce que la fiche dit', () => {
-    expect(identiteDe({ sigle: 'ESTAM', etiquette: 'Site 2 · Mpita' })).toEqual({
+    // Ticket 205 : « En bref » porte aussi l'année, le site web et la page Facebook.
+    expect(identiteDe({ sigle: 'ESTAM', etiquette: 'Site 2 · Mpita' })).toMatchObject({
       sigle: 'ESTAM',
       etiquette: 'Site 2 · Mpita',
     });
-    expect(identiteDe({ etiquette: null })).toEqual({ sigle: '', etiquette: '' });
+    expect(identiteDe({ etiquette: null })).toMatchObject({ sigle: '', etiquette: '' });
   });
 
   it('ne part que ce qui a changé ; un champ vidé efface la valeur', () => {

@@ -40,6 +40,8 @@ export interface LectureImport {
 export interface OptionsImport {
   /** Les adresses des domaines connus : un domaine inconnu est une erreur plutôt qu'une formation sans domaine. */
   domaines?: readonly string[];
+  /** Ticket 205 (A11) : le jour où l'école a dit le détail des formations, commun à toute la liste. */
+  ditLe?: string | null;
 }
 
 const vide = (v: string | null | undefined): string | null => {
@@ -328,6 +330,19 @@ const formationJson = z.object({
     .array(z.enum(listes.study_rhythm))
     .nullish()
     .transform((v) => v ?? []),
+  // Ticket 205 (A11) : le détail, dit par l'école à une date.
+  dureeAnnees: z
+    .number()
+    .min(0.5, 'une durée de 0,5 à 8 ans')
+    .max(8, 'une durée de 0,5 à 8 ans')
+    .nullish()
+    .transform((v) => v ?? undefined),
+  niveauDemande: texteLibre(80).transform((v) => v ?? undefined),
+  ditLe: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'une date AAAA-MM-JJ')
+    .nullish()
+    .transform((v) => v ?? undefined),
 });
 
 const cycleJson = z.union([
@@ -436,6 +451,47 @@ function depuisJson(texte: string): LectureImport {
   return { entrees, lignes: numeros, erreurs };
 }
 
+/**
+ * Ticket 205 (A11) : une formation qui dit une durée ou un niveau demandé porte le jour où l'école l'a dit, le sien ou celui
+ * de toute la liste ; sans lui, l'école est écartée avec un message.
+ */
+function controlerDetails(lecture: LectureImport, ditLe: string | null): LectureImport {
+  const erreurs = [...lecture.erreurs];
+  const entrees: EntreeCatalogue[] = [];
+  const lignes: number[] = [];
+  lecture.entrees.forEach((e, i) => {
+    const ligne = lecture.lignes[i] ?? i + 1;
+    let sansDate: string | null = null;
+    const entree: EntreeCatalogue = {
+      ...e,
+      campus: e.campus.map((c) => ({
+        ...c,
+        cycles: c.cycles.map((cy) => ({
+          ...cy,
+          formations: cy.formations.map((f) => {
+            const detaillee = (f.dureeAnnees ?? null) !== null || !!f.niveauDemande;
+            if (!detaillee) return f;
+            const jour = f.ditLe ?? ditLe;
+            if (!jour) sansDate ??= f.titre;
+            return { ...f, ditLe: jour };
+          }),
+        })),
+      })),
+    };
+    if (sansDate) {
+      erreurs.push({
+        ligne,
+        nom: e.nom,
+        message: `la formation « ${sansDate} » a une durée ou un niveau demandé : dis le jour où l’école l’a dit (« ditLe »)`,
+      });
+    } else {
+      entrees.push(entree);
+      lignes.push(ligne);
+    }
+  });
+  return { entrees, lignes, erreurs };
+}
+
 /** Un domaine de formation inconnu est écarté avec un message, plutôt que d'entrer sans domaine. */
 function controlerDomaines(lecture: LectureImport, domaines: readonly string[]): LectureImport {
   const erreurs = [...lecture.erreurs];
@@ -466,7 +522,9 @@ export function lireImportation(texte: string, options: OptionsImport = {}): Lec
       erreurs: [{ ligne: 1, nom: null, message: 'le fichier est vide' }],
     };
   }
-  const lecture =
-    nettoye.startsWith('[') || nettoye.startsWith('{') ? depuisJson(nettoye) : depuisCsv(nettoye);
+  const lecture = controlerDetails(
+    nettoye.startsWith('[') || nettoye.startsWith('{') ? depuisJson(nettoye) : depuisCsv(nettoye),
+    options.ditLe || null,
+  );
   return options.domaines ? controlerDomaines(lecture, options.domaines) : lecture;
 }

@@ -83,37 +83,88 @@ export function versCorrection(
   return correction;
 }
 
-// Ticket 203 (A4) : le sigle de l'école et le nom du site ---------------------------------
+// Ticket 203 (A4) : le sigle de l'école et le nom du site ; ticket 205 (A21) : l'année, le site web, la page Facebook --------
 
-/** Le sigle (commun à tous les sites de l'école) et le nom de ce site, dans « En bref ». */
+/**
+ * Le sigle (commun à tous les sites de l'école) et le nom de ce site, dans « En bref » ; ticket 205 (A21) : l'année de création,
+ * le site web et la page Facebook de l'école.
+ */
 export interface IdentiteDuSite {
   sigle: string;
   etiquette: string;
+  anneeCreation?: string;
+  siteWeb?: string;
+  facebook?: string;
 }
 
-export function identiteDe(e: Pick<EcoleVue, 'sigle' | 'etiquette'>): IdentiteDuSite {
-  return { sigle: e.sigle ?? '', etiquette: e.etiquette ?? '' };
+type AvantIdentite = Pick<
+  EcoleVue,
+  'sigle' | 'etiquette' | 'anneeCreation' | 'siteWeb' | 'facebook'
+>;
+
+export function identiteDe(e: AvantIdentite): IdentiteDuSite {
+  return {
+    sigle: e.sigle ?? '',
+    etiquette: e.etiquette ?? '',
+    anneeCreation: e.anneeCreation ? String(e.anneeCreation) : '',
+    siteWeb: e.siteWeb ?? '',
+    facebook: e.facebook ?? '',
+  };
 }
 
-/** Les limites de la base : `institutions.acronym` (20) et `campuses.label` (120). */
-export function erreursIdentite(champs: IdentiteDuSite): Erreurs {
+const LIEN = /^https:\/\/[^\s/$.?#][^\s]{2,200}$/;
+const FACEBOOK = /^https:\/\/([a-z]+\.)?facebook\.com\/[^\s]{1,200}$/;
+
+/** Les limites de la base : `institutions.acronym` (20), `campuses.label` (120), l'année, les liens en https. */
+export function erreursIdentite(
+  champs: IdentiteDuSite,
+  aujourdHui = new Date().toISOString().slice(0, 10),
+): Erreurs {
   const erreurs: Erreurs = {};
   if (champs.sigle.trim().length > 20) erreurs['sigle'] = 'Le sigle tient en 20 caractères.';
   if (champs.etiquette.trim().length > 120)
     erreurs['etiquette'] = 'Le nom du site tient en 120 caractères.';
+  const annee = (champs.anneeCreation ?? '').trim();
+  const cetteAnnee = Number(aujourdHui.slice(0, 4));
+  if (annee && !(/^\d{4}$/.test(annee) && Number(annee) >= 1800 && Number(annee) <= cetteAnnee))
+    erreurs['anneeCreation'] = `L’année de création est passée : 1800 à ${cetteAnnee}.`;
+  const site = (champs.siteWeb ?? '').trim();
+  if (site && !LIEN.test(site))
+    erreurs['siteWeb'] = 'Un lien commence par https:// et ne contient aucune espace.';
+  const facebook = (champs.facebook ?? '').trim();
+  if (facebook && !FACEBOOK.test(facebook))
+    erreurs['facebook'] = 'Colle le lien de la page : https://www.facebook.com/…';
   return erreurs;
 }
 
+type CorrectionIdentite = Pick<
+  CorrectionEcole,
+  'sigle' | 'etiquette' | 'anneeCreation' | 'siteWeb' | 'facebook'
+>;
+
 /** Seulement ce qui a changé ; un champ vidé efface la valeur. */
 export function versCorrectionIdentite(
-  avant: Pick<EcoleVue, 'sigle' | 'etiquette'>,
+  avant: AvantIdentite,
   champs: IdentiteDuSite,
-): Pick<CorrectionEcole, 'sigle' | 'etiquette'> {
-  const correction: Pick<CorrectionEcole, 'sigle' | 'etiquette'> = {};
+): CorrectionIdentite {
+  const correction: CorrectionIdentite = {};
   const sigle = champs.sigle.trim() || null;
   if (sigle !== (avant.sigle ?? null)) correction.sigle = sigle;
   const etiquette = champs.etiquette.trim() || null;
   if (etiquette !== (avant.etiquette ?? null)) correction.etiquette = etiquette;
+  if (champs.anneeCreation !== undefined) {
+    const brute = champs.anneeCreation.trim();
+    const annee = brute ? Number(brute) : null;
+    if (annee !== (avant.anneeCreation ?? null)) correction.anneeCreation = annee;
+  }
+  if (champs.siteWeb !== undefined) {
+    const site = champs.siteWeb.trim() || null;
+    if (site !== (avant.siteWeb ?? null)) correction.siteWeb = site;
+  }
+  if (champs.facebook !== undefined) {
+    const facebook = champs.facebook.trim() || null;
+    if (facebook !== (avant.facebook ?? null)) correction.facebook = facebook;
+  }
   return correction;
 }
 

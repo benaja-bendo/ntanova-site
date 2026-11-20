@@ -73,6 +73,11 @@ export const listes = {
     'cap',
     'certificat',
     'autre',
+    // Ticket 205 (A29).
+    'ingenieur',
+    'bachelor',
+    'dut',
+    'cqp',
   ],
   study_rhythm: ['jour', 'soir', 'weekend'],
   photo_role: [
@@ -106,7 +111,8 @@ export const listes = {
   accreditation_kind: ['agrement', 'autorisation_ouverture', 'reconnaissance', 'autre'],
   // La vitrine, l'admin et l'espace relais (migrations du 13/11/2026, M1 à M8).
   mission_blocker: ['ferme', 'pas_de_prospectus', 'refus', 'autre'],
-  media_kind: ['logo', 'cover', 'gallery'],
+  // Ticket 205 (A6) : un document (prospectus, tarifs), jamais public.
+  media_kind: ['logo', 'cover', 'gallery', 'document'],
   media_subject: [
     'logo',
     'enseigne',
@@ -117,6 +123,7 @@ export const listes = {
     'terrain',
     'activite',
     'autre',
+    'prospectus',
   ],
   media_source: ['terrain', 'ecole', 'administration'],
   study_shift: ['matin', 'apres_midi', 'journee', 'soir'],

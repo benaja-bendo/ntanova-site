@@ -7,6 +7,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Point } from '../../modele/geo';
 import { heriterDeLOrigine, type OrigineDeLaCorrection } from '../../modele/acceptation';
 import type { LigneJournal } from '../../modele/sante';
+import type { LuSur } from '../../modele/contacts';
 import type { AgrementEnregistre } from '../../modele/agrement';
 import type { MotDirection } from '../../modele/mot-direction';
 import { lireVueEnsemble } from '../../modele/vue-ensemble';
@@ -72,6 +73,10 @@ const versProgramme = (f: Omit<FormationSaisie, 'cycle'> & { cycle?: string }) =
   bac_track: f.serie,
   diploma: f.diplome,
   rhythms: f.rythmes,
+  // Ticket 205 (A11) : le détail d'une formation importée.
+  ...(f.dureeAnnees != null ? { duration_years: f.dureeAnnees } : {}),
+  ...(f.niveauDemande ? { admission_level: f.niveauDemande } : {}),
+  ...(f.ditLe ? { declared_on: f.ditLe } : {}),
 });
 
 const versCorrections = (c: CorrectionEcole) => ({
@@ -241,6 +246,9 @@ interface LigneCampus {
     name: string;
     kind: string;
     acronym?: string | null;
+    founded_year?: number | null;
+    website_url?: string | null;
+    facebook_url?: string | null;
     institution_statements?: { body: string; stated_on: string } | { body: string; stated_on: string }[] | null;
   } | null;
   geo_divisions: { name: string } | null;
@@ -289,7 +297,8 @@ interface LigneAgrement {
   kind: AgrementEnregistre['genre'];
   custom_kind: string | null;
   reference: string;
-  issued_on: string;
+  /** Ticket 205 (A22) : nulle pour un agrément cité par l'école, sans document vu. */
+  issued_on: string | null;
   source_label: string;
   source_url: string | null;
   checked_on: string;
@@ -339,7 +348,7 @@ const versMot = (ecole: LigneMot, site: LigneMot): MotDirection | null => {
 const COLONNES_CAMPUS =
   'id, public_number, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, position_source, division_id, verified_on, ' +
   'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, same_place_as_campus_id, ' +
-  'institutions(name, kind, acronym, institution_statements(body, stated_on)), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
+  'institutions(name, kind, acronym, founded_year, website_url, facebook_url, institution_statements(body, stated_on)), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
   'campus_cycles(cycle, campus_programs(id, title, application_fee_xaf, application_fee_confirmed_on, details_declared_on)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*), ' +
   'campus_openings(*), campus_class_sizes(*)';
 
@@ -369,6 +378,9 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     institutionId: e.institution_id,
     nom: e.institutions?.name ?? '',
     sigle: e.institutions?.acronym ?? null,
+    anneeCreation: e.institutions?.founded_year ?? null,
+    siteWeb: e.institutions?.website_url ?? null,
+    facebook: e.institutions?.facebook_url ?? null,
     etiquette: e.label,
     numeroPublic: e.public_number ?? null,
     memeLieuQue: e.same_place_as_campus_id ?? null,
@@ -776,6 +788,9 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         submission_id: string | null;
         submission_taken_at: string | null;
         relay_first_name: string | null;
+        kind?: 'personne' | 'numero_ecole';
+        read_on?: LuSur | null;
+        illegible?: boolean;
       }>(await supabase().rpc('contacts_of_campus', { p_campus: ecoleId }));
       return lignes.map((c) => ({
         id: c.id,
@@ -791,7 +806,23 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         releveId: c.submission_id,
         releveLe: c.submission_taken_at,
         relais: c.relay_first_name,
+        genre: c.kind ?? 'personne',
+        luSur: c.read_on ?? null,
+        illisible: c.illegible ?? false,
       }));
+    },
+
+    // Ticket 205 (A8, A19).
+    async ajouterNumeroEcole(ecoleId, n) {
+      const { data, error } = await supabase().rpc('add_school_number', {
+        p_campus: ecoleId,
+        p_number: n.numero,
+        p_read_on: n.luSur,
+        p_illegible: n.illisible,
+        p_note: n.lecture,
+      });
+      decider(error);
+      return data as string;
     },
 
     async ajouterContactEcole(ecoleId, contact) {
@@ -1396,7 +1427,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       if (!a) return null;
       const { data: etapes, error: e2 } = await supabase()
         .from('campus_admission_steps')
-        .select('step, starts_on, ends_on')
+        .select('step, starts_on, ends_on, label')
         .eq('campus_id', ecoleId)
         .eq('school_year', a.school_year)
         .order('starts_on');
@@ -1407,8 +1438,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         ouDeposer: a.where_to_apply,
         surPlaceSeulement: a.on_site_only,
         declareeLe: a.declared_on,
-        etapes: ((etapes ?? []) as { step: AdmissionASaisir['etapes'][number]['etape']; starts_on: string; ends_on: string | null }[]).map(
-          (x) => ({ etape: x.step, debut: x.starts_on, fin: x.ends_on }),
+        etapes: ((etapes ?? []) as { step: AdmissionASaisir['etapes'][number]['etape']; starts_on: string; ends_on: string | null; label?: string | null }[]).map(
+          (x) => ({ etape: x.step, debut: x.starts_on, fin: x.ends_on, libelle: x.label ?? null }),
         ),
       };
     },
@@ -1420,7 +1451,13 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         p_where_to_apply: a.ouDeposer,
         p_on_site_only: a.surPlaceSeulement,
         p_declared_on: a.declareeLe,
-        p_steps: a.etapes.map((x) => ({ step: x.etape, starts_on: x.debut, ends_on: x.fin })),
+        // Ticket 205 (A25) : une rentrée de plus garde son libellé.
+        p_steps: a.etapes.map((x) => ({
+          step: x.etape,
+          starts_on: x.debut,
+          ends_on: x.fin,
+          ...(x.libelle?.trim() ? { label: x.libelle.trim() } : {}),
+        })),
       });
       decider(error);
     },
@@ -1579,7 +1616,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const institution = (c as { institution_id: string } | null)?.institution_id;
       const { data, error } = await supabase()
         .from('campus_media')
-        .select('id, kind, subject, caption, storage_path, thumb_path, child_free_checked_at, is_public, source')
+        .select('id, kind, subject, caption, storage_path, thumb_path, child_free_checked_at, is_public, source, source_note')
         .or(`campus_id.eq.${ecoleId}${institution ? `,institution_id.eq.${institution}` : ''}`)
         .order('kind')
         .order('sort_order');
@@ -1594,6 +1631,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         child_free_checked_at: string | null;
         is_public: boolean;
         source: MediaAdmin['source'];
+        source_note?: string | null;
       }[];
       const chemins = lignes.map((l) => l.thumb_path ?? l.storage_path);
       const { data: urls } = chemins.length
@@ -1609,6 +1647,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         controleLe: l.child_free_checked_at,
         publique: l.is_public,
         source: l.source,
+        origine: l.source_note ?? null,
       }));
     },
 
@@ -1651,7 +1690,21 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         await supabase().storage.from(SEAU_PHOTOS).remove([fichier.chemin, fichier.miniature]);
       }
       decider(error);
+      // Ticket 205 (A34) : d'où vient l'image, gardé à part (privé).
+      if (m.origine) {
+        const { error: erreurSource } = await supabase().rpc('set_campus_media_source', {
+          p_media: data as string,
+          p_note: m.origine,
+        });
+        decider(erreurSource);
+      }
       return data as string;
+    },
+
+    // Ticket 205 (A32).
+    async mettreEnCouverture(mediaId) {
+      const { error } = await supabase().rpc('set_campus_cover', { p_media: mediaId });
+      decider(error);
     },
 
     async modifierMedia(mediaId, champs) {
@@ -1689,10 +1742,14 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const institution: Record<string, unknown> = {};
       if (correction.nom !== undefined) institution['name'] = correction.nom;
       if (correction.sigle !== undefined) institution['acronym'] = correction.sigle;
+      // Ticket 205 (A21).
+      if (correction.anneeCreation !== undefined) institution['founded_year'] = correction.anneeCreation;
+      if (correction.siteWeb !== undefined) institution['website_url'] = correction.siteWeb;
+      if (correction.facebook !== undefined) institution['facebook_url'] = correction.facebook;
       if (correction.typeEcole !== undefined) institution['kind'] = correction.typeEcole;
 
       const refus = () =>
-        new ErreurDecision('La base refuse une valeur : vérifie le nom, le sigle, le nom du site, le programme, le repère et le numéro.');
+        new ErreurDecision('La base refuse une valeur : vérifie le nom, le sigle, le nom du site, l’année, les liens, le programme, le repère et le numéro.');
       let institutionId: string | null = null;
       if (Object.keys(institution).length > 0 || Object.keys(campus).length > 0) {
         const ligne = await supabase()
@@ -1946,6 +2003,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         p_campus: ecoleId, p_program: a.formationId, p_kind: a.genre, p_custom_kind: a.precision,
         p_reference: a.reference, p_issued_on: a.delivreLe, p_source_label: a.sourceTexte,
         p_source_url: a.sourceLien, p_checked_on: a.controleLe,
+        // Ticket 205 (A22) : la preuve dans le même appel (« cité par l'école » n'a pas besoin de date).
+        p_evidence: a.preuve === 'document_vu' || a.preuve === 'dit_ecole' ? a.preuve : null,
       });
       decider(error);
       return data as string;
@@ -2043,7 +2102,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           education_domains: { slug: string } | null;
           campus_fees: { minimum: number; period: string; declared_on: string | null }[] | null;
           campus_accreditations:
-            | { id: string; reference: string; issued_on: string; evidence: GenrePreuve | null }[]
+            | { id: string; reference: string; issued_on: string | null; evidence: GenrePreuve | null }[]
             | null;
         }[];
       }[])
@@ -2073,7 +2132,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
             autorisation: (() => {
               const a = (p.campus_accreditations ?? [])[0];
               return a
-                ? { id: a.id, reference: a.reference, le: a.issued_on, preuve: a.evidence ?? 'document_vu' }
+                ? { id: a.id, reference: a.reference, le: a.issued_on ?? '', preuve: a.evidence ?? 'document_vu' }
                 : null;
             })(),
           })),
@@ -2132,7 +2191,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
           authorization: f.autorisation
             ? {
                 reference: f.autorisation.reference.trim(),
-                issued_on: f.autorisation.le,
+                // Ticket 205 (A22) : « dit par l'école » se note sans date.
+                issued_on: f.autorisation.le || null,
                 evidence: f.autorisation.preuve,
               }
             : null,

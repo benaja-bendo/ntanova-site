@@ -153,6 +153,7 @@ export function MotDirectionEcole({
               <option value="appel">Appel</option>
               <option value="sur_place">Sur place</option>
               <option value="autre">Autre</option>
+              <option value="fondateur">Au fondateur</option>
             </select>
           </label>
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px]">

@@ -14,7 +14,8 @@ export interface AgrementPublic {
   precision: string | null;
   /** Telle qu'elle est écrite sur le document : « arrêté n° [référence] ». */
   reference: string;
-  delivreLe: string;
+  /** Ticket 205 (A22) : nulle seulement quand l'agrément est cité par l'école, sans document vu. */
+  delivreLe: string | null;
   /** Où se trouve le document, en mots : toujours renseigné, même sans lien. */
   sourceTexte: string;
   sourceLien: string | null;
@@ -54,7 +55,11 @@ export function lireAgrement(
     sourceTexte: string;
     sourceLien: string;
     controleLe: string;
-    documentVu: boolean;
+    /**
+     * Ticket 205 (A22) : sur quoi l'agrément a été vu. Le document (sa date est obligatoire) ou l'école qui le cite (la date
+     * est facultative) ; « photo » : la preuve déjà jointe, que la modification ne change pas.
+     */
+    preuve: string;
   },
   aujourdHui = jourDuCongo(),
 ): { agrement: AgrementASaisir | null; erreur: string | null } {
@@ -63,21 +68,28 @@ export function lireAgrement(
   const sourceLien = s.sourceLien.trim();
   const genre = s.genre as Valeur<'accreditation_kind'>;
   const precision = genre === 'autre' ? s.precision.trim() : '';
+  const cite = s.preuve === 'dit_ecole';
+  const sansDate = cite && !s.delivreLe;
   let erreur: string | null = null;
   if (!listes.accreditation_kind.includes(genre)) erreur = 'Choisis l’intitulé du document.';
   else if (genre === 'autre' && (!precision || precision.length > 80))
     erreur = 'Précise l’intitulé écrit sur le document (80 caractères au plus).';
   else if (!reference || reference.length > 160)
     erreur = 'Recopie la référence écrite sur le document (160 caractères au plus).';
-  else if (!dateDeclareeValide(s.delivreLe, aujourdHui))
+  else if (!s.preuve) erreur = 'Dis sur quoi tu l’as vu : le document, ou l’école qui le cite.';
+  else if (!sansDate && !dateDeclareeValide(s.delivreLe, aujourdHui))
     erreur = 'Indique la date réelle du document, pas une date future.';
   else if (!sourceTexte || sourceTexte.length > 200)
     erreur = 'Dis où se trouve le document : la source est obligatoire, même sans lien.';
   else if (sourceLien && (!LIEN_HTTPS.test(sourceLien) || sourceLien.length > 500))
     erreur = 'Un lien commence par https:// et ne contient aucune espace.';
-  else if (!dateDeclareeValide(s.controleLe, aujourdHui) || s.controleLe < s.delivreLe)
-    erreur = 'Indique le jour où tu as vu le document : ni dans le futur, ni avant sa date.';
-  else if (!s.documentVu) erreur = 'Confirme que tu as vu ce document.';
+  else if (
+    !dateDeclareeValide(s.controleLe, aujourdHui) ||
+    (!sansDate && s.controleLe < s.delivreLe)
+  )
+    erreur = cite
+      ? 'Indique le jour où l’école l’a dit : ni dans le futur, ni avant la date du document.'
+      : 'Indique le jour où tu as vu le document : ni dans le futur, ni avant sa date.';
   return {
     agrement: erreur
       ? null
@@ -86,10 +98,12 @@ export function lireAgrement(
           genre,
           precision: precision || null,
           reference,
-          delivreLe: s.delivreLe,
+          delivreLe: sansDate ? null : s.delivreLe,
           sourceTexte,
           sourceLien: sourceLien || null,
           controleLe: s.controleLe,
+          // La photo déjà jointe ne change pas : la base garde la preuve telle quelle.
+          preuve: s.preuve === 'document_vu' || s.preuve === 'dit_ecole' ? s.preuve : null,
         },
     erreur,
   };
@@ -104,7 +118,7 @@ export function intituleAgrement(a: Pick<AgrementPublic, 'genre' | 'precision'>)
   );
 }
 
-/** « arrêté n° [référence] du 12 mars 2024 » */
+/** « arrêté n° [référence] du 12 mars 2024 » ; sans date (cité par l'école, ticket 205), la référence seule. */
 export function referenceEnMots(a: Pick<AgrementPublic, 'reference' | 'delivreLe'>): string {
-  return `${a.reference} du ${dateLongue(a.delivreLe)}`;
+  return a.delivreLe ? `${a.reference} du ${dateLongue(a.delivreLe)}` : a.reference;
 }

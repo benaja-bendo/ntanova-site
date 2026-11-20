@@ -24,12 +24,13 @@ import { Champ } from '@/ui/v2/formulaire';
 import { quand } from '../../ui/composants';
 import { messageErreur } from './ChampPosition';
 
-type Canal = 'whatsapp' | 'appel' | 'sur_place' | 'autre';
+type Canal = 'whatsapp' | 'appel' | 'sur_place' | 'autre' | 'fondateur';
 const libelleCanal: Record<Canal, string> = {
   whatsapp: 'Par WhatsApp',
   appel: 'Par appel',
   sur_place: 'Sur place',
   autre: 'Autrement',
+  fondateur: 'Au fondateur',
 };
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10);

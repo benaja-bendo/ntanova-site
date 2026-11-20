@@ -115,3 +115,65 @@ export function provenanceContact(c: ContactEcole): string {
     ? `${origine} · accord WhatsApp le ${dateCourte(c.accordLe)}`
     : origine;
 }
+
+// Ticket 205 (A8, A19) : le numéro de l'école ---------------------------------------------------------------------------
+
+/** Où le numéro de l'école a été lu. */
+export type LuSur = 'prospectus' | 'enseigne' | 'site_web' | 'facebook' | 'autre';
+export const libelleLuSur: Record<LuSur, string> = {
+  prospectus: 'Un prospectus ou un document',
+  enseigne: 'L’enseigne',
+  site_web: 'Son site web',
+  facebook: 'Sa page Facebook',
+  autre: 'Ailleurs',
+};
+const luSurCourt: Record<LuSur, string> = {
+  prospectus: 'lu sur un document',
+  enseigne: 'lu sur l’enseigne',
+  site_web: 'lu sur son site web',
+  facebook: 'lu sur sa page Facebook',
+  autre: 'lu ailleurs',
+};
+
+/** Ce qui part vers la base : le numéro au format de la base, ou sa lecture en mots quand il est illisible en partie. */
+export interface NumeroEcole {
+  numero: string | null;
+  luSur: LuSur;
+  illisible: boolean;
+  lecture: string | null;
+}
+
+/** La saisie du formulaire : rien de choisi d'avance. */
+export interface NumeroEcoleSaisi {
+  numero: string;
+  luSur: LuSur | '';
+  illisible: boolean;
+  lecture: string;
+}
+
+export function lireNumeroEcole(s: NumeroEcoleSaisi): {
+  numero: NumeroEcole | null;
+  erreur: string | null;
+} {
+  if (!s.luSur) return { numero: null, erreur: 'Dis où le numéro a été lu.' };
+  if (s.illisible) {
+    const lecture = s.lecture.trim();
+    if (!lecture) return { numero: null, erreur: 'Écris ce qu’on lit du numéro, même incomplet.' };
+    if (lecture.length > 300)
+      return { numero: null, erreur: 'Ce qu’on lit tient en 300 caractères.' };
+    return { numero: { numero: null, luSur: s.luSur, illisible: true, lecture }, erreur: null };
+  }
+  const numero = normaliserTelephone(s.numero);
+  if (!numero)
+    return {
+      numero: null,
+      erreur:
+        'Ce numéro ne semble pas complet : coche « Illisible en partie » s’il ne se lit pas bien.',
+    };
+  return { numero: { numero, luSur: s.luSur, illisible: false, lecture: null }, erreur: null };
+}
+
+/** « Numéro de l'école · lu sur un document » */
+export function libelleNumeroEcole(c: Pick<ContactEcole, 'luSur'>): string {
+  return c.luSur ? `Numéro de l’école · ${luSurCourt[c.luSur]}` : 'Numéro de l’école';
+}
