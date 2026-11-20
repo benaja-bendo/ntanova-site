@@ -27,10 +27,14 @@ import { ecrirePosition } from '../../modele/coordonnees';
 import type { SourcePosition } from '../../modele/fiche-admin';
 import {
   erreursFormulaireEcole,
+  erreursIdentite,
   formulaireDe,
+  identiteDe,
   lireChampPosition,
   versCorrection,
+  versCorrectionIdentite,
   type FormulaireEcole,
+  type IdentiteDuSite,
 } from '../../modele/correction-ecole';
 import type { Erreurs } from '../../modele/fiche';
 import { cheminLisible } from '../../modele/geo-divisions';
@@ -241,6 +245,15 @@ function LigneEcole({
           ecoleId={e.id}
           nom={e.nom}
           niveaux={e.niveaux}
+          autresSites={ecoles
+            .filter(
+              (x) =>
+                x.institutionId === e.institutionId &&
+                x.id !== e.id &&
+                !x.corbeille &&
+                x.formations > 0,
+            )
+            .map((x) => ({ id: x.id, nom: x.etiquette ?? 'Site sans nom' }))}
           admin={admin}
           surChangement={signaler}
         />
@@ -1198,6 +1211,8 @@ function FormulaireEcole({
   surOccupation: (occupe: boolean) => void;
 }) {
   const [champs, setChamps] = useState<FormulaireEcole>(() => formulaireDe(e));
+  // Ticket 203 (A4) : le sigle de l'école et le nom de ce site.
+  const [identite, setIdentite] = useState<IdentiteDuSite>(() => identiteDe(e));
   const [erreurs, setErreurs] = useState<Erreurs>({});
   const [rienADire, setRienADire] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -1214,10 +1229,10 @@ function FormulaireEcole({
   const enregistrer = async (ev: { preventDefault: () => void }) => {
     ev.preventDefault();
     setErreur(null);
-    const trouvees = erreursFormulaireEcole(champs);
+    const trouvees = { ...erreursFormulaireEcole(champs), ...erreursIdentite(identite) };
     setErreurs(trouvees);
     if (Object.keys(trouvees).length > 0) return;
-    const correction = versCorrection(e, champs);
+    const correction = { ...versCorrection(e, champs), ...versCorrectionIdentite(e, identite) };
     setRienADire(Object.keys(correction).length === 0);
     if (Object.keys(correction).length === 0) return;
     setEnCours(true);
@@ -1243,7 +1258,45 @@ function FormulaireEcole({
       noValidate
       onSubmit={(ev) => void enregistrer(ev)}
     >
-      <ChampsFiche champs={champs} erreurs={erreurs} changer={changer} />
+      <ChampsFiche
+        champs={champs}
+        erreurs={erreurs}
+        changer={changer}
+        apresNom={
+          <>
+            <Champ libelle="Sigle" facultatif erreur={erreurs['sigle']}>
+              {(a) => (
+                <input
+                  {...a}
+                  className={v2.champ}
+                  type="text"
+                  autoComplete="off"
+                  value={identite.sigle}
+                  onChange={(ev) => {
+                    setIdentite((x) => ({ ...x, sigle: ev.target.value }));
+                    setRienADire(false);
+                  }}
+                />
+              )}
+            </Champ>
+            <Champ libelle="Nom du site" facultatif erreur={erreurs['etiquette']}>
+              {(a) => (
+                <input
+                  {...a}
+                  className={v2.champ}
+                  type="text"
+                  autoComplete="off"
+                  value={identite.etiquette}
+                  onChange={(ev) => {
+                    setIdentite((x) => ({ ...x, etiquette: ev.target.value }));
+                    setRienADire(false);
+                  }}
+                />
+              )}
+            </Champ>
+          </>
+        }
+      />
       {rienADire && (
         <p className={v2.mentionLarge} aria-live="polite">
           Rien n’a changé.

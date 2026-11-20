@@ -83,6 +83,40 @@ export function versCorrection(
   return correction;
 }
 
+// Ticket 203 (A4) : le sigle de l'école et le nom du site ---------------------------------
+
+/** Le sigle (commun à tous les sites de l'école) et le nom de ce site, dans « En bref ». */
+export interface IdentiteDuSite {
+  sigle: string;
+  etiquette: string;
+}
+
+export function identiteDe(e: Pick<EcoleVue, 'sigle' | 'etiquette'>): IdentiteDuSite {
+  return { sigle: e.sigle ?? '', etiquette: e.etiquette ?? '' };
+}
+
+/** Les limites de la base : `institutions.acronym` (20) et `campuses.label` (120). */
+export function erreursIdentite(champs: IdentiteDuSite): Erreurs {
+  const erreurs: Erreurs = {};
+  if (champs.sigle.trim().length > 20) erreurs['sigle'] = 'Le sigle tient en 20 caractères.';
+  if (champs.etiquette.trim().length > 120)
+    erreurs['etiquette'] = 'Le nom du site tient en 120 caractères.';
+  return erreurs;
+}
+
+/** Seulement ce qui a changé ; un champ vidé efface la valeur. */
+export function versCorrectionIdentite(
+  avant: Pick<EcoleVue, 'sigle' | 'etiquette'>,
+  champs: IdentiteDuSite,
+): Pick<CorrectionEcole, 'sigle' | 'etiquette'> {
+  const correction: Pick<CorrectionEcole, 'sigle' | 'etiquette'> = {};
+  const sigle = champs.sigle.trim() || null;
+  if (sigle !== (avant.sigle ?? null)) correction.sigle = sigle;
+  const etiquette = champs.etiquette.trim() || null;
+  if (etiquette !== (avant.etiquette ?? null)) correction.etiquette = etiquette;
+  return correction;
+}
+
 // Le champ « Position » ----------------------------------------------------------------
 
 /**

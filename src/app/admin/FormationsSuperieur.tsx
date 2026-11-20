@@ -5,6 +5,7 @@ import { jourDuCongo } from '../../modele/date-declaration';
 import {
   detailsVides,
   erreurDeLaFiche,
+  formationsACopier,
   libelleGenrePreuve,
   sansDetail,
   type DetailsFormation,
@@ -175,14 +176,167 @@ function AjoutFormation({
   );
 }
 
+/** Un autre site de la même école, d'où copier des formations (ticket 203). */
+export interface SiteSource {
+  id: string;
+  nom: string;
+}
+
+/**
+ * Ticket 203 (A3, A24) : copier les formations d'un autre site de la même école. On choisit le site, puis on coche : rien
+ * n'est coché d'avance. Une formation déjà sur ce site, ou d'un cycle qu'il n'enseigne pas, n'a pas de case. Le détail est
+ * copié ; le frais de dossier, non : chaque site a ses frais et son OUI.
+ */
+function CopieFormations({
+  ecoleId,
+  sites,
+  cycles,
+  presentes,
+  admin,
+  surCopie,
+}: {
+  ecoleId: string;
+  sites: readonly SiteSource[];
+  cycles: readonly Valeur<'niveau'>[];
+  presentes: readonly FormationDuSuperieur[];
+  admin: PortAdministration;
+  surCopie: (nombre: number) => void;
+}) {
+  const [siteId, setSiteId] = useState('');
+  const [source, setSource] = useState<FormationDuSuperieur[] | null>(null);
+  const [cochees, setCochees] = useState<string[]>([]);
+  const [erreur, setErreur] = useState<string | undefined>();
+  const [enCours, setEnCours] = useState(false);
+
+  const choisirSite = (id: string) => {
+    setSiteId(id);
+    setSource(null);
+    setCochees([]);
+    setErreur(undefined);
+  };
+  useEffect(() => {
+    if (!siteId) return;
+    let vivant = true;
+    void admin
+      .formationsDeLEcole(siteId)
+      .then((f) => vivant && setSource(f))
+      .catch((e: unknown) => vivant && setErreur(messageErreur(e)));
+    return () => {
+      vivant = false;
+    };
+  }, [admin, siteId]);
+
+  const liste = source ? formationsACopier(source, presentes) : [];
+  const cochables = liste.filter((f) => !f.dejaLa && cycles.includes(f.cycle));
+  const basculer = (id: string) =>
+    setCochees((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+  const copier = async () => {
+    if (cochees.length === 0) return setErreur('Coche au moins une formation à copier.');
+    setEnCours(true);
+    setErreur(undefined);
+    try {
+      const n = await admin.copierFormations(siteId, ecoleId, cochees);
+      choisirSite('');
+      surCopie(n);
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <form
+      aria-label="Copier depuis un autre site"
+      className="flex flex-col gap-3 rounded-xl border border-dashed border-border bg-card p-4"
+      onSubmit={(ev) => {
+        ev.preventDefault();
+        void copier();
+      }}
+    >
+      <h4 className={titreCarte}>Copier depuis un autre site</h4>
+      <Champ libelle="Site">
+        {(a) => (
+          <select
+            {...a}
+            className={v2.champ}
+            value={siteId}
+            onChange={(ev) => choisirSite(ev.target.value)}
+          >
+            <option value="">Choisis un site</option>
+            {sites.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.nom}
+              </option>
+            ))}
+          </select>
+        )}
+      </Champ>
+      {siteId && !source && !erreur && <p aria-busy="true">Chargement…</p>}
+      {source && liste.length === 0 && <p className={v2.doux}>Ce site n’a pas de formation.</p>}
+      {liste.length > 0 && (
+        <fieldset className="m-0 flex flex-col gap-1 border-0 p-0">
+          <legend className="mb-1 text-sm font-bold">Formations à copier</legend>
+          {cochables.length > 1 && (
+            <button
+              type="button"
+              className={cn(v2.lien, 'min-h-10 self-start')}
+              onClick={() =>
+                setCochees(cochees.length === cochables.length ? [] : cochables.map((f) => f.id))
+              }
+            >
+              {cochees.length === cochables.length ? 'Tout décocher' : 'Tout cocher'}
+            </button>
+          )}
+          {liste.map((f) =>
+            cochables.includes(f) ? (
+              <label key={f.id} className={v2.case}>
+                <input
+                  type="checkbox"
+                  checked={cochees.includes(f.id)}
+                  onChange={() => basculer(f.id)}
+                />
+                {f.titre}
+                <span className={v2.mention}> · {libelleNiveau[f.cycle]}</span>
+              </label>
+            ) : (
+              <p key={f.id} className={cn(v2.mention, 'm-0 min-h-10 content-center')}>
+                {f.titre} ·{' '}
+                {f.dejaLa ? 'déjà sur ce site' : `${libelleNiveau[f.cycle]} : pas sur ce site`}
+              </p>
+            ),
+          )}
+        </fieldset>
+      )}
+      {erreur && (
+        <p className={v2.erreur} role="alert">
+          {erreur}
+        </p>
+      )}
+      {cochables.length > 0 && (
+        <button className={cn(v2.bouton, 'self-start')} type="submit" disabled={enCours}>
+          {enCours
+            ? 'Copie…'
+            : cochees.length > 1
+              ? `Copier ${cochees.length} formations`
+              : 'Copier la formation'}
+        </button>
+      )}
+    </form>
+  );
+}
+
 export function FormationsSuperieur({
   ecoleId,
   nom,
   niveaux = [],
+  autresSites = [],
   admin,
   surChangement,
 }: {
   ecoleId: string;
+  /** Ticket 203 : les autres sites de l'école qui ont des formations, d'où en copier. */
+  autresSites?: readonly SiteSource[];
   /** Le nom du site, sous le titre du tiroir. */
   nom?: string;
   /** Les niveaux du site : on n'ajoute une formation que dans un cycle qu'il enseigne. */
@@ -272,6 +426,23 @@ export function FormationsSuperieur({
           surChangement(`Formation ajoutée : ${titre}. Détaille-la ci-dessous.`);
         }}
       />
+      {autresSites.length > 0 && cycles.length > 0 && (
+        <CopieFormations
+          ecoleId={ecoleId}
+          sites={autresSites}
+          cycles={cycles}
+          presentes={formations}
+          admin={admin}
+          surCopie={(n) => {
+            setVersion((v) => v + 1);
+            surChangement(
+              n === 0
+                ? 'Rien de copié : ces formations sont déjà sur ce site.'
+                : `${n > 1 ? `${n} formations copiées` : '1 formation copiée'}, avec leur détail. Le frais de dossier ne se copie pas : chaque site a le sien.`,
+            );
+          }}
+        />
+      )}
       {erreur && (
         <p className={v2.erreur} role="alert">
           {erreur}

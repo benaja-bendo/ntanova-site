@@ -240,6 +240,7 @@ interface LigneCampus {
   institutions: {
     name: string;
     kind: string;
+    acronym?: string | null;
     institution_statements?: { body: string; stated_on: string } | { body: string; stated_on: string }[] | null;
   } | null;
   geo_divisions: { name: string } | null;
@@ -338,7 +339,7 @@ const versMot = (ecole: LigneMot, site: LigneMot): MotDirection | null => {
 const COLONNES_CAMPUS =
   'id, public_number, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, position_source, division_id, verified_on, ' +
   'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, same_place_as_campus_id, ' +
-  'institutions(name, kind, institution_statements(body, stated_on)), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
+  'institutions(name, kind, acronym, institution_statements(body, stated_on)), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
   'campus_cycles(cycle, campus_programs(id, title, application_fee_xaf, application_fee_confirmed_on, details_declared_on)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*), ' +
   'campus_openings(*), campus_class_sizes(*)';
 
@@ -367,6 +368,7 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     id: e.id,
     institutionId: e.institution_id,
     nom: e.institutions?.name ?? '',
+    sigle: e.institutions?.acronym ?? null,
     etiquette: e.label,
     numeroPublic: e.public_number ?? null,
     memeLieuQue: e.same_place_as_campus_id ?? null,
@@ -1682,12 +1684,15 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       if (correction.programme !== undefined) campus['curriculum_note'] = correction.programme;
       if (correction.repere !== undefined) campus['landmark'] = correction.repere;
       if (correction.numeroEnseigne !== undefined) campus['sign_phone'] = correction.numeroEnseigne;
+      // Ticket 203 (A4) : le nom du site est celui du campus ; le sigle, celui de l'école (tous ses sites).
+      if (correction.etiquette !== undefined) campus['label'] = correction.etiquette;
       const institution: Record<string, unknown> = {};
       if (correction.nom !== undefined) institution['name'] = correction.nom;
+      if (correction.sigle !== undefined) institution['acronym'] = correction.sigle;
       if (correction.typeEcole !== undefined) institution['kind'] = correction.typeEcole;
 
       const refus = () =>
-        new ErreurDecision('La base refuse une valeur : vérifie le nom, le programme, le repère et le numéro.');
+        new ErreurDecision('La base refuse une valeur : vérifie le nom, le sigle, le nom du site, le programme, le repère et le numéro.');
       let institutionId: string | null = null;
       if (Object.keys(institution).length > 0 || Object.keys(campus).length > 0) {
         const ligne = await supabase()
@@ -2087,6 +2092,17 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       });
       decider(error);
     },
+    // Ticket 203 (A3, A24) : les formations cochées d'un site vers un autre site de la même école.
+    async copierFormations(depuisId, versId, formationIds) {
+      const { data, error } = await supabase().rpc('copy_campus_programs', {
+        p_from: depuisId,
+        p_to: versId,
+        p_programs: formationIds,
+      });
+      decider(error);
+      return (data as number | null) ?? 0;
+    },
+
     async ajouterFormation(ecoleId, cycle, titre) {
       const { data, error } = await supabase().rpc('add_campus_program', {
         p_campus: ecoleId,
