@@ -732,6 +732,8 @@ export interface EcoleVue {
    * « Noter le OUI de l'école »). `confirmeLe` nul : le frais n'est pas public.
    */
   fraisDeDossier?: FraisDeDossier[];
+  /** Ticket 203 (A4, A13) : le sigle de l'école (commun à ses sites) ; nul : pas de sigle. */
+  sigle?: string | null;
   /** Ticket 201 (A35) : d'où vient la position du site ; nul : pas dit. */
   sourcePosition?: import('./fiche-admin').SourcePosition | null;
   contactPublic?: ContactPublic | null;
@@ -795,6 +797,8 @@ export interface CorrectionEcole {
   nom?: string;
   /** v2 (13/11) : le sigle de l'école, qui remplit celui de la nouvelle école. */
   sigle?: string | null;
+  /** Ticket 203 (A4) : le nom du site (« Site 2 · Mpita »), propre à ce site. */
+  etiquette?: string | null;
   typeEcole?: Valeur<'type_ecole'>;
   niveaux?: Valeur<'niveau'>[];
   programme?: string | null;
@@ -1069,6 +1073,11 @@ export interface PortAdministration {
   reprendreEcole(ecoleId: string): Promise<void>;
   /** Corrige une fiche (brouillon, prête ou publiée) sans repasser par le relais. `PATCH /admin/ecoles/{id}` */
   modifierEcole(ecoleId: string, correction: CorrectionEcole): Promise<void>;
+  /**
+   * Ticket 203 (A3, A24) : copie les formations cochées d'un site vers un autre site de la même école, avec leur détail et
+   * sans le frais de dossier ; une formation déjà là n'est pas copiée deux fois. Rend le nombre copié.
+   */
+  copierFormations(depuisId: string, versId: string, formationIds: string[]): Promise<number>;
   /**
    * Donne la position d'un campus connu (prise sur une carte). Rend le nom de la division où elle tombe ;
    * `divisionId` quand aucun contour connu ne la contient. `PUT /admin/ecoles/{id}/position`

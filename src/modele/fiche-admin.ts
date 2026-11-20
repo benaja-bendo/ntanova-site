@@ -428,3 +428,40 @@ export function completudeEnMots(c: CompletudeDeLaFiche): string {
   const base = `${c.remplies} rubrique${c.remplies > 1 ? 's' : ''} remplie${c.remplies > 1 ? 's' : ''} sur ${c.total}`;
   return c.aDemander > 0 ? `${base} · ${c.aDemander} à demander` : base;
 }
+
+// Ticket 203 : plusieurs sites -------------------------------------------------------------------------------------------
+
+/** Sans accent, en minuscules, la ponctuation lue comme un espace : « Électricité » = « electricite ». */
+const normaliser = (texte: string): string =>
+  texte
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/**
+ * A13 : le titre de la fiche admin. Le sigle quand l'école en a un (« ESTAM »), le nom complet en dessous ; sinon le nom
+ * seul. Le nom du site n'y est pas : il est déjà dans la ligne qui suit.
+ */
+export function titreDeFiche(e: { nom: string; sigle?: string | null }): {
+  titre: string;
+  nomComplet: string | null;
+} {
+  const sigle = e.sigle?.trim();
+  if (!sigle || normaliser(sigle) === normaliser(e.nom)) return { titre: e.nom, nomComplet: null };
+  return { titre: sigle, nomComplet: e.nom };
+}
+
+/**
+ * A3 : les formations d'un autre site, avec celles qui sont déjà sur ce site-ci (même intitulé, même cycle, sans tenir
+ * compte de la casse ni des accents, comme la base). Une formation déjà là ne se coche pas.
+ */
+export function formationsACopier<F extends Pick<FormationDuSuperieur, 'id' | 'titre' | 'cycle'>>(
+  source: readonly F[],
+  cible: readonly Pick<FormationDuSuperieur, 'titre' | 'cycle'>[],
+): (F & { dejaLa: boolean })[] {
+  const presentes = new Set(cible.map((f) => `${f.cycle}|${normaliser(f.titre)}`));
+  return source.map((f) => ({ ...f, dejaLa: presentes.has(`${f.cycle}|${normaliser(f.titre)}`) }));
+}

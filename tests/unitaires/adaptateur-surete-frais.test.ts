@@ -79,7 +79,7 @@ describe('sûreté des frais : l’adaptateur de l’administration', () => {
             retirement_reason: null,
             retirement_note: null,
             replaced_by_campus_id: null,
-            institutions: { name: '[École A]', kind: 'privee' },
+            institutions: { name: '[École A]', kind: 'privee', acronym: 'EA' },
             geo_divisions: null,
             missions: [],
             campus_cycles: [
@@ -136,6 +136,8 @@ describe('sûreté des frais : l’adaptateur de l’administration', () => {
     );
     const [e] = await port.ecoles();
     expect(e!.frais!.map((f) => f.classe)).toEqual(['Licence 1', 'Licence 2', 'Licence 3']);
+    // Ticket 203 (A4, A13) : le sigle de l'école est lu avec le site.
+    expect(e!.sigle).toBe('EA');
     expect(e!.frais![0]!.maximum).toBeNull();
     expect(e!.fraisDeDossier).toEqual([
       {

@@ -131,6 +131,8 @@ interface CampusFaux {
   institutionId: string;
   nom: string;
   etiquette: string | null;
+  /** Ticket 203 : le sigle de l'école (le faux le garde sur chaque site). */
+  sigle?: string | null;
   quartier: string | null;
   publication: Valeur<'publication'>;
   origine: Valeur<'origin_kind'>;
@@ -1186,6 +1188,7 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     institutionId: c.institutionId,
     nom: c.nom,
     etiquette: c.etiquette,
+    sigle: c.sigle ?? null,
     numeroPublic: 158427,
     quartier: c.quartier,
     division: division?.nom ?? null,
@@ -2402,6 +2405,11 @@ const admin: PortAdministration = {
       if (correction.programme !== undefined) ecole.programme = correction.programme;
       if (correction.repere !== undefined) ecole.repere = correction.repere;
       if (correction.numeroEnseigne !== undefined) ecole.numeroEnseigne = correction.numeroEnseigne;
+      // Ticket 203 : le nom du site est celui de ce site ; le sigle, celui de l'école (tous ses sites).
+      if (correction.etiquette !== undefined) ecole.etiquette = correction.etiquette;
+      if (correction.sigle !== undefined)
+        for (const x of Object.values(e.campus))
+          if (x.institutionId === ecole.institutionId) x.sigle = correction.sigle;
     });
   },
   async confierEcole(ecoleId, relaisId, genre, note, details) {
@@ -3044,6 +3052,50 @@ const admin: PortAdministration = {
           : avecLeOuiDuDossier(campus.detailsFormations?.[formationId], d),
       };
     });
+  },
+  // Ticket 203 : comme `copy_campus_programs` (même école, cycle enseigné, sans doublon, sans le frais de dossier).
+  async copierFormations(depuisId, versId, formationIds) {
+    await reseau();
+    const e = lireEtat();
+    const de = e.campus[depuisId];
+    const vers = e.campus[versId];
+    if (!de || !vers) throw new ErreurDecision('Site introuvable.');
+    if (formationIds.length === 0)
+      throw new ErreurDecision('Coche au moins une formation à copier.');
+    if (depuisId === versId) throw new ErreurDecision('Choisis un autre site que celui-ci.');
+    if (de.institutionId !== vers.institutionId)
+      throw new ErreurDecision('Les formations se copient entre deux sites de la même école.');
+    const choisies = (de.formations ?? []).filter((f) =>
+      formationIds.includes(`${f.cycle}|${f.titre}`),
+    );
+    if (choisies.length !== formationIds.length)
+      throw new ErreurDecision('Ces formations ne sont pas toutes celles du site choisi.');
+    if (choisies.some((f) => !(vers.niveaux ?? []).includes(f.cycle)))
+      throw new ErreurDecision(
+        'Ce site n’enseigne pas ce cycle : ajoute-le d’abord dans « En bref ».',
+      );
+    const deja = new Set((vers.formations ?? []).map((f) => `${f.cycle}|${f.titre}`.toLowerCase()));
+    const nouvelles = choisies.filter((f) => !deja.has(`${f.cycle}|${f.titre}`.toLowerCase()));
+    ecrire((etat) => {
+      const cible = etat.campus[versId]!;
+      cible.formations = [...(cible.formations ?? []), ...nouvelles.map((f) => ({ ...f }))];
+      for (const f of nouvelles) {
+        const id = `${f.cycle}|${f.titre}`;
+        const d = de.detailsFormations?.[id];
+        if (d)
+          cible.detailsFormations = {
+            ...(cible.detailsFormations ?? {}),
+            [id]: { ...d, fraisDossier: null, fraisDossierConfirmeLe: null },
+          };
+        const series = de.ficheFormations?.[id]?.seriesAdmises;
+        if (series)
+          cible.ficheFormations = {
+            ...(cible.ficheFormations ?? {}),
+            [id]: { fraisParAn: null, autorisation: null, seriesAdmises: series },
+          };
+      }
+    });
+    return nouvelles.length;
   },
   async ajouterFormation(ecoleId, cycle, titre) {
     await reseau();

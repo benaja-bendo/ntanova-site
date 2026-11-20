@@ -19,6 +19,7 @@ import {
 import {
   completudeDeLaFiche,
   libelleSujetDemande,
+  titreDeFiche,
   type Manque,
   type MediaAdmin,
   type NouvelleAdmin,
@@ -208,6 +209,7 @@ export function FicheEcole({
     .at(-1);
   // Lot 2 du site public (15/11) : le OUI de l'école sur ses frais ; les places annoncées encore sur le site.
   const ouiFrais = etatDuOuiAvecDossier(e.frais ?? [], e.fraisDeDossier ?? []);
+  const titreFiche = titreDeFiche(e);
   const placesEnCours = trierParClasse(
     (e.places ?? []).filter((p) => annonceEnCours(p, jourDuCongo())),
   );
@@ -273,10 +275,17 @@ export function FicheEcole({
         {/* L'identité de l'école. */}
         <div className="flex flex-col gap-2.5 px-5 pt-9 max-lg:px-4 max-lg:pt-8">
           <div className="flex items-start gap-3">
-            <p className="m-0 flex-1 font-serif text-[30px] leading-tight font-bold max-lg:text-[24px]">
-              {e.nom}
-              {e.etiquette ? ` · ${e.etiquette}` : ''}
-            </p>
+            {/* Ticket 203 (A13) : le sigle en titre, le nom complet dessous ; le nom du site est dans la ligne qui suit. */}
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <p className="m-0 font-serif text-[30px] leading-tight font-bold max-lg:text-[24px]">
+                {titreFiche.titre}
+              </p>
+              {titreFiche.nomComplet && (
+                <p className="m-0 text-[15px] leading-snug text-foreground">
+                  {titreFiche.nomComplet}
+                </p>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => ouvrir('modifier')}

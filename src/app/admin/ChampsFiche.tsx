@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { v2 } from '@/ui/v2/classes';
 import type { FormulaireEcole } from '../../modele/correction-ecole';
 import type { Erreurs } from '../../modele/fiche';
@@ -10,10 +11,13 @@ export function ChampsFiche({
   champs,
   erreurs,
   changer,
+  apresNom,
 }: {
   champs: FormulaireEcole;
   erreurs: Erreurs;
   changer: (nouveaux: Partial<FormulaireEcole>) => void;
+  /** Ticket 203 (A4) : « En bref » ajoute le sigle et le nom du site sous le nom. */
+  apresNom?: ReactNode;
 }) {
   const basculerNiveau = (n: Valeur<'niveau'>) =>
     changer({
@@ -35,6 +39,7 @@ export function ChampsFiche({
           />
         )}
       </Champ>
+      {apresNom}
       <Champ libelle="Type d'école" erreur={erreurs.typeEcole}>
         {(a) => (
           <select
