@@ -2,7 +2,7 @@
  * Les formations lues sur un panneau, une affiche ou un prospectus : série de bac, diplôme, domaine, rythme.
  * C'est ce qui rend les lycées, les écoles techniques et le supérieur cherchables. Pur : ni base ni écran.
  */
-import { libelleDiplome, libelleSerie } from './libelles';
+import { libelleDiplome, libelleNiveau, libelleSerie } from './libelles';
 import { listes, type Valeur } from './listes';
 import type { FormationSaisie } from './ports';
 
@@ -16,6 +16,17 @@ export const CYCLES_AVEC_FORMATIONS: readonly Valeur<'niveau'>[] = [
 
 export const cycleAvecFormations = (cycle: Valeur<'niveau'>): boolean =>
   CYCLES_AVEC_FORMATIONS.includes(cycle);
+
+/**
+ * Le titre de la liste des formations d'un site, d'après leurs cycles (20/11 : les séries G1 à G3 d'un lycée
+ * technique paraissaient sous « Formations du supérieur »). Un cycle nommé une fois, dans l'ordre des niveaux.
+ */
+export function titreDesFormations(cycles: readonly Valeur<'niveau'>[]): string {
+  const presents = listes.niveau.filter((n) => cycles.includes(n));
+  if (presents.length === 0) return 'Formations';
+  if (presents.length === 1 && presents[0] === 'superieur') return 'Formations du supérieur';
+  return `Formations : ${presents.map((n) => libelleNiveau[n]).join(' · ')}`;
+}
 
 /** Les séries qu'on coche d'un geste pour un lycée : chacune devient une formation « Série C » (baccalauréat). */
 export const SERIES_RAPIDES: readonly Valeur<'bac_track'>[] = [

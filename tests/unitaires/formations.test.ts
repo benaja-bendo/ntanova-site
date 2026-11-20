@@ -12,6 +12,7 @@ import {
   sansCycle,
   sansFormation,
   SERIES_RAPIDES,
+  titreDesFormations,
 } from '../../src/modele/formations';
 import { listes } from '../../src/modele/listes';
 import type { FormationSaisie } from '../../src/modele/ports';
@@ -107,5 +108,28 @@ describe('les formations lues sur un panneau', () => {
     // Une valeur hors liste (ce qu'un fichier mal fait pourrait apporter) est refusée avant la base.
     expect(erreurFormation({ ...bts, serie: 'z' as never })).toMatch(/série/i);
     expect(erreurFormation({ ...bts, diplome: 'magicien' as never })).toMatch(/diplôme/i);
+  });
+});
+
+// 20/11 : une école sans supérieur voyait ses séries G1 à G3 sous « Formations du supérieur ».
+describe('le titre de la liste des formations d’un site', () => {
+  it('garde « Formations du supérieur » quand toutes sont du supérieur', () => {
+    expect(titreDesFormations(['superieur', 'superieur'])).toBe('Formations du supérieur');
+  });
+
+  it('nomme le technique quand le site n’a que des formations du technique', () => {
+    expect(titreDesFormations(['technique', 'technique', 'technique'])).toBe(
+      'Formations : Technique ou professionnel',
+    );
+  });
+
+  it('nomme chaque cycle, une fois, dans l’ordre des niveaux', () => {
+    expect(titreDesFormations(['superieur', 'autre_formation', 'technique', 'superieur'])).toBe(
+      'Formations : Technique ou professionnel · Supérieur · Autre formation',
+    );
+  });
+
+  it('reste « Formations » quand aucun cycle n’est connu', () => {
+    expect(titreDesFormations([])).toBe('Formations');
   });
 });
