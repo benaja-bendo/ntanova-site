@@ -336,15 +336,29 @@ export interface EcoleSimilaire {
   distanceM: number | null;
   ressemblance: number;
   verdict: 'deja_la' | 'autre_site' | 'voisine';
+  /** Ticket 201 (A18) : l'école a-t-elle une position ? Une mission est-elle ouverte pour elle ? (absents : pas dit) */
+  situe?: boolean;
+  missionOuverte?: boolean;
 }
+
+/** Ticket 201 (A35) : d'où vient la position d'un site ; nul : pas dit. */
+export type SourcePosition = 'relais' | 'ecole' | 'carte_en_ligne';
+export const libelleSourcePosition: Record<SourcePosition, string> = {
+  relais: 'relevée par un relais',
+  ecole: 'donnée par l’école',
+  carte_en_ligne: 'd’après une carte en ligne',
+};
 
 /** Le même verdict que la base (100 m, 500 m, ressemblance 0,45), pour le faux serveur et les tests. */
 export function verdictDeProximite(
   distanceM: number | null,
   ressemblance: number,
+  situe = true,
 ): EcoleSimilaire['verdict'] | null {
   // Lot G : un autre nom tout près est une voisine (planche « Est-ce une école connue ? »), plus « déjà dans la base ».
   if (distanceM !== null && distanceM <= 500 && ressemblance >= 0.45) return 'deja_la';
+  // Ticket 201 (A18) : une école connue que personne n'a encore située ; le même nom, c'est d'abord elle.
+  if (!situe && ressemblance >= 0.45) return 'deja_la';
   if (ressemblance >= 0.45) return 'autre_site';
   if (distanceM !== null && distanceM <= 500) return 'voisine';
   return null;

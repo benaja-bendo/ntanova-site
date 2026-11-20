@@ -73,11 +73,18 @@ export function EcoleConnue({
   let gestes: { libelle: string; c: Cible; actif: boolean }[] = [];
   if (site?.verdict === 'deja_la') {
     titre = 'Déjà dans la base ?';
-    texte = (
-      <>
-        « {site.nom} » existe déjà, <b>{ou(site)}</b>.
-      </>
-    );
+    // Ticket 201 (A18) : une école connue sans position (importée, pas encore vue) se complète, plutôt qu'en créer une autre.
+    texte =
+      site.situe === false ? (
+        <>
+          « {site.nom} » existe déjà, <b>sans position</b>
+          {site.missionOuverte ? ' · une mission est ouverte pour elle' : ''}.
+        </>
+      ) : (
+        <>
+          « {site.nom} » existe déjà, <b>{ou(site)}</b>.
+        </>
+      );
     gestes = [
       {
         libelle: 'Compléter sa fiche',

@@ -10,6 +10,7 @@ import type {
   NouvelleAdmin,
 } from '../../modele/fiche-admin';
 import {
+  type SourcePosition,
   detailsVides,
   erreurDeLaFiche,
   erreurDesDetails,
@@ -137,6 +138,8 @@ interface CampusFaux {
   position: { latitude: number; longitude: number } | null;
   divisionId: string | null;
   confieeA: string | null;
+  /** Ticket 201 (A35) : d'où vient la position (comme `campuses.position_source`). */
+  sourcePosition?: SourcePosition | null;
   /** Lot I : quand la mission a été confiée. */
   confieeLe?: string | null;
   noteMission: string | null;
@@ -1209,6 +1212,14 @@ function vueDeCampus(c: CampusFaux, e: Etat): EcoleVue {
     numeroEnseigne: c.numeroEnseigne ?? null,
     frais: c.frais ?? [],
     fraisDeDossier: fraisDeDossierDuCampus(c),
+    // Comme le déclencheur de la base : la position d'un relevé vient du relais, sauf si « Situer » l'a redite.
+    sourcePosition: !c.position
+      ? null
+      : c.sourcePosition !== undefined
+        ? c.sourcePosition
+        : c.origine === 'field'
+          ? 'relais'
+          : null,
     places: c.places ?? [],
     effectifs: c.effectifs ?? [],
     equipements: c.equipements ?? [],
@@ -2541,7 +2552,7 @@ const admin: PortAdministration = {
       if (ecole) Object.assign(ecole, { confieeA: null, noteMission: null });
     });
   },
-  async situerEcole(ecoleId, position, divisionId = null) {
+  async situerEcole(ecoleId, position, divisionId = null, source = null) {
     await reseau();
     const e0 = lireEtat();
     const choisie = divisionId ? e0.divisions[divisionId] : undefined;
@@ -2565,6 +2576,7 @@ const admin: PortAdministration = {
       const visee = e.campus[ecoleId];
       if (!visee) return;
       visee.position = position;
+      visee.sourcePosition = source;
       visee.divisionId = division.id;
       if (visee.publication === 'brouillon') visee.publication = 'prete';
     });
@@ -2966,7 +2978,7 @@ const admin: PortAdministration = {
         const distanceM =
           position && c.position ? Math.round(distanceMetres(position, c.position)) : null;
         const r = ressemblance(noyauDuNom(nom), noyauDuNom(c.nom));
-        const verdict = verdictDeProximite(distanceM, r);
+        const verdict = verdictDeProximite(distanceM, r, c.position !== null);
         return verdict
           ? [
               {
@@ -2979,6 +2991,8 @@ const admin: PortAdministration = {
                 distanceM,
                 ressemblance: r,
                 verdict,
+                situe: c.position !== null,
+                missionOuverte: c.confieeA !== null,
               },
             ]
           : [];
@@ -2987,6 +3001,7 @@ const admin: PortAdministration = {
         (a, b) =>
           ['deja_la', 'autre_site', 'voisine'].indexOf(a.verdict) -
             ['deja_la', 'autre_site', 'voisine'].indexOf(b.verdict) ||
+          Number(b.missionOuverte) - Number(a.missionOuverte) ||
           (a.distanceM ?? 1e9) - (b.distanceM ?? 1e9),
       )
       .slice(0, 10);

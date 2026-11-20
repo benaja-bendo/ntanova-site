@@ -223,6 +223,8 @@ interface LigneCampus {
   public_phone: string | null;
   public_phone_agreed_on: string | null;
   position: unknown;
+  /** Ticket 201 (A35) : d'où vient la position (absent d'une ancienne réponse). */
+  position_source?: 'relais' | 'ecole' | 'carte_en_ligne' | null;
   division_id: string | null;
   verified_on: string | null;
   publication: Valeur<'publication'>;
@@ -334,7 +336,7 @@ const versMot = (ecole: LigneMot, site: LigneMot): MotDirection | null => {
 // (`campus_former_addresses`, ticket 147), PostgREST voit deux chemins entre `campuses` et `geo_divisions` et répond « 300 »
 // à un lien sans contrainte. Le contrat avec la base (`contrat-schema.test.ts`) le garde.
 const COLONNES_CAMPUS =
-  'id, public_number, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, division_id, verified_on, ' +
+  'id, public_number, institution_id, label, neighbourhood, landmark, sign_phone, public_phone, public_phone_agreed_on, position, position_source, division_id, verified_on, ' +
   'publication, origin, school_declared_on, curriculum_note, retired_at, trashed_at, retirement_reason, retirement_note, replaced_by_campus_id, same_place_as_campus_id, ' +
   'institutions(name, kind, institution_statements(body, stated_on)), geo_divisions!campuses_division_id_fkey(name), missions(relay_id, note, kind, status, relais(prenom)), ' +
   'campus_cycles(cycle, campus_programs(id, title, application_fee_xaf, application_fee_confirmed_on, details_declared_on)), campus_fees(*), campus_facts(*), campus_accreditations(*), campus_statements(*), campus_enrollment_deadlines(*), ' +
@@ -399,6 +401,7 @@ const versEcole = (e: LigneCampus): EcoleVue => {
     programme: e.curriculum_note,
     repere: e.landmark,
     numeroEnseigne: e.sign_phone,
+    sourcePosition: e.position_source ?? null,
     frais: dansLOrdreDeSaisie((e.campus_fees ?? []).map(versFrais)),
     fraisDeDossier: e.campus_cycles.flatMap((c) =>
       (c.campus_programs ?? []).flatMap((p) =>
@@ -1725,12 +1728,13 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       }
     },
 
-    async situerEcole(ecoleId, position, divisionId = null) {
+    async situerEcole(ecoleId, position, divisionId = null, source = null) {
       const { data, error } = await supabase().rpc('locate_campus', {
         p_campus: ecoleId,
         p_latitude: position.latitude,
         p_longitude: position.longitude,
         p_division: divisionId,
+        p_source: source,
       });
       // La base dit en français si la position est dans une autre division que la fiche, ou dans aucune connue.
       decider(error);
@@ -1990,6 +1994,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         distance_m: number | null;
         similarity: number;
         verdict: 'deja_la' | 'autre_site' | 'voisine';
+        located?: boolean;
+        open_mission?: boolean;
       }[]).map((l) => ({
         genre: l.kind === 'campus' ? 'campus' : 'releve',
         id: l.id,
@@ -2000,6 +2006,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         distanceM: l.distance_m,
         ressemblance: Number(l.similarity),
         verdict: l.verdict,
+        ...(l.located === undefined ? {} : { situe: l.located }),
+        ...(l.open_mission === undefined ? {} : { missionOuverte: l.open_mission }),
       }));
     },
     async formationsDeLEcole(ecoleId) {
