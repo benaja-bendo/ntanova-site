@@ -114,6 +114,8 @@ jobs:
           name: site
           path: dist/
           retention-days: 7
+          # `dist/.well-known/security.txt` (RFC 9116) : sans cette ligne, le dossier caché ne part pas chez Cloudflare.
+          include-hidden-files: true
 
   essai:
     name: Essai (essai.ntanova.com)
