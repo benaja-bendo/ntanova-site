@@ -61,6 +61,16 @@ export function demarrer(racine: HTMLElement): void {
       : `Activité ${rang + 1} sur ${total} : ${activites[rang]?.querySelector('figcaption')?.textContent ?? ''}`;
   };
 
+  // La répétition native d'Entrée émet de nouveaux clics sans nouvel appui, même après les 350 ms de protection.
+  racine.addEventListener('keydown', (ev) => {
+    if (
+      ev.repeat &&
+      (ev.key === 'Enter' || ev.key === ' ') &&
+      (ev.target as Element | null)?.closest('[data-reponse]')
+    )
+      ev.preventDefault();
+  });
+
   racine.addEventListener('click', (ev) => {
     const cible = (ev.target as Element | null)?.closest<HTMLElement>(
       '[data-reponse], [data-recommencer]',

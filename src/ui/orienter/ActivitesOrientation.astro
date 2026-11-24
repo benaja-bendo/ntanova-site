@@ -19,8 +19,8 @@ const { activites, jour } = Astro.props;
 <div class="activites" data-activites>
   <div class="activites-sans-script" data-sans-script>
     <p>
-      Les six activités ont besoin d’un petit script, qui ne s’est pas lancé dans ce navigateur. Les
-      dix domaines de formation, plus bas, ouvrent les mêmes listes d’écoles.
+      Les activités ne sont pas disponibles dans ce navigateur. Explorez les dix domaines de
+      formation, plus bas, pour trouver des écoles.
     </p>
     <a class="lien-fort" href="#o-domaines">
       Voir les dix domaines
@@ -83,7 +83,7 @@ const { activites, jour } = Astro.props;
       ))}
     </ul>
     <p data-aucune hidden>
-      Aucune activité ne vous a plu&nbsp;: parcourez les dix domaines, ou recommencez.
+      Vous n’avez sélectionné aucune activité. Explorez les dix domaines, ou recommencez.
     </p>
     <p class="activites-note">
       Écoles et formations documentées au {jour}. Parlez-en avec un professeur ou un conseiller.

@@ -178,6 +178,23 @@ test.describe('S’orienter', () => {
     await repondre(page, 'J’aime');
     await expect(progression(page)).toContainText('Activité 2 sur 6');
   });
+
+  test('maintenir Entrée ne répond pas aux activités suivantes', async ({ page }) => {
+    await page.clock.install();
+    await page.goto('/orienter/#o-activites');
+    await bouton(page, 'J’aime').focus();
+    await page.waitForLoadState('networkidle');
+    await page.keyboard.down('Enter');
+    await expect(progression(page)).toContainText('Activité 2 sur 6');
+    // La répétition du clavier est toujours le même appui, même après la pause entre deux réponses.
+    await page.clock.runFor(1000);
+    await page.keyboard.down('Enter');
+    await expect(progression(page)).toContainText('Activité 2 sur 6');
+    await page.keyboard.up('Enter');
+    await page.clock.runFor(500);
+    await page.keyboard.press('Enter');
+    await expect(progression(page)).toContainText('Activité 3 sur 6');
+  });
 });
 
 test.describe('S’orienter, sans JavaScript', () => {

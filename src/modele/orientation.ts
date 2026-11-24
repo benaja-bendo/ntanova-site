@@ -76,7 +76,8 @@ export interface GroupeDeDomaines {
 
 /**
  * Les dix grands domaines (CITE-F 2013, 01 à 10 ; le 00, programmes génériques, n'a pas d'équivalent dans l'annuaire). Les
- * titres sont ceux de la planche ; les domaines de l'annuaire viennent de `education_domains` (migration du catalogue).
+ * titres suivent la planche ; le groupe 06 précise « technologies » pour ne pas se confondre avec le journalisme du 03.
+ * Les domaines de l'annuaire viennent de `education_domains` (migration du catalogue).
  * Rapprochements propres à NTanova : « Agriculture et environnement » en 08, « Arts, couture et mode » en 02, « Sciences et
  * technologies » en 05, « Sport » en 10.
  */
@@ -124,7 +125,7 @@ export const GROUPES_DE_DOMAINES: readonly GroupeDeDomaines[] = [
   },
   {
     code: '06',
-    titre: 'Informatique et communication',
+    titre: 'Informatique et technologies de communication',
     exemples: 'Réseaux, développement',
     dessin: '/dessins/domaine-06.svg',
     domaines: ['informatique'],

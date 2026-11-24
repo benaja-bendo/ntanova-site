@@ -53,6 +53,13 @@ L’accueil rétablit les activités : « Le parcours scolaire, les activités, 
 
 Textes scolaires vérifiés le 24/11 (note datée dans le dépôt `ntanova`) : décrets 2017-148, 2017-149, 2017-154 et 2025-216, Conseil des ministres du 20 janvier 2026, JO du 5 novembre 2026, CITE-F 2013. Le CEP reste « en projet » ; les âges maximum de 2017 et la durée de la maternelle ne sont pas affichés. Relecture humaine des informations scolaires avant toute production.
 
+### Corrections après revue du lot 2 (24/11)
+
+- Une touche Entrée maintenue ne répond plus à plusieurs activités : les répétitions natives du clavier sont ignorées, en plus de la pause et du filtre des doubles clics. Un parcours reproduit l’échec avant correction, puis vérifie un nouvel appui après relâchement.
+- Le résultat sans sélection reste factuel, y compris après six « Je ne sais pas » ; le secours sans activités propose les domaines sans vocabulaire technique.
+- Le groupe 06 précise « Informatique et technologies de communication » pour le distinguer du journalisme du groupe 03. Les domaines et les comptes ne changent pas.
+- La source du Conseil des ministres décrit son contenu daté, sans présenter sa lecture comme une vérification de l’entrée en vigueur d’une réforme. Le vote non retrouvé ne prouve pas l’absence de vote ; les sources et cette limite sont consignées dans le dépôt documentaire.
+
 ## Contrôles et livraison
 
 Suivre `CLAUDE.md` : contrôles locaux sur le faux catalogue, dont `pnpm verif:ci` et les parcours pertinents, puis CI de la dernière révision. Aucun workflow supplémentaire, aucune répétition identique de CI. Ne pas remplacer la construction locale du fondateur par une construction isolée sur les vraies données.
