@@ -78,6 +78,8 @@ Le socle de Contact et de l'annuaire : stockage privé, droits, reprise sans dou
 
 Reste à 3B2 : le port, l'adaptateur et le faux serveur, les écrans « Messages reçus » et retraits, le service d'annonce (non déployé), et deux constats en ligne sur ordre : l'en-tête d'adresse, le port 465.
 
+**Revue du 24/11** : un interblocage supplémentaire entre « Relancer l'annonce » et la purge a été reproduit par un test déterministe, puis corrigé dans la même branche. Les deux opérations verrouillent le message avant l'annonce ; la purge laisse le message en cours de relance pour son prochain passage. Le calcul du sceau est déclaré `stable` conformément à sa dépendance `convert_to`. Aucun écran ni envoi n'est activé par ces corrections.
+
 ## Contrôles et livraison
 
 Suivre `CLAUDE.md` : contrôles locaux sur le faux catalogue, dont `pnpm verif:ci` et les parcours pertinents, puis CI de la dernière révision. Aucun workflow supplémentaire, aucune répétition identique de CI. Ne pas remplacer la construction locale du fondateur par une construction isolée sur les vraies données.

@@ -163,7 +163,7 @@ $$;
 -- Le laissez-passer -------------------------------------------------------------------------------------------------------------------
 
 create function prive.public_request_seal(p_key text, p_issued_at bigint, p_secret bytea) returns text
-language plpgsql immutable set search_path = '' as $$
+language plpgsql stable set search_path = '' as $$
 begin
   return encode(extensions.hmac(convert_to(p_key || ':' || p_issued_at, 'UTF8'), p_secret, 'sha256'), 'hex');
 end;

@@ -3,7 +3,7 @@
 -- lointaine, et retire lui-même ce qu'il a écrit, au début et à la fin. Données inventées ; jamais sur une base en ligne.
 \set ON_ERROR_STOP on
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(29);
 
 drop schema if exists essai_messages cascade;
 create schema essai_messages;
@@ -167,6 +167,59 @@ select is(essai_messages.miens('public_requests') || ' ' || essai_messages.miens
   '0 0 0 0', 'Tout est effacé, sans rien laisser');
 
 -- Aucun interblocage (les statistiques suivent la fin des sessions) ------------------------------------------------------------------------------------------------------
+-- Une relance verrouille l'annonce puis écrit dans l'historique du message. La purge prend le message puis son annonce :
+-- sans un ordre commun, les deux s'attendent. Une barrière après la mise à jour de l'annonce rend cette course déterministe.
+select essai_messages.envoi(essai_messages.passe(), 1, 'relance et purge', null);
+update prive.public_requests set state = 'close', closed_at = now() - interval '13 months', decision = 'traitee', decided_at = now()
+where id > (select id from essai_messages.avant);
+update prive.public_request_notices set last_error = 'connexion', state = 'a_envoyer', lease_token = null, lease_until = null
+where request_id > (select id from essai_messages.avant);
+create function essai_messages.attendre_relance() returns trigger language plpgsql as $$
+begin
+  perform pg_advisory_xact_lock(3303);
+  return new;
+end $$;
+create trigger essai_relance after update on prive.public_request_notices
+for each row execute function essai_messages.attendre_relance();
+create function essai_messages.relance_et_purge() returns text language plpgsql as $$
+declare v_ref text; v_pid integer; v_relance text; v_purge text; i integer;
+begin
+  select reference into v_ref from prive.public_requests where id > (select id from essai_messages.avant) order by id limit 1;
+  perform pg_advisory_lock(3303);
+  perform extensions.dblink_connect('relance', essai_messages.adresse());
+  perform extensions.dblink_connect('purge_relance', essai_messages.adresse());
+  select p.pid into v_pid from extensions.dblink('purge_relance', 'select pg_backend_pid()') as p(pid integer);
+  perform extensions.dblink_send_query('relance', format('select ''relancee'' || public.retry_public_request_notice(%L)::text', v_ref));
+  for i in 1..200 loop
+    exit when exists (select 1 from pg_locks where locktype = 'advisory' and objid = 3303 and not granted);
+    perform pg_sleep(0.01);
+  end loop;
+  if not exists (select 1 from pg_locks where locktype = 'advisory' and objid = 3303 and not granted) then
+    raise exception 'La relance n''a pas atteint la barrière du test.';
+  end if;
+  perform extensions.dblink_send_query('purge_relance', 'select prive.purge_public_requests()::text');
+  for i in 1..200 loop
+    exit when extensions.dblink_is_busy('purge_relance') = 0
+      or exists (select 1 from pg_locks where pid = v_pid and not granted);
+    perform pg_sleep(0.01);
+  end loop;
+  perform pg_advisory_unlock(3303);
+  begin
+    select r.x into v_relance from extensions.dblink_get_result('relance') as r(x text);
+  exception when others then v_relance := 'ERREUR-' || sqlstate;
+  end;
+  begin
+    select r.x into v_purge from extensions.dblink_get_result('purge_relance') as r(x text);
+  exception when others then v_purge := 'ERREUR-' || sqlstate;
+  end;
+  perform extensions.dblink_disconnect('relance');
+  perform extensions.dblink_disconnect('purge_relance');
+  return v_relance || ' ' || v_purge;
+end $$;
+select is(essai_messages.relance_et_purge(), 'relancee 0', 'Relancer pendant la purge : le message est réservé, la purge le laisse, aucun interblocage');
+drop trigger essai_relance on prive.public_request_notices;
+select is(prive.purge_public_requests(), 1, 'La purge suivante efface le message après la fin de la relance');
+
 select pg_sleep(1);
 select is((select d.deadlocks from pg_stat_database d where d.datname = current_database()), (select n from essai_messages.interblocages), 'Aucun interblocage');
 

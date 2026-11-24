@@ -412,9 +412,11 @@ language plpgsql security definer set search_path = '' as $$
 declare v_id bigint;
 begin
   perform public.exiger_admin_session();
+  -- Même ordre que la purge : le message, puis son annonce. L'événement final référence le message ; prendre l'annonce
+  -- d'abord ferait attendre la relance et la purge l'une sur l'autre.
+  select q.id into v_id from prive.public_requests q where q.reference = upper(btrim(p_reference)) for update;
   update prive.public_request_notices n set state = 'a_envoyer', next_attempt_at = now(), first_attempt_at = null
-  from prive.public_requests q
-  where q.id = n.request_id and q.reference = upper(btrim(p_reference))
+  where n.request_id = v_id
     and (n.state = 'abandonnee' or (n.state = 'a_envoyer' and n.last_error is not null))
   returning n.request_id into v_id;
   if v_id is null then
