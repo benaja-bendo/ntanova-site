@@ -72,6 +72,7 @@ supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parco
 - **Listes fermées** : domaines SQL copiés dans `src/modele/listes.ts` (un test les compare), libellés dans `libelles.ts`. Une liste ne bloque personne (case de sortie, rien de coché d'avance, lecture tolérante) ; on ne retire ni ne renomme une valeur. Ajouter : `alter domain … add constraint … not valid` (`niveau` sert dans un tableau).
 - Jamais de position inventée. Photos : chemins relatifs, privées tant que l'administration ne les a pas contrôlées. Données d'exemple fictives ; les vraies écoles entrent par `outils/importer-ecoles.ts` puis l'administration, jamais par git.
 - Migrations appliquées depuis le Mac du fondateur (`pnpm exec supabase db push --linked`, après une sauvegarde), **avant** toute construction qui les lit ; jamais par la CI.
+- **Les messages reçus** (Contact, annuaire ; refonte, lot 3B1, pas encore en ligne) : tout dans `prive`, envoyés par `send_public_request(json)` seulement, lus par l'administration seule ; rien d'écrit par une personne dans une erreur, un journal, une liste ou une adresse. `supabase/schema.md`, « Les messages reçus ».
 - **Deux lignes rouges** : la confiance ne s'achète pas (« Confirmée par la direction » exige un accord daté) ; NTanova n'encaisse jamais les frais de scolarité.
 
 ## Secrets

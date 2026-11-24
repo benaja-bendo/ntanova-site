@@ -89,6 +89,7 @@ create extension postgis with schema extensions;
 create extension pg_trgm with schema extensions;
 create extension unaccent with schema extensions;
 create extension ltree with schema extensions;
+create extension pgcrypto with schema extensions;
 do $$ begin
   create role anon nologin noinherit;
 exception when duplicate_object then null; end $$;

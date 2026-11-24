@@ -29,6 +29,9 @@ alter default privileges in schema public grant all on tables to anon, authentic
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 
+-- Comme sur Supabase, les trois rôles de l'API voient le schéma `public` (ce que l'export emporte).
+grant usage on schema public to anon, authenticated, service_role;
+
 create schema if not exists extensions;
 grant usage on schema extensions to anon, authenticated, service_role;
 
@@ -148,3 +151,21 @@ create trigger protect_objects_delete before delete on storage.objects
 grant select, insert, update, delete on storage.objects to authenticated;
 grant select on storage.buckets to authenticated;
 grant execute on function storage.foldername(text), storage.filename(text) to anon, authenticated, service_role;
+
+-- La planification (`pg_cron`, réduite à ce que NTanova appelle) : un nom, un horaire, une commande ; rien ne s'exécute ici. Rappeler
+-- le même nom remplace, comme `cron.schedule` de Supabase.
+create schema if not exists cron;
+create table if not exists cron.job (
+  jobid bigint generated always as identity primary key,
+  jobname text unique,
+  schedule text not null,
+  command text not null,
+  active boolean not null default true
+);
+create table if not exists cron.job_run_details (jobid bigint, end_time timestamptz);
+create or replace function cron.schedule(job_name text, schedule text, command text) returns bigint
+language sql as $$
+  insert into cron.job (jobname, schedule, command) values ($1, $2, $3)
+  on conflict (jobname) do update set schedule = excluded.schedule, command = excluded.command
+  returning jobid
+$$;
