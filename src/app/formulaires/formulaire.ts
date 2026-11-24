@@ -91,6 +91,15 @@ export function demarrer(racine: HTMLElement, port: PortDemandes): void {
       if (c.dataset.champ !== champ || !pourCetteNature(c)) return trouve;
       return estCase(c) ? (c.checked ? c.value : trouve) : c.value;
     }, '');
+  /** Le libellé choisi, déjà écrit dans la page. */
+  const motChoisi = (champ: string): string => {
+    for (const c of controles) {
+      if (c.dataset.champ !== champ || !pourCetteNature(c)) continue;
+      if (c instanceof HTMLSelectElement && c.value) return c.selectedOptions[0]?.text ?? '';
+      if (estCase(c) && c.checked) return c.parentElement?.textContent?.trim() ?? '';
+    }
+    return '';
+  };
   /** Ce champ appartient à la demande de la page : les champs d'une autre nature, cachés, gardent leur texte et ne partent pas. */
   function pourCetteNature(c: Element): boolean {
     for (let e = c.closest<HTMLElement>('[data-natures]'); e;) {
@@ -325,6 +334,9 @@ export function demarrer(racine: HTMLElement, port: PortDemandes): void {
   function occuper(vol: boolean): void {
     enVol = vol;
     champs!.disabled = vol;
+    tous<HTMLButtonElement>('effacer').forEach((b) => {
+      b.disabled = vol;
+    });
     const bouton = un('envoyer');
     bouton?.setAttribute('aria-busy', String(vol));
     montrer(un('envoyer-repos'), !vol);
@@ -417,15 +429,6 @@ export function demarrer(racine: HTMLElement, port: PortDemandes): void {
         ? `Réponse demandée ${canal === 'email' ? 'par e-mail' : 'sur WhatsApp'} : ${coordonneeMasquee(canal, String(contenu.coordonnee))}`
         : 'Vous n’avez pas demandé de réponse.',
     );
-    /** Le mot de la liste que la personne a choisi. */
-    const motChoisi = (champ: string): string => {
-      for (const c of controles) {
-        if (c.dataset.champ !== champ) continue;
-        if (c instanceof HTMLSelectElement && c.value) return c.selectedOptions[0]?.text ?? '';
-        if (estCase(c) && c.checked) return c.parentElement?.textContent?.trim() ?? '';
-      }
-      return '';
-    };
     ecrire(
       'ok-concerne',
       annuaire
@@ -450,6 +453,8 @@ export function demarrer(racine: HTMLElement, port: PortDemandes): void {
 
   /** Un formulaire neuf : aucune clé, aucun texte, aucune fiche. */
   function recommencer(): void {
+    // Le serveur peut déjà avoir reçu : garder la clé tant que ce vol n'a pas répondu.
+    if (enVol) return;
     garde.effacer();
     b = nouveauBrouillon('direct', annuaire ? null : 'contact');
     suspendu = false;
@@ -584,7 +589,9 @@ export function demarrer(racine: HTMLElement, port: PortDemandes): void {
       b.nature === 'absente' || !b.fiche ? c.nomEcole : b.fiche.nom,
       c.ville,
       c.repere,
-      ...(b.nature === 'retrait' ? [] : [c.message, c.correction, c.autreChose]),
+      ...(b.nature === 'retrait'
+        ? [motChoisi('aRetirer')]
+        : [c.message, c.correction, c.autreChose]),
     ];
     try {
       await navigator.clipboard.writeText(lignes.filter(Boolean).join('\n'));

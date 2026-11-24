@@ -124,6 +124,8 @@ La boîte de Contact et de l'annuaire dans l'administration, les retraits par é
 
 **Trouvés et corrigés pendant le lot** : les données structurées d'une fiche (`donneesEcole`) publiaient le numéro de l'enseigne même quand la fiche montre à sa place le contact autorisé par la direction ; elles écrivent désormais le numéro que la fiche montre (défaut antérieur, révélé par la preuve du retrait). À 360 px, le numéro masqué de la confirmation se coupait après « 06 » (insécable désormais) et une adresse e-mail sans tiret sortait de l'écran. Chaque défaut a son test, vu échouer avant le correctif.
 
+**Revue du 24/11** : « Effacer ce que j’ai écrit » est indisponible pendant le vol, et son gestionnaire refuse aussi un événement déjà en attente : une coupure garde le texte, la clé et la révision pour retrouver la réception sans doublon. « Copier mon texte » rappelle aussi le type d’information à retirer, sans recopier la coordonnée de réponse. Les deux défauts ont été reproduits par des parcours avant correction.
+
 Écarts avec les planches, assumés : la reprise dit « Effacer et recommencer » (la planche : « Effacer ») ; « Est déjà enregistrée : <référence> » sans l'heure de la version, que la page ne connaît pas avec certitude ; au plafond du jour, « Réessayer » s'ajoute à « Copier mon texte » ; la phrase du brouillon est dans l'encadré sous le formulaire, avec la confidentialité.
 
 **Reste à la recette, sur ordre** : ouvrir le réglage et poser le secret d'envoi (après `db push`), un vrai téléphone et un lecteur d'écran, la relecture humaine de la confidentialité. Constat à part : en production, la page charge encore l'aide au préchargement de Vite (880 octets) qu'aucun import n'utilise ; compté dans le budget.

@@ -397,6 +397,57 @@ test.describe('contrôler avant d’envoyer', () => {
 });
 
 test.describe('coupures et reprises', () => {
+  test('effacer pendant un envoi ne perd ni le texte ni la clé de reprise', async ({ page }) => {
+    await ouvrir(page, '/contact/');
+    await ecrireUnMessage(page);
+    await expect.poll(() => brouillon(page)).toContain('"passe"');
+    await regler(page, 'latence', '600');
+    await regler(page, 'envois', 'apres');
+    await envoyer(page);
+    await expect(page.locator('[data-envoyer]')).toHaveAttribute('aria-busy', 'true');
+    const avant = JSON.parse((await brouillon(page))!);
+    const effacer = bouton(page, 'Effacer ce que j’ai écrit');
+    await expect(effacer).toBeDisabled();
+    // Même un événement déjà en attente ne doit pas effacer l'enveloppe du vol.
+    await effacer.dispatchEvent('click');
+    await refuse(page, 'L’envoi n’est pas confirmé.');
+    const apres = JSON.parse((await brouillon(page))!);
+    expect(apres.enveloppes).toEqual(avant.enveloppes);
+    await expect(effacer).toBeEnabled();
+    await regler(page, 'envois', null);
+    await bouton(page, 'Réessayer').click();
+    await confirme(page, 'Message enregistré');
+    expect(await enBase(page)).toHaveLength(1);
+  });
+
+  test('copier un retrait rappelle aussi ce qui doit être retiré, sans coordonnée', async ({
+    page,
+  }) => {
+    await ouvrir(page, '/contribuer/?type=retrait');
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (texte: string) => {
+            document.documentElement.dataset.copie = texte;
+          },
+        },
+      });
+    });
+    await regler(page, 'envois', 'fermes');
+    await page.getByLabel('Nom de l’école concernée').fill('[École Exemple]');
+    await page.getByRole('radio', { name: 'Un numéro de téléphone', exact: true }).check();
+    await page.getByRole('radio', { name: 'Oui, sur WhatsApp' }).check();
+    await page.getByLabel('Votre numéro WhatsApp').fill(NUMERO);
+    await expect(refus(page)).toBeVisible();
+    await bouton(page, 'Copier mon texte').click();
+    const copie = await page.locator('html').getAttribute('data-copie');
+    expect(copie).toContain('[École Exemple]');
+    expect(copie).toContain('Un numéro de téléphone');
+    expect(copie).not.toContain(NUMERO);
+    expect(copie).not.toContain('242060000077');
+  });
+
   test('double appui : un envoi en vol, une demande, une alerte', async ({ page }) => {
     await ouvrir(page, '/contact/');
     await regler(page, 'latence', '600');
