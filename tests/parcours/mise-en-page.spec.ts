@@ -184,7 +184,9 @@ async function position(page: Page, nom: string | RegExp) {
 
 test.describe('site public', () => {
   for (const [nom, adresse] of pagesPubliques) {
-    test(`${nom} : ne défile pas de côté, cibles de 44 px, textes lisibles`, async ({ page }) => {
+    test(`${nom} : cadre, cibles de 44 px et textes lisibles sans débordement`, async ({
+      page,
+    }) => {
       await page.goto(adresse);
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await aucunDefilementDeCote(page, nom);
@@ -197,12 +199,7 @@ test.describe('site public', () => {
         ).toBeGreaterThanOrEqual(44);
       }
       expect(await textesPeuLisibles(page, 'body'), nom).toEqual([]);
-    });
-
-    test(`${nom} : prend la largeur de l’écran, sans étirer ses lignes de texte`, async ({
-      page,
-    }) => {
-      await page.goto(adresse);
+      // Même page et même largeur : vérifier aussi le cadre sans refaire toute la navigation.
       const largeur = largeurDe(page);
       const cadre = page.locator('main .cadre').first();
       await expect(cadre).toBeVisible();

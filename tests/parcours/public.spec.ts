@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { ICONES_SITE } from '../../src/modele/icones';
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
     Object.defineProperty(navigator, 'connection', {
@@ -80,10 +81,43 @@ async function pageLisible(page: Page, baseURL: string | undefined, adresse: str
   }
 }
 
+const meta = (page: Page, propriete: string) =>
+  page.locator(`meta[property="${propriete}"]`).getAttribute('content');
+
+/** Le partage se contrôle sur la page déjà ouverte : aucune seconde navigation pour les mêmes 21 pages. */
+async function verifierPartage(page: Page, request: APIRequestContext) {
+  expect(await meta(page, 'og:title')).toBeTruthy();
+  expect(await meta(page, 'og:description')).toBeTruthy();
+  expect(await meta(page, 'og:url')).toMatch(/^https:\/\/ntanova\.com\//);
+  const image = await meta(page, 'og:image');
+  expect(image).toMatch(/^https:\/\/ntanova\.com\/partage\/.+\.png$/);
+  const reponse = await request.get(new URL(image ?? '').pathname);
+  expect(reponse.status()).toBe(200);
+  expect(reponse.headers()['content-type']).toContain('image/png');
+  expect((await reponse.body()).length).toBeLessThan(300_000);
+}
+
 test.describe('site public', () => {
   for (const adresse of pagesSansJavaScript) {
-    test(`${adresse} : HTML lisible, 360 px, cibles de 44 px`, async ({ page, baseURL }) => {
+    test(`${adresse} : HTML lisible, ressources, cibles de 44 px et partage`, async ({
+      page,
+      baseURL,
+      request,
+    }) => {
       await pageLisible(page, baseURL, adresse);
+      await verifierPartage(page, request);
+      if (adresse === '/') {
+        // Vérifier les balises servies, plutôt que le nom de la variable dans le gabarit Astro.
+        const icones = await page
+          .locator('link[rel="icon"], link[rel="apple-touch-icon"]')
+          .evaluateAll((liens) =>
+            liens.map((lien) => ({
+              rel: lien.getAttribute('rel'),
+              href: lien.getAttribute('href'),
+            })),
+          );
+        expect(icones).toEqual(ICONES_SITE.map(({ rel, href }) => ({ rel, href })));
+      }
       // L'accueil n'a plus de carte depuis le lot 3 : plus de script non plus.
       const scripts = page.locator('script:not([type="application/ld+json"])');
       if (!fichesDEcole.includes(adresse)) {
@@ -425,20 +459,6 @@ test.describe('site public', () => {
     );
   });
 
-  test('« À propos » dit ce qui est publié et renvoie la loi et les droits vers « Confidentialité »', async ({
-    page,
-  }) => {
-    // Lot 4 : la planche « À propos » ; ce qui est publié se dit dans « Notre périmètre ».
-    await page.goto('/a-propos/');
-    await expect(page.getByRole('heading', { name: 'Notre périmètre' })).toBeVisible();
-    await expect(page.getByText(/loi congolaise/)).toHaveCount(0);
-    await page.goto('/confidentialite/');
-    await expect(
-      page.getByRole('heading', { name: 'Ce que nous publions et ce que nous gardons' }),
-    ).toBeVisible();
-    await expect(page.getByText(/loi congolaise n°\s29-2019 du 10\soctobre 2019/)).toBeVisible();
-  });
-
   test('« Confidentialité » donne un délai pour corriger, retirer ou effacer, et dit ce que ce délai couvre', async ({
     page,
   }) => {
@@ -514,28 +534,6 @@ test.describe('site public', () => {
 
 // Ticket #101 : un lien partagé sur WhatsApp montre l'école (OpenGraph, image construite avec le site, JSON-LD).
 test.describe('le partage d’un lien', () => {
-  const meta = (page: import('@playwright/test').Page, propriete: string) =>
-    page.locator(`meta[property="${propriete}"]`).getAttribute('content');
-
-  for (const adresse of pagesSansJavaScript) {
-    test(`${adresse} : titre, description, adresse canonique et image de partage`, async ({
-      page,
-      request,
-    }) => {
-      await page.goto(adresse);
-      expect(await meta(page, 'og:title')).toBeTruthy();
-      expect(await meta(page, 'og:description')).toBeTruthy();
-      expect(await meta(page, 'og:url')).toMatch(/^https:\/\/ntanova\.com\//);
-      const image = await meta(page, 'og:image');
-      expect(image).toMatch(/^https:\/\/ntanova\.com\/partage\/.+\.png$/);
-      // L'image existe dans le site construit, et c'est un PNG léger.
-      const reponse = await request.get(new URL(image ?? '').pathname);
-      expect(reponse.status()).toBe(200);
-      expect(reponse.headers()['content-type']).toContain('image/png');
-      expect((await reponse.body()).length).toBeLessThan(300_000);
-    });
-  }
-
   test('une fiche a son image, sa preuve dans la description, et ses données schema.org, sans rien de privé', async ({
     page,
   }) => {

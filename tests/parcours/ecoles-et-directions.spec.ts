@@ -65,6 +65,7 @@ test('« À propos » dit qui est NTanova, compte depuis le catalogue, et renvoi
     'Choisir une école en sachant, pas en devinant.',
   );
   // Le périmètre : des nombres du catalogue, datés de la construction, jamais une date écrite à la main.
+  await expect(page.getByRole('heading', { name: 'Notre périmètre' })).toBeVisible();
   const perimetre = page.locator('#a-per');
   await expect(perimetre.locator('.compteurs li').first()).toContainText(
     `${recherche.length} fiches publiées`,
@@ -79,6 +80,7 @@ test('« À propos » dit qui est NTanova, compte depuis le catalogue, et renvoi
   await expect(page.locator('#a-mod').getByRole('link')).toHaveCount(0);
   // Les données personnelles ont leur page : ni leur titre ni la loi ici.
   await expect(page.getByRole('heading', { name: 'Vos droits' })).toHaveCount(0);
+  await expect(page.getByText(/loi congolaise/)).toHaveCount(0);
   await expect(page.locator('#transparence').getByRole('link')).toHaveText([
     /^Fiabilité des informations/,
     /^Données de l’annuaire/,

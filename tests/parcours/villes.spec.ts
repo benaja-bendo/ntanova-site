@@ -154,15 +154,6 @@ test.describe('les liens des mentions', () => {
     await expect(page).toHaveURL('/methode/#m-mentions');
   });
 
-  test('la démonstration reste hors du catalogue, de la recherche et des index', async ({
-    request,
-  }) => {
-    const recherche = JSON.stringify(await (await request.get('/recherche.json')).json());
-    expect(recherche).not.toContain('Manguiers');
-    for (const fichier of ['/sitemap.xml', '/llms.txt'])
-      expect(await (await request.get(fichier)).text(), fichier).not.toContain('demo');
-  });
-
   test('sans JavaScript, les ancres de Fiabilité mènent chacune à sa section', async ({
     browser,
     baseURL,

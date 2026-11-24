@@ -43,6 +43,17 @@ pnpm dev               # http://localhost:4321 ; catalogue du design : /dev/cata
 - **Contrat avec la base** (`tests/unitaires/contrat-schema.test.ts`) : tout ce que `src/infra/supabase/` appelle existe dans les migrations ; une migration qui renomme ou retire change l'adaptateur dans le même commit.
 - **CI** (`verif.yml`, chaque PR et `main`) : `verif`, `base`, deux lots de parcours ; verdict **Validation complète**.
 
+### Tests proportionnés (fondateur, 25/11/2026)
+
+- **Avant d'ajouter un test, chercher la couverture existante.** Nommer le défaut qu'il détecterait en plus ; compléter le test existant quand il protège déjà ce comportement. Ni un fichier par lot, ni un nombre de tests à atteindre.
+- **Choisir le niveau le moins coûteux qui reproduit réellement le risque** : règle de calcul en unitaire, droits et contraintes dans la base, interaction dans le navigateur. Plusieurs niveaux se justifient pour des risques distincts : validation à l'écran et refus d'un appel direct, par exemple. Un faux serveur ne prouve pas le fonctionnement de la vraie API ; rejouer les essais locaux concernés si son contrat ou son adaptateur change.
+- **Tester le résultat et les contrats publics.** Ne pas exiger un nom de variable, une chaîne dans le code source, une classe CSS ou une structure interne si le comportement rendu suffit. Les contrôles statiques de sécurité, de frontières et de budgets restent légitimes ; ils complètent les essais réels.
+- **Entretenir les tests avec le code** : conserver, modifier, regrouper ou supprimer les doublons et les attentes abandonnées. Pour chaque suppression, indiquer la protection conservée et où elle est vérifiée, ou la décision qui l'a rendue obsolète. Git garde l'historique. Ne jamais retirer un test seulement parce qu'il échoue.
+- **Éviter les exécutions répétées** : réunir les contrôles complémentaires d'une même page quand cela évite une navigation et ne crée pas de dépendance entre tests. Répéter une largeur seulement si elle change le comportement ou la mise en page ; garder les cas limites qui protègent des risques différents.
+- **Un correctif de bug reproduit son défaut avant correction**, dans un test existant ou nouveau. Une retouche de texte ou de style n'impose pas un nouveau parcours si les contrôles existants suffisent. Un test instable se diagnostique : ni attente arbitraire ni assertion affaiblie pour le faire passer.
+- **Pendant l'itération, contrôles ciblés ; avant la PR, `pnpm verif:ci` et parcours concernés**, suite complète si le changement touche un socle partagé ou la suite de tests. La CI complète reste requise. Les protections de collecte hors ligne, de droits, de confidentialité, d'accord daté et d'envoi sans doublon restent prioritaires ; téléphone réel et recette visuelle complètent l'automatisation.
+- **Compte rendu de PR** : risques protégés, couverture réutilisée, tests ajoutés/modifiés/supprimés et raison, commandes et résultats réellement obtenus. Le nombre de tests ne remplace pas cette explication. Utiliser le modèle de PR du dépôt.
+
 ## Architecture
 
 ```text
@@ -126,7 +137,7 @@ Le quota s'est épuisé le 05/11 et a bloqué une mise en production : chaque mi
 
 ## Façon de travailler
 
-- Une tâche = un ticket du projet GitHub n° 29 : état des lieux, go du fondateur (rien n'est codé avant), PR « Fixes #N », tests d'abord, compte rendu (fait, vérifié, pas vérifié). Un bug corrigé arrive avec un test qui échoue sans le correctif.
+- Une tâche = un ticket du projet GitHub n° 29 : état des lieux, go du fondateur (rien n'est codé avant), PR « Fixes #N », vérification adaptée au risque (voir « Tests proportionnés »), compte rendu (fait, vérifié, pas vérifié). Un bug corrigé arrive avec un test qui échoue sans le correctif ; une couverture existante peut suffire aux autres changements.
 - **Un regard critique à chaque étape** : croiser maquette, ticket et code avec le contexte et dire ce qui ne colle pas ; ne jamais recopier une maquette telle quelle.
 - **Un test protège une décision, pas un ancien écran** (fondateur, 16/11/2026) : quand une planche de la version 44 contredit un test ou une ancienne route, la planche gagne ; réécrire le test et le dire dans le compte rendu. La charte (cibles de 44 px, logo, poids des pages) reste au-dessus des planches. **Quand la planche renverse une décision datée du registre** (exemple : couverture dessinée et « plus de petit plan », 08/11), lister d'abord les renversements au fondateur et attendre son accord avant de coder (16/11).
 - **Git** : jamais de code poussé directement sur `main` ; une branche courte par tâche, une PR, une fusion en un seul commit, la branche supprimée ; un seul clone. Commits en français, préfixe court (`site:`, `relais:`, `admin:`, `base:`, `ui:`, `outils:`, `docs:`).

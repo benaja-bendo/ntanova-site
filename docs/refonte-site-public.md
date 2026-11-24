@@ -159,7 +159,27 @@ Fiabilité des informations (`/methode/`), Données de l'annuaire (`/donnees/`),
 
 **À relire par une personne avant la production** : les deux textes personnels d'À propos, s'ils doivent paraître (fondateur) ; le modèle économique (« Des écoles pourront payer des services. Jamais leur place. ») et la prestation de communication, repris de la planche ; la phrase de retrait de Fiabilité, alignée sur Confidentialité (§19, choix 2).
 
-**Preuves** : unitaires `mentions.test.ts`, `villes.test.ts`, `statistiques-ouvertes.test.ts` (réécrit), `pages-de-confiance.test.ts` ; parcours `villes.spec.ts` (entrées, nombres égaux aux pages de destination, lieu sans fiche sans lien, recherche jusqu'aux résultats et à zéro, clavier, ancres sans script, liens des mentions, démonstration hors des index), `pages-de-confiance.spec.ts` (Fiabilité et Données réécrits sur les planches), `mise-en-page.spec.ts` (`/villes/` aux trois largeurs, tableau empilé) ; `pnpm test:constructions` étendu : liens ouverts de `/villes/`, À propos et Données, et le retrait qui sort aussi de `/villes/` et des compteurs. Captures : `playwright.confiance.config.ts`, sept écrans à 360, 390, 768 et 1 440 px dans `captures/confiance/` (hors git).
+**Preuves** : unitaires `mentions.test.ts`, `villes.test.ts`, `statistiques-ouvertes.test.ts` (réécrit), `pages-de-confiance.test.ts` ; parcours `villes.spec.ts` (entrées, nombres égaux aux pages de destination, lieu sans fiche sans lien, recherche jusqu'aux résultats et à zéro, clavier, ancres sans script, liens des mentions), `accueil.spec.ts` (démonstration hors des index), `pages-de-confiance.spec.ts` (Fiabilité et Données réécrits sur les planches), `mise-en-page.spec.ts` (`/villes/` aux trois largeurs, tableau empilé) ; `pnpm test:constructions` étendu : liens ouverts de `/villes/`, À propos et Données, et le retrait qui sort aussi de `/villes/` et des compteurs. Captures : `playwright.confiance.config.ts`, sept écrans à 360, 390, 768 et 1 440 px dans `captures/confiance/` (hors git).
+
+### Entretien des tests du 25/11/2026 (complément à la PR 222)
+
+À la demande du fondateur, les consignes de `CLAUDE.md` (aussi lues par Codex via le lien `AGENTS.md`) exigent désormais une couverture proportionnée au risque, la recherche des tests existants avant ajout et une justification des suppressions. Le modèle de PR rappelle ces points. Les contrôles de sécurité, de droits, d'accord daté, de collecte hors ligne et d'envoi sans doublon restent prioritaires.
+
+Le nettoyage part de `699f7c9`, dont la CI est verte. Aucun code produit, SQL, adaptateur ou workflow n'est modifié. Les suppressions et regroupements ont chacun leur protection conservée :
+
+| Allègement | Protection conservée |
+| --- | --- |
+| 21 parcours de partage regroupés avec la visite de la même page dans `public.spec.ts` | Toutes les pages précédentes gardent leurs contrôles HTML, ressources et cibles ; titre, description, adresse OpenGraph, réponse PNG et poids de l'image sont vérifiés lors de la même visite |
+| 14 parcours de largeur du cadre regroupés avec la lisibilité dans `mise-en-page.spec.ts` | Les mêmes pages et largeurs gardent les contrôles de débordement, cibles, textes, cadre et largeur des paragraphes |
+| Doublon de la démonstration retiré de `villes.spec.ts` | `accueil.spec.ts` contrôle déjà les trois index, l'absence de la fiche fictive dans la recherche et le résultat de la recherche du nom |
+| Ancien parcours À propos/Confidentialité retiré de `public.spec.ts` | Ses assertions rejoignent les visites existantes dans `ecoles-et-directions.spec.ts` (périmètre, aucune loi sur À propos) et `pages-de-confiance.spec.ts` (titre et loi dans Confidentialité) |
+| Lectures de la syntaxe des liens et existence des fichiers de pages retirées de `pages-de-confiance.test.ts` | Les parcours vérifient les pages construites, leurs index et les liens des mentions depuis la fiche, la démonstration et l'accueil |
+| Lecture du nom `ICONES_SITE` dans le gabarit retirée de `icones-site.test.ts` | `public.spec.ts` compare les balises réellement servies au contrat des icônes ; les unitaires gardent les formats et dimensions des fichiers |
+| Recherche littérale de `MENTION_ODBL` et existence des fichiers de routes retirées des unitaires de carte | `pages-de-confiance.spec.ts` et `public.spec.ts` lisent les GeoJSON servis ; les unitaires gardent les adresses, le style, les données et la licence |
+
+La liste passe de 632 à 595 exécutions de parcours (573 téléphone, 11 tablette, 11 ordinateur), avec les 14 parcours critiques toujours présents. Les deux partitions existantes couvrent ces 595 exécutions sans perte ni doublon. Cette baisse compte les regroupements, elle ne mesure pas une baisse de couverture ni un gain de durée garanti. Les essais d'API locale et de constructions restent à lancer pour les changements qui touchent leurs contrats ; ils ne sont pas remplacés par le faux serveur.
+
+Vérifications locales de cet entretien : `pnpm verif:ci` réussi (format, lint, couleurs, types, 1 762 unitaires dans 122 fichiers, construction et poids), puis suite navigateur complète avec deux workers : 587 réussites, 8 sauts existants, aucun échec ni test instable, en 5 min 33. Les 14 parcours critiques sont identiques avant/après ; `node outils/verification-ci.ts partitions` confirme 298 + 297 exécutions. Base et essais d'API locale/constructions non rejoués : aucun code produit ni contrat n'a changé. La CI de la révision poussée reste la validation distante requise.
 
 ## Contrôles et livraison
 

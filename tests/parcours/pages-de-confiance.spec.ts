@@ -333,6 +333,10 @@ test.describe('Confidentialité', () => {
     page,
   }) => {
     await page.goto('/confidentialite/');
+    await expect(
+      page.getByRole('heading', { name: 'Ce que nous publions et ce que nous gardons' }),
+    ).toBeVisible();
+    await expect(page.getByText(/loi congolaise n°\s29-2019 du 10\soctobre 2019/)).toBeVisible();
     const lieux = page.locator('#ou-sont-les-donnees');
     await expect(lieux).toContainText('Supabase, région Paris');
     await expect(lieux).toContainText('Cloudflare');

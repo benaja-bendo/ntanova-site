@@ -1,7 +1,6 @@
-// Les données de la carte (ticket 102, décisions du fondateur du 03/11) : des fichiers GeoJSON construits avec
-// le site. Les zones disent leur état public ; les écoles sont celles que des relais ont vues sur place.
+// Les données de la carte (ticket 102, décisions du 03/11 puis du 17/11) : des fichiers GeoJSON construits avec
+// le site. Toutes les écoles situées y entrent ; la preuve détermine la forme de leur marqueur.
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import {
   cycleLePlusEleve,
   ecolesGeoJSON,
@@ -553,10 +552,5 @@ describe('la mention de licence du fichier des zones', () => {
     expect(MENTION_ODBL.copyrightUrl).toBe('https://www.openstreetmap.org/copyright');
   });
 
-  it('s’ajoute au fichier des zones, jamais à celui des écoles (qui ne viennent pas d’OpenStreetMap)', () => {
-    const zones = readFileSync('src/pages/carte/zones.geojson.ts', 'utf8');
-    const ecoles = readFileSync('src/pages/carte/ecoles.geojson.ts', 'utf8');
-    expect(zones).toMatch(/\.\.\.MENTION_ODBL/);
-    expect(ecoles).not.toMatch(/MENTION_ODBL/);
-  });
+  // La présence dans les zones et l'absence dans les écoles se vérifient sur les GeoJSON servis : pages-de-confiance.spec.ts.
 });
