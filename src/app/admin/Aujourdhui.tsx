@@ -19,6 +19,7 @@ import {
 import { resumerLesRenvoyees } from '../../modele/renvoyees';
 import { ajouterJours, jourDuCongo } from '../../modele/date-declaration';
 import { resumerDemandes, type DemandesResumees } from '../../modele/demandes-familles';
+import { resumerPourAujourdhui } from '../../modele/messages-recus';
 import { zonesOuvertesRacines } from '../../modele/vue-ensemble';
 import { cn } from '@/lib/utils';
 import { Bandeau } from '@/ui/v2/formulaire';
@@ -43,7 +44,8 @@ function Attente({
   attention = false,
 }: {
   titre: string;
-  nombre: number;
+  /** Nul : le nombre ne se lit pas (jamais un zéro inventé). */
+  nombre: number | null;
   detail: string;
   geste?: string;
   chemin?: string;
@@ -54,10 +56,10 @@ function Attente({
       <span
         className={cn(
           'w-12 shrink-0 text-center font-serif text-[30px] leading-none font-bold',
-          nombre === 0 ? 'text-muted-foreground' : 'text-primary-strong',
+          nombre === 0 || nombre === null ? 'text-muted-foreground' : 'text-primary-strong',
         )}
       >
-        {nombre}
+        {nombre ?? '–'}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <b className="text-[17px]">{titre}</b>
@@ -89,7 +91,7 @@ function Attente({
             'outline-none focus-visible:ring-[3px] focus-visible:ring-ring [@media(hover:hover)]:hover:border-primary',
           )}
           href={`#${chemin}`}
-          aria-label={`${nombre} ${titre} : ${detail}`}
+          aria-label={`${nombre === null ? '' : `${nombre} `}${titre} : ${detail}`}
           onClick={(e) => {
             e.preventDefault();
             aller(chemin);
@@ -225,6 +227,10 @@ export function Aujourdhui({
   const [paie, setPaie] = useState<{ relais: number; total: number } | null>(null);
   // Lot 2 du site public (15/11) : les demandes des familles des 30 derniers jours, sans nom ni numéro.
   const [demandes, setDemandes] = useState<DemandesResumees | null>(null);
+  // Les messages reçus (refonte, lot 3B2), à ne pas confondre avec ces demandes : ce que Contact et l'annuaire ont envoyé.
+  const [messages, setMessages] = useState<
+    ReturnType<typeof resumerPourAujourdhui> | 'panne' | null
+  >(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
   useEffect(() => {
@@ -268,6 +274,10 @@ export function Aujourdhui({
       .demandesDesFamilles(ajouterJours(jourDuCongo(), -JOURS_DES_DEMANDES))
       .then((d) => !abandonne && setDemandes(resumerDemandes(d)))
       .catch(() => undefined);
+    void admin
+      .resumeMessages()
+      .then((r) => !abandonne && setMessages(resumerPourAujourdhui(r, new Date())))
+      .catch(() => !abandonne && setMessages('panne'));
     return () => {
       abandonne = true;
     };
@@ -331,6 +341,24 @@ export function Aujourdhui({
                 attention={vue.aValider.depuisPlusDe24h > 0}
                 geste="Valider"
                 chemin="valider"
+              />
+              <Attente
+                titre={
+                  messages !== null && messages !== 'panne' && messages.nombre === 1
+                    ? 'message reçu'
+                    : 'messages reçus'
+                }
+                nombre={messages === null || messages === 'panne' ? null : messages.nombre}
+                detail={
+                  messages === null
+                    ? 'lecture…'
+                    : messages === 'panne'
+                      ? 'ne se lisent pas pour l’instant'
+                      : messages.detail
+                }
+                attention={messages !== null && messages !== 'panne' && messages.attention}
+                geste="Lire"
+                chemin="demandes"
               />
               <Attente
                 titre={(pretes ?? 0) > 1 ? 'écoles prêtes à publier' : 'école prête à publier'}

@@ -272,7 +272,7 @@ export function Dialogue({
                 type="button"
                 disabled={occupe}
                 onClick={fermer}
-                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                className={buttonVariants({ variant: 'outline', size: 'default' })}
               >
                 {libelleFermeture}
               </button>
@@ -282,7 +282,7 @@ export function Dialogue({
                 disabled={occupe}
                 onClick={fermer}
                 aria-label={libelleFermeture}
-                className="-mr-2 flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:opacity-50"
+                className="-mr-2 flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:opacity-50"
               >
                 <IconeFermer className="size-5" aria-hidden />
               </button>

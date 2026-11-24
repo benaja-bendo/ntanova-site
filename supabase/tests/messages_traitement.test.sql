@@ -104,7 +104,7 @@ select is(public.open_public_request(lower(pg_temp.ref('msg'))) #>> '{versions,0
 select is((pg_temp.ligne('msg')).state::text || ' ' || (pg_temp.ligne('msg')).opened_revision, 'ouverte 1', 'Ouvert, figé à la révision 1');
 select is(public.open_public_request(pg_temp.ref('msg')) ->> 'row_version', pg_temp.num('msg')::text, 'Rouvrir la page ne réécrit rien');
 select is(pg_temp.histoire('msg'), 'recue ouverte', 'Une seule ouverture dans l''historique');
-select throws_ok($$select public.open_public_request('C-AAAA-AAAA')$$, 'P0002', null, 'Une référence inconnue');
+select throws_ok($$select public.open_public_request('C-AAAA-AAAA')$$, 'PT404', null, 'Une référence inconnue');
 reset role;
 select is(pg_temp.renvoyer('msg', 2, 'contact', '{"origin":"contact","message":"[ajout]","reply":"non"}') ->> 'code', 'suite', 'Réécrire après l''ouverture fait une suite');
 set local role authenticated;
@@ -270,7 +270,7 @@ select lives_ok(format('select public.record_removal(%L, %s)', pg_temp.ref('ret3
 -- La vue d'ensemble : des nombres et des dates --------------------------------------------------------------------------------------------------------------------------------------
 
 select is(public.public_request_overview() - 'oldest_removal_at' - 'to_handle' - 'new' - 'daily_cap_reached_at',
-  '{"waiting":0,"removals":3,"spam":0,"limit_reached":0,"notices_failing":0,"notices_abandoned":0,"notices_last_run_at":null,"purge_last_run_at":null,"overdue":0}'::jsonb,
+  '{"waiting":0,"closed":2,"removals":3,"removals_closed":0,"spam":0,"limit_reached":0,"notices_waiting":8,"notices_failing":0,"notices_abandoned":0,"notices_last_run_at":null,"purge_last_run_at":null,"overdue":0}'::jsonb,
   'Les compteurs de l''administration');
 select ok((public.public_request_overview())::text !~ '[CAR]-[2-9A-Z]{4}-', 'Sans aucune référence');
 reset role;

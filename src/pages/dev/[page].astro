@@ -2,6 +2,7 @@
 // Le catalogue du système de design. Réservé au développement :
 // en production, getStaticPaths ne renvoie rien et la page n'existe pas.
 import CatalogueInteractions from '../../ui/CatalogueInteractions';
+import CatalogueMessages from '../../ui/CatalogueMessages';
 import jetons from '../../ui/jetons.css?raw';
 import {
   arrondissementDessine,
@@ -192,6 +193,7 @@ const autour = arrondissementsDessines.map((a) => ({
     </label>
 
     <CatalogueInteractions client:load />
+    <CatalogueMessages client:load />
 
     <h2 id="carte">La carte détourée</h2>
     <p>Un arrondissement, des écoles seules et un groupe (écoles et repère fictifs).</p>

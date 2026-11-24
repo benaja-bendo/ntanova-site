@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(47);
 
 -- L'inscription d'un relais ------------------------------------------------------------------------------------------------
 
@@ -117,7 +117,40 @@ select is((select what from prive.erasures where submission_id = '51000000-0000-
 select is((select schedule || ' | ' || command from cron.job where jobname = 'ntanova-purge-messages'), '40 1 * * * | select prive.purge_public_requests()',
   'La purge des messages est planifiée chaque nuit');
 select is((select count(*)::int from cron.job where jobname = 'ntanova-journal-planification'), 1, 'Le journal des planifications est taillé');
-select is((select count(*)::int from cron.job where command ~* '(http|net\.)'), 0, 'Aucune planification n''appelle le réseau : le service d''annonce n''existe pas encore');
+select is((select count(*)::int from cron.job where command ~* '(http|net\.)'), 0, 'Aucune planification n''appelle le réseau elle-même');
+
+-- La sonnette de l'alerte e-mail (lot 3B2) : planifiée, inerte, et ce qu'elle envoie une fois configurée --------------------------------------
+
+select is((select schedule || ' | ' || command from cron.job where jobname = 'ntanova-alerte-messages'),
+  '*/5 * * * * | select ntanova_supabase.ring_public_request_notices()', 'La sonnette est planifiée toutes les cinq minutes');
+select is((select count(*)::int from pg_extension where extname = 'pg_net'), 0, 'Les migrations n''installent pas l''extension réseau');
+-- Le passage laissé par l'essai de concurrence (sessions réelles) ne compte pas : on compare avant et après.
+create temp table passages_avant as select * from prive.public_request_runs;
+select is(ntanova_supabase.ring_public_request_notices(), 'non_configuree', 'Sans configuration, elle ne fait rien');
+select is((select count(*)::int from (select * from prive.public_request_runs except select * from passages_avant) d), 0, 'Et aucun passage n''est inventé');
+select is((select string_agg(r, ',') from unnest(array['anon', 'authenticated', 'service_role']) r
+           where has_schema_privilege(r, 'ntanova_supabase', 'usage')
+              or has_function_privilege(r, 'ntanova_supabase.ring_public_request_notices()', 'execute')), null, 'Aucun rôle de l''API ne sonne');
+select is((select count(*)::int from pg_proc p where p.proname = 'ring_public_request_notices' and p.prosecdef), 0, 'Elle n''élève aucun droit');
+-- Le banc de portabilité n'a ni coffre ni extension réseau : ce qui suit ne vaut que sur une vraie pile Supabase.
+select (to_regclass('vault.secrets') is not null and exists (select 1 from pg_available_extensions where name = 'pg_net')) as pile_supabase \gset
+\if :pile_supabase
+select is((select count(*)::int from vault.secrets where name like 'ntanova_alerte%'), 0, 'Aucun secret n''est posé');
+-- Tout ce qui suit est défait par le `rollback` : la file de `pg_net` ne part qu'après une validation.
+create extension pg_net with schema extensions;
+select is(ntanova_supabase.ring_public_request_notices(), 'non_configuree', 'L''extension seule ne suffit pas');
+select lives_ok($$select vault.create_secret('http://exemple.test/functions/v1/alerte-messages', 'ntanova_alerte_url')$$, 'Une adresse sans TLS');
+select lives_ok($$select vault.create_secret(repeat('j', 40), 'ntanova_alerte_jeton')$$, 'Un jeton');
+select is(ntanova_supabase.ring_public_request_notices(), 'configuration', 'Une adresse sans TLS n''est jamais appelée');
+select is((select count(*)::int from net.http_request_queue), 0, 'Rien dans la file');
+select vault.update_secret((select id from vault.secrets where name = 'ntanova_alerte_url'), 'https://exemple.test/functions/v1/alerte-messages');
+select is(ntanova_supabase.ring_public_request_notices(), 'sonnee', 'Configurée : elle sonne');
+select is((select method::text || ' ' || url || ' ' || (headers ->> 'x-ntanova-jeton') || ' ' || convert_from(body, 'UTF8') || ' ' || timeout_milliseconds from net.http_request_queue),
+  'POST https://exemple.test/functions/v1/alerte-messages ' || repeat('j', 40) || ' {} 120000', 'Un POST vide, son jeton, sa limite de temps : rien d''un message');
+select is((select string_agg(k, ',' order by k) from net.http_request_queue, jsonb_object_keys(headers) k), 'content-type,x-ntanova-jeton', 'Ni clé d''API ni autre en-tête');
+\else
+select skip('ni coffre ni pg_net sur ce banc', 9);
+\endif
 
 select * from finish();
 rollback;

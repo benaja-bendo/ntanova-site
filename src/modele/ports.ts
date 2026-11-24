@@ -12,6 +12,7 @@ import type { AccordMotDirection, MotDirection } from './mot-direction';
 import type { Valeur } from './listes';
 import type { MultiPolygone, Point } from './geo';
 import type { LigneJournal } from './sante';
+import type { PortMessages } from './messages-recus';
 
 /** La réponse à un envoi : un second envoi du même identifiant répond « déjà reçu ». */
 export type Reponse = 'recu' | 'deja_recu';
@@ -906,7 +907,8 @@ export interface GainVu {
   motifAnnulation: string | null;
 }
 
-export interface PortAdministration {
+/** Les messages reçus (refonte, lot 3B2) ont leur propre contrat : `PortMessages`, dans `messages-recus.ts`. */
+export interface PortAdministration extends PortMessages {
   /** Le rôle vient de la base, pas de Google. `GET /moi` */
   suisAdmin(): Promise<boolean>;
 
@@ -1291,6 +1293,21 @@ export interface ReleveDecide {
 /** Une décision refusée par la base, avec son message (écrit en français dans la base). */
 export class ErreurDecision extends Error {
   override name = 'ErreurDecision';
+}
+
+/** Ce qu'on demande n'existe plus (un message effacé) : relire ne sert à rien. */
+export class ErreurIntrouvable extends ErreurDecision {
+  override name = 'ErreurIntrouvable';
+}
+
+/** La ligne a changé depuis qu'on l'a lue (409) : rien n'est écrasé, il faut la relire. */
+export class ErreurConflit extends Error {
+  override name = 'ErreurConflit';
+}
+
+/** Le compte connecté n'est pas, ou plus, administrateur (403). */
+export class ErreurAcces extends Error {
+  override name = 'ErreurAcces';
 }
 
 /** Une erreur de réseau : l'envoi sera rejoué plus tard. */

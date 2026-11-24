@@ -33,7 +33,12 @@ test('le cadre : cinq cases et « Plus » sur téléphone, la barre de côté et
     ]);
     await bas.getByRole('button', { name: 'Plus' }).click();
     const plus = page.getByRole('dialog', { name: 'Plus' });
-    await expect(plus.getByRole('link')).toHaveText([/^Zones/, /^Paie/, /^Santé des envois/]);
+    await expect(plus.getByRole('link')).toHaveText([
+      /^Messages reçus/,
+      /^Zones/,
+      /^Paie/,
+      /^Santé des envois/,
+    ]);
     await plus.getByRole('button', { name: 'Règles de cet écran' }).click();
     await expect(page.getByRole('dialog', { name: 'Règles : Aujourd’hui' })).toContainText(
       'jamais un objectif',

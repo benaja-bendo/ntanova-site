@@ -60,7 +60,7 @@ Textes scolaires vérifiés le 24/11 (note datée dans le dépôt `ntanova`) : d
 - Le groupe 06 précise « Informatique et technologies de communication » pour le distinguer du journalisme du groupe 03. Les domaines et les comptes ne changent pas.
 - La source du Conseil des ministres décrit son contenu daté, sans présenter sa lecture comme une vérification de l’entrée en vigueur d’une réforme. Le vote non retrouvé ne prouve pas l’absence de vote ; les sources et cette limite sont consignées dans le dépôt documentaire.
 
-## Lot 3B1 — base privée des messages (ticket 215, PR vers `refonte/site-public`, à relire)
+## Lot 3B1 — base privée des messages (ticket 215, PR 216, intégré le 24/11/2026 : `034c887`)
 
 Le socle de Contact et de l'annuaire : stockage privé, droits, reprise sans doublon, bornes, clôture, purge, file d'annonces. **Aucun écran, aucun formulaire, aucun envoi possible, rien d'appliqué en ligne.** Contrat : dépôt `ntanova`, `CONTRAT-LOT-03A.md`, dont le §19 prévaut. Carte complète : `supabase/schema.md`, « Les messages reçus ».
 
@@ -79,6 +79,30 @@ Le socle de Contact et de l'annuaire : stockage privé, droits, reprise sans dou
 Reste à 3B2 : le port, l'adaptateur et le faux serveur, les écrans « Messages reçus » et retraits, le service d'annonce (non déployé), et deux constats en ligne sur ordre : l'en-tête d'adresse, le port 465.
 
 **Revue du 24/11** : un interblocage supplémentaire entre « Relancer l'annonce » et la purge a été reproduit par un test déterministe, puis corrigé dans la même branche. Les deux opérations verrouillent le message avant l'annonce ; la purge laisse le message en cours de relance pour son prochain passage. Le calcul du sceau est déclaré `stable` conformément à sa dépendance `convert_to`. Aucun écran ni envoi n'est activé par ces corrections.
+
+## Lot 3B2 — administration « Messages reçus » et alerte préparée (ticket 217, PR vers `refonte/site-public`, à relire)
+
+La boîte de Contact et de l'annuaire dans l'administration, les retraits par étapes, et le service d'alerte **préparé, pas déployé**. Aucun formulaire public (3C), rien d'appliqué en ligne, aucun secret, aucun courrier. Planches : canevas admin, « Messages reçus » et « Retraits » ; règles du 24/11 sur sa page « Règles ».
+
+| Pièce | Règle |
+| --- | --- |
+| Adresses | `#demandes/<file>` et `#demandes/<référence>[/<file>]` ; le lien d'une alerte n'a que la référence, et la connexion dit ce qu'elle va ouvrir |
+| Navigation | une entrée sur ordinateur ; sur téléphone, dans « Plus » (les cinq cases du bas ne changent pas) ; une carte dans Aujourd'hui, distincte de « Les familles demandent » |
+| Lire | lister n'ouvre rien, rien n'est présélectionné ; **ouvrir fige**. Vide, chargement et panne ne se confondent pas ; un message effacé se dit |
+| Gestes | chacun porte le `row_version` lu. Conflit : rien n'est écrasé, la saisie reste, il faut relire, rien ne se réapplique seul. Refus de la base : « n'est pas enregistré », avec sa phrase. Sans réponse : « n'est pas confirmé », et réessayer n'écrit jamais deux fois |
+| Répondre | ouvrir WhatsApp ou le courrier n'envoie rien et ne note rien ; le jour réel se choisit, jamais coché d'avance, jamais futur |
+| Retrait | six étapes ; la base refuse « retiré » tant qu'elle publie encore la cible ; la mise en ligne est une consigne et une date ; deux constats, un par adresse |
+| Code | `modele/messages-recus.ts` (types, `PortMessages`, libellés, règles), `infra/supabase/messages.ts` (codes → `ErreurConflit`, `ErreurAcces`, `ErreurSession`, `ErreurIntrouvable`, `ErreurDecision`, `ErreurReseau` ; 15 s), `infra/faux/messages.ts` (scénario `admin`), `app/admin/MessagesRecus.tsx`, `Message*.tsx`, `RetraitEtapes.tsx`, `geste-message.ts` |
+| Alerte | `supabase/functions/alerte-messages/`, sans dépendance ; la sonnette vit dans `ntanova_supabase`, hors du cœur. Activer ou couper : `supabase/schema.md`, « Activer l'alerte e-mail » |
+| Essais | 73 unitaires, `messages_administration` (36) et la sonnette dans `supabase_couche`, `messages-recus.spec.ts` (12 parcours, un aux trois largeurs : 14 exécutions). Les captures : `playwright.messages.config.ts` (à l'œil, hors CI) |
+
+Écarts avec les planches, tous assumés : « Ce geste n'est pas confirmé » quand le réseau se tait (la planche disait « pas enregistré », ce qui serait faux si la base avait écrit) ; « Contact » nomme la nature, « Message » restant le nom commun ; « Clos » sur les onglets ; deux jours de constat au lieu de deux cases ; cibler puis noter « retiré » en deux temps (le retrait se fait entre les deux, dans Écoles) ; répondre et noter dans un seul tiroir ; pas de ligne libre à la réponse (la base n'en garde pas) ; « mettre en attente » vaut aussi pour un retrait ; une file « Alertes en échec » pour relancer sans ouvrir.
+
+**Reste à la recette, sur ordre** : constater le port 465 depuis une fonction en ligne ; constater l'en-tête d'adresse réellement reçu avant de le nommer (`trusted_connection_header` reste nul) ; l'écran sur un vrai téléphone ; l'ouverture du lien d'une alerte depuis un vrai courrier. **Constat à part** : une cinquantaine de migrations plus anciennes lèvent `P0002`, que PostgREST 14 rend en 500 en local ; à vérifier en ligne avant d'en faire un lot.
+
+**Reste à 3C** : les formulaires publics Contact et annuaire, leur envoi et leurs reprises, la page Confidentialité.
+
+**Correctifs de revue du 24/11** : « Relancer maintenant » parcourt toutes les pages d’alertes, y compris après la deux-centième ; une interruption indique les relances déjà confirmées. Le délai global de 100 secondes de l’alerte couvre aussi les appels de confirmation et coupe le réseau SMTP ; les baux non confirmés restent repris au passage suivant. Les deux défauts ont été reproduits avant correction. Le service Edge entre dans le lint existant, sans nouveau workflow. La boîte de courrier existante suffit, aucune nouvelle adresse à créer.
 
 ## Contrôles et livraison
 
