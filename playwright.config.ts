@@ -24,13 +24,15 @@ export default defineConfig({
     { name: 'android-360', use: { ...devices['Moto G4'] } },
     {
       name: 'tablette-768',
-      testMatch: /(mise-en-page|tableau-de-bord|lot-g|messages-recus)\.spec\.ts/,
+      testMatch:
+        /(mise-en-page|tableau-de-bord|lot-g|messages-recus|formulaires-publics)\.spec\.ts/,
       grep: /@largeurs/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 768, height: 1024 } },
     },
     {
       name: 'ordinateur-1280',
-      testMatch: /(mise-en-page|tableau-de-bord|lot-g|messages-recus)\.spec\.ts/,
+      testMatch:
+        /(mise-en-page|tableau-de-bord|lot-g|messages-recus|formulaires-publics)\.spec\.ts/,
       grep: /@largeurs/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },

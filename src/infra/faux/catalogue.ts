@@ -758,14 +758,94 @@ const ECOLES: EcolePubliee[] = [
   }),
 ];
 
+/**
+ * Le retrait de bout en bout (refonte, lot 3C ; `tests/constructions/`) : deux écoles inventées que personne d'autre ne voit, à
+ * construire avant puis après le retrait, pour chercher l'information dans chaque sortie. Sans `NTANOVA_FAUX_RETRAIT`, elles
+ * n'existent pas. La première perd son contact public, le numéro de son enseigne (caché tant que le contact passe devant), sa
+ * photo, une image et un nom de personne ; la seconde, seule école de son lieu et sans contact, montre le numéro de son enseigne
+ * puis perd sa fiche entière.
+ */
+export const RETRAIT_FAUX = {
+  contact: '242069999901',
+  enseigne: '242069999902',
+  enseigneSeule: '242069999903',
+  photo: '93000000-0000-4000-8000-0000000000a1',
+  image: '95000000-0000-4000-8000-0000000000a2',
+  personne: '[Prénom Retiré]',
+  ficheEntiere: {
+    id: '20000000-0000-4000-8000-0000000000b2',
+    numero: '700002',
+    nom: '[École Retirée]',
+  },
+} as const;
+
+function ecolesDuRetrait(etape: string | undefined): EcolePubliee[] {
+  if (etape !== 'avant' && etape !== 'apres') return [];
+  const avant = etape === 'avant';
+  const commun = {
+    etiquette: null,
+    typeEcole: 'privee' as const,
+    niveaux: ['primaire' as const],
+    programme: null,
+    quartier: null,
+    releveeLe: '2026-11-02T10:00:00Z',
+    situeeLe: null,
+    misAJourLe: '2026-11-02T10:00:00Z',
+    etat: 'verifiee' as const,
+    verifieeLe: '2026-11-04',
+  };
+  const gardee = ecole({
+    ...commun,
+    id: '20000000-0000-4000-8000-0000000000b1',
+    institutionId: '10000000-0000-4000-8000-0000000000b1',
+    division: D.tieTie,
+    slug: 'ecole-gardee',
+    numero: '700001',
+    nom: '[École Gardée]',
+    repere: avant ? `[chez ${RETRAIT_FAUX.personne}]` : null,
+    numeroEnseigne: avant ? RETRAIT_FAUX.enseigne : null,
+    contactPublic: avant ? { numero: RETRAIT_FAUX.contact, accordLe: '2026-11-04' } : null,
+    photo: avant ? { id: RETRAIT_FAUX.photo, prisLe: '2026-11-02' } : null,
+    medias: {
+      logo: null,
+      couverture: null,
+      galerie: avant
+        ? [{ id: RETRAIT_FAUX.image, sujet: 'batiment', legende: null, prisLe: '2026-11-02' }]
+        : [],
+    },
+    latitude: -4.7912,
+    longitude: 11.9252,
+  });
+  const retiree = ecole({
+    ...commun,
+    ...RETRAIT_FAUX.ficheEntiere,
+    institutionId: '10000000-0000-4000-8000-0000000000b2',
+    division: D.mvou,
+    slug: 'ecole-retiree',
+    repere: null,
+    numeroEnseigne: RETRAIT_FAUX.enseigneSeule,
+    latitude: -4.7812,
+    longitude: 11.8652,
+  });
+  return avant ? [gardee, retiree] : [gardee];
+}
+const ETAPE_RETRAIT =
+  typeof process === 'undefined' ? undefined : process.env['NTANOVA_FAUX_RETRAIT'];
+/** Pendant l'essai d'un retrait, l'image retirée n'est plus lisible non plus : une page qui la nommerait encore ne se construirait pas. */
+const idsDuRetrait = ETAPE_RETRAIT === 'avant' ? [RETRAIT_FAUX.photo, RETRAIT_FAUX.image] : [];
+
 export const catalogueFaux: PortCatalogue = {
   async lireMedia(id) {
-    if (!MEDIAS_FAUX.has(id)) throw new Error('Image inconnue.');
+    if (!MEDIAS_FAUX.has(id) && !(idsDuRetrait as string[]).includes(id))
+      throw new Error('Image inconnue.');
     return photoExemple();
   },
   async lirePhotoPublique(id) {
     if (
-      !['93000000-0000-4000-8000-000000000001', '93000000-0000-4000-8000-000000000002'].includes(id)
+      !['93000000-0000-4000-8000-000000000001', '93000000-0000-4000-8000-000000000002'].includes(
+        id,
+      ) &&
+      !(idsDuRetrait as string[]).includes(id)
     )
       throw new Error('Photo inconnue.');
     return photoExemple();
@@ -774,7 +854,7 @@ export const catalogueFaux: PortCatalogue = {
     return DIVISIONS;
   },
   async ecoles() {
-    return ECOLES;
+    return [...ECOLES, ...ecolesDuRetrait(ETAPE_RETRAIT)];
   },
   async domaines() {
     return DOMAINES;

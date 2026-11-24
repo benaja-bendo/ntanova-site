@@ -3,11 +3,15 @@
 import type { APIRoute } from 'astro';
 import { obtenirSite } from '../infra/index';
 import { entreesDuPlan, planDuSite } from '../modele/plan-du-site';
+import { formulairesOuverts } from '../ui/formulaires/ouverture';
 
 export const GET: APIRoute = async ({ site }) => {
   const { arbre, ecoles } = await obtenirSite();
   return new Response(
-    planDuSite(String(site ?? 'https://ntanova.com'), entreesDuPlan(arbre.tous, ecoles)),
+    planDuSite(
+      String(site ?? 'https://ntanova.com'),
+      entreesDuPlan(arbre.tous, ecoles, formulairesOuverts),
+    ),
     {
       headers: { 'Content-Type': 'application/xml; charset=utf-8' },
     },

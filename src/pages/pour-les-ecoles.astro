@@ -3,7 +3,9 @@
 // Un seul bouton plein (WhatsApp) ; le code de la fiche de liaison est replié dans un <details> et part dans le message,
 // sans JavaScript : le formulaire ouvre wa.me avec le code comme texte.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { adresseDArrivee } from '../modele/liens-demandes';
 import { lienWhatsApp } from '../modele/whatsapp';
+import { formulairesOuverts } from '../ui/formulaires/ouverture';
 import PagePublique from '../ui/PagePublique.astro';
 
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
@@ -52,6 +54,23 @@ const formulaire = lienWhatsApp(PUBLIC_WHATSAPP);
           <a class="bouton" href={ecrire}>
             Écrire sur WhatsApp
           </a>
+        )}
+        {/* Lot 3C : confirmer garde WhatsApp (un accord daté) ; ajouter et écrire ont leur formulaire, quand il est ouvert. */}
+        {formulairesOuverts && (
+          <>
+            <a
+              class="lien-fort"
+              href={adresseDArrivee({ vers: 'manque', depuis: 'pour-les-ecoles' })}
+            >
+              Ajouter mon école
+            </a>
+            <a
+              class="lien-fort"
+              href={adresseDArrivee({ vers: 'contact', depuis: 'pour-les-ecoles', sujet: 'ecole' })}
+            >
+              Écrire à NTanova
+            </a>
+          </>
         )}
         <p class="mention-public">
           La demande ne publie pas automatiquement votre établissement. Avant un passage sur place,

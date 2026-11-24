@@ -38,6 +38,12 @@ import type { LigneRecherche } from '../../modele/recherche';
 import ActivitesOrientation from '../../ui/orienter/ActivitesOrientation.astro';
 import DomainesFormation from '../../ui/orienter/DomainesFormation.astro';
 import ParcoursScolaire from '../../ui/orienter/ParcoursScolaire.astro';
+// Les formulaires publics (refonte, lot 3C) : les pièces des pages /contact/ et /contribuer/, sans leur script.
+import Choix from '../../ui/formulaires/Choix.astro';
+import EtatsDEnvoi from '../../ui/formulaires/EtatsDEnvoi.astro';
+import Groupe from '../../ui/formulaires/Groupe.astro';
+import Reponse from '../../ui/formulaires/Reponse.astro';
+import '../../ui/formulaires/formulaires.css';
 // Les pièces de la page carte : les mêmes feuilles que celles de /carte/, jamais une copie.
 import '../../ui/carte-pieces.css';
 
@@ -403,6 +409,79 @@ const autour = arrondissementsDessines.map((a) => ({
       </div>
     </div>
 
+    <h2 id="formulaires">Formulaires publics (refonte publique, lot 3C)</h2>
+    <p>
+      Les pièces de Contact et de « Compléter ou corriger l’annuaire » : un champ court, un texte,
+      un choix fermé en grandes lignes, un choix en rectangles, plusieurs cases, la réponse
+      demandée. Rien n’est coché d’avance. Dessous, un refus tel que la page le montre (« envois
+      fermés ») : ici il est rendu visible à la main ; sur /contact/ et /contribuer/, le script
+      choisit le bon cas. Les erreurs, la reprise et la confirmation se voient dans les parcours et
+      leurs captures (`pnpm exec playwright test -c playwright.formulaires.config.ts`).
+    </p>
+    <div class="f-page catalogue-formulaires">
+      <div class="f-champs">
+        <Choix
+          champ="nature"
+          id="cat-nature"
+          legende="Que voulez-vous nous signaler ?"
+          grand
+          options={[
+            {
+              valeur: 'absente',
+              texte: 'Une école manque',
+              detail: 'Elle existe, mais n’est pas dans l’annuaire.',
+            },
+            {
+              valeur: 'erreur',
+              texte: 'Une fiche contient une erreur',
+              detail: 'Une information est fausse ou dépassée.',
+            },
+          ]}
+        />
+        <Groupe
+          champ="nomEcole"
+          id="cat-nom"
+          libelle="Nom de l’école"
+          aide="[Une aide d’une ligne.]"
+          requis="Écrivez le nom de l’école."
+          longueur={120}
+        />
+        <Groupe
+          champ="message"
+          id="cat-message"
+          libelle="Votre message"
+          forme="texte"
+          lignes={3}
+          longueur={2000}
+        />
+        <Choix
+          champ="information"
+          id="cat-information"
+          legende="Quelle information est concernée ?"
+          options={[
+            { valeur: 'nom', texte: 'Nom' },
+            { valeur: 'frais', texte: 'Frais' },
+            { valeur: 'autre', texte: 'Autre' },
+          ]}
+        />
+        <Choix
+          champ="niveaux"
+          id="cat-niveaux"
+          legende="Niveaux, si vous les connaissez"
+          facultatif
+          plusieurs
+          options={[
+            { valeur: 'P', texte: 'Primaire' },
+            { valeur: 'C', texte: 'Collège' },
+          ]}
+        />
+        <Reponse />
+      </div>
+      <div class="catalogue-refus">
+        <EtatsDEnvoi whatsapp="#formulaires" />
+      </div>
+    </div>
+
     <h2 id="couverture">La couverture dessinée d'une fiche</h2>
     <div style="display: grid; gap: var(--espace-4)">
       {['M', 'P', 'C', 'L', 'T', 'S', ''].map((lettre) => (
@@ -641,6 +720,17 @@ const autour = arrondissementsDessines.map((a) => ({
 </script>
 
 <style is:global>
+  /* Le catalogue montre un refus que, sur la page, seul le script rend visible. */
+  .catalogue-formulaires {
+    padding: 0;
+  }
+  .catalogue-refus [data-refus],
+  .catalogue-refus [data-cas='ferme'] {
+    display: grid !important;
+  }
+  .catalogue-refus [data-geste='copier'] {
+    display: inline-flex !important;
+  }
   .pieces-carte {
     display: grid;
     gap: var(--espace-4);

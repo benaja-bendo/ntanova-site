@@ -415,7 +415,7 @@ Tests : `supabase/tests/lot_1_site_public.test.sql` (39 contrôles). `frais_ecol
 
 ## Les messages reçus (Contact, annuaire) — 24/11/2026, lots 3B1 et 3B2 de la refonte, tickets 215 et 217
 
-Migrations `20261124140000` à `20261124140400` (3B1) : le socle privé des messages ; `20261124150000` et `20261124150100` (3B2) : ce que l'administration lit en plus, et la sonnette de l'alerte. **Rien n'est appliqué en ligne, aucun formulaire n'existe** (lot 3C). À ne pas confondre avec `family_demands`, qui compte des recherches sans nom.
+Migrations `20261124140000` à `20261124140400` (3B1) : le socle privé des messages ; `20261124150000` et `20261124150100` (3B2) : ce que l'administration lit en plus, et la sonnette de l'alerte. **Rien n'est appliqué en ligne.** Les formulaires `/contact/` et `/contribuer/` (lot 3C, ticket 219, sans migration) appellent les deux portes publiques ci-dessous par `fetch` (`src/infra/supabase/demandes-publiques.ts`) ; ils restent fermés par `PUBLIC_FORMULAIRES` et, en base, par l'absence de secret d'envoi. À ne pas confondre avec `family_demands`, qui compte des recherches sans nom.
 
 | Table (`prive`) | Rôle |
 | --- | --- |

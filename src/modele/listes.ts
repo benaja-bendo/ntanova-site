@@ -1,3 +1,5 @@
+import { listesDesDemandes } from './listes-demandes';
+
 /**
  * Les listes fermées, copie de celles de la base (domaines SQL des migrations, dont
  * 20261031010000_tables.sql, 20261031190000_types_niveaux_programme.sql et
@@ -150,37 +152,10 @@ export const listes = {
   class_size_band: ['moins_de_20', '20_a_34', '35_a_49', '50_et_plus', 'autre'],
   family_demand_kind: ['verification', 'orientation'],
   orientation_profile: ['bepc', 'bac', 'adulte', 'autre'],
-  // Les messages reçus par Contact et l'annuaire (refonte publique, lot 3B1, migration 20261124140000).
-  public_request_kind: ['contact', 'absente', 'erreur', 'retrait'],
+  // Les messages reçus par Contact et l'annuaire (refonte publique, lot 3B1, migration 20261124140000). Celles qu'un formulaire public
+  // montre sont dans leur propre fichier : le script d'une page publique n'emporte pas toutes les listes du pays.
+  ...listesDesDemandes,
   public_request_state: ['recue', 'indesirable', 'ouverte', 'en_attente', 'close'],
-  public_request_origin: [
-    'accueil',
-    'ecoles',
-    'fiche',
-    'pied',
-    'pour-les-ecoles',
-    'fiabilite',
-    'villes',
-    'outils',
-    'contact',
-    'confidentialite',
-    'direct',
-  ],
-  public_request_subject: ['trouver', 'ecole', 'outils', 'donnees', 'site', 'autre'],
-  public_request_level: ['M', 'P', 'C', 'L', 'T', 'S'],
-  public_request_topic: [
-    'nom',
-    'adresse',
-    'niveaux',
-    'frais',
-    'contact',
-    'photo',
-    'ferme',
-    'autre',
-  ],
-  public_request_knowledge: ['passage', 'document', 'ecole', 'autre'],
-  public_request_removal: ['tel', 'photo', 'personne', 'fiche', 'autre'],
-  public_request_reply: ['non', 'whatsapp', 'email'],
   public_request_reply_state: ['non_demandee', 'a_faire', 'faite', 'impossible'],
   public_request_decision: [
     'existe',

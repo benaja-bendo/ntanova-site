@@ -63,6 +63,23 @@ describe('fiches et photos : IndexedDB, jamais localStorage', () => {
 
   it('le faux serveur, lui, vit dans le navigateur : il est le seul à écrire dans localStorage, et jamais pour les fiches du relais', () => {
     const faux = fichiersDe('src/infra/faux').filter((f) => STOCKAGES_DU_NAVIGATEUR.test(code(f)));
-    expect(faux.map((f) => relative('.', f))).toEqual(['src/infra/faux/index.ts']);
+    // Depuis la refonte, lot 3C : les fausses portes publiques écrivent dans la même fausse base de messages, et rien d'autre.
+    expect(faux.map((f) => relative('.', f))).toEqual([
+      'src/infra/faux/demandes-publiques.ts',
+      'src/infra/faux/index.ts',
+    ]);
+    expect(
+      code('src/infra/faux/demandes-publiques.ts').match(/localStorage\.setItem\([^,]*/g),
+    ).toEqual(["localStorage.setItem('ntanova-faux-messages'"]);
+  });
+
+  it('un formulaire public garde son brouillon dans l’onglet (sessionStorage), jamais dans localStorage', () => {
+    const formulaire = code('src/app/formulaires/formulaire.ts');
+    expect(formulaire).not.toMatch(/localStorage|document\.cookie|indexedDB|console\./);
+    expect(formulaire.match(/sessionStorage\.\w+/g)).toEqual([
+      'sessionStorage.getItem',
+      'sessionStorage.setItem',
+      'sessionStorage.removeItem',
+    ]);
   });
 });

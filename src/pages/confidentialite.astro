@@ -3,11 +3,18 @@
 // « À propos », complétée de ce que l'article 46 de la loi n° 29-2019 demande d'écrire au plus tard à la collecte : le
 // responsable, les finalités, les catégories de données, les destinataires, la durée de conservation, les transferts hors du
 // Congo, les droits. Ce que NTanova ne sait pas encore reste entre crochets (rien n'est inventé).
+//
+// Refonte, lot 3C (24/11/2026) : les seules mentions que les formulaires rendaient inexactes ont changé, À RELIRE PAR UNE PERSONNE
+// AVANT LA PRODUCTION (liste dans docs/refonte-site-public.md). Celles qui décrivent les formulaires ne paraissent que s'ils sont
+// ouverts (`formulairesOuverts`) : fermé, la page dit toujours ce qui est vrai aujourd'hui. Rien n'y annonce l'adresse IP d'une
+// personne qui écrit : la limite par connexion reste inactive.
 import { DELAI_DROITS_JOURS, LIEN_METHODE, LIEN_DONNEES } from '../modele/pages-de-confiance';
+import { REGLAGES } from '../modele/demandes';
 import ContactNtanova from '../ui/ContactNtanova.astro';
+import { formulairesOuverts } from '../ui/formulaires/ouverture';
 import PageDeTexte from '../ui/PageDeTexte.astro';
 
-const TEXTE_DU = '8 novembre 2026';
+const TEXTE_DU = '24 novembre 2026';
 
 // Les données gardées, une par ligne : pourquoi, qui les voit, combien de temps. Les durées restent à fixer par le fondateur.
 const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree: string }[] = [
@@ -54,13 +61,34 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
     qui: 'NTanova seul.',
     duree: '[À fixer.]',
   },
-  {
-    nom: 'Vos messages à NTanova',
-    quoi: 'Ce que vous écrivez sur WhatsApp ou par e-mail.',
-    pourquoi: 'Vous répondre.',
-    qui: 'NTanova. WhatsApp est un service de Meta.',
-    duree: '[À fixer.]',
-  },
+  ...(formulairesOuverts
+    ? [
+        {
+          nom: 'Vos messages par un formulaire du site',
+          quoi: 'Ce que vous écrivez dans « Écrire à NTanova » ou « Compléter ou corriger l’annuaire », avec le numéro, l’adresse ou le nom que vous laissez.',
+          pourquoi:
+            'Traiter votre message et, si vous le demandez, vous répondre. Une personne vous répond, sur WhatsApp ou par e-mail.',
+          qui: 'NTanova seul, dans une base privée. Jamais publié.',
+          duree: `${REGLAGES.closeMois} mois après la clôture, puis effacés automatiquement ; ${REGLAGES.indesirableJours} jours pour un message indésirable. Les sauvegardes les gardent jusqu’à 30 jours de plus.`,
+        },
+        {
+          nom: 'Nos échanges sur WhatsApp ou par e-mail',
+          quoi: 'Ce que vous écrivez sur WhatsApp ou par e-mail, et nos réponses.',
+          pourquoi: 'Vous répondre.',
+          qui: 'NTanova. WhatsApp est un service de Meta.',
+          duree:
+            'Ils restent dans WhatsApp et dans la boîte de NTanova : l’effacement automatique du site ne les atteint pas. [Durée à fixer.]',
+        },
+      ]
+    : [
+        {
+          nom: 'Vos messages à NTanova',
+          quoi: 'Ce que vous écrivez sur WhatsApp ou par e-mail.',
+          pourquoi: 'Vous répondre.',
+          qui: 'NTanova. WhatsApp est un service de Meta.',
+          duree: '[À fixer.]',
+        },
+      ]),
 ];
 ---
 
@@ -76,7 +104,13 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
       personnes, qui le voit, où cela est gardé et comment faire corriger, retirer ou effacer. Texte
       du {TEXTE_DU}.
     </p>
-    <ContactNtanova message="Bonjour NTanova, une question sur mes données : " />
+    <ContactNtanova
+      message="Bonjour NTanova, une question sur mes données : "
+      formulaire={{
+        arrivee: { vers: 'contact', depuis: 'confidentialite', sujet: 'donnees' },
+        texte: 'Écrire à NTanova',
+      }}
+    />
   </Fragment>
 
   <section class="carte bloc large" id="ce-que-nous-gardons">
@@ -123,9 +157,21 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
       <li>
         <strong>Connexion des relais</strong>&nbsp;: Google.
       </li>
-      <li>
-        <strong>Messages</strong>&nbsp;: WhatsApp (Meta).
-      </li>
+      {formulairesOuverts ? (
+        <>
+          <li>
+            <strong>Messages des formulaires</strong>&nbsp;: une base privée chez Supabase, région
+            Paris.
+          </li>
+          <li>
+            <strong>Autres messages et réponses</strong>&nbsp;: WhatsApp (Meta) ou e-mail.
+          </li>
+        </>
+      ) : (
+        <li>
+          <strong>Messages</strong>&nbsp;: WhatsApp (Meta).
+        </li>
+      )}
       <li>
         <strong>Carte de position de l’application des relais</strong>&nbsp;: quand un relais
         l’ouvre, son navigateur demande des morceaux de carte aux serveurs d’OpenStreetMap, qui
@@ -153,7 +199,18 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
       correspondent à la zone que vous consultez. Le partage d’une école transmet sa position, pas
       votre position personnelle.
     </p>
-    <p>Vos messages partent sur WhatsApp.</p>
+    {formulairesOuverts ? (
+      <>
+        <h3>Quand vous nous écrivez</h3>
+        <p>
+          Vos messages partent par un formulaire du site ou sur WhatsApp. Pendant que vous écrivez
+          dans un formulaire, votre texte reste dans l’onglet de votre navigateur, 24&nbsp;heures au
+          plus après votre dernière saisie&nbsp;; il en est effacé quand l’envoi est confirmé.
+        </p>
+      </>
+    ) : (
+      <p>Vos messages partent sur WhatsApp.</p>
+    )}
   </section>
 
   <section class="carte bloc" id="relais">
@@ -176,17 +233,18 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
   <section class="carte bloc large" id="droits">
     <h2>Vos droits</h2>
     <p>
-      Vous pouvez demander, en justifiant de votre identité, à voir ce qui vous concerne, à le
-      corriger, à le retirer ou à l’effacer&nbsp;: une fiche, un numéro, un contact.
-      Écrivez-nous&nbsp;: nous le faisons dans notre base{' '}
-      <span class="insecable">sous {DELAI_DROITS_JOURS} jours</span>.
+      Vous pouvez demander, en montrant que vous êtes concerné, à voir ce qui vous concerne, à le
+      corriger, à le retirer ou à l’effacer&nbsp;: une fiche, un numéro, un contact. Nous ne
+      demandons pas de pièce d’identité par défaut. Écrivez-nous&nbsp;: nous le faisons dans notre
+      base <span class="insecable">sous {DELAI_DROITS_JOURS} jours</span>.
     </p>
     <h3>Ce que cela veut dire sur le site</h3>
     <ul>
       <li>
         Le site est mis à jour par étapes&nbsp;: une correction n’est visible sur ntanova.com qu’à
         la mise en ligne suivante. Pour le retrait d’une fiche ou l’effacement d’un numéro, nous
-        demandons cette mise en ligne sans attendre.
+        demandons cette mise en ligne sans attendre, et nous vous disons le résultat une fois
+        constaté sur le site.
       </li>
       <li>
         Les moteurs de recherche et les aperçus de lien (par exemple dans WhatsApp) peuvent garder
@@ -197,7 +255,13 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
       [Si vous estimez que vos droits ne sont pas respectés, vous pouvez saisir l’autorité de
       contrôle&nbsp;: coordonnées à renseigner.]
     </p>
-    <ContactNtanova message="Bonjour NTanova, je voudrais faire corriger, retirer ou effacer : " />
+    <ContactNtanova
+      message="Bonjour NTanova, je voudrais faire corriger, retirer ou effacer : "
+      formulaire={{
+        arrivee: { vers: 'retrait', depuis: 'confidentialite' },
+        texte: 'Demander un retrait',
+      }}
+    />
   </section>
 
   <div class="references">

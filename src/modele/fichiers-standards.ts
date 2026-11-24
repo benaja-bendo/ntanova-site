@@ -10,6 +10,7 @@
  * Purs : ni base, ni Astro. Les pages `src/pages/llms.txt.ts` et `src/pages/.well-known/security.txt.ts` les construisent.
  */
 import { ecolesSous, lienDivision, lienEcole, type PageDivision } from './geo-divisions';
+import { PAGE_CONTACT, PAGE_CONTRIBUER } from './liens-demandes';
 import { PAGES_DE_TRANSPARENCE } from './pages-de-confiance';
 import type { EcolePubliee } from './ports';
 
@@ -30,6 +31,16 @@ const PAGES_PRINCIPALES = [
     note: 'ce qu’une direction peut faire de sa fiche',
   },
   { href: '/a-propos/', texte: 'À propos', note: 'qui est NTanova et ce que nous publions' },
+] as const;
+
+/** Contact et l'annuaire (refonte, lot 3C) : annoncés seulement quand leurs liens sont ouverts. */
+const PAGES_POUR_ECRIRE = [
+  { href: PAGE_CONTACT, texte: 'Contact', note: 'écrire à NTanova, sans compte' },
+  {
+    href: PAGE_CONTRIBUER,
+    texte: 'Compléter ou corriger l’annuaire',
+    note: 'signaler une école absente, une erreur, une information à retirer',
+  },
 ] as const;
 
 const NOTES_TRANSPARENCE: Record<string, string> = {
@@ -58,6 +69,7 @@ export function llmsTxt(
   base: string,
   lieux: readonly PageDivision[],
   ecoles: readonly EcolePubliee[],
+  formulairesOuverts = false,
 ): string {
   const url = (chemin: string) => new URL(chemin, base).href;
   const lignes: string[] = [
@@ -70,7 +82,9 @@ export function llmsTxt(
     '## Pages principales',
     '',
     `- ${lien('Accueil', url('/'))}`,
-    ...PAGES_PRINCIPALES.map((p) => `- ${lien(p.texte, url(p.href))} : ${p.note}`),
+    ...[...PAGES_PRINCIPALES, ...(formulairesOuverts ? PAGES_POUR_ECRIRE : [])].map(
+      (p) => `- ${lien(p.texte, url(p.href))} : ${p.note}`,
+    ),
     ...PAGES_DE_TRANSPARENCE.map(
       (p) =>
         `- ${lien(p.texte, url(p.href))}${NOTES_TRANSPARENCE[p.href] ? ` : ${NOTES_TRANSPARENCE[p.href]}` : ''}`,

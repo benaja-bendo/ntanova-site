@@ -1,0 +1,68 @@
+---
+// Un choix dans une liste fermée : des lignes de 48 px sur de vraies cases, rien de coché d'avance.
+interface Option {
+  valeur: string;
+  texte: string;
+  /** Une seconde ligne, sous le choix (la nature d'une demande). */
+  detail?: string;
+  /** Le choix n'existe que pour ces natures. */
+  natures?: string;
+}
+interface Props {
+  champ: string;
+  id: string;
+  legende: string;
+  court?: string;
+  facultatif?: boolean;
+  options: readonly Option[];
+  plusieurs?: boolean;
+  requis?: string;
+  grand?: boolean;
+  class?: string;
+}
+const {
+  champ,
+  id,
+  legende,
+  court = legende,
+  facultatif = false,
+  options,
+  plusieurs = false,
+  requis,
+  grand = false,
+  class: classe,
+} = Astro.props;
+---
+
+<fieldset
+  class:list={['f-groupe', classe]}
+  data-groupe={champ}
+  data-libelle={court}
+  data-requis={requis}
+  aria-describedby={`${id}-err`}
+>
+  <legend class:list={['f-libelle', { 'f-libelle-grand': grand }]}>
+    <slot name="legende">{legende}</slot>
+    {facultatif && ' '}
+    {facultatif && <span class="f-facultatif">(facultatif)</span>}
+  </legend>
+  <slot name="aide" />
+  <div class:list={['f-choix', { 'f-choix-grand': grand }]}>
+    {options.map((o) => (
+      <label class="f-option" data-natures={o.natures}>
+        <input
+          type={plusieurs ? 'checkbox' : 'radio'}
+          name={plusieurs ? `${id}-${o.valeur}` : id}
+          value={o.valeur}
+          data-champ={champ}
+        />
+        <span class="f-option-texte">
+          {grand ? <b>{o.texte}</b> : o.texte}
+          {o.detail && <span class="f-aide">{o.detail}</span>}
+        </span>
+      </label>
+    ))}
+  </div>
+  <slot />
+  <p class="f-erreur" id={`${id}-err`} data-erreur hidden></p>
+</fieldset>

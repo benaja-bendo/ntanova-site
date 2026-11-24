@@ -5,7 +5,7 @@
  * Aucun texte d'une personne ne passe dans une erreur : la base écrit des messages neutres, et seuls ceux-là sont repris.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { CHAMPS, type Contenu, type Decision, type Nature, type NomDeChamp } from '../../modele/demandes';
+import { CHAMPS, type Contenu, type Decision, type Nature } from '../../modele/demandes';
 import { listes, type Liste, type Valeur } from '../../modele/listes';
 import type {
   EtapeRetrait,
@@ -23,32 +23,11 @@ import {
   ErreurIntrouvable,
   ErreurSession,
 } from '../../modele/ports';
+import { CHAMP } from './champs-demandes';
 import { avecDelai, traduire, type ErreurApi } from './erreurs';
 
 /** Une lecture ou un geste qui ne répond pas : au-delà, on ne sait pas s'il est enregistré, et l'écran le dit. */
 export const DELAI_MS = 15_000;
-
-/** Le nom de chaque champ dans la base. */
-const CHAMP: Record<NomDeChamp, string> = {
-  origine: 'origin',
-  sujet: 'subject',
-  message: 'message',
-  nomEcole: 'school_name',
-  ville: 'town',
-  repere: 'landmark',
-  autreChose: 'other_details',
-  niveaux: 'levels',
-  deLEcole: 'is_from_school',
-  fiche: 'campus_id',
-  information: 'topic',
-  correction: 'correction',
-  source: 'knowledge',
-  aRetirer: 'removal',
-  precision: 'removal_details',
-  reponse: 'reply',
-  coordonnee: 'contact',
-  nomPersonne: 'person_name',
-};
 
 const FILE: Record<FileMessages, string> = {
   'a-traiter': 'a_traiter',

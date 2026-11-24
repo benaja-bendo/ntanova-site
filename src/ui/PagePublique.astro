@@ -31,7 +31,9 @@ import {
 } from '../modele/pages-de-confiance';
 import { jourDuCongo } from '../modele/date-declaration';
 import { dateCourte } from '../modele/pointe-noire';
+import { porte } from '../modele/liens-demandes';
 import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
+import { formulairesOuverts } from './formulaires/ouverture';
 
 interface Props {
   titre: string;
@@ -81,7 +83,18 @@ const entrees = [
 // Le pied : les villes qui ont des fiches (posées par src/middleware.ts), la date du jour où l'annuaire a été construit.
 const villes = Astro.locals.villesDuPied ?? [];
 const misAJourLe = dateCourte(jourDuCongo());
-const signaler = avecMessage(whatsapp, 'Bonjour NTanova, une erreur sur une fiche : ');
+// Lot 3C : fermés, les formulaires laissent ces trois portes où elles sont (WhatsApp, la page des écoles).
+const signaler = porte(
+  formulairesOuverts,
+  { vers: 'erreur', depuis: 'pied' },
+  avecMessage(whatsapp, 'Bonjour NTanova, une erreur sur une fiche : '),
+);
+const ecrire = porte(formulairesOuverts, { vers: 'contact', depuis: 'pied' }, whatsapp);
+const ajouter = porte(
+  formulairesOuverts,
+  { vers: 'manque', depuis: 'pied' },
+  '/pour-les-ecoles/#referencer',
+);
 const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === href)!.texte;
 ---
 
@@ -232,7 +245,7 @@ const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === hr
                 </li>
                 <li>
                   {/* La même porte que les pages de lieu : la page dit comment ajouter son école. */}
-                  <a href="/pour-les-ecoles/#referencer">Ajouter mon école</a>
+                  <a href={ajouter!.href}>Ajouter mon école</a>
                 </li>
               </ul>
             </div>
@@ -249,7 +262,7 @@ const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === hr
                 </li>
                 {signaler && (
                   <li>
-                    <a href={signaler}>Signaler une erreur</a>
+                    <a href={signaler.href}>Signaler une erreur</a>
                   </li>
                 )}
               </ul>
@@ -262,9 +275,11 @@ const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === hr
                 <li>
                   <a href={LIEN_A_PROPOS}>À propos</a>
                 </li>
-                {whatsapp && (
+                {ecrire && (
                   <li>
-                    <a href={whatsapp}>Écrire à NTanova sur WhatsApp</a>
+                    <a href={ecrire.href}>
+                      {ecrire.parFormulaire ? 'Contact' : 'Écrire à NTanova sur WhatsApp'}
+                    </a>
                   </li>
                 )}
                 <li>

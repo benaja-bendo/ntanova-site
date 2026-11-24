@@ -6,6 +6,7 @@
  * Pur : ni base, ni Astro. La page `src/pages/sitemap.xml.ts` le construit avec le site.
  */
 import { ecolesSous, lienDivision, lienEcole, type PageDivision } from './geo-divisions';
+import { PAGES_DES_FORMULAIRES } from './liens-demandes';
 import { PAGES_DE_TRANSPARENCE } from './pages-de-confiance';
 import type { EcolePubliee } from './ports';
 
@@ -35,8 +36,13 @@ const plusRecent = (dates: readonly string[]) =>
 export function entreesDuPlan(
   lieux: readonly PageDivision[],
   ecoles: readonly EcolePubliee[],
+  /** Contact et l'annuaire (lot 3C) : seulement quand leurs liens sont ouverts. */
+  formulairesOuverts = false,
 ): EntreeDuPlan[] {
-  const entrees: EntreeDuPlan[] = PAGES_FIXES.map((chemin) => ({ chemin, misAJourLe: null }));
+  const entrees: EntreeDuPlan[] = [
+    ...PAGES_FIXES,
+    ...(formulairesOuverts ? PAGES_DES_FORMULAIRES : []),
+  ].map((chemin) => ({ chemin, misAJourLe: null }));
   for (const lieu of lieux) {
     const siennes = ecolesSous(lieu);
     if (siennes.length === 0) continue;

@@ -21,7 +21,9 @@ import {
   groupesAffiches,
   LIBELLES_DES_CYCLES,
 } from '../../modele/liste-ecoles';
+import { porte } from '../../modele/liens-demandes';
 import { avecMessage, lienWhatsApp } from '../../modele/whatsapp';
+import { formulairesOuverts } from '../../ui/formulaires/ouverture';
 import Icone from '../../ui/Icone.astro';
 import Marque from '../../ui/Marque.astro';
 import PagePublique from '../../ui/PagePublique.astro';
@@ -32,7 +34,12 @@ import { PAR_PAGE } from '../../app/carte/liste-ecoles';
 
 const site = await obtenirSite();
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
-const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
+// La recherche n'est jamais recopiée dans l'adresse du formulaire (lot 3C) : aucun nom n'y passe.
+const manque = porte(
+  formulairesOuverts,
+  { vers: 'manque', depuis: 'ecoles' },
+  avecMessage(whatsapp, 'Bonjour NTanova, une école manque : '),
+);
 const lignes = site.recherche;
 const domaines = new Map(site.domaines.map((d) => [d.slug, d.nom]));
 const etat = etatVide();
@@ -212,7 +219,10 @@ const villesDuPied = villesDeLAccueil(site.arbre);
           </form>
           {manque && (
             <p>
-              Une école manque&nbsp;? <a href={manque}>Dites-le-nous sur WhatsApp</a>
+              Une école manque&nbsp;?{' '}
+              <a href={manque.href}>
+                {manque.parFormulaire ? 'Dites-le-nous' : 'Dites-le-nous sur WhatsApp'}
+              </a>
             </p>
           )}
         </div>

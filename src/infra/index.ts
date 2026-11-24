@@ -154,3 +154,7 @@ export function pointDesDemandes(): { url: string; cle: string } | 'faux' | null
     cle: PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   };
 }
+
+// Refonte publique, lot 3C : les formulaires Contact et annuaire. Réexporté d'un module à part, sans rien d'autre : le script
+// d'une page publique n'emporte que lui (10 Ko gzip au plus, `pnpm poids`).
+export { obtenirPortDemandes, pointDesEnvois } from './demandes-publiques';

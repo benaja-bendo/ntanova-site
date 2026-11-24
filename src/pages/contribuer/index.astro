@@ -1,0 +1,378 @@
+---
+// « Compléter ou corriger l'annuaire » (refonte publique, lot 3C ; canevas « Accueil : trois directions », planche « Annuaire », contrat
+// 3A dont le §19 prévaut) : une école absente, une erreur sur une fiche, un retrait. Rien ne change dans l'annuaire à l'envoi ; un
+// retrait a ses propres textes et sa propre file. Même script et mêmes états que Contact.
+//
+// Écarts avec la planche, tenus au prompt du lot : rien de coché d'avance (ni « Non, merci », ni « Je dirige cette école ») ; le nom
+// cherché dans une recherche vide n'est pas repris, aucun nom ne passant par une adresse.
+import { PUBLIC_CONTACT_EMAIL, PUBLIC_WHATSAPP } from 'astro:env/client';
+import { pointDesEnvois } from '../../infra/index';
+import { listes } from '../../modele/listes';
+import {
+  libelleARetirer,
+  libelleInformation,
+  libelleNiveauMessage,
+  libelleSource,
+} from '../../modele/messages-recus';
+import { LIEN_CONFIDENTIALITE, LIEN_METHODE } from '../../modele/pages-de-confiance';
+import { lienWhatsApp } from '../../modele/whatsapp';
+import Cadre from '../../ui/formulaires/Cadre.astro';
+import Choix from '../../ui/formulaires/Choix.astro';
+import Groupe from '../../ui/formulaires/Groupe.astro';
+import Reponse from '../../ui/formulaires/Reponse.astro';
+import { formulairesOuverts } from '../../ui/formulaires/ouverture';
+import Icone from '../../ui/Icone.astro';
+import PagePublique from '../../ui/PagePublique.astro';
+
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const options = <T extends string>(valeurs: readonly T[], libelles: Record<T, string>) =>
+  valeurs.map((valeur) => ({ valeur, texte: libelles[valeur] }));
+const NATURES = [
+  {
+    valeur: 'absente',
+    texte: 'Une école manque',
+    detail: 'Elle existe, mais n’est pas dans l’annuaire.',
+  },
+  {
+    valeur: 'erreur',
+    texte: 'Une fiche contient une erreur',
+    detail: 'Nom, adresse, niveaux, frais… une information est fausse ou dépassée.',
+  },
+  {
+    valeur: 'retrait',
+    texte: 'Retirer une information personnelle',
+    detail: 'Un numéro, une photo, un nom, ou la fiche entière.',
+  },
+];
+---
+
+<PagePublique
+  titre="Compléter ou corriger l’annuaire · NTanova"
+  description="Une école manque, une fiche contient une erreur, une information est à retirer : dites-le à NTanova, sans compte."
+  whatsapp={whatsapp}
+  nonIndexee={!formulairesOuverts}
+>
+  <Cadre
+    nom="annuaire"
+    etiquette="Compléter ou corriger l’annuaire"
+    envois={pointDesEnvois()}
+    whatsapp={whatsapp}
+    courriel={PUBLIC_CONTACT_EMAIL ?? null}
+  >
+    <Fragment slot="tete">
+      <a class="f-lien" href="/ecoles/" data-retour-fiche hidden>
+        <Icone nom="retour" />
+        <span>Retour à la fiche</span>
+      </a>
+      <div class="f-tete">
+        <p class="f-surtitre">Annuaire des écoles</p>
+        <h1>Compléter ou corriger l’annuaire</h1>
+        <p class="f-chapeau" data-natures="aucune absente erreur">
+          Une école manque, ou une fiche contient une erreur&nbsp;? Famille, école ou
+          partenaire&nbsp;: dites-le-nous ici, sans compte. Rien ne change dans l’annuaire à
+          l’envoi.
+        </p>
+        <p class="f-chapeau" data-natures="retrait" hidden>
+          Un numéro, une photo, un nom ou une fiche à retirer&nbsp;? Demandez-le ici, sans compte.
+          Cette demande est traitée à part des corrections.
+        </p>
+      </div>
+    </Fragment>
+
+    <Choix
+      champ="nature"
+      id="nature"
+      legende="Que voulez-vous nous signaler ?"
+      court="Ce que vous signalez"
+      options={NATURES}
+      requis="Choisissez ce que vous voulez signaler."
+      grand
+    />
+
+    <div class="f-bloc" data-natures="absente" hidden>
+      <Groupe
+        champ="nomEcole"
+        id="ecole-absente"
+        libelle="Nom de l’école"
+        requis="Écrivez le nom de l’école."
+        longueur={120}
+      />
+      <div class="f-deux">
+        <Groupe
+          champ="ville"
+          id="ville"
+          libelle="Ville ou localité"
+          requis="Écrivez la ville ou la localité."
+          longueur={80}
+        />
+        <Groupe
+          champ="repere"
+          id="repere"
+          libelle="Quartier, rue ou repère"
+          facultatif
+          longueur={160}
+        />
+      </div>
+      <Choix
+        champ="niveaux"
+        id="niveau"
+        legende="Niveaux, si vous les connaissez"
+        facultatif
+        options={options(listes.public_request_level, libelleNiveauMessage)}
+        plusieurs
+      />
+      <Groupe
+        champ="autreChose"
+        id="autre-chose"
+        libelle="Autre chose qui nous aide à la trouver"
+        court="Autre chose"
+        facultatif
+        aide="Horaires, numéro affiché sur l’enseigne, site internet…"
+        forme="texte"
+        lignes={3}
+        longueur={300}
+      />
+      <div class="f-groupe" data-groupe="deLEcole" data-libelle="Je dirige cette école">
+        <label class="f-option">
+          <input type="checkbox" name="de-l-ecole" value="oui" data-champ="deLEcole" />
+          <span class="f-option-texte">Je dirige cette école ou j’y travaille</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="f-bloc" data-natures="erreur retrait" hidden>
+      <p class="f-notice" data-natures="retrait">
+        <Icone nom="info" />
+        <span>
+          L’information reste visible tant que le retrait n’est pas fait. L’équipe peut vous
+          demander de montrer que vous êtes concerné. Aucune pièce d’identité n’est demandée ici.
+        </span>
+      </p>
+      <div class="f-groupe" data-fiche-choisie hidden>
+        <span class="f-libelle" id="fiche-titre">
+          Fiche concernée
+        </span>
+        <div class="f-fiche">
+          <span>
+            <b data-fiche-nom></b>
+            <span class="f-aide" data-fiche-lieu></span>
+          </span>
+          <button
+            class="f-lien f-lien-bouton"
+            type="button"
+            aria-describedby="fiche-titre"
+            data-fiche-changer
+          >
+            Changer
+          </button>
+        </div>
+        <p class="f-aide">Reprise de la fiche d’où vous venez.</p>
+      </div>
+      <Groupe
+        champ="nomEcole"
+        id="ecole-concernee"
+        libelle="Nom de l’école concernée"
+        court="École concernée"
+        aide="Avec sa ville, si plusieurs écoles portent ce nom."
+        requis="Écrivez le nom de l’école concernée."
+        longueur={120}
+        data-fiche-libre=""
+      />
+    </div>
+
+    <div class="f-bloc" data-natures="erreur" hidden>
+      <Choix
+        champ="information"
+        id="information"
+        legende="Quelle information est concernée ?"
+        court="Information concernée"
+        options={options(listes.public_request_topic, libelleInformation)}
+        requis="Choisissez l’information concernée."
+      >
+        <p class="f-notice" data-si-info="contact photo" hidden>
+          <Icone nom="info" />
+          <span>
+            Il s’agit du numéro personnel de quelqu’un, ou d’une photo où une personne est
+            reconnaissable&nbsp;?{' '}
+            <button class="f-lien f-lien-bouton" type="button" data-vers-retrait>
+              Faire plutôt une demande de retrait
+            </button>
+          </span>
+        </p>
+      </Choix>
+      <Groupe
+        champ="correction"
+        id="correction"
+        libelle="Qu’est-ce qui est faux, et quelle est la bonne information ?"
+        court="Ce qui est faux"
+        aide="Écrivez ce qui est juste, le plus précisément possible."
+        forme="texte"
+        lignes={4}
+        requis="Écrivez ce qui est faux, ou la bonne information."
+        longueur={1000}
+      />
+      <div class="f-groupe" data-groupe="source" data-libelle="Comment le savez-vous">
+        <label class="f-libelle" for="source">
+          Comment le savez-vous&nbsp;? <span class="f-facultatif">(facultatif)</span>
+        </label>
+        <select
+          class="champ"
+          id="source"
+          name="source"
+          data-champ="source"
+          aria-describedby="source-err"
+        >
+          <option value="">Choisir</option>
+          {listes.public_request_knowledge.map((s) => (
+            <option value={s}>{libelleSource[s]}</option>
+          ))}
+        </select>
+        <p class="f-erreur" id="source-err" data-erreur hidden></p>
+      </div>
+    </div>
+
+    <div class="f-bloc" data-natures="retrait" hidden>
+      <Choix
+        champ="aRetirer"
+        id="a-retirer"
+        legende="Que faut-il retirer ou protéger ?"
+        court="Ce qu’il faut retirer"
+        options={options(listes.public_request_removal, libelleARetirer)}
+        requis="Choisissez ce qu’il faut retirer ou protéger."
+      />
+      <Groupe
+        champ="precision"
+        id="precision"
+        libelle="Précisez"
+        facultatif
+        aide="Où l’information paraît, et pourquoi la retirer. N’y recopiez pas l’information, ni une pièce d’identité."
+        forme="texte"
+        lignes={4}
+        longueur={500}
+      />
+    </div>
+
+    <div class="f-bloc" data-natures="absente erreur retrait" hidden>
+      <Reponse annuaire />
+    </div>
+
+    <Fragment slot="envoyer">
+      <span data-natures="aucune absente erreur">Envoyer le signalement</span>
+      <span data-natures="retrait" hidden>
+        Envoyer la demande
+      </span>
+    </Fragment>
+    <Fragment slot="ok-titre">
+      <span data-natures="absente erreur">Signalement enregistré</span>
+      <span data-natures="retrait">Demande de retrait enregistrée</span>
+    </Fragment>
+    <Fragment slot="ok-texte">
+      <p data-natures="absente">
+        Merci. L’équipe va l’examiner avant une éventuelle publication. Une école vérifiée n’est pas
+        publiée pour autant&nbsp;: NTanova décide ensuite de publier une fiche, ou non.
+      </p>
+      <p data-natures="erreur">
+        Merci. La fiche ne change pas à l’envoi&nbsp;: l’équipe vérifie d’abord. NTanova décide
+        ensuite de corriger la fiche, ou non. Une correction retenue paraît avec sa date.
+      </p>
+      <p data-natures="retrait">
+        Merci. Elle est traitée à part des corrections de l’annuaire. L’information reste visible
+        tant que le retrait n’est pas fait. L’équipe peut vous demander de montrer que vous êtes
+        concerné.
+      </p>
+    </Fragment>
+    <Fragment slot="nouvelle">
+      <span data-natures="aucune absente erreur">Signaler autre chose</span>
+      <span data-natures="retrait">Faire une autre demande</span>
+    </Fragment>
+    <Fragment slot="ok-liens">
+      <a class="f-lien" href="/ecoles/" data-retour-fiche hidden>
+        <Icone nom="retour" />
+        <span>Retour à la fiche</span>
+      </a>
+      <a class="f-lien" href="/ecoles/" data-natures="aucune absente erreur">
+        Voir les écoles
+      </a>
+      <a class="f-lien" href={LIEN_CONFIDENTIALITE} data-natures="retrait">
+        Confidentialité et vos droits
+      </a>
+    </Fragment>
+
+    <Fragment slot="cote">
+      <section class="f-carte" aria-labelledby="t-ensuite">
+        <img src="/dessins/repere-demande.svg" alt="" width="132" height="132" loading="lazy" />
+        <h2 id="t-ensuite">Ce qui se passe ensuite</h2>
+        <ol class="f-etapes" data-natures="aucune">
+          <li>Votre demande est enregistrée à part. Rien ne change dans l’annuaire à l’envoi.</li>
+          <li>L’équipe l’examine.</li>
+          <li>NTanova décide de la suite&nbsp;: compléter, corriger, ou non.</li>
+          <li>Si vous avez demandé une réponse, l’équipe vous dit ce qui a été décidé.</li>
+        </ol>
+        <ol class="f-etapes" data-natures="absente" hidden>
+          <li>Votre signalement est enregistré à part. Rien n’est publié à l’envoi.</li>
+          <li>L’équipe l’examine&nbsp;: l’école existe-t-elle, a-t-elle déjà une fiche&nbsp;?</li>
+          <li>
+            Une école vérifiée n’est pas publiée pour autant&nbsp;: NTanova décide ensuite de
+            publier une fiche, ou non.
+          </li>
+          <li>Si vous avez demandé une réponse, l’équipe vous dit ce qui a été décidé.</li>
+        </ol>
+        <ol class="f-etapes" data-natures="erreur" hidden>
+          <li>Votre signalement est enregistré à part. La fiche ne change pas à l’envoi.</li>
+          <li>L’équipe vérifie&nbsp;: sur place, auprès de l’école ou sur un document.</li>
+          <li>
+            NTanova décide de corriger la fiche, ou non. Une correction retenue paraît avec sa date.
+          </li>
+          <li>Si vous avez demandé une réponse, l’équipe vous dit ce qui a été décidé.</li>
+        </ol>
+        <ol class="f-etapes" data-natures="retrait" hidden>
+          <li>
+            Votre demande est enregistrée à part des corrections. Seule l’équipe NTanova la lit.
+          </li>
+          <li>Si besoin, l’équipe vous joint pour vérifier que vous êtes concerné.</li>
+          <li>
+            Une fois la demande vérifiée, le retrait est fait dans notre base, et une mise à jour du
+            site est demandée sans attendre.
+          </li>
+          <li>
+            Un moteur de recherche ou un aperçu de lien peut garder une copie&nbsp;: nous ne pouvons
+            pas l’effacer chez eux.
+          </li>
+          <li>L’équipe vous dit ce qui a été fait, une fois constaté sur le site.</li>
+        </ol>
+        <a class="f-lien" href={LIEN_METHODE} data-natures="aucune absente erreur">
+          Comment nous vérifions une fiche
+        </a>
+      </section>
+      <section class="f-carte" aria-labelledby="t-direction" data-natures="aucune absente erreur">
+        <h2 id="t-direction">Vous dirigez une école&nbsp;?</h2>
+        <p class="texte-doux">
+          Ce formulaire est aussi pour vous. Vos autres démarches (présenter l’école, confirmer vos
+          frais, envoyer des photos) ont leur page.
+        </p>
+        <a class="f-lien" href="/pour-les-ecoles/">
+          Pour les écoles
+        </a>
+      </section>
+      <section class="f-carte" aria-labelledby="t-droits" data-natures="retrait" hidden>
+        <h2 id="t-droits">Vos autres droits</h2>
+        <p class="texte-doux">Voir, corriger ou effacer ce qui vous concerne.</p>
+        <a class="f-lien" href={LIEN_CONFIDENTIALITE}>
+          Confidentialité et vos droits
+        </a>
+      </section>
+    </Fragment>
+  </Cadre>
+</PagePublique>
+
+<script>
+  import { demarrer } from '../../app/formulaires/formulaire';
+  import { obtenirPortDemandes } from '../../infra/index';
+
+  const racine = document.querySelector<HTMLElement>('[data-formulaire]');
+  if (racine && racine.dataset.url !== undefined) {
+    void obtenirPortDemandes(racine.dataset.url, racine.dataset.cle ?? '').then((port) => {
+      if (port) demarrer(racine, port);
+    });
+  }
+</script>

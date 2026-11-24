@@ -6,7 +6,8 @@
  * Pur : ni réseau, ni écran. La base contrôle tout de nouveau (`prive.normalize_public_request`) ; ces règles servent à
  * dire une erreur avant d'envoyer, jamais à la remplacer. Un test compare les deux.
  */
-import { listes, type Liste, type Valeur } from './listes';
+import type { Valeur } from './listes';
+import { listesDesDemandes } from './listes-demandes';
 import { normaliserTelephone } from './telephone';
 
 export type Nature = Valeur<'public_request_kind'>;
@@ -60,10 +61,10 @@ export interface Champ {
   readonly requis: readonly Nature[];
   /** En signes, pour un texte. */
   readonly longueur?: number;
-  readonly liste?: Liste;
+  readonly liste?: keyof typeof listesDesDemandes;
 }
 
-const TOUTES = listes.public_request_kind;
+const TOUTES = listesDesDemandes.public_request_kind;
 
 export const CHAMPS: readonly Champ[] = [
   {
@@ -218,8 +219,8 @@ export function controler(nature: Nature, saisie: Contenu): { contenu: Contenu; 
   return { contenu, erreurs };
 }
 
-function dansLaListe(liste: Liste, valeur: string): boolean {
-  return (listes[liste] as readonly string[]).includes(valeur);
+function dansLaListe(liste: keyof typeof listesDesDemandes, valeur: string): boolean {
+  return (listesDesDemandes[liste] as readonly string[]).includes(valeur);
 }
 
 // L'envoi : la révision, puis ce que le serveur répond ---------------------------------------------
@@ -272,15 +273,43 @@ export type CodeRefuse = (typeof CODES_REFUSES)[number];
  */
 export type Issue =
   | { genre: 'enregistre'; code: CodeEnregistre; reference: string; precedente: string | null }
-  | { genre: 'refuse'; code: CodeRefuse; dejaEnregistree: string | null }
+  | {
+      genre: 'refuse';
+      code: CodeRefuse;
+      dejaEnregistree: string | null;
+      /** Les champs que le serveur refuse, quand il les dit (`refusee`) : jamais ce qui a été écrit. */
+      erreurs?: Erreurs;
+    }
   | { genre: 'non_confirme' };
 
 const REFERENCE = /^[CAR]-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/;
 
-/** La réponse du serveur, lue sans rien supposer. `brut` : `{ code, reference, precedente }`, déjà traduit. */
+const ERREURS_DE_CHAMP: readonly ErreurDeChamp[] = [
+  'requis',
+  'trop_long',
+  'hors_liste',
+  'format',
+  'champ_inconnu',
+  'illisible',
+];
+
+/** Les erreurs rendues par le serveur, déjà traduites : des champs connus et des codes connus, rien d'autre. */
+function lireErreurs(brut: unknown): Erreurs | undefined {
+  if (typeof brut !== 'object' || brut === null) return undefined;
+  const lues: Erreurs = {};
+  for (const nom of [...CHAMPS.map((c) => c.nom), 'demande' as const]) {
+    const code = (brut as Record<string, unknown>)[nom];
+    if (dans(ERREURS_DE_CHAMP, code)) lues[nom] = code;
+  }
+  return lues;
+}
+
+/**
+ * La réponse du serveur, lue sans rien supposer. `brut` : `{ code, reference, precedente, erreurs }`, déjà traduit.
+ */
 export function lireIssue(brut: unknown): Issue {
   if (typeof brut !== 'object' || brut === null) return { genre: 'non_confirme' };
-  const { code, reference, precedente } = brut as Record<string, unknown>;
+  const { code, reference, precedente, erreurs } = brut as Record<string, unknown>;
   const lue = typeof reference === 'string' && REFERENCE.test(reference) ? reference : null;
   if (dans(CODES_ENREGISTRES, code)) {
     // Sans référence, la confirmation ne vaut rien : la personne ne pourrait pas la rappeler.
@@ -288,7 +317,10 @@ export function lireIssue(brut: unknown): Issue {
     const avant = typeof precedente === 'string' && REFERENCE.test(precedente) ? precedente : null;
     return { genre: 'enregistre', code, reference: lue, precedente: avant };
   }
-  if (dans(CODES_REFUSES, code)) return { genre: 'refuse', code, dejaEnregistree: lue };
+  if (dans(CODES_REFUSES, code)) {
+    const lues = lireErreurs(erreurs);
+    return { genre: 'refuse', code, dejaEnregistree: lue, ...(lues ? { erreurs: lues } : {}) };
+  }
   return { genre: 'non_confirme' };
 }
 

@@ -76,6 +76,15 @@ const tuilesDeLaVilleEnOctets = 43 * 1024;
 const pageOrienter = /^orienter\/index\.html$/;
 const budgetJavaScriptOrienter = 10 * 1024;
 
+// Refonte publique, lot 3C (24/11/2026) : Contact et « Compléter ou corriger l'annuaire », la huitième exception. Un script natif
+// partagé : tout le JavaScript d'une page, imports suivis (statiques et à la demande), pèse 10 Ko gzip au plus, et son premier
+// affichage reste sous le budget d'une page. Sans script, la page l'explique et propose WhatsApp. Le faux serveur des parcours,
+// qui n'existe dans aucune construction en ligne, n'est pas compté : c'est un `import()` de `infra/faux/`, reconnu à son contenu et
+// nommé dans le rapport ; le vrai adaptateur, lui, est toujours dans le script de la page.
+const pageFormulaire = /^(contact|contribuer)\/index\.html$/;
+const budgetJavaScriptFormulaire = 10 * 1024;
+const estLeFauxServeur = (fichier) => readFileSync(fichier, 'utf8').includes('ntanova-faux-');
+
 if (!existsSync(dist)) {
   console.error('dist/ manque : lancer `pnpm build` d’abord.');
   process.exit(1);
@@ -151,7 +160,8 @@ for (const page of pages(dist)) {
     !avecJavaScript.test(nom) &&
     !petitJavaScript.test(nom) &&
     !pageCarte.test(nom) &&
-    !pageOrienter.test(nom)
+    !pageOrienter.test(nom) &&
+    !pageFormulaire.test(nom)
   ) {
     fautes.push('contient du JavaScript');
   }
@@ -319,6 +329,63 @@ if (existsSync(pageDOrientation)) {
   lignes.push(
     `${marque} ${'orienter : JavaScript'.padEnd(32)} ${ko(octets).padStart(9)}  (gzip, amorce et imports : ${fichiers.length} fichier${fichiers.length > 1 ? 's' : ''})`,
     `${marque} ${'orienter : premier affichage'.padEnd(32)} ${ko(emblee).padStart(9)}  ${fautes.join(', ')}`.trimEnd(),
+  );
+}
+
+// --- Contact et l'annuaire : tout le JavaScript de la page ------------------------------------------------------------------
+for (const nom of ['contact', 'contribuer']) {
+  const page = `${nom}/index.html`;
+  const fichierPage = join(dist, page);
+  const fautes = [];
+  let octets = 0;
+  let nombre = 0;
+  let faux = false;
+  if (!existsSync(fichierPage)) fautes.push('page introuvable');
+  else {
+    const scripts = [
+      ...readFileSync(fichierPage, 'utf8').matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi),
+    ].filter(([, attributs]) => !/application\/ld\+json/.test(attributs));
+    const racines = [];
+    for (const [, attributs, texte] of scripts) {
+      const src = /\ssrc="([^"]+)"/.exec(attributs)?.[1];
+      if (src) racines.push(join(dist, decodeURI(src.split(/[?#]/)[0])));
+      else {
+        octets += compresse(texte);
+        for (const m of texte.matchAll(/["'`]\/?(_astro\/[^"'`]+\.(?:js|mjs))["'`]/g))
+          racines.push(join(dist, m[1]));
+      }
+    }
+    if (racines.length === 0) fautes.push('aucun script : le formulaire ne s’ouvre pas');
+    // Les `import()` écrits dans ces fichiers : le faux serveur est mis à part, tout le reste compte, imports suivis.
+    const statiques = fermeture(racines, (s) => [...s]);
+    const aLaDemande = [...statiques].flatMap((f) =>
+      /\.(js|mjs)$/.test(f)
+        ? [...readFileSync(f, 'utf8').matchAll(/\bimport\s*\(\s*["'`](\.\/[^"'`]+)["'`]/g)].map(
+            (m) => join(f, '..', m[1]),
+          )
+        : [],
+    );
+    faux = aLaDemande.some(estLeFauxServeur);
+    const demandes = fermeture(
+      aLaDemande.filter((f) => !estLeFauxServeur(f)),
+      (s, d) => [...s, ...d],
+    );
+    const fichiers = new Set([...statiques, ...demandes]);
+    for (const f of fichiers) {
+      if (!/\.(js|mjs)$/.test(f)) continue;
+      nombre += 1;
+      octets += compresse(readFileSync(f));
+    }
+    if ([...statiques].some((f) => /\.(js|mjs)$/.test(f) && estLeFauxServeur(f)))
+      fautes.push('le faux serveur est chargé avec la page');
+    if (octets > budgetJavaScriptFormulaire)
+      fautes.push(`son JavaScript dépasse ${ko(budgetJavaScriptFormulaire)}`);
+    if ((totauxDEmblee.get(page) ?? 0) > budgetPage)
+      fautes.push(`le premier affichage dépasse ${ko(budgetPage)}`);
+  }
+  if (fautes.length) echec = true;
+  lignes.push(
+    `${fautes.length ? '✗' : '✓'} ${`${nom} : JavaScript`.padEnd(32)} ${ko(octets).padStart(9)}  (gzip, imports compris : ${nombre} fichiers${faux ? ', faux serveur à part' : ''}) ${fautes.join(', ')}`.trimEnd(),
   );
 }
 

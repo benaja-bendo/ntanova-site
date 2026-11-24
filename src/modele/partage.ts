@@ -334,14 +334,16 @@ export function typesSchemaOrg(niveaux: readonly Valeur<'niveau'>[]): string[] {
 /**
  * Les données structurées d'une fiche (`schema.org`) : ce que la fiche montre déjà, rien de plus. Le numéro à six chiffres est
  * son identifiant permanent. **Jamais d'agrément** : la fiche cite un document, et un identifiant de diplôme lisible par une
- * machine se lirait comme une garantie de NTanova.
+ * machine se lirait comme une garantie de NTanova. Le téléphone est celui que la fiche montre (`ContactEcole.astro`) : le contact
+ * publié avec l'accord de la direction, sinon le numéro de l'enseigne (refonte, lot 3C : l'enseigne seule y était écrite).
  */
 export function donneesEcole(
-  e: Fiche & Pick<EcolePubliee, 'niveaux' | 'numero'>,
+  e: Fiche & Pick<EcolePubliee, 'niveaux' | 'numero' | 'contactPublic'>,
   adresse: string,
 ): Record<string, unknown> {
   const lieu = ligneDeLieu(e.quartier, e.divisionNoms).split(' · ').join(', ');
   const types = typesSchemaOrg(e.niveaux);
+  const telephone = e.contactPublic?.numero ?? e.numeroEnseigne;
   return {
     '@context': 'https://schema.org',
     '@type': types.length === 1 ? types[0] : types,
@@ -357,6 +359,6 @@ export function donneesEcole(
     ...(e.latitude !== null && e.longitude !== null
       ? { geo: { '@type': 'GeoCoordinates', latitude: e.latitude, longitude: e.longitude } }
       : {}),
-    ...(e.numeroEnseigne ? { telephone: `+${e.numeroEnseigne}` } : {}),
+    ...(telephone ? { telephone: `+${telephone}` } : {}),
   };
 }

@@ -1,0 +1,217 @@
+---
+// Le cadre des deux formulaires (Contact, annuaire) : ce qui se lit sans script, la reprise d'un brouillon, le formulaire, ses
+// retours, la confirmation. Sans JavaScript, ou sans adresse de base, la page ne montre aucun formulaire : elle l'explique et propose
+// WhatsApp. `data-url` et `data-cle` viennent de la construction : adresse et clé publique seulement.
+import Icone from '../Icone.astro';
+import { LIEN_CONFIDENTIALITE } from '../../modele/pages-de-confiance';
+import EtatsDEnvoi from './EtatsDEnvoi.astro';
+import './formulaires.css';
+
+interface Props {
+  nom: 'contact' | 'annuaire';
+  etiquette: string;
+  envois: { url: string; cle: string } | null;
+  whatsapp: string | null;
+  courriel: string | null;
+}
+const { nom, etiquette, envois, whatsapp, courriel } = Astro.props;
+const annuaire = nom === 'annuaire';
+---
+
+<div
+  class="f-page"
+  data-formulaire={nom}
+  data-url={envois?.url}
+  data-cle={envois?.cle}
+  data-sans-envoi={envois ? undefined : ''}
+>
+  <div class="f-grille">
+    <div class="f-corps">
+      <slot name="tete" />
+
+      <div class="f-sans-script" data-sans-script>
+        <p>
+          {envois
+            ? 'Ce formulaire s’ouvre avec JavaScript. S’il ne paraît pas, écrivez-nous autrement :'
+            : 'Ce formulaire n’est pas disponible ici. Écrivez-nous autrement :'}
+        </p>
+        <div class="f-gestes">
+          {whatsapp && (
+            <a class="bouton" href={whatsapp}>
+              <Icone nom="bulle" />
+              Écrire sur WhatsApp
+            </a>
+          )}
+          {courriel && (
+            <a class="bouton bouton-secondaire" href={`mailto:${courriel}`}>
+              Écrire par e-mail
+            </a>
+          )}
+        </div>
+      </div>
+
+      <div class="f-retour" data-reprise role="status" hidden>
+        <div class="f-retour-texte">
+          <h2 tabindex="-1" data-reprise-titre>
+            Reprendre ce que vous aviez écrit&nbsp;?
+          </h2>
+          <p>
+            Cet onglet a gardé votre texte.{' '}
+            <span data-reprise-attente hidden>
+              Son envoi n’était pas confirmé.
+            </span>
+          </p>
+        </div>
+        <div class="f-gestes">
+          <button class="bouton" type="button" data-reprendre>
+            Reprendre
+          </button>
+          <button class="bouton bouton-secondaire" type="button" data-abandonner>
+            Effacer et recommencer
+          </button>
+        </div>
+      </div>
+
+      <form class="f-form" data-form novalidate autocomplete="on" aria-label={etiquette} hidden>
+        <div class="f-resume" data-resume role="alert" tabindex="-1" hidden>
+          <b data-resume-titre></b>
+          <ul data-resume-liste></ul>
+        </div>
+        <fieldset class="f-champs" data-champs>
+          <legend class="visuellement-cache">{etiquette}</legend>
+          <slot />
+          {/* Le champ piège : hors de la vue, de la tabulation et des lecteurs d'écran. Un robot le remplit, une personne non. */}
+          <div class="f-piege" aria-hidden="true">
+            <label for="complement-ntanova">Laissez ce champ vide</label>
+            <input
+              id="complement-ntanova"
+              name="complement-ntanova"
+              type="text"
+              tabindex="-1"
+              autocomplete="off"
+              data-piege
+            />
+          </div>
+        </fieldset>
+        <div class="f-notice">
+          <Icone nom="info" />
+          <div>
+            <p>
+              <span data-natures={annuaire ? 'aucune absente erreur' : undefined}>
+                {annuaire
+                  ? 'Votre signalement sert à tenir l’annuaire.'
+                  : 'Ce que vous écrivez sert à traiter votre message.'}
+              </span>
+              {annuaire && (
+                <span data-natures="retrait">
+                  Ce que vous écrivez sert seulement à traiter cette demande.
+                </span>
+              )}{' '}
+              Seule l’équipe NTanova le lit&nbsp;; votre numéro ou votre adresse, si vous en
+              laissez, ne sont jamais publiés. Tout est effacé 12&nbsp;mois après la clôture.
+            </p>
+            <p data-note-brouillon>
+              Votre texte reste dans cet onglet jusqu’à l’envoi confirmé, 24&nbsp;heures au plus
+              après votre dernière saisie.
+            </p>
+            <p data-note-sans-brouillon hidden>
+              Ce navigateur ne garde pas votre texte&nbsp;: si la page se recharge, il sera perdu.
+              L’envoi fonctionne quand même.
+            </p>
+            <a class="f-lien" href={LIEN_CONFIDENTIALITE}>
+              Confidentialité et vos droits
+            </a>
+          </div>
+        </div>
+        <EtatsDEnvoi whatsapp={whatsapp} />
+        <div class="f-envoi" data-envoi>
+          <button class="bouton f-bouton-envoi" type="submit" data-envoyer>
+            <span data-envoyer-repos>
+              <slot name="envoyer" />
+            </span>
+            <span class="f-en-vol" data-envoyer-vol hidden>
+              <span class="f-roue" aria-hidden="true"></span>
+              Envoi en cours…
+            </span>
+          </button>
+          <button class="f-lien f-lien-bouton" type="button" data-effacer>
+            Effacer ce que j’ai écrit
+          </button>
+        </div>
+        <p class="f-statut" role="status" data-statut></p>
+      </form>
+
+      {whatsapp && (
+        <p class="f-autre" data-autre hidden>
+          <span>Vous préférez WhatsApp&nbsp;?</span>
+          <a class="f-lien" href={whatsapp}>
+            <Icone nom="bulle" />
+            Écrire sur WhatsApp
+          </a>
+        </p>
+      )}
+
+      <section class="f-reussi" data-confirmation aria-labelledby="f-ok-titre" hidden>
+        <div class="f-reussi-titre">
+          <span class="f-rond" aria-hidden="true">
+            <Icone nom="coche" petite={false} />
+          </span>
+          <h2 id="f-ok-titre" tabindex="-1" data-ok-titre>
+            <span data-codes="enregistre modifie">
+              <slot name="ok-titre" />
+            </span>
+            <span data-codes="suite">Votre ajout est enregistré</span>
+            <span data-codes="ancienne">Ce texte est gardé, sans remplacer le plus récent</span>
+          </h2>
+        </div>
+        <div class="f-reussi-texte" data-codes="enregistre modifie">
+          <slot name="ok-texte" />
+        </div>
+        <p data-codes="modifie">
+          Votre texte modifié remplace le précédent, sous la même référence.
+        </p>
+        <p data-codes="suite">
+          L’équipe avait déjà ouvert votre demande <b class="f-reference" data-ok-precedente></b>
+          &nbsp;: votre texte la suit, sous sa propre référence.
+        </p>
+        <p data-codes="ancienne">
+          Un texte plus récent est déjà enregistré sous cette référence. Celui-ci est arrivé
+          après&nbsp;: l’équipe verra les deux, le plus récent compte.
+        </p>
+        <p class="f-ok-reponse">
+          <b data-ok-reponse></b>
+        </p>
+        <dl class="f-recapitulatif">
+          <dt>Référence</dt>
+          <dd>
+            <b class="f-reference" data-ok-reference></b>{' '}
+            <span class="texte-doux">à rappeler si vous nous réécrivez</span>
+          </dd>
+          <dt data-ok-concerne-titre>{annuaire ? 'Concerne' : 'Sujet'}</dt>
+          <dd data-ok-concerne></dd>
+          {annuaire && (
+            <>
+              <dt data-natures="retrait">À retirer</dt>
+              <dd data-natures="retrait" data-ok-retirer></dd>
+            </>
+          )}
+        </dl>
+        <div class="f-retour" data-autre-attente hidden>
+          <p>Un autre texte de cet onglet n’est toujours pas confirmé.</p>
+          <button class="bouton bouton-secondaire" type="button" data-reprendre-autre>
+            Reprendre ce texte
+          </button>
+        </div>
+        <div class="f-gestes">
+          <button class="bouton bouton-secondaire" type="button" data-nouvelle>
+            <slot name="nouvelle" />
+          </button>
+          <slot name="ok-liens" />
+        </div>
+      </section>
+    </div>
+    <aside class="f-cote">
+      <slot name="cote" />
+    </aside>
+  </div>
+</div>
