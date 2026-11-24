@@ -30,7 +30,10 @@ import '../../ui/carte-pieces.css';
       <div class="demo-titre">
         <p class="demo-lieu">Quartier imaginaire · Congo-Brazzaville</p>
         <h1>
-          École Les Manguiers <span class="etiquette-exemple">Exemple</span>
+          École Les{' '}
+          <span class="nom-exemple-fin">
+            Manguiers <span class="etiquette-exemple">Exemple</span>
+          </span>
         </h1>
         <p class="texte-doux">Primaire, collège · Privée</p>
         <ul class="demo-mentions" aria-label="Mentions de la fiche">
@@ -163,10 +166,6 @@ import '../../ui/carte-pieces.css';
     font-weight: 700;
   }
   .demo-titre h1 {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--espace-2) var(--espace-3);
     margin: 0;
     font-size: var(--taille-titre-public);
   }

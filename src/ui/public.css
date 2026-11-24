@@ -10,6 +10,15 @@
   text-transform: uppercase;
 }
 
+/* Le nom peut revenir à la ligne, mais « Exemple » accompagne toujours son dernier mot. */
+.nom-exemple-fin {
+  display: inline-block;
+  white-space: nowrap;
+}
+.nom-exemple-fin > .etiquette-exemple {
+  vertical-align: middle;
+}
+
 .retour {
   display: inline-flex;
   align-items: center;

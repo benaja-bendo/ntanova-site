@@ -19,7 +19,7 @@ Le champ de lieu libre de l'accueil est établi par le lot 1 (contrat ci-dessous
 
 Les futures migrations restent compatibles avec le code en ligne jusqu'à la livraison globale. Le site d'essai lit actuellement la même base que la production : une branche Git n'isole pas ses écritures. Aucune modification de base ni test d'écriture réel n'est autorisé par cette préparation.
 
-## Lot 1 — accueil et socle public (intégré le 24/11/2026, ticket 211)
+## Lot 1 — accueil et socle public (PR 212 ouverte le 24/11/2026, ticket 211)
 
 Contrat de recherche, compris par `lireEtat` / `ecrireEtat` (`src/modele/liste-ecoles.ts`) :
 
@@ -42,3 +42,9 @@ Le workflow existant autorise l'essai depuis une branche et la production depuis
 Un agent termine avec ticket, PR, base, SHA, contrôles, captures, limites et état local/distant. Il s'arrête après le seul lot lancé ; il ne propose pas automatiquement une suite.
 
 Plan détaillé et prompt commun à Claude/GPT : `~/Desktop/NTANOVA/docs/produit/2026-11-24-refonte-site-public/README.md`.
+
+## Revue et fusion par le fondateur (24/11/2026)
+
+Le fondateur garde désormais la fusion : l’agent de code termine son lot avec une PR vérifiée et ouverte vers `refonte/site-public`, puis une autre session fait la revue. Les corrections reviennent sur la branche de cette PR. L’agent ne fusionne pas et ne ferme pas le ticket avant la fusion constatée. Cette consigne remplace la fusion automatique de fin de tâche décrite plus haut. Le lot suivant commence après la fusion du précédent, depuis le dernier `origin/refonte/site-public`.
+
+La revue de la PR 212 a conduit à deux corrections : « Exemple » accompagne le dernier mot du nom fictif, dans l’accueil et la démonstration ; chaque lien du pied possède une cible de 44 px sans chevaucher le suivant, à la souris comme au doigt. Les parcours de régression ont d’abord reproduit les défauts. Aucun déploiement ni changement de base n’accompagne ces corrections.

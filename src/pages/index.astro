@@ -219,8 +219,12 @@ const donnees = {
         <img src="/dessins/demo-facade.svg" alt="" width="240" height="150" loading="lazy" />
         <span class="exemple-corps">
           <span class="exemple-nom">
-            <b>École Les Manguiers</b>
-            <span class="etiquette-exemple">Exemple</span>
+            <b>
+              École Les{' '}
+              <span class="nom-exemple-fin">
+                Manguiers <span class="etiquette-exemple">Exemple</span>
+              </span>
+            </b>
           </span>
           <span class="texte-doux">Primaire, collège · Privée</span>
           <span class="mention-datee mention-datee-terrain">
@@ -660,10 +664,7 @@ const donnees = {
     padding: var(--espace-4);
   }
   .exemple-nom {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--espace-2);
+    display: block;
   }
   .exemple-nom b {
     font-family: var(--police-titre);

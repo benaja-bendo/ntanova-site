@@ -597,31 +597,20 @@ const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === hr
   }
   .pied-groupe ul {
     display: grid;
-    gap: 6px;
+    gap: 0;
     margin: 0;
     padding: 0;
     list-style: none;
   }
-  /* À la souris, des liens serrés : chaque cible descend de 22 px sous son mot (44 px en tout) sans pousser la ligne
-     suivante. Au doigt, une ligne de 44 px chacun (les cibles de la charte). */
+  /* Chaque lien possède ses 44 px, à la souris comme au doigt : aucune cible ne couvre celle du lien suivant. */
   .pied-groupe a {
-    display: inline-block;
-    padding-bottom: 22px;
-    margin-bottom: -22px;
+    display: flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    width: fit-content;
+    max-width: 100%;
     color: var(--marque);
     font-weight: 700;
-  }
-  @media (pointer: coarse) {
-    .pied-groupe ul {
-      gap: 0;
-    }
-    .pied-groupe a {
-      display: flex;
-      align-items: center;
-      min-height: var(--cible-min);
-      padding-bottom: 0;
-      margin-bottom: 0;
-    }
   }
   .pied-bas {
     display: grid;
