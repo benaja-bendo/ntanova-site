@@ -19,7 +19,7 @@ Le champ de lieu libre de l'accueil est établi par le lot 1 (contrat ci-dessous
 
 Les futures migrations restent compatibles avec le code en ligne jusqu'à la livraison globale. Le site d'essai lit actuellement la même base que la production : une branche Git n'isole pas ses écritures. Aucune modification de base ni test d'écriture réel n'est autorisé par cette préparation.
 
-## Lot 1 — accueil et socle public (PR 212 ouverte le 24/11/2026, ticket 211)
+## Lot 1 — accueil et socle public (ticket 211, PR 212, intégré le 24/11/2026 : `25a56e9`)
 
 Contrat de recherche, compris par `lireEtat` / `ecrireEtat` (`src/modele/liste-ecoles.ts`) :
 
@@ -33,7 +33,7 @@ Contrat de recherche, compris par `lireEtat` / `ecrireEtat` (`src/modele/liste-e
 - Les anciennes adresses (`zone`, `ville`, `niveau=primaire`, `cycle`, `autour`) restent comprises.
 - Transition : écrire à NTanova, signaler une erreur et signaler une école passent par WhatsApp ; « Ajouter mon école » mène à `/pour-les-ecoles/#referencer`. Aucun lien vers `/contact/` ou `/contribuer/` avant le lot 3 ; ni « Toutes les villes » (lot 4) ni « Outils en préparation » (lot 5) dans le pied.
 
-## Lot 2 — S’orienter (ticket 213, PR vers `refonte/site-public`, 24/11/2026)
+## Lot 2 — S’orienter (ticket 213, PR 214, intégré le 24/11/2026 : `052063e`)
 
 Lancé avec ses six choix acceptés (dépôt `ntanova`, `LOT-02-ORIENTER.md`). `/orienter/` a cinq sections et cinq ancres : `#o-situation`, `#o-parcours`, `#o-activites`, `#o-domaines`, `#o-faq`.
 
@@ -75,3 +75,5 @@ Plan détaillé et prompt commun à Claude/GPT : `~/Desktop/NTANOVA/docs/produit
 Le fondateur garde désormais la fusion : l’agent de code termine son lot avec une PR vérifiée et ouverte vers `refonte/site-public`, puis une autre session fait la revue. Les corrections reviennent sur la branche de cette PR. L’agent ne fusionne pas et ne ferme pas le ticket avant la fusion constatée. Cette consigne remplace la fusion automatique de fin de tâche décrite plus haut. Le lot suivant commence après la fusion du précédent, depuis le dernier `origin/refonte/site-public`.
 
 La revue de la PR 212 a conduit à deux corrections : « Exemple » accompagne le dernier mot du nom fictif, dans l’accueil et la démonstration ; chaque lien du pied possède une cible de 44 px sans chevaucher le suivant, à la souris comme au doigt. Les parcours de régression ont d’abord reproduit les défauts. Aucun déploiement ni changement de base n’accompagne ces corrections.
+
+État au 24/11 : les lots 1 et 2 sont intégrés à `refonte/site-public` (PR 212 et 214, CI verte sur leur dernière révision), aucun n’est en production. Leurs tickets sont fermés et leurs branches courtes supprimées. Le lot suivant part du dernier `origin/refonte/site-public`.
