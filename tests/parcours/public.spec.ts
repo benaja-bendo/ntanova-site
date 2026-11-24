@@ -37,8 +37,6 @@ const pagesSansJavaScript = [
   '/ecoles/ecole-de-brazzaville-exemple-731590/',
   '/pour-les-ecoles/',
   '/a-propos/',
-  // Lot 3 : le deuxième pilier, en attendant les questions du lot 5.
-  '/orienter/',
   // Ticket 149 : les pages qu'une administration lit.
   '/methode/',
   '/donnees/',
@@ -46,8 +44,9 @@ const pagesSansJavaScript = [
   '/mentions-legales/',
 ];
 
-// Ticket 146 : « Écoles » a repris « Rechercher » et « Autour de moi » ; c'est la seule page publique qui filtre.
-const pagesAvecJavaScript = ['/ecoles/'];
+// Ticket 146 : « Écoles » a repris « Rechercher » et « Autour de moi ». Refonte publique, lot 2 (24/11) : « S'orienter » a le
+// petit script de ses six activités (orienter.spec.ts vérifie le reste de la page sans JavaScript).
+const pagesAvecJavaScript = ['/ecoles/', '/orienter/'];
 
 // Les fiches d'école : sans JavaScript, sauf le petit script inline du bouton « Partager » (quatrième exception de poids).
 const fichesDEcole = [

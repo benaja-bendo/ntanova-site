@@ -1,0 +1,546 @@
+---
+// « Le parcours scolaire et ses bifurcations » (refonte publique, lot 2 ; planches « S'orienter » 1440 et 390 px). Un seul
+// HTML, lu dans l'ordre des voies ; la grille le place en sept colonnes sur ordinateur, en deux colonnes côte à côte sur
+// téléphone : aucune voie ni aucune bifurcation ne disparaît. Un niveau qui a des écoles ouvre sa liste ; les niveaux du
+// technique ne se distinguent pas dans l'annuaire (un seul cycle « Technique ») : seule la voie ouvre la liste, s'il y a
+// des écoles.
+//
+// Textes vérifiés le 24/11/2026 (note de sources du dépôt `ntanova`) : décrets 2017-148, 2017-149 et 2017-154 (JO n° 20 du
+// 18 mai 2017), compte rendu du Conseil des ministres du 20 janvier 2026. Les âges maximum des décrets de 2017 ne sont pas
+// des conditions dont l'application actuelle a été vérifiée : ils ne sont pas dans le schéma.
+import type { LettreDuParcours, NiveauDuParcours } from '../../modele/orientation-catalogue';
+import { compterEcoles } from '../../modele/geo-divisions';
+import { typo } from '../../modele/guide-relais-html';
+import Icone from '../Icone.astro';
+
+interface Props {
+  niveaux: Record<LettreDuParcours, NiveauDuParcours>;
+}
+const { niveaux } = Astro.props;
+
+const ecoles = (n: NiveauDuParcours) => (n.ecoles > 0 ? ` · ${compterEcoles(n.ecoles)}` : '');
+// Un niveau sans école n'est pas un lien : un paragraphe, jamais un `<a>` sans adresse.
+const balise = (n: NiveauDuParcours) => (n.lien ? 'a' : 'p');
+const Maternelle = balise(niveaux.M);
+const Primaire = balise(niveaux.P);
+const College = balise(niveaux.C);
+const Lycee = balise(niveaux.L);
+const Superieur = balise(niveaux.S);
+
+const SOURCES = [
+  {
+    titre: 'Décret n° 2017-154 du 10 mai 2017, art. 4, 5, 15 et 16',
+    nature: 'Texte officiel',
+    dit: 'Collège d’enseignement technique : un concours, ouvert au niveau de la 5e ; deux ans ; le BET.',
+    lien: 'https://www.sgg.cg/JO/2017/congo-jo-2017-20.pdf',
+  },
+  {
+    titre: 'Décret n° 2017-149 du 10 mai 2017, art. 4, 14 et 15',
+    nature: 'Texte officiel',
+    dit: 'Lycée technique : un concours avec le BEPC, ou le BET sans concours ; trois ans ; le bac technique.',
+    lien: 'https://www.sgg.cg/JO/2017/congo-jo-2017-20.pdf',
+  },
+  {
+    titre: 'Décret n° 2017-148 du 10 mai 2017, art. 4, 14 et 15',
+    nature: 'Texte officiel',
+    dit: 'Lycée professionnel : un concours avec le BEPC, ou le BET sans concours ; trois ans ; le bac professionnel.',
+    lien: 'https://www.sgg.cg/JO/2017/congo-jo-2017-20.pdf',
+  },
+  {
+    titre: 'Décret n° 2025-216 du 4 juin 2025, art. 2',
+    nature: 'Texte officiel',
+    dit: 'Les établissements publics techniques et professionnels : instituts, lycées, collèges techniques, écoles professionnelles, centres d’éducation, de formation et d’apprentissage, centres de métiers.',
+    lien: 'https://www.sgg.cg/textes-officiels/decrets/2025/congo-decret-2025-216.pdf',
+  },
+  {
+    titre: 'Conseil des ministres du 20 janvier 2026',
+    nature: 'Projet de loi',
+    dit: 'Le primaire dure aujourd’hui six ans (CP1 au CM2), le collège quatre ans, le lycée trois ans. Le projet remplacerait la loi n° 25-95 : CEP à la place du CEPE, contrôle continu au CM2, primaire en cinq ans, troisième année de maternelle obligatoire.',
+    lien: 'https://sgg.cg/ccm/compte-rendu-conseil-des-ministres1-du-20-janvier-2026.pdf',
+  },
+  {
+    titre: 'Loi n° 25-95 du 17 novembre 1995',
+    nature: 'Texte officiel',
+    dit: 'La loi qui organise le système éducatif, encore citée dans des arrêtés publiés au Journal officiel du 5 novembre 2026. Son texte intégral n’a pas été relu.',
+    lien: 'https://sgg.cg/JO/2026/congo-jo-2026-45.pdf',
+  },
+];
+---
+
+<div class="parcours">
+  <Maternelle class="noeud noeud-general zone-mat" href={niveaux.M.lien ?? undefined}>
+    <b>Maternelle</b>
+    {niveaux.M.ecoles > 0 && <span>{compterEcoles(niveaux.M.ecoles)}</span>}
+  </Maternelle>
+  <Primaire class="noeud noeud-general zone-pri" href={niveaux.P.lien ?? undefined}>
+    <b>Primaire</b>
+    <span>CP1 au CM2{ecoles(niveaux.P)}</span>
+  </Primaire>
+  <p class="examen zone-cep">
+    <i aria-hidden="true"></i>
+    <b>CEPE</b>
+    <span>CEP en projet</span>
+  </p>
+
+  <p class="voie voie-generale zone-vg">Voie générale</p>
+  <College class="noeud noeud-general zone-cg" href={niveaux.C.lien ?? undefined}>
+    <b>Collège général</b>
+    <span>6e à 3e{ecoles(niveaux.C)}</span>
+  </College>
+  <p class="examen zone-bepc">
+    <i aria-hidden="true"></i>
+    <b>BEPC</b>
+  </p>
+  <Lycee class="noeud noeud-general zone-lg" href={niveaux.L.lien ?? undefined}>
+    <b>Lycée général</b>
+    <span>3 ans{ecoles(niveaux.L)}</span>
+  </Lycee>
+  <p class="examen zone-bg">
+    <i aria-hidden="true"></i>
+    <b>Bac général</b>
+  </p>
+
+  <p class="passerelle passerelle-5e zone-p1">
+    <Icone nom="fleche" />
+    <span>Dès le niveau 5e, sur concours</span>
+  </p>
+  <p class="passerelle passerelle-bepc zone-p2">
+    <span>Avec le BEPC, sur concours</span>
+    <Icone nom="fleche" />
+  </p>
+
+  {niveaux.T.lien ? (
+    <a class="voie voie-technique zone-vt" href={niveaux.T.lien}>
+      Voie technique et professionnelle
+      <span>{compterEcoles(niveaux.T.ecoles)}</span>
+    </a>
+  ) : (
+    <p class="voie voie-technique zone-vt">Voie technique et professionnelle</p>
+  )}
+  <p class="noeud noeud-technique zone-ct">
+    <b>Collège technique</b>
+    <span>2 ans</span>
+  </p>
+  <p class="examen zone-bet">
+    <i aria-hidden="true"></i>
+    <b>BET</b>
+    <span>puis sans concours</span>
+  </p>
+  <div class="pile-technique zone-ltp">
+    <p class="noeud noeud-technique">
+      <b>Lycée technique</b>
+      <span>3 ans</span>
+    </p>
+    <p class="noeud noeud-technique">
+      <b>Lycée professionnel</b>
+      <span>3 ans</span>
+    </p>
+  </div>
+  <p class="examen zone-btp">
+    <i aria-hidden="true"></i>
+    <b>Bac technique ou professionnel</b>
+  </p>
+
+  <Superieur class="noeud noeud-general zone-sup" href={niveaux.S.lien ?? undefined}>
+    <b>Supérieur</b>
+    <span>BTS, licence, master{ecoles(niveaux.S)}</span>
+  </Superieur>
+  <p class="noeud noeud-metier zone-met">
+    <b>Apprendre un métier</b>
+    <span>
+      Écoles professionnelles, centres d’éducation, de formation et d’apprentissage, centres de
+      métiers. Les conditions se demandent au centre.
+    </span>
+  </p>
+</div>
+
+<p class="legende">
+  <span class="legende-examen">
+    <i aria-hidden="true"></i>Examen ou diplôme
+  </span>
+  <span>Voie générale en vert, voie technique et professionnelle en bleu, métiers en tirets.</span>
+</p>
+
+<details class="sources">
+  <summary>Sources et dates du schéma</summary>
+  <div class="sources-corps">
+    <p>
+      Textes lus le 24/11/2026. Ce schéma reste à relire par un enseignant ou le ministère. À
+      vérifier encore&nbsp;: les filières et les séries, fixées par arrêté&nbsp;; le vote de la loi
+      annoncée en 2026, qui lierait le bac technique au BET.
+    </p>
+    <ul>
+      {SOURCES.map((s) => (
+        <li>
+          <span class="source-tete">
+            <b>{s.titre}</b>
+            <span class="source-nature">{s.nature}</span>
+          </span>
+          <span>{typo(s.dit)}</span>
+          <a href={s.lien} rel="noopener">
+            Lire le texte (PDF)
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</details>
+
+<style>
+  .parcours {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'mat mat'
+      'pri pri'
+      'cep cep'
+      'vg vt'
+      'cg p1'
+      'bepc ct'
+      'p2 bet'
+      'lg ltp'
+      'bg btp'
+      'sup sup'
+      'met met';
+    gap: var(--espace-2) var(--espace-3);
+    align-items: center;
+  }
+  .zone-mat {
+    grid-area: mat;
+  }
+  .zone-pri {
+    grid-area: pri;
+  }
+  .zone-cep {
+    grid-area: cep;
+  }
+  .zone-vg {
+    grid-area: vg;
+  }
+  .zone-vt {
+    grid-area: vt;
+  }
+  .zone-cg {
+    grid-area: cg;
+  }
+  .zone-bepc {
+    grid-area: bepc;
+  }
+  .zone-lg {
+    grid-area: lg;
+  }
+  .zone-bg {
+    grid-area: bg;
+  }
+  .zone-p1 {
+    grid-area: p1;
+  }
+  .zone-p2 {
+    grid-area: p2;
+  }
+  .zone-ct {
+    grid-area: ct;
+  }
+  .zone-bet {
+    grid-area: bet;
+  }
+  .zone-ltp {
+    grid-area: ltp;
+  }
+  .zone-btp {
+    grid-area: btp;
+  }
+  .zone-sup {
+    grid-area: sup;
+  }
+  .zone-met {
+    grid-area: met;
+  }
+
+  /* Les paragraphes du schéma prennent toute leur case (le gabarit borne les paragraphes à 36 rem). */
+  .noeud,
+  .examen,
+  .voie,
+  .passerelle,
+  .legende,
+  .sources-corps p {
+    max-width: none;
+  }
+
+  /* Un niveau : une carte blanche bordée de la couleur de sa voie. */
+  .noeud {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    min-height: 64px;
+    margin: 0;
+    padding: 9px 13px;
+    border: 2px solid var(--marque);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .noeud b {
+    font-family: var(--police-interface);
+    line-height: 1.25;
+  }
+  .noeud span {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+    line-height: 1.3;
+  }
+  a.noeud[href]:focus-visible,
+  a.voie:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  @media (hover: hover) {
+    a.noeud[href]:hover b,
+    a.voie:hover {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+  }
+  .noeud-technique {
+    border-color: var(--bleu-ardoise);
+  }
+  .noeud-metier {
+    border-color: var(--encre-75);
+    border-style: dashed;
+  }
+  .pile-technique {
+    display: grid;
+    gap: var(--espace-2);
+  }
+
+  /* Un examen ou un diplôme : un rond jaune cerclé d'encre, et son nom. */
+  .examen {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    margin: 0;
+    font-size: var(--taille-secondaire);
+    line-height: 1.2;
+    text-align: center;
+  }
+  .examen i,
+  .legende-examen i {
+    display: block;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: inset 0 0 0 2.5px var(--encre);
+  }
+  .examen span {
+    color: var(--texte-doux);
+  }
+
+  .voie {
+    margin: 0;
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .voie-generale {
+    color: var(--marque);
+  }
+  .voie-technique {
+    color: var(--bleu-ardoise);
+  }
+  a.voie {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: var(--cible-min);
+    text-decoration-thickness: 2px;
+  }
+  a.voie span {
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .passerelle {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-2);
+    margin: 0;
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+    line-height: 1.25;
+  }
+  .passerelle :global(svg) {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    color: var(--bleu-ardoise);
+    transform: rotate(45deg);
+  }
+  /* Au téléphone, « Avec le BEPC » part de la voie générale vers la droite, puis descend. */
+  .passerelle-bepc {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  .legende {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-2) var(--espace-5);
+    margin: 0;
+    font-size: 0.9375rem;
+  }
+  .legende-examen {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espace-2);
+  }
+  .legende-examen i {
+    width: 18px;
+    height: 18px;
+  }
+
+  .sources {
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-l);
+    background: var(--fond-releve);
+  }
+  .sources summary {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-3);
+    min-height: 56px;
+    padding: 10px 20px;
+    font-family: var(--police-interface);
+    font-weight: 700;
+    list-style: none;
+    cursor: pointer;
+  }
+  .sources summary::-webkit-details-marker {
+    display: none;
+  }
+  /* Le signe qui dit que la section s'ouvre : « + », puis « – » une fois ouverte ; décoratif. */
+  .sources summary::after {
+    margin-left: auto;
+    color: var(--marque);
+    font-size: 1.5rem;
+    font-weight: 400;
+    line-height: 1;
+    content: '+' / '';
+  }
+  .sources[open] summary::after {
+    content: '–' / '';
+  }
+  .sources summary:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--rayon-l);
+  }
+  .sources-corps {
+    display: grid;
+    gap: var(--espace-2);
+    padding: 0 20px 14px;
+    font-size: var(--taille-secondaire);
+  }
+  .sources-corps p {
+    margin: 0;
+  }
+  .sources ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .sources li {
+    display: grid;
+    gap: 2px;
+    padding: 10px 0 4px;
+    border-top: 1px solid var(--trait);
+  }
+  .source-tete {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+  }
+  .source-nature {
+    color: var(--texte-doux);
+  }
+  .sources a {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+
+  /* Sur ordinateur : sept colonnes, les deux voies l'une sous l'autre, le supérieur au bout. */
+  @media (min-width: 64rem) {
+    .parcours {
+      grid-template-columns: 1.05fr 74px 1.15fr 84px 1.3fr 92px 1fr;
+      grid-template-areas:
+        'mat . vg vg vg . .'
+        'pri cep cg bepc lg bg sup'
+        '. . p1 p2 p2 . sup'
+        '. . vt vt vt vt sup'
+        '. . ct bet ltp btp sup'
+        '. . met met met met met';
+      gap: var(--espace-2) 10px;
+    }
+    .zone-vg {
+      align-self: end;
+    }
+    .zone-sup {
+      align-self: stretch;
+    }
+    .zone-met {
+      margin-top: var(--espace-2);
+    }
+    .zone-p2 {
+      justify-content: flex-start;
+      padding-left: 30px;
+      text-align: left;
+    }
+    .zone-p2 :global(svg) {
+      order: -1;
+    }
+    .zone-p1,
+    .zone-p2 {
+      padding-block: 6px;
+    }
+    /* Le trait pointillé jaune qui relie deux niveaux à travers leur examen. */
+    .zone-cep,
+    .zone-bepc,
+    .zone-bg,
+    .zone-bet,
+    .zone-btp {
+      align-self: start;
+      padding-top: 21px;
+    }
+    .zone-cep::before,
+    .zone-bepc::before,
+    .zone-bg::before,
+    .zone-bet::before,
+    .zone-btp::before {
+      position: absolute;
+      top: 30px;
+      right: -8px;
+      left: -8px;
+      z-index: -1;
+      border-top: 4px dotted var(--accent);
+      content: '';
+    }
+    .examen i {
+      position: relative;
+    }
+  }
+</style>

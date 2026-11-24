@@ -206,11 +206,13 @@ test.describe('l’accueil', () => {
     const situation = orienter.getByRole('link', { name: /^Après le CM2/ });
     await expect(situation).toHaveAttribute('href', '/ecoles/?niveau=C');
     const annonce = Number(/(\d+) écoles?/.exec(await situation.innerText())?.[1]);
-    // Les activités de la future page S'orienter ne sont pas annoncées.
-    await expect(page.getByRole('main')).not.toContainText(/activités/i);
-    await expect(orienter.getByRole('link', { name: /S’orienter$/ })).toHaveAttribute(
+    // Lot 2 : la page S'orienter et ses six activités, maintenant utilisables, chacune par son lien.
+    await expect(
+      orienter.getByRole('link', { name: /^Le parcours scolaire, les activités, les domaines/ }),
+    ).toHaveAttribute('href', '/orienter/');
+    await expect(orienter.getByRole('link', { name: /^Pas d’idée de métier/ })).toHaveAttribute(
       'href',
-      '/orienter/',
+      '/orienter/#o-activites',
     );
     await situation.click();
     expect(await nombreDeLaListe(page)).toBe(annonce);
@@ -339,50 +341,5 @@ test.describe('la fiche de démonstration', () => {
     }
     await page.goto('/ecoles/?q=manguiers');
     expect(await nombreDeLaListe(page)).toBe(0);
-  });
-});
-
-test.describe('« S’orienter », avant les questions du lot 5', () => {
-  test('trois profils vers leur liste, et rien de promis', async ({ page }) => {
-    await page.goto('/orienter/');
-    await expect(page.locator('header a[href="/orienter/"]').first()).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    await expect(page.locator('ul.profils a')).toHaveCount(3);
-    for (const [nom, lien] of [
-      [/^En 3e, ou j’ai le BEPC/, '/ecoles/?niveau=L'],
-      [/^Au lycée, ou j’ai le bac/, '/ecoles/?niveau=S'],
-      [/^Je travaille, je veux me former/, '/ecoles/?rythme=soir'],
-    ] as const)
-      await expect(page.getByRole('link', { name: nom })).toHaveAttribute('href', lien);
-    // Après le BEPC, le technique a son propre lien (la liste ne filtre qu'un cycle), mais seulement avec une école technique
-    // publiée : le catalogue fictif n'en a pas (le cas contraire est dans accueil-public.test.ts).
-    await expect(page.getByRole('link', { name: /enseignement technique/ })).toHaveCount(0);
-    // Ni questions ni dates tant qu'elles n'existent pas : sans communiqué, pas de date.
-    const principal = page.locator('main');
-    await expect(principal).not.toContainText(/questions|Dates à retenir/);
-    await expect(principal).toContainText('pas un avis officiel d’orientation');
-  });
-
-  test('« Au lycée, ou j’ai le bac » : la liste du supérieur, son filtre appuyé', async ({
-    page,
-  }) => {
-    await page.goto('/orienter/');
-    await page.getByRole('link', { name: /^Au lycée, ou j’ai le bac/ }).click();
-    await expect(page).toHaveURL(/\/ecoles\/\?niveau=S$/);
-    await expect(page.locator('[data-puces] .puce-choisie[data-valeur="S"]')).toBeVisible();
-    await expect(page.locator('[data-sous-titre]')).toHaveText(/^2 écoles/);
-  });
-
-  test('« Je travaille » : la liste des cours du soir, le choix lisible dans la barre', async ({
-    page,
-  }) => {
-    await page.goto('/orienter/');
-    await page.getByRole('link', { name: /^Je travaille/ }).click();
-    await expect(page).toHaveURL(/\/ecoles\/\?rythme=soir$/);
-    // Lot 4 bis : le rythme choisi se lit dans la barre ; la feuille « Filtres » montre le groupe ouvert.
-    await expect(page.locator('[data-puces] .puce-choisie[data-valeur="soir"]')).toBeVisible();
-    await expect(page.locator('[data-sous-titre]')).toHaveText(/^[1-9]\d* écoles?/);
   });
 });

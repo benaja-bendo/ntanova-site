@@ -128,7 +128,7 @@ export interface ProfilDeLAccueil {
 /**
  * « Où en êtes-vous ? » : cinq situations, chacune vers la liste « Les écoles » qui lui répond (plusieurs niveaux à la fois
  * s'additionnent, `niveau=M,P`). Une situation sans école n'est pas proposée. « Je travaille » suit le rythme publié : le
- * soir d'abord, sinon le week-end. Les activités de la future page S'orienter (lot 2) n'y sont pas.
+ * soir d'abord, sinon le week-end. La page S'orienter (refonte, lot 2) reprend ces cinq situations, avec les mêmes nombres.
  */
 export function profilsDeLAccueil(ecoles: readonly EcolePubliee[]): ProfilDeLAccueil[] {
   const avec = (lettres: readonly string[]) =>
@@ -156,57 +156,4 @@ export function profilsDeLAccueil(ecoles: readonly EcolePubliee[]): ProfilDeLAcc
     break;
   }
   return profils;
-}
-
-/** Un profil de « S'orienter » (planche « S'orienter, départ » de la version 44) et la liste qu'il ouvre. */
-export interface ProfilDOrientation {
-  titre: string;
-  detail: string;
-  lien: string;
-  icone: 'livre' | 'toque' | 'mallette';
-  /** La couleur du cycle de son icône. */
-  lettre: 'L' | 'S' | 'T';
-}
-
-/**
- * « S'orienter », en attendant les questions du lot 5 : chaque profil de la planche ouvre la liste « Écoles » qui lui
- * correspond, et seulement s'il y trouve au moins une adresse (comme les puces de l'accueil). La liste ne filtre qu'un cycle à
- * la fois : après le BEPC, l'enseignement technique et professionnel (la lettre T) a son propre lien, pour qu'un parent ne le
- * perde pas derrière les lycées généraux.
- *
- * @param rythmes les rythmes de formation publiés (facette `rythme`) : « Je travaille » n'a de sens qu'avec le soir ou le
- * week-end.
- */
-export function orientationDePassage(
-  ecoles: readonly EcolePubliee[],
-  rythmes: readonly string[],
-): { profils: ProfilDOrientation[]; technique: string | null } {
-  const presentes = new Set(ecoles.flatMap((e) => [...lettresDesCycles(e.niveaux)]));
-  const rythme = (['soir', 'weekend'] as const).find((r) => rythmes.includes(r));
-  const profils: ProfilDOrientation[] = [];
-  if (presentes.has('L'))
-    profils.push({
-      titre: 'En 3e, ou j’ai le BEPC',
-      detail: 'Choisir un lycée et une série',
-      lien: '/ecoles/?niveau=L',
-      icone: 'livre',
-      lettre: 'L',
-    });
-  if (presentes.has('S'))
-    profils.push({
-      titre: 'Au lycée, ou j’ai le bac',
-      detail: 'Choisir des études : BTS, licence, master',
-      lien: '/ecoles/?niveau=S',
-      icone: 'toque',
-      lettre: 'S',
-    });
-  if (rythme)
-    profils.push({
-      titre: 'Je travaille, je veux me former',
-      detail: 'Cours du soir, du week-end, formations courtes',
-      lien: `/ecoles/?rythme=${rythme}`,
-      icone: 'mallette',
-      lettre: 'T',
-    });
-  return { profils, technique: presentes.has('T') ? '/ecoles/?niveau=T' : null };
 }

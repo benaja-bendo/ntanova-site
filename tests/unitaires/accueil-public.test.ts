@@ -3,7 +3,6 @@ import {
   arrondissementsCites,
   jourEtMois,
   niveauxDeLAccueil,
-  orientationDePassage,
   profilsDeLAccueil,
   villesDeLAccueil,
   voirLesEcoles,
@@ -211,31 +210,5 @@ describe('les mots de l’accueil', () => {
       ['Dolisie', null],
       ['Pointe-Noire', '/dessins/ville-pointe-noire.svg'],
     ]);
-  });
-});
-
-describe('« S’orienter », avant les questions du lot 5', () => {
-  it('les trois profils de la planche, chacun vers sa liste filtrée, et le technique à part', () => {
-    const ecoles = [
-      ecole('lo', { niveaux: ['lycee', 'technique'] }),
-      ecole('lo', { niveaux: ['superieur'] }),
-    ];
-    const { profils, technique } = orientationDePassage(ecoles, ['jour', 'weekend']);
-    expect(profils.map((p) => [p.titre, p.lien])).toEqual([
-      ['En 3e, ou j’ai le BEPC', '/ecoles/?niveau=L'],
-      ['Au lycée, ou j’ai le bac', '/ecoles/?niveau=S'],
-      ['Je travaille, je veux me former', '/ecoles/?rythme=weekend'],
-    ]);
-    expect(technique).toBe('/ecoles/?niveau=T');
-  });
-
-  it('jamais un profil qui ouvre une liste vide', () => {
-    const { profils, technique } = orientationDePassage(
-      [ecole('lo', { niveaux: ['lycee'] })],
-      ['jour'],
-    );
-    expect(profils.map((p) => p.lien)).toEqual(['/ecoles/?niveau=L']);
-    expect(technique).toBeNull();
-    expect(orientationDePassage([], [])).toEqual({ profils: [], technique: null });
   });
 });

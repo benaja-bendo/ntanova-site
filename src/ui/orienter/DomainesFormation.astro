@@ -1,0 +1,123 @@
+---
+// « Les dix grands domaines de formation » (refonte publique, lot 2). Un groupe qui a des formations est un lien vers la
+// liste de ses domaines réunis, avec ses nombres (ceux de cette liste) ; un groupe sans formation reste visible, en tirets,
+// sans lien. Les dessins (objets de Phosphor Icons, licence MIT) sont décoratifs et chargés à l'approche.
+import type { GroupeDeLaPage } from '../../modele/orientation-catalogue';
+import { formationsEtEcoles } from '../../modele/orientation-catalogue';
+
+interface Props {
+  groupes: readonly GroupeDeLaPage[];
+}
+const { groupes } = Astro.props;
+---
+
+<ul class="domaines">
+  {groupes.map((g) => (
+    <li>
+      {g.offre.lien ? (
+        <a class="domaine" href={g.offre.lien}>
+          <img src={g.dessin} alt="" width="280" height="200" loading="lazy" decoding="async" />
+          <b>{g.titre}</b> <span class="domaine-exemples">{g.exemples}</span>{' '}
+          <span class="domaine-compte">{formationsEtEcoles(g.offre)}</span>
+        </a>
+      ) : (
+        <div class="domaine domaine-vide">
+          <img src={g.dessin} alt="" width="280" height="200" loading="lazy" decoding="async" />
+          <b>{g.titre}</b> <span class="domaine-exemples">{g.exemples}</span>{' '}
+          <span class="domaine-compte domaine-compte-vide">Pas encore de formation documentée</span>
+        </div>
+      )}
+    </li>
+  ))}
+</ul>
+
+<style>
+  .domaines {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .domaines li {
+    display: grid;
+  }
+  .domaine {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 100%;
+    padding: 10px 12px 12px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-l);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .domaine img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .domaine b {
+    font-family: var(--police-titre);
+    font-size: var(--taille-courante);
+    line-height: 1.2;
+  }
+  .domaine-exemples {
+    display: none;
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .domaine-compte {
+    margin-top: auto;
+    padding-top: 4px;
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .domaine-compte-vide {
+    color: var(--texte-doux);
+    font-weight: 400;
+  }
+  .domaine-vide {
+    border-style: dashed;
+    border-color: var(--encre-75);
+    background: transparent;
+  }
+  a.domaine:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  @media (hover: hover) {
+    a.domaine:hover {
+      border-color: var(--marque);
+    }
+    a.domaine:hover b {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+  }
+  @media (min-width: 48rem) {
+    .domaines {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--espace-4);
+    }
+    .domaine {
+      padding: 12px 16px 14px;
+    }
+    .domaine b {
+      font-size: var(--taille-intertitre);
+    }
+    .domaine-exemples {
+      display: block;
+    }
+  }
+  @media (min-width: 64rem) {
+    .domaines {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+</style>

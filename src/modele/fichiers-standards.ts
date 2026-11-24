@@ -20,6 +20,11 @@ const PAGES_PRINCIPALES = [
     note: 'toutes les fiches publiées, en liste ou sur la carte',
   },
   {
+    href: '/orienter/',
+    texte: 'S’orienter',
+    note: 'le parcours scolaire, six activités pour trouver des pistes, dix domaines de formation',
+  },
+  {
     href: '/pour-les-ecoles/',
     texte: 'Pour les écoles',
     note: 'ce qu’une direction peut faire de sa fiche',

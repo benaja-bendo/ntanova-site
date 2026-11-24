@@ -40,6 +40,13 @@ describe('frontières entre dossiers', { timeout: 30_000 }, () => {
     expect(await interdit('src/ui/Bouton.tsx', '../infra')).toBe(true);
   });
 
+  it('les activités de S’orienter ne lisent que le modèle : ni base, ni réseau, ni React', async () => {
+    expect(await interdit('src/app/orienter/activites.ts', '../../modele/orientation')).toBe(false);
+    expect(await interdit('src/app/orienter/activites.ts', '../../infra')).toBe(true);
+    expect(await interdit('src/app/orienter/activites.ts', '@supabase/supabase-js')).toBe(true);
+    expect(await interdit('src/app/orienter/activites.ts', 'react')).toBe(true);
+  });
+
   it("l'espace relais et l'administration ne dépendent pas l'un de l'autre", async () => {
     expect(await interdit('src/app/relais/Envoi.tsx', '../admin/Liste')).toBe(true);
     expect(await interdit('src/app/admin/Liste.tsx', '../relais/Envoi')).toBe(true);
