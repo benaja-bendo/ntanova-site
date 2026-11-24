@@ -69,6 +69,8 @@ export interface MessageFaux {
   evenements: EvenementMessage[];
   alerte: AlerteDuMessage | null;
   retrait: RetraitFaux | null;
+  /** Un message venu d'un formulaire (lot 3C) : la clé de son envoi (la vraie base n'en garde que l'empreinte) et ses bornes. */
+  envoi?: { cle: string; ecritures: number; suites: number };
 }
 
 export interface EtatDesMessages {
@@ -158,7 +160,7 @@ const dansLaFile: Record<FileMessages, (m: MessageFaux) => boolean> = {
 };
 
 const SIGNES = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-function nouvelleReference(nature: Nature): string {
+export function nouvelleReference(nature: Nature): string {
   const signes = Array.from(
     crypto.getRandomValues(new Uint8Array(8)),
     (o) => SIGNES[o & 31] as string,

@@ -1,0 +1,92 @@
+---
+// Un champ d'un formulaire public : son libellé, son aide, la saisie, son erreur. Les mots de chaque erreur sont écrits ici, dans
+// la page : le script ne fait que montrer le bon (`data-requis`, `data-format`…). Rien n'est coupé à la frappe (`maxlength` couperait
+// un texte collé sans le dire) : trop long se dit sous le champ.
+interface Props {
+  /** Le nom du champ dans le modèle (`modele/demandes.ts`) ; un même champ peut exister pour deux natures. */
+  champ: string;
+  id: string;
+  libelle: string;
+  /** Le nom du champ dans le résumé des erreurs, s'il diffère du libellé. */
+  court?: string;
+  facultatif?: boolean;
+  aide?: string;
+  requis?: string;
+  format?: string;
+  /** En signes. */
+  longueur?: number;
+  forme?: 'ligne' | 'texte';
+  type?: 'text' | 'tel' | 'email';
+  autocomplete?: string;
+  etroit?: boolean;
+  lignes?: number;
+  class?: string;
+  [donnee: `data-${string}`]: string | undefined;
+}
+const {
+  champ,
+  id,
+  libelle,
+  court = libelle,
+  facultatif = false,
+  aide,
+  requis,
+  format,
+  longueur,
+  forme = 'ligne',
+  type = 'text',
+  autocomplete = 'off',
+  etroit = false,
+  lignes = 5,
+  class: classe,
+  ...donnees
+} = Astro.props;
+const decrit = [aide && `${id}-aide`, `${id}-err`].filter(Boolean).join(' ');
+const trop =
+  longueur && `${longueur.toLocaleString('fr-FR')} signes au plus : raccourcissez un peu.`;
+---
+
+<div
+  class:list={['f-groupe', classe]}
+  data-groupe={champ}
+  data-libelle={court}
+  data-requis={requis}
+  data-format={format}
+  data-trop_long={trop}
+  {...donnees}
+>
+  <label class="f-libelle" for={id}>
+    {libelle}
+    {facultatif && ' '}
+    {facultatif && <span class="f-facultatif">(facultatif)</span>}
+  </label>
+  {aide && (
+    <p class="f-aide" id={`${id}-aide`}>
+      {aide}
+    </p>
+  )}
+  {forme === 'texte' ? (
+    <textarea
+      class="champ"
+      id={id}
+      name={id}
+      data-champ={champ}
+      rows={lignes}
+      autocomplete={autocomplete}
+      aria-describedby={decrit}
+    />
+  ) : (
+    <input
+      class:list={['champ', { 'f-etroit': etroit }]}
+      id={id}
+      name={id}
+      data-champ={champ}
+      type={type}
+      inputmode={type === 'text' ? undefined : type}
+      autocomplete={autocomplete}
+      aria-describedby={decrit}
+    />
+  )}
+  <slot />
+  <p class="f-erreur" id={`${id}-err`} data-erreur hidden></p>
+</div>

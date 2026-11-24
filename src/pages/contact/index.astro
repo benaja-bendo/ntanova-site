@@ -1,0 +1,143 @@
+---
+// « Écrire à NTanova » (refonte publique, lot 3C ; canevas « Accueil : trois directions », planches « Contact » et « Contact ·
+// reprise et refus », contrat 3A dont le §19 prévaut). Le formulaire d'abord, WhatsApp ensuite, aucun compte. Tout est écrit en HTML ;
+// le script (`app/formulaires/`, 10 Ko gzip au plus) montre, contrôle et envoie. Tant que `PUBLIC_FORMULAIRES` est fermé, aucun lien
+// public ne mène ici et la page est en `noindex`.
+import { PUBLIC_CONTACT_EMAIL, PUBLIC_WHATSAPP } from 'astro:env/client';
+import { pointDesEnvois } from '../../infra/index';
+import { listes } from '../../modele/listes';
+import { adresseDArrivee } from '../../modele/liens-demandes';
+import { libelleSujet } from '../../modele/messages-recus';
+import { lienWhatsApp } from '../../modele/whatsapp';
+import Cadre from '../../ui/formulaires/Cadre.astro';
+import Groupe from '../../ui/formulaires/Groupe.astro';
+import Reponse from '../../ui/formulaires/Reponse.astro';
+import { formulairesOuverts } from '../../ui/formulaires/ouverture';
+import Icone from '../../ui/Icone.astro';
+import PagePublique from '../../ui/PagePublique.astro';
+
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const retrait = adresseDArrivee({ vers: 'retrait', depuis: 'contact' });
+---
+
+<PagePublique
+  titre="Écrire à NTanova · NTanova"
+  description="Une question, une remarque, une proposition : écrivez à NTanova, sans compte."
+  whatsapp={whatsapp}
+  nonIndexee={!formulairesOuverts}
+>
+  <Cadre
+    nom="contact"
+    etiquette="Écrire à NTanova"
+    envois={pointDesEnvois()}
+    whatsapp={whatsapp}
+    courriel={PUBLIC_CONTACT_EMAIL ?? null}
+  >
+    <Fragment slot="tete">
+      <div class="f-tete">
+        <p class="f-surtitre">Contact</p>
+        <h1>Écrire à NTanova</h1>
+        <p class="f-chapeau">
+          Une question, une remarque, une proposition&nbsp;? Famille, école ou partenaire&nbsp;:
+          écrivez-nous ici, sans compte.
+        </p>
+      </div>
+      <p class="f-oriente">
+        <Icone nom="info" />
+        <span>
+          Une école manque, ou une fiche contient une erreur&nbsp;?{' '}
+          <a class="f-lien" href={adresseDArrivee({ vers: 'annuaire', depuis: 'contact' })}>
+            Compléter ou corriger l’annuaire
+          </a>
+        </span>
+      </p>
+    </Fragment>
+
+    <div class="f-groupe" data-groupe="sujet" data-libelle="Sujet">
+      <label class="f-libelle" for="sujet">
+        Sujet <span class="f-facultatif">(facultatif)</span>
+      </label>
+      <select
+        class="champ"
+        id="sujet"
+        name="sujet"
+        data-champ="sujet"
+        aria-describedby="sujet-note sujet-err"
+      >
+        <option value="">Choisir un sujet</option>
+        {listes.public_request_subject.map((s) => (
+          <option value={s}>{libelleSujet[s]}</option>
+        ))}
+      </select>
+      <p class="f-aide" id="sujet-note" data-note-sujet hidden>
+        Choisi d’après la page d’où vous venez. Vous pouvez le changer.
+      </p>
+      <p class="f-erreur" id="sujet-err" data-erreur hidden></p>
+      <div data-si-sujet="donnees" hidden>
+        <p class="f-aide">
+          Un numéro, une photo ou un nom paraît sur une fiche&nbsp;? Son retrait se demande à part.
+        </p>
+        <a class="f-lien" href={retrait}>
+          Demander le retrait
+        </a>
+      </div>
+    </div>
+    <Groupe
+      champ="message"
+      id="message"
+      libelle="Votre message"
+      aide="Votre question, ce que vous cherchez ou ce qui ne va pas."
+      forme="texte"
+      requis="Écrivez votre message."
+      longueur={2000}
+    />
+    <Reponse />
+
+    <Fragment slot="envoyer">Envoyer le message</Fragment>
+    <Fragment slot="ok-titre">Message enregistré</Fragment>
+    <p slot="ok-texte">Merci. L’équipe NTanova va le lire.</p>
+    <Fragment slot="nouvelle">Écrire un autre message</Fragment>
+    <a slot="ok-liens" class="f-lien" href="/">
+      Retour à l’accueil
+    </a>
+
+    <Fragment slot="cote">
+      <section class="f-carte" aria-labelledby="t-ensuite">
+        <img src="/dessins/repere-echanger.svg" alt="" width="132" height="132" loading="lazy" />
+        <h2 id="t-ensuite">Ce qui se passe ensuite</h2>
+        <ol class="f-etapes">
+          <li>Votre message est enregistré. Seule l’équipe NTanova le lit.</li>
+          <li>
+            Si vous avez demandé une réponse, l’équipe utilise l’adresse ou le numéro que vous avez
+            laissé.
+          </li>
+          <li>
+            Sans adresse ni numéro, votre message est lu, mais nous ne pouvons pas vous répondre.
+          </li>
+        </ol>
+      </section>
+      <section class="f-carte" aria-labelledby="t-une-ecole">
+        <h2 id="t-une-ecole">Une question pour une école&nbsp;?</h2>
+        <p class="texte-doux">
+          Son numéro, s’il est publié, figure sur sa fiche. NTanova ne transmet pas encore de
+          messages aux écoles.
+        </p>
+        <a class="f-lien" href="/ecoles/">
+          Trouver une école
+        </a>
+      </section>
+    </Fragment>
+  </Cadre>
+</PagePublique>
+
+<script>
+  import { demarrer } from '../../app/formulaires/formulaire';
+  import { obtenirPortDemandes } from '../../infra/index';
+
+  const racine = document.querySelector<HTMLElement>('[data-formulaire]');
+  if (racine && racine.dataset.url !== undefined) {
+    void obtenirPortDemandes(racine.dataset.url, racine.dataset.cle ?? '').then((port) => {
+      if (port) demarrer(racine, port);
+    });
+  }
+</script>

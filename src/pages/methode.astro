@@ -171,6 +171,12 @@ const intitules = Object.values(libelleGenreAgrement).filter(
       couvre. Ce qui est publié, en nombres et en dates, est sur la page{' '}
       <a href={LIEN_DONNEES}>Données</a>.
     </p>
-    <ContactNtanova message="Bonjour NTanova, une remarque sur votre méthode : " />
+    <ContactNtanova
+      message="Bonjour NTanova, une remarque sur votre méthode : "
+      formulaire={{
+        arrivee: { vers: 'erreur', depuis: 'fiabilite' },
+        texte: 'Signaler une erreur',
+      }}
+    />
   </section>
 </PageDeTexte>

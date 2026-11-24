@@ -49,3 +49,7 @@
 /carte/*
   ! Permissions-Policy
   Permissions-Policy: camera=(), microphone=(), geolocation=(self)
+
+# Le nom et le lieu d'une fiche publiée, pour « Compléter ou corriger l'annuaire » (refonte, lot 3C) : un fichier de service.
+/contribuer/fiche/*
+  X-Robots-Tag: noindex

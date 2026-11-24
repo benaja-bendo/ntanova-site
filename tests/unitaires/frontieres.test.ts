@@ -47,6 +47,15 @@ describe('frontières entre dossiers', { timeout: 30_000 }, () => {
     expect(await interdit('src/app/orienter/activites.ts', 'react')).toBe(true);
   });
 
+  it('les formulaires publics reçoivent leur port : ni base, ni Supabase, ni React', async () => {
+    const f = 'src/app/formulaires/formulaire.ts';
+    expect(await interdit(f, '../../modele/envoi-public')).toBe(false);
+    expect(await interdit(f, '../../infra')).toBe(true);
+    expect(await interdit(f, '../../infra/index')).toBe(true);
+    expect(await interdit(f, '@supabase/supabase-js')).toBe(true);
+    expect(await interdit(f, 'react')).toBe(true);
+  });
+
   it("l'espace relais et l'administration ne dépendent pas l'un de l'autre", async () => {
     expect(await interdit('src/app/relais/Envoi.tsx', '../admin/Liste')).toBe(true);
     expect(await interdit('src/app/admin/Liste.tsx', '../relais/Envoi')).toBe(true);

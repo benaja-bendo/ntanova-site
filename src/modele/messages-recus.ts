@@ -297,36 +297,37 @@ export const libelleNature: Record<Nature, string> = {
   erreur: 'Erreur sur une fiche',
   retrait: 'Retrait',
 };
+// Les mots des formulaires publics (lot 3C) sont ceux de l'administration : elle lit exactement ce que la personne a choisi.
 export const libelleSujet: Record<Valeur<'public_request_subject'>, string> = {
   trouver: 'Trouver une école ou une formation',
   ecole: 'Mon école sur NTanova',
   outils: 'Les outils pour les écoles',
-  donnees: 'Les données',
+  donnees: 'Mes données personnelles',
   site: 'Une remarque sur le site',
   autre: 'Autre chose',
 };
 export const libelleInformation: Record<Valeur<'public_request_topic'>, string> = {
-  nom: 'Le nom',
-  adresse: 'L’adresse ou le repère',
-  niveaux: 'Les niveaux ou les formations',
-  frais: 'Les frais',
-  contact: 'Le contact',
-  photo: 'Une photo',
+  nom: 'Nom',
+  adresse: 'Adresse ou position',
+  niveaux: 'Niveaux ou formations',
+  frais: 'Frais',
+  contact: 'Téléphone ou contact',
+  photo: 'Photo',
   ferme: 'Fermée ou déménagée',
-  autre: 'Autre chose',
+  autre: 'Autre',
 };
 export const libelleARetirer: Record<Valeur<'public_request_removal'>, string> = {
   tel: 'Un numéro de téléphone',
   photo: 'Une photo',
   personne: 'Le nom d’une personne',
   fiche: 'La fiche entière',
-  autre: 'Autre chose',
+  autre: 'Une autre information personnelle',
 };
 export const libelleSource: Record<Valeur<'public_request_knowledge'>, string> = {
   passage: 'J’y suis passé récemment',
-  document: 'C’est écrit sur un document de l’école',
-  ecole: 'L’école me l’a dit',
-  autre: 'Autrement',
+  document: 'C’est écrit sur l’enseigne ou un document de l’école',
+  ecole: 'Je travaille dans cette école ou je la dirige',
+  autre: 'Autre',
 };
 export const libelleOrigineMessage: Record<Valeur<'public_request_origin'>, string> = {
   accueil: 'l’accueil',

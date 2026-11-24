@@ -25,7 +25,9 @@ import {
   lieuEnPhrase,
 } from '../../modele/geo-divisions';
 import { cheminImagePartage, donneesEcole, preuveDePartage } from '../../modele/partage';
+import { porte } from '../../modele/liens-demandes';
 import { lienWhatsApp } from '../../modele/whatsapp';
+import { formulairesOuverts } from '../../ui/formulaires/ouverture';
 import FicheEcole from '../../ui/FicheEcole.astro';
 import PhotosEcole from '../../ui/fiche/PhotosEcole.astro';
 import { VIGNETTES_SUR_LA_FICHE } from '../../modele/vitrine';
@@ -137,15 +139,24 @@ const dansLieu = page ? [...new Set(page.noms.slice(1, -1))].reverse().join(', '
 // « Une école manque ? » : le message dit où, et, dans une zone sans école, que la personne la connaît ou la dirige.
 const lieuDeLaPage = page ? lieuAvecPreposition(page.division.nom, page.division.niveau) : '';
 const manque = page
-  ? lienWhatsApp(
-      PUBLIC_WHATSAPP,
-      ecolesSous(page).length === 0
-        ? `Bonjour NTanova, je connais ou je dirige une école ${lieuDeLaPage} : `
-        : `Bonjour NTanova, une école manque ${lieuDeLaPage} : `,
+  ? porte(
+      formulairesOuverts,
+      { vers: 'manque', depuis: 'villes' },
+      lienWhatsApp(
+        PUBLIC_WHATSAPP,
+        ecolesSous(page).length === 0
+          ? `Bonjour NTanova, je connais ou je dirige une école ${lieuDeLaPage} : `
+          : `Bonjour NTanova, une école manque ${lieuDeLaPage} : `,
+      ),
     )
   : null;
+// Lot 3C : le formulaire reçoit le numéro public de la fiche, jamais son nom.
 const erreur = e
-  ? lienWhatsApp(PUBLIC_WHATSAPP, `Bonjour NTanova, une erreur sur la fiche de ${e.nom} : `)
+  ? (porte(
+      formulairesOuverts,
+      { vers: 'erreur', depuis: 'fiche', ecole: e.numero },
+      lienWhatsApp(PUBLIC_WHATSAPP, `Bonjour NTanova, une erreur sur la fiche de ${e.nom} : `),
+    )?.href ?? null)
   : null;
 // « Confirmer cette fiche » : le message part déjà avec le nom de l'école, son lieu et l'adresse de sa fiche, pour que NTanova
 // sache de quelle fiche il s'agit sans rien redemander.

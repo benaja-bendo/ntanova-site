@@ -24,7 +24,9 @@ import { carteDeLAccueil } from '../modele/carte-accueil';
 import { jourDuCongo } from '../modele/date-declaration';
 import { compterEcoles } from '../modele/geo-divisions';
 import { LIEN_METHODE } from '../modele/pages-de-confiance';
+import { porte } from '../modele/liens-demandes';
 import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
+import { formulairesOuverts } from '../ui/formulaires/ouverture';
 import DessinCongo from '../ui/DessinCongo.astro';
 import Icone from '../ui/Icone.astro';
 import PagePublique from '../ui/PagePublique.astro';
@@ -39,7 +41,11 @@ const profils = profilsDeLAccueil(ecoles);
 const carte = carteDeLAccueil(arbre);
 const jour = jourEtMois(jourDuCongo());
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
-const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
+const manque = porte(
+  formulairesOuverts,
+  { vers: 'manque', depuis: 'accueil' },
+  avecMessage(whatsapp, 'Bonjour NTanova, une école manque : '),
+);
 const DEMO = '/demo/fiche-ecole/';
 // Le moteur de recherche du site, pour les moteurs : la recherche « Quoi ? » de « Les écoles ».
 const site = new URL('/', Astro.site ?? Astro.url).href;
@@ -359,7 +365,7 @@ const donnees = {
           <b>Une école manque&nbsp;?</b>
           <span>Dites-nous son nom et son quartier.</span>
         </p>
-        <a class="bouton bouton-secondaire" href={manque}>
+        <a class="bouton bouton-secondaire" href={manque.href}>
           <Icone nom="bulle" />
           Signaler une école
         </a>
