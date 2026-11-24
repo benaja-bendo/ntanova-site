@@ -81,6 +81,19 @@ Repos, survol (`@media (hover: hover)` seulement), appui (plus sombre, 1 px de c
 - **S'orienter (lot 2, 24/11)** (`src/ui/orienter/`) : `ParcoursScolaire.astro`, un seul HTML lu voie par voie, placé par `grid-template-areas` en sept colonnes (64 rem et plus) ou en deux colonnes côte à côte (téléphone) ; un niveau est un lien s'il a des écoles, sinon un paragraphe ; voie générale en vert (`--marque`), technique en bleu (`--bleu-ardoise`), métiers en tirets, examens en rond jaune cerclé d'encre ; sources dans un `<details>`. `DomainesFormation.astro` : une carte-lien par groupe fourni, une carte en tirets sans lien pour un groupe vide. `ActivitesOrientation.astro` : une carte blanche sur la bande verte (le focus y redevient vert profond), tout écrit en HTML ; le script ne fait que montrer et cacher (`hidden`), annonce l'activité dans une zone `aria-live` cachée et donne le focus au titre du résultat. Sans script, la carte renvoie aux domaines et n'a aucun bouton.
 - **Dessins** : `public/dessins/`, copiés des originaux du canevas (dépôt `ntanova`, `outils/canevas-accueil/dessins/out/`), coordonnées arrondies ; images décoratives (`alt=""`), chargées au défilement sous le premier écran. Leurs couleurs sont celles de la charte, écrites dans le fichier image : `pnpm couleurs` ne garde que `src/`.
 
+### Administration : pièces des messages reçus (lot 3B2, 24/11)
+
+Dans `src/ui/v2/messages.tsx`, au catalogue (`CatalogueMessages.tsx`) :
+
+- **`CarteMessage`** : une ligne d'une file, un lien de 44 px au moins ; nature, référence, titre, une précision, des pastilles. Ni le message ni la coordonnée.
+- **`BlocMessage`, `LigneMessageEcrite`, `Journal`** : ce qui est écrit, tel quel ; l'historique en faits datés.
+- **`Encart`** (blanc, vert quand c'est fait, ambre quand il faut regarder) : version, suite, limite, clôture, alerte. **`BandeauEchec`** : un geste qui n'a pas abouti, là où l'on agissait, sans voler le focus ni effacer la saisie.
+- **`ChoixUnique`, `ChoixMultiple`, `ChoixDuJour`** : des lignes de 52 px sur des boutons natifs, rien de coché d'avance ; le jour n'est jamais futur.
+- **`ListeEtapes`** : fait, à faire maintenant, à venir, sans objet ; le mot dit l'état, pas la couleur.
+- **`FileVide`, `Squelette`** : vide et chargement se disent, une panne n'est jamais « vide ».
+- Une barre de gestes collée en bas, **un seul bouton plein : le prochain** ; un geste impossible est éteint, et une ligne dit pourquoi. Après un geste, le focus ne repart jamais en haut de page.
+- La croix et « Annuler » d'un `Dialogue`, le bouton « Règles » et l'initiale du compte font 44 px.
+
 ## 3. Les trois branches
 
 | | A · Écran | B · Affiche 1080 × 1920 | C · Papier A4 |

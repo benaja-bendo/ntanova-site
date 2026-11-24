@@ -161,7 +161,7 @@ update prive.public_requests set opened_at = coalesce(opened_at, now()), opened_
 select is(regexp_replace(essai_messages.rafale((select array_agg(x order by random()) from (
     select 'select prive.purge_public_requests()::text' x from generate_series(1, 3)
     union all select format($f$select public.open_public_request(%L) ->> 'kind'$f$, reference) from prive.public_requests where id > (select id from essai_messages.avant)) y)),
-  'ERREUR-P0002|contact|[0-9]+|=| ', '', 'g'), '', 'Trois purges et des ouvertures simultanées : seulement « introuvable » pour un message déjà effacé');
+  'ERREUR-PT404|contact|[0-9]+|=| ', '', 'g'), '', 'Trois purges et des ouvertures simultanées : seulement « introuvable » pour un message déjà effacé');
 select prive.purge_public_requests();
 select is(essai_messages.miens('public_requests') || ' ' || essai_messages.miens('public_request_versions') || ' ' || essai_messages.miens('public_request_events') || ' ' || essai_messages.miens('public_request_notices'),
   '0 0 0 0', 'Tout est effacé, sans rien laisser');

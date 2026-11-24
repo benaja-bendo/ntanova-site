@@ -61,7 +61,6 @@ export default defineConfig(
     'node_modules/',
     'playwright-report/',
     'test-results/',
-    'supabase/',
   ]),
   js.configs.recommended,
   tseslint.configs.recommended,

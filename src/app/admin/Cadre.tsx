@@ -2,8 +2,8 @@
  * Le cadre de l'administration v2, d'après les planches (« Aujourd'hui · téléphone », « Aujourd'hui · ordinateur »,
  * « "Plus" et le compte ») : Tailwind et shadcn seulement (refonte v2, lot 2 ; DESIGN_SYSTEM.md, § 6).
  * - Téléphone : barre du haut verte (marque ou retour, titre de l'écran, initiale du compte), barre du bas à cinq cases
- *   (Aujourd'hui, À valider, Écoles, Relais, Plus) ; « Plus » ouvre une feuille avec Zones, Paie, Santé des envois et les
- *   règles de l'écran.
+ *   (Aujourd'hui, À valider, Écoles, Relais, Plus) ; « Plus » ouvre une feuille avec Messages reçus (refonte, lot 3B2), Zones,
+ *   Paie, Santé des envois et les règles de l'écran.
  * - Ordinateur (64 rem et plus) : barre de côté verte, pleine hauteur ; « Plus rarement » y est déplié ; le compte en bas.
  * Chaque écran pose son titre et ses règles par `TitreEcran` : l'aide n'est plus sous les titres, elle est dans le tiroir
  * « Règles » (loi 1 du texte).
@@ -18,7 +18,8 @@ import { Icone } from '@/ui/icones/Icone';
 import type { NomIcone } from '@/ui/icones/registre';
 import { aller } from '../commun/adresse';
 
-export type CheminAdmin = 'accueil' | 'valider' | 'ecoles' | 'relais' | 'zones' | 'paie' | 'sante';
+export type CheminAdmin =
+  'accueil' | 'valider' | 'demandes' | 'ecoles' | 'relais' | 'zones' | 'paie' | 'sante';
 
 export interface Onglet {
   chemin: CheminAdmin;
@@ -27,12 +28,15 @@ export interface Onglet {
   legende?: [singulier: string, pluriel: string];
   /** Ce que la feuille « Plus » dit à droite (« 14 zones », « vendredi »). */
   detail?: string | null;
+  /** Une entrée principale sur ordinateur, rangée dans « Plus » sur téléphone : la barre du bas garde cinq cases. */
+  plusSurTelephone?: boolean;
 }
 
 // Les icônes du cadre, tirées du registre unique (planches : contour, grille de 24, trait de 2).
 const ICONES_ADMIN = {
   accueil: 'maison',
   valider: 'caseCochee',
+  demandes: 'message',
   ecoles: 'toque',
   relais: 'personnes',
   plus: 'points',
@@ -111,7 +115,7 @@ function BoutonRegles({ titre, ouvrir }: { titre: string; ouvrir: () => void }) 
       size="sm"
       onClick={ouvrir}
       aria-label={`Règles : ${titre}`}
-      className="text-primary-strong max-lg:hidden"
+      className="h-11 text-primary-strong max-lg:hidden"
     >
       <IconeAdmin nom="regles" taille={18} />
       Règles
@@ -258,7 +262,9 @@ export function Cadre({
   const compte = compteSur === ecran;
   const setPlus = (o: boolean) => setPlusSur(o ? ecran : null);
   const initiale = (email ?? '?').charAt(0).toUpperCase();
-  const dansPlus = rares.some((o) => o.chemin === ecran);
+  const enBas = principaux.filter((o) => !o.plusSurTelephone);
+  const feuillePlus = [...principaux.filter((o) => o.plusSurTelephone), ...rares];
+  const dansPlus = feuillePlus.some((o) => o.chemin === ecran);
 
   return (
     <ContexteEcran.Provider value={{ poser: setEtat, ouvrirRegles: () => setRegles(true) }}>
@@ -334,7 +340,7 @@ export function Cadre({
                 aria-label="Mon compte"
                 aria-expanded={compte}
                 onClick={() => setCompteSur(compte ? null : ecran)}
-                className="flex size-10 cursor-pointer items-center justify-center rounded-full border-2 border-creme bg-jaune font-sans font-bold text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-sur-marque)]"
+                className="flex size-11 cursor-pointer items-center justify-center rounded-full border-2 border-creme bg-jaune font-sans font-bold text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-[var(--focus-sur-marque)]"
               >
                 {initiale}
               </button>
@@ -370,7 +376,7 @@ export function Cadre({
             aria-label="Navigation"
             className="admin-bas fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-border bg-card lg:hidden"
           >
-            {principaux.map((o) => (
+            {enBas.map((o) => (
               <CaseBas key={o.chemin} o={o} courant={ecran === o.chemin} />
             ))}
             <button
@@ -401,7 +407,7 @@ export function Cadre({
             <span className="mx-auto mb-3 h-1 w-9 rounded-full bg-input/40" aria-hidden="true" />
             <SheetTitle className="border-b border-border pb-3 text-2xl">Plus</SheetTitle>
             <nav aria-label="Plus" className="flex flex-col">
-              {rares.map((o) => (
+              {feuillePlus.map((o) => (
                 <a
                   key={o.chemin}
                   href={`#${o.chemin}`}

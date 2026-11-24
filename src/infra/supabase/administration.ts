@@ -48,6 +48,7 @@ import {
   type VueEnsemble,
 } from '../../modele/ports';
 import { decider, lire, lireListe, toutesLesLignes, traduire } from './erreurs';
+import { creerGestesDesMessages } from './messages';
 
 /** Le seau du stockage où vivent les photos des relevés (les chemins en base sont relatifs à lui). */
 const SEAU_PHOTOS = 'releves';
@@ -477,6 +478,7 @@ const entier = (valeur: unknown): number => (typeof valeur === 'number' ? valeur
  */
 export function creerPortAdministration(supabase: () => SupabaseClient): PortAdministration {
   return {
+    ...creerGestesDesMessages(supabase),
     async suisAdmin() {
       const { data, error } = await supabase().rpc('est_admin');
       traduire(error);
