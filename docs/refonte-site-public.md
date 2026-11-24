@@ -15,9 +15,23 @@ Le fondateur demande une livraison unique, construite par lots courts. Ce docume
 
 Conserver la pile, les frontières du code et les budgets. Astro/HTML/CSS pour le public ; aucune copie du moteur de prototype, aucun React/Radix/MapLibre ajouté à l'accueil. Les données d'exemple ne deviennent pas des données de production. Les tests de collecte hors ligne, les droits et les accords de publication restent protégés.
 
-Le nouveau champ de lieu libre de l'accueil n'est pas encore implémenté : le lot 1 doit établir son contrat avec la liste et sa sérialisation. Ne pas ajouter un champ visuellement fonctionnel dont la destination ignore la valeur.
+Le champ de lieu libre de l'accueil est établi par le lot 1 (contrat ci-dessous). Ne pas ajouter un champ visuellement fonctionnel dont la destination ignore la valeur.
 
 Les futures migrations restent compatibles avec le code en ligne jusqu'à la livraison globale. Le site d'essai lit actuellement la même base que la production : une branche Git n'isole pas ses écritures. Aucune modification de base ni test d'écriture réel n'est autorisé par cette préparation.
+
+## Lot 1 — accueil et socle public (intégré le 24/11/2026, ticket 211)
+
+Contrat de recherche, compris par `lireEtat` / `ecrireEtat` (`src/modele/liste-ecoles.ts`) :
+
+| Paramètre | Sens | Règle |
+| --- | --- | --- |
+| `q` | quoi : nom, sigle, formation, quartier, repère | inchangé |
+| `ou` | où : texte libre | chaque mot est le début d'un mot d'un lieu documenté de l'école (ses divisions, leurs autres écritures, le quartier dit sur place), sans accents ni casse ; jamais le nom ni le repère |
+
+- `q` et `ou` se croisent et s'ajoutent aux filtres ; les deux vides ouvrent toutes les écoles (l'adresse redevient `/ecoles/`). Deux lieux du même nom donnent les deux ; un lieu inconnu donne zéro, jamais un lieu supposé.
+- `ou` s'écrit dans l'adresse après `q`, se garde en Liste ↔ Carte et au retour du navigateur, recadre la carte (`cleDeLaSelection`), se relit en puce « Où : … » qu'une touche retire sans toucher aux autres choix, et se corrige dans le résultat vide (« Modifier le lieu »). Sans JavaScript, la liste garde son exception : elle montre les écoles construites et les villes.
+- Les anciennes adresses (`zone`, `ville`, `niveau=primaire`, `cycle`, `autour`) restent comprises.
+- Transition : écrire à NTanova, signaler une erreur et signaler une école passent par WhatsApp ; « Ajouter mon école » mène à `/pour-les-ecoles/#referencer`. Aucun lien vers `/contact/` ou `/contribuer/` avant le lot 3 ; ni « Toutes les villes » (lot 4) ni « Outils en préparation » (lot 5) dans le pied.
 
 ## Contrôles et livraison
 

@@ -49,12 +49,15 @@ export function boiteQuiTient(
 
 /** Ce qui choisit les écoles, sans le tri, la vue ni la zone de la carte : quand cela change, la carte se recadre. */
 export function cleDeLaSelection(etat: EtatListe): string {
-  return JSON.stringify([etat.q, etat.choix, etat.rayonM]);
+  return JSON.stringify([etat.q, etat.ou, etat.choix, etat.rayonM]);
 }
 
 /** Aucun choix : la carte montre le pays. */
 export const selectionVide = (etat: EtatListe) =>
-  !etat.q && etat.rayonM === null && Object.values(etat.choix).every((c) => c.length === 0);
+  !etat.q &&
+  !etat.ou &&
+  etat.rayonM === null &&
+  Object.values(etat.choix).every((c) => c.length === 0);
 
 export interface Cadrage {
   boite: Fenetre;

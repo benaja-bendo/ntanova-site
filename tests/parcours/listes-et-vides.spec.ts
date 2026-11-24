@@ -92,13 +92,18 @@ test.describe('les pages de zone', () => {
   }) => {
     await page.goto(TIE_TIE);
     const liste = (await page.locator('ul.liste-lignes').boundingBox())!;
-    const ajouter = (await page.getByRole('link', { name: 'Ajouter mon école' }).boundingBox())!;
+    // Le pied a aussi « Ajouter mon école » (refonte, lot 1) : celui de la page est dans `main`.
+    const ajouter = (await page
+      .getByRole('main')
+      .getByRole('link', { name: 'Ajouter mon école' })
+      .boundingBox())!;
     expect(liste.y + liste.height, 'la liste est avant « Ajouter mon école »').toBeLessThanOrEqual(
       ajouter.y,
     );
     await page.goto('/ecoles/pointe-noire/');
     const zones = (await page.locator('ul.zones').boundingBox())!;
     const ajouterVille = (await page
+      .getByRole('main')
       .getByRole('link', { name: 'Ajouter mon école' })
       .boundingBox())!;
     expect(zones.y + zones.height).toBeLessThanOrEqual(ajouterVille.y);
@@ -158,7 +163,7 @@ test.describe('la page « Écoles » (ticket 146)', () => {
 });
 
 test.describe('l’accueil en économiseur de données', () => {
-  test('rien à attendre : ni carte ni script, la recherche et les villes tout de suite (lot 3)', async ({
+  test('rien à attendre : ni carte ni script, la recherche tout de suite (lot 3, puis refonte, lot 1)', async ({
     page,
   }) => {
     // Ticket 146 : l'accueil d'un téléphone qui économise ses données attendait l'appui pour charger la carte. Depuis le lot 3
@@ -175,6 +180,8 @@ test.describe('l’accueil en économiseur de données', () => {
     await expect(page.locator('#carte')).toHaveCount(0);
     await expect(page.locator('script[src]')).toHaveCount(0);
     expect(demandes.filter((u) => /\/_astro\/.*\.js|tuiles|\.pmtiles|geojson/.test(u))).toEqual([]);
-    await expect(page.getByRole('searchbox', { name: 'Chercher une école' })).toBeInViewport();
+    // Refonte publique, lot 1 : la recherche « Quoi ? / Où ? » ; le dessin est écrit dans la page, sans rien à charger.
+    await expect(page.getByRole('searchbox', { name: 'Quoi ?' })).toBeInViewport();
+    await expect(page.getByRole('searchbox', { name: 'Où ?' })).toBeInViewport();
   });
 });

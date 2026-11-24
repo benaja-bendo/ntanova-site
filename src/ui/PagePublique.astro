@@ -1,14 +1,17 @@
 ---
-// Le gabarit des pages publiques : aucun JavaScript, du HTML et du CSS. Seul le pays de l'en-tête s'ouvre, en `<details>`.
+// Le gabarit des pages publiques : aucun JavaScript, du HTML et du CSS.
 //
-// Lot 3 du site à trois piliers (planches « Accueil » de la version 44 du canevas, validées le 15/11/2026, décision 1A) :
-// - l'en-tête porte les trois piliers en texte, Trouver une école · S'orienter · Espace écoles, visibles sur téléphone (plus de
-//   bouton Menu) ; Carte, Méthode, Données et À propos passent au pied de page. L'icône Comparer viendra avec « Garder » : elle
-//   ne paraît qu'avec une école gardée (version 44), et rien ne se garde encore ;
-// - le pied de page : « Une école manque ? La signaler », la phrase de la marque, les trois groupes de liens (les villes y
-//   sont, utiles aux moteurs de recherche), la date de mise à jour de l'annuaire.
-// Le logo reste celui de la charte (les trois barres et leur contour, 30/10) : les planches dessinent la première barre en vert,
-// sans contour, ce qu'aucun fichier de la marque ne fait.
+// Refonte publique, lot 1 (24/11/2026 ; canevas « Accueil : trois directions », exploration « Points de repère », lancement
+// du fondateur qui accepte les cinq choix du lot) :
+// - l'en-tête est vert sur toutes les pages : la marque, les trois entrées Trouver une école · S'orienter · Pour les écoles,
+//   puis le pays. Sur téléphone, un bouton « Menu » les ouvre : un `<details>`, sans script, au clavier comme au doigt (il
+//   remplace les trois piliers toujours visibles du 15/11). « Pour les écoles » remplace « Espace écoles » ; l'adresse
+//   `/pour-les-ecoles/` ne change pas ;
+// - le pied : quatre groupes (Chercher, Pour les écoles, Comprendre nos informations, NTanova), sans lien vers une page qui
+//   n'existe pas encore : écrire et signaler passent par WhatsApp jusqu'aux formulaires du lot 3, « Ajouter mon école » mène à
+//   la page des écoles comme sur les pages de lieu ; « Toutes les villes » et « Outils en préparation » attendent leurs pages
+//   (lots 4 et 5) ; on ne dit jamais « toutes les écoles ».
+// Le logo reste celui de la charte (les trois barres et leur contour, 30/10).
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import './jetons.css';
 import './base.css';
@@ -18,7 +21,14 @@ import Icone from './Icone.astro';
 import Marque from './Marque.astro';
 import { ICONES_SITE } from '../modele/icones';
 import { HAUTEUR_PARTAGE, IMAGE_PARTAGE_SITE, LARGEUR_PARTAGE } from '../modele/partage';
-import { LIEN_A_PROPOS, PAGES_DE_TRANSPARENCE } from '../modele/pages-de-confiance';
+import {
+  LIEN_A_PROPOS,
+  LIEN_CONFIDENTIALITE,
+  LIEN_DONNEES,
+  LIEN_MENTIONS_LEGALES,
+  LIEN_METHODE,
+  PAGES_DE_TRANSPARENCE,
+} from '../modele/pages-de-confiance';
 import { jourDuCongo } from '../modele/date-declaration';
 import { dateCourte } from '../modele/pointe-noire';
 import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
@@ -30,12 +40,14 @@ interface Props {
   whatsapp?: string | null;
   /** Une page de renvoi (fiche fusionnée, ancien plan) : l'adresse où aller, sans JavaScript. */
   renvoi?: string;
-  /** Une page qu'un moteur de recherche ne garde pas : la page d'un lieu sans école publiée (ticket 146). */
+  /** Une page qu'un moteur de recherche ne garde pas : la page d'un lieu sans école publiée (ticket 146), la démonstration. */
   nonIndexee?: boolean;
   /** L'image que WhatsApp montre sous un lien partagé (ticket 101) : celle de la fiche, sinon celle du site. */
   image?: { chemin: string; alt: string };
   /** Les données structurées de la page (`schema.org`), écrites en JSON-LD : jamais exécutées. */
   donnees?: Record<string, unknown>;
+  /** Le type Open Graph : `article` pour une page qui décrit une école, `website` sinon (l'accueil a des données, lot 1). */
+  typeOg?: 'website' | 'article';
 }
 const {
   titre,
@@ -45,15 +57,15 @@ const {
   nonIndexee = false,
   image = { chemin: IMAGE_PARTAGE_SITE, alt: 'NTanova : les écoles près de chez vous' },
   donnees,
+  typeOg = donnees ? 'article' : 'website',
 } = Astro.props;
 // Les adresses absolues que demandent les aperçus de lien : celles de ntanova.com (`site` d'astro.config.mjs).
 const absolue = (chemin: string) => new URL(chemin, Astro.site ?? Astro.url).href;
 const canonique = absolue(Astro.url.pathname);
 const chemin = Astro.url.pathname;
-// Les trois piliers (décision 1A du 15/11/2026, version 44) : des choses que cherche le visiteur, pas des outils. « Trouver une
-// école », c'est l'accueil, la liste, les lieux, les fiches et la carte. Il mène à la liste, `/ecoles/` (fondateur, 16/11 ; la
-// planche le menait à l'accueil), et reste allumé sur l'accueil.
-const piliers = [
+// Les trois entrées : des choses que cherche le visiteur, pas des outils. « Trouver une école », c'est l'accueil, la liste,
+// les lieux, les fiches et la carte : il mène à la liste, `/ecoles/` (fondateur, 16/11), et reste allumé sur l'accueil.
+const entrees = [
   {
     href: '/ecoles/',
     texte: 'Trouver une école',
@@ -62,15 +74,15 @@ const piliers = [
   { href: '/orienter/', texte: 'S’orienter', courant: chemin.startsWith('/orienter') },
   {
     href: '/pour-les-ecoles/',
-    texte: 'Espace écoles',
+    texte: 'Pour les écoles',
     courant: chemin.startsWith('/pour-les-ecoles'),
   },
 ];
-// Le pied : les villes de l'accueil (celles qui ont des fiches, posées par src/middleware.ts), la date du jour où l'annuaire a
-// été construit.
+// Le pied : les villes qui ont des fiches (posées par src/middleware.ts), la date du jour où l'annuaire a été construit.
 const villes = Astro.locals.villesDuPied ?? [];
 const misAJourLe = dateCourte(jourDuCongo());
-const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
+const signaler = avecMessage(whatsapp, 'Bonjour NTanova, une erreur sur une fiche : ');
+const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === href)!.texte;
 ---
 
 <!doctype html>
@@ -90,7 +102,7 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
     {!renvoi && <link rel="canonical" href={canonique} />}
     <meta property="og:site_name" content="NTanova" />
     <meta property="og:locale" content="fr_FR" />
-    <meta property="og:type" content={donnees ? 'article' : 'website'} />
+    <meta property="og:type" content={typeOg} />
     <meta property="og:title" content={titre} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonique} />
@@ -113,40 +125,66 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
     />
   </head>
   <body>
-    <header class="entete">
+    <header class="entete sur-marque">
       <div class="cadre entete-cadre">
-        <div class="identite">
-          <a class="lien-marque" href="/">
-            <Marque taille={21} />
-            <span>NTanova</span>
-          </a>
-          {/* Le pays s'ouvre et dit que NTanova recense pour le moment le seul Congo-Brazzaville, sans rien promettre d'autre
-              (décision du fondateur du 08/11/2026, ticket 146). Un `<details>` : aucun JavaScript. */}
-          <details class="pays">
-            <summary class="ville">
-              <Icone nom="globe" />
-              Congo-Brazzaville
-              <Icone nom="bas" />
-            </summary>
-            <div class="pays-bulle">
-              <p class="pays-titre">Pays</p>
-              <p class="pays-choisi">
-                Congo-Brazzaville
-                <Icone nom="coche" />
-              </p>
-              <p>
-                Pour le moment, NTanova recense les écoles du Congo-Brazzaville, ville après ville.
-              </p>
-            </div>
-          </details>
-        </div>
-        <nav aria-label="Navigation principale" class="piliers">
-          {piliers.map((p) => (
-            <a href={p.href} aria-current={p.courant ? 'page' : undefined}>
-              {p.texte}
+        <a class="lien-marque" href="/">
+          <Marque taille={21} />
+          <span>NTanova</span>
+        </a>
+        <nav aria-label="Navigation principale" class="entrees">
+          {entrees.map((e) => (
+            <a href={e.href} aria-current={e.courant ? 'page' : undefined}>
+              {e.texte}
             </a>
           ))}
         </nav>
+        {/* Le pays s'ouvre et dit que NTanova recense pour le moment le seul Congo-Brazzaville, sans rien promettre d'autre
+            (décision du fondateur du 08/11/2026, ticket 146). Un `<details>` : aucun JavaScript. */}
+        <details class="pays">
+          <summary class="ville">
+            <Icone nom="globe" />
+            Congo-Brazzaville
+            <Icone nom="bas" />
+          </summary>
+          <div class="pays-bulle">
+            <p class="pays-titre">Pays</p>
+            <p class="pays-choisi">
+              Congo-Brazzaville
+              <Icone nom="coche" />
+            </p>
+            <p>
+              Pour le moment, NTanova recense les écoles du Congo-Brazzaville, ville après ville.
+            </p>
+          </div>
+        </details>
+        {/* Le menu du téléphone : un `<details>` ; son bouton dit « Menu », puis « Fermer ». Rien n'y est caché qui ne soit
+            ailleurs : les trois entrées, et le pays. */}
+        <details class="menu">
+          <summary class="menu-bouton">
+            <span class="menu-ouvrir">
+              <Icone nom="menu" />
+              Menu
+            </span>
+            <span class="menu-fermer">
+              <Icone nom="croix" />
+              Fermer
+            </span>
+          </summary>
+          <div class="menu-panneau">
+            <nav aria-label="Navigation principale" class="menu-entrees">
+              {entrees.map((e) => (
+                <a href={e.href} aria-current={e.courant ? 'page' : undefined}>
+                  {e.texte}
+                  <Icone nom="suite" />
+                </a>
+              ))}
+            </nav>
+            <p class="menu-pays">
+              Congo-Brazzaville. Pour le moment, NTanova recense les écoles du Congo-Brazzaville,
+              ville après ville.
+            </p>
+          </div>
+        </details>
       </div>
     </header>
     <main class="contenu">
@@ -154,18 +192,6 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
     </main>
     <footer class="pied">
       <div class="cadre pied-cadre">
-        {manque && (
-          <div class="pied-manque">
-            <p>
-              <b>Une école manque&nbsp;?</b>
-              <span>Dites-nous son nom et son quartier.</span>
-            </p>
-            <a class="bouton pied-signaler" href={manque}>
-              <Icone nom="bulle" />
-              La signaler
-            </a>
-          </div>
-        )}
         <div class="pied-grille">
           <div class="pied-marque">
             <p class="pied-nom">
@@ -173,16 +199,16 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
               NTanova
             </p>
             <p class="pied-phrase">
-              Les écoles du Congo-Brazzaville. Chaque information dit sa source et sa date.
+              Les écoles du Congo-Brazzaville. Des informations datées, avec leur origine.
             </p>
           </div>
-          {/* Une seule navigation, comme avant le lot 3 : chaque liste porte le nom de son groupe. */}
+          {/* Une seule navigation : chaque liste porte le nom de son groupe. */}
           <nav aria-label="NTanova" class="pied-liens">
             <div class="pied-groupe">
-              <p class="pied-titre" id="pied-trouver">
-                Trouver une école
+              <p class="pied-titre" id="pied-chercher">
+                Chercher
               </p>
-              <ul aria-labelledby="pied-trouver">
+              <ul aria-labelledby="pied-chercher">
                 <li>
                   <a href="/ecoles/">Les écoles</a>
                 </li>
@@ -191,6 +217,41 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
                     <a href={v.lien}>{v.nom}</a>
                   </li>
                 ))}
+                <li>
+                  <a href="/orienter/">S’orienter</a>
+                </li>
+              </ul>
+            </div>
+            <div class="pied-groupe">
+              <p class="pied-titre" id="pied-ecoles">
+                Pour les écoles
+              </p>
+              <ul aria-labelledby="pied-ecoles">
+                <li>
+                  <a href="/pour-les-ecoles/">Présenter mon école</a>
+                </li>
+                <li>
+                  {/* La même porte que les pages de lieu : la page dit comment ajouter son école. */}
+                  <a href="/pour-les-ecoles/#referencer">Ajouter mon école</a>
+                </li>
+              </ul>
+            </div>
+            <div class="pied-groupe">
+              <p class="pied-titre" id="pied-comprendre">
+                Comprendre nos informations
+              </p>
+              <ul aria-labelledby="pied-comprendre">
+                <li>
+                  <a href={LIEN_METHODE}>{pageDe(LIEN_METHODE)}</a>
+                </li>
+                <li>
+                  <a href={LIEN_DONNEES}>{pageDe(LIEN_DONNEES)}</a>
+                </li>
+                {signaler && (
+                  <li>
+                    <a href={signaler}>Signaler une erreur</a>
+                  </li>
+                )}
               </ul>
             </div>
             <div class="pied-groupe">
@@ -199,10 +260,6 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
               </p>
               <ul aria-labelledby="pied-ntanova">
                 <li>
-                  {/* Le nom du pilier ; l'adresse change au lot 6 (l'ancienne renverra en 301). */}
-                  <a href="/pour-les-ecoles/">Espace écoles</a>
-                </li>
-                <li>
                   <a href={LIEN_A_PROPOS}>À propos</a>
                 </li>
                 {whatsapp && (
@@ -210,19 +267,12 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
                     <a href={whatsapp}>Écrire à NTanova sur WhatsApp</a>
                   </li>
                 )}
-              </ul>
-            </div>
-            {/* Les pages qu'une administration, une direction ou une famille lit pour savoir à qui elle a affaire (ticket 149). */}
-            <div class="pied-groupe">
-              <p class="pied-titre" id="pied-transparence">
-                Transparence
-              </p>
-              <ul aria-labelledby="pied-transparence">
-                {PAGES_DE_TRANSPARENCE.map((p) => (
-                  <li>
-                    <a href={p.href}>{p.texte}</a>
-                  </li>
-                ))}
+                <li>
+                  <a href={LIEN_CONFIDENTIALITE}>{pageDe(LIEN_CONFIDENTIALITE)}</a>
+                </li>
+                <li>
+                  <a href={LIEN_MENTIONS_LEGALES}>{pageDe(LIEN_MENTIONS_LEGALES)}</a>
+                </li>
               </ul>
             </div>
           </nav>
@@ -237,72 +287,98 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
 </html>
 
 <style>
-  /* La bulle du pays s'ouvre sous l'en-tête et passe au-dessus de la page (la carte, ses commandes). */
+  /* L'en-tête vert de toutes les pages publiques (canevas « Points de repère », 23/11) : on navigue. La bulle du pays et le
+     menu s'ouvrent dessous et passent au-dessus de la page (la carte, ses commandes). */
   .entete {
     position: relative;
     z-index: 30;
-    border-bottom: 1px solid var(--trait);
-    background: var(--fond);
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
   }
-  /* Sur téléphone (planche « Accueil · téléphone ») : la marque, le pays dessous, puis la rangée des trois piliers. */
   .entete-cadre {
-    display: grid;
-    gap: 2px;
-    padding-top: 10px;
-  }
-  .identite {
-    display: grid;
-    justify-items: start;
-    gap: 2px;
-    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--espace-4);
+    min-height: 4rem;
   }
   .lien-marque {
-    position: relative;
     display: inline-flex;
     align-items: center;
     gap: var(--espace-2);
-    color: var(--texte);
+    min-height: var(--cible-min);
+    color: var(--texte-sur-marque);
     font-family: var(--police-titre);
-    font-size: 1.1875rem;
+    font-size: 1.25rem;
     font-weight: 700;
-    line-height: 1.45;
+    line-height: 1.2;
     text-decoration: none;
-    /* La cible de 44 px de la charte (27,5 px de ligne + 2 × 9), sans grandir l'en-tête dessiné : la marge négative rend ce que
-       le rembourrage prend. */
-    padding-block: 9px;
-    margin-block: -9px;
   }
-  /* Le pays n'est pas une porte : du texte posé, sans trait ni fond, qui ne ressemble pas à un bouton. */
-  .ville {
-    color: var(--texte-doux);
+  .lien-marque:focus-visible,
+  .entrees a:focus-visible,
+  .menu-bouton:focus-visible,
+  .menu-entrees a:focus-visible,
+  .pays > summary:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--rayon-xs);
+  }
+
+  /* Les trois entrées, à partir de la tablette ; l'entrée courante soulignée de jaune. */
+  .entrees {
+    display: none;
+  }
+  .entrees a {
+    display: flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--texte-sur-marque);
     font-family: var(--police-interface);
-    font-size: var(--taille-mention);
+    font-size: 1rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    line-height: 1.35;
-    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
   }
-  /* En `flex` et à la largeur de son texte : en ligne, il prenait la hauteur d'une ligne de 16 px (24 px au lieu de 16). */
+  .entrees a[aria-current='page'] {
+    box-shadow: inset 0 -3px 0 var(--accent);
+  }
+  @media (hover: hover) {
+    .entrees a:hover {
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+  }
+
+  /* Le pays n'est pas une porte : du texte posé, sans trait ni fond. */
+  .pays {
+    display: none;
+    position: relative;
+    margin-left: auto;
+  }
+  .ville {
+    color: var(--texte-sur-marque);
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
   .pays > summary {
     position: relative;
     display: flex;
-    width: max-content;
+    white-space: nowrap;
     align-items: center;
     gap: var(--espace-1);
+    min-height: var(--cible-min);
     list-style: none;
     cursor: pointer;
   }
-  .pays > summary::after {
-    content: '';
-    position: absolute;
-    inset: -2px -8px -2px;
-  }
-  .pays > summary::-webkit-details-marker {
+  .pays > summary::-webkit-details-marker,
+  .menu > summary::-webkit-details-marker {
     display: none;
   }
-  .pays > summary :global(svg) {
-    width: 14px;
-    height: 14px;
+  .pays > summary :global(svg),
+  .menu-bouton :global(svg),
+  .menu-entrees :global(svg) {
+    width: 18px;
+    height: 18px;
     fill: none;
     stroke: currentColor;
     stroke-width: 2.2;
@@ -312,20 +388,14 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
   .pays[open] > summary :global(svg:last-child) {
     transform: rotate(180deg);
   }
-  .pays > summary:focus-visible {
-    outline: var(--epaisseur-focus) solid var(--focus);
-    outline-offset: 2px;
-    border-radius: var(--rayon-xs);
-  }
   .pays-bulle {
     position: absolute;
     top: 100%;
-    left: var(--espace-4);
-    right: var(--espace-4);
+    right: 0;
     z-index: 1;
     display: grid;
     gap: var(--espace-2);
-    max-width: 20rem;
+    width: 20rem;
     padding: var(--espace-4);
     border-radius: var(--rayon-m);
     background: var(--fond-releve);
@@ -367,53 +437,109 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
     stroke-linecap: round;
     stroke-linejoin: round;
   }
-  /* Les trois piliers, toujours visibles : sur téléphone, répartis sur la largeur, le pilier courant souligné de vert. */
-  .piliers {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--espace-2);
+
+  /* Le menu du téléphone : un bouton en contour, puis un panneau vert sous l'en-tête, une ligne de 52 px par entrée. */
+  .menu {
+    margin-left: auto;
   }
-  .piliers a {
+  .menu-bouton {
     display: flex;
     align-items: center;
     min-height: var(--cible-min);
-    color: var(--texte-doux);
+    padding: 0 var(--espace-3);
+    border: 2px solid var(--texte-sur-marque);
+    border-radius: var(--rayon-s);
     font-family: var(--police-interface);
-    font-size: 0.84375rem;
     font-weight: 700;
-    line-height: 1.45;
+    list-style: none;
+    cursor: pointer;
+  }
+  .menu-ouvrir,
+  .menu-fermer {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espace-2);
+  }
+  .menu-fermer,
+  .menu[open] .menu-ouvrir {
+    display: none;
+  }
+  .menu[open] .menu-fermer {
+    display: inline-flex;
+  }
+  .menu-panneau {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: grid;
+    gap: var(--espace-4);
+    padding: var(--espace-2) var(--espace-4) var(--espace-5);
+    border-top: 1px solid var(--vert);
+    background: var(--marque-appuyee);
+    box-shadow: var(--ombre-flottante);
+  }
+  .menu-entrees {
+    display: grid;
+  }
+  .menu-entrees a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 3.25rem;
+    border-bottom: 1px solid var(--vert);
+    color: var(--texte-sur-marque);
+    font-family: var(--police-interface);
+    font-size: 1.125rem;
+    font-weight: 700;
     text-decoration: none;
-    white-space: nowrap;
   }
-  .piliers a[aria-current='page'] {
-    color: var(--texte);
-    box-shadow: inset 0 -3px 0 var(--marque);
+  .menu-entrees a[aria-current='page'] {
+    color: var(--accent);
   }
-  @media (hover: hover) {
-    .piliers a:hover {
-      color: var(--marque);
+  .menu-pays {
+    margin: 0;
+    color: var(--vert-pale);
+    font-size: var(--taille-secondaire);
+  }
+
+  @media (min-width: 48rem) {
+    .entete-cadre {
+      gap: 28px;
+      min-height: 4.5rem;
     }
-  }
-  /* Un téléphone de 320 px : les trois piliers tiennent encore sur une ligne. */
-  @media (max-width: 22.49rem) {
-    .piliers a {
-      font-size: var(--taille-mention);
+    .lien-marque {
+      gap: 10px;
+      font-size: 1.375rem;
     }
-  }
-  /* Sur la vue Carte de « Les écoles », au téléphone : l'en-tête se réduit et le pays se cache, pour laisser la place à la carte entre les filtres
-     et le tiroir (arbitrage du fondateur du 08/11/2026, ticket 146). Les piliers restent. */
-  @media (max-width: 47.99rem) {
-    body[data-vue='carte'] .pays {
+    .lien-marque :global(.marque) {
+      width: 32px;
+      height: 24px;
+    }
+    .entrees {
+      display: flex;
+      gap: var(--espace-4);
+    }
+    .entrees a {
+      font-size: 0.9375rem;
+    }
+    .pays {
+      display: block;
+    }
+    .menu {
       display: none;
     }
-    body[data-vue='carte'] .entete-cadre {
-      gap: 0;
-      padding-top: var(--espace-2);
+  }
+  @media (min-width: 64rem) {
+    .entrees {
+      gap: 28px;
+    }
+    .entrees a {
+      font-size: 1rem;
     }
   }
 
-  /* Le pied de page (planches de la version 44) : fond clair, la porte « Une école manque ? », la marque, trois groupes de
-     liens, la date de l'annuaire. */
+  /* Le pied de page : fond clair, la marque, quatre groupes de liens, la date de l'annuaire. */
   .pied {
     border-top: 1px solid var(--trait);
     background: var(--fond-releve);
@@ -425,53 +551,23 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
   .pied-cadre {
     display: grid;
     gap: 20px;
-    padding-top: 20px;
+    padding-top: var(--espace-5);
     padding-bottom: var(--espace-5);
-  }
-  .pied-manque {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--espace-3);
-    padding: var(--espace-4);
-    border-radius: var(--rayon-m);
-    background: var(--vert-pale);
-  }
-  .pied-manque p {
-    display: grid;
-  }
-  .pied-manque b {
-    font-size: var(--taille-courante);
-  }
-  .pied-manque span {
-    color: var(--marque-appuyee);
-    font-size: var(--taille-secondaire);
-  }
-  .pied-signaler {
-    min-height: var(--cible-min);
-    padding: 0 var(--espace-4);
-    gap: 6px;
-    font-size: inherit;
-  }
-  .pied-signaler :global(svg) {
-    width: 18px;
-    height: 18px;
   }
   .pied-grille {
     display: grid;
-    gap: 20px;
+    gap: var(--espace-5);
   }
   .pied-marque {
     display: grid;
     gap: var(--espace-2);
     max-width: 300px;
   }
-  /* Deux groupes par ligne au téléphone ; sur tablette et ordinateur, les trois colonnes de droite de la grille. */
+  /* Deux groupes par ligne au téléphone ; quatre colonnes sur ordinateur. */
   .pied-liens {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px var(--espace-4);
+    gap: var(--espace-5) var(--espace-4);
   }
   .pied-nom {
     display: flex;
@@ -506,8 +602,8 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
     padding: 0;
     list-style: none;
   }
-  /* À la souris, les liens serrés de la planche : chaque cible descend de 22 px sous son mot (44 px en tout) sans pousser la
-     ligne suivante, qui passe dessus ; le mot reste à lui seul. Au doigt, une ligne de 44 px chacun (les cibles de la charte). */
+  /* À la souris, des liens serrés : chaque cible descend de 22 px sous son mot (44 px en tout) sans pousser la ligne
+     suivante. Au doigt, une ligne de 44 px chacun (les cibles de la charte). */
   .pied-groupe a {
     display: inline-block;
     padding-bottom: 22px;
@@ -535,66 +631,10 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
     color: var(--texte-doux);
     font-size: 0.8125rem;
   }
-
-  /* Tablette : la marque et le pays sur une ligne, les piliers dessous, à gauche. */
   @media (min-width: 48rem) {
-    .entete-cadre {
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      gap: var(--espace-2) var(--espace-5);
-      padding-block: var(--espace-3) 0;
-    }
-    .identite {
-      display: contents;
-    }
-    .lien-marque {
-      gap: 10px;
-      font-size: 1.3125rem;
-    }
-    .lien-marque :global(.marque) {
-      width: 32px;
-      height: 24px;
-    }
-    .pays {
-      position: relative;
-      grid-column: 2;
-      grid-row: 1;
-    }
-    .piliers {
-      grid-column: 1 / -1;
-      justify-content: flex-start;
-      gap: 28px;
-    }
-    .piliers a {
-      color: var(--texte);
-      font-size: 0.9375rem;
-    }
-    .piliers a[aria-current='page'] {
-      box-shadow: inset 0 -2px 0 var(--marque);
-    }
-    .pays-bulle {
-      top: calc(100% + var(--espace-3));
-      left: auto;
-      right: 0;
-      width: 20rem;
-    }
-
     .pied-cadre {
       gap: 28px;
-      padding-top: 28px;
-    }
-    /* La grille de la planche, 1,4 · 1 · 1 · 1 : la navigation prend les trois colonnes de droite, au même écart. */
-    .pied-grille {
-      grid-template-columns: 1.4fr 1fr 1fr 1fr;
-      gap: var(--espace-6);
-    }
-    .pied-marque {
-      align-content: start;
-    }
-    .pied-liens {
-      grid-column: 2 / -1;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: var(--espace-6);
+      padding-top: var(--espace-6);
     }
     .pied-bas {
       display: flex;
@@ -603,32 +643,14 @@ const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
       padding-top: var(--espace-4);
     }
   }
-
-  /* Ordinateur (planche « Accueil · ordinateur ») : une seule ligne, la marque, les piliers à droite, puis le pays. */
   @media (min-width: 64rem) {
-    /* La hauteur de la planche, celle qu'aura la ligne avec la pilule Comparer (40 px) : l'en-tête ne sautera pas quand
-       elle paraîtra. */
-    .entete-cadre {
-      display: flex;
-      align-items: center;
-      gap: 28px;
-      min-height: 4.25rem;
-      padding-block: 14px;
+    .pied-grille {
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 4fr);
+      gap: var(--espace-6);
     }
-    .piliers {
-      order: 1;
-      margin-left: auto;
-    }
-    /* Le trait vert à 3 px sous le mot, comme sur la planche ; la cible garde 44 px, le rembourrage du haut étant rendu par
-       une marge négative. */
-    .piliers a {
-      min-height: 0;
-      padding-top: 20px;
-      padding-bottom: 3px;
-      margin-top: -20px;
-    }
-    .pays {
-      order: 2;
+    .pied-liens {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--espace-6);
     }
   }
 </style>

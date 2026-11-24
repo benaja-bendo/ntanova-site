@@ -144,3 +144,48 @@
 .lignes-fiche > li + li {
   border-top: 1px solid var(--trait);
 }
+
+/* Refonte publique, lot 1 (24/11/2026) : les mentions datées d'une fiche, dites hors d'une fiche (l'accueil, la
+   démonstration), avec la grammaire de la fiche : vert pour vu ou confirmé, bleu pour déclaré, tirets pour ajouté. Et les
+   étiquettes « Exemple » (une école fictive, règle du 17/11) et « En préparation » (un service qui n'existe pas encore). */
+.mention-datee {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border: 1.5px solid var(--preuve-terrain);
+  border-radius: var(--rayon-pilule);
+  background: var(--fond-releve);
+  color: var(--preuve-terrain);
+  font-family: var(--police-interface);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+}
+.mention-datee-ecole {
+  border-color: var(--preuve-ecole);
+  color: var(--preuve-ecole);
+}
+.mention-datee-ajoutee {
+  border-style: dashed;
+  border-color: var(--preuve-vide-trait);
+  color: var(--preuve-vide);
+}
+.mention-datee-direction {
+  border-color: var(--preuve-direction);
+  background: var(--preuve-direction);
+  color: var(--preuve-direction-texte);
+}
+
+.etiquette-exemple,
+.etiquette-prepare {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1.5px dashed var(--texte-doux);
+  border-radius: var(--rayon-pilule);
+  color: var(--texte-doux);
+  font-family: var(--police-interface);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

@@ -12,6 +12,7 @@ import {
   titreDeLaListe,
 } from '../../src/modele/liste-ecoles';
 import type { LigneRecherche } from '../../src/modele/recherche';
+import { cleDeLaSelection, selectionVide } from '../../src/modele/carte/vue-carte';
 
 const ligne = (
   x: Partial<LigneRecherche> & { i: string; z: string; d: string; vue?: boolean },
@@ -172,5 +173,75 @@ describe('les mots de la page', () => {
       ['Retirer Brazzaville', 1],
       ['Retirer Lycée', 1],
     ]);
+  });
+});
+
+// Refonte publique, lot 1 (24/11/2026) : « Où ? », un lieu écrit librement, cherché dans les seuls lieux documentés de l'école.
+describe('« Où ? » : le lieu de la recherche de l’accueil', () => {
+  const LIEUX: LigneRecherche[] = [
+    ...LIGNES,
+    ligne({ i: 'e', n: 'Lycée Bacongo', z: `${PN}/tie-tie`, d: `${NPN} › Tié-Tié` }),
+    ligne({ i: 'f', z: `${PN}/ngoyo`, d: `${NPN} › Ngoyo`, q: 'Mpaka' }),
+    ligne({ i: 'g', z: 'congo/brazzaville/mfilou', d: 'Congo › Brazzaville › Mfilou', q: 'Mpaka' }),
+    ligne({ i: 'h', z: `${PN}/mvou-mvou`, d: `${NPN} › Mvou-Mvou`, a: 'Mvoumvou' }),
+  ];
+  const ids = (requete: string) =>
+    filtrer(LIEUX, lireEtat(new URLSearchParams(requete)))
+      .map((t) => t.ligne.i)
+      .sort();
+
+  it('se lit, s’écrit après le quoi et revient intact', () => {
+    const etat = lireEtat(new URLSearchParams('ou=%20Tié-Tié%20&q=lycee&niveau=L'));
+    expect(etat.ou).toBe('Tié-Tié');
+    expect(ecrireEtat(etat)).toBe('?q=lycee&ou=Ti%C3%A9-Ti%C3%A9&niveau=L');
+    expect(lireEtat(new URLSearchParams(ecrireEtat(etat))).ou).toBe('Tié-Tié');
+    expect(lireEtat(new URLSearchParams('')).ou).toBe('');
+  });
+
+  it('un lieu seul limite la liste à ce lieu, sans accents ni majuscules', () => {
+    expect(ids('ou=loandjili')).toEqual(['a', 'b']);
+    expect(ids('ou=LOANDJILI')).toEqual(['a', 'b']);
+    expect(ids('ou=tie tie')).toEqual(['e']);
+    expect(ids('ou=Brazzaville')).toEqual(['d', 'g']);
+  });
+
+  it('cherche aussi les autres écritures d’une zone et le quartier dit sur place', () => {
+    expect(ids('ou=mvoumvou')).toEqual(['h']);
+    expect(ids('ou=mvou mvou')).toEqual(['h']);
+  });
+
+  it('deux quartiers du même nom dans deux villes : les deux, jamais un choix à la place du visiteur', () => {
+    expect(ids('ou=mpaka')).toEqual(['f', 'g']);
+    expect(ids('ou=mpaka brazzaville')).toEqual(['g']);
+  });
+
+  it('le nom d’une école n’est pas un lieu : « Bacongo » ne trouve pas le lycée de ce nom à Tié-Tié', () => {
+    expect(ids('ou=bacongo')).toEqual(['d']);
+    expect(ids('q=bacongo')).toEqual(['d', 'e']);
+  });
+
+  it('quoi et où se croisent, et s’ajoutent aux filtres de la liste', () => {
+    expect(ids('q=lycee&ou=tie')).toEqual(['e']);
+    expect(ids('ou=pointe-noire&niveau=L')).toEqual(['b']);
+    expect(ids('ou=pointe&q=gssj')).toEqual(['c']);
+  });
+
+  it('les deux champs vides : toutes les écoles ; un lieu inconnu : aucune, et une sortie qui retire le lieu', () => {
+    expect(ids('q=&ou=')).toHaveLength(LIEUX.length);
+    expect(ids('ou=dolisie')).toEqual([]);
+    const etat = lireEtat(new URLSearchParams('ou=dolisie&niveau=P'));
+    const sorties = sortiesDuVide(LIEUX, etat, null);
+    expect(sorties[0]?.libelle).toBe('Retirer le lieu « dolisie »');
+    // Retirer le lieu garde les autres choix.
+    expect(sorties[0]?.etat.choix.niveau).toEqual(['P']);
+    expect(sorties[0]?.etat.ou).toBe('');
+  });
+
+  it('la carte se recadre quand le lieu change, et ne montre plus le pays entier', () => {
+    const sans = etatVide();
+    const avec = { ...etatVide(), ou: 'ngoyo' };
+    expect(cleDeLaSelection(avec)).not.toBe(cleDeLaSelection(sans));
+    expect(selectionVide(sans)).toBe(true);
+    expect(selectionVide(avec)).toBe(false);
   });
 });

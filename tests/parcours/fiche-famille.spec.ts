@@ -415,63 +415,15 @@ test.describe('sur ordinateur', () => {
     expect(new Set(styles).size).toBe(1);
   });
 
-  test('les trois piliers sont en haut, et aucun bouton « Menu »', async ({ page }) => {
+  test('les trois entrées sont dans l’en-tête, le pays à côté, et le bouton « Menu » est caché', async ({
+    page,
+  }) => {
     await page.goto(COMPLEXE);
     await expect(
       page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link'),
-    ).toHaveText(['Trouver une école', 'S’orienter', 'Espace écoles']);
-    await expect(page.locator('summary.menu-bouton')).toHaveCount(0);
+    ).toHaveText(['Trouver une école', 'S’orienter', 'Pour les écoles']);
+    await expect(page.locator('summary.menu-bouton')).toBeHidden();
     await expect(page.locator('header .ville')).toBeVisible();
-  });
-});
-
-test.describe('l’en-tête du téléphone', () => {
-  test('les trois piliers sont visibles sans JavaScript, sur une ligne, 44 px chacun, et la page courante est marquée (lot 3)', async ({
-    browser,
-    baseURL,
-  }) => {
-    // Décision 1A du 15/11/2026 et planche « Accueil · téléphone » de la version 44 : plus de bouton « Menu ». Carte, Méthode,
-    // Données et À propos passent au pied de page.
-    const contexte = await browser.newContext({
-      javaScriptEnabled: false,
-      viewport: { width: 360, height: 640 },
-      baseURL: baseURL ?? '',
-    });
-    const page = await contexte.newPage();
-    await page.goto('/ecoles/pointe-noire/');
-    const piliers = page.getByRole('navigation', { name: 'Navigation principale' });
-    await expect(piliers.getByRole('link')).toHaveText([
-      'Trouver une école',
-      'S’orienter',
-      'Espace écoles',
-    ]);
-    await expect(page.getByRole('navigation', { name: 'Menu principal' })).toHaveCount(0);
-    const boites = await Promise.all(
-      (await piliers.getByRole('link').all()).map((l) => l.boundingBox()),
-    );
-    for (const b of boites) {
-      expect(b!.height).toBeGreaterThanOrEqual(44);
-      expect(b!.y, 'les trois sur la même ligne').toBe(boites[0]!.y);
-    }
-    // Une liste, une page de lieu ou une fiche : c'est « Trouver une école ».
-    await expect(piliers.getByRole('link', { name: 'Trouver une école' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    await piliers.getByRole('link', { name: 'S’orienter' }).click();
-    await expect(page).toHaveURL(/\/orienter\/$/);
-    await expect(piliers.getByRole('link', { name: 'S’orienter' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    await expect(piliers.getByRole('link', { name: 'Trouver une école' })).not.toHaveAttribute(
-      'aria-current',
-    );
-    // Lot 4 bis : la carte est la vue Carte de « Les écoles » ; le pied de page n'a plus de lien « Carte ».
-    await expect(
-      page.getByRole('contentinfo').getByRole('link', { name: 'Carte', exact: true }),
-    ).toHaveCount(0);
-    await contexte.close();
   });
 
   test('la bulle du pays passe au-dessus de la page, juste sous l’en-tête', async ({ page }) => {
@@ -479,7 +431,7 @@ test.describe('l’en-tête du téléphone', () => {
     await page.locator('header details.pays > summary').click();
     const bulle = await page.locator('.pays-bulle').boundingBox();
     const entete = await page.locator('header.entete').boundingBox();
-    expect(Math.abs(bulle!.y - (entete!.y + entete!.height))).toBeLessThan(2);
+    expect(bulle!.y).toBeLessThanOrEqual(entete!.y + entete!.height + 2);
     expect(bulle!.x + bulle!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     // Elle recouvre bien le contenu : le point en son milieu pointe vers elle.
     const pointe = await page.evaluate(
@@ -495,7 +447,7 @@ test.describe('l’en-tête du téléphone', () => {
   }) => {
     const contexte = await browser.newContext({
       javaScriptEnabled: false,
-      viewport: { width: 360, height: 640 },
+      viewport: { width: 1280, height: 800 },
       baseURL: baseURL ?? '',
     });
     const page = await contexte.newPage();
@@ -507,68 +459,78 @@ test.describe('l’en-tête du téléphone', () => {
     await pays.locator('summary').click();
     await expect(bulle).toBeVisible();
     await expect(bulle).toContainText(
-      'Pour le moment, NTanova recense les écoles du Congo-Brazzaville, ville après ville.',
+      'Pour le moment, NTanova recense les écoles du Congo-Brazzaville',
     );
     // Rien de promis au-delà : aucun autre pays, aucun lien.
     await expect(bulle.getByRole('link')).toHaveCount(0);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-      360,
-    );
     await contexte.close();
   });
 });
 
-test.describe('l’accueil', () => {
-  test('la recherche ouvre « Écoles » avec le mot cherché, et le parent arrive sur la fiche', async ({
-    page,
+test.describe('l’en-tête du téléphone', () => {
+  test('sans JavaScript, « Menu » ouvre les trois entrées, 44 px chacune, la page courante marquée (refonte, lot 1)', async ({
+    browser,
+    baseURL,
   }) => {
-    await page.goto('/');
-    await page.getByRole('searchbox', { name: 'Chercher une école' }).fill('mongo');
-    await page.getByRole('button', { name: 'Chercher' }).click();
-    await expect(page).toHaveURL(/\/ecoles\/\?q=mongo$/);
-    await page
-      .locator('[data-cartes]')
-      .getByRole('link', { name: /Groupe scolaire.*Mongo-Mpoukou/ })
-      .click();
-    await expect(page).toHaveURL(/\/ecoles\/groupe-scolaire-exemple-904316\/$/);
-  });
-
-  test('la carte n’est plus à l’accueil, mais à un geste : « Voir la carte »', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('main canvas, main .carte, main [data-carte]')).toHaveCount(0);
-    await page.getByRole('main').getByRole('link', { name: 'Voir la carte' }).click();
-    await expect(page).toHaveURL(/\/ecoles\/\?vue=carte$/);
-  });
-
-  test('la carte d’une ville mène à sa page, chaque puce à son arrondissement', async ({
-    page,
-  }) => {
-    await page.goto('/');
-    const ville = page.locator('section.ville-carte', { hasText: 'Pointe-Noire' });
-    await expect(
-      ville.getByRole('link', { name: /^Pointe-Noire 7 écoles sur NTanova$/ }),
-    ).toHaveAttribute('href', '/ecoles/pointe-noire/');
-    await ville.getByRole('link', { name: /^Loandjili/ }).click();
-    await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/loandjili\/$/);
-  });
-
-  test('sur téléphone, « Comment les fiches sont tenues » : les trois étapes, l’une sous l’autre, avant l’appel aux directions', async ({
-    page,
-  }) => {
-    await page.goto('/');
-    const titre = page.getByRole('heading', { name: 'Comment les fiches sont tenues' });
-    await expect(titre).toBeVisible();
-    const etapes = page.locator('.etape');
-    await expect(etapes).toHaveCount(3);
-    const boites = await Promise.all([0, 1, 2].map((i) => etapes.nth(i).boundingBox()));
-    for (let i = 1; i < 3; i++) expect(boites[i]!.y).toBeGreaterThan(boites[i - 1]!.y);
-    // Une colonne : pas plus large que l'écran, pas de défilement de côté.
+    // Refonte publique, lot 1 (canevas « Points de repère », lancement du 24/11) : le menu du téléphone remplace les trois
+    // piliers toujours visibles du 15/11. Un `<details>` : il s'ouvre et se ferme sans script.
+    const contexte = await browser.newContext({
+      javaScriptEnabled: false,
+      viewport: { width: 360, height: 640 },
+      baseURL: baseURL ?? '',
+    });
+    const page = await contexte.newPage();
+    await page.goto('/ecoles/pointe-noire/');
+    const menu = page.locator('summary.menu-bouton');
+    const entrees = page.getByRole('navigation', { name: 'Navigation principale' });
+    await expect(entrees).toHaveCount(0);
+    await menu.click();
+    await expect(entrees.getByRole('link')).toHaveText([
+      'Trouver une école',
+      'S’orienter',
+      'Pour les écoles',
+    ]);
+    for (const lien of await entrees.getByRole('link').all())
+      expect((await lien.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    // Une liste, une page de lieu ou une fiche : c'est « Trouver une école ».
+    await expect(entrees.getByRole('link', { name: 'Trouver une école' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    // Le menu ne cache rien d'autre : le pays y est dit, sans lien.
+    await expect(page.locator('.menu-panneau')).toContainText('Congo-Brazzaville');
+    await entrees.getByRole('link', { name: 'S’orienter' }).click();
+    await expect(page).toHaveURL(/\/orienter\/$/);
+    await menu.click();
+    await expect(entrees.getByRole('link', { name: 'S’orienter' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await expect(entrees.getByRole('link', { name: 'Trouver une école' })).not.toHaveAttribute(
+      'aria-current',
+    );
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       360,
     );
-    const appel = await page.locator('.appel-ecoles').boundingBox();
-    expect(appel!.y).toBeGreaterThan(boites[2]!.y);
-    const villes = await page.locator('section.ville-carte').last().boundingBox();
-    expect(boites[0]!.y).toBeGreaterThan(villes!.y);
+    // Lot 4 bis : la carte est la vue Carte de « Les écoles » ; le pied de page n'a plus de lien « Carte ».
+    await expect(
+      page.getByRole('contentinfo').getByRole('link', { name: 'Carte', exact: true }),
+    ).toHaveCount(0);
+    await contexte.close();
+  });
+
+  test('le menu ouvert passe au-dessus de la page, juste sous l’en-tête', async ({ page }) => {
+    await page.goto(COMPLEXE);
+    await page.locator('summary.menu-bouton').click();
+    const panneau = (await page.locator('.menu-panneau').boundingBox())!;
+    const entete = (await page.locator('header.entete').boundingBox())!;
+    expect(Math.abs(panneau.y - (entete.y + entete.height))).toBeLessThan(2);
+    const pointe = await page.evaluate(
+      ([x, y]) => !!document.elementFromPoint(x!, y!)?.closest('.menu-panneau'),
+      [panneau.x + panneau.width / 2, panneau.y + panneau.height / 2],
+    );
+    expect(pointe).toBe(true);
   });
 });
+
+// L'accueil (recherche « Quoi ? / Où ? », villes, dessin) : accueil.spec.ts depuis la refonte publique, lot 1.

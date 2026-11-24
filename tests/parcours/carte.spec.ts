@@ -17,10 +17,10 @@ test.beforeEach(async ({ page, context }) => {
 
 test('de la ville à la fiche, par la liste', async ({ page }) => {
   await page.goto('/');
-  // La carte de la ville, dans « Où ? » (lot 3) : son nom et son nombre de fiches.
+  // La carte de la ville, dans « Par ville » (refonte publique, lot 1) : son nom et son nombre de fiches.
   await page
-    .getByRole('main')
-    .getByRole('link', { name: /^Pointe-Noire \d+ écoles sur NTanova$/ })
+    .getByRole('region', { name: 'Par ville' })
+    .getByRole('link', { name: /^Pointe-Noire \d+ écoles/ })
     .click();
   await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pointe-Noire');

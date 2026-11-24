@@ -12,9 +12,10 @@ import { readFileSync } from 'node:fs';
 
 describe('les pages de transparence', () => {
   it('sont quatre, dans l’ordre du pied de page, chacune avec sa page', () => {
+    // Refonte publique, lot 1 (24/11/2026) : les libellés du canevas « Points de repère », mêmes adresses.
     expect(PAGES_DE_TRANSPARENCE.map((p) => p.texte)).toEqual([
-      'Méthode',
-      'Données',
+      'Fiabilité des informations',
+      'Données de l’annuaire',
       'Confidentialité',
       'Mentions légales',
     ]);

@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  compterSuperieur,
-  lienDuSuperieur,
+  arrondissementsCites,
+  jourEtMois,
   niveauxDeLAccueil,
   orientationDePassage,
+  profilsDeLAccueil,
   villesDeLAccueil,
-  vuesRecemment,
+  voirLesEcoles,
 } from '../../src/modele/accueil';
 import { construireArbre } from '../../src/modele/geo-divisions';
 import type { DivisionPublique, EcolePubliee } from '../../src/modele/ports';
@@ -132,50 +133,84 @@ describe('« Où ? » : les villes de l’accueil', () => {
   });
 });
 
-describe('« Vues sur place récemment »', () => {
-  it('les quatre passages les plus récents, jamais une école seulement déclarée', () => {
-    const ecoles = [
-      ecole('lo', { nom: 'Ancienne', releveeLe: '2026-10-01' }),
-      ecole('lo', { nom: 'Déclarée', releveeLe: null, declareeLe: '2026-11-15' }),
-      ecole('lo', { nom: 'Bâtisseurs', releveeLe: '2026-11-11' }),
-      ecole('lo', { nom: 'Palmiers', releveeLe: '2026-11-11' }),
-      ecole('lo', { nom: 'Étoiles', releveeLe: '2026-11-09' }),
-      ecole('lo', { nom: 'Saint-Exupéry', releveeLe: '2026-11-10' }),
-    ];
-    expect(vuesRecemment(ecoles).map((e) => e.nom)).toEqual([
-      'Bâtisseurs',
-      'Palmiers',
-      'Saint-Exupéry',
-      'Étoiles',
-    ]);
-    expect(vuesRecemment(ecoles, 2).map((e) => e.nom)).toEqual(['Bâtisseurs', 'Palmiers']);
-    expect(vuesRecemment([ecole('lo')])).toEqual([]);
-  });
-});
-
-describe('« Pour qui ? »', () => {
-  it('les niveaux d’avant le bac qui ont une école, dans l’ordre M, P, C, L, avec leur lien filtré', () => {
+describe('« Par niveau » (refonte, lot 1)', () => {
+  it('les six cycles qui ont une école, dans l’ordre M, P, C, L, T, S, avec leur lien filtré', () => {
     const ecoles = [
       ecole('lo', { niveaux: ['creche', 'primaire'] }),
       ecole('lo', { niveaux: ['lycee', 'superieur'] }),
+      ecole('lo', { niveaux: ['technique'] }),
     ];
     expect(niveauxDeLAccueil(ecoles)).toEqual([
       { lettre: 'M', mot: 'Maternelle', lien: '/ecoles/?niveau=M' },
       { lettre: 'P', mot: 'Primaire', lien: '/ecoles/?niveau=P' },
       { lettre: 'L', mot: 'Lycée', lien: '/ecoles/?niveau=L' },
+      { lettre: 'T', mot: 'Technique', lien: '/ecoles/?niveau=T' },
+      { lettre: 'S', mot: 'Supérieur', lien: '/ecoles/?niveau=S' },
+    ]);
+    expect(niveauxDeLAccueil([])).toEqual([]);
+  });
+});
+
+describe('« S’orienter, à chaque étape » (refonte, lot 1)', () => {
+  it('cinq situations comptées depuis le catalogue, chacune vers la liste qui lui répond', () => {
+    const ecoles = [
+      ecole('lo', { niveaux: ['creche'] }),
+      ecole('lo', { niveaux: ['primaire', 'college'] }),
+      ecole('lo', { niveaux: ['college', 'lycee'] }),
+      ecole('lo', {
+        niveaux: ['superieur'],
+        formations: [{ rythmes: ['soir'] } as unknown as EcolePubliee['formations'][number]],
+      }),
+      ecole('lo', { niveaux: ['autre_formation'] }),
+    ];
+    expect(profilsDeLAccueil(ecoles).map((p) => [p.titre, p.lien, p.compte])).toEqual([
+      ['Mon enfant entre à l’école', '/ecoles/?niveau=M,P', '2 écoles'],
+      ['Après le CM2', '/ecoles/?niveau=C', '2 écoles'],
+      ['En 3e, ou j’ai le BEPC', '/ecoles/?niveau=L', '1 école'],
+      ['Au lycée, ou j’ai le bac', '/ecoles/?niveau=S', '2 écoles'],
+      ['Je travaille, je veux me former', '/ecoles/?rythme=soir', '1 école'],
     ]);
   });
 
-  it('le supérieur compte aussi les autres formations, comme le filtre S de la liste', () => {
+  it('jamais une situation vide ; le week-end quand personne n’a de cours du soir', () => {
     const ecoles = [
-      ecole('lo', { niveaux: ['superieur'] }),
-      ecole('lo', { niveaux: ['autre_formation'] }),
-      ecole('lo', { niveaux: ['lycee', 'technique'] }),
+      ecole('lo', {
+        niveaux: ['lycee'],
+        formations: [{ rythmes: ['weekend'] } as unknown as EcolePubliee['formations'][number]],
+      }),
     ];
-    expect(compterSuperieur(ecoles)).toBe(2);
-    expect(lienDuSuperieur(3)).toBe('Voir les 3 établissements du supérieur');
-    expect(lienDuSuperieur(1)).toBe('Voir l’établissement du supérieur');
-    expect(lienDuSuperieur(0)).toBeNull();
+    expect(profilsDeLAccueil(ecoles).map((p) => [p.detail, p.lien])).toEqual([
+      ['Le lycée et ses séries', '/ecoles/?niveau=L'],
+      ['Les cours du week-end', '/ecoles/?rythme=weekend'],
+    ]);
+    expect(profilsDeLAccueil([])).toEqual([]);
+  });
+});
+
+describe('les mots de l’accueil', () => {
+  it('le lien de « Trouver une école » dit le nombre de l’annuaire, jamais « toutes les écoles »', () => {
+    expect(voirLesEcoles(84)).toBe('Voir les 84 écoles');
+    expect(voirLesEcoles(1234)).toBe('Voir les 1\u202f234 écoles');
+    expect(voirLesEcoles(1)).toBe('Voir l’école');
+    expect(voirLesEcoles(0)).toBe('Voir la liste');
+  });
+
+  it('les arrondissements cités, le jour court de l’annuaire', () => {
+    const villes = villesDeLAccueil(
+      construireArbre(DIVISIONS, [ecole('lo'), ecole('lo'), ecole('ng'), ecole('lu'), ecole('ba')]),
+    );
+    expect(arrondissementsCites(villes[1]!)).toBe('Loandjili, Lumumba…');
+    expect(arrondissementsCites(villes[0]!)).toBe('Bacongo');
+    expect(arrondissementsCites({ puces: [] })).toBe('');
+    expect(jourEtMois('2026-11-24')).toBe('24/11');
+  });
+
+  it('une ville a son dessin s’il existe ; une ville nouvelle, aucun', () => {
+    const villes = villesDeLAccueil(construireArbre(DIVISIONS, [ecole('lo'), ecole('do')]));
+    expect(villes.map((v) => [v.nom, v.dessin])).toEqual([
+      ['Dolisie', null],
+      ['Pointe-Noire', '/dessins/ville-pointe-noire.svg'],
+    ]);
   });
 });
 

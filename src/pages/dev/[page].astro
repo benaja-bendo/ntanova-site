@@ -25,6 +25,9 @@ import EquipementsEcole from '../../ui/EquipementsEcole.astro';
 import AdmissionEcole from '../../ui/fiche/AdmissionEcole.astro';
 import FraisDeLaFiche from '../../ui/fiche/FraisDeLaFiche.astro';
 import NouvellesEcole from '../../ui/fiche/NouvellesEcole.astro';
+import DessinCongo from '../../ui/DessinCongo.astro';
+import RechercheAccueil from '../../ui/RechercheAccueil.astro';
+import { carteDeLAccueil, placerLesEtiquettes } from '../../modele/carte-accueil';
 // Les pièces de la page carte : les mêmes feuilles que celles de /carte/, jamais une copie.
 import '../../ui/carte-pieces.css';
 
@@ -41,6 +44,40 @@ const ombres = noms.filter((n) => n.startsWith('ombre-'));
 const cycles = ['M', 'P', 'C', 'L', 'T', 'S'] as const;
 const tailles = noms.filter((n) => n.startsWith('taille-'));
 const etats = ['verifiee', 'relevee', 'attente', 'a-corriger', 'refusee', 'telephone', 'envoye'];
+
+// Le dessin de l'accueil (refonte publique, lot 1) : le pays seul, puis des villes fictives, un nom long et une ville serrée
+// contre une autre (son étiquette attend la liste « Par ville »).
+const paysSeul = carteDeLAccueil({ racines: [] });
+const dessinFictif = {
+  ...paysSeul,
+  points: [
+    { x: 53, y: 498, r: 4.2 },
+    { x: 251, y: 468, r: 5.3 },
+    { x: 296, y: 127, r: 3.5 },
+  ],
+  villes: placerLesEtiquettes([
+    {
+      nom: '[Ville Exemple]',
+      lien: '#accueil',
+      total: 12,
+      x: 53,
+      y: 498,
+      gauche: 16.9,
+      haut: 89.9,
+    },
+    {
+      nom: '[Une ville au nom très long]',
+      lien: '#accueil',
+      total: 3,
+      x: 251,
+      y: 468,
+      gauche: 54.4,
+      haut: 84.8,
+    },
+    { nom: '[Ville du nord]', lien: '#accueil', total: 1, x: 296, y: 127, gauche: 63, haut: 27.5 },
+    { nom: '[Ville serrée]', lien: '#accueil', total: 1, x: 70, y: 490, gauche: 20, haut: 88.6 },
+  ]),
+};
 
 // La carte détourée, avec des écoles et un repère fictifs : seules, en groupe, vérifiée.
 const tieTie = arrondissementDessine('tie-tie')!;
@@ -272,6 +309,34 @@ const autour = arrondissementsDessines.map((a) => ({
             --{n}
           </span>
         ))}
+      </div>
+    </div>
+
+    <h2 id="accueil">L'accueil (refonte publique, lot 1)</h2>
+    <p>
+      La recherche « Quoi ? / Où ? » (un formulaire, sans script), le dessin du pays (vide, puis
+      avec des villes fictives), les mentions datées et les étiquettes « Exemple » et « En
+      préparation ». Le menu du téléphone est celui de l'en-tête de cette page, en dessous de 48
+      rem.
+    </p>
+    <div style="display: grid; gap: var(--espace-4)">
+      <div class="sur-marque" style="padding: var(--espace-4); background: var(--marque-appuyee)">
+        <RechercheAccueil id="catalogue" />
+      </div>
+      <div
+        class="sur-marque"
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--espace-4); padding: var(--espace-4); background: var(--marque-appuyee); color: var(--texte-sur-marque)"
+      >
+        <DessinCongo carte={paysSeul} jour="24/11" id="catalogue-vide" />
+        <DessinCongo carte={dessinFictif} jour="24/11" id="catalogue-villes" />
+      </div>
+      <div class="rangee">
+        <span class="mention-datee mention-datee-terrain">Vue sur place · 12 nov. 2026</span>
+        <span class="mention-datee mention-datee-ecole">Déclarée par l’école</span>
+        <span class="mention-datee mention-datee-ajoutee">Ajoutée par NTanova</span>
+        <span class="mention-datee mention-datee-direction">Confirmée par la direction</span>
+        <span class="etiquette-exemple">Exemple</span>
+        <span class="etiquette-prepare">En préparation</span>
       </div>
     </div>
 

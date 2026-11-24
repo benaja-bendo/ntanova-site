@@ -1,0 +1,128 @@
+---
+// La recherche « Quoi ? / Où ? » de l'accueil (refonte publique, lot 1, 24/11/2026). Un formulaire HTML, sans script : il
+// ouvre « Les écoles » avec `q` (une école, une formation) et `ou` (une ville, un arrondissement, un quartier), que la liste
+// comprend, garde dans son adresse et laisse retirer (`modele/liste-ecoles.ts`). Les deux champs vides ouvrent toutes les
+// écoles de l'annuaire ; un seul suffit. Ni autocomplétion ni position demandée ici.
+import Icone from './Icone.astro';
+
+interface Props {
+  /** Le préfixe des identifiants des champs, pour poser deux recherches dans une même page (le catalogue). */
+  id?: string;
+}
+const { id = 'accueil' } = Astro.props;
+---
+
+<form
+  class="recherche-double"
+  action="/ecoles/"
+  method="get"
+  role="search"
+  aria-label="Chercher une école"
+>
+  <label class="recherche-champ" for={`${id}-q`}>
+    <span>Quoi&nbsp;?</span>
+    <input
+      id={`${id}-q`}
+      type="search"
+      name="q"
+      autocomplete="off"
+      enterkeyhint="search"
+      placeholder="École ou formation"
+    />
+  </label>
+  <label class="recherche-champ" for={`${id}-ou`}>
+    <span>Où&nbsp;?</span>
+    <input
+      id={`${id}-ou`}
+      type="search"
+      name="ou"
+      autocomplete="off"
+      enterkeyhint="search"
+      placeholder="Ville, quartier"
+    />
+  </label>
+  <button class="bouton bouton-accent recherche-bouton" type="submit">
+    <Icone nom="loupe" />
+    Chercher
+  </button>
+</form>
+
+<style>
+  /* Une carte blanche, même posée sur le vert : le focus y reprend le vert profond (le jaune y serait illisible). */
+  .recherche-double {
+    --focus: var(--marque-appuyee);
+    display: grid;
+    gap: 0;
+    padding: var(--espace-1);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+  }
+  .recherche-champ {
+    display: grid;
+    gap: 2px;
+    padding: var(--espace-2) var(--espace-4);
+    border-bottom: 1px solid var(--trait);
+    cursor: text;
+  }
+  .recherche-champ span {
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .recherche-champ input {
+    width: 100%;
+    min-height: var(--cible-min);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--texte);
+    font: inherit;
+    font-size: 1.0625rem;
+  }
+  .recherche-champ input::placeholder {
+    color: var(--texte-doux);
+  }
+  .recherche-champ input:focus-visible {
+    outline: none;
+  }
+  /* Le focus encadre tout le champ, libellé compris. */
+  .recherche-champ:has(input:focus-visible) {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: -2px;
+    border-radius: var(--rayon-s);
+  }
+  .recherche-bouton {
+    min-height: var(--cible-principale);
+    margin-top: var(--espace-1);
+    gap: var(--espace-2);
+    font-size: 1.0625rem;
+  }
+  .recherche-bouton :global(svg) {
+    width: 20px;
+    height: 20px;
+  }
+  .recherche-bouton:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  /* À partir de 40 rem : les deux champs côte à côte, le bouton à droite. */
+  @media (min-width: 40rem) {
+    .recherche-double {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+      align-items: stretch;
+    }
+    .recherche-champ {
+      border-bottom: 0;
+    }
+    .recherche-champ + .recherche-champ {
+      border-left: 1px solid var(--trait);
+    }
+    .recherche-bouton {
+      min-height: 0;
+      margin-top: 0;
+      padding-inline: var(--espace-6);
+    }
+  }
+</style>
