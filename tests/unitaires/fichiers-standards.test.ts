@@ -45,6 +45,7 @@ describe('llms.txt', () => {
     for (const page of [
       '/',
       '/ecoles/',
+      '/orienter/',
       '/a-propos/',
       '/methode/',
       '/donnees/',

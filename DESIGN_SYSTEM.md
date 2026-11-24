@@ -42,7 +42,7 @@
 - Trois fichiers servis par le site (48 Ko), jamais un service extérieur. Une seule graisse de Source Serif 4 ; ne pas écrire `font-weight: 600`.
 - Poppins ne sert plus sur les écrans. Elle reste dans le guide du relais v4 (affiches) jusqu'à sa prochaine version.
 - Échelle écran : 12, 14, 16, 18, 22, 28 px. Texte courant et champs à 16 px. Chiffres en `tabular-nums`.
-- **Échelle des titres publics (refonte, lot 1, 24/11)** : seul l'accueil illustré a de grands titres, en jetons fluides : `--taille-titre-accueil` (36 px à 375, 64 px à 1 440), `--taille-section-accueil` (26 à 40 px), `--taille-chapeau-accueil` (17 à 22 px). Les autres pages publiques gardent `--taille-titre-public` ; l'administration et l'espace relais gardent leur échelle.
+- **Échelle des titres publics (refonte, lot 1, 24/11)** : l'accueil illustré a de grands titres, en jetons fluides : `--taille-titre-accueil` (36 px à 375, 64 px à 1 440), `--taille-section-accueil` (26 à 40 px), `--taille-chapeau-accueil` (17 à 22 px). **Lot 2 (24/11)** : S'orienter prend les mêmes jetons, comme sa planche ; aucun jeton nouveau. Les autres pages publiques gardent `--taille-titre-public` ; l'administration et l'espace relais gardent leur échelle.
 - Libellés en minuscules, 14 px. Les capitales espacées sont réservées aux surtitres de 12 px.
 
 ### Formes (v2)
@@ -78,6 +78,7 @@ Repos, survol (`@media (hover: hover)` seulement), appui (plus sombre, 1 px de c
 - **Recherche « Quoi ? / Où ? »** (`RechercheAccueil.astro`) : une carte blanche, deux champs libellés, un bouton jaune ; sur le vert, le focus y redevient vert profond.
 - **Dessin du pays** (`DessinCongo.astro`, `modele/carte-accueil.ts`) : SVG écrit dans la page, trame en motif découpé par le contour, points jaunes et étiquettes calculés depuis le catalogue ; les étiquettes sont des liens de 44 px qui ne se chevauchent jamais.
 - **Mentions datées hors d'une fiche** (`.mention-datee-*`, `public.css`) : la grammaire de la fiche ; **étiquettes** `.etiquette-exemple` (école fictive) et `.etiquette-prepare` (service qui n'existe pas encore, jamais cliquable).
+- **S'orienter (lot 2, 24/11)** (`src/ui/orienter/`) : `ParcoursScolaire.astro`, un seul HTML lu voie par voie, placé par `grid-template-areas` en sept colonnes (64 rem et plus) ou en deux colonnes côte à côte (téléphone) ; un niveau est un lien s'il a des écoles, sinon un paragraphe ; voie générale en vert (`--marque`), technique en bleu (`--bleu-ardoise`), métiers en tirets, examens en rond jaune cerclé d'encre ; sources dans un `<details>`. `DomainesFormation.astro` : une carte-lien par groupe fourni, une carte en tirets sans lien pour un groupe vide. `ActivitesOrientation.astro` : une carte blanche sur la bande verte (le focus y redevient vert profond), tout écrit en HTML ; le script ne fait que montrer et cacher (`hidden`), annonce l'activité dans une zone `aria-live` cachée et donne le focus au titre du résultat. Sans script, la carte renvoie aux domaines et n'a aucun bouton.
 - **Dessins** : `public/dessins/`, copiés des originaux du canevas (dépôt `ntanova`, `outils/canevas-accueil/dessins/out/`), coordonnées arrondies ; images décoratives (`alt=""`), chargées au défilement sous le premier écran. Leurs couleurs sont celles de la charte, écrites dans le fichier image : `pnpm couleurs` ne garde que `src/`.
 
 ## 3. Les trois branches

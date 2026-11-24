@@ -69,6 +69,13 @@ const budgetPremierAffichage = 700 * 1024;
 // allégé de outils/fond-de-carte/, Ko compressés) : la seule valeur de ce fichier qui ne vient pas de dist/.
 const tuilesDeLaVilleEnOctets = 43 * 1024;
 
+// Refonte publique, lot 2 (24/11/2026) : « S'orienter », la septième exception, pour cette seule page. Elle se lit sans
+// script ; les six activités ont une amorce chargée avec la page, qui charge le script des réponses à l'approche ou au premier
+// geste (`import()`). Tout le JavaScript de la page, amorce et imports suivis compris, pèse 10 Ko gzip au plus ; le premier
+// affichage (sans les images `loading="lazy"` ni les scripts chargés plus tard) reste sous le budget d'une page.
+const pageOrienter = /^orienter\/index\.html$/;
+const budgetJavaScriptOrienter = 10 * 1024;
+
 if (!existsSync(dist)) {
   console.error('dist/ manque : lancer `pnpm build` d’abord.');
   process.exit(1);
@@ -143,7 +150,8 @@ for (const page of pages(dist)) {
     javascript &&
     !avecJavaScript.test(nom) &&
     !petitJavaScript.test(nom) &&
-    !pageCarte.test(nom)
+    !pageCarte.test(nom) &&
+    !pageOrienter.test(nom)
   ) {
     fautes.push('contient du JavaScript');
   }
@@ -275,6 +283,43 @@ for (const [cheminCarte, nomCarte, budgetDuChargeur] of pagesAvecLaCarte) {
       `${marque} ${`${nomCarte} : premier affichage`.padEnd(32)} ${ko(premierAffichage).padStart(9)}  ${fautes.join(', ')}`.trimEnd(),
     );
   }
+}
+
+// --- « S'orienter » : tout le JavaScript de la page, en suivant les imports de son amorce ------------------------------------
+const pageDOrientation = join(dist, 'orienter/index.html');
+if (existsSync(pageDOrientation)) {
+  const html = readFileSync(pageDOrientation, 'utf8');
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].filter(
+    ([, attributs]) => !/application\/ld\+json/.test(attributs),
+  );
+  const racines = [];
+  let octetsEnLigne = 0;
+  for (const [, attributs, texte] of scripts) {
+    const src = /\ssrc="([^"]+)"/.exec(attributs)?.[1];
+    if (src) racines.push(join(dist, decodeURI(src.split(/[?#]/)[0])));
+    else {
+      // Un script écrit dans la page : son texte compte, et ses imports se suivent comme ceux d'un fichier.
+      octetsEnLigne += compresse(texte);
+      for (const m of texte.matchAll(/["'`]\/?(_astro\/[^"'`]+\.(?:js|mjs))["'`]/g))
+        racines.push(join(dist, m[1]));
+    }
+  }
+  const fichiers = [
+    ...fermeture(racines, (statiques, dynamiques) => [...statiques, ...dynamiques]),
+  ].filter((f) => /\.(js|mjs)$/.test(f));
+  const octets = octetsEnLigne + fichiers.reduce((n, f) => n + compresse(readFileSync(f)), 0);
+  const emblee = totauxDEmblee.get('orienter/index.html') ?? 0;
+  const fautes = [];
+  if (scripts.length === 0) fautes.push('aucun script : les activités ne répondent pas');
+  if (octets > budgetJavaScriptOrienter)
+    fautes.push(`son JavaScript dépasse ${ko(budgetJavaScriptOrienter)}`);
+  if (emblee > budgetPage) fautes.push(`le premier affichage dépasse ${ko(budgetPage)}`);
+  if (fautes.length) echec = true;
+  const marque = fautes.length ? '✗' : '✓';
+  lignes.push(
+    `${marque} ${'orienter : JavaScript'.padEnd(32)} ${ko(octets).padStart(9)}  (gzip, amorce et imports : ${fichiers.length} fichier${fichiers.length > 1 ? 's' : ''})`,
+    `${marque} ${'orienter : premier affichage'.padEnd(32)} ${ko(emblee).padStart(9)}  ${fautes.join(', ')}`.trimEnd(),
+  );
 }
 
 console.log(lignes.join('\n'));

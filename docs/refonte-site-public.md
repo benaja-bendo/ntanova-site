@@ -33,6 +33,33 @@ Contrat de recherche, compris par `lireEtat` / `ecrireEtat` (`src/modele/liste-e
 - Les anciennes adresses (`zone`, `ville`, `niveau=primaire`, `cycle`, `autour`) restent comprises.
 - Transition : écrire à NTanova, signaler une erreur et signaler une école passent par WhatsApp ; « Ajouter mon école » mène à `/pour-les-ecoles/#referencer`. Aucun lien vers `/contact/` ou `/contribuer/` avant le lot 3 ; ni « Toutes les villes » (lot 4) ni « Outils en préparation » (lot 5) dans le pied.
 
+## Lot 2 — S’orienter (ticket 213, PR vers `refonte/site-public`, 24/11/2026)
+
+Lancé avec ses six choix acceptés (dépôt `ntanova`, `LOT-02-ORIENTER.md`). `/orienter/` a cinq sections et cinq ancres : `#o-situation`, `#o-parcours`, `#o-activites`, `#o-domaines`, `#o-faq`.
+
+| Pièce | Règle |
+| --- | --- |
+| Situations | les cinq de l’accueil (`profilsDeLAccueil`), mêmes liens et mêmes nombres ; aucune situation vide |
+| Parcours | `niveauxDuParcours` : `?niveau=M/P/C/L/S` seulement avec au moins une école ; le technique, qui n’est qu’un cycle dans l’annuaire, a un seul lien (`?niveau=T`), sur sa voie |
+| Activités | `modele/orientation.ts` : six activités, leurs domaines ; un « J’aime » ouvre ses domaines, les autres réponses rien ; pistes dans l’ordre des activités, sans doublon ; une réponse par geste (question affichée, pause de 350 ms, second clic d’un double clic ignoré) |
+| Domaines | dix groupes codés comme la CITE-F 2013 (01 à 10), chaque domaine de l’annuaire dans un seul, sauf « Autre » (un test compare à la migration) ; `offreDesDomaines` : lien vers l’union des seuls domaines qui ont une formation, écoles comptées une fois par le filtre de la liste |
+| Nombres | `compterLaListe` applique `lireEtat` + `filtrer` de « Les écoles » au lien même : le nombre annoncé est celui de la liste |
+| Script | `app/orienter/amorce.ts` (avec la page) puis `activites.ts` (`import()` à l’approche, au focus ou au premier appui, rejoué une fois) ; il montre et cache du HTML écrit à la construction ; frontière ESLint : ni `infra`, ni Supabase, ni React |
+| Confidentialité | aucune réponse dans l’adresse, un stockage, un cookie, un journal ou une requête ; l’état vit le temps de la page ; « Recommencer » le remet à zéro |
+| Sans JavaScript | la carte des activités renvoie aux domaines, sans bouton ; le reste est du HTML et des `<details>` |
+| Poids | `pnpm poids` : tout le JavaScript de `/orienter/` (amorce et imports suivis) sous 10 Ko gzip, premier affichage sous 200 Ko ; aucune autre page ne gagne de script |
+
+L’accueil rétablit les activités : « Le parcours scolaire, les activités, les domaines » (`/orienter/`) et une carte « Pas d’idée de métier ? » (`/orienter/#o-activites`). `/orienter/` entre dans `sitemap.xml` et `llms.txt`.
+
+Textes scolaires vérifiés le 24/11 (note datée dans le dépôt `ntanova`) : décrets 2017-148, 2017-149, 2017-154 et 2025-216, Conseil des ministres du 20 janvier 2026, JO du 5 novembre 2026, CITE-F 2013. Le CEP reste « en projet » ; les âges maximum de 2017 et la durée de la maternelle ne sont pas affichés. Relecture humaine des informations scolaires avant toute production.
+
+### Corrections après revue du lot 2 (24/11)
+
+- Une touche Entrée maintenue ne répond plus à plusieurs activités : les répétitions natives du clavier sont ignorées, en plus de la pause et du filtre des doubles clics. Un parcours reproduit l’échec avant correction, puis vérifie un nouvel appui après relâchement.
+- Le résultat sans sélection reste factuel, y compris après six « Je ne sais pas » ; le secours sans activités propose les domaines sans vocabulaire technique.
+- Le groupe 06 précise « Informatique et technologies de communication » pour le distinguer du journalisme du groupe 03. Les domaines et les comptes ne changent pas.
+- La source du Conseil des ministres décrit son contenu daté, sans présenter sa lecture comme une vérification de l’entrée en vigueur d’une réforme. Le vote non retrouvé ne prouve pas l’absence de vote ; les sources et cette limite sont consignées dans le dépôt documentaire.
+
 ## Contrôles et livraison
 
 Suivre `CLAUDE.md` : contrôles locaux sur le faux catalogue, dont `pnpm verif:ci` et les parcours pertinents, puis CI de la dernière révision. Aucun workflow supplémentaire, aucune répétition identique de CI. Ne pas remplacer la construction locale du fondateur par une construction isolée sur les vraies données.

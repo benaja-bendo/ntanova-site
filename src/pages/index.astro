@@ -9,7 +9,7 @@
 // calculé à la construction depuis le catalogue (`modele/accueil.ts`, `modele/carte-accueil.ts`).
 //
 // Ce que la page ne promet pas encore : les échanges, les demandes et leur suivi (en préparation, sans faux bouton) ; les
-// activités de la future page S'orienter (lot 2) ; les formulaires de contact (lot 3) : écrire passe par WhatsApp.
+// formulaires de contact (lot 3) : écrire passe par WhatsApp. Les six activités de S'orienter (lot 2) ont leur carte.
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../infra/index';
 import {
@@ -263,18 +263,34 @@ const donnees = {
             ))}
           </ul>
           <a class="lien-fort" href="/orienter/">
-            Après le BEPC ou le bac&nbsp;: S’orienter
+            Le parcours scolaire, les activités, les domaines
             <Icone nom="suite" />
           </a>
         </div>
-        <img
-          class="orienter-dessin"
-          src="/dessins/orienter-carrefour.svg"
-          alt=""
-          width="300"
-          height="240"
-          loading="lazy"
-        />
+        <div class="orienter-cote">
+          <img
+            class="orienter-dessin"
+            src="/dessins/orienter-carrefour.svg"
+            alt=""
+            width="300"
+            height="240"
+            loading="lazy"
+          />
+          <a class="activites-appel sur-marque" href="/orienter/#o-activites">
+            <img
+              src="/dessins/activite-reparer.svg"
+              alt=""
+              width="96"
+              height="74"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="activites-appel-texte">
+              <b>Pas d’idée de métier&nbsp;? Dites ce que vous aimez faire.</b>
+              <span>Six activités, sans compte&nbsp;: des pistes à explorer.</span>
+            </span>
+          </a>
+        </div>
       </div>
     </section>
   )}
@@ -749,6 +765,47 @@ const donnees = {
   }
   .orienter-dessin {
     display: none;
+  }
+  /* Les six activités de S'orienter (lot 2) : une carte verte vers leur ancre, à toutes les largeurs. */
+  .orienter-cote {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .activites-appel {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--espace-4);
+    padding: 14px 16px;
+    border-radius: var(--rayon-l);
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+    text-decoration: none;
+  }
+  .activites-appel img {
+    display: block;
+    width: 96px;
+    height: auto;
+    border-radius: var(--rayon-m);
+    background: var(--creme);
+  }
+  .activites-appel-texte {
+    display: grid;
+    gap: 3px;
+  }
+  .activites-appel-texte b {
+    font-size: var(--taille-intertitre);
+    line-height: 1.25;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .activites-appel-texte span {
+    color: var(--vert-pale);
+    font-size: var(--taille-secondaire);
+  }
+  .activites-appel:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
   }
 
   /* Par ville : une carte par ville qui a des fiches, son dessin quand il existe. */

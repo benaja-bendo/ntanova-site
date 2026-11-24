@@ -28,6 +28,15 @@ import NouvellesEcole from '../../ui/fiche/NouvellesEcole.astro';
 import DessinCongo from '../../ui/DessinCongo.astro';
 import RechercheAccueil from '../../ui/RechercheAccueil.astro';
 import { carteDeLAccueil, placerLesEtiquettes } from '../../modele/carte-accueil';
+import {
+  activitesDeLaPage,
+  groupesDeLaPage,
+  niveauxDuParcours,
+} from '../../modele/orientation-catalogue';
+import type { LigneRecherche } from '../../modele/recherche';
+import ActivitesOrientation from '../../ui/orienter/ActivitesOrientation.astro';
+import DomainesFormation from '../../ui/orienter/DomainesFormation.astro';
+import ParcoursScolaire from '../../ui/orienter/ParcoursScolaire.astro';
 // Les pièces de la page carte : les mêmes feuilles que celles de /carte/, jamais une copie.
 import '../../ui/carte-pieces.css';
 
@@ -103,6 +112,39 @@ const vueArrondissement = cadreArrondissement(tieTie);
 const planArrondissement = planer(vueArrondissement.boite, fictives, vueArrondissement.projection);
 const groupe = planArrondissement.marques.find((m) => m.genre === 'groupe');
 const vueCoin = groupe && groupe.genre === 'groupe' ? cadreCoin(groupe.ecoles) : null;
+// S'orienter (refonte publique, lot 2) : des lignes fictives pour les états d'une page vide, d'un domaine à une école et
+// d'un domaine à plusieurs écoles ; le technique a son lien seulement quand une école l'enseigne.
+const ligneFictive = (
+  i: string,
+  c: LigneRecherche['c'],
+  f: LigneRecherche['f'] = [],
+): LigneRecherche => ({
+  i,
+  n: `[École ${i}]`,
+  u: '#orienter',
+  d: '[Ville]',
+  z: 'congo/ville',
+  c,
+  f,
+});
+const lignesOrienter = [
+  ligneFictive('A', ['primaire', 'college'], []),
+  ligneFictive('B', ['lycee', 'technique']),
+  ligneFictive(
+    'C',
+    ['superieur'],
+    [
+      { c: 'superieur', t: '[BTS]', m: 'informatique' },
+      { c: 'superieur', t: '[Licence]', m: 'gestion' },
+      { c: 'superieur', t: '[Master]', m: 'droit' },
+    ],
+  ),
+  ligneFictive('D', ['superieur'], [{ c: 'superieur', t: '[Licence]', m: 'gestion' }]),
+];
+const parcoursVide = niveauxDuParcours([]);
+const parcoursFictif = niveauxDuParcours(lignesOrienter);
+const groupesFictifs = groupesDeLaPage(lignesOrienter);
+const activitesFictives = activitesDeLaPage(lignesOrienter, []);
 const autour = arrondissementsDessines.map((a) => ({
   arrondissement: a,
   role: a.slug === 'tie-tie' ? ('focus' as const) : ('voisin' as const),
@@ -337,6 +379,25 @@ const autour = arrondissementsDessines.map((a) => ({
         <span class="mention-datee mention-datee-direction">Confirmée par la direction</span>
         <span class="etiquette-exemple">Exemple</span>
         <span class="etiquette-prepare">En préparation</span>
+      </div>
+    </div>
+
+    <h2 id="orienter">S'orienter (refonte publique, lot 2)</h2>
+    <p>
+      Le parcours scolaire sans aucune école (aucun lien), puis avec des écoles fictives (le
+      technique a son lien) ; les dix domaines, vides, à une école ou à plusieurs ; la carte des six
+      activités dans son état sans script (la page /orienter/ branche le script). Tous les nombres
+      sont fictifs.
+    </p>
+    <div style="display: grid; gap: var(--espace-5)">
+      <ParcoursScolaire niveaux={parcoursVide} />
+      <ParcoursScolaire niveaux={parcoursFictif} />
+      <DomainesFormation groupes={groupesFictifs} />
+      <div
+        class="sur-marque"
+        style="padding: var(--espace-4); background: var(--marque-appuyee); max-width: 36rem"
+      >
+        <ActivitesOrientation activites={activitesFictives} jour="24 nov. 2026" />
       </div>
     </div>
 

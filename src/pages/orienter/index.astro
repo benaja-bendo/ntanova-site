@@ -1,200 +1,602 @@
 ---
-// « S'orienter », deuxième pilier (décision 1A du 15/11/2026). La planche « S'orienter, départ » de la version 44 mène à un test
-// de trois ou quatre questions, qui viendra au lot 5.
+// « S'orienter » (refonte publique, lot 2, 24/11/2026 ; canevas « Accueil : trois directions », exploration « Points de
+// repère », planches « S'orienter · 1440 px » et « S'orienter · 390 px », état Aujourd'hui). Remplace la page de passage du
+// lot 3 (15/11), dont les trois profils ouvraient chacun sa liste.
 //
-// État de passage, en attendant le lot 5 : la même page de départ, mais chaque profil ouvre la liste « Écoles » filtrée qui lui
-// correspond (`orientationDePassage`). Elle ne promet ni questions ni piste, et ne montre pas « Dates à retenir » (aucun
-// communiqué en main : sans communiqué, pas de date). Au lot 5, les liens mèneront aux questions et le texte d'ouverture
-// redeviendra celui de la planche.
+// Cinq sections, cinq ancres : la situation (#o-situation), le parcours scolaire (#o-parcours), les six activités
+// (#o-activites), les dix domaines (#o-domaines), les questions des familles (#o-faq). Chaque nombre est calculé à la
+// construction et vaut celui de la liste que son lien ouvre (`modele/orientation-catalogue.ts`) ; aucun lien vers une liste
+// vide. Le seul JavaScript est celui des activités (`app/orienter/`), chargé à l'approche, 10 Ko gzip au plus (`pnpm poids`) ;
+// sans lui, tout le reste se lit et les activités renvoient aux domaines. Aucune réponse ne quitte le navigateur.
+//
+// Textes scolaires vérifiés le 24/11/2026, sources dans le schéma ; une annonce de réforme reste une annonce. Ce n'est ni un
+// avis officiel d'orientation, ni une condition d'admission.
 import { obtenirSite } from '../../infra/index';
-import { orientationDePassage } from '../../modele/accueil';
+import { profilsDeLAccueil } from '../../modele/accueil';
+import { dateCourte } from '../../modele/pointe-noire';
+import { jourDuCongo } from '../../modele/date-declaration';
+import {
+  activitesDeLaPage,
+  groupesDeLaPage,
+  niveauxDuParcours,
+  reponseCoursDuSoir,
+} from '../../modele/orientation-catalogue';
+import { typo } from '../../modele/guide-relais-html';
+import { LIEN_METHODE } from '../../modele/pages-de-confiance';
 import Icone from '../../ui/Icone.astro';
 import PagePublique from '../../ui/PagePublique.astro';
+import ActivitesOrientation from '../../ui/orienter/ActivitesOrientation.astro';
+import DomainesFormation from '../../ui/orienter/DomainesFormation.astro';
+import ParcoursScolaire from '../../ui/orienter/ParcoursScolaire.astro';
 import '../../ui/carte-pieces.css';
 
-const { ecoles, facettes } = await obtenirSite();
-const { profils, technique } = orientationDePassage(
-  ecoles,
-  facettes.filter((f) => f.facette === 'rythme').map((f) => f.valeur),
-);
+const { ecoles, recherche, domaines } = await obtenirSite();
+const jour = dateCourte(jourDuCongo());
+const situations = profilsDeLAccueil(ecoles);
+const niveaux = niveauxDuParcours(recherche);
+const activites = activitesDeLaPage(recherche, domaines);
+const groupes = groupesDeLaPage(recherche);
+
+const ANCRES = [
+  ['o-situation', 'Votre situation'],
+  ['o-parcours', 'Le parcours'],
+  ['o-activites', 'Les activités'],
+  ['o-domaines', 'Les domaines'],
+  ['o-faq', 'Vos questions'],
+] as const;
+
+interface Question {
+  pour: string;
+  question: string;
+  reponse: string;
+  source: string | null;
+  lien?: string;
+  ouverte?: boolean;
+}
+
+/** Les questions des familles : chacune avec sa source et sa date ; rien n'y est présenté comme officiel. */
+const QUESTIONS_SAISIES: Question[] = [
+  {
+    pour: 'Parents',
+    question: 'Quelles sont les grandes étapes de l’école au Congo ?',
+    reponse:
+      'La maternelle, puis le primaire, du CP1 au CM2, qui dure six ans. Ensuite, quatre ans de collège jusqu’au BEPC, puis trois ans de lycée jusqu’au baccalauréat.',
+    source:
+      'Conseil des ministres du 20 janvier 2026, qui décrit l’organisation actuelle · lu le 24/11/2026',
+  },
+  {
+    pour: 'Parents',
+    question: 'Le CEPE existe-t-il encore ?',
+    reponse:
+      'La presse a présenté la session de juin 2026 comme la dernière. Un projet de loi, approuvé en Conseil des ministres le 20 janvier 2026, remplace le CEPE par le CEP, avec un contrôle continu au CM2. Au 24 novembre 2026, nous n’avons pas trouvé cette loi votée et publiée : le changement n’est pas confirmé.',
+    source: 'Conseil des ministres, 20/01/2026 ; Adiac, 12/06/2026 · lus le 24/11/2026',
+    ouverte: true,
+  },
+  {
+    pour: 'Élèves',
+    question: 'Après le collège : général, technique ou professionnel ?',
+    reponse:
+      'Avec le BEPC : le lycée général, ou un concours pour le lycée technique ou professionnel. Dès le niveau de la 5e, un concours ouvre le collège technique ; son diplôme, le BET, permet d’entrer au lycée technique ou professionnel sans concours.',
+    source: 'Décrets n° 2017-148, 2017-149 et 2017-154 du 10 mai 2017 · lus le 24/11/2026',
+  },
+  {
+    pour: 'Parents',
+    question: 'Avant d’inscrire mon enfant, que demander à l’école ?',
+    reponse:
+      'Le total des frais de l’année, les documents à fournir, l’effectif par classe, les horaires, et l’autorisation d’ouverture. Sur NTanova, regardez aussi les mentions de la fiche et leurs dates.',
+    source: 'Liste de NTanova, 24/11/2026, à compléter avec les familles',
+  },
+  {
+    pour: 'Parents',
+    question: 'Comment savoir si une école est reconnue ?',
+    reponse:
+      'Demandez son autorisation d’ouverture et sa date ; seul le ministère peut la confirmer. Quand une fiche cite un agrément, c’est une citation, pas une garantie de NTanova.',
+    source: 'Fiabilité des informations',
+    lien: LIEN_METHODE,
+  },
+  {
+    pour: 'Élèves',
+    question: 'Après le bac : BTS, licence ou formation courte ?',
+    reponse:
+      'Le BTS est un diplôme de technicien supérieur ; la licence ouvre le système licence, master, doctorat. Les activités aident à trouver des domaines ; NTanova montre les écoles documentées, pas leurs conditions d’admission.',
+    source: 'Définitions courantes, à relire avec un établissement du supérieur',
+  },
+  {
+    pour: 'Adultes',
+    question: 'Je travaille : puis-je reprendre une formation ?',
+    reponse: reponseCoursDuSoir(recherche, jour),
+    source: `Annuaire NTanova · ${jour}`,
+  },
+  {
+    pour: 'Tous',
+    question: 'Ces réponses sont-elles officielles ?',
+    reponse:
+      'Non. Ce sont des repères, avec leurs sources et leurs dates. Pour décider, parlez-en avec l’école, un professeur ou un conseiller d’orientation.',
+    source: null,
+  },
+];
+// La typographie française : jamais un « ? » ou un « : » seul en début de ligne.
+const QUESTIONS = QUESTIONS_SAISIES.map((q) => ({
+  ...q,
+  question: typo(q.question),
+  reponse: typo(q.reponse),
+  source: q.source && typo(q.source),
+}));
+const moitie = Math.ceil(QUESTIONS.length / 2);
+const colonnes = [QUESTIONS.slice(0, moitie), QUESTIONS.slice(moitie)];
 ---
 
 <PagePublique
-  titre="S’orienter après le BEPC ou le bac · NTanova"
-  description="Après le BEPC ou le bac, ou pour se former en travaillant : les lycées, les établissements du supérieur et les formations du Congo-Brazzaville relevés par NTanova."
+  titre={'S’orienter\u00a0: situations, parcours scolaire, activités et domaines · NTanova'}
+  description="De la première rentrée à la formation d’adulte au Congo-Brazzaville : le parcours scolaire et ses bifurcations, six activités pour trouver des pistes, dix domaines de formation, avec les écoles documentées."
 >
-  <div class="cadre orienter">
-    <section class="orienter-haut" aria-labelledby="titre-orienter">
-      <p class="surtitre">S’orienter</p>
-      <h1 id="titre-orienter">Quelle suite après le BEPC ou le bac&nbsp;?</h1>
-      <p class="texte-doux">
-        Choisissez où vous en êtes : vous voyez les établissements qui correspondent, avec ce qui a
-        été vu sur place.
+  <section class="cadre orienter-haut" aria-labelledby="titre-orienter">
+    <div class="orienter-haut-texte">
+      <p class="surtitre-orienter">S’orienter</p>
+      <h1 id="titre-orienter">Trouver la suite, à chaque étape.</h1>
+      <p class="chapeau">
+        De la première rentrée à la formation d’adulte, avec les écoles documentées.
       </p>
-    </section>
-    <section class="orienter-profils" aria-labelledby="titre-profils">
-      <h2 id="titre-profils">Où en êtes-vous&nbsp;?</h2>
-      {profils.length > 0 ? (
-        <ul class="profils">
-          {profils.map((p) => (
+      <nav aria-label="Sur cette page">
+        <ul class="ancres">
+          {ANCRES.map(([id, texte]) => (
             <li>
-              <a class="profil" href={p.lien}>
-                <span class={`profil-icone c-${p.lettre}`} aria-hidden="true">
-                  <Icone nom={p.icone} petite={false} />
-                </span>
-                <span class="profil-texte">
-                  <b>{p.titre}</b>
-                  <span>{p.detail}</span>
-                </span>
-                <Icone nom="suite" />
-              </a>
+              <a href={`#${id}`}>{texte}</a>
             </li>
           ))}
         </ul>
+      </nav>
+    </div>
+    <img
+      class="orienter-dessin"
+      src="/dessins/orienter-carrefour.svg"
+      alt=""
+      width="560"
+      height="380"
+    />
+  </section>
+
+  <section id="o-situation" class="bande" aria-labelledby="titre-situation">
+    <div class="cadre section">
+      <h2 id="titre-situation">Où en êtes-vous&nbsp;?</h2>
+      {situations.length > 0 ? (
+        <>
+          <ul class="situations">
+            {situations.map((s) => (
+              <li>
+                <a class="situation" href={s.lien}>
+                  <span class="situation-texte">
+                    <b>{s.titre}</b> <span>{s.detail}</span>
+                  </span>{' '}
+                  <span class="situation-compte">
+                    {s.compte}
+                    <Icone nom="suite" />
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p class="mention">
+            Nombre d’écoles documentées sur NTanova au {jour}, pas le total du pays.
+          </p>
+        </>
       ) : (
-        <p class="texte-doux">
-          Les premières adresses arrivent au fil du relevé. <a href="/ecoles/">Voir les écoles</a>
+        <p>
+          Les premières adresses arrivent au fil du relevé.{' '}
+          <a class="lien-fort" href="/ecoles/">
+            Voir les écoles
+          </a>
         </p>
       )}
-      {technique && (
-        <a class="lien-fort" href={technique}>
-          Voir aussi l’enseignement technique et professionnel ›
-        </a>
-      )}
-      <p class="orienter-note">
-        <Icone nom="info" />
-        <span>
-          Des adresses, pas un avis officiel d’orientation : parlez-en aussi avec un professeur ou
-          un conseiller.
-        </span>
+    </div>
+  </section>
+
+  <section id="o-parcours" class="cadre section" aria-labelledby="titre-parcours">
+    <div class="tete">
+      <h2 id="titre-parcours">Le parcours scolaire et ses bifurcations</h2>
+      <p class="tete-ligne">
+        Un repère d’après les textes cités. Ce n’est pas un document officiel.
       </p>
-    </section>
-  </div>
+    </div>
+    <ParcoursScolaire niveaux={niveaux} />
+  </section>
+
+  <section id="o-activites" class="sur-marque bande-verte" aria-labelledby="titre-activites">
+    <div class="cadre section activites-grille">
+      <div class="activites-texte">
+        <h2 id="titre-activites">Pas d’idée de métier&nbsp;? Dites ce que vous aimez faire.</h2>
+        <p class="chapeau">Six activités&nbsp;: j’aime, je ne sais pas, je n’aime pas.</p>
+        <ul class="promesses">
+          <li>
+            <Icone nom="coche" />
+            <span>Sans compte, le résultat tout de suite.</span>
+          </li>
+          <li>
+            <Icone nom="coche" />
+            <span>Vos réponses restent sur votre téléphone.</span>
+          </li>
+          <li>
+            <Icone nom="coche" />
+            <span>
+              Des pistes à explorer. Six réponses ne disent ni une aptitude, ni une admission.
+            </span>
+          </li>
+        </ul>
+      </div>
+      <ActivitesOrientation activites={activites} jour={jour} />
+    </div>
+  </section>
+
+  <section id="o-domaines" class="bande" aria-labelledby="titre-domaines">
+    <div class="cadre section">
+      <div class="tete">
+        <h2 id="titre-domaines">Les dix grands domaines de formation</h2>
+        <p class="tete-ligne">Chaque domaine ouvre les écoles documentées qui y forment.</p>
+      </div>
+      <DomainesFormation groupes={groupes} />
+      <p class="mention">
+        Nombres lus dans l’annuaire le {jour}. Classement d’après la CITE-F 2013 de l’UNESCO&nbsp;;
+        le rapprochement avec les domaines de l’annuaire est de NTanova. Illustrations&nbsp;: objets
+        de Phosphor Icons (licence MIT).
+      </p>
+    </div>
+  </section>
+
+  <section id="o-faq" class="cadre section section-derniere" aria-labelledby="titre-faq">
+    <div class="tete">
+      <h2 id="titre-faq">Les questions des familles</h2>
+      <p class="tete-ligne">Des repères, avec leurs sources et leurs dates.</p>
+    </div>
+    <div class="questions">
+      {colonnes.map((colonne) => (
+        <div class="questions-colonne">
+          {colonne.map((q) => (
+            <details class="question" open={q.ouverte}>
+              <summary>
+                <span class="question-pour">{q.pour}</span> <span>{q.question}</span>
+              </summary>
+              <div class="question-corps">
+                <p>{q.reponse}</p>
+                {q.source && q.lien && (
+                  <p class="mention">
+                    Source&nbsp;: <a href={q.lien}>{q.source}</a>
+                  </p>
+                )}
+                {q.source && !q.lien && <p class="mention">Source&nbsp;: {q.source}</p>}
+              </div>
+            </details>
+          ))}
+        </div>
+      ))}
+    </div>
+  </section>
 </PagePublique>
 
+<script>
+  import { amorcer } from '../../app/orienter/amorce';
+  for (const racine of document.querySelectorAll<HTMLElement>('[data-activites]')) amorcer(racine);
+</script>
+
 <style>
-  /* La planche « S'orienter, départ · téléphone » ; sur ordinateur, la même colonne, centrée. */
-  .orienter {
+  .section {
     display: grid;
-    gap: var(--espace-4);
-    max-width: 40rem;
-    padding-top: 20px;
-    padding-bottom: 28px;
+    gap: var(--espace-5);
+    padding-block: var(--espace-6);
   }
-  .orienter-haut {
-    display: grid;
-    gap: 10px;
+  .section-derniere {
+    padding-bottom: var(--espace-7);
   }
-  .surtitre {
-    color: var(--texte-doux);
-    font-family: var(--police-interface);
-    font-size: var(--taille-mention);
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+  .bande {
+    background: var(--fond-bande);
   }
-  .orienter h1 {
-    font-size: 1.875rem;
+  .bande-verte {
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+  }
+  h2 {
+    margin: 0;
+    font-size: var(--taille-section-accueil);
     line-height: 1.12;
     text-wrap: balance;
   }
-  .orienter-profils {
+  .tete {
     display: grid;
-    gap: var(--espace-4);
+    gap: var(--espace-2);
   }
-  .orienter-profils h2 {
-    font-size: 1.25rem;
-    line-height: 1.45;
-  }
-  .profils {
-    display: grid;
-    gap: 10px;
+  .tete-ligne {
     margin: 0;
-    padding: 0;
-    list-style: none;
+    color: var(--texte-doux);
+    font-size: var(--taille-intertitre);
   }
-  .profil {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-height: 76px;
-    padding: 14px;
-    border: 2px solid var(--trait);
-    border-radius: var(--rayon-m);
-    background: var(--fond-releve);
-    color: var(--texte);
-    text-decoration: none;
+  .chapeau {
+    margin: 0;
+    color: var(--texte-doux);
+    font-size: var(--taille-chapeau-accueil);
   }
-  @media (hover: hover) {
-    .profil:hover {
-      border-color: var(--marque);
-    }
-  }
-  .profil-icone {
-    display: flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    border-radius: var(--rayon-m);
-    background: var(--cycle);
-    color: var(--cycle-lettre);
-  }
-  .profil-icone :global(svg) {
-    stroke-width: 1.9;
-  }
-  .profil-texte {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-  .profil-texte b {
-    font-family: var(--police-interface);
-    font-size: 1.0625rem;
-    line-height: 1.25;
-  }
-  .profil-texte span {
+  .mention {
+    margin: 0;
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
   }
-  .profil > :global(svg:last-child) {
-    color: var(--texte-doux);
-  }
-  /* Le lien de l'accueil, « › » compris : une cible de 44 px, à la largeur de son texte. */
   .lien-fort {
     display: inline-flex;
     align-items: center;
-    justify-self: start;
     min-height: var(--cible-min);
     color: var(--marque);
     font-family: var(--police-interface);
     font-weight: 700;
   }
-  .orienter-note {
+
+  /* Le haut de la page : le titre, les cinq ancres, le carrefour. */
+  .orienter-haut {
+    display: grid;
+    gap: var(--espace-5);
+    padding-block: var(--espace-6);
+  }
+  .orienter-haut-texte {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .surtitre-orienter {
+    margin: 0;
+    color: var(--erreur);
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  h1 {
+    margin: 0;
+    font-size: var(--taille-titre-accueil);
+    line-height: 1.06;
+    text-wrap: balance;
+  }
+  .ancres {
     display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 14px;
-    border-radius: var(--rayon-m);
-    background: var(--fond-bande);
+    flex-wrap: wrap;
+    gap: 0 var(--espace-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ancres a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-family: var(--police-interface);
+    font-weight: 700;
+    text-underline-offset: 3px;
+  }
+  .orienter-dessin {
+    display: block;
+    width: 100%;
+    max-width: 260px;
+    height: auto;
+    margin-inline: auto;
+    border-radius: var(--rayon-l);
+  }
+
+  /* Où en êtes-vous ? : cinq situations, chacune vers sa liste. */
+  .situations {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .situations li {
+    display: grid;
+  }
+  .situation {
+    display: flex;
+    align-items: center;
+    gap: var(--espace-3);
+    min-height: 64px;
+    padding: 10px 14px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-l);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .situation-texte {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .situation-texte b {
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+    line-height: 1.2;
+  }
+  .situation-texte span {
+    color: var(--texte-doux);
     font-size: var(--taille-secondaire);
   }
-  .orienter-note :global(svg) {
+  .situation-compte {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--espace-2);
+    font-family: var(--police-interface);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .situation-compte :global(svg) {
     width: 18px;
     height: 18px;
-    margin-top: 2px;
     color: var(--marque);
   }
-  @media (min-width: 48rem) {
-    .orienter {
-      padding-top: var(--espace-6);
-      padding-bottom: var(--espace-7);
+  .situation:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  @media (hover: hover) {
+    .situation:hover {
+      border-color: var(--marque);
     }
-    .orienter h1 {
-      font-size: 2.25rem;
+    .situation:hover b {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+  }
+
+  /* Les activités : le texte sur le vert, l'outil dans sa carte blanche. */
+  .activites-grille {
+    gap: var(--espace-6);
+  }
+  .activites-texte {
+    display: grid;
+    gap: var(--espace-4);
+    align-content: start;
+  }
+  .bande-verte .chapeau {
+    color: var(--vert-pale);
+  }
+  .promesses {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--taille-intertitre);
+  }
+  .promesses li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--espace-3);
+  }
+  .promesses :global(svg) {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    margin-top: 2px;
+    color: var(--accent);
+  }
+
+  /* Les questions des familles. */
+  .questions,
+  .questions-colonne {
+    display: grid;
+    gap: var(--espace-3);
+    align-items: start;
+  }
+  .question {
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-l);
+    background: var(--fond-releve);
+  }
+  .question summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 10px 20px;
+    font-family: var(--police-interface);
+    font-size: 1.0625rem;
+    font-weight: 700;
+    list-style: none;
+    cursor: pointer;
+  }
+  .question summary::-webkit-details-marker {
+    display: none;
+  }
+  .question summary::after {
+    margin-left: auto;
+    color: var(--marque);
+    font-size: 1.5rem;
+    font-weight: 400;
+    line-height: 1;
+    content: '+' / '';
+  }
+  .question[open] summary::after {
+    content: '–' / '';
+  }
+  .question summary:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--rayon-l);
+  }
+  .question summary > span:last-of-type {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .question-pour {
+    flex: none;
+    padding: 1px 10px;
+    border-radius: var(--rayon-pilule);
+    background: var(--fond-bande);
+    color: var(--texte);
+    font-size: var(--taille-secondaire);
+  }
+  .question-corps {
+    display: grid;
+    gap: var(--espace-2);
+    padding: 0 20px 16px;
+  }
+  .question-corps p {
+    margin: 0;
+  }
+  /* Le lien d'une source : une cible de 44 px, même dans une ligne de 14 px. */
+  .question-corps a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+  }
+
+  @media (min-width: 48rem) {
+    .section {
+      padding-block: var(--espace-7);
+    }
+    .orienter-haut {
+      padding-block: var(--espace-7);
+    }
+    .orienter-dessin {
+      max-width: 360px;
+    }
+    .situations {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .questions {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 64rem) {
+    /* Le haut de page en deux colonnes, comme la planche au-delà de 1 000 px. */
+    .orienter-haut {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: center;
+      gap: var(--espace-7);
+    }
+    .orienter-dessin {
+      max-width: none;
+    }
+    .situations {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: var(--espace-4);
+    }
+    .situation {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      min-height: 128px;
+      padding: 16px 18px;
+    }
+    .situation-compte {
+      justify-content: space-between;
+      margin-top: auto;
+    }
+    .activites-grille {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: center;
+      gap: var(--espace-7);
     }
   }
 </style>
