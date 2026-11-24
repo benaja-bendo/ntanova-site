@@ -58,6 +58,8 @@ const D = {
   moungali: 'd0000000-0000-4000-8000-00000000000a',
   niari: 'd0000000-0000-4000-8000-00000000000b',
   dolisie: 'd0000000-0000-4000-8000-00000000000c',
+  cuvette: 'd0000000-0000-4000-8000-00000000000f',
+  owando: 'd0000000-0000-4000-8000-000000000010',
 } as const;
 
 const DIVISIONS_BRUTES: DivisionPublique[] = [
@@ -164,6 +166,10 @@ const DIVISIONS_BRUTES: DivisionPublique[] = [
     null,
     true,
   ),
+  // Lot 4 (24/11) : un lieu du référentiel sans fiche publiée, comme les chefs-lieux de la base. Il n'a pas de page et n'est
+  // proposé nulle part en lien ; « Toutes les villes » l'écrit en texte.
+  division(D.cuvette, D.congo, 1, 'department', 'Cuvette', 'cuvette', ['congo', 'cuvette']),
+  division(D.owando, D.cuvette, 2, 'commune', 'Owando', 'owando', ['congo', 'cuvette', 'owando']),
 ];
 
 // L'état public des zones et le point des villes : ceux de la base (ticket 102). Un faux serveur qui diffère de la base fait

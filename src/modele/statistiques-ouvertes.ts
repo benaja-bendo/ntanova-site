@@ -3,12 +3,25 @@
  * dates, jamais un pourcentage (le nombre total d'écoles du pays est inconnu : un pourcentage serait faux). Ce que le site
  * publie déjà, compté : aucun nom d'école, aucun numéro, aucune position, rien de privé.
  *
+ * Refonte publique, lot 4 (24/11/2026) : les mentions se comptent comme elles s'affichent, côte à côte (`modele/mentions.ts`).
+ * Une fiche vue sur place puis confirmée compte dans les deux ; aucune n'est « la plus forte ». La date de construction, les
+ * dates des mentions et la dernière modification restent trois choses distinctes ; une date absente reste absente.
+ *
  * Calculées à la construction du site : le chiffre est celui du jour de la dernière mise en ligne, et la page le dit
  * (`construiteLe`). Pur : ni base, ni Astro.
  */
 import { ecolesSous, lienDivision, type PageDivision } from './geo-divisions';
-import { libelleNiveau, libelleProvenance, provenanceDe, type Provenance } from './libelles';
+import { libelleNiveau } from './libelles';
 import { listes, type Valeur } from './listes';
+import {
+  compterLesMentions,
+  datesDesMentions,
+  fichesParJourDeMention,
+  fichesSansMentionDatee,
+  jourDuCongoDe,
+  type CompteDesMentions,
+  type DatesDUneMention,
+} from './mentions';
 import type { EcolePubliee } from './ports';
 
 export interface LigneDeLieu {
@@ -26,14 +39,15 @@ export interface StatistiquesOuvertes {
   lieux: LigneDeLieu[];
   /** Seulement les cycles qui ont au moins une fiche. Une fiche compte dans chaque cycle qu'elle enseigne. */
   parCycle: { niveau: Valeur<'niveau'>; libelle: string; fiches: number }[];
-  /** Les quatre preuves, toujours, même à zéro : c'est le vocabulaire de la page Méthode. */
-  parPreuve: { preuve: Provenance; libelle: string; fiches: number }[];
-  /** Le jour de la preuve la plus forte de chaque fiche, du plus récent au plus ancien. */
+  /** Les quatre mentions, toujours, même à zéro : une fiche compte dans chacune des siennes. */
+  mentions: CompteDesMentions;
+  /** Les dates de chaque mention datée : la plus récente, la plus ancienne, et les fiches qui n'en ont pas. */
+  datesDesMentions: DatesDUneMention[];
+  /** Les jours où des fiches ont reçu une mention, du plus récent au plus ancien ; une fiche compte à chacun de ses jours. */
   parJour: { jour: string; fiches: number }[];
-  preuveLaPlusRecente: string | null;
-  preuveLaPlusAncienne: string | null;
-  /** Les fiches dont la preuve n'a pas de jour connu. */
-  sansDate: number;
+  /** Les fiches qui ne portent aucune mention datée. */
+  sansMentionDatee: number;
+  /** Les fiches qui montrent au moins une photo : l'enseigne, la couverture ou la galerie. */
   avecPhoto: number;
   /** Les fiches qui citent au moins une référence officielle (établissement ou filière). Ce n'est pas le nombre d'écoles agréées. */
   avecReference: number;
@@ -41,37 +55,6 @@ export interface StatistiquesOuvertes {
   /** Le jour de la construction du site, à l'heure du Congo. */
   construiteLe: string;
 }
-
-const FORMAT_JOUR = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Africa/Brazzaville',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-});
-
-/** Un jour `AAAA-MM-JJ` à l'heure du Congo, d'un jour déjà écrit ou d'un instant. */
-function jourDuCongoDe(valeur: string | Date): string {
-  if (typeof valeur === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(valeur)) return valeur;
-  return FORMAT_JOUR.format(new Date(valeur));
-}
-
-type Fiche = Pick<
-  EcolePubliee,
-  'etat' | 'origine' | 'verifieeLe' | 'releveeLe' | 'situeeLe' | 'declareeLe'
->;
-
-/** Le jour de la preuve la plus forte de la fiche, dans l'ordre de `provenanceDe` ; rien quand la base ne le sait pas. */
-function jourDeLaPreuve(e: Fiche): string | null {
-  const jour = {
-    verifiee: e.verifieeLe,
-    relevee: e.releveeLe,
-    declaree: e.declareeLe ?? null,
-    ajoutee: e.situeeLe,
-  }[provenanceDe(e)];
-  return jour ? jourDuCongoDe(jour) : null;
-}
-
-const PREUVES: readonly Provenance[] = ['verifiee', 'relevee', 'declaree', 'ajoutee'];
 
 function lignesDeLieux(pages: readonly PageDivision[]): LigneDeLieu[] {
   const lignes: LigneDeLieu[] = [];
@@ -93,8 +76,6 @@ function lignesDeLieux(pages: readonly PageDivision[]): LigneDeLieu[] {
 
 const plusGrand = (jours: readonly string[]): string | null =>
   jours.length > 0 ? jours.reduce((a, b) => (a > b ? a : b)) : null;
-const plusPetit = (jours: readonly string[]): string | null =>
-  jours.length > 0 ? jours.reduce((a, b) => (a < b ? a : b)) : null;
 
 export function statistiquesOuvertes({
   racines,
@@ -105,11 +86,6 @@ export function statistiquesOuvertes({
   ecoles: readonly EcolePubliee[];
   construiteLe: Date;
 }): StatistiquesOuvertes {
-  const jours = ecoles.map(jourDeLaPreuve);
-  const datees = jours.filter((j): j is string => j !== null);
-  const parJour = new Map<string, number>();
-  for (const j of datees) parJour.set(j, (parJour.get(j) ?? 0) + 1);
-
   return {
     fiches: ecoles.length,
     lieux: lignesDeLieux(racines),
@@ -120,18 +96,14 @@ export function statistiquesOuvertes({
         fiches: ecoles.filter((e) => e.niveaux.includes(niveau)).length,
       }))
       .filter((c) => c.fiches > 0),
-    parPreuve: PREUVES.map((preuve) => ({
-      preuve,
-      libelle: libelleProvenance[preuve],
-      fiches: ecoles.filter((e) => provenanceDe(e) === preuve).length,
-    })),
-    parJour: [...parJour.entries()]
-      .map(([jour, fiches]) => ({ jour, fiches }))
-      .sort((a, b) => (a.jour < b.jour ? 1 : a.jour > b.jour ? -1 : 0)),
-    preuveLaPlusRecente: plusGrand(datees),
-    preuveLaPlusAncienne: plusPetit(datees),
-    sansDate: jours.length - datees.length,
-    avecPhoto: ecoles.filter((e) => !!e.photo).length,
+    mentions: compterLesMentions(ecoles),
+    datesDesMentions: datesDesMentions(ecoles),
+    parJour: fichesParJourDeMention(ecoles),
+    sansMentionDatee: fichesSansMentionDatee(ecoles),
+    // Lot 4 : une photo publique, c'est l'enseigne, la couverture ou une image de la galerie (la fiche les montre toutes).
+    avecPhoto: ecoles.filter(
+      (e) => !!e.photo || !!e.medias?.couverture || (e.medias?.galerie.length ?? 0) > 0,
+    ).length,
     avecReference: ecoles.filter((e) => !!e.agrement || e.formations.some((f) => !!f.agrement))
       .length,
     derniereMiseAJour: plusGrand(ecoles.map((e) => jourDuCongoDe(e.misAJourLe))),

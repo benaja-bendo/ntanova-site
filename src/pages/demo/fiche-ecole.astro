@@ -6,7 +6,8 @@
 // fiche reste `FicheEcole.astro` ; cette page n'en reprend que la grammaire (mentions datées, « À savoir », frais avec OUI).
 import Icone from '../../ui/Icone.astro';
 import PagePublique from '../../ui/PagePublique.astro';
-import { LIEN_METHODE } from '../../modele/pages-de-confiance';
+import { LIEN_MENTIONS, ORDRE_DES_MENTIONS, SENS_DES_MENTIONS } from '../../modele/mentions';
+import MentionDatee from '../../ui/MentionDatee.astro';
 // Le trait des icônes (`.ico`), comme sur les autres pages publiques.
 import '../../ui/carte-pieces.css';
 ---
@@ -37,12 +38,8 @@ import '../../ui/carte-pieces.css';
         </h1>
         <p class="texte-doux">Primaire, collège · Privée</p>
         <ul class="demo-mentions" aria-label="Mentions de la fiche">
-          <li class="mention-datee mention-datee-terrain">
-            Vue sur place · 12&nbsp;nov.&nbsp;2026
-          </li>
-          <li class="mention-datee mention-datee-direction">
-            Confirmée par la direction · 18&nbsp;nov.&nbsp;2026
-          </li>
+          <MentionDatee balise="li" mention="relevee" jour="2026-11-12" />
+          <MentionDatee balise="li" mention="verifiee" jour="2026-11-18" />
         </ul>
       </div>
     </header>
@@ -81,25 +78,15 @@ import '../../ui/carte-pieces.css';
 
       <section class="demo-bloc" aria-labelledby="titre-mentions">
         <h2 id="titre-mentions">Les mentions et leurs dates</h2>
+        {/* Lot 4 : les mots et les pastilles de la fiche réelle (`modele/mentions.ts`), et le lien vers leur explication. */}
         <ul class="demo-liste">
-          <li>
-            <span class="mention-datee mention-datee-terrain">Vue sur place</span>
-            un relais est passé devant l’école ce jour-là.
-          </li>
-          <li>
-            <span class="mention-datee mention-datee-ecole">Déclarée par l’école</span>
-            la direction a transmis les informations.
-          </li>
-          <li>
-            <span class="mention-datee mention-datee-ajoutee">Ajoutée par NTanova</span>
-            l’équipe a documenté la fiche&nbsp;; personne n’est encore passé.
-          </li>
-          <li>
-            <span class="mention-datee mention-datee-direction">Confirmée par la direction</span>
-            la direction a relu la fiche et donné son accord, à une date.
-          </li>
+          {ORDRE_DES_MENTIONS.map((m) => (
+            <li>
+              <MentionDatee mention={m} /> {SENS_DES_MENTIONS[m]}
+            </li>
+          ))}
         </ul>
-        <a class="lien-fort" href={LIEN_METHODE}>
+        <a class="lien-fort" href={LIEN_MENTIONS}>
           Fiabilité des informations
           <Icone nom="suite" />
         </a>
@@ -224,7 +211,7 @@ import '../../ui/carte-pieces.css';
     padding: 0;
     list-style: none;
   }
-  .demo-liste .mention-datee {
+  .demo-liste :global(.mention-datee) {
     margin-right: var(--espace-1);
   }
   .lien-fort {

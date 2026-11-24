@@ -69,6 +69,10 @@ const PAGES = [
   'pour-les-ecoles/index.html',
   'methode/index.html',
   'confidentialite/index.html',
+  // Lot 4 (24/11) : les pages de confiance et « Toutes les villes ».
+  'villes/index.html',
+  'a-propos/index.html',
+  'donnees/index.html',
 ];
 const liens = (racine: string, page: string) =>
   [...new Set([...lire(racine, page).matchAll(LIENS)].map((m) => m[0].slice(6, -1)))].map((h) =>
@@ -110,6 +114,9 @@ describe('le réglage des formulaires', () => {
         '/contact/?sujet=ecole&depuis=pour-les-ecoles',
       ],
       'methode/index.html': ['/contribuer/?type=erreur&depuis=fiabilite'],
+      'villes/index.html': ['/contribuer/?type=manque&depuis=villes'],
+      'a-propos/index.html': ['/contact/?depuis=direct'],
+      'donnees/index.html': ['/contact/?sujet=donnees&depuis=direct'],
       'confidentialite/index.html': [
         '/contact/?sujet=donnees&depuis=confidentialite',
         '/contribuer/?type=retrait&depuis=confidentialite',
@@ -258,6 +265,24 @@ describe('un retrait, de bout en bout', () => {
     expect(lire(apres, 'sitemap.xml')).not.toContain('/ecoles/pointe-noire/mvou-mvou/');
     expect(lire(apres, 'llms.txt')).not.toContain('mvou-mvou');
     expect(lire(apres, 'ecoles/pointe-noire/mvou-mvou/index.html')).toContain('noindex');
+    // Lot 4 : « Toutes les villes », Données et À propos se recalculent ; le lieu vidé n'y est plus un lien, et chaque compteur
+    // perd la fiche retirée.
+    expect(lire(avant, 'villes/index.html')).toContain('href="/ecoles/pointe-noire/mvou-mvou/"');
+    expect(lire(apres, 'villes/index.html')).not.toContain('mvou-mvou');
+    const fiches = (racine: string) =>
+      Number(
+        /<strong[^>]*>(\d+)<\/strong>\s*fiches? publiées? au total/.exec(
+          lire(racine, 'donnees/index.html'),
+        )?.[1],
+      );
+    expect(fiches(avant) - fiches(apres)).toBe(1);
+    const pn = (racine: string) =>
+      Number(
+        /Pointe-Noire<\/b>\s*<span[^>]*>\s*(\d+) écoles?/.exec(
+          lire(racine, 'villes/index.html'),
+        )?.[1],
+      );
+    expect(pn(avant) - pn(apres)).toBe(1);
     expect(existsSync(join(apres, `contribuer/fiche/${R.ficheEntiere.numero}.json`))).toBe(false);
   });
 });

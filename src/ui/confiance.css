@@ -1,0 +1,377 @@
+/*
+ * Les pages « Comprendre nos informations » et « NTanova » de la refonte publique (lot 4, 24/11/2026 ; canevas « Points de
+ * repère », planches « Fiabilité des informations », « Toutes les villes » et « À propos ») : Fiabilité, Données, À propos et
+ * Toutes les villes. La grammaire de S'orienter (lot 2) : un haut de page illustré, des bandes, des cartes blanches. Aucun
+ * script ; des couleurs de jetons seulement (`pnpm couleurs`). Préfixe `cf-` : ces classes ne servent qu'à ces pages.
+ */
+
+/* Le haut de page : le surtitre, le titre, le chapeau, les ancres « Sur cette page », un dessin décoratif. Un titre précède
+   son explication : rien à droite d'un titre sur téléphone, le dessin passe dessous. */
+.cf-haut {
+  display: grid;
+  gap: var(--espace-5);
+  padding-block: var(--espace-6);
+}
+.cf-haut-texte {
+  display: grid;
+  gap: var(--espace-3);
+}
+.cf-surtitre {
+  margin: 0;
+  color: var(--texte-doux);
+  font-family: var(--police-interface);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cf-haut h1 {
+  margin: 0;
+  font-size: var(--taille-titre-accueil);
+  line-height: 1.06;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.cf-chapeau {
+  margin: 0;
+  color: var(--texte-doux);
+  font-size: var(--taille-chapeau-accueil);
+}
+.cf-ancres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--espace-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cf-ancres a,
+.cf-lien {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+  min-height: var(--cible-min);
+  color: var(--marque);
+  font-family: var(--police-interface);
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+.cf-dessin {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  margin-inline: auto;
+}
+
+/* Les sections : une bande de couleur, ou la pierre du fond, ou la surface blanche. */
+.cf-section {
+  display: grid;
+  gap: var(--espace-5);
+  padding-block: var(--espace-6);
+}
+.cf-bande {
+  background: var(--fond-bande);
+}
+.cf-blanc {
+  background: var(--fond-releve);
+}
+.cf-verte {
+  background: var(--marque-appuyee);
+  color: var(--texte-sur-marque);
+}
+.cf-section h2 {
+  margin: 0;
+  font-size: var(--taille-section-accueil);
+  line-height: 1.12;
+  text-wrap: balance;
+}
+.cf-section h3 {
+  margin: 0;
+  font-size: var(--taille-intertitre);
+  line-height: 1.25;
+}
+.cf-section p {
+  margin: 0;
+}
+.cf-tete {
+  display: grid;
+  gap: var(--espace-2);
+}
+.cf-ligne {
+  color: var(--texte-doux);
+  font-size: var(--taille-intertitre);
+}
+.cf-verte .cf-ligne {
+  color: var(--vert-pale);
+}
+.cf-note {
+  color: var(--texte-doux);
+  font-size: var(--taille-secondaire);
+}
+.cf-verte .cf-note {
+  color: var(--vert-pale);
+}
+/* Dans une phrase, un lien garde 44 px de haut sans grandir la ligne (règle du site). */
+.cf-section p a:not(.bouton),
+.cf-section li a:not(.bouton):not(.cf-carte-lien) {
+  display: inline-block;
+  padding-block: 0.875rem;
+  margin-block: -0.875rem;
+  color: var(--marque);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.cf-verte p a:not(.bouton) {
+  color: var(--texte-sur-marque);
+}
+
+/* Des cartes blanches en grille : une colonne sur téléphone, plusieurs ensuite. */
+.cf-cartes {
+  display: grid;
+  gap: var(--espace-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cf-carte {
+  display: grid;
+  gap: var(--espace-2);
+  align-content: start;
+  min-width: 0;
+  padding: var(--espace-4);
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+  color: var(--texte);
+}
+.cf-carte-forte {
+  border: 2px solid var(--texte);
+}
+.cf-verte .cf-carte {
+  --focus: var(--marque-appuyee);
+}
+.cf-carte p {
+  color: var(--texte-doux);
+}
+
+/* Une rangée d'icône et de texte : l'icône dans un rond pâle, le texte à côté. */
+.cf-points {
+  display: grid;
+  gap: var(--espace-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cf-point {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  min-width: 0;
+}
+.cf-point > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.cf-point b {
+  font-family: var(--police-interface);
+}
+.cf-rond {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--vert-pale);
+  color: var(--marque-appuyee);
+}
+.cf-rond-jaune {
+  background: var(--accent);
+  color: var(--texte);
+}
+.cf-croix {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-2);
+}
+.cf-croix .ico {
+  color: var(--accent);
+}
+
+/* Un tableau qui se lit sur téléphone : sous 48 rem, chaque ligne devient une carte et chaque cellule dit sa colonne
+   (`data-l`). Les rôles ARIA gardent le sens du tableau quand l'affichage change. */
+.cf-tableau {
+  width: 100%;
+  border-collapse: collapse;
+}
+.cf-tableau th,
+.cf-tableau td {
+  padding: var(--espace-3) var(--espace-3) var(--espace-3) 0;
+  border-bottom: 1px solid var(--trait);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.cf-tableau thead th {
+  color: var(--texte-doux);
+  font-family: var(--police-interface);
+  font-size: var(--taille-secondaire);
+  border-bottom: 2px solid var(--texte);
+}
+.cf-tableau tbody th {
+  font-family: var(--police-interface);
+}
+@media (max-width: 47.99rem) {
+  .cf-tableau,
+  .cf-tableau tbody,
+  .cf-tableau tr,
+  .cf-tableau th,
+  .cf-tableau td {
+    display: block;
+  }
+  .cf-tableau thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .cf-tableau tr {
+    padding-block: var(--espace-3);
+    border-bottom: 1px solid var(--trait);
+  }
+  .cf-tableau th,
+  .cf-tableau td {
+    padding: 0;
+    border: 0;
+  }
+  .cf-tableau td::before {
+    content: attr(data-l) '\00a0: ';
+    color: var(--texte-doux);
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .cf-tableau td + td {
+    margin-top: var(--espace-1);
+  }
+}
+
+@media (min-width: 48rem) {
+  .cf-tableau thead th:first-child {
+    width: 24%;
+  }
+  .cf-tableau thead th:nth-child(2) {
+    width: 30%;
+  }
+  .cf-haut,
+  .cf-section {
+    padding-block: var(--espace-7);
+  }
+  .cf-dessin {
+    max-width: 380px;
+  }
+  .cf-cartes-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cf-cartes-3,
+  .cf-cartes-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cf-points-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--espace-4) var(--espace-6);
+  }
+}
+@media (min-width: 64rem) {
+  .cf-haut {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--espace-7);
+  }
+  .cf-dessin {
+    max-width: none;
+  }
+  .cf-cartes-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .cf-cartes-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Les tableaux de chiffres de « Données » : deux colonnes au plus, lisibles sur téléphone sans défilement de côté ; un lieu
+   ou un nombre par ligne, des liens de 44 px. */
+.cf-chiffres {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--taille-secondaire);
+}
+.cf-chiffres caption {
+  padding-bottom: var(--espace-2);
+  text-align: left;
+  font-family: var(--police-titre);
+  font-size: var(--taille-courante);
+  font-weight: 700;
+}
+.cf-chiffres th,
+.cf-chiffres td {
+  padding: var(--espace-2) var(--espace-2) var(--espace-2) 0;
+  border-bottom: 1px solid var(--trait);
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.cf-chiffres thead th {
+  color: var(--texte-doux);
+  font-size: var(--taille-mention);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.cf-chiffres .nombre {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cf-chiffres th a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cible-min);
+  color: var(--marque);
+  font-weight: 700;
+}
+.cf-chiffres .sous-lieu {
+  padding-left: var(--espace-4);
+}
+.cf-chiffres .sous-sous-lieu {
+  padding-left: var(--espace-7);
+}
+
+/* Une carte qui est un lien entier (« Pour aller plus loin ») : 44 px au moins, le focus autour de la carte. */
+.cf-carte-lien {
+  min-height: var(--cible-min);
+  height: 100%;
+  text-decoration: none;
+}
+.cf-carte-lien b {
+  color: var(--texte);
+  font-family: var(--police-interface);
+}
+.cf-carte-lien span {
+  color: var(--texte-doux);
+}
+.cf-carte-lien:focus-visible {
+  outline: var(--epaisseur-focus) solid var(--focus);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .cf-carte-lien:hover {
+    border-color: var(--marque);
+  }
+  .cf-carte-lien:hover b {
+    text-decoration: underline;
+  }
+}

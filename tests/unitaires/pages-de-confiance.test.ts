@@ -7,6 +7,7 @@ import {
   LIEN_METHODE,
   PAGES_DE_TRANSPARENCE,
 } from '../../src/modele/pages-de-confiance';
+import { LIEN_MENTIONS } from '../../src/modele/mentions';
 import { PAGES_FIXES } from '../../src/modele/plan-du-site';
 import { readFileSync } from 'node:fs';
 
@@ -26,11 +27,20 @@ describe('les pages de transparence', () => {
     }
   });
 
-  it('donnent à la fiche le lien de sa Méthode, et plus l’ancre de « À propos »', () => {
+  it('donnent à la fiche, à la démonstration et à l’accueil le lien des mentions, une ancre de Fiabilité (lot 4)', () => {
     expect(LIEN_METHODE).toBe('/methode/');
-    const fiche = readFileSync('src/ui/FicheEcole.astro', 'utf8');
-    expect(fiche).toContain('href={LIEN_METHODE}');
-    expect(fiche).not.toContain('a-propos');
+    expect(LIEN_MENTIONS).toBe(`${LIEN_METHODE}#m-mentions`);
+    for (const fichier of [
+      'src/ui/FicheEcole.astro',
+      'src/pages/demo/fiche-ecole.astro',
+      'src/pages/index.astro',
+    ]) {
+      const source = readFileSync(fichier, 'utf8');
+      expect(source, fichier).toContain('href={LIEN_MENTIONS}');
+      expect(source, fichier).not.toContain('a-propos');
+    }
+    // L'ancre existe sur la page.
+    expect(readFileSync('src/pages/methode.astro', 'utf8')).toContain('id={ANCRE_MENTIONS}');
   });
 
   it('gardent le délai de 7 jours que NTanova s’est donné (décision du 01/11/2026)', () => {

@@ -160,6 +160,8 @@
 .mention-datee {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
+  max-width: 100%;
   padding: 2px 10px;
   border: 1.5px solid var(--preuve-terrain);
   border-radius: var(--rayon-pilule);
@@ -168,6 +170,15 @@
   font-family: var(--police-interface);
   font-size: var(--taille-secondaire);
   font-weight: 700;
+}
+/* Lot 4 (24/11/2026) : l'icône de la fiche dans la pastille (`MentionDatee.astro`), et le jour qui ne se coupe pas. */
+.mention-datee .ico {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.mention-datee .mention-jour {
+  white-space: nowrap;
 }
 .mention-datee-ecole {
   border-color: var(--preuve-ecole);
@@ -184,6 +195,21 @@
   color: var(--preuve-direction-texte);
 }
 
+/* Lot 4 (24/11/2026) : « Disponible », le troisième libellé d'état d'un service, à côté de « En préparation » (le mot dit
+   l'état, la couleur l'accompagne). */
+.etiquette-disponible {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--rayon-pilule);
+  background: var(--statut-succes-fond);
+  color: var(--statut-succes-texte);
+  font-family: var(--police-interface);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .etiquette-exemple,
 .etiquette-prepare {
   display: inline-flex;

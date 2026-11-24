@@ -98,6 +98,10 @@ test('aucun lien public ne mène à un lieu sans fiche publiée, même sans Java
     '/ecoles/pointe-noire/ngoyo/',
     '/carte/',
     '/ecoles/complexe-scolaire-exemple-482913/',
+    // Lot 4 : « Toutes les villes » et les pages de confiance.
+    '/villes/',
+    '/donnees/',
+    '/a-propos/',
   ]) {
     await page.goto(adresse);
     const liens = await page

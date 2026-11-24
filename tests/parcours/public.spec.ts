@@ -194,12 +194,18 @@ test.describe('site public', () => {
     test('le pays, la ville, l’arrondissement, le quartier : chaque niveau mène au suivant', async ({
       page,
     }) => {
-      // Ticket 147 : le pays n'a plus de page. Lot 4 bis : `/ecoles/` n'a plus « Ville par ville » ; l'accueil et le pied de
-      // page mènent aux trois zones qui ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
+      // Ticket 147 : le pays n'a plus de page. Lot 4 bis : `/ecoles/` n'a plus « Ville par ville » ; l'accueil et « Toutes les
+      // villes » (lot 4, le lien du pied) mènent aux trois zones qui ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
       await page.goto('/ecoles/');
-      const pied = page.getByRole('contentinfo').getByRole('list', { name: 'Chercher' });
+      await page
+        .getByRole('contentinfo')
+        .getByRole('list', { name: 'Chercher' })
+        .getByRole('link', { name: 'Toutes les villes' })
+        .click();
       await expect(
-        pied.getByRole('link', { name: /^(Brazzaville|Dolisie|Pointe-Noire)$/ }),
+        page
+          .getByRole('region', { name: 'Avec des fiches' })
+          .getByRole('link', { name: /^(Brazzaville|Dolisie|Pointe-Noire) \d+ écoles?$/ }),
       ).toHaveCount(3);
       await page.goto('/');
       await page
@@ -422,8 +428,9 @@ test.describe('site public', () => {
   test('« À propos » dit ce qui est publié et renvoie la loi et les droits vers « Confidentialité »', async ({
     page,
   }) => {
+    // Lot 4 : la planche « À propos » ; ce qui est publié se dit dans « Notre périmètre ».
     await page.goto('/a-propos/');
-    await expect(page.getByRole('heading', { name: 'Ce que nous publions' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Notre périmètre' })).toBeVisible();
     await expect(page.getByText(/loi congolaise/)).toHaveCount(0);
     await page.goto('/confidentialite/');
     await expect(

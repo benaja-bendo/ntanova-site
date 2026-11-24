@@ -3,19 +3,22 @@ import { expect, test, type Page } from '@playwright/test';
 // Ticket 149 (décision du fondateur du 08/11/2026) : Méthode, Données, Confidentialité, Mentions légales. Ce qu'une
 // administration, une direction ou une famille lit pour savoir à qui elle a affaire. Les pages sont construites avec le site
 // (catalogue fictif) : aucune ne dépend d'un chiffre écrit à la main.
+// Lot 4 de la refonte (24/11/2026) : Fiabilité des informations et Données de l'annuaire suivent les planches « Points de
+// repère » ; les tests de Méthode et de Données sont réécrits sur elles (la planche gagne sur un test, règle du 16/11).
 const PAGES = [
-  ['/methode/', 'Comment nous tenons les fiches'],
+  ['/methode/', 'Des informations datées, avec leur origine.'],
   ['/donnees/', 'Ce que NTanova a publié'],
   ['/confidentialite/', 'Vos données personnelles'],
   ['/mentions-legales/', 'Mentions légales'],
 ] as const;
 const COMPLEXE = '/ecoles/complexe-scolaire-exemple-482913/';
 
+// L'ordre de lecture des mentions (`ORDRE_DES_MENTIONS`) : d'où vient la fiche, puis la confirmation. Pas un ordre de valeur.
 const MENTIONS = [
-  'Confirmée par la direction',
   'Vue sur place',
   'Déclarée par l’école',
   'Ajoutée par NTanova',
+  'Confirmée par la direction',
 ];
 
 async function textePrincipal(page: Page) {
@@ -80,26 +83,54 @@ test.describe('les pages de transparence', () => {
     }
   });
 
-  test('« Comment nous vérifions une fiche » mène de la fiche à la Méthode', async ({ page }) => {
+  test('« Comment nous vérifions une fiche » mène de la fiche à l’explication des mentions', async ({
+    page,
+  }) => {
     await page.goto(COMPLEXE);
     await page.getByRole('link', { name: 'Comment nous vérifions une fiche' }).click();
-    await expect(page).toHaveURL('/methode/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'Comment nous tenons les fiches',
-    );
+    await expect(page).toHaveURL('/methode/#m-mentions');
+    await expect(
+      page.getByRole('heading', { name: 'Ce que disent les mentions' }),
+    ).toBeInViewport();
   });
 });
 
-test.describe('Méthode', () => {
-  test('dit ce que veut dire chaque mention de la fiche, avec les mots de la fiche', async ({
+test.describe('Fiabilité des informations', () => {
+  test('dit ce que veut dire chaque mention, avec les mots de la fiche, sans hiérarchie ni note', async ({
     page,
   }) => {
     await page.goto('/methode/');
-    const mentions = page.locator('#mentions');
+    const mentions = page.locator('#m-mentions');
     for (const mention of MENTIONS) await expect(mentions).toContainText(mention);
+    await expect(mentions).toContainText('Ce n’est ni une note, ni un classement');
+    await expect(mentions).toContainText('Elles peuvent coexister');
+    const texte = await textePrincipal(page);
+    expect(texte).not.toMatch(/plus (forte|faible)|preuve la plus/i);
     // Ces mots sont ceux que la fiche affiche : la page ne peut pas dire autre chose.
     await page.goto(COMPLEXE);
     await expect(page.locator('.preuves')).toContainText('Vue sur place');
+  });
+
+  test('a ses six ancres, et garde les anciennes sur leur titre ou leur ligne', async ({
+    page,
+  }) => {
+    await page.goto('/methode/');
+    const sommaire = page.getByRole('navigation', { name: 'Sur cette page' });
+    await expect(sommaire.getByRole('link')).toHaveCount(6);
+    for (const lien of await sommaire.getByRole('link').all()) {
+      const ancre = (await lien.getAttribute('href'))!;
+      await expect(page.locator(ancre)).toHaveCount(1);
+    }
+    for (const ancienne of [
+      'mentions',
+      'informations',
+      'position',
+      'references',
+      'jamais-achete',
+      'dater-corriger',
+      'limites',
+    ])
+      await expect(page.locator(`#${ancienne}`), ancienne).toHaveCount(1);
   });
 
   test('dit qu’une référence d’agrément cite un document et ne garantit rien, et qu’une absence ne dit pas « non agréée »', async ({
@@ -107,25 +138,29 @@ test.describe('Méthode', () => {
   }) => {
     await page.goto('/methode/');
     const references = page.locator('#references');
-    await expect(references).toContainText(
-      'C’est une citation de document, pas une garantie de NTanova',
-    );
+    await expect(references).toContainText('C’est une citation, pas une garantie de NTanova');
     await expect(references).toContainText('n’accorde aucun agrément');
     await expect(references).toContainText(
       'Une fiche sans référence ne dit pas que l’école n’en a pas',
     );
-    await expect(references).toContainText('Le jour où NTanova a vu le document n’est pas affiché');
+    await expect(references).toContainText(
+      'Le jour où l’équipe a vu le document n’est pas affiché',
+    );
     // Les intitulés viennent de la liste de la fiche.
     await expect(references).toContainText('agrément, autorisation d’ouverture, reconnaissance');
+    await expect(page.locator('#m-champs')).toContainText('document pas encore vu');
   });
 
-  test('dit ce qui ne s’achète jamais, et ne promet ni gratuité ni couverture complète', async ({
+  test('dit ce qui ne s’achète pas, et ne promet ni gratuité ni couverture complète', async ({
     page,
   }) => {
     await page.goto('/methode/');
     const jamais = page.locator('#jamais-achete');
-    await expect(jamais).toContainText('La mention « Confirmée par la direction »');
-    await expect(jamais).toContainText('on ne la modifie pas contre paiement');
+    await expect(jamais).toContainText('Une mention, dont « Confirmée par la direction »');
+    await expect(jamais).toContainText('elle ne change pas contre paiement');
+    // Une prestation de communication n'existe pas encore : elle le dit, sans bouton.
+    await expect(jamais.locator('.etiquette-prepare')).toHaveText('En préparation');
+    await expect(jamais.getByRole('link')).toHaveCount(0);
     const texte = await textePrincipal(page);
     expect(texte).not.toMatch(/gratuit/i);
     await expect(page.locator('#limites')).toContainText(
@@ -133,14 +168,58 @@ test.describe('Méthode', () => {
     );
   });
 
-  test('dit que la position est mesurée ou posée par l’administration, jamais inventée', async ({
+  test('dit que la position est mesurée ou posée par l’équipe, jamais inventée, et ce que montre la carte', async ({
     page,
   }) => {
     await page.goto('/methode/');
     const position = page.locator('#position');
-    await expect(position).toContainText('mesurée par le relais');
-    await expect(position).toContainText('l’administration de NTanova la pose');
-    await expect(position).toContainText('jamais inventée');
+    await expect(position).toContainText('Le téléphone du relais');
+    await expect(position).toContainText('sinon l’équipe');
+    await expect(position).toContainText('Jamais inventée');
+    await expect(position).toContainText('en tirets tant qu’aucun relais n’est passé');
+  });
+
+  test('ne promet sur les photos que ce que le code garde : contrôle, douze au plus, jamais une photo de travail', async ({
+    page,
+  }) => {
+    await page.goto('/methode/');
+    const photos = page.locator('#m-photos');
+    await expect(photos).toContainText('douze au plus');
+    // Les mots du contrôle que la base exige de chaque image (`child_free_checked_at`), rien de plus.
+    await expect(photos).toContainText(
+      'Aucune image n’est publique avant d’être contrôlée : sans enfant ni personne reconnaissable.',
+    );
+    await expect(photos).not.toContainText(/nette|donnée personnelle/i);
+    // La base ne garde pas la source d'une fiche ajoutée par l'équipe : la page n'en promet pas.
+    await expect(page.locator('#m-entrees')).not.toContainText(/document|source/i);
+    await expect(photos).toContainText(
+      'les prospectus, les panneaux des formations et les photos de travail',
+    );
+    // La base ne garde pas d'accord daté de l'école pour la couverture et la galerie : la page ne le promet pas.
+    await expect(photos).not.toContainText('accord daté');
+  });
+
+  test('distingue le numéro de l’enseigne et le contact autorisé, et soumet les frais au OUI daté', async ({
+    page,
+  }) => {
+    await page.goto('/methode/');
+    const champs = page.locator('#m-champs');
+    await expect(champs.getByRole('rowheader', { name: 'Numéro de l’enseigne' })).toBeVisible();
+    await expect(champs.getByRole('rowheader', { name: 'Contact de l’école' })).toBeVisible();
+    await expect(champs).toContainText('Son accord daté pour publier ce numéro');
+    await expect(page.locator('#m-frais')).toContainText('avec son OUI daté');
+  });
+
+  test('compte les mentions de l’annuaire telles qu’elles coexistent, et mène à Données', async ({
+    page,
+  }) => {
+    await page.goto('/methode/');
+    // Le faux catalogue a une fiche vue sur place et confirmée : elle compte dans les deux.
+    await expect(page.locator('#m-mentions')).toContainText(
+      'confirmée par sa direction, qui est aussi vue sur place',
+    );
+    await page.locator('#m-mentions').getByRole('link', { name: 'Données de l’annuaire' }).click();
+    await expect(page).toHaveURL('/donnees/#mentions');
   });
 });
 
@@ -156,15 +235,41 @@ test.describe('Données', () => {
     expect(texte).not.toContain('%');
     // Aucun chiffre suivi d'un signe de pourcentage (le mot peut servir à dire qu'on n'en donne pas).
     expect(texte).not.toMatch(/\d\s*%/);
-    await expect(page.locator('.tete')).toContainText('Chiffres arrêtés au');
-    // Les quatre preuves sont toujours là, même à zéro : c'est le vocabulaire de la Méthode.
-    const preuves = page.locator('#preuves tbody th');
-    await expect(preuves).toHaveText(MENTIONS);
+    await expect(page.locator('main')).toContainText('Chiffres arrêtés au');
+    // Les quatre mentions sont toujours là, même à zéro, dans l'ordre de Fiabilité ; une fiche compte dans chacune des siennes.
+    const mentions = page.locator('#mentions tbody th');
+    await expect(mentions).toHaveText(MENTIONS);
+    const nombres = (await page.locator('#mentions tbody td').allInnerTexts()).map(Number);
+    expect(nombres.reduce((a, b) => a + b, 0)).toBeGreaterThan(recherche.length);
+    await expect(page.locator('#mentions')).toContainText(
+      'Sur 1 fiche confirmée par sa direction, 1 est aussi vue sur place',
+    );
+    await expect(page.locator('#mentions')).not.toContainText(/plus forte|classement des/);
     // Un lieu de la liste est un lien vers sa page.
     await expect(page.locator('#fiches tbody a').first()).toHaveAttribute(
       'href',
       /^\/ecoles\/[a-z-]+\/$/,
     );
+  });
+
+  test('distingue la construction, les dates des mentions et la dernière modification', async ({
+    page,
+  }) => {
+    await page.goto('/donnees/');
+    const dates = page.locator('#fraicheur');
+    for (const terme of [
+      'Construction du site',
+      'Dernière modification d’une fiche',
+      'Dates des mentions',
+    ])
+      await expect(dates.getByRole('term').filter({ hasText: terme })).toBeVisible();
+    // « Ajoutée par NTanova » n'a pas de date : elle n'a pas de ligne dans les dates des mentions.
+    await expect(dates.locator('table').first().locator('tbody th')).toHaveText([
+      'Vue sur place',
+      'Déclarée par l’école',
+      'Confirmée par la direction',
+    ]);
+    await expect(dates).toContainText('« Ajoutée par NTanova » ne porte pas de date sur la fiche');
   });
 
   test('dit qu’il n’y a pas de téléchargement libre, que le jeu complet se demande, et pose ses conditions', async ({

@@ -9,8 +9,9 @@
 //   `/pour-les-ecoles/` ne change pas ;
 // - le pied : quatre groupes (Chercher, Pour les écoles, Comprendre nos informations, NTanova), sans lien vers une page qui
 //   n'existe pas encore : écrire et signaler passent par WhatsApp jusqu'aux formulaires du lot 3, « Ajouter mon école » mène à
-//   la page des écoles comme sur les pages de lieu ; « Toutes les villes » et « Outils en préparation » attendent leurs pages
-//   (lots 4 et 5) ; on ne dit jamais « toutes les écoles ».
+//   la page des écoles comme sur les pages de lieu ; « Outils en préparation » attend sa page (lot 5) ; on ne dit jamais
+//   « toutes les écoles ». Lot 4 (24/11) : « Toutes les villes » (`/villes/`) remplace la liste des villes, comme la planche ;
+//   chaque ville reste à un geste, et le pied ne grandit plus avec l'annuaire.
 // Le logo reste celui de la charte (les trois barres et leur contour, 30/10).
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import './jetons.css';
@@ -32,6 +33,7 @@ import {
 import { jourDuCongo } from '../modele/date-declaration';
 import { dateCourte } from '../modele/pointe-noire';
 import { porte } from '../modele/liens-demandes';
+import { LIEN_VILLES } from '../modele/villes';
 import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
 import { formulairesOuverts } from './formulaires/ouverture';
 
@@ -80,8 +82,7 @@ const entrees = [
     courant: chemin.startsWith('/pour-les-ecoles'),
   },
 ];
-// Le pied : les villes qui ont des fiches (posées par src/middleware.ts), la date du jour où l'annuaire a été construit.
-const villes = Astro.locals.villesDuPied ?? [];
+// Le pied : la date du jour où l'annuaire a été construit.
 const misAJourLe = dateCourte(jourDuCongo());
 // Lot 3C : fermés, les formulaires laissent ces trois portes où elles sont (WhatsApp, la page des écoles).
 const signaler = porte(
@@ -225,11 +226,9 @@ const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === hr
                 <li>
                   <a href="/ecoles/">Les écoles</a>
                 </li>
-                {villes.map((v) => (
-                  <li>
-                    <a href={v.lien}>{v.nom}</a>
-                  </li>
-                ))}
+                <li>
+                  <a href={LIEN_VILLES}>Toutes les villes</a>
+                </li>
                 <li>
                   <a href="/orienter/">S’orienter</a>
                 </li>

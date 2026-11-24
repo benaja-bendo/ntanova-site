@@ -223,7 +223,12 @@ test.describe('l’accueil', () => {
   }) => {
     await page.goto('/');
     const villes = page.getByRole('region', { name: 'Par ville' });
-    await expect(villes.getByRole('link')).toHaveCount(3);
+    // Trois villes, et « Voir toutes les villes » (lot 4 de la refonte, 24/11).
+    await expect(villes.locator('a.ville')).toHaveCount(3);
+    await expect(villes.getByRole('link', { name: 'Voir toutes les villes' })).toHaveAttribute(
+      'href',
+      '/villes/',
+    );
     for (const [nom, lien, nombre] of [
       ['Brazzaville', '/ecoles/brazzaville/', '1 école'],
       ['Dolisie', '/ecoles/dolisie/', '1 école'],

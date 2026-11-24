@@ -23,12 +23,14 @@ import {
 import { carteDeLAccueil } from '../modele/carte-accueil';
 import { jourDuCongo } from '../modele/date-declaration';
 import { compterEcoles } from '../modele/geo-divisions';
-import { LIEN_METHODE } from '../modele/pages-de-confiance';
+import { LIEN_MENTIONS, ORDRE_DES_MENTIONS, SENS_DES_MENTIONS } from '../modele/mentions';
+import { LIEN_VILLES } from '../modele/villes';
 import { porte } from '../modele/liens-demandes';
 import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
 import { formulairesOuverts } from '../ui/formulaires/ouverture';
 import DessinCongo from '../ui/DessinCongo.astro';
 import Icone from '../ui/Icone.astro';
+import MentionDatee from '../ui/MentionDatee.astro';
 import PagePublique from '../ui/PagePublique.astro';
 import RechercheAccueil from '../ui/RechercheAccueil.astro';
 // Le trait des icônes (`.ico`), comme sur les autres pages publiques.
@@ -186,23 +188,14 @@ const donnees = {
     <div class="cadre mentions-grille">
       <div class="mentions-texte">
         <h2 id="titre-mentions">Des informations datées, avec leur origine</h2>
+        {/* Lot 4 : les mots et les pastilles de la fiche, depuis `modele/mentions.ts`. */}
         <ul class="mentions">
-          <li>
-            <span class="mention-datee mention-datee-terrain">Vue sur place</span>
-            <span>Un relais est passé devant l’école, ce jour-là.</span>
-          </li>
-          <li>
-            <span class="mention-datee mention-datee-ecole">Déclarée par l’école</span>
-            <span>La direction a transmis les informations.</span>
-          </li>
-          <li>
-            <span class="mention-datee mention-datee-ajoutee">Ajoutée par NTanova</span>
-            <span>L’équipe a documenté la fiche&nbsp;; personne n’est encore passé.</span>
-          </li>
-          <li>
-            <span class="mention-datee mention-datee-direction">Confirmée par la direction</span>
-            <span>La direction a relu la fiche et donné son accord, à une date.</span>
-          </li>
+          {ORDRE_DES_MENTIONS.map((m) => (
+            <li>
+              <MentionDatee mention={m} />
+              <span>{SENS_DES_MENTIONS[m]}</span>
+            </li>
+          ))}
         </ul>
         <p class="texte-doux">Une fiche peut porter plusieurs mentions, chacune avec sa date.</p>
         <div class="mentions-liens">
@@ -210,7 +203,7 @@ const donnees = {
             Voir la fiche de démonstration
             <Icone nom="suite" />
           </a>
-          <a class="lien-fort" href={LIEN_METHODE}>
+          <a class="lien-fort" href={LIEN_MENTIONS}>
             Fiabilité des informations
             <Icone nom="suite" />
           </a>
@@ -233,12 +226,8 @@ const donnees = {
             </b>
           </span>
           <span class="texte-doux">Primaire, collège · Privée</span>
-          <span class="mention-datee mention-datee-terrain">
-            Vue sur place · 12&nbsp;nov.&nbsp;2026
-          </span>
-          <span class="mention-datee mention-datee-direction">
-            Confirmée par la direction · 18&nbsp;nov.&nbsp;2026
-          </span>
+          <MentionDatee mention="relevee" jour="2026-11-12" />
+          <MentionDatee mention="verifiee" jour="2026-11-18" />
           <span class="exemple-frais">Frais · OUI de l’école le 18&nbsp;nov.&nbsp;2026</span>
           <span class="texte-doux">L’itinéraire, le numéro s’il est publié, le partage.</span>
         </span>
@@ -328,6 +317,13 @@ const donnees = {
       </ul>
     ) : (
       <p class="texte-doux">Les premières fiches arrivent au fil du relevé.</p>
+    )}
+    {/* Lot 4 : « Toutes les villes », les villes et leurs arrondissements, la recherche par lieu. */}
+    {villes.length > 0 && (
+      <a class="lien-fort" href={LIEN_VILLES}>
+        Voir toutes les villes
+        <Icone nom="suite" />
+      </a>
     )}
   </section>
 

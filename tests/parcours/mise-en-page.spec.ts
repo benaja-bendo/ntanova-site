@@ -160,6 +160,8 @@ const pagesPubliques = [
   ['« Fiabilité des informations »', '/methode/'],
   ['la fiche de démonstration', '/demo/fiche-ecole/'],
   ['« Données »', '/donnees/'],
+  // Refonte publique, lot 4 (24/11) : « Toutes les villes ».
+  ['« Toutes les villes »', '/villes/'],
   ['« Confidentialité »', '/confidentialite/'],
   ['« Mentions légales »', '/mentions-legales/'],
   ['page introuvable', '/cette-page-n-existe-pas/'],
@@ -386,18 +388,33 @@ test.describe('site public', () => {
     }
   });
 
-  test('« À propos » : à partir de la tablette, ce que nous faisons et ce que nous publions sont côte à côte', async ({
+  // Lot 4 (24/11/2026) : la planche « À propos » ; le test de la page courte du 08/11 est réécrit sur elle.
+  test('« À propos » : à partir de la tablette, les deux missions sont côte à côte ; sur téléphone, l’une sous l’autre', async ({
     page,
   }) => {
     await page.goto('/a-propos/');
-    const fait = await position(page, 'Ce que nous faisons');
-    const publie = await position(page, 'Ce que nous publions');
+    const familles = await position(page, /^Pour les familles$/);
+    const ecoles = await position(page, /^Pour les écoles$/);
     if (largeurDe(page) >= TABLETTE) {
-      expect(publie.y).toBe(fait.y);
-      expect(publie.x).toBeGreaterThan(fait.x);
+      expect(ecoles.y).toBe(familles.y);
+      expect(ecoles.x).toBeGreaterThan(familles.x);
     } else {
-      expect(publie.y).toBeGreaterThan(fait.y);
+      expect(ecoles.y).toBeGreaterThan(familles.y);
     }
+  });
+
+  test('« Fiabilité des informations » : le tableau champ par champ se lit sans défiler de côté, une ligne par information sur téléphone', async ({
+    page,
+  }) => {
+    await page.goto('/methode/');
+    await aucunDefilementDeCote(page, 'Fiabilité');
+    const frais = await position(page, 'Les frais publics et les comptes privés');
+    expect(frais.width).toBeGreaterThan(0);
+    const ligne = page.getByRole('row', { name: /^Position/ });
+    const enTete = await ligne.getByRole('rowheader').boundingBox();
+    const cellule = await ligne.getByRole('cell').first().boundingBox();
+    if (largeurDe(page) >= TABLETTE) expect(cellule!.y).toBeLessThan(enTete!.y + enTete!.height);
+    else expect(cellule!.y).toBeGreaterThanOrEqual(enTete!.y + enTete!.height - 1);
   });
 });
 
