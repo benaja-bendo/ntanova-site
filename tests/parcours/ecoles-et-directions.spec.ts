@@ -52,32 +52,51 @@ test('les pages de zone et l’accueil parlent de « Ajouter mon école » et de
   await expect(page.locator('main')).not.toContainText(/référenc/i);
 });
 
-test('« Qui sommes-nous ? » dit qui est NTanova, sans périmètre écrit à la main, et renvoie vers les quatre pages de transparence (ticket 149)', async ({
+// Lot 4 de la refonte (24/11/2026) : « À propos » suit sa planche (mission, organisation, périmètre, modèle économique) ; ce
+// test, qui protégeait la page courte du 08/11, est réécrit sur elle (règle du 16/11). Ce qu'il gardait reste gardé : aucun
+// périmètre écrit à la main, les pages de transparence, la loi et les droits sur « Confidentialité », les anciennes ancres.
+test('« À propos » dit qui est NTanova, compte depuis le catalogue, et renvoie vers les pages de transparence (ticket 149)', async ({
   page,
+  request,
 }) => {
+  const recherche = (await (await request.get('/recherche.json')).json()) as unknown[];
   await page.goto('/a-propos/');
-  await expect(page.getByRole('heading', { name: 'Qui sommes-nous ?' })).toBeVisible();
-  const chapeau = page.locator('.tete');
-  await expect(chapeau).toContainText('les écoles du Congo-Brazzaville');
-  // Le périmètre en chiffres vit sur « Données », daté de la construction : plus de date écrite à la main ici.
-  await expect(chapeau).toContainText('en nombres et en dates');
-  await expect(chapeau.getByRole('link', { name: 'Données' })).toHaveAttribute('href', '/donnees/');
-  await expect(page.locator('main')).not.toContainText('Au 5 novembre 2026');
-  await expect(page.locator('main')).not.toContainText('commence à Tié-Tié');
-  // Les données personnelles ont déménagé : ni leur titre ni la loi ici, un lien vers leur page.
-  await expect(page.getByRole('heading', { name: 'Vos droits' })).toHaveCount(0);
-  await expect(page.locator('#transparence').getByRole('link')).toHaveText([
-    'Méthode',
-    'Données',
-    'Confidentialité',
-    'Mentions légales',
-    'Écrire à NTanova sur WhatsApp',
-  ]);
-  // L'ancre que les fiches visaient avant la page Méthode reste, et renvoie vers elle.
-  await expect(page.locator('#ce-que-nous-publions').getByRole('link')).toHaveAttribute(
-    'href',
-    '/methode/',
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Choisir une école en sachant, pas en devinant.',
   );
+  // Le périmètre : des nombres du catalogue, datés de la construction, jamais une date écrite à la main.
+  await expect(page.getByRole('heading', { name: 'Notre périmètre' })).toBeVisible();
+  const perimetre = page.locator('#a-per');
+  await expect(perimetre.locator('.compteurs li').first()).toContainText(
+    `${recherche.length} fiches publiées`,
+  );
+  await expect(perimetre).toContainText('Brazzaville, Dolisie et Pointe-Noire');
+  await expect(perimetre).toContainText('nous ne disons jamais quelle part nous couvrons');
+  await expect(page.locator('main')).not.toContainText('Au 5 novembre 2026');
+  await expect(page.locator('main')).not.toContainText(/\[À (écrire|confirmer)/);
+  await expect(page.locator('main')).not.toContainText(/gratuit/i);
+  // Ce qui n'existe pas encore le dit : « En préparation », sans bouton.
+  await expect(page.locator('#a-mod .etiquette-prepare')).toHaveText('En préparation');
+  await expect(page.locator('#a-mod').getByRole('link')).toHaveCount(0);
+  // Les données personnelles ont leur page : ni leur titre ni la loi ici.
+  await expect(page.getByRole('heading', { name: 'Vos droits' })).toHaveCount(0);
+  await expect(page.getByText(/loi congolaise/)).toHaveCount(0);
+  await expect(page.locator('#transparence').getByRole('link')).toHaveText([
+    /^Fiabilité des informations/,
+    /^Données de l’annuaire/,
+    /^Confidentialité/,
+    /^Écrire à NTanova\s*Sur WhatsApp/,
+  ]);
+  await expect(page.getByRole('link', { name: 'Mentions légales' }).first()).toHaveAttribute(
+    'href',
+    '/mentions-legales/',
+  );
+  // Les anciennes ancres restent ; celle que visaient les fiches d'avant mène encore à la Méthode.
+  for (const ancre of ['ce-que-nous-faisons', 'ce-que-nous-publions', 'transparence'])
+    await expect(page.locator(`#${ancre}`)).toHaveCount(1);
+  await expect(
+    page.locator('#a-per').getByRole('link', { name: 'Fiabilité des informations' }),
+  ).toHaveAttribute('href', '/methode/');
 });
 
 test('page introuvable : un accès direct aux écoles et à la carte, et le WhatsApp dans le pied', async ({
@@ -106,15 +125,16 @@ test('le pied de page : quatre groupes de liens, et la phrase « NTanova · Cong
 }) => {
   await page.goto('/ecoles/');
   const pied = page.locator('footer');
-  // Refonte publique, lot 1 (canevas « Points de repère ») : quatre groupes. Les villes qui ont des fiches, dans l'ordre de
-  // l'accueil ; aucun lien vers une page qui n'existe pas encore (Contact et Compléter attendent le lot 3, WhatsApp d'ici là).
+  // Refonte publique, lot 1 (canevas « Points de repère ») : quatre groupes ; aucun lien vers une page qui n'existe pas encore
+  // (formulaires fermés : WhatsApp). Lot 4 : « Toutes les villes » remplace la liste des villes, comme la planche.
   await expect(pied.getByRole('list', { name: 'Chercher' }).getByRole('link')).toHaveText([
     'Les écoles',
-    'Brazzaville',
-    'Dolisie',
-    'Pointe-Noire',
+    'Toutes les villes',
     'S’orienter',
   ]);
+  await expect(
+    pied.getByRole('list', { name: 'Chercher' }).getByRole('link', { name: 'Toutes les villes' }),
+  ).toHaveAttribute('href', '/villes/');
   const ecoles = pied.getByRole('list', { name: 'Pour les écoles' });
   await expect(ecoles.getByRole('link')).toHaveText(['Présenter mon école', 'Ajouter mon école']);
   await expect(ecoles.getByRole('link', { name: 'Ajouter mon école' })).toHaveAttribute(

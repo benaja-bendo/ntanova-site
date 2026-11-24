@@ -1,182 +1,621 @@
 ---
-// Méthode (ticket 149, décision du fondateur du 08/11/2026) : comment une fiche est relevée, confirmée, datée et corrigée, ce que
-// veut dire chaque mention, ce que vaut une référence d'agrément, et ce qui ne s'achète jamais. Les mentions sont écrites avec
-// les mots de la fiche (`libelleProvenance`, `libelleGenreAgrement`) : cette page ne peut pas dire autre chose qu'elle.
-import { libelleGenreAgrement, libelleProvenance, type Provenance } from '../modele/libelles';
+// Fiabilité des informations, `/methode/` (refonte publique, lot 4, 24/11/2026 ; canevas « Points de repère », planche
+// « Fiabilité des informations », 1 440 et 390 px). Remplace la page de texte du ticket 149 (08/11) ; l'adresse ne change pas.
+//
+// Six sections, six ancres (`#m-entrees`, `#m-mentions`, `#m-champs`, `#m-photos`, `#m-frais`, `#m-corriger`), et les anciennes
+// ancres gardées sur leur titre ou leur ligne (`#mentions`, `#informations`, `#position`, `#references`, `#jamais-achete`,
+// `#dater-corriger`, `#limites`) : un lien partagé avant la refonte arrive encore au bon endroit.
+//
+// Ce que la page affirme, c'est ce que le code fait :
+// - les mentions coexistent, sans hiérarchie (`modele/mentions.ts`, les mêmes mots que la fiche) ;
+// - collecter, accepter et publier sont trois gestes ; une position n'est jamais inventée ; la carte montre toute fiche publiée
+//   qui a une position, en tirets tant qu'aucun relais n'est passé (17/11) ;
+// - le numéro de l'enseigne et le contact publié avec l'accord de la direction se distinguent sur la fiche ;
+// - des frais ne paraissent qu'avec le OUI daté ; l'agrément est cité, sans garantie, « document pas encore vu » quand l'école
+//   le cite seulement ;
+// - les photos : contrôlées avant d'être publiques (« aucun enfant, aucune personne reconnaissable », `child_free_checked_at`,
+//   le seul contrôle que la base exige de chaque image), douze au plus en galerie, jamais une photo de travail. La planche
+//   dit aussi « nette, sans donnée personnelle » (une case de la seule photo d'enseigne) et « couverture choisie et galerie :
+//   avec l'accord daté de l'école » ; la base ne garde ni l'un ni l'autre pour chaque image : la page ne le promet pas ;
+// - une fiche ajoutée par l'équipe ne garde pas sa source : la page ne dit pas d'où elle vient (écarts notés dans
+//   `docs/refonte-site-public.md`).
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirSite } from '../infra/index';
+import { jourDuCongo } from '../modele/date-declaration';
+import { libelleGenreAgrement } from '../modele/libelles';
+import { porte } from '../modele/liens-demandes';
+import {
+  ANCRE_MENTIONS,
+  ORDRE_DES_MENTIONS,
+  SENS_DES_MENTIONS,
+  compterLesMentions,
+  phraseDesMentions,
+} from '../modele/mentions';
 import {
   DELAI_DROITS_JOURS,
   LIEN_CONFIDENTIALITE,
   LIEN_DONNEES,
 } from '../modele/pages-de-confiance';
-import ContactNtanova from '../ui/ContactNtanova.astro';
-import PageDeTexte from '../ui/PageDeTexte.astro';
+import { dateCourte } from '../modele/pointe-noire';
+import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
+import { formulairesOuverts } from '../ui/formulaires/ouverture';
+import Icone from '../ui/Icone.astro';
+import MentionDatee from '../ui/MentionDatee.astro';
+import PagePublique from '../ui/PagePublique.astro';
+import '../ui/carte-pieces.css';
+import '../ui/confiance.css';
 
-// Ce que chaque mention veut dire. Typé sur `Provenance` : une mention de plus dans la fiche oblige à la décrire ici.
-const SENS_DES_MENTIONS: Record<Provenance, string> = {
-  verifiee:
-    'La direction de l’école a donné son accord, daté, sur l’exactitude de la fiche. C’est la seule mention qui vienne de l’école. Elle ne s’achète pas.',
-  relevee:
-    'Un relais de NTanova est passé devant l’école, a photographié son enseigne et pris sa position. La fiche porte le jour de ce passage.',
-  declaree:
-    'La direction a transmis elle-même les informations à NTanova, qui les a saisies. Personne n’est encore passé sur place : la fiche porte le jour de la déclaration.',
-  ajoutee:
-    'NTanova a ajouté la fiche. Personne n’est encore passé sur place et l’école ne l’a pas déclarée : c’est la mention la plus faible.',
-};
-const ORDRE: Provenance[] = ['verifiee', 'relevee', 'declaree', 'ajoutee'];
-const intitules = Object.values(libelleGenreAgrement).filter(
-  (x) => x !== libelleGenreAgrement.autre,
+const { ecoles } = await obtenirSite();
+const jour = dateCourte(jourDuCongo());
+const phrase = phraseDesMentions(compterLesMentions(ecoles));
+const intitules = Object.values(libelleGenreAgrement)
+  .filter((x) => x !== libelleGenreAgrement.autre)
+  .join(', ')
+  .toLowerCase();
+
+const ANCRES = [
+  ['m-entrees', 'Les sources'],
+  [ANCRE_MENTIONS, 'Les mentions'],
+  ['m-champs', 'Champ par champ'],
+  ['m-photos', 'Les photos'],
+  ['m-frais', 'Les frais'],
+  ['m-corriger', 'Corriger'],
+] as const;
+
+// Les dessins des mentions (canevas du 23/11), décoratifs : le libellé et la phrase disent tout.
+const DESSIN = {
+  relevee: '/dessins/mention-terrain.svg',
+  declaree: '/dessins/mention-ecole.svg',
+  ajoutee: '/dessins/mention-ajoutee.svg',
+  verifiee: '/dessins/mention-direction.svg',
+} as const;
+
+const signaler = porte(
+  formulairesOuverts,
+  { vers: 'erreur', depuis: 'fiabilite' },
+  avecMessage(
+    lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, '),
+    'Bonjour NTanova, une erreur sur une fiche : ',
+  ),
 );
 ---
 
-<PageDeTexte
-  titre="Fiabilité des informations : comment nous tenons les fiches · NTanova"
-  description="Comment une fiche d’école est relevée, confirmée, datée et corrigée, ce que veut dire chaque mention, ce que vaut une référence d’agrément et ce qui ne s’achète jamais."
-  surtitre="Transparence"
-  intitule="Comment nous tenons les fiches"
+<PagePublique
+  titre="Fiabilité des informations : d’où viennent les fiches · NTanova"
+  description="D’où viennent les informations de l’annuaire, ce que disent les mentions datées, les règles de chaque champ, des photos et des frais, et comment corriger une fiche."
 >
-  <Fragment slot="chapeau">
-    <p class="texte-doux">
-      Chaque fiche dit d’où vient ce qu’elle affirme, et à quelle date. Cette page explique ce que
-      veut dire chaque mention, et ce que NTanova ne fait pas.
-    </p>
-  </Fragment>
+  <section class="cadre cf-haut" aria-labelledby="titre-methode">
+    <div class="cf-haut-texte">
+      <p class="cf-surtitre">Fiabilité des informations</p>
+      <h1 id="titre-methode">Des informations datées, avec leur origine.</h1>
+      <p class="cf-chapeau">D’où elles viennent, qui les relit, comment les corriger.</p>
+      <nav aria-label="Sur cette page">
+        <ul class="cf-ancres">
+          {ANCRES.map(([id, texte]) => (
+            <li>
+              <a href={`#${id}`}>{texte}</a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
+    <img class="cf-dessin" src="/dessins/methode-relais.svg" alt="" width="520" height="380" />
+  </section>
 
-  <section class="carte bloc large" id="mentions">
-    <h2>Ce que veut dire chaque mention</h2>
-    <p>
-      Une fiche affiche la preuve la plus forte, avec son jour. Les preuves ne se fusionnent
-      jamais&nbsp;: une fiche vue sur place puis confirmée par la direction affiche les deux,
-      chacune avec sa date.
-    </p>
-    <ul>
-      {ORDRE.map((preuve) => (
-        <li>
-          <strong>{libelleProvenance[preuve]}</strong>&nbsp;: {SENS_DES_MENTIONS[preuve]}
+  <section id="m-entrees" class="cf-bande" aria-labelledby="titre-entrees">
+    <div class="cadre cf-section">
+      <h2 id="titre-entrees">Trois points d’entrée, une relecture</h2>
+      <div class="circuit">
+        <ul class="cf-points entrees">
+          <li class="cf-carte cf-point">
+            <span class="cf-rond">
+              <Icone nom="appareil" />
+            </span>
+            <div>
+              <b>Relevé terrain</b>
+              <span>Un relais passe devant l’école, photographie l’enseigne et note le jour.</span>
+            </div>
+          </li>
+          <li class="cf-carte cf-point">
+            <span class="cf-rond">
+              <Icone nom="document" />
+            </span>
+            <div>
+              <b>Déclaration de l’école</b>
+              <span>
+                La direction transmet ses informations. L’équipe les saisit, avec leur date.
+              </span>
+            </div>
+          </li>
+          <li class="cf-carte cf-point">
+            <span class="cf-rond">
+              <Icone nom="plan" />
+            </span>
+            <div>
+              <b>Ajout par l’équipe</b>
+              <span>L’équipe ajoute une école qu’elle connaît, sans passage sur place.</span>
+            </div>
+          </li>
+        </ul>
+        <span class="fleche" aria-hidden="true">
+          <Icone nom="suite" />
+        </span>
+        <div class="cf-carte cf-carte-forte etape">
+          <span class="cf-rond cf-rond-jaune">
+            <Icone nom="oeil" />
+          </span>
+          <h3>L’équipe relit</h3>
+          <p>
+            Chaque champ a sa règle. Accepter une fiche ne la publie pas&nbsp;: publier est une
+            décision à part.
+          </p>
+        </div>
+        <span class="fleche" aria-hidden="true">
+          <Icone nom="suite" />
+        </span>
+        <div class="cf-carte etape">
+          <span class="cf-rond cf-rond-jaune">
+            <Icone nom="coche" />
+          </span>
+          <h3>La fiche paraît</h3>
+          <p>À la mise à jour suivante du site, avec son origine et sa date.</p>
+        </div>
+      </div>
+      <p class="cf-point">
+        <span class="cf-rond cf-rond-jaune">
+          <Icone nom="bouclier" />
+        </span>
+        <span>
+          <b>À tout moment</b>, la direction peut demander à confirmer, corriger ou faire retirer sa
+          fiche.
+        </span>
+      </p>
+    </div>
+  </section>
+
+  <section id={ANCRE_MENTIONS} class="cadre cf-section" aria-labelledby="mentions">
+    <div class="cf-tete">
+      <h2 id="mentions">Ce que disent les mentions</h2>
+      <p class="cf-ligne">
+        Qui a vu ou dit quoi, et quand. Ce n’est ni une note, ni un classement.
+      </p>
+    </div>
+    <ul class="cf-cartes cf-cartes-4">
+      {ORDRE_DES_MENTIONS.map((m) => (
+        <li class="cf-carte mention">
+          <img src={DESSIN[m]} alt="" width="240" height="170" loading="lazy" />
+          <MentionDatee mention={m} />
+          <p>{SENS_DES_MENTIONS[m]}</p>
         </li>
       ))}
     </ul>
+    <div class="cf-carte coexistent">
+      <p>
+        <b>Elles peuvent coexister</b>, chacune avec sa date&nbsp;:
+      </p>
+      <ul class="mentions-exemple" aria-label="Exemple de mentions sur une fiche">
+        <MentionDatee balise="li" mention="relevee" jour="2026-11-12" />
+        <MentionDatee balise="li" mention="verifiee" jour="2026-11-18" />
+        <li>
+          <span class="etiquette-exemple">Exemple</span>
+        </li>
+      </ul>
+    </div>
     <p>
-      Une fiche «&nbsp;pas encore confirmée par la direction&nbsp;» n’est pas fausse&nbsp;: elle n’a
-      simplement pas reçu cet accord.
+      Sur une fiche, «&nbsp;Pas encore confirmée par la direction&nbsp;» dit seulement que cet
+      accord manque&nbsp;: la fiche n’est pas fausse pour autant.
     </p>
+    {phrase && (
+      <p class="cf-note">
+        Dans l’annuaire au {jour}&nbsp;: {phrase}.{' '}
+        <a href={`${LIEN_DONNEES}#mentions`}>Données de l’annuaire</a>
+      </p>
+    )}
   </section>
 
-  <section class="carte bloc" id="position">
-    <h2>La position</h2>
-    <p>
-      La position est mesurée par le relais avec son téléphone, devant l’école. Quand le téléphone
-      n’a pas pu la mesurer, l’administration de NTanova la pose d’après une carte ou une capture
-      d’écran envoyée par le relais. Une position n’est jamais inventée&nbsp;: sans elle, l’école
-      n’a pas d’épingle.
-    </p>
-    <p>
-      Elle est approximative. Le repère écrit en mots («&nbsp;derrière la station&nbsp;») la
-      complète. La carte ne montre que les écoles vues sur place.
-    </p>
+  <section id="m-champs" class="cf-blanc" aria-labelledby="informations">
+    <div class="cadre cf-section">
+      <h2 id="informations">Champ par champ</h2>
+      <table class="cf-tableau" role="table">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th scope="col" role="columnheader">
+              Information
+            </th>
+            <th scope="col" role="columnheader">
+              Peut venir de
+            </th>
+            <th scope="col" role="columnheader">
+              Pour paraître
+            </th>
+          </tr>
+        </thead>
+        <tbody role="rowgroup">
+          <tr role="row">
+            <th scope="row" role="rowheader">
+              Nom, niveaux, type, repère
+            </th>
+            <td role="cell" data-l="Peut venir de">
+              Relevé, école ou équipe
+            </td>
+            <td role="cell" data-l="Pour paraître">
+              Relus et acceptés par l’équipe, puis publiés.
+            </td>
+          </tr>
+          <tr role="row" id="position">
+            <th scope="row" role="rowheader">
+              Position
+            </th>
+            <td role="cell" data-l="Peut venir de">
+              Le téléphone du relais, devant l’école&nbsp;; sinon l’équipe, d’après l’école, une
+              carte ou une capture envoyée par le relais
+            </td>
+            <td role="cell" data-l="Pour paraître">
+              Jamais inventée&nbsp;: sans position, pas d’épingle. Une fiche publiée qui a sa
+              position est sur la carte, en tirets tant qu’aucun relais n’est passé.
+              Approximative&nbsp;: le repère en mots la complète.
+            </td>
+          </tr>
+          <tr role="row">
+            <th scope="row" role="rowheader">
+              Numéro de l’enseigne
+            </th>
+            <td role="cell" data-l="Peut venir de">
+              La photo de l’enseigne
+            </td>
+            <td role="cell" data-l="Pour paraître">
+              Comparé à la photo avant publication. La fiche dit «&nbsp;Numéro relevé sur
+              l’enseigne&nbsp;».
+            </td>
+          </tr>
+          <tr role="row">
+            <th scope="row" role="rowheader">
+              Contact de l’école
+            </th>
+            <td role="cell" data-l="Peut venir de">
+              La direction
+            </td>
+            <td role="cell" data-l="Pour paraître">
+              Son accord daté pour publier ce numéro. La fiche dit le jour de cet accord.
+            </td>
+          </tr>
+          <tr role="row">
+            <th scope="row" role="rowheader">
+              Photos
+            </th>
+            <td role="cell" data-l="Peut venir de">
+              Relevé, école ou équipe
+            </td>
+            <td role="cell" data-l="Pour paraître">
+              Contrôlées une à une&nbsp;: <a href="#m-photos">les règles des photos</a>.
+            </td>
+          </tr>
+          <tr role="row">
+            <th scope="row" role="rowheader">
+              Frais
+            </th>
+            <td role="cell" data-l="Peut venir de">
+              L’école
+            </td>
+            <td role="cell" data-l="Pour paraître">
+              Le OUI daté de l’école, par cycle et par période.
+            </td>
+          </tr>
+          <tr role="row">
+            <th scope="row" role="rowheader">
+              Agrément
+            </th>
+            <td role="cell" data-l="Peut venir de">
+              Un document vu, ou l’école qui le cite
+            </td>
+            <td role="cell" data-l="Pour paraître">
+              Cité tel qu’il est écrit&nbsp;; «&nbsp;document pas encore vu&nbsp;» quand l’école le
+              cite seulement.
+            </td>
+          </tr>
+          <tr role="row">
+            <th scope="row" role="rowheader">
+              Équipements
+            </th>
+            <td role="cell" data-l="Peut venir de">
+              Le relais, depuis la rue, ou l’école
+            </td>
+            <td role="cell" data-l="Pour paraître">
+              Une absence ou un service ne s’écrit que si l’école le déclare. «&nbsp;Pas
+              renseigné&nbsp;» ne veut pas dire «&nbsp;absent&nbsp;».
+            </td>
+          </tr>
+          <tr role="row">
+            <th scope="row" role="rowheader">
+              Inscriptions
+            </th>
+            <td role="cell" data-l="Peut venir de">
+              L’école
+            </td>
+            <td role="cell" data-l="Pour paraître">
+              «&nbsp;Date limite annoncée&nbsp;», retirée une fois passée. Le site ne peut pas dire
+              que les inscriptions sont encore ouvertes.
+            </td>
+          </tr>
+          <tr role="row">
+            <th scope="row" role="rowheader">
+              Mot de la direction
+            </th>
+            <td role="cell" data-l="Peut venir de">
+              La direction
+            </td>
+            <td role="cell" data-l="Pour paraître">
+              Tel qu’elle l’a remis, sur une fiche confirmée seulement.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div id="references" class="references">
+        <h3>Les références officielles (agrément)</h3>
+        <p>
+          La fiche cite l’intitulé ({intitules}, ou celui écrit sur le document), la référence telle
+          qu’elle est écrite et l’endroit où se trouve le document. Un lien n’est donné que si le
+          document est en ligne. Une référence peut concerner l’établissement ou une seule filière.
+        </p>
+        <p>
+          <strong>C’est une citation, pas une garantie de NTanova.</strong> NTanova n’accorde aucun
+          agrément, n’en juge pas la valeur et ne confirme pas qu’un document est toujours en
+          vigueur. Le jour où l’équipe a vu le document n’est pas affiché.
+        </p>
+        <p>
+          Une fiche sans référence ne dit pas que l’école n’en a pas&nbsp;: l’équipe n’a pas encore
+          vu de document. Pour s’en assurer, demander le document à l’école ou à l’administration
+          qui l’a délivré.
+        </p>
+      </div>
+    </div>
   </section>
 
-  <section class="carte bloc" id="informations">
-    <h2>Les informations affichées</h2>
-    <ul>
-      <li>
-        <strong>Niveaux, type, repère, numéro de l’enseigne</strong>&nbsp;: relevés sur place. Le
-        numéro écrit sur l’enseigne est comparé à la photo avant d’être publié.
-      </li>
-      <li>
-        <strong>Photo</strong>&nbsp;: une seule, de l’enseigne ou du bâtiment, publiée après
-        contrôle (nette, sans enfant, sans donnée personnelle). Les autres photos ne sont pas
-        publiées.
-      </li>
-      <li>
-        <strong>Contact de l’école</strong>&nbsp;: publié seulement avec l’accord daté de la
-        direction.
-      </li>
-      <li>
-        <strong>Frais</strong>&nbsp;: seulement ceux que l’école a communiqués, par cycle, avec leur
-        date. NTanova n’en calcule aucun total et n’encaisse pas les frais de scolarité.
-      </li>
-      <li>
-        <strong>Équipements</strong>&nbsp;: ce qui se voit depuis la rue est constaté sur place. Une
-        absence ou un service ne s’écrit que si l’école le déclare. «&nbsp;Pas renseigné&nbsp;» ne
-        veut pas dire «&nbsp;absent&nbsp;».
-      </li>
-      <li>
-        <strong>Inscriptions</strong>&nbsp;: la fiche écrit «&nbsp;date limite annoncée&nbsp;». Le
-        site est mis à jour par étapes, il ne peut pas dire que les inscriptions sont encore
-        ouvertes.
-      </li>
-      <li>
-        <strong>Mot de la direction</strong>&nbsp;: le texte tel que la direction l’a remis, sur une
-        fiche confirmée seulement.
-      </li>
-    </ul>
+  <section id="m-photos" class="cf-bande" aria-labelledby="titre-photos">
+    <div class="cadre cf-section">
+      <h2 id="titre-photos">Les photos&nbsp;: une seule règle</h2>
+      <ul class="cf-points cf-points-2">
+        <li class="cf-point">
+          <span class="cf-rond">
+            <Icone nom="appareil" />
+          </span>
+          <div>
+            <b>Couverture</b>
+            <span>
+              Une image choisie pour la fiche&nbsp;; à défaut, la photo de l’enseigne prise sur
+              place, avec son jour.
+            </span>
+          </div>
+        </li>
+        <li class="cf-point">
+          <span class="cf-rond">
+            <Icone nom="liste" />
+          </span>
+          <div>
+            <b>Galerie, facultative</b>
+            <span>Des photos du lieu, douze au plus.</span>
+          </div>
+        </li>
+        <li class="cf-point">
+          <span class="cf-rond">
+            <Icone nom="oeil" />
+          </span>
+          <div>
+            <b>Contrôle de chaque photo</b>
+            <span>
+              Aucune image n’est publique avant d’être contrôlée&nbsp;: sans enfant ni personne
+              reconnaissable.
+            </span>
+          </div>
+        </li>
+        <li class="cf-point">
+          <span class="cf-rond">
+            <Icone nom="croix" />
+          </span>
+          <div>
+            <b>Retrait</b>
+            <span>
+              Une photo se retire sur demande, comme toute information&nbsp;:{' '}
+              <a href={LIEN_CONFIDENTIALITE}>vos droits</a>.
+            </span>
+          </div>
+        </li>
+      </ul>
+      <p>
+        <b>Jamais publiés&nbsp;:</b> les prospectus, les panneaux des formations et les photos de
+        travail. L’équipe n’en recopie que les lignes utiles.
+      </p>
+    </div>
   </section>
 
-  <section class="carte bloc large" id="references">
-    <h2>Les références officielles (agrément)</h2>
-    <p>
-      Quand l’administration de NTanova a vu un document officiel, la fiche le cite&nbsp;: son
-      intitulé ({intitules.join(', ').toLowerCase()}, ou l’intitulé écrit sur le document), la
-      référence telle qu’elle y est écrite, sa date et l’endroit où se trouve le document. Un lien
-      n’est donné que si le document est en ligne. Une référence peut concerner l’établissement ou
-      une seule filière.
-    </p>
-    <h3>Ce que cela vaut</h3>
-    <p>
-      <strong>C’est une citation de document, pas une garantie de NTanova.</strong> NTanova
-      n’accorde aucun agrément, n’en juge pas la valeur et ne confirme pas qu’un document est
-      toujours en vigueur&nbsp;: il a pu être renouvelé ou retiré depuis. Le jour où NTanova a vu le
-      document n’est pas affiché.
-    </p>
-    <h3>Ce qu’une absence ne veut pas dire</h3>
-    <p>
-      Une fiche sans référence ne dit pas que l’école n’en a pas&nbsp;: NTanova n’a pas encore vu de
-      document. Un parent ou un ministère qui doit s’en assurer demande le document à l’école ou à
-      l’administration qui l’a délivré.
-    </p>
+  <section id="m-frais" class="cadre cf-section" aria-labelledby="titre-frais">
+    <h2 id="titre-frais">Les frais publics et les comptes privés</h2>
+    <div class="cf-cartes cf-cartes-2">
+      <div class="cf-carte cf-carte-forte">
+        <h3>Dans l’annuaire, pour tous</h3>
+        <p>
+          Les frais que l’école annonce, par cycle et par période, avec son OUI daté. Une ligne
+          modifiée perd ce OUI et ne paraît plus avant le suivant. Aucun total calculé, rien de
+          deviné.
+        </p>
+        <p class="frais-exemple">
+          Scolarité, primaire&nbsp;: <b>10&nbsp;000&nbsp;FCFA par mois</b>{' '}
+          <span class="etiquette-exemple">Exemple</span>
+        </p>
+      </div>
+      <div class="cf-carte cf-carte-forte">
+        <h3>Dans l’outil d’une école, privé</h3>
+        <p>
+          Ce qu’une famille doit, a versé, doit encore. Jamais publié, et sans effet sur les frais
+          de la fiche.
+        </p>
+        <p>
+          <span class="etiquette-prepare">En préparation</span>
+        </p>
+      </div>
+    </div>
+    <p>NTanova n’encaisse jamais les frais de scolarité.</p>
   </section>
 
-  <section class="carte bloc" id="dater-corriger">
-    <h2>Dater, corriger, retirer</h2>
-    <p>
-      Chaque preuve porte son jour. Quand un relais repasse, que la direction répond ou qu’une
-      famille signale une erreur, l’administration corrige la fiche et la date change.
-    </p>
-    <p>
-      Le site est mis à jour par étapes&nbsp;: une correction faite dans notre base n’apparaît sur
-      ntanova.com qu’à la mise en ligne suivante. Pour corriger ou retirer une fiche, voir{' '}
-      <a href={LIEN_CONFIDENTIALITE}>Confidentialité</a> (délai de {DELAI_DROITS_JOURS}&nbsp;jours
-      dans notre base).
-    </p>
+  <section id="jamais-achete" class="cf-verte sur-marque" aria-labelledby="titre-jamais">
+    <div class="cadre cf-section jamais">
+      <div class="cf-tete">
+        <h2 id="titre-jamais">Ce qui ne s’achète pas</h2>
+        <ul class="cf-points">
+          <li class="cf-croix">
+            <Icone nom="croix" />
+            <span>Une mention, dont «&nbsp;Confirmée par la direction&nbsp;».</span>
+          </li>
+          <li class="cf-croix">
+            <Icone nom="croix" />
+            <span>Une information&nbsp;: elle ne change pas contre paiement.</span>
+          </li>
+          <li class="cf-croix">
+            <Icone nom="croix" />
+            <span>
+              La place dans les résultats&nbsp;: par nom, par date de visite ou par distance.
+            </span>
+          </li>
+          <li class="cf-croix">
+            <Icone nom="croix" />
+            <span>La disparition des autres écoles.</span>
+          </li>
+        </ul>
+      </div>
+      <div class="cf-carte">
+        <h3>Et une prestation de communication&nbsp;?</h3>
+        <p>
+          Une école pourra payer des visuels ou des contenus. Ils seront signalés comme tels, à part
+          des fiches et des résultats ordinaires.
+        </p>
+        <p>
+          <span class="etiquette-prepare">En préparation</span>
+        </p>
+        <p>NTanova ne note pas les écoles, ne les classe pas et ne garantit pas leur qualité.</p>
+      </div>
+    </div>
   </section>
 
-  <section class="carte bloc" id="jamais-achete">
-    <h2>Ce qui ne s’achète jamais</h2>
-    <ul>
-      <li>La mention «&nbsp;{libelleProvenance.verifiee}&nbsp;».</li>
-      <li>Une information factuelle&nbsp;: on ne la modifie pas contre paiement.</li>
-      <li>
-        La place d’une école&nbsp;: les fiches sont classées par ordre alphabétique, ou par distance
-        quand vous utilisez «&nbsp;Autour de moi&nbsp;».
-      </li>
-    </ul>
-    <p>NTanova ne note pas les écoles, ne les classe pas et ne garantit pas leur qualité.</p>
+  <section id="m-corriger" class="cadre cf-section corriger" aria-labelledby="dater-corriger">
+    <div class="cf-tete">
+      <h2 id="dater-corriger">Dates et corrections</h2>
+      <ul class="cf-points">
+        <li class="cf-point">
+          <Icone nom="repere" />
+          <span>
+            Chaque mention datée porte son jour&nbsp;: un passage, une déclaration, un accord.
+          </span>
+        </li>
+        <li class="cf-point">
+          <Icone nom="reglages" />
+          <span>
+            Une correction faite dans notre base paraît à la mise à jour suivante du site.
+          </span>
+        </li>
+        <li class="cf-point">
+          <Icone nom="garder" />
+          <span>
+            Une demande de retrait est traitée sous {DELAI_DROITS_JOURS}&nbsp;jours dans notre
+            base&nbsp;; nous demandons alors la mise en ligne sans attendre.
+          </span>
+        </li>
+      </ul>
+      <p id="limites" class="cf-note">
+        Un annuaire n’est ni un registre officiel, ni complet. Le nombre total d’écoles du
+        Congo-Brazzaville est inconnu&nbsp;: nous ne disons jamais quelle part nous couvrons.
+      </p>
+    </div>
+    <div class="cf-carte cf-carte-forte erreur">
+      <h3>Une erreur&nbsp;? Dites-le-nous.</h3>
+      <p>Famille, direction, voisin&nbsp;: l’équipe relit et corrige.</p>
+      <div class="erreur-actions">
+        {signaler && (
+          <a class="bouton" href={signaler.href}>
+            {signaler.parFormulaire ? 'Signaler une erreur' : 'Signaler une erreur sur WhatsApp'}
+          </a>
+        )}
+        <a class="cf-lien" href={LIEN_CONFIDENTIALITE}>
+          Vos données et vos droits
+        </a>
+      </div>
+    </div>
   </section>
+</PagePublique>
 
-  <section class="carte bloc large" id="limites">
-    <h2>Ce que ces fiches ne sont pas</h2>
-    <p>
-      Un annuaire n’est pas un registre officiel, et il n’est pas complet. Le nombre total d’écoles
-      du Congo-Brazzaville est inconnu&nbsp;: NTanova ne dit donc jamais quelle part des écoles il
-      couvre. Ce qui est publié, en nombres et en dates, est sur la page{' '}
-      <a href={LIEN_DONNEES}>Données</a>.
-    </p>
-    <ContactNtanova
-      message="Bonjour NTanova, une remarque sur votre méthode : "
-      formulaire={{
-        arrivee: { vers: 'erreur', depuis: 'fiabilite' },
-        texte: 'Signaler une erreur',
-      }}
-    />
-  </section>
-</PageDeTexte>
+<style>
+  /* Les trois entrées, puis la relecture, puis la publication : une colonne sur téléphone, une ligne sur ordinateur. */
+  .circuit {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .entrees > li {
+    padding: var(--espace-3) var(--espace-4);
+  }
+  .fleche {
+    display: grid;
+    place-items: center;
+    transform: rotate(90deg);
+    color: var(--texte);
+  }
+  .mention {
+    justify-items: start;
+  }
+  .mention img {
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+  }
+  .coexistent {
+    gap: var(--espace-3);
+  }
+  .mentions-exemple {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .references {
+    display: grid;
+    gap: var(--espace-2);
+    max-width: var(--largeur-texte);
+  }
+  .cf-carte .frais-exemple {
+    color: var(--texte);
+  }
+  .jamais {
+    align-items: start;
+  }
+  .jamais .cf-carte h3 {
+    color: var(--texte);
+  }
+  .corriger .cf-point :global(.ico) {
+    color: var(--marque);
+  }
+  .erreur {
+    align-self: start;
+    gap: var(--espace-3);
+  }
+  .erreur-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-3) var(--espace-5);
+  }
+  @media (min-width: 64rem) {
+    .circuit {
+      grid-template-columns: minmax(0, 1.3fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+    }
+    .fleche {
+      transform: none;
+    }
+    .jamais,
+    .corriger {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--espace-7);
+    }
+  }
+</style>

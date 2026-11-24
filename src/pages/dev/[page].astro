@@ -27,6 +27,7 @@ import AdmissionEcole from '../../ui/fiche/AdmissionEcole.astro';
 import FraisDeLaFiche from '../../ui/fiche/FraisDeLaFiche.astro';
 import NouvellesEcole from '../../ui/fiche/NouvellesEcole.astro';
 import DessinCongo from '../../ui/DessinCongo.astro';
+import MentionDatee from '../../ui/MentionDatee.astro';
 import RechercheAccueil from '../../ui/RechercheAccueil.astro';
 import { carteDeLAccueil, placerLesEtiquettes } from '../../modele/carte-accueil';
 import {
@@ -380,13 +381,23 @@ const autour = arrondissementsDessines.map((a) => ({
         <DessinCongo carte={paysSeul} jour="24/11" id="catalogue-vide" />
         <DessinCongo carte={dessinFictif} jour="24/11" id="catalogue-villes" />
       </div>
+      {/* Lot 4 : le dessin seul de « Toutes les villes », sans étiquettes ni famille. */}
+      <div style="max-width: 24rem">
+        <DessinCongo carte={dessinFictif} jour="24/11" id="catalogue-seul" seul />
+      </div>
+      {/* Lot 4 : `MentionDatee`, la pastille de la fiche hors d'une fiche, avec ou sans date, et les trois libellés d'état. */}
       <div class="rangee">
-        <span class="mention-datee mention-datee-terrain">Vue sur place · 12 nov. 2026</span>
-        <span class="mention-datee mention-datee-ecole">Déclarée par l’école</span>
-        <span class="mention-datee mention-datee-ajoutee">Ajoutée par NTanova</span>
-        <span class="mention-datee mention-datee-direction">Confirmée par la direction</span>
+        <MentionDatee mention="relevee" jour="2026-11-12" />
+        <MentionDatee mention="declaree" jour="2026-11-05" />
+        <MentionDatee mention="declaree" />
+        <MentionDatee mention="ajoutee" />
+        <MentionDatee mention="verifiee" jour="2026-11-18" />
         <span class="etiquette-exemple">Exemple</span>
         <span class="etiquette-prepare">En préparation</span>
+        <span class="etiquette-disponible">Disponible</span>
+      </div>
+      <div style="max-width: 20rem">
+        <MentionDatee mention="verifiee" jour="2026-11-18" />
       </div>
     </div>
 

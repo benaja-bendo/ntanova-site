@@ -1,0 +1,34 @@
+---
+// Une mention datée, hors d'une fiche (refonte publique, lot 4, 24/11/2026) : la pastille que la fiche affiche, avec la même
+// icône, les mêmes mots et la même date (`modele/mentions.ts`). L'accueil, la démonstration, Fiabilité et Données la posent
+// telle quelle ; elle ne dit jamais qu'une mention vaut plus qu'une autre. Sans date, le libellé seul.
+import type { Provenance } from '../modele/libelles';
+import { libelleProvenance } from '../modele/libelles';
+import { GENRE_DE_LA_MENTION, ICONE_DE_LA_MENTION } from '../modele/mentions';
+import { dateCourte } from '../modele/pointe-noire';
+import Icone from './Icone.astro';
+
+interface Props {
+  mention: Provenance;
+  /** Le jour de la mention (`AAAA-MM-JJ`, à l'heure du Congo) ; rien : le libellé seul. */
+  jour?: string | null;
+  /** La balise : un `li` dans une liste de mentions. */
+  balise?: 'span' | 'li';
+}
+const { mention, jour = null, balise = 'span' } = Astro.props;
+const Balise = balise;
+const icone = ICONE_DE_LA_MENTION[mention];
+---
+
+<Balise class={`mention-datee mention-datee-${GENRE_DE_LA_MENTION[mention]}`}>
+  {icone && <Icone nom={icone} />}
+  <span>
+    {libelleProvenance[mention]}
+    {jour && (
+      <>
+        {' · '}
+        <span class="mention-jour">{dateCourte(`${jour}T12:00:00Z`)}</span>
+      </>
+    )}
+  </span>
+</Balise>

@@ -21,6 +21,11 @@ const PAGES_PRINCIPALES = [
     note: 'toutes les fiches publiées, en liste ou sur la carte',
   },
   {
+    href: '/villes/',
+    texte: 'Toutes les villes',
+    note: 'les villes qui ont des fiches, leurs arrondissements et leurs nombres',
+  },
+  {
     href: '/orienter/',
     texte: 'S’orienter',
     note: 'le parcours scolaire, six activités pour trouver des pistes, dix domaines de formation',
@@ -44,7 +49,8 @@ const PAGES_POUR_ECRIRE = [
 ] as const;
 
 const NOTES_TRANSPARENCE: Record<string, string> = {
-  '/methode/': 'comment une fiche est relevée, datée et corrigée',
+  '/methode/':
+    'd’où viennent les fiches, ce que disent leurs mentions datées, comment les corriger',
   '/donnees/': 'les fiches publiées en chiffres et les conditions d’utilisation',
   '/confidentialite/': 'ce que NTanova garde pour elle et les droits de chacun',
   '/mentions-legales/': 'l’éditeur et les hébergeurs',

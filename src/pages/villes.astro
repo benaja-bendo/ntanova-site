@@ -1,0 +1,347 @@
+---
+// Toutes les villes, `/villes/` (refonte publique, lot 4, 24/11/2026 ; canevas « Points de repère », planche « Toutes les
+// villes », 1 440 et 390 px). L'accueil (« Par ville ») et le pied de page y mènent.
+//
+// - La recherche « ville ou quartier » est un formulaire GET vers « Les écoles » avec `ou`, le contrat du lot 1 : la liste
+//   comprend le lieu, le garde dans son adresse, dit zéro sans supposer un autre lieu. La validation est celle du navigateur ;
+//   aucun script.
+// - Les villes qui ont des fiches, leur département, leurs arrondissements et leurs nombres viennent de l'arbre public
+//   (`modele/villes.ts`) : les mêmes nombres que l'accueil, le pied et la page du lieu. Une ville nouvelle paraît sans dessin.
+// - Les lieux du référentiel sans fiche publiée restent du texte, sans lien (16/11) ; la page ne dit pas qu'ils sont des
+//   chefs-lieux (le référentiel ne le porte pas) ni que personne n'y a relevé d'école.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirSite } from '../infra/index';
+import { carteDeLAccueil } from '../modele/carte-accueil';
+import { jourEtMois } from '../modele/accueil';
+import { jourDuCongo } from '../modele/date-declaration';
+import { compterEcoles } from '../modele/geo-divisions';
+import { porte } from '../modele/liens-demandes';
+import { dateCourte } from '../modele/pointe-noire';
+import { pageDesVilles } from '../modele/villes';
+import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
+import DessinCongo from '../ui/DessinCongo.astro';
+import Icone from '../ui/Icone.astro';
+import PagePublique from '../ui/PagePublique.astro';
+import { formulairesOuverts } from '../ui/formulaires/ouverture';
+import '../ui/carte-pieces.css';
+import '../ui/confiance.css';
+
+const { arbre, divisions } = await obtenirSite();
+const { avecFiches, sansFiche } = pageDesVilles(arbre, divisions);
+const carte = carteDeLAccueil(arbre);
+const jour = dateCourte(jourDuCongo());
+const signaler = porte(
+  formulairesOuverts,
+  { vers: 'manque', depuis: 'villes' },
+  avecMessage(
+    lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, '),
+    'Bonjour NTanova, une école manque : ',
+  ),
+);
+---
+
+<PagePublique
+  titre="Toutes les villes : les écoles, ville par ville · NTanova"
+  description="Les villes du Congo-Brazzaville où des écoles ont déjà leur fiche sur NTanova, avec leurs arrondissements et leurs nombres, et une recherche par ville ou par quartier."
+>
+  <div class="cadre villes-page">
+    <div class="villes-texte">
+      <section class="cf-haut-texte haut-villes" aria-labelledby="titre-villes">
+        <p class="cf-surtitre">Toutes les villes</p>
+        <h1 id="titre-villes">Les écoles, ville par ville</h1>
+        <p class="cf-chapeau">
+          {avecFiches.length > 0
+            ? `Où des écoles ont déjà leur fiche, au ${jour}.`
+            : 'Aucune école n’a encore de fiche publiée.'}
+        </p>
+        <form class="chercher-lieu" action="/ecoles/" method="get" role="search">
+          <label for="villes-ou">Chercher une ville ou un quartier</label>
+          <div class="chercher-ligne">
+            <input
+              id="villes-ou"
+              type="search"
+              name="ou"
+              required
+              pattern=".*\S.*"
+              title="Écrivez une ville ou un quartier."
+              autocomplete="off"
+              enterkeyhint="search"
+            />
+            <button class="bouton" type="submit">
+              <Icone nom="loupe" />
+              Chercher
+            </button>
+          </div>
+        </form>
+      </section>
+
+      {avecFiches.length > 0 && (
+        <section class="bloc-villes" aria-labelledby="titre-avec">
+          <h2 id="titre-avec">Avec des fiches</h2>
+          <ul class="liste-villes">
+            {avecFiches.map((v) => (
+              <li class="cf-carte ville">
+                <a class="ville-lien" href={v.lien}>
+                  <b>{v.nom}</b>{' '}
+                  <span class="ville-total">
+                    {compterEcoles(v.total)}
+                    <Icone nom="suite" />
+                  </span>
+                </a>
+                {v.departement && <p class="ville-dep">Département&nbsp;: {v.departement}</p>}
+                {v.lieux.length > 0 && (
+                  <ul class="ville-lieux" aria-label={`Lieux de ${v.nom} qui ont des fiches`}>
+                    {v.lieux.map((l) => (
+                      <li>
+                        <a href={l.lien}>
+                          <span class="lieu-nom">{l.nom}</span>{' '}
+                          <span class="lieu-total">· {compterEcoles(l.total)}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {sansFiche.length > 0 && (
+        <section class="bloc-villes" aria-labelledby="titre-sans">
+          <h2 id="titre-sans">Pas encore de fiche</h2>
+          <p class="cf-note">
+            D’autres villes, communes et districts que connaît l’annuaire. Une école y paraîtra
+            quand sa fiche sera publiée.
+          </p>
+          <ul class="sans-fiche">
+            {sansFiche.map((l) => (
+              <li>
+                <b>{l.nom}</b>
+                {l.departement && l.departement !== l.nom && (
+                  <span class="texte-doux"> · {l.departement}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+    <div class="villes-dessin">
+      <DessinCongo carte={carte} jour={jourEtMois(jourDuCongo())} id="villes" seul />
+    </div>
+  </div>
+
+  <section class="cf-verte sur-marque" aria-labelledby="titre-manque">
+    <div class="cadre cf-section manque">
+      <div class="cf-tete">
+        <h2 id="titre-manque">Votre ville n’y est pas&nbsp;?</h2>
+        <p class="cf-ligne">Signalez une école. L’équipe la relit avant de la publier.</p>
+      </div>
+      <div class="manque-actions">
+        {signaler && (
+          <a class="bouton bouton-accent" href={signaler.href}>
+            {signaler.parFormulaire ? 'Signaler une école' : 'Signaler une école sur WhatsApp'}
+          </a>
+        )}
+        <a class="lien-direction" href="/pour-les-ecoles/">
+          Vous dirigez une école&nbsp;?
+        </a>
+      </div>
+    </div>
+  </section>
+</PagePublique>
+
+<style>
+  .villes-page {
+    display: grid;
+    gap: var(--espace-6);
+    padding-block: var(--espace-6);
+  }
+  .villes-texte {
+    display: grid;
+    gap: var(--espace-6);
+    min-width: 0;
+  }
+  .haut-villes h1 {
+    margin: 0;
+    font-size: var(--taille-titre-accueil);
+    line-height: 1.06;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+  }
+  h2 {
+    margin: 0;
+    font-size: var(--taille-intertitre);
+    line-height: 1.2;
+  }
+  .chercher-lieu {
+    display: grid;
+    gap: var(--espace-2);
+    max-width: 34rem;
+  }
+  .chercher-lieu label {
+    font-family: var(--police-interface);
+    font-weight: 700;
+  }
+  .chercher-ligne {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+  }
+  .chercher-ligne input {
+    flex: 1 1 14rem;
+    min-width: 0;
+    min-height: var(--cible-principale);
+    padding: 0 var(--espace-3);
+    border: 2px solid var(--trait-fort);
+    border-radius: var(--rayon-s);
+    background: var(--fond-releve);
+    color: var(--texte);
+    font: inherit;
+  }
+  .chercher-ligne input:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  .chercher-ligne .bouton {
+    gap: var(--espace-2);
+    min-height: var(--cible-principale);
+  }
+  .bloc-villes {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .liste-villes {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ville {
+    gap: var(--espace-1);
+  }
+  .ville-lien {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-1) var(--espace-3);
+    min-height: var(--cible-min);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .ville-lien b {
+    min-width: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+    overflow-wrap: anywhere;
+  }
+  .ville-total {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espace-1);
+    color: var(--marque);
+    font-family: var(--police-interface);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .ville-lien:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--rayon-s);
+  }
+  @media (hover: hover) {
+    .ville-lien:hover b {
+      text-decoration: underline;
+    }
+  }
+  .ville-dep {
+    margin: 0;
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .ville-lieux {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--espace-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ville-lieux a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .ville-lieux a {
+    gap: 0.3em;
+    text-decoration: none;
+  }
+  .ville-lieux .lieu-nom {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .ville-lieux .lieu-total {
+    color: var(--texte-doux);
+    font-weight: 400;
+  }
+  .sans-fiche {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .sans-fiche li {
+    padding-block: var(--espace-2);
+    border-top: 1px solid var(--trait);
+    overflow-wrap: anywhere;
+  }
+  .villes-dessin {
+    min-width: 0;
+    max-width: 30rem;
+    margin-inline: auto;
+    width: 100%;
+  }
+  .manque {
+    align-items: center;
+  }
+  .manque-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-3) var(--espace-5);
+  }
+  .lien-direction {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--texte-sur-marque);
+    font-family: var(--police-interface);
+    font-weight: 700;
+  }
+  @media (min-width: 48rem) {
+    .villes-page {
+      padding-block: var(--espace-7);
+    }
+  }
+  @media (min-width: 64rem) {
+    .villes-page {
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+      gap: var(--espace-7);
+      align-items: start;
+    }
+    .villes-dessin {
+      position: sticky;
+      top: var(--espace-5);
+      max-width: none;
+      margin-top: 12rem;
+    }
+    .manque {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+  }
+</style>

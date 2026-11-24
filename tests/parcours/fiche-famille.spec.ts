@@ -128,7 +128,8 @@ test.describe('le canevas du 08/11/2026 (ticket 148)', () => {
     await expect(page.locator('.preuves')).toContainText('Pas encore confirmée par la direction');
     await expect(
       page.getByRole('link', { name: 'Comment nous vérifions une fiche' }),
-    ).toHaveAttribute('href', '/methode/');
+      // Lot 4 de la refonte (24/11) : l'explication des mentions, une ancre de Fiabilité des informations.
+    ).toHaveAttribute('href', '/methode/#m-mentions');
     await expect(page.locator('.identifiant')).toContainText('Fiche mise à jour le');
   });
 

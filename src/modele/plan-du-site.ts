@@ -16,6 +16,8 @@ export const PAGES_FIXES = [
   '/ecoles/',
   // Refonte publique, lot 2 (24/11) : S'orienter n'est plus une page de passage.
   '/orienter/',
+  // Lot 4 (24/11) : Toutes les villes.
+  '/villes/',
   '/pour-les-ecoles/',
   '/a-propos/',
   ...PAGES_DE_TRANSPARENCE.map((p) => p.href),

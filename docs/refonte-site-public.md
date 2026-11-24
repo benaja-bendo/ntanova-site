@@ -130,6 +130,57 @@ La boîte de Contact et de l'annuaire dans l'administration, les retraits par é
 
 **Reste à la recette, sur ordre** : ouvrir le réglage et poser le secret d'envoi (après `db push`), un vrai téléphone et un lecteur d'écran, la relecture humaine de la confidentialité. Constat à part : en production, la page charge encore l'aide au préchargement de Vite (880 octets) qu'aucun import n'utilise ; compté dans le budget.
 
+## Lot 4 — confiance et découverte (ticket 221, PR vers `refonte/site-public`, à relire)
+
+Fiabilité des informations (`/methode/`), Données de l'annuaire (`/donnees/`), À propos (`/a-propos/`), Toutes les villes (`/villes/`, nouvelle) et une seule grammaire des mentions datées. Aucun SQL, aucun droit changé, rien d'appliqué en ligne, formulaires toujours fermés par défaut. Planches lues le 24/11 dans le lecteur publié du canevas public (version `1795558497-161f`) : `P-methode-ordi/tel` (`4e274a70`, `786856a8`), `P-villes-ordi/tel` (`b861b582`, `de9ead2f`), `P-apropos-ordi/tel` (`e7c6ec8b`, `11dd032e`), `P-fiche-ordi/tel` (`f3c4979d`, `9fd5de86`), livrables `P-L2-textes` (`4563c251`) et `P-L3-liens` (`74c87f16`) ; page Règles du canevas admin (`19160520`). Débuts d'empreintes SHA-256 ; les générateurs Python du dépôt `ntanova` n'ont pas été rejoués.
+
+| Pièce | Règle |
+| --- | --- |
+| Mentions | `modele/mentions.ts` : `mentionsDe` (les mentions d'une fiche, coexistantes, chacune avec son jour au Congo ; « Ajoutée par NTanova » sans date), `SENS_DES_MENTIONS` (une phrase par mention, sans hiérarchie), `LIEN_MENTIONS` = `/methode/#m-mentions`, comptes et dates. `preuvesDeLaFiche` (fiche réelle) en dérive sans changer son rendu ; `MentionDatee.astro` (la pastille de la fiche, icône comprise) sert l'accueil, la démonstration, Fiabilité et Données. Chaque lien d'explication mène à `#m-mentions` |
+| Fiabilité | six sections et six ancres (`#m-entrees`, `#m-mentions`, `#m-champs`, `#m-photos`, `#m-frais`, `#m-corriger`) ; les anciennes ancres restent sur un titre ou une ligne (`#mentions`, `#informations`, `#position`, `#references`, `#jamais-achete`, `#dater-corriger`, `#limites`). Le tableau « champ par champ » s'empile sur téléphone (`data-l`, rôles ARIA gardés) |
+| Données | les mentions comptées côte à côte (une fiche vue puis confirmée compte dans les deux ; « Sur N fiches confirmées, M sont aussi vues sur place ») ; trois dates distinctes : construction, dates des mentions (plus ancienne, plus récente, fiches sans jour), dernière modification ; « fiches par jour de mention » (une fiche compte à chacun de ses jours). Ancres d'avant gardées (`#preuves` sur le titre des mentions) |
+| À propos | `modele/perimetre.ts` : fiches, villes (celles de l'accueil), fiches du supérieur, depuis le catalogue ; prestations et outils « En préparation » ; anciennes ancres gardées (`#ce-que-nous-faisons`, `#ce-que-nous-publions`, `#transparence`) |
+| Villes | `modele/villes.ts` (`pageDesVilles`) : les villes de `villesDeLAccueil` (mêmes nombres que l'accueil et la page du lieu), leur département lu dans le référentiel, leurs arrondissements en liens ; les lieux de niveau 2 sans fiche en texte, avec leur département. Recherche : formulaire GET `ou` vers `/ecoles/`, `required` et `pattern` natifs, aucun script. `DessinCongo` prend `seul` (sans étiquettes ni famille, sur fond clair) |
+| Entrées | le pied dit « Toutes les villes » à la place de la liste des villes (planche) ; `src/middleware.ts` et `Astro.locals` n'ont plus d'usage et sont retirés ; l'accueil ajoute « Voir toutes les villes » ; `/villes/` entre dans `sitemap.xml` et `llms.txt` |
+| Portes | `porte` et `ContactNtanova` : Fiabilité (`erreur`, `fiabilite`), Villes (`manque`, `villes`), À propos (`contact`, `direct`), Données (`contact`, sujet `donnees`, `direct`) ; aucun code d'origine ajouté. Fermé : WhatsApp ; ouvert : le formulaire |
+| Dessins | `public/dessins/methode-relais.svg`, `mention-{terrain,ecole,ajoutee,direction}.svg`, `a-propos-personnages.svg`, copiés des originaux du canevas, coordonnées arrondies au dixième ; décoratifs (`alt=""`) |
+| Styles | `src/ui/confiance.css` (préfixe `cf-`), importé par les quatre pages ; `.etiquette-disponible` rejoint « Exemple » et « En préparation » dans `public.css` |
+
+**Trouvés et corrigés pendant le lot** : « N fiches ont une photo publique » ne comptait que la photo d'enseigne, pas la couverture ni la galerie (test vu échouer avant le correctif) ; deux nombres collés à leur mot pour un lecteur d'écran (« 9fiches publiées »), repérés par les parcours.
+
+**Écarts avec les planches, retenus** :
+
+- Photos : la planche dit « couverture choisie et galerie : avec l'accord daté de l'école ». La base ne garde pas cet accord (`campus_media` n'a qu'un contrôle « sans enfant » et `is_public`) : la page dit le contrôle, les douze images au plus, le retrait sur demande et les photos jamais publiées, sans promettre l'accord. « Nette, sans donnée personnelle » n'est demandé qu'à la photo d'enseigne (`PhotoPublique.tsx`) ; la page dit le contrôle exigé de chaque image : « sans enfant ni personne reconnaissable ». **Besoin de base exposé à part** : si l'accord daté doit devenir une règle, il lui faut une colonne et un geste d'administration, puis une ligne de Fiabilité.
+- « Pas encore de fiche » : la planche liste les chefs-lieux des départements. Le référentiel n'a pas de marque de chef-lieu : la page liste les lieux de niveau 2 connus de la base (d'après la migration d'amorçage : les chefs-lieux et deux districts de Brazzaville et Pointe-Noire ; la base en ligne n'a pas été relue), sous « D'autres villes, communes et districts que connaît l'annuaire ».
+- Le pied ne nomme plus chaque ville (planche) ; elles restent à un geste par « Toutes les villes ».
+- Les mentions de Fiabilité sont les pastilles de la fiche (icône et contour), pas les ronds de couleur de la planche : une seule grammaire. Leurs phrases sont plus courtes que la planche et ne disent pas « personne n'est encore passé » pour une fiche déclarée (une déclaration peut coexister avec un passage).
+- « Prestation de communication » : décrite au futur, avec « En préparation » ; « Ajout documenté par l'équipe » devient « Ajout par l'équipe » et « L'équipe a ajouté la fiche » : la base ne garde pas la source de l'ajout, aucune mention n'en promet une.
+- À propos : « qui fait NTanova » et « qui finance NTanova aujourd'hui » (crochets de la planche) sont omis ; « 22 établissements du supérieur » devient « N fiches du supérieur » (une fiche est un site, pas un établissement).
+
+**À relire par une personne avant la production** : les deux textes personnels d'À propos, s'ils doivent paraître (fondateur) ; le modèle économique (« Des écoles pourront payer des services. Jamais leur place. ») et la prestation de communication, repris de la planche ; la phrase de retrait de Fiabilité, alignée sur Confidentialité (§19, choix 2).
+
+**Preuves** : unitaires `mentions.test.ts`, `villes.test.ts`, `statistiques-ouvertes.test.ts` (réécrit), `pages-de-confiance.test.ts` ; parcours `villes.spec.ts` (entrées, nombres égaux aux pages de destination, lieu sans fiche sans lien, recherche jusqu'aux résultats et à zéro, clavier, ancres sans script, liens des mentions), `accueil.spec.ts` (démonstration hors des index), `pages-de-confiance.spec.ts` (Fiabilité et Données réécrits sur les planches), `mise-en-page.spec.ts` (`/villes/` aux trois largeurs, tableau empilé) ; `pnpm test:constructions` étendu : liens ouverts de `/villes/`, À propos et Données, et le retrait qui sort aussi de `/villes/` et des compteurs. Captures : `playwright.confiance.config.ts`, sept écrans à 360, 390, 768 et 1 440 px dans `captures/confiance/` (hors git).
+
+### Entretien des tests du 25/11/2026 (complément à la PR 222)
+
+À la demande du fondateur, les consignes de `CLAUDE.md` (aussi lues par Codex via le lien `AGENTS.md`) exigent désormais une couverture proportionnée au risque, la recherche des tests existants avant ajout et une justification des suppressions. Le modèle de PR rappelle ces points. Les contrôles de sécurité, de droits, d'accord daté, de collecte hors ligne et d'envoi sans doublon restent prioritaires.
+
+Le nettoyage part de `699f7c9`, dont la CI est verte. Aucun code produit, SQL, adaptateur ou workflow n'est modifié. Les suppressions et regroupements ont chacun leur protection conservée :
+
+| Allègement | Protection conservée |
+| --- | --- |
+| 21 parcours de partage regroupés avec la visite de la même page dans `public.spec.ts` | Toutes les pages précédentes gardent leurs contrôles HTML, ressources et cibles ; titre, description, adresse OpenGraph, réponse PNG et poids de l'image sont vérifiés lors de la même visite |
+| 14 parcours de largeur du cadre regroupés avec la lisibilité dans `mise-en-page.spec.ts` | Les mêmes pages et largeurs gardent les contrôles de débordement, cibles, textes, cadre et largeur des paragraphes |
+| Doublon de la démonstration retiré de `villes.spec.ts` | `accueil.spec.ts` contrôle déjà les trois index, l'absence de la fiche fictive dans la recherche et le résultat de la recherche du nom |
+| Ancien parcours À propos/Confidentialité retiré de `public.spec.ts` | Ses assertions rejoignent les visites existantes dans `ecoles-et-directions.spec.ts` (périmètre, aucune loi sur À propos) et `pages-de-confiance.spec.ts` (titre et loi dans Confidentialité) |
+| Lectures de la syntaxe des liens et existence des fichiers de pages retirées de `pages-de-confiance.test.ts` | Les parcours vérifient les pages construites, leurs index et les liens des mentions depuis la fiche, la démonstration et l'accueil |
+| Lecture du nom `ICONES_SITE` dans le gabarit retirée de `icones-site.test.ts` | `public.spec.ts` compare les balises réellement servies au contrat des icônes ; les unitaires gardent les formats et dimensions des fichiers |
+| Recherche littérale de `MENTION_ODBL` et existence des fichiers de routes retirées des unitaires de carte | `pages-de-confiance.spec.ts` et `public.spec.ts` lisent les GeoJSON servis ; les unitaires gardent les adresses, le style, les données et la licence |
+
+La liste passe de 632 à 595 exécutions de parcours (573 téléphone, 11 tablette, 11 ordinateur), avec les 14 parcours critiques toujours présents. Les deux partitions existantes couvrent ces 595 exécutions sans perte ni doublon. Cette baisse compte les regroupements, elle ne mesure pas une baisse de couverture ni un gain de durée garanti. Les essais d'API locale et de constructions restent à lancer pour les changements qui touchent leurs contrats ; ils ne sont pas remplacés par le faux serveur.
+
+Vérifications locales de cet entretien : `pnpm verif:ci` réussi (format, lint, couleurs, types, 1 762 unitaires dans 122 fichiers, construction et poids), puis suite navigateur complète avec deux workers : 587 réussites, 8 sauts existants, aucun échec ni test instable, en 5 min 33. Les 14 parcours critiques sont identiques avant/après ; `node outils/verification-ci.ts partitions` confirme 298 + 297 exécutions. Base et essais d'API locale/constructions non rejoués : aucun code produit ni contrat n'a changé. La CI de la révision poussée reste la validation distante requise.
+
 ## Contrôles et livraison
 
 Suivre `CLAUDE.md` : contrôles locaux sur le faux catalogue, dont `pnpm verif:ci` et les parcours pertinents, puis CI de la dernière révision. Aucun workflow supplémentaire, aucune répétition identique de CI. Ne pas remplacer la construction locale du fondateur par une construction isolée sur les vraies données.

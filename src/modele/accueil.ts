@@ -31,6 +31,8 @@ export interface LieuDeLAccueil {
 }
 
 export interface VilleDeLAccueil extends LieuDeLAccueil {
+  /** La division qui porte la page de la ville (lot 4 : « Toutes les villes » y lit son département). */
+  divisionId: string;
   /** Ses arrondissements (ou ses quartiers) qui ont au moins une fiche, du plus fourni au moins fourni. */
   puces: LieuDeLAccueil[];
   /** Le dessin de la ville (canevas du 23/11), quand il existe ; une ville nouvelle n'en a pas. */
@@ -59,6 +61,7 @@ export function villesDeLAccueil(arbre: Pick<ArbrePublic, 'racines'>): VilleDeLA
     .flatMap((pays) => pays.enfants)
     .map((ville) => ({
       ...lieu(ville),
+      divisionId: ville.division.id,
       puces: ville.enfants
         .map(lieu)
         .filter((p) => p.total > 0)
