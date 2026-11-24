@@ -10,10 +10,14 @@ export const LIEN_CONFIDENTIALITE = '/confidentialite/';
 export const LIEN_MENTIONS_LEGALES = '/mentions-legales/';
 export const LIEN_A_PROPOS = '/a-propos/';
 
-/** Le groupe « Transparence » du pied de page, dans l'ordre où il s'écrit. */
+/**
+ * Les pages de transparence, dans l'ordre où le pied de page les écrit. Refonte publique, lot 1 (24/11/2026) : la Méthode
+ * s'appelle « Fiabilité des informations » et les Données « Données de l'annuaire » (canevas « Points de repère ») ; leurs
+ * adresses ne changent pas. Les deux premières vont sous « Comprendre nos informations », les deux autres sous « NTanova ».
+ */
 export const PAGES_DE_TRANSPARENCE = [
-  { href: LIEN_METHODE, texte: 'Méthode' },
-  { href: LIEN_DONNEES, texte: 'Données' },
+  { href: LIEN_METHODE, texte: 'Fiabilité des informations' },
+  { href: LIEN_DONNEES, texte: 'Données de l’annuaire' },
   { href: LIEN_CONFIDENTIALITE, texte: 'Confidentialité' },
   { href: LIEN_MENTIONS_LEGALES, texte: 'Mentions légales' },
 ] as const;

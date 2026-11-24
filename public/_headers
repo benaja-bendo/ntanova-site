@@ -41,6 +41,10 @@
 /guide-relais/*.png
   Cache-Control: public, max-age=86400
 
+# La fiche de démonstration (refonte publique, lot 1, 24/11/2026) : une école inventée, jamais dans un moteur de recherche.
+/demo/*
+  X-Robots-Tag: noindex, nofollow
+
 # Carte : position uniquement à l’appui du bouton, sans caméra ni microphone.
 /carte/*
   ! Permissions-Policy

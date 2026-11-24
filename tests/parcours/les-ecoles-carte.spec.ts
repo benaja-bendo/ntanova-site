@@ -25,17 +25,47 @@ test.describe('la vue Carte', () => {
     const zone = page.locator('[data-zone-carte]');
     await expect(zone).toHaveAttribute('data-etat', 'prete', { timeout: 30_000 });
     await expect(zone).toBeVisible();
-    // L'en-tête garde ses trois piliers et n'a pas de bouton « Menu » (fondateur, 16/11).
-    await expect(
-      page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link'),
-    ).toHaveCount(3);
-    await expect(page.getByRole('button', { name: 'Menu' })).toHaveCount(0);
+    // Refonte publique, lot 1 : l'en-tête du téléphone se réduit à la marque et à « Menu », qui garde les trois entrées.
+    const menu = page.locator('summary.menu-bouton');
+    if (await menu.isVisible()) {
+      await menu.click();
+      await expect(
+        page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link'),
+      ).toHaveCount(3);
+      await menu.click();
+    } else
+      await expect(
+        page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link'),
+      ).toHaveCount(3);
     await page
       .locator('.liste-vue[data-vue="liste"], .liste-retour')
       .filter({ visible: true })
       .first()
       .click();
     await expect(page).toHaveURL(/\/ecoles\/\?ville=pointe-noire$/);
+    await expect(cartes(page).first()).toBeVisible();
+  });
+
+  test('le lieu de « Où ? » passe de la Liste à la Carte et revient, avec les autres choix (refonte, lot 1)', async ({
+    page,
+  }) => {
+    await page.goto('/ecoles/?ou=loandjili&niveau=P');
+    await expect(page.locator('[data-puces] [data-retirer-ou]')).toBeVisible();
+    const sousTitre = page.locator('[data-sous-titre]');
+    const avant = await sousTitre.innerText();
+    await page.locator('.liste-vue[data-vue="carte"]').click();
+    await expect(page).toHaveURL(/\?ou=loandjili&niveau=P&vue=carte$/);
+    await expect(page.locator('[data-zone-carte]')).toHaveAttribute('data-etat', 'prete', {
+      timeout: 30_000,
+    });
+    await page
+      .locator('.liste-vue[data-vue="liste"], .liste-retour')
+      .filter({ visible: true })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/\/ecoles\/\?ou=loandjili&niveau=P$/);
+    await expect(page.locator('[data-puces] [data-retirer-ou]')).toBeVisible();
+    await expect(sousTitre).toHaveText(avant);
     await expect(cartes(page).first()).toBeVisible();
   });
 

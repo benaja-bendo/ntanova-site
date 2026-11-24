@@ -193,6 +193,23 @@ const villesDuPied = villesDeLAccueil(site.arbre);
           <h2>Aucune école ne répond à tous ces choix</h2>
           <p>Retirez un choix&nbsp;:</p>
           <ul class="liste-sorties" data-sorties></ul>
+          {/* Lot 1 de la refonte : un lieu de « Où ? » qui ne trouve rien se corrige ici, sans perdre les autres choix. */}
+          <form class="liste-lieu" data-modifier-lieu action="/ecoles/" method="get" hidden>
+            <label for="liste-ou">Modifier le lieu</label>
+            <div class="liste-lieu-ligne">
+              <input
+                id="liste-ou"
+                class="champ"
+                type="search"
+                name="ou"
+                autocomplete="off"
+                placeholder="Ville, arrondissement, quartier"
+              />
+              <button class="bouton bouton-secondaire" type="submit">
+                Chercher
+              </button>
+            </div>
+          </form>
           {manque && (
             <p>
               Une école manque&nbsp;? <a href={manque}>Dites-le-nous sur WhatsApp</a>

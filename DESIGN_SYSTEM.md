@@ -42,6 +42,7 @@
 - Trois fichiers servis par le site (48 Ko), jamais un service extérieur. Une seule graisse de Source Serif 4 ; ne pas écrire `font-weight: 600`.
 - Poppins ne sert plus sur les écrans. Elle reste dans le guide du relais v4 (affiches) jusqu'à sa prochaine version.
 - Échelle écran : 12, 14, 16, 18, 22, 28 px. Texte courant et champs à 16 px. Chiffres en `tabular-nums`.
+- **Échelle des titres publics (refonte, lot 1, 24/11)** : seul l'accueil illustré a de grands titres, en jetons fluides : `--taille-titre-accueil` (36 px à 375, 64 px à 1 440), `--taille-section-accueil` (26 à 40 px), `--taille-chapeau-accueil` (17 à 22 px). Les autres pages publiques gardent `--taille-titre-public` ; l'administration et l'espace relais gardent leur échelle.
 - Libellés en minuscules, 14 px. Les capitales espacées sont réservées aux surtitres de 12 px.
 
 ### Formes (v2)
@@ -70,6 +71,14 @@ Repos, survol (`@media (hover: hover)` seulement), appui (plus sombre, 1 px de c
 - « Congo-Brazzaville », jamais la RDC.
 - On **vouvoie** les familles, les directions et les relais. Seule l'administration tutoie le fondateur.
 - Des faits : ni « gratuit », ni audience, ni couverture totale. Aucune hypothèse, aucun seuil, aucun montant dans un support montré.
+
+### Site public : pièces de la refonte (lot 1, 24/11)
+
+- **En-tête** (`PagePublique.astro`) : vert profond sur toutes les pages, texte crème, focus jaune (`.sur-marque`). À partir de 48 rem, les trois entrées et le pays ; en dessous, la marque et « Menu », un `<details>` sans script dont le panneau recouvre la page. Échap ne le ferme pas (pas de script) : on retouche « Fermer ».
+- **Recherche « Quoi ? / Où ? »** (`RechercheAccueil.astro`) : une carte blanche, deux champs libellés, un bouton jaune ; sur le vert, le focus y redevient vert profond.
+- **Dessin du pays** (`DessinCongo.astro`, `modele/carte-accueil.ts`) : SVG écrit dans la page, trame en motif découpé par le contour, points jaunes et étiquettes calculés depuis le catalogue ; les étiquettes sont des liens de 44 px qui ne se chevauchent jamais.
+- **Mentions datées hors d'une fiche** (`.mention-datee-*`, `public.css`) : la grammaire de la fiche ; **étiquettes** `.etiquette-exemple` (école fictive) et `.etiquette-prepare` (service qui n'existe pas encore, jamais cliquable).
+- **Dessins** : `public/dessins/`, copiés des originaux du canevas (dépôt `ntanova`, `outils/canevas-accueil/dessins/out/`), coordonnées arrondies ; images décoratives (`alt=""`), chargées au défilement sous le premier écran. Leurs couleurs sont celles de la charte, écrites dans le fichier image : `pnpm couleurs` ne garde que `src/`.
 
 ## 3. Les trois branches
 

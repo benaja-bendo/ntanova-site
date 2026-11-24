@@ -47,12 +47,19 @@ test.describe('les pages de transparence', () => {
   }) => {
     for (const adresse of ['/', '/ecoles/', '/carte/', '/a-propos/', COMPLEXE]) {
       await page.goto(adresse);
-      const liens = page
-        .locator('footer')
-        .getByRole('list', { name: 'Transparence' })
-        .getByRole('link');
-      await expect(liens).toHaveText(['Méthode', 'Données', 'Confidentialité', 'Mentions légales']);
-      await expect(liens).toHaveCount(4);
+      // Refonte publique, lot 1 : « Fiabilité des informations » et « Données de l'annuaire » sous « Comprendre nos
+      // informations », la confidentialité et les mentions légales sous « NTanova ». Les adresses ne changent pas.
+      const pied = page.locator('footer');
+      for (const [nom, href] of [
+        ['Fiabilité des informations', '/methode/'],
+        ['Données de l’annuaire', '/donnees/'],
+        ['Confidentialité', '/confidentialite/'],
+        ['Mentions légales', '/mentions-legales/'],
+      ] as const)
+        await expect(pied.getByRole('link', { name: nom, exact: true })).toHaveAttribute(
+          'href',
+          href,
+        );
     }
     for (const [adresse] of PAGES) {
       await page.goto('/');

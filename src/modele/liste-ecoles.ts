@@ -9,6 +9,11 @@
  * - un groupe qui ne trie rien (une seule valeur, rien de coché) est caché : Pays, Type à Pointe-Noire ;
  * - plusieurs choix dans un groupe s'additionnent (« ou ») ; deux groupes se croisent (« et ») ;
  * - les critères de formation (série, diplôme, domaine, rythme) portent sur une même formation, comme `chercher`.
+ *
+ * Refonte publique, lot 1 (24/11/2026) : la recherche « Quoi ? / Où ? » de l'accueil. `q` reste le quoi (nom, sigle,
+ * formation, quartier, repère) ; `ou` est un lieu écrit librement, cherché seulement dans les lieux documentés de l'école :
+ * ses divisions (ville, arrondissement, quartier), leurs autres écritures et le quartier dit sur place. Sans accents ni
+ * casse ; chaque mot est le début d'un mot du lieu. Un lieu inconnu ne trouve rien : jamais un lieu supposé.
  */
 import { lettresDesCycles } from './carte/cycles';
 import { distanceMetres, type Point } from './geo';
@@ -58,6 +63,8 @@ export type Cadre = readonly [number, number, number, number];
 
 export interface EtatListe {
   q: string;
+  /** Le lieu écrit dans « Où ? » (lot 1 de la refonte) : du texte, jamais un identifiant de ville. */
+  ou: string;
   choix: Record<Groupe, string[]>;
   rayonM: number | null;
   tri: Tri;
@@ -67,6 +74,7 @@ export interface EtatListe {
 
 export const etatVide = (): EtatListe => ({
   q: '',
+  ou: '',
   choix: Object.fromEntries(GROUPES.map((g) => [g, []])) as unknown as Record<Groupe, string[]>,
   rayonM: null,
   tri: 'recentes',
@@ -94,6 +102,7 @@ const unique = <T>(xs: readonly T[]): T[] => [...new Set(xs)];
 export function lireEtat(params: URLSearchParams): EtatListe {
   const etat = etatVide();
   etat.q = (params.get('q') ?? '').trim();
+  etat.ou = (params.get('ou') ?? '').trim();
   const tous = (cle: string) =>
     params
       .getAll(cle)
@@ -141,6 +150,7 @@ export function lireEtat(params: URLSearchParams): EtatListe {
 export function ecrireEtat(etat: EtatListe): string {
   const p = new URLSearchParams();
   if (etat.q) p.set('q', etat.q);
+  if (etat.ou) p.set('ou', etat.ou);
   for (const g of GROUPES) if (etat.choix[g].length > 0) p.set(g, etat.choix[g].join(','));
   if (etat.rayonM !== null) p.set('rayon', String(etat.rayonM));
   if (etat.tri !== 'recentes') p.set('tri', etat.tri);
@@ -237,6 +247,16 @@ function correspondTexte(l: LigneRecherche, mots: string[]): boolean {
   return mots.every((m) => motsDeLEcole.some((mot) => mot.startsWith(m)));
 }
 
+/**
+ * « Où ? » : chaque mot du lieu écrit est le début d'un mot d'un lieu documenté de l'école (ses divisions, leurs autres
+ * écritures, le quartier dit sur place). Le repère et le nom n'y entrent pas : « Marché » n'est pas un lieu.
+ */
+export function correspondLieu(l: LigneRecherche, mots: readonly string[]): boolean {
+  if (mots.length === 0) return true;
+  const motsDuLieu = normaliser([l.d, l.a, l.q].filter(Boolean).join(' ')).split(' ');
+  return mots.every((m) => motsDuLieu.some((mot) => mot.startsWith(m)));
+}
+
 const dansLeCadre = (l: LigneRecherche, c: Cadre) =>
   l.la !== undefined &&
   l.lo !== undefined &&
@@ -262,10 +282,12 @@ function retenir(
   sauf?: Groupe | 'rayon',
 ): Trouvee[] {
   const mots = normaliser(etat.q).split(' ').filter(Boolean);
+  const motsDuLieu = normaliser(etat.ou).split(' ').filter(Boolean);
   const choix = etat.choix;
   const out: Trouvee[] = [];
   for (const l of lignes) {
     if (!correspondTexte(l, mots)) continue;
+    if (!correspondLieu(l, motsDuLieu)) continue;
     if (!repond(l, choix, sauf === 'rayon' ? undefined : sauf)) continue;
     if (etat.cadre && !dansLeCadre(l, etat.cadre)) continue;
     let distance: number | null = null;
@@ -517,6 +539,7 @@ export function sortiesDuVide(
     if (nombre > 0) sorties.push({ libelle, etat: suivant, nombre });
   };
   if (etat.q) essayer(`Retirer « ${etat.q} »`, { ...etat, q: '' });
+  if (etat.ou) essayer(`Retirer le lieu « ${etat.ou} »`, { ...etat, ou: '' });
   for (const g of GROUPES)
     for (const v of etat.choix[g])
       essayer(`Retirer ${libelleDe(g, v, lignes, domaines)}`, {

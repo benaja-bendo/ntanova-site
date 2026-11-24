@@ -245,6 +245,10 @@
   --taille-titre-public: clamp(1.75rem, 1.2rem + 1.5vw, 2.5rem); /* 31 px à 768, 38 px à 1 280 */
   --taille-titre-section: clamp(1.375rem, 1rem + 1.2vw, 1.875rem); /* 22 à 30 px */
   --taille-chapeau: clamp(1rem, 0.9rem + 0.45vw, 1.125rem); /* 16 à 18 px */
+  /* L'accueil illustré (refonte publique, lot 1, 24/11/2026) : ses seuls grands titres. L'administration garde son échelle. */
+  --taille-titre-accueil: clamp(2.25rem, 1.45rem + 3.4vw, 4rem); /* 36 px à 375, 64 px à 1 440 */
+  --taille-chapeau-accueil: clamp(1.0625rem, 0.95rem + 0.5vw, 1.375rem); /* 17 à 22 px */
+  --taille-section-accueil: clamp(1.625rem, 1.2rem + 1.9vw, 2.5rem); /* 26 à 40 px */
 
   /* Espacements, sur une base de 4 */
   --espace-1: 0.25rem; /* 4 */

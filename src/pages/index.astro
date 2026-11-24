@@ -1,416 +1,633 @@
 ---
-// L'accueil du site à trois piliers (lot 3 ; planches « Accueil · téléphone » et « Accueil · ordinateur » de la version 44 du
-// canevas, validées le 15/11/2026). Plus de carte : le premier écran n'a ni image ni carte, seulement la recherche et les villes
-// (décision du 15/11, qui remplace le bloc de carte du 03/11 et l'aperçu du 14/11). `/carte/` est devenue la vue Carte de « Les écoles » (lot 4 bis).
+// L'accueil (refonte publique, lot 1, 24/11/2026 ; canevas « Accueil : trois directions », exploration « Points de repère »,
+// planches « Accueil » ordinateur et téléphone, état « Aujourd'hui » seulement). Le lancement du lot par le fondateur accepte
+// l'accueil illustré et son menu : ils remplacent « le premier écran sans image » et « les trois piliers sans Menu » du 15/11.
 //
-// Aucun JavaScript : la recherche est un formulaire qui ouvre « Écoles » (`/ecoles/?q=…`), les puces sont des liens. Les
-// chiffres sont calculés à la construction (`modele/accueil.ts`).
+// L'ordre de lecture : la promesse et la recherche « Quoi ? / Où ? », cinq repères (deux services disponibles, trois en
+// préparation, sans bouton), les mentions datées, S'orienter, les villes, les directions. Aucun JavaScript : la recherche est
+// un formulaire qui ouvre « Les écoles » (`/ecoles/?q=…&ou=…`), le reste des liens. Chaque nombre, ville, niveau et date est
+// calculé à la construction depuis le catalogue (`modele/accueil.ts`, `modele/carte-accueil.ts`).
 //
-// État de passage, en attendant le lot 5 : le test d'orientation n'existe pas encore. La carte « Après le BEPC ou le bac »
-// mène donc à « S'orienter » (`/orienter/`), qui ouvre les listes qui correspondent ; elle ne promet ni questions ni piste.
+// Ce que la page ne promet pas encore : les échanges, les demandes et leur suivi (en préparation, sans faux bouton) ; les
+// activités de la future page S'orienter (lot 2) ; les formulaires de contact (lot 3) : écrire passe par WhatsApp.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { obtenirSite } from '../infra/index';
 import {
-  compterSuperieur,
-  lienDuSuperieur,
+  arrondissementsCites,
+  jourEtMois,
   niveauxDeLAccueil,
+  profilsDeLAccueil,
   villesDeLAccueil,
-  vuesRecemment,
+  voirLesEcoles,
 } from '../modele/accueil';
+import { carteDeLAccueil } from '../modele/carte-accueil';
+import { jourDuCongo } from '../modele/date-declaration';
 import { compterEcoles } from '../modele/geo-divisions';
 import { LIEN_METHODE } from '../modele/pages-de-confiance';
+import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
+import DessinCongo from '../ui/DessinCongo.astro';
 import Icone from '../ui/Icone.astro';
 import PagePublique from '../ui/PagePublique.astro';
-import CarteEcole from '../ui/CarteEcole.astro';
+import RechercheAccueil from '../ui/RechercheAccueil.astro';
+// Le trait des icônes (`.ico`), comme sur les autres pages publiques.
 import '../ui/carte-pieces.css';
 
 const { arbre, ecoles } = await obtenirSite();
 const villes = villesDeLAccueil(arbre);
 const niveaux = niveauxDeLAccueil(ecoles);
-const superieur = lienDuSuperieur(compterSuperieur(ecoles));
-// Les cartes « Vues sur place récemment » : la carte d'école partagée (lot 4), en colonne.
-const recentes = vuesRecemment(ecoles);
+const profils = profilsDeLAccueil(ecoles);
+const carte = carteDeLAccueil(arbre);
+const jour = jourEtMois(jourDuCongo());
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
+const DEMO = '/demo/fiche-ecole/';
+// Le moteur de recherche du site, pour les moteurs : la recherche « Quoi ? » de « Les écoles ».
+const site = new URL('/', Astro.site ?? Astro.url).href;
+const donnees = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'NTanova',
+  url: site,
+  inLanguage: 'fr',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: `${site}ecoles/?q={q}`,
+    'query-input': 'required name=q',
+  },
+};
 ---
 
 <PagePublique
-  titre="NTanova · Les écoles du Congo-Brazzaville, ville par ville"
-  description="Maternelles, écoles, collèges, lycées, instituts et universités du Congo-Brazzaville, ville par ville et par formation : trouvez une école près de chez vous."
+  titre="NTanova · Des repères pour choisir une école au Congo-Brazzaville"
+  description="Cherchez une école au Congo-Brazzaville, de la maternelle au supérieur, par nom, formation ou lieu, puis lisez sa fiche : des informations datées, avec leur origine."
+  whatsapp={whatsapp}
+  donnees={donnees}
+  typeOg="website"
 >
-  <div class="cadre accueil">
-    <div class="accueil-haut">
-      <section class="ouverture" aria-labelledby="titre-accueil">
-        <h1 id="titre-accueil">Trouvez une école au Congo-Brazzaville.</h1>
-        <p class="chapeau">Des fiches relevées sur place, avec la date du passage.</p>
-        <form class="recherche-accueil" action="/ecoles/" method="get" role="search">
-          <Icone nom="loupe" petite={false} />
-          <input
-            class="champ"
-            type="search"
-            name="q"
-            aria-label="Chercher une école"
-            placeholder="Nom, quartier, filière"
-          />
-          <button class="bouton" type="submit">
-            Chercher
-          </button>
-        </form>
-      </section>
-
-      <section class="ou" aria-labelledby="titre-ou">
-        <h2 id="titre-ou">Où&nbsp;?</h2>
-        {villes.length > 0 ? (
-          <div class="villes">
-            {villes.map((v) => (
-              <section class="ville-carte" aria-label={v.nom}>
-                <a class="ville-lien" href={v.lien}>
-                  <b>
-                    {v.nom}
-                    <Icone nom="suite" />
-                  </b>
-                  <span>{compterEcoles(v.total)} sur NTanova</span>
-                </a>
-                {v.puces.length > 0 && (
-                  <ul class="puces-lieux">
-                    {v.puces.map((p) => (
-                      <li>
-                        <a class="puce-lieu" href={p.lien}>
-                          <span class="puce-forme">
-                            {p.nom}
-                            <span class="puce-compte">
-                              <span aria-hidden="true">{p.total}</span>
-                              <span class="visuellement-cache">: {compterEcoles(p.total)}</span>
-                            </span>
-                          </span>
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
-          </div>
-        ) : (
-          <p class="texte-doux">Les premières fiches arrivent au fil du relevé.</p>
-        )}
-        <div class="ou-actions">
-          <a class="bouton bouton-secondaire bouton-accueil" href="/ecoles/?autour=3">
+  <section class="heros sur-marque" aria-labelledby="titre-accueil">
+    <div class="cadre heros-grille">
+      <div class="heros-texte">
+        <p class="heros-surtitre">
+          Congo-Brazzaville<span class="seulement-large"> · de la maternelle au supérieur</span>
+        </p>
+        <h1 id="titre-accueil">
+          Des <span class="heros-accent">repères</span> pour choisir une école.
+        </h1>
+        <p class="heros-chapeau">
+          Cherchez une école, puis lisez sa fiche&nbsp;: des informations datées, avec leur origine.
+        </p>
+        <RechercheAccueil />
+        <div class="heros-raccourcis">
+          <a class="lien-clair lien-autour" href="/ecoles/?autour=3">
             <Icone nom="cible" />
             Autour de moi
           </a>
-          <a class="lien-fort" href="/ecoles/?vue=carte">
-            <Icone nom="plan" />
-            Voir la carte
-          </a>
+          {niveaux.length > 0 && (
+            <nav class="heros-niveaux" aria-label="Chercher par niveau">
+              <span class="heros-niveaux-titre">Par niveau&nbsp;:</span>
+              {niveaux.map((n) => (
+                <a class="lien-clair" href={n.lien}>
+                  {n.mot}
+                </a>
+              ))}
+            </nav>
+          )}
         </div>
+        <a class="heros-orienter" href="/orienter/">
+          <span class="heros-orienter-rond" aria-hidden="true">
+            <Icone nom="boussole" />
+          </span>
+          <span class="heros-orienter-texte">
+            <span>Pas encore d’école en tête&nbsp;?</span>
+            <b>S’orienter selon votre situation</b>
+          </span>
+        </a>
+      </div>
+      <DessinCongo carte={carte} jour={jour} />
+    </div>
+  </section>
+
+  <section class="cadre bloc-accueil" aria-labelledby="titre-reperes">
+    <div class="bloc-tete">
+      <h2 id="titre-reperes">Cinq repères sur votre chemin</h2>
+      <p class="bloc-chapeau">Deux services sont disponibles. Trois sont en préparation.</p>
+    </div>
+    <div class="reperes">
+      <section class="reperes-groupe" aria-labelledby="titre-disponibles">
+        <h3 class="etat-groupe etat-disponible" id="titre-disponibles">
+          <Icone nom="coche" />
+          Disponible
+        </h3>
+        <ul class="reperes-liste">
+          <li class="repere">
+            <img src="/dessins/repere-trouver.svg" alt="" width="240" height="184" loading="lazy" />
+            <h4>Trouver une école</h4>
+            <p>Par nom, quartier ou niveau, ou autour de vous.</p>
+            <a class="bouton bouton-secondaire repere-action" href="/ecoles/">
+              {voirLesEcoles(ecoles.length)}
+            </a>
+          </li>
+          <li class="repere">
+            <img src="/dessins/repere-fiche.svg" alt="" width="240" height="184" loading="lazy" />
+            <h4>Consulter une fiche</h4>
+            <p>Niveaux, repère, photo, mentions datées. Le numéro, s’il est publié.</p>
+            <a class="bouton bouton-secondaire repere-action" href={DEMO}>
+              Fiche de démonstration
+            </a>
+          </li>
+        </ul>
+      </section>
+      <section class="reperes-groupe" aria-labelledby="titre-preparation">
+        <h3 class="etat-groupe etat-preparation" id="titre-preparation">
+          <span class="etat-cercle" aria-hidden="true"></span>
+          En préparation
+        </h3>
+        <ul class="reperes-liste reperes-liste-trois">
+          <li class="repere repere-prepare">
+            <img
+              src="/dessins/repere-echanger.svg"
+              alt=""
+              width="240"
+              height="184"
+              loading="lazy"
+            />
+            <h4>Échanger sur NTanova</h4>
+            <p>Écrire à l’école et lire sa réponse ici.</p>
+            <p class="repere-note">Aujourd’hui&nbsp;: on appelle l’école.</p>
+          </li>
+          <li class="repere repere-prepare">
+            <img src="/dessins/repere-demande.svg" alt="" width="240" height="184" loading="lazy" />
+            <h4>Transmettre une demande</h4>
+            <p>Une demande et ses pièces, envoyées à l’école.</p>
+            <p class="repere-note">Selon l’établissement.</p>
+          </li>
+          <li class="repere repere-prepare">
+            <img src="/dessins/repere-suivre.svg" alt="" width="240" height="184" loading="lazy" />
+            <h4>Suivre ses démarches</h4>
+            <p>Vos demandes, les réponses et les dates.</p>
+            <p class="repere-note">Selon l’établissement.</p>
+          </li>
+        </ul>
       </section>
     </div>
+    <p class="reperes-pied">
+      Pour joindre une école aujourd’hui&nbsp;: son numéro, quand il est publié sur sa fiche. Les
+      démarches en ligne dépendront de la participation de l’établissement.
+    </p>
+  </section>
 
-    <section class="pour-qui" aria-labelledby="titre-pour-qui">
-      <h2 id="titre-pour-qui">Pour qui&nbsp;?</h2>
-      <div class="portes">
-        <section class="porte" aria-labelledby="titre-enfant">
-          <div class="porte-titre">
-            <p class="surtitre">Pour mon enfant</p>
-            <h3 id="titre-enfant">École, collège et lycée</h3>
-          </div>
-          <nav class="puces-niveaux" aria-label="Chercher par niveau">
-            {niveaux.map((n) => (
-              <a class="puce-niveau" href={n.lien}>
-                <span class={`disque c-${n.lettre}`} aria-hidden="true">
-                  {n.lettre}
-                </span>
-                {n.mot}
-              </a>
-            ))}
-          </nav>
-          <a class="lien-fort seulement-large" href="/ecoles/">
-            Voir toutes les écoles ›
-          </a>
-        </section>
-        <section class="porte" aria-labelledby="titre-apres">
-          <div class="porte-titre">
-            <p class="surtitre surtitre-superieur">
-              <span class="disque c-S" aria-hidden="true">
-                S
-              </span>
-              Après le BEPC ou le bac
-            </p>
-            <h3 id="titre-apres">Lycée, BTS, licence, formation pro</h3>
-          </div>
-          <p class="porte-texte">
-            Dites où vous en êtes : vous voyez les adresses qui correspondent.
-          </p>
-          <a class="bouton bouton-accent bouton-accueil bouton-orienter" href="/orienter/">
-            <Icone nom="boussole" />
-            S’orienter
-          </a>
-          {superieur && (
-            <a class="lien-fort" href="/ecoles/?niveau=S">
-              {superieur} ›
-            </a>
-          )}
-        </section>
-      </div>
-    </section>
-
-    {recentes.length > 0 && (
-      <section class="recentes" aria-labelledby="titre-recentes">
-        <h2 id="titre-recentes">Vues sur place récemment</h2>
-        <ul class="cartes-recentes">
-          {recentes.map((e) => (
-            <li>
-              <CarteEcole ecole={e} />
-            </li>
-          ))}
+  <section class="bande-accueil" aria-labelledby="titre-mentions">
+    <div class="cadre mentions-grille">
+      <div class="mentions-texte">
+        <h2 id="titre-mentions">Des informations datées, avec leur origine</h2>
+        <ul class="mentions">
+          <li>
+            <span class="mention-datee mention-datee-terrain">Vue sur place</span>
+            <span>Un relais est passé devant l’école, ce jour-là.</span>
+          </li>
+          <li>
+            <span class="mention-datee mention-datee-ecole">Déclarée par l’école</span>
+            <span>La direction a transmis les informations.</span>
+          </li>
+          <li>
+            <span class="mention-datee mention-datee-ajoutee">Ajoutée par NTanova</span>
+            <span>L’équipe a documenté la fiche&nbsp;; personne n’est encore passé.</span>
+          </li>
+          <li>
+            <span class="mention-datee mention-datee-direction">Confirmée par la direction</span>
+            <span>La direction a relu la fiche et donné son accord, à une date.</span>
+          </li>
         </ul>
-        <a class="lien-fort recentes-toutes" href="/ecoles/">
-          Toutes les écoles ›
-        </a>
-      </section>
-    )}
-  </div>
-
-  {/* La preuve de la page : comment une fiche est tenue (audit du 05/11, D14 ; textes de la version 44). */}
-  <section class="etapes-bande" aria-labelledby="titre-etapes">
-    <div class="cadre etapes-cadre">
-      <h2 id="titre-etapes">Comment les fiches sont tenues</h2>
-      <ol class="etapes">
-        <li class="etape">
-          <span class="etape-numero" aria-hidden="true">
-            1
+        <p class="texte-doux">Une fiche peut porter plusieurs mentions, chacune avec sa date.</p>
+        <div class="mentions-liens">
+          <a class="lien-fort" href={DEMO}>
+            Voir la fiche de démonstration
+            <Icone nom="suite" />
+          </a>
+          <a class="lien-fort" href={LIEN_METHODE}>
+            Fiabilité des informations
+            <Icone nom="suite" />
+          </a>
+        </div>
+      </div>
+      {/* Un exemple, dit comme tel sur la ligne de son nom (règle du 17/11) : il ouvre la démonstration, jamais une fiche. */}
+      <a
+        class="exemple"
+        href={DEMO}
+        aria-label="École Les Manguiers, exemple : ouvrir la fiche de démonstration"
+      >
+        <img src="/dessins/demo-facade.svg" alt="" width="240" height="150" loading="lazy" />
+        <span class="exemple-corps">
+          <span class="exemple-nom">
+            <b>
+              École Les{' '}
+              <span class="nom-exemple-fin">
+                Manguiers <span class="etiquette-exemple">Exemple</span>
+              </span>
+            </b>
           </span>
-          <span class="etape-texte">
-            <b>Relevée sur place</b>
-            <span>Enseigne, position et niveaux relevés sur place, avec la date du passage.</span>
+          <span class="texte-doux">Primaire, collège · Privée</span>
+          <span class="mention-datee mention-datee-terrain">
+            Vue sur place · 12&nbsp;nov.&nbsp;2026
           </span>
-        </li>
-        <li class="etape">
-          <span class="etape-numero" aria-hidden="true">
-            2
+          <span class="mention-datee mention-datee-direction">
+            Confirmée par la direction · 18&nbsp;nov.&nbsp;2026
           </span>
-          <span class="etape-texte">
-            <b>Confirmée par la direction</b>
-            <span>
-              La direction relit la fiche avec nous. La date de son accord est sur la fiche.
-            </span>
-          </span>
-        </li>
-        <li class="etape">
-          <span class="etape-numero" aria-hidden="true">
-            3
-          </span>
-          <span class="etape-texte">
-            <b>Corrigée sur demande</b>
-            <span>
-              Une erreur&nbsp;? Écrivez-nous sur WhatsApp&nbsp;: nous corrigeons la fiche.
-            </span>
-          </span>
-        </li>
-      </ol>
-      <a class="lien-fort" href={LIEN_METHODE}>
-        Notre méthode ›
+          <span class="exemple-frais">Frais · OUI de l’école le 18&nbsp;nov.&nbsp;2026</span>
+          <span class="texte-doux">L’itinéraire, le numéro s’il est publié, le partage.</span>
+        </span>
       </a>
     </div>
   </section>
 
-  <div class="cadre accueil-bas">
-    {/* « Rien de ce que vous nous confiez » : la fiche, elle, est publiée d'après le passage, sans attendre la direction. */}
-    <aside class="appel-ecoles sur-marque" aria-labelledby="titre-appel">
-      <div class="appel-ecoles-texte">
-        <p class="appel-ecoles-surtitre">Espace écoles</p>
-        <h2 id="titre-appel">
-          Vous dirigez une école&nbsp;? Voyez sa fiche comme les familles la voient.
-        </h2>
-        <p class="appel-ecoles-detail">
-          Un message WhatsApp suffit pour la compléter. Rien de ce que vous nous confiez n’est
-          publié sans votre accord daté.
-        </p>
+  {profils.length > 0 && (
+    <section class="cadre bloc-accueil" aria-labelledby="titre-orienter">
+      <div class="orienter-grille">
+        <div class="orienter-texte">
+          <div class="bloc-tete">
+            <h2 id="titre-orienter">S’orienter, à chaque étape</h2>
+            <p class="bloc-chapeau">Où en êtes-vous&nbsp;?</p>
+          </div>
+          <ul class="profils">
+            {profils.map((p) => (
+              <li>
+                <a class="profil" href={p.lien}>
+                  <span class="profil-texte">
+                    <b>{p.titre}</b>
+                    <span>{p.detail}</span>
+                  </span>
+                  <span class="profil-compte">{p.compte}</span>
+                  <Icone nom="suite" />
+                </a>
+              </li>
+            ))}
+          </ul>
+          <a class="lien-fort" href="/orienter/">
+            Après le BEPC ou le bac&nbsp;: S’orienter
+            <Icone nom="suite" />
+          </a>
+        </div>
+        <img
+          class="orienter-dessin"
+          src="/dessins/orienter-carrefour.svg"
+          alt=""
+          width="300"
+          height="240"
+          loading="lazy"
+        />
       </div>
-      <a class="bouton bouton-accent bouton-accueil" href="/pour-les-ecoles/">
-        Ouvrir l’Espace écoles
-      </a>
-    </aside>
-  </div>
+    </section>
+  )}
+
+  <section class="cadre bloc-accueil" aria-labelledby="titre-villes">
+    <div class="bloc-tete">
+      <h2 id="titre-villes">Par ville</h2>
+    </div>
+    {villes.length > 0 ? (
+      <ul class="villes">
+        {villes.map((v) => (
+          <li>
+            <a class="ville" href={v.lien}>
+              {v.dessin ? (
+                <img src={v.dessin} alt="" width="240" height="150" loading="lazy" />
+              ) : (
+                <span class="ville-sans-dessin" aria-hidden="true" />
+              )}
+              <span class="ville-texte">
+                <b>{v.nom}</b>
+                <span>
+                  {compterEcoles(v.total)} au {jour}
+                  {v.puces.length > 0 && ` · ${arrondissementsCites(v)}`}
+                </span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p class="texte-doux">Les premières fiches arrivent au fil du relevé.</p>
+    )}
+  </section>
+
+  <section class="cadre bloc-accueil bloc-dernier" aria-labelledby="titre-directions">
+    <div class="directions sur-marque">
+      <div class="directions-texte">
+        <p class="directions-surtitre">Pour les écoles</p>
+        <h2 id="titre-directions">Vous dirigez une école&nbsp;? Retrouvez sa fiche.</h2>
+        <p>
+          Corrigez-la, confirmez vos frais, ajoutez vos photos&nbsp;: sur WhatsApp, ou avec le code
+          de votre fiche de liaison.
+        </p>
+        <div class="directions-actions">
+          <a class="bouton bouton-accent" href="/pour-les-ecoles/">
+            Présenter mon école
+          </a>
+          <p class="directions-prepare">
+            <span class="etiquette-prepare">En préparation</span>
+            Inscriptions, frais et reçus
+          </p>
+        </div>
+      </div>
+      <img
+        class="directions-dessin"
+        src="/dessins/ecole-directrice.svg"
+        alt=""
+        width="240"
+        height="220"
+        loading="lazy"
+      />
+    </div>
+    {manque && (
+      <div class="manque">
+        <p>
+          <b>Une école manque&nbsp;?</b>
+          <span>Dites-nous son nom et son quartier.</span>
+        </p>
+        <a class="bouton bouton-secondaire" href={manque}>
+          <Icone nom="bulle" />
+          Signaler une école
+        </a>
+      </div>
+    )}
+  </section>
 </PagePublique>
 
 <style>
-  /* Les tailles sont celles des planches de la version 44 ; les couleurs, rayons et espaces, ceux des jetons. */
-  .accueil {
+  /* L'échelle des grands titres de l'accueil (DESIGN_SYSTEM.md, « Échelle des titres publics », lot 1) ; les couleurs, rayons
+     et espaces sont ceux des jetons. */
+  .heros {
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+  }
+  .heros-grille {
     display: grid;
-    gap: 28px;
-    padding-top: 18px;
-    padding-bottom: var(--espace-2);
+    gap: var(--espace-6);
+    padding-top: var(--espace-5);
+    padding-bottom: var(--espace-6);
   }
-  /* L'interligne des titres de la planche (1,45) : celui de son texte, qu'ils héritent. */
-  .accueil h2,
-  .porte h3,
-  .etapes-cadre h2 {
-    line-height: 1.45;
+  /* Le dessin : jamais plus large que 30 rem tant qu'il est sous le texte, centré. */
+  .heros-grille > :global(.dessin-congo) {
+    justify-self: center;
+    width: 100%;
+    max-width: 30rem;
   }
-  .accueil h2 {
-    font-size: 1.25rem;
-  }
-  .accueil-haut {
-    display: grid;
-    gap: 20px;
-  }
-  .ouverture {
-    display: grid;
-    gap: var(--espace-3);
-  }
-  .ouverture h1 {
-    font-size: 1.875rem;
-    line-height: 1.12;
-    text-wrap: balance;
-  }
-  .chapeau {
-    color: var(--texte-doux);
-  }
-
-  /* La recherche : un champ, sa loupe, et le bouton posé dedans. Sans JavaScript : elle ouvre « Écoles ». */
-  .recherche-accueil {
-    position: relative;
-  }
-  .recherche-accueil > :global(svg) {
-    position: absolute;
-    top: 15px;
-    left: 14px;
-    width: 22px;
-    height: 22px;
-    color: var(--texte-doux);
-    pointer-events: none;
-  }
-  .recherche-accueil .champ {
-    height: var(--hauteur-champ);
-    padding: 0 112px 0 46px;
-  }
-  .recherche-accueil .bouton {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    min-height: 0;
-    height: 44px;
-    padding: 0 var(--espace-4);
-    border-radius: 6px;
-  }
-
-  .ou,
-  .pour-qui,
-  .recentes {
-    display: grid;
-    gap: var(--espace-3);
-  }
-  .villes {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--espace-2);
-  }
-  /* « .ville-carte », et non « .ville » : `.ville` est déjà la bulle du pays dans l'en-tête. */
-  .ville-carte {
-    display: flex;
-    flex-direction: column;
-    gap: var(--espace-3);
-    min-width: 0;
-    padding: var(--espace-3);
-    border-radius: var(--rayon-m);
-    background: var(--fond-bande);
-  }
-  .ville-lien {
+  .heros-texte {
     display: grid;
     align-content: start;
-    gap: 2px;
-    min-height: var(--cible-min);
-    color: var(--texte);
-    text-decoration: none;
+    gap: 18px;
+    min-width: 0;
   }
-  .ville-lien b {
-    display: flex;
-    align-items: center;
-    gap: var(--espace-1);
-    font-family: var(--police-titre);
-    font-size: 1.1875rem;
-    line-height: 1.15;
+  .heros-surtitre {
+    margin: 0;
+    color: var(--vert-pale);
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
-  .ville-lien :global(svg) {
-    width: 18px;
-    height: 18px;
-    stroke-width: 2.2;
+  .heros h1 {
+    margin: 0;
+    font-size: var(--taille-titre-accueil);
+    line-height: 1.06;
+    text-wrap: balance;
   }
-  .ville-lien span {
-    color: var(--texte-doux);
-    font-size: 0.8125rem;
+  .heros-accent {
+    color: var(--accent);
   }
-  .puces-lieux {
+  .heros-chapeau {
+    margin: 0;
+    max-width: 34rem;
+    font-size: var(--taille-chapeau-accueil);
+  }
+  .heros-raccourcis {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--espace-4);
+    font-size: 0.9375rem;
+  }
+  .heros-niveaux {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--espace-4);
+  }
+  .heros-niveaux-titre {
+    color: var(--vert-pale);
+  }
+  .lien-clair {
+    display: inline-flex;
+    align-items: center;
     gap: 6px;
+    min-height: var(--cible-min);
+    color: var(--texte-sur-marque);
+    font-weight: 700;
+    text-underline-offset: 4px;
+  }
+  .lien-clair :global(svg) {
+    width: 18px;
+    height: 18px;
+  }
+  .lien-clair:focus-visible,
+  .heros-orienter:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--rayon-xs);
+  }
+  .heros-orienter {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    gap: var(--espace-3);
+    min-height: 52px;
+    padding: 6px var(--espace-4) 6px var(--espace-2);
+    border: 1px solid var(--vert);
+    border-radius: var(--rayon-m);
+    color: var(--texte-sur-marque);
+    text-decoration: none;
+  }
+  .heros-orienter-rond {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--texte);
+  }
+  .heros-orienter-rond :global(svg) {
+    width: 20px;
+    height: 20px;
+  }
+  .heros-orienter-texte {
+    display: grid;
+    line-height: 1.25;
+  }
+  .heros-orienter-texte span {
+    color: var(--vert-pale);
+    font-size: var(--taille-secondaire);
+  }
+  .heros-orienter-texte b {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .seulement-large {
+    display: none;
+  }
+
+  /* Les blocs de la page, sur le fond pierre. */
+  .bloc-accueil {
+    display: grid;
+    gap: var(--espace-5);
+    padding-top: var(--espace-7);
+  }
+  .bloc-dernier {
+    padding-bottom: var(--espace-7);
+  }
+  .bloc-tete {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .bloc-accueil h2,
+  .bande-accueil h2 {
+    margin: 0;
+    font-size: var(--taille-section-accueil);
+    line-height: 1.15;
+  }
+  .bloc-chapeau {
+    margin: 0;
+    color: var(--texte-doux);
+    font-size: var(--taille-intertitre);
+  }
+
+  /* Cinq repères : deux disponibles, trois en préparation (sans bouton). */
+  .reperes {
+    display: grid;
+    gap: var(--espace-6);
+  }
+  .reperes-groupe {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-3);
+  }
+  .etat-groupe {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espace-2);
+    margin: 0;
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .etat-groupe :global(svg) {
+    width: 18px;
+    height: 18px;
+    padding: 2px;
+    border-radius: 50%;
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+    stroke-width: 3;
+  }
+  .etat-cercle {
+    width: 14px;
+    height: 14px;
+    border: 2px dashed var(--texte-doux);
+    border-radius: 50%;
+  }
+  .reperes-liste {
+    display: grid;
+    gap: var(--espace-3);
     margin: 0;
     padding: 0;
     list-style: none;
   }
-  /* La puce de 40 px de la planche, dans un lien de 44 px (la cible de la charte) : la marge négative garde l'écart des puces. */
-  .puce-lieu {
-    display: inline-flex;
-    padding-block: 2px;
-    margin-block: -2px;
-    border-radius: var(--rayon-pilule);
-    color: var(--texte);
-    text-decoration: none;
-  }
-  .puce-lieu:focus-visible {
-    outline: none;
-  }
-  .puce-lieu:focus-visible .puce-forme {
-    outline: var(--epaisseur-focus) solid var(--focus);
-    outline-offset: 2px;
-  }
-  @media (hover: hover) {
-    .puce-lieu:hover .puce-forme {
-      border-color: var(--marque);
-    }
-  }
-  .puce-forme {
-    display: inline-flex;
-    align-items: center;
+  .repere {
+    display: flex;
+    flex-direction: column;
     gap: var(--espace-2);
-    min-height: 40px;
-    padding: 0 6px 0 var(--espace-3);
+    padding: var(--espace-4);
     border: 1px solid var(--trait);
-    border-radius: var(--rayon-pilule);
+    border-radius: var(--rayon-m);
     background: var(--fond-releve);
-    font-family: var(--police-interface);
+  }
+  .repere img {
+    width: 100%;
+    max-width: 130px;
+    height: auto;
+    align-self: center;
+  }
+  .repere h4 {
+    margin: 0;
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .repere p {
+    margin: 0;
+    color: var(--texte-doux);
+    font-size: 0.9375rem;
+  }
+  .repere-action {
+    margin-top: auto;
+    align-self: flex-start;
+  }
+  .repere-prepare {
+    border-style: dashed;
+    border-color: var(--trait-fort);
+    background: transparent;
+  }
+  .repere-prepare img {
+    opacity: 0.55;
+    filter: grayscale(0.6);
+  }
+  .repere-note {
+    margin-top: auto;
     font-size: var(--taille-secondaire);
-    font-weight: 700;
-    white-space: nowrap;
   }
-  .puce-compte {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 26px;
-    height: 26px;
-    padding: 0 7px;
-    border-radius: var(--rayon-pilule);
-    background: var(--vert-pale);
-    color: var(--marque-appuyee);
-    font-size: 0.8125rem;
-    font-variant-numeric: tabular-nums;
+  .reperes-pied {
+    margin: 0;
+    color: var(--texte-doux);
   }
-  .ou-actions {
+
+  /* Les mentions : la même grammaire que la fiche (vert : vu ou confirmé ; bleu : déclaré ; tirets : ajouté). */
+  .bande-accueil {
+    margin-top: var(--espace-7);
+    padding-block: var(--espace-7);
+    background: var(--fond-bande);
+  }
+  .mentions-grille {
+    display: grid;
+    gap: var(--espace-6);
+  }
+  .mentions-texte {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-4);
+  }
+  .mentions-texte p {
+    margin: 0;
+  }
+  .mentions {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .mentions li {
+    display: grid;
+    justify-items: start;
+    gap: var(--espace-1);
+  }
+  .mentions li > span:last-child {
+    color: var(--texte-doux);
+  }
+  .mentions-liens {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: var(--espace-2) 20px;
-  }
-  .bouton-accueil {
-    min-height: var(--cible-min);
-    padding: 0 var(--espace-4);
-    gap: 6px;
-  }
-  .bouton-accueil :global(svg),
-  .lien-fort :global(svg) {
-    width: 18px;
-    height: 18px;
-    stroke-width: 1.8;
+    gap: 0 var(--espace-5);
   }
   .lien-fort {
     display: inline-flex;
@@ -421,182 +638,196 @@ const recentes = vuesRecemment(ecoles);
     font-family: var(--police-interface);
     font-weight: 700;
   }
-
-  /* « Pour qui ? » : deux portes, l'une sous l'autre sur téléphone. */
-  .portes {
-    display: grid;
-    gap: var(--espace-3);
+  .lien-fort :global(svg) {
+    width: 18px;
+    height: 18px;
   }
-  .porte {
-    display: flex;
-    flex-direction: column;
-    gap: var(--espace-3);
-    padding: var(--espace-4);
+  .exemple {
+    display: grid;
+    align-self: start;
+    overflow: hidden;
     border: 1px solid var(--trait);
     border-radius: var(--rayon-m);
     background: var(--fond-releve);
-  }
-  .porte-titre {
-    display: grid;
-    gap: 2px;
-  }
-  .porte h3 {
-    font-size: 1.25rem;
-  }
-  .surtitre {
-    display: flex;
-    align-items: center;
-    gap: var(--espace-2);
-    color: var(--texte-doux);
-    font-family: var(--police-interface);
-    font-size: var(--taille-mention);
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .surtitre-superieur {
-    color: var(--cycle-superieur);
-  }
-  .surtitre .disque {
-    width: 20px;
-    height: 20px;
-    font-size: 0.6875rem;
-    letter-spacing: 0;
-  }
-  .puces-niveaux {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--espace-2);
-  }
-  .puce-niveau {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-height: var(--cible-min);
-    padding: 0 var(--espace-3) 0 6px;
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon-pilule);
-    background: var(--fond-releve);
     color: var(--texte);
-    font-family: var(--police-interface);
-    font-size: var(--taille-secondaire);
-    font-weight: 700;
     text-decoration: none;
   }
-  .puce-niveau .disque {
-    width: 24px;
-    height: 24px;
+  .exemple img {
+    display: block;
+    width: 100%;
+    height: auto;
   }
-  .porte-texte {
-    color: var(--texte-doux);
-    font-size: 0.9375rem;
+  .exemple-corps {
+    display: grid;
+    justify-items: start;
+    gap: var(--espace-2);
+    padding: var(--espace-4);
   }
-  .bouton-orienter {
-    align-self: flex-start;
-    min-height: var(--cible-principale);
+  .exemple-nom {
+    display: block;
   }
-  .seulement-large {
-    display: none;
+  .exemple-nom b {
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-fiche);
+  }
+  .exemple-frais {
+    padding: 2px 10px;
+    border-radius: var(--rayon-s);
+    background: var(--jaune-pale);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .exemple:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  @media (hover: hover) {
+    .exemple:hover b {
+      text-decoration: underline;
+    }
   }
 
-  /* « Vues sur place récemment » : des cartes qui défilent sur téléphone, une rangée de quatre sur ordinateur. */
-  .recentes {
-    grid-template-areas: 'titre' 'liste' 'lien';
-    margin-inline: calc(var(--espace-4) * -1);
-  }
-  .recentes h2 {
-    grid-area: titre;
-    padding-inline: var(--espace-4);
-  }
-  .cartes-recentes {
-    grid-area: liste;
-    display: flex;
-    gap: 10px;
-    margin: 0;
-    padding: 0 var(--espace-4) var(--espace-1);
-    overflow-x: auto;
-    list-style: none;
-  }
-  .recentes-toutes {
-    grid-area: lien;
-    justify-self: start;
-    padding-inline: var(--espace-4);
-  }
-  /* Toute la carte ouvre la fiche, comme une ligne de la liste « Écoles ». */
-  .cartes-recentes > li {
-    display: flex;
-    flex: none;
-    width: 220px;
-  }
-  /* « Comment les fiches sont tenues » : trois étapes, le numéro à gauche sur téléphone. */
-  .etapes-bande {
-    margin-top: 20px;
-    background: var(--fond-bande);
-  }
-  .etapes-cadre {
+  /* S'orienter : cinq situations, chacune une ligne de la liste qu'elle ouvre. */
+  .orienter-grille {
     display: grid;
-    gap: var(--espace-3);
-    padding-block: var(--espace-5);
+    gap: var(--espace-5);
   }
-  .etapes-cadre h2 {
-    font-size: 1.25rem;
+  .orienter-texte {
+    display: grid;
+    gap: var(--espace-4);
   }
-  .etapes {
+  .profils {
     display: grid;
     gap: var(--espace-2);
     margin: 0;
     padding: 0;
     list-style: none;
   }
-  .etape {
+  .profil {
     display: flex;
+    align-items: center;
     gap: var(--espace-3);
-    padding: var(--espace-3);
+    min-height: 3.5rem;
+    padding: var(--espace-2) var(--espace-3) var(--espace-2) var(--espace-4);
+    border: 1px solid var(--trait);
     border-radius: var(--rayon-m);
     background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
   }
-  .etape-numero {
-    display: flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
-    background: var(--marque);
-    color: var(--texte-sur-marque);
-    font-family: var(--police-interface);
-    font-weight: 700;
+  .profil-texte {
+    display: grid;
+    flex: 1;
+    min-width: 0;
   }
-  .etape-texte {
-    display: flex;
-    flex-direction: column;
-  }
-  .etape-texte span {
+  .profil-texte span {
     color: var(--texte-doux);
     font-size: var(--taille-secondaire);
   }
-
-  /* L'appel aux directions : la bande verte de l'Espace écoles. */
-  .accueil-bas {
-    padding-top: var(--espace-5);
-    padding-bottom: 28px;
+  .profil-compte {
+    flex: none;
+    color: var(--marque);
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
-  .appel-ecoles {
-    display: flex;
-    flex-direction: column;
+  .profil :global(svg) {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    color: var(--marque);
+  }
+  .profil:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  @media (hover: hover) {
+    .profil:hover {
+      border-color: var(--marque);
+    }
+  }
+  .orienter-dessin {
+    display: none;
+  }
+
+  /* Par ville : une carte par ville qui a des fiches, son dessin quand il existe. */
+  .villes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ville {
+    display: grid;
+    align-content: start;
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+    color: var(--texte);
+    text-decoration: none;
+  }
+  .ville img,
+  .ville-sans-dessin {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 8 / 5;
+    object-fit: cover;
+    background: var(--fond-bande);
+  }
+  /* Une ville sans dessin : la trame en points du dessin de l'accueil, jamais un cadre vide. */
+  .ville-sans-dessin {
+    background-color: var(--vert-pale);
+    background-image: radial-gradient(circle, var(--marque) 1.4px, transparent 1.6px);
+    background-size: 12px 12px;
+  }
+  .ville-texte {
+    display: grid;
+    gap: 2px;
+    padding: var(--espace-3) var(--espace-4) var(--espace-4);
+  }
+  .ville-texte b {
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+    overflow-wrap: anywhere;
+  }
+  .ville-texte span {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .ville:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  @media (hover: hover) {
+    .ville:hover b {
+      text-decoration: underline;
+    }
+  }
+
+  /* Pour les écoles : la bande verte, puis « Une école manque ? ». */
+  .directions {
+    display: grid;
     gap: var(--espace-4);
-    padding: 20px;
+    padding: var(--espace-5);
     border-radius: var(--rayon-l);
     background: var(--marque-appuyee);
     color: var(--texte-sur-marque);
   }
-  .appel-ecoles-texte {
+  .directions-texte {
     display: grid;
-    gap: var(--espace-2);
-    max-width: 640px;
+    align-content: start;
+    gap: var(--espace-3);
   }
-  .appel-ecoles-surtitre {
+  .directions-texte p {
+    margin: 0;
+  }
+  .directions-surtitre {
     color: var(--accent);
     font-family: var(--police-interface);
     font-size: var(--taille-mention);
@@ -604,158 +835,109 @@ const recentes = vuesRecemment(ecoles);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
-  .appel-ecoles h2 {
-    font-size: 1.5rem;
-    line-height: 1.15;
-  }
-  .appel-ecoles-detail {
-    color: var(--vert-pale);
-    font-size: 0.9375rem;
-  }
-  .appel-ecoles .bouton {
-    align-self: flex-start;
+  .directions .bouton {
     min-height: var(--cible-principale);
   }
-
-  /* Ordinateur (planche « Accueil · ordinateur »). */
-  @media (min-width: 48rem) {
-    .accueil {
-      gap: 40px;
-      padding-top: var(--espace-5);
-    }
-    .accueil h2 {
-      font-size: 1.625rem;
-    }
-    .accueil-haut {
-      align-items: center;
-      gap: 56px;
-      padding-block: var(--espace-4) var(--espace-2);
-    }
-    .ouverture {
-      gap: 20px;
-    }
-    .ouverture h1 {
-      font-size: 2.875rem;
-      line-height: 1.08;
-    }
-    .chapeau {
-      max-width: 520px;
-      font-size: 1.1875rem;
-    }
-    .recherche-accueil > :global(svg) {
-      top: 17px;
-    }
-    .recherche-accueil .champ {
-      height: 56px;
-      padding-right: 140px;
-    }
-    .recherche-accueil .bouton {
-      height: var(--cible-principale);
-    }
-    .villes {
-      gap: var(--espace-4);
-    }
-    .ville-carte {
-      padding: 20px;
-    }
-    .ville-lien b {
-      font-size: 1.5rem;
-    }
-    .portes {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: var(--espace-4);
-    }
-    .porte h3 {
-      font-size: 1.375rem;
-    }
-    .puce-niveau {
-      padding: 0 14px 0 var(--espace-2);
-    }
-    .seulement-large {
-      display: inline-flex;
-    }
-    .recentes {
-      grid-template-areas: 'titre lien' 'liste liste';
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: baseline;
-      gap: 14px var(--espace-4);
-      margin-inline: 0;
-    }
-    .recentes h2,
-    .recentes-toutes {
-      padding-inline: 0;
-    }
-    /* Les liens « › » posés sur une ligne de texte, comme sur la planche : la cible garde 44 px, la marge négative la rend. */
-    .recentes-toutes,
-    .etapes-cadre .lien-fort {
-      margin-block: -11px;
-    }
-    .cartes-recentes {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: var(--espace-4);
-      padding: 0;
-      overflow: visible;
-    }
-    .cartes-recentes > li {
-      width: auto;
-    }
-    .etapes-bande {
-      margin-top: var(--espace-6);
-    }
-    .etapes-cadre {
-      gap: 20px;
-      padding-block: 40px;
-    }
-    .etapes-cadre h2 {
-      font-size: 1.625rem;
-    }
-    .etapes {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: var(--espace-4);
-    }
-    .etape {
-      flex-direction: column;
-      gap: 10px;
-      padding: 20px;
-    }
-    .etape-numero {
-      width: 2.5rem;
-      height: 2.5rem;
-    }
-    .etape-texte {
-      gap: 10px;
-    }
-    .etape-texte b {
-      font-family: var(--police-titre);
-      font-size: var(--taille-intertitre);
-    }
-    .etape-texte span {
-      font-size: var(--taille-courante);
-    }
-    .etapes-cadre .lien-fort {
-      justify-self: start;
-    }
-    .accueil-bas {
-      padding-top: 40px;
-      padding-bottom: var(--espace-7);
-    }
-    .appel-ecoles {
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      padding: var(--espace-6);
-    }
-    .appel-ecoles h2 {
-      font-size: 1.875rem;
-    }
+  .directions .bouton:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  .directions-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-3) var(--espace-5);
+  }
+  .directions-prepare {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-2);
+    color: var(--vert-pale);
+  }
+  .directions .etiquette-prepare {
+    border-color: var(--vert-pale);
+    color: var(--vert-pale);
+  }
+  .directions-dessin {
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    justify-self: center;
+  }
+  .manque {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-3);
+    padding: var(--espace-4);
+    border-radius: var(--rayon-m);
+    background: var(--vert-pale);
+  }
+  .manque p {
+    display: grid;
+    margin: 0;
+  }
+  .manque span {
+    color: var(--marque-appuyee);
+    font-size: var(--taille-secondaire);
+  }
+  .manque .bouton {
+    gap: 6px;
+  }
+  .manque .bouton :global(svg) {
+    width: 18px;
+    height: 18px;
   }
 
-  /* La recherche et « Où ? » côte à côte à partir de 64 rem. */
+  @media (min-width: 40rem) {
+    .reperes-liste {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .repere img {
+      max-width: 180px;
+    }
+  }
+  @media (min-width: 48rem) {
+    .seulement-large {
+      display: inline;
+    }
+    .reperes-liste-trois {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .mentions-grille {
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+      align-items: start;
+    }
+    .directions {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      padding: var(--espace-6);
+    }
+    .orienter-grille {
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      align-items: center;
+    }
+    .orienter-dessin {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+  }
   @media (min-width: 64rem) {
-    .accueil-haut {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    .heros-grille > :global(.dessin-congo) {
+      max-width: none;
+    }
+    .heros-grille {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+      align-items: center;
+      gap: var(--espace-7);
+      padding-top: var(--espace-6);
+      padding-bottom: var(--espace-7);
+    }
+    .reperes {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     }
   }
 </style>

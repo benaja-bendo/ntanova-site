@@ -124,13 +124,14 @@ test.describe('site public', () => {
   }
 
   test(
-    'de l’accueil à la fiche d’une école, puis vers « Espace écoles »',
+    'de l’accueil à la fiche d’une école, puis vers « Pour les écoles »',
     { tag: '@critique' },
     async ({ page }) => {
       await page.goto('/');
-      await expect(page.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ })).toBeVisible();
-      await expect(page.getByRole('link', { name: /^Brazzaville.*1 école/ })).toBeVisible();
-      await page.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ }).click();
+      const villes = page.getByRole('region', { name: 'Par ville' });
+      await expect(villes.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ })).toBeVisible();
+      await expect(villes.getByRole('link', { name: /^Brazzaville.*1 école/ })).toBeVisible();
+      await villes.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ }).click();
 
       // La ville : le département de même nom n'a pas de page à lui ; ses arrondissements en sont les zones.
       await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/$/);
@@ -178,10 +179,13 @@ test.describe('site public', () => {
         '[Complexe scolaire Exemple], à [Quartier], Tié-Tié, Pointe-Noire :',
       );
       expect(description).not.toContain('Congo');
-      // Ce que NTanova demande se lit sur « Espace écoles » (/pour-les-ecoles/), le troisième pilier de l'en-tête.
+      // Ce que NTanova demande se lit sur « Pour les écoles » (/pour-les-ecoles/), la troisième entrée de l'en-tête (derrière
+      // « Menu » au téléphone, refonte publique, lot 1).
+      const menu = page.locator('summary.menu-bouton');
+      if (await menu.isVisible()) await menu.click();
       await page
         .getByRole('navigation', { name: 'Navigation principale' })
-        .getByRole('link', { name: 'Espace écoles' })
+        .getByRole('link', { name: 'Pour les écoles' })
         .click();
       await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
     },
@@ -194,11 +198,13 @@ test.describe('site public', () => {
       // Ticket 147 : le pays n'a plus de page. Lot 4 bis : `/ecoles/` n'a plus « Ville par ville » ; l'accueil et le pied de
       // page mènent aux trois zones qui ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
       await page.goto('/ecoles/');
-      const pied = page.getByRole('contentinfo').getByRole('list', { name: 'Trouver une école' });
-      await expect(pied.getByRole('link')).toHaveCount(4);
+      const pied = page.getByRole('contentinfo').getByRole('list', { name: 'Chercher' });
+      await expect(
+        pied.getByRole('link', { name: /^(Brazzaville|Dolisie|Pointe-Noire)$/ }),
+      ).toHaveCount(3);
       await page.goto('/');
       await page
-        .getByRole('main')
+        .getByRole('region', { name: 'Par ville' })
         .getByRole('link', { name: /^Pointe-Noire.*7 écoles/ })
         .click();
       await page.getByRole('link', { name: /Loandjili.*Arrondissement 4.*2 écoles/ }).click();

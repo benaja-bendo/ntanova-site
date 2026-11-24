@@ -21,7 +21,7 @@ const PAGES_PRINCIPALES = [
   },
   {
     href: '/pour-les-ecoles/',
-    texte: 'Espace écoles',
+    texte: 'Pour les écoles',
     note: 'ce qu’une direction peut faire de sa fiche',
   },
   { href: '/a-propos/', texte: 'À propos', note: 'qui est NTanova et ce que nous publions' },

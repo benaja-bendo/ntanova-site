@@ -7,7 +7,7 @@
  * avec le site) et ne parle à aucun autre serveur. La position n'est demandée qu'à l'appui d'« Autour de moi » ou de « Près de
  * moi » ; elle sert à compter et à classer, dans le téléphone, et n'est envoyée à personne.
  */
-import { htmlCarteEcole, htmlIcone } from '../../modele/carte-ecole';
+import { echapper, htmlCarteEcole, htmlIcone } from '../../modele/carte-ecole';
 
 const ICONE_CIBLE = htmlIcone('cible');
 import { htmlFiltres } from '../../modele/filtres-html';
@@ -59,6 +59,8 @@ export function demarrerListe(racine: HTMLElement): void {
   const tri = $<HTMLSelectElement>('[data-tri]')!;
   const message = $<HTMLElement>('[data-message]')!;
   const zoneCarte = $<HTMLElement>('[data-zone-carte]')!;
+  // Lot 1 de la refonte : le lieu écrit dans « Où ? », qu'on corrige quand il ne trouve rien.
+  const modifierLieu = $<HTMLFormElement>('[data-modifier-lieu]');
   const domaines = new Map<string, string>(JSON.parse(racine.dataset.domaines ?? '[]'));
 
   let etat: EtatListe = lireEtat(new URLSearchParams(location.search));
@@ -116,6 +118,10 @@ export function demarrerListe(racine: HTMLElement): void {
         )
         .join('');
       (vide as HTMLElement & { sorties?: typeof sorties }).sorties = sorties;
+      if (modifierLieu) {
+        modifierLieu.hidden = !etat.ou;
+        modifierLieu.querySelector<HTMLInputElement>('input[name="ou"]')!.value = etat.ou;
+      }
     } else vide.hidden = true;
   }
 
@@ -132,6 +138,11 @@ export function demarrerListe(racine: HTMLElement): void {
       trouvees.length === 0 ? 'Aucune école' : `Voir ${compterLesEcoles(trouvees.length)}`;
     // Les puces de la barre : les choix faits, qu'une touche retire ; sans ville choisie, les villes pour aller vite.
     const choisies: string[] = [];
+    // Le lieu de « Où ? » se relit en premier, et se retire sans toucher aux autres choix (lot 1 de la refonte).
+    if (etat.ou)
+      choisies.push(
+        `<button type="button" class="pastille-choix puce-choisie" data-retirer-ou aria-pressed="true">Où : ${echapper(etat.ou)} <span class="filtre-croix" aria-hidden="true">×</span><span class="visuellement-cache"> (retirer le lieu)</span></button>`,
+      );
     for (const g of groupes)
       for (const o of g.options.filter((x) => x.choisie))
         choisies.push(
@@ -246,7 +257,7 @@ export function demarrerListe(racine: HTMLElement): void {
 
   racine.addEventListener('click', async (ev) => {
     const cible = (ev.target as HTMLElement).closest<HTMLElement>(
-      '[data-groupe][data-valeur], [data-rayon], [data-sortie], [data-plus], [data-ouvrir-filtres], [data-fermer-filtres], [data-voir], [data-effacer], [data-vue], [data-retirer-cadre], [data-chercher-zone], [data-fond-filtres]',
+      '[data-groupe][data-valeur], [data-rayon], [data-sortie], [data-plus], [data-ouvrir-filtres], [data-fermer-filtres], [data-voir], [data-effacer], [data-vue], [data-retirer-cadre], [data-retirer-ou], [data-chercher-zone], [data-fond-filtres]',
     );
     // `closest` remonte jusqu'à `<body>`, qui porte aussi `data-vue` : un clic hors des boutons de la page (une école de la
     // liste) passait pour « Liste » ou « Carte » et n'ouvrait plus rien après un aller-retour (vu le 17/11).
@@ -288,6 +299,7 @@ export function demarrerListe(racine: HTMLElement): void {
         vue: e.vue,
       }));
     if ('retirerCadre' in cible.dataset) return void appliquer((e) => ({ ...e, cadre: null }));
+    if ('retirerOu' in cible.dataset) return void appliquer((e) => ({ ...e, ou: '' }));
     if ('chercherZone' in cible.dataset && carte) {
       const cadre = carte.cadre();
       carte.cacherChercher();
@@ -315,6 +327,12 @@ export function demarrerListe(racine: HTMLElement): void {
     ev.preventDefault();
     champ.blur();
     void appliquer((e) => ({ ...e, q: champ.value.trim() }));
+  });
+
+  modifierLieu?.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const ou = modifierLieu.querySelector<HTMLInputElement>('input[name="ou"]')!.value.trim();
+    void appliquer((e) => ({ ...e, ou }));
   });
 
   tri.addEventListener('change', async () => {
@@ -348,7 +366,7 @@ export function demarrerListe(racine: HTMLElement): void {
     ecrireAdresse();
     if (vue !== 'carte') return;
     await lire().catch(() => undefined);
-    if (lignes && !trouvees.length && !nombreDeFiltres(etat) && !etat.q) calculer();
+    if (lignes && !trouvees.length && !nombreDeFiltres(etat) && !etat.q && !etat.ou) calculer();
     // Sans WebGL2, rien de la carte n'est téléchargé : la liste reste, la carte le dit (planche des trois états).
     if (!webgl2()) {
       zoneCarte.dataset.etat = 'sans-carte';

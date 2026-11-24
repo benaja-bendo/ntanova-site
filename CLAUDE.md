@@ -10,7 +10,7 @@ Le site de NTanova : l'annuaire public des écoles de la République du Congo (*
 
 Demande du fondateur : une livraison complète du nouveau site public, préparée par lots successifs. Exception temporaire au circuit habituel : `refonte/site-public`, issue du `main` consolidé, reçoit les PR de lots ; elle sera fusionnée dans `main` puis supprimée après recette et ordre de livraison. Une branche courte par lot, **PR vers `refonte/site-public`** ; aucune livraison de production lot par lot. Le dépôt documentaire reste sur `main`.
 
-Contrat technique : `docs/refonte-site-public.md`. Plan et prompt de lancement dans le dépôt documentaire : `~/Desktop/NTANOVA/docs/produit/2026-11-24-refonte-site-public/`. **Préparer cette branche ne lance aucun lot.** Aucun code neuf ni migration n'accompagne cette préparation. Les propositions de la maquette ne remplacent une décision datée qu'après lancement explicite du lot qui les énumère.
+Contrat technique : `docs/refonte-site-public.md`. **Lot 1 (accueil et socle public) en PR 212 vers `refonte/site-public`, pas encore intégré ni en production** (ticket 211) : en-tête vert et menu `<details>` au téléphone, « Pour les écoles », pied à quatre groupes, accueil illustré (dessin calculé depuis le catalogue), recherche `q` + `ou` jusqu'à la liste, `/demo/fiche-ecole/` (fictive, `noindex`). Plan et prompt de lancement dans le dépôt documentaire : `~/Desktop/NTANOVA/docs/produit/2026-11-24-refonte-site-public/`. **Préparer cette branche ne lance aucun lot.** Aucun code neuf ni migration n'accompagne cette préparation. Les propositions de la maquette ne remplacent une décision datée qu'après lancement explicite du lot qui les énumère.
 
 ## Où on en est (16/11/2026)
 
@@ -94,7 +94,8 @@ supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parco
 - Un ton factuel : ni « gratuit », ni audience inventée, aucune phrase qui se fait passer pour un parent. Des nombres, jamais un objectif ni un seuil de mesure.
 - Aucune donnée personnelle dans le dépôt. Le numéro WhatsApp vient de `PUBLIC_WHATSAPP`, jamais écrit dans le code (un parcours ne l'attend jamais en dur).
 - L'administration ne promet ni nuit ni heure de mise en ligne : « à la prochaine mise à jour du site ».
-- Aucun lien public vers un lieu sans fiche publiée (`lieuxAvecEcoles`, 16/11) ; sa page existe, en `noindex` (08/11). Le lien vers `/pour-les-ecoles/` s'appelle « Espace écoles », comme le pilier (l'adresse change au lot 6, l'ancienne renverra en 301).
+- Aucun lien public vers un lieu sans fiche publiée (`lieuxAvecEcoles`, 16/11) ; sa page existe, en `noindex` (08/11). Le lien vers `/pour-les-ecoles/` s'appelle « Pour les écoles » (refonte, lot 1, 24/11 ; avant : « Espace écoles ») ; la Méthode s'affiche « Fiabilité des informations » ; les adresses ne changent pas. Jamais « toutes les écoles » dans un texte public.
+- Une école fictive (la démonstration) n'entre jamais dans le catalogue, la recherche ou le plan du site : elle porte « Exemple » sur la ligne de son nom.
 
 ## Budgets des pages
 
