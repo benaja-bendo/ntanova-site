@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(32);
 
 -- L'inscription d'un relais ------------------------------------------------------------------------------------------------
 
@@ -111,6 +111,13 @@ delete from storage.objects where bucket_id = 'releves';
 select is((select count(*)::int from storage.objects), 0, 'Et il peut supprimer le fichier du seau');
 reset role;
 select is((select what from prive.erasures where submission_id = '51000000-0000-4000-8000-0000000000a1'), 'photo', 'L''effacement est tracé (quoi, par qui, quand)');
+
+-- La planification de la purge des messages (refonte publique, lot 3B1) --------------------------------------------------------------------
+
+select is((select schedule || ' | ' || command from cron.job where jobname = 'ntanova-purge-messages'), '40 1 * * * | select prive.purge_public_requests()',
+  'La purge des messages est planifiée chaque nuit');
+select is((select count(*)::int from cron.job where jobname = 'ntanova-journal-planification'), 1, 'Le journal des planifications est taillé');
+select is((select count(*)::int from cron.job where command ~* '(http|net\.)'), 0, 'Aucune planification n''appelle le réseau : le service d''annonce n''existe pas encore');
 
 select * from finish();
 rollback;

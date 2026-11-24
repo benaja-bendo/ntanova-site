@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(22);
 
 -- Les extensions natives -----------------------------------------------------------------------------------
 
@@ -12,6 +12,8 @@ select ok(exists (select 1 from pg_extension where extname = 'postgis'), 'PostGI
 select ok(exists (select 1 from pg_extension where extname = 'pg_trgm'), 'pg_trgm est installé (recherche floue)');
 select ok(exists (select 1 from pg_extension where extname = 'unaccent'), 'unaccent est installé (accents)');
 select ok(exists (select 1 from pg_extension where extname = 'ltree'), 'ltree est installé (arbre des divisions)');
+
+select ok(exists (select 1 from pg_extension where extname = 'pgcrypto'), 'pgcrypto est installé (sceau des envois)');
 
 -- Aucune dépendance à Supabase dans le cœur --------------------------------------------------------------------
 
@@ -36,6 +38,16 @@ select is((select count(*)::int from pg_constraint
            where contype = 'f' and connamespace in (select oid from pg_namespace where nspname in ('public', 'prive'))
              and confrelid::regclass::text ~ '^(auth|storage)\.'), 0,
   'Aucune clé étrangère ne pointe vers auth ni storage');
+
+-- La planification et les appels réseau sont dans la couche Supabase : le cœur ne cite ni `cron`, ni `net`, ni `vault` (lot 3B1).
+select is((select string_agg(q.oid::regprocedure::text, ', ')
+           from (select p.oid from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                  where n.nspname in ('public', 'prive') and p.prokind in ('f', 'p') offset 0) q
+           where pg_get_functiondef(q.oid) ~* '\m(cron|net|vault)\.'), null,
+  'Aucune fonction de public ou prive ne cite cron. net. ni vault.');
+select lives_ok($$select prive.purge_public_requests(now())$$, 'La purge des messages marche sans aucune planification');
+select prive.renew_public_request_secret();
+select is((select prive.issue_public_request_pass_at(now()) ->> 'seal' ~ '^[0-9a-f]{64}$'), true, 'Le laissez-passer aussi');
 
 -- L'identité, sans Supabase -------------------------------------------------------------------------------------
 

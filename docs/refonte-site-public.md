@@ -60,6 +60,24 @@ Textes scolaires vérifiés le 24/11 (note datée dans le dépôt `ntanova`) : d
 - Le groupe 06 précise « Informatique et technologies de communication » pour le distinguer du journalisme du groupe 03. Les domaines et les comptes ne changent pas.
 - La source du Conseil des ministres décrit son contenu daté, sans présenter sa lecture comme une vérification de l’entrée en vigueur d’une réforme. Le vote non retrouvé ne prouve pas l’absence de vote ; les sources et cette limite sont consignées dans le dépôt documentaire.
 
+## Lot 3B1 — base privée des messages (ticket 215, PR vers `refonte/site-public`, à relire)
+
+Le socle de Contact et de l'annuaire : stockage privé, droits, reprise sans doublon, bornes, clôture, purge, file d'annonces. **Aucun écran, aucun formulaire, aucun envoi possible, rien d'appliqué en ligne.** Contrat : dépôt `ntanova`, `CONTRAT-LOT-03A.md`, dont le §19 prévaut. Carte complète : `supabase/schema.md`, « Les messages reçus ».
+
+| Pièce | Règle |
+| --- | --- |
+| Migrations | `20261124140000` à `140400`, additives ; le site en ligne ne lit rien d'elles. La dernière, propre à Supabase, installe `pg_cron` et planifie la purge : **son `db push` est un ordre séparé**. Les appliquer n'ouvre rien : sans secret d'envoi, aucun laissez-passer ; ouvrir est un geste de la recette (`prive.renew_public_request_secret()`) |
+| Envoi | la page demande `issue_public_request_pass` (clé, heure du serveur, sceau), puis envoie `send_public_request` en **POST JSON, par `fetch`**, jamais par `.rpc` nommé : le corps est le paramètre. Réponses : `{ code, reference }` |
+| Reprise | même contenu, même `revision` ; `revisionDeLEnvoi` l'incrémente dès que le contenu change. `lireIssue` : un code inconnu ou une référence absente n'est jamais « enregistré » |
+| Modèle | `src/modele/demandes.ts`, sans réseau ; l'adaptateur du lot 3B2 traduira les noms de champs (`tests/unitaires/demandes.test.ts` en garde la table) |
+| Horloge | celle de la base ; les tests passent la leur aux fonctions privées `*_at` |
+| Bornes | valeurs de départ dans `prive.public_request_settings`, changées par migration ; **la borne par connexion est écrite et éprouvée mais inactive** tant qu'aucun en-tête n'est constaté infalsifiable |
+| Restauration | procédure manuelle (`supabase/schema.md`, « Restaurer sans faire réapparaître une information retirée »), sans moteur ni écran |
+
+Écarts avec le contrat, tous techniques : un seul paramètre JSON sans nom pour l'envoi (un caractère impossible recopiait un bout du message dans le journal) ; deux planifications au lieu d'une (la purge ne dépend pas de la taille du journal) ; « déjà enregistrée » ne vaut pas pour un ancien texte remplacé depuis ; un indésirable décidé à la main compte ses 30 jours depuis ce geste ; une purge à la fois (deux s'interbloquaient) ; pas de secret d'envoi au départ (les migrations seules n'ouvrent pas la porte). Cas 55 à 60 du contrat exclus par le §19.
+
+Reste à 3B2 : le port, l'adaptateur et le faux serveur, les écrans « Messages reçus » et retraits, le service d'annonce (non déployé), et deux constats en ligne sur ordre : l'en-tête d'adresse, le port 465.
+
 ## Contrôles et livraison
 
 Suivre `CLAUDE.md` : contrôles locaux sur le faux catalogue, dont `pnpm verif:ci` et les parcours pertinents, puis CI de la dernière révision. Aucun workflow supplémentaire, aucune répétition identique de CI. Ne pas remplacer la construction locale du fondateur par une construction isolée sur les vraies données.
