@@ -1,6 +1,8 @@
 # ntanova-site
 
-Le site de NTanova : l'annuaire des écoles de Pointe-Noire, quartier par quartier, l'espace des relais et l'administration.
+Le site de NTanova : l'annuaire des écoles au Congo-Brazzaville, l'espace des relais et l'administration.
+
+Refonte publique livrée le 25 novembre 2026 : PR 228, commit `d615204`, tag `livraison-refonte-site-public-2026-11-25`. Formulaires Contact/Annuaire et alerte actifs. `main` est la seule branche durable ; le chantier temporaire `refonte/site-public` est terminé. Historique et contrats : [`docs/refonte-site-public.md`](docs/refonte-site-public.md).
 
 Astro 7 (pages statiques) + React (espace relais, administration) + Supabase (base, connexion, photos), servi par Cloudflare Workers. Les règles de travail sont dans [`CLAUDE.md`](CLAUDE.md).
 

@@ -2,6 +2,8 @@
 
 Le fondateur demande une livraison unique, construite par lots courts. Ce document fixe le circuit de code ; les réflexions produit restent dans le dépôt `ntanova`.
 
+**Livré le 25 novembre 2026**, lots 0 à 7 terminés : PR globale 228, commit `d615204103e47df87aef9f6920defe1b5666df29`, tag `livraison-refonte-site-public-2026-11-25`. [Mise en ligne 45645217209](https://github.com/benaja-bendo/ntanova-site/actions/runs/45645217209) entièrement verte, même construction sur essai puis production, six contrôles en ligne par site. Formulaires et alerte actifs. `refonte/site-public` a disparu ; `main` reste la seule branche durable. Le circuit des lots ci-dessous décrit ce chantier terminé, pas une nouvelle branche à créer. La revue finale et les suites restent dans le dépôt documentaire.
+
 ## Revue finale du 25 novembre 2026
 
 Le fondateur autorise la fusion globale et la production après revue (PR 228). Dernier correctif : les textes de Fiabilité, Confidentialité, Pour les écoles et des photos distinguent les personnes présentes sur les lieux d'une affiche ou illustration déjà présente sur l'enseigne. Cette précision applique son choix daté de conserver l'enseigne ; aucun contrôle, accord, droit, média ou objet de base n'est modifié. La légende d'une photo renvoie aux mêmes règles. Le parcours existant de Fiabilité est adapté, sans nouveau fichier de tests.
