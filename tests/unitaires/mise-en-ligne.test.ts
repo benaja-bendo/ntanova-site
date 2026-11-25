@@ -205,3 +205,17 @@ describe('déploiement essai après réutilisation des contrôles', () => {
     for (const etat of ['failure', 'cancelled', 'skipped']) expect(resultat(etat)).toBe(false);
   });
 });
+
+describe('la construction mise en ligne', () => {
+  // Recette de la refonte (25/11) : `PUBLIC_FORMULAIRES` existait dans le code, aucune mise en ligne ne le transmettait.
+  it('reçoit chaque réglage public déclaré par le site (le faux serveur mis à part)', () => {
+    const reglages = [
+      ...readFileSync('astro.config.mjs', 'utf8').matchAll(/^ {6}(PUBLIC_[A-Z_]+): envField/gm),
+    ]
+      .map((m) => m[1]!)
+      .filter((nom) => nom !== 'PUBLIC_ADAPTATEUR');
+    expect(reglages).toContain('PUBLIC_FORMULAIRES');
+    const manquants = reglages.filter((nom) => !workflow.includes(`${nom}: \${{ vars.${nom} }}`));
+    expect(manquants).toEqual([]);
+  });
+});

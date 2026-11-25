@@ -4,11 +4,24 @@ import { expect, test } from '@playwright/test';
 // lisent seulement : aucune connexion, aucune écriture dans la base.
 
 test.describe('le site en ligne', () => {
-  test('la page d’attente répond, en français, avec le lien WhatsApp', async ({ page }) => {
+  // Formulaires ouverts, l'accueil n'a plus de lien WhatsApp ; « Pour les écoles » en garde dans les deux positions du réglage
+  // (confirmer une fiche ne passe pas par un formulaire) : il prouve que le numéro est dans la construction.
+  test('l’accueil répond, en français, avec de quoi écrire à NTanova ; le numéro WhatsApp est dans la construction', async ({
+    page,
+  }) => {
     const reponse = await page.goto('/');
     expect(reponse?.status()).toBe(200);
     await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
-    await expect(page.locator('a[href^="https://wa.me/"]').first()).toBeVisible();
+    await expect(
+      page
+        .locator('a[href^="https://wa.me/"], a[href^="/contact/"]')
+        .filter({ visible: true })
+        .first(),
+    ).toBeVisible();
+    await page.goto('/pour-les-ecoles/');
+    await expect(
+      page.locator('a[href^="https://wa.me/"]').filter({ visible: true }).first(),
+    ).toBeVisible();
   });
 
   test('une adresse inconnue répond 404 avec la page introuvable', async ({ page }) => {

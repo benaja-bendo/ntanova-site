@@ -265,6 +265,42 @@ Les personnes qui ont écrit entre la sauvegarde et la perte ne sont plus connue
 
 **Limites** : une copie par nuit (on peut perdre jusqu'à 24 heures de relevés) ; pas de restauration à un instant précis ; trente jours d'historique. Le plan Pro de Supabase (sauvegardes quotidiennes gérées) reste la solution propre quand l'argent entre ; cette copie, elle, se restaure sur n'importe quel PostgreSQL.
 
+### Le ménage des durées (à la main, en janvier et en juillet)
+
+Confidentialité dit combien de temps chaque donnée est gardée (durées acceptées par le fondateur le 25/11/2026) et qu'un ménage est fait **deux fois par an**. Rien ne l'automatise, sauf les messages des formulaires (`prive.purge_public_requests()`). Un ménage sauté rend la page fausse. Faire d'abord la sauvegarde du jour. Premier ménage : janvier 2027 (le journal technique seul) ; les photos et les demandes n'arrivent à leur terme qu'à partir de novembre 2027.
+
+Regarder, sans rien effacer (éditeur SQL) :
+
+```sql
+select 'journal technique' as quoi, count(*) from public.erreurs
+ where recu_le < now() - interval '3 months'
+union all
+select 'demandes de vérification', count(*) from public.family_demands
+ where created_at < now() - interval '12 months'
+union all
+select 'fiches retirées', count(*) from public.campuses
+ where publication = 'retiree' and replaced_by_campus_id is null
+   and retired_at < now() - interval '12 months'
+union all
+select 'photos non publiées', count(*) from public.field_submission_photos p
+ where p.received_at < now() - interval '12 months' and not p.is_public
+   and not exists (select 1 from public.campus_media m where m.source_photo_id = p.id)
+   and not exists (select 1 from prive.campus_photo_choices h where h.photo_id = p.id)
+union all
+select 'relais partis', count(*) from public.relais r
+  join prive.relay_identity i on i.relay_id = r.id
+ where coalesce((select max(s.received_at) from public.field_submissions s where s.relay_id = r.id), r.cree_le)
+       < now() - interval '12 months';
+```
+
+Effacer, une fois les nombres relus :
+
+1. **Journal et demandes** : `delete from public.erreurs where recu_le < now() - interval '3 months';` puis `delete from public.family_demands where created_at < now() - interval '12 months';`
+2. **Fiches retirées** : administration, corbeille puis suppression définitive (`trash_campus`, `purge_campus`), qui emporte ses photos et ses contacts.
+3. **Photos non publiées** : `erase_photo` puis le fichier du stockage, une photo à la fois. Ne jamais effacer une photo dont une image publiée est tirée (`campus_media.source_photo_id` est en cascade : l'image publiée partirait avec elle) ; la requête ci-dessus les écarte.
+4. **Relais partis** : pour chacun, `delete from prive.relay_identity where relay_id = '…';` et `update public.relais set prenom = 'Relais parti', google_sub = null, statut = 'suspendu' where id = '…';`, puis son compte dans Authentication. **La paie reste dix ans** (`payout_*`, `prive.relay_payment_details`) : ne pas supprimer la ligne de `relais`.
+5. **WhatsApp et boîte de courrier** : les échanges dont le dernier message a plus de douze mois. L'accord d'une école y est peut-être écrit : la base n'en garde que la date et le canal.
+
 ## Les tests
 
 - **`pnpm base:tests`** (pgTAP, `supabase/tests/`, Docker et Supabase CLI) : **425 vérifications** en 12 fichiers (droits, géographie, catalogue, terrain, décisions de l'administration, import, lots, paie, recherche, adresses, portabilité, couche Supabase). Les droits sont éprouvés des deux côtés : en donnant à tort un droit à un relais, les tests échouent.
