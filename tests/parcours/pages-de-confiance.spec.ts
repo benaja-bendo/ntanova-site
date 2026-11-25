@@ -330,8 +330,30 @@ test.describe('Confidentialité', () => {
       await expect(
         page.locator('.registre dt', { hasText: new RegExp(`^${rubrique}$`) }),
       ).toHaveCount(n);
-    // Ce que NTanova ne sait pas encore reste entre crochets : une durée n'est jamais devinée.
-    await expect(page.locator('main')).toContainText('[À fixer.]');
+    // Les durées acceptées par le fondateur le 25/11/2026 : plus aucun crochet, une durée par donnée.
+    await expect(page.locator('main .a-completer')).toHaveCount(0);
+    expect(await textePrincipal(page)).not.toMatch(/\[[^\]]*\]/);
+    const duree = (nom: RegExp) =>
+      registre
+        .filter({ has: page.locator('strong', { hasText: nom }) })
+        .locator('dd')
+        .last();
+    for (const [nom, dit] of [
+      [/^La fiche publique/, 'Après un retrait, gardée 12 mois, puis effacée'],
+      [/^Les photos publiées/, 'Après un retrait, gardée 12 mois, puis effacée'],
+      [/^Le contact privé/, 'Tant que la fiche existe ; effacé à votre demande sous 7 jours.'],
+      [/^Les photos non publiées/, '12 mois après leur envoi.'],
+      [/^Les relais/, '12 mois après la dernière fiche envoyée'],
+      [/^Les relais/, 'Paie : 10 ans'],
+      [/^Le journal technique/, '3 mois.'],
+      [/^Les demandes de vérification/, '12 mois.'],
+      [/par e-mail|^Vos messages à NTanova/, '12 mois après le dernier échange'],
+    ] as const)
+      await expect(duree(nom), dit).toContainText(dit);
+    // Rien n'efface tout seul ces données : la page dit le ménage à la main, et sa conséquence.
+    await expect(page.locator('#ce-que-nous-gardons')).toContainText(
+      'NTanova efface à la main, deux fois par an, ce qui est arrivé à son terme',
+    );
   });
 
   test('dit où sont les données, le transfert hors du Congo, et ne dit rien d’une déclaration à la commission', async ({
@@ -346,7 +368,7 @@ test.describe('Confidentialité', () => {
     await expect(lieux).toContainText('Supabase, région Paris');
     await expect(lieux).toContainText('Cloudflare');
     await expect(lieux).toContainText('article 23');
-    await expect(lieux).toContainText('[Où en est cette démarche');
+    await expect(lieux).toContainText('Cette démarche n’est pas encore faite.');
     const texte = await textePrincipal(page);
     expect(texte).not.toMatch(/déclaré(e)? (auprès|à) la commission|récépissé/i);
   });
@@ -365,12 +387,20 @@ test.describe('Confidentialité', () => {
 });
 
 test.describe('Mentions légales', () => {
-  test('nomme l’éditeur, les hébergeurs et les crédits, et laisse les informations inconnues entre crochets', async ({
+  test('nomme l’éditeur et son statut, les hébergeurs et les crédits, sans loi applicable devinée', async ({
     page,
   }) => {
     await page.goto('/mentions-legales/');
     await expect(page.locator('#editeur')).toContainText('Responsable de la publication');
-    await expect(page.locator('#editeur')).toContainText('[Statut juridique]');
+    await expect(page.locator('#editeur')).toContainText(
+      'NTanova est un projet porté par une personne, sans société immatriculée à ce jour.',
+    );
+    await expect(page.locator('#editeur')).toContainText('Adresse : communiquée sur demande.');
+    // La loi applicable est retirée tant qu'un juriste ne l'a pas écrite (fondateur, 25/11/2026). Plus aucun crochet, sauf les
+    // deux réglages qu'une construction peut ne pas avoir.
+    expect(await textePrincipal(page)).not.toMatch(
+      /loi applicable|juridiction|\[(?!nom du responsable\]|adresse électronique\])/i,
+    );
     const hebergement = page.locator('#hebergement');
     for (const nom of ['Cloudflare', 'Supabase', 'Infomaniak'])
       await expect(hebergement).toContainText(nom);

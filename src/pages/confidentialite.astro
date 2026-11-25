@@ -2,7 +2,7 @@
 // Confidentialité (ticket 149, décision du fondateur du 08/11/2026) : la partie « données personnelles » de l'ancienne page
 // « À propos », complétée de ce que l'article 46 de la loi n° 29-2019 demande d'écrire au plus tard à la collecte : le
 // responsable, les finalités, les catégories de données, les destinataires, la durée de conservation, les transferts hors du
-// Congo, les droits. Ce que NTanova ne sait pas encore reste entre crochets (rien n'est inventé).
+// Congo, les droits. Rien n'est inventé.
 //
 // Refonte, lot 3C (24/11/2026) : les seules mentions que les formulaires rendaient inexactes ont changé, À RELIRE PAR UNE PERSONNE
 // AVANT LA PRODUCTION (liste dans docs/refonte-site-public.md). Celles qui décrivent les formulaires ne paraissent que s'ils sont
@@ -10,9 +10,10 @@
 // personne qui écrit : la limite par connexion reste inactive.
 //
 // Recette, lot 6 (25/11/2026) : ce que le code et les réglages disent est écrit (paie des relais, demandes de vérification et nombre
-// gardé par le navigateur, sauvegardes chez GitHub, courrier chez Infomaniak, CNPD lue au Journal officiel). Restent entre crochets les
-// durées et la démarche auprès de la CNPD, que seul le fondateur connaît. Les membres de la CNPD sont nommés par le décret n° 2025-538
-// du 31 décembre 2025 (Journal officiel n° 5-2026) ; aucune adresse de contact trouvée.
+// gardé par le navigateur, sauvegardes chez GitHub, courrier chez Infomaniak, CNPD lue au Journal officiel). Les membres de la CNPD sont
+// nommés par le décret n° 2025-538 du 31 décembre 2025 (Journal officiel n° 5-2026) ; aucune adresse de contact trouvée. Les durées et
+// la démarche auprès de la CNPD sont celles que le fondateur a acceptées le 25/11/2026. Seuls les messages des formulaires ont une purge :
+// les autres durées se tiennent à la main (supabase/schema.md, « Le ménage des durées »), et la page le dit.
 import { DELAI_DROITS_JOURS, LIEN_METHODE, LIEN_DONNEES } from '../modele/pages-de-confiance';
 import { REGLAGES } from '../modele/demandes';
 import ContactNtanova from '../ui/ContactNtanova.astro';
@@ -21,7 +22,7 @@ import PageDeTexte from '../ui/PageDeTexte.astro';
 
 const TEXTE_DU = '25 novembre 2026';
 
-// Les données gardées, une par ligne : pourquoi, qui les voit, combien de temps. Les durées restent à fixer par le fondateur.
+// Les données gardées, une par ligne : pourquoi, qui les voit, combien de temps.
 const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree: string }[] = [
   {
     nom: 'La fiche publique d’une école',
@@ -29,7 +30,7 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
     pourquoi: 'Faire connaître les écoles aux familles.',
     qui: 'Tout le monde, sur ntanova.com.',
     duree:
-      'Tant que la fiche est publiée ; retirée à votre demande. [Durée de conservation après un retrait : à fixer.]',
+      'Tant que la fiche est publiée ; retirée à votre demande. Après un retrait, gardée 12 mois, puis effacée ; plus tôt si vous le demandez.',
   },
   {
     nom: 'Ce que l’école accepte de publier',
@@ -44,35 +45,36 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
     pourquoi: 'Montrer l’établissement aux familles.',
     qui: 'Tout le monde, après contrôle : sans enfant ni personne reconnaissable.',
     duree:
-      'Tant que la photo est publiée ; retirée à votre demande. [Durée de conservation après un retrait : à fixer.]',
+      'Tant que la photo est publiée ; retirée à votre demande. Après un retrait, gardée 12 mois, puis effacée ; plus tôt si vous le demandez.',
   },
   {
     nom: 'Le contact privé de la direction',
     quoi: 'Nom, fonction, numéro de téléphone, date de l’accord ; ou le numéro de l’école lu sur un document, son enseigne, son site ou sa page.',
     pourquoi: 'Vérifier la fiche et écrire à la direction à ce sujet.',
     qui: 'NTanova seul. Jamais publié.',
-    duree: '[À fixer.]',
+    duree: `Tant que la fiche existe ; effacé à votre demande sous ${DELAI_DROITS_JOURS} jours.`,
   },
   {
     nom: 'Les photos non publiées',
     quoi: 'Photos envoyées par les relais et non retenues pour le site.',
     pourquoi: 'Vérifier la fiche.',
     qui: 'NTanova seul.',
-    duree: '[À fixer.]',
+    duree: '12 mois après leur envoi.',
   },
   {
     nom: 'Les relais',
     quoi: 'Prénom, adresse de connexion Google, identifiant du compte Google, fiches envoyées ; pour la paie : opérateur et numéro de paiement mobile, nom du titulaire, montants et dates.',
     pourquoi: 'Faire relever les écoles, vérifier le travail, payer.',
     qui: 'NTanova seul. Le nom d’un relais n’apparaît jamais sur le site.',
-    duree: '[À fixer.]',
+    duree:
+      'Prénom, adresse et identifiant : 12 mois après la dernière fiche envoyée. Paie : 10 ans, comme des pièces comptables. Les fiches envoyées restent avec celle de l’école.',
   },
   {
     nom: 'Le journal technique de l’application des relais',
     quoi: 'Type de téléphone, version de l’application, erreurs rencontrées.',
     pourquoi: 'Réparer l’application.',
     qui: 'NTanova seul.',
-    duree: '[À fixer.]',
+    duree: '3 mois.',
   },
   {
     nom: 'Les demandes de vérification d’une fiche',
@@ -80,7 +82,7 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
     pourquoi:
       'Savoir quelles fiches vérifier d’abord, en ne comptant qu’une demande par appareil et par jour.',
     qui: 'NTanova seul.',
-    duree: '[À fixer.]',
+    duree: '12 mois.',
   },
   ...(formulairesOuverts
     ? [
@@ -98,7 +100,7 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
           pourquoi: 'Vous répondre.',
           qui: 'NTanova. WhatsApp est un service de Meta.',
           duree:
-            'Ils restent dans WhatsApp et dans la boîte de NTanova : l’effacement automatique du site ne les atteint pas. [Durée à fixer.]',
+            'Ils restent dans WhatsApp et dans la boîte de NTanova : l’effacement automatique du site ne les atteint pas. NTanova efface sa copie 12 mois après le dernier échange.',
         },
       ]
     : [
@@ -107,7 +109,7 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
           quoi: 'Ce que vous écrivez sur WhatsApp ou par e-mail.',
           pourquoi: 'Vous répondre.',
           qui: 'NTanova. WhatsApp est un service de Meta.',
-          duree: '[À fixer.]',
+          duree: 'NTanova efface sa copie 12 mois après le dernier échange.',
         },
       ]),
 ];
@@ -156,11 +158,16 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
             <dt>Qui la voit</dt>
             <dd>{d.qui}</dd>
             <dt>Combien de temps</dt>
-            <dd class={d.duree.includes('[') ? 'a-completer' : undefined}>{d.duree}</dd>
+            <dd>{d.duree}</dd>
           </dl>
         </li>
       ))}
     </ul>
+    <p>
+      {formulairesOuverts
+        ? 'Les messages des formulaires s’effacent seuls. Pour le reste, NTanova efface à la main, deux fois par an, ce qui est arrivé à son terme\u00a0: une donnée peut donc rester jusqu’au ménage suivant.'
+        : 'NTanova efface à la main, deux fois par an, ce qui est arrivé à son terme\u00a0: une donnée peut donc rester jusqu’au ménage suivant.'}
+    </p>
     <p>
       Rien n’est obligatoire pour une école&nbsp;: sans réponse de sa direction, la fiche reste ce
       qu’un relais a vu de la rue ou ce que l’équipe en connaît. Le numéro d’une personne n’est
@@ -210,8 +217,7 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
       Ces services sont hors du Congo-Brazzaville. La loi n°&nbsp;29-2019 (article&nbsp;23)
       n’autorise le transfert de données personnelles vers un autre pays que s’il assure une
       protection suffisante, et demande d’en informer la commission chargée de la protection des
-      données, la CNPD.{' '}
-      <span class="a-completer">[Où en est cette démarche&nbsp;: à renseigner.]</span>
+      données, la CNPD. Cette démarche n’est pas encore faite.
     </p>
   </section>
 

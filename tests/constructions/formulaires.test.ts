@@ -171,6 +171,14 @@ describe('le réglage des formulaires', () => {
     }
     expect(page).not.toContain('Vos messages partent sur WhatsApp.');
     expect(page.match(/adresse IP/g)).toHaveLength(2);
+    // Les durées sont écrites dans les deux réglages, sans crochet (fondateur, 25/11/2026).
+    for (const [etat, texte] of [
+      ['ouvert', page],
+      ['fermé', lire(ferme, 'confidentialite/index.html')],
+    ] as const) {
+      expect(texte, etat).toContain('12 mois après le dernier échange');
+      expect(texte, etat).not.toMatch(/fixer\.\]|à renseigner/);
+    }
   });
 
   it('un fichier par fiche publiée, qui ne dit que ce que la fiche publique dit déjà', () => {

@@ -240,7 +240,7 @@ La recette locale de la refonte et les corrections qu'elle a demandées. Aucun S
 | Mentions légales : adresses des hébergeurs et crédit de Protomaps entre crochets | lus sur les pages officielles le 25/11 ; crédits des dessins et des icônes | relecture humaine |
 | « Méthode » dans deux pages, « Toutes les écoles » sans script, filtre « Ville » qui nomme un département (Sangha) | « Fiabilité des informations », « Les écoles », « Ville ou département » | — |
 
-**Restent entre crochets, à confirmer par le fondateur** : statut juridique, adresse et immatriculation de l'éditeur, loi applicable ; les durées de conservation de Confidentialité ; la démarche auprès de la CNPD. Ces crochets sont déjà en ligne aujourd'hui.
+**Textes acceptés par le fondateur le 25/11** : éditeur (projet porté par une personne, sans société immatriculée ; adresse communiquée sur demande), démarche auprès de la CNPD pas encore faite, durées de Confidentialité ; la loi applicable et la juridiction sont retirées tant qu'un juriste ne les a pas écrites. Plus aucun crochet sur les deux pages. **Seuls les messages des formulaires ont une purge** : les autres durées se tiennent à la main, deux fois par an, et la page dit qu'une donnée peut rester jusqu'au ménage suivant (`supabase/schema.md`, « Le ménage des durées », requêtes jouées sur la base locale). Acceptation du fondateur, pas un avis juridique.
 
 **Limites gardées** : la liste n'applique une recherche qu'avec JavaScript (sans lui : le total, les vingt premières cartes et les villes) ; le titre d'un département dit « à Sangha » ; le premier affichage de la carte est à 682 Ko sur 700 avec le catalogue du 25/11.
 
