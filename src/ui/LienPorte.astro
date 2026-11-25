@@ -1,0 +1,22 @@
+---
+// Un lien vers NTanova (refonte publique, lot 5) : le formulaire quand il est ouvert, WhatsApp sinon (`modele/liens-demandes.ts`).
+// WhatsApp se dit : la bulle, et « ouvre WhatsApp » pour qui ne la voit pas. Sans porte (ni formulaire, ni numéro), aucun lien.
+// Ouvrir l'un ou l'autre n'enregistre aucun accord.
+import type { PorteVersNtanova } from '../modele/liens-demandes';
+import Icone from './Icone.astro';
+
+interface Props {
+  porte: PorteVersNtanova | null;
+  class?: string;
+}
+const { porte, class: classe = 'cf-lien' } = Astro.props;
+---
+
+{porte && (
+  <a class={classe} href={porte.href}>
+    {!porte.parFormulaire && <Icone nom="bulle" />}
+    <span>
+      <slot /> {!porte.parFormulaire && <span class="visuellement-cache">(ouvre WhatsApp)</span>}
+    </span>
+  </a>
+)}

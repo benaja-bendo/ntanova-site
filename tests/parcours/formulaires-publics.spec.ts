@@ -929,6 +929,7 @@ test.describe('ce que la page ne fait jamais', () => {
       '/ecoles/pointe-noire/',
       '/ecoles/complexe-scolaire-exemple-482913/',
       '/pour-les-ecoles/',
+      '/pour-les-ecoles/outils/',
       '/methode/',
       '/confidentialite/',
     ]) {

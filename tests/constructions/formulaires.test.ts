@@ -67,6 +67,8 @@ const PAGES = [
   'ecoles/pointe-noire/index.html',
   'ecoles/complexe-scolaire-exemple-482913/index.html',
   'pour-les-ecoles/index.html',
+  // Lot 5 (25/11) : la présentation des outils en préparation.
+  'pour-les-ecoles/outils/index.html',
   'methode/index.html',
   'confidentialite/index.html',
   // Lot 4 (24/11) : les pages de confiance et « Toutes les villes ».
@@ -110,9 +112,13 @@ describe('le réglage des formulaires', () => {
         '/contribuer/?type=erreur&ecole=482913&depuis=fiche',
       ],
       'pour-les-ecoles/index.html': [
+        '/contribuer/?type=erreur&depuis=pour-les-ecoles',
+        '/contribuer/?type=retrait&depuis=pour-les-ecoles',
         '/contribuer/?type=manque&depuis=pour-les-ecoles',
         '/contact/?sujet=ecole&depuis=pour-les-ecoles',
+        '/contact/?sujet=outils&depuis=pour-les-ecoles',
       ],
+      'pour-les-ecoles/outils/index.html': ['/contact/?sujet=outils&depuis=outils'],
       'methode/index.html': ['/contribuer/?type=erreur&depuis=fiabilite'],
       'villes/index.html': ['/contribuer/?type=manque&depuis=villes'],
       'a-propos/index.html': ['/contact/?depuis=direct'],

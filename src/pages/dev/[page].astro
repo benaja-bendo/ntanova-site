@@ -28,6 +28,14 @@ import FraisDeLaFiche from '../../ui/fiche/FraisDeLaFiche.astro';
 import NouvellesEcole from '../../ui/fiche/NouvellesEcole.astro';
 import DessinCongo from '../../ui/DessinCongo.astro';
 import MentionDatee from '../../ui/MentionDatee.astro';
+// Pour les écoles et Outils en préparation (refonte, lot 5).
+import CadreTelephone from '../../ui/CadreTelephone.astro';
+import ConditionsEssai from '../../ui/ConditionsEssai.astro';
+import EtatService from '../../ui/EtatService.astro';
+import LienPorte from '../../ui/LienPorte.astro';
+import { ETATS_DE_SERVICE, SENS_DES_ETATS } from '../../modele/services-ecoles';
+import '../../ui/confiance.css';
+import '../../ui/pour-les-ecoles.css';
 import RechercheAccueil from '../../ui/RechercheAccueil.astro';
 import { carteDeLAccueil, placerLesEtiquettes } from '../../modele/carte-accueil';
 import {
@@ -399,6 +407,44 @@ const autour = arrondissementsDessines.map((a) => ({
       <div style="max-width: 20rem">
         <MentionDatee mention="verifiee" jour="2026-11-18" />
       </div>
+    </div>
+
+    <h2 id="pour-les-ecoles">Pour les écoles et outils en préparation (refonte publique, lot 5)</h2>
+    <p>
+      Les trois états d’un service (le seul « À l’essai » du site est dans la légende), un lien vers
+      NTanova par le formulaire, par WhatsApp, puis sans porte (rien), le cadre de téléphone d’un
+      exemple, une question repliée et les conditions d’un essai.
+    </p>
+    <div style="display: grid; gap: var(--espace-4)">
+      <div class="rangee">
+        {ETATS_DE_SERVICE.map((e) => (
+          <span>
+            <EtatService etat={e} /> {SENS_DES_ETATS[e]}
+          </span>
+        ))}
+      </div>
+      <div class="pe-actions">
+        <LienPorte porte={{ href: '#pour-les-ecoles', parFormulaire: true }}>
+          Corriger ma fiche
+        </LienPorte>
+        <LienPorte porte={{ href: '#pour-les-ecoles', parFormulaire: false }}>
+          Confirmer mes frais
+        </LienPorte>
+        <LienPorte porte={{ href: '#pour-les-ecoles', parFormulaire: false }} class="bouton">
+          Écrire à NTanova
+        </LienPorte>
+        <LienPorte porte={null}>Sans porte</LienPorte>
+      </div>
+      <CadreTelephone nom="Exemple du catalogue">
+        <p style="padding: var(--espace-4)">
+          [École Exemple] <span class="etiquette-exemple">Exemple</span>
+        </p>
+      </CadreTelephone>
+      <details class="pe-question">
+        <summary>[Une question de direction ?]</summary>
+        <p>[Sa réponse, en deux phrases.]</p>
+      </details>
+      <ConditionsEssai deuxColonnes />
     </div>
 
     <h2 id="orienter">S'orienter (refonte publique, lot 2)</h2>

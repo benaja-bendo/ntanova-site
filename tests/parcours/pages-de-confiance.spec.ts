@@ -75,7 +75,12 @@ test.describe('les pages de transparence', () => {
   test('aucun lien, mot en gras ou crédit n’est collé au mot qui le précède ou qui le suit', async ({
     request,
   }) => {
-    for (const [adresse] of [...PAGES, ['/a-propos/']] as const) {
+    for (const [adresse] of [
+      ...PAGES,
+      ['/a-propos/'],
+      ['/pour-les-ecoles/'],
+      ['/pour-les-ecoles/outils/'],
+    ] as const) {
       const html = await (await request.get(adresse)).text();
       const principal = /<main[\s\S]*<\/main>/.exec(html)?.[0] ?? '';
       expect(principal, adresse).not.toMatch(/[\p{L}\d,;.:)]<(?:a|strong|span|b)\b/u);

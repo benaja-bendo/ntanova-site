@@ -46,6 +46,8 @@ describe('llms.txt', () => {
       '/',
       '/ecoles/',
       '/orienter/',
+      '/pour-les-ecoles/',
+      '/pour-les-ecoles/outils/',
       '/a-propos/',
       '/methode/',
       '/donnees/',

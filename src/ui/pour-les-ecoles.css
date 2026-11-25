@@ -1,0 +1,139 @@
+/*
+ * « Pour les écoles » et « Outils en préparation » (refonte publique, lot 5, 25/11/2026 ; canevas « Points de repère ») : ce que ces
+ * deux pages ajoutent à la grammaire de `confiance.css` (`cf-`), importée avant cette feuille. Préfixe `pe-`. Aucun script ; des
+ * couleurs de jetons seulement.
+ */
+
+/* Le haut de page vert : le texte, puis le dessin posé sur le bas de la bande. Deux classes : `confiance.css`, servie avant ou
+   après, ne reprend pas son espace. */
+.cf-haut.pe-haut {
+  padding-bottom: 0;
+}
+.pe-haut .cf-surtitre {
+  color: var(--accent);
+}
+.pe-haut .cf-chapeau {
+  color: var(--vert-pale);
+}
+.pe-haut a:not(.bouton) {
+  color: var(--texte-sur-marque);
+}
+.pe-dessin {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  margin-inline: auto;
+}
+.pe-ligne-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2) var(--espace-3);
+}
+.pe-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espace-2) var(--espace-5);
+}
+
+/* Les étiquettes d'état sur le vert : le fond de la page dessous, pour se lire. */
+.cf-verte .etiquette-prepare {
+  background: var(--fond);
+}
+
+/* Un lien qui a sa bulle : l'icône et le mot sur une ligne, 44 px. */
+.cf-lien .ico {
+  flex: none;
+}
+.cf-carte > .cf-lien,
+.cf-carte > .pe-actions {
+  align-self: end;
+  justify-self: start;
+}
+.cf-verte .cf-lien {
+  color: var(--texte-sur-marque);
+}
+.cf-verte .cf-carte .cf-lien {
+  color: var(--marque);
+}
+
+/* Un point coché : ce à quoi NTanova s'engage, aujourd'hui. */
+.pe-coches {
+  display: grid;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pe-coches > li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-3);
+}
+.pe-coches .ico {
+  margin-top: 2px;
+  color: var(--marque);
+}
+
+/* Une question, sa réponse : un `<details>`, sans script. Le « + » dit qu'on peut ouvrir, le « − » qu'on peut refermer. */
+.pe-questions {
+  display: grid;
+  gap: var(--espace-3);
+  align-items: start;
+}
+.pe-question {
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+}
+.pe-question > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  min-height: 56px;
+  padding: var(--espace-2) var(--espace-4);
+  list-style: none;
+  font-family: var(--police-interface);
+  font-weight: 700;
+  cursor: pointer;
+}
+.pe-question > summary::-webkit-details-marker {
+  display: none;
+}
+.pe-question > summary::after {
+  content: '+';
+  flex: none;
+  color: var(--marque);
+  font-size: var(--taille-titre-fiche);
+  line-height: 1;
+}
+.pe-question[open] > summary::after {
+  content: '−';
+}
+.pe-question > p {
+  padding: 0 var(--espace-4) var(--espace-4);
+  color: var(--texte-doux);
+}
+
+@media (min-width: 48rem) {
+  .pe-dessin {
+    max-width: 420px;
+  }
+  .pe-questions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 64rem) {
+  .cf-haut.pe-haut {
+    align-items: end;
+  }
+  .pe-haut .cf-haut-texte {
+    padding-bottom: var(--espace-7);
+  }
+  .pe-dessin {
+    max-width: none;
+  }
+}

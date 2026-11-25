@@ -16,6 +16,8 @@ const WA = 'https://wa.me/242000000000?text=Bonjour';
 const ARRIVEES: Arrivee[] = [
   { vers: 'contact', depuis: 'pied' },
   { vers: 'contact', depuis: 'pour-les-ecoles', sujet: 'ecole' },
+  // Lot 5 (25/11) : « raconter une rentrée ».
+  { vers: 'contact', depuis: 'outils', sujet: 'outils' },
   { vers: 'annuaire', depuis: 'contact' },
   { vers: 'manque', depuis: 'ecoles' },
   { vers: 'erreur', depuis: 'fiche', ecole: '482913' },

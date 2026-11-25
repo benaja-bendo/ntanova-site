@@ -1,7 +1,7 @@
 /*
  * Les pages « Comprendre nos informations » et « NTanova » de la refonte publique (lot 4, 24/11/2026 ; canevas « Points de
  * repère », planches « Fiabilité des informations », « Toutes les villes » et « À propos ») : Fiabilité, Données, À propos et
- * Toutes les villes. La grammaire de S'orienter (lot 2) : un haut de page illustré, des bandes, des cartes blanches. Aucun
+ * Toutes les villes ; depuis le lot 5 (25/11), Pour les écoles et Outils en préparation, avec `pour-les-ecoles.css`. La grammaire de S'orienter (lot 2) : un haut de page illustré, des bandes, des cartes blanches. Aucun
  * script ; des couleurs de jetons seulement (`pnpm couleurs`). Préfixe `cf-` : ces classes ne servent qu'à ces pages.
  */
 
@@ -114,7 +114,7 @@
 }
 /* Dans une phrase, un lien garde 44 px de haut sans grandir la ligne (règle du site). */
 .cf-section p a:not(.bouton),
-.cf-section li a:not(.bouton):not(.cf-carte-lien) {
+.cf-section li a:not(.bouton):not(.cf-carte-lien):not(.cf-lien) {
   display: inline-block;
   padding-block: 0.875rem;
   margin-block: -0.875rem;

@@ -19,6 +19,8 @@ export const PAGES_FIXES = [
   // Lot 4 (24/11) : Toutes les villes.
   '/villes/',
   '/pour-les-ecoles/',
+  // Lot 5 (25/11) : la présentation des outils en préparation.
+  '/pour-les-ecoles/outils/',
   '/a-propos/',
   ...PAGES_DE_TRANSPARENCE.map((p) => p.href),
 ] as const;

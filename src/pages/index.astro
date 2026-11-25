@@ -26,6 +26,7 @@ import { compterEcoles } from '../modele/geo-divisions';
 import { LIEN_MENTIONS, ORDRE_DES_MENTIONS, SENS_DES_MENTIONS } from '../modele/mentions';
 import { LIEN_VILLES } from '../modele/villes';
 import { porte } from '../modele/liens-demandes';
+import { LIEN_OUTILS } from '../modele/services-ecoles';
 import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
 import { formulairesOuverts } from '../ui/formulaires/ouverture';
 import DessinCongo from '../ui/DessinCongo.astro';
@@ -341,8 +342,9 @@ const donnees = {
             Présenter mon école
           </a>
           <p class="directions-prepare">
-            <span class="etiquette-prepare">En préparation</span>
-            Inscriptions, frais et reçus
+            <span class="etiquette-prepare">En préparation</span>{' '}
+            {/* Lot 5 : le lien ouvre la présentation des deux pistes ; l'étiquette reste du texte. */}
+            <a href={LIEN_OUTILS}>Inscriptions, frais et reçus</a>
           </p>
         </div>
       </div>
@@ -913,6 +915,13 @@ const donnees = {
     align-items: center;
     gap: var(--espace-2);
     color: var(--vert-pale);
+  }
+  .directions-prepare a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--texte-sur-marque);
+    font-weight: 700;
   }
   .directions .etiquette-prepare {
     border-color: var(--vert-pale);

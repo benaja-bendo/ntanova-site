@@ -156,6 +156,8 @@ const pagesPubliques = [
   ['une ville et ses arrondissements', '/ecoles/pointe-noire/'],
   ['la page « Écoles » (recherche et autour de moi)', '/ecoles/'],
   ['« Pour les écoles »', '/pour-les-ecoles/'],
+  // Refonte publique, lot 5 (25/11).
+  ['« Outils en préparation »', '/pour-les-ecoles/outils/'],
   ['« À propos »', '/a-propos/'],
   ['« Fiabilité des informations »', '/methode/'],
   ['la fiche de démonstration', '/demo/fiche-ecole/'],
@@ -369,21 +371,45 @@ test.describe('site public', () => {
     },
   );
 
-  test('« Espace écoles » : les gains viennent avant l’action ; à partir de 1 024 px, ce qu’on demande est à côté', async ({
-    page,
-  }) => {
-    await page.goto('/pour-les-ecoles/');
-    const gains = await position(page, 'Ce que votre école y gagne');
-    const action = await position(page, 'Confirmez ou ajoutez votre école');
-    const demandes = await position(page, 'Ce que nous vous demanderons');
-    // Partout : ce que l'école y gagne se lit avant le bouton qui écrit sur WhatsApp.
-    expect(gains.y).toBeLessThan(action.y);
-    if (largeurDe(page) >= ORDINATEUR) {
-      expect(demandes.x).toBeGreaterThan(action.x + action.width / 2);
-    } else {
-      expect(demandes.y).toBeGreaterThan(action.y);
-    }
-  });
+  // Lot 5 (25/11/2026) : les planches « Pour les écoles » et « Outils, en préparation » ; le test de la page du 05/11 (gains avant
+  // l'action, deux colonnes) est réécrit sur elles. Une seule visite par page et par largeur : ce qui change avec elle.
+  test(
+    '« Pour les écoles » et « Outils en préparation » : le titre avant son dessin ou à sa gauche, la recherche au premier écran, le tableau qui s’empile, rien ne déborde',
+    { tag: '@largeurs' },
+    async ({ page }) => {
+      for (const adresse of ['/pour-les-ecoles/', '/pour-les-ecoles/outils/']) {
+        await page.goto(adresse);
+        for (const d of await page.locator('main details').all())
+          await d.evaluate((e) => e.setAttribute('open', ''));
+        await aucunDefilementDeCote(page, adresse);
+        const petites = await page
+          .locator('main :is(a, button, summary, input)')
+          .evaluateAll((l) =>
+            l
+              .filter(
+                (e) => e.getClientRects().length > 0 && e.getBoundingClientRect().height < 43.5,
+              )
+              .map((e) => e.textContent?.trim() ?? e.tagName),
+          );
+        expect(petites, `${adresse} : des cibles sous 44 px`).toEqual([]);
+        const titre = (await page.getByRole('heading', { level: 1 }).boundingBox())!;
+        const dessin = (await page.locator('.pe-dessin').boundingBox())!;
+        if (largeurDe(page) >= ORDINATEUR)
+          expect(dessin.x).toBeGreaterThanOrEqual(titre.x + titre.width);
+        else expect(dessin.y).toBeGreaterThanOrEqual(titre.y + titre.height);
+      }
+      // Le tableau des dossiers : des cartes sur téléphone, des colonnes ensuite.
+      const ligne = page.getByRole('row', { name: /^016/ });
+      const enTete = (await ligne.getByRole('rowheader').boundingBox())!;
+      const cellule = (await ligne.getByRole('cell').first().boundingBox())!;
+      if (largeurDe(page) >= TABLETTE) expect(cellule.y).toBeLessThan(enTete.y + enTete.height);
+      else expect(cellule.y).toBeGreaterThanOrEqual(enTete.y + enTete.height - 1);
+      await page.goto('/pour-les-ecoles/');
+      await expect(
+        page.getByRole('searchbox', { name: 'Retrouver la fiche de mon école' }),
+      ).toBeInViewport();
+    },
+  );
 
   // Lot 4 (24/11/2026) : la planche « À propos » ; le test de la page courte du 08/11 est réécrit sur elle.
   test('« À propos » : à partir de la tablette, les deux missions sont côte à côte ; sur téléphone, l’une sous l’autre', async ({
