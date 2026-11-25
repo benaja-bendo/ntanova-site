@@ -391,7 +391,7 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
-# L'alerte e-mail des messages reçus (refonte, lot 3B2) : préparée, pas déployée. La plateforme ne vérifie pas de jeton de
+# L'alerte e-mail des messages reçus (refonte, lot 3B2), déployée et activée sur ordre du fondateur seulement. La plateforme ne vérifie pas de jeton de
 # connexion, la fonction vérifie elle-même celui de la sonnette (`porte.ts`) avant tout travail.
 [functions.alerte-messages]
 verify_jwt = false

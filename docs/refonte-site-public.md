@@ -80,7 +80,7 @@ Reste à 3B2 : le port, l'adaptateur et le faux serveur, les écrans « Messages
 
 **Revue du 24/11** : un interblocage supplémentaire entre « Relancer l'annonce » et la purge a été reproduit par un test déterministe, puis corrigé dans la même branche. Les deux opérations verrouillent le message avant l'annonce ; la purge laisse le message en cours de relance pour son prochain passage. Le calcul du sceau est déclaré `stable` conformément à sa dépendance `convert_to`. Aucun écran ni envoi n'est activé par ces corrections.
 
-## Lot 3B2 — administration « Messages reçus » et alerte préparée (ticket 217, PR vers `refonte/site-public`, à relire)
+## Lot 3B2 — administration « Messages reçus » et alerte préparée (ticket 217, PR 218, intégré le 24/11/2026 : `1a94e52`)
 
 La boîte de Contact et de l'annuaire dans l'administration, les retraits par étapes, et le service d'alerte **préparé, pas déployé**. Aucun formulaire public (3C), rien d'appliqué en ligne, aucun secret, aucun courrier. Planches : canevas admin, « Messages reçus » et « Retraits » ; règles du 24/11 sur sa page « Règles ».
 
@@ -104,7 +104,7 @@ La boîte de Contact et de l'annuaire dans l'administration, les retraits par é
 
 **Correctifs de revue du 24/11** : « Relancer maintenant » parcourt toutes les pages d’alertes, y compris après la deux-centième ; une interruption indique les relances déjà confirmées. Le délai global de 100 secondes de l’alerte couvre aussi les appels de confirmation et coupe le réseau SMTP ; les baux non confirmés restent repris au passage suivant. Les deux défauts ont été reproduits avant correction. Le service Edge entre dans le lint existant, sans nouveau workflow. La boîte de courrier existante suffit, aucune nouvelle adresse à créer.
 
-## Lot 3C — formulaires Contact et annuaire (ticket 219, PR vers `refonte/site-public`, à relire)
+## Lot 3C — formulaires Contact et annuaire (ticket 219, PR 220, intégré le 24/11/2026 : `d226c24`)
 
 `/contact/` et `/contribuer/` fonctionnent sur le faux serveur et sur la base locale, de la saisie à la clôture dans « Messages reçus ». **Fermés par défaut** : aucun lien public n'y mène, aucune migration, rien d'appliqué en ligne, aucun secret, aucun courrier. Planches : canevas public, « Contact », « Annuaire » et « Contact · reprise et refus » ; contrat 3A, dont le §19 prévaut.
 
@@ -225,7 +225,7 @@ Phrases de l'ancienne page retirées parce que fausses : « Rien n'est ajouté �
 
 Les deux constats de texte signalés par la PR sont harmonisés pendant la revue : l’appel de la fiche ne promet plus qu’aucune information ne paraît sans accord ; il rappelle le OUI daté des frais et la relecture des envois. Confidentialité sépare les photos contrôlées des frais, du contact et du mot soumis à un accord daté, avec un lien vers les règles des photos. Aucun changement de collecte, de droit, d’accord ou de conservation ; les durées non tranchées restent à régler à la recette. Pas de nouvel essai automatique pour ces retouches de texte ; les parcours et contrôles de construction existants sont rejoués.
 
-## Lot 6 — recette complète (ticket 225, PR vers `refonte/site-public`, à relire)
+## Lot 6 — recette complète (ticket 225, PR 226, intégré le 25/11/2026 : `14630a2`)
 
 La recette locale de la refonte et les corrections qu'elle a demandées. Aucun SQL, aucun droit changé, rien d'appliqué en ligne, formulaires toujours fermés par défaut. Preuves, limites, textes à confirmer et procédure du lot 7 : dépôt `ntanova`, `RECETTE-LOT-06.md`.
 
@@ -243,6 +243,18 @@ La recette locale de la refonte et les corrections qu'elle a demandées. Aucun S
 **Textes acceptés par le fondateur le 25/11** : éditeur (projet porté par une personne, sans société immatriculée ; adresse communiquée sur demande), démarche auprès de la CNPD pas encore faite, durées de Confidentialité ; la loi applicable et la juridiction sont retirées tant qu'un juriste ne les a pas écrites. Plus aucun crochet sur les deux pages. **Seuls les messages des formulaires ont une purge** : les autres durées se tiennent à la main, deux fois par an, et la page dit qu'une donnée peut rester jusqu'au ménage suivant (`supabase/schema.md`, « Le ménage des durées », requêtes jouées sur la base locale). Acceptation du fondateur, pas un avis juridique.
 
 **Limites gardées** : la liste n'applique une recherche qu'avec JavaScript (sans lui : le total, les vingt premières cartes et les villes) ; le titre d'un département dit « à Sangha » ; le premier affichage de la carte est à 682 Ko sur 700 avec le catalogue du 25/11.
+
+## Lot 7 — livraison unique (ticket 227)
+
+Aucune fonction nouvelle. Procédure, ordre des gestes et état constaté : dépôt `ntanova`, `PROCEDURE-LOT-07.md` et `RELEVE-LOT-07.md`.
+
+| Règle | Pourquoi |
+| --- | --- |
+| La sauvegarde est relue avec la clé privée, en isolation, avant toute migration | une copie jamais relue n'est pas une sauvegarde |
+| Migrations avant la mise en ligne, jamais par la CI ; elles n'ouvrent rien | sans secret d'envoi et sans `PUBLIC_FORMULAIRES`, aucun message ne part |
+| Essai et production lisent la même base ; `PUBLIC_FORMULAIRES` et le secret d'envoi leur sont communs | ouvrir sur essai, c'est déjà préparer l'ouverture en production : l'état final se constate, il ne se suppose pas |
+| Aucun retour à une ancienne version sans avoir vérifié qu'elle respecte les retraits ; sinon reconstruire l'ancien code avec le catalogue actuel | une ancienne construction remettrait en ligne ce qui a été retiré |
+| Fusion dans `main` et production : ordre distinct du fondateur, une exécution, puis tag et suppression de cette branche | une fusion n'est pas une mise en ligne |
 
 ## Contrôles et livraison
 

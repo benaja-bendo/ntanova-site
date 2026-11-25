@@ -1,6 +1,6 @@
 /**
- * Le service d'alerte des messages reçus (refonte publique, lot 3B2). PRÉPARÉ, PAS DÉPLOYÉ : le déployer, poser ses secrets et
- * l'activer sont des ordres séparés du fondateur (`supabase/schema.md`, « Activer l'alerte »).
+ * Le service d'alerte des messages reçus (refonte publique, lot 3B2). Le déployer, poser ses secrets et l'activer sont des ordres
+ * séparés du fondateur (`supabase/schema.md`, « Activer l'alerte ») ; sans eux, il ne fait rien.
  *
  * Ici, seulement ce qui demande Deno : les réglages, la connexion chiffrée (465, TLS d'emblée) et l'écoute. Le reste se teste sans.
  */

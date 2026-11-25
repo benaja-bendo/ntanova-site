@@ -451,7 +451,7 @@ Tests : `supabase/tests/lot_1_site_public.test.sql` (39 contrôles). `frais_ecol
 
 ## Les messages reçus (Contact, annuaire) — 24/11/2026, lots 3B1 et 3B2 de la refonte, tickets 215 et 217
 
-Migrations `20261124140000` à `20261124140400` (3B1) : le socle privé des messages ; `20261124150000` et `20261124150100` (3B2) : ce que l'administration lit en plus, et la sonnette de l'alerte. **Rien n'est appliqué en ligne.** Les formulaires `/contact/` et `/contribuer/` (lot 3C, ticket 219, sans migration) appellent les deux portes publiques ci-dessous par `fetch` (`src/infra/supabase/demandes-publiques.ts`) ; ils restent fermés par `PUBLIC_FORMULAIRES` et, en base, par l'absence de secret d'envoi. À ne pas confondre avec `family_demands`, qui compte des recherches sans nom.
+Migrations `20261124140000` à `20261124140400` (3B1) : le socle privé des messages ; `20261124150000` et `20261124150100` (3B2) : ce que l'administration lit en plus, et la sonnette de l'alerte. **L'état en ligne** (appliquées ou non, envois ouverts ou fermés, alerte active ou non) se lit dans la base et dans `RELEVE-LOT-07.md` du dépôt documentaire, pas ici. Les formulaires `/contact/` et `/contribuer/` (lot 3C, ticket 219, sans migration) appellent les deux portes publiques ci-dessous par `fetch` (`src/infra/supabase/demandes-publiques.ts`) ; ils restent fermés par `PUBLIC_FORMULAIRES` et, en base, par l'absence de secret d'envoi. À ne pas confondre avec `family_demands`, qui compte des recherches sans nom.
 
 | Table (`prive`) | Rôle |
 | --- | --- |
@@ -498,9 +498,9 @@ Migrations `20261124140000` à `20261124140400` (3B1) : le socle privé des mess
 
 **Annonces** : `claim_public_request_notices` et `report_public_request_notice`, au seul `service_role`, qui ne voit que la référence et la nature. Nouvel essai à 5, 15, 60 minutes puis toutes les heures ; abandonnée, visible et relançable 24 h après son premier essai. Au moins un essai, jamais « exactement une fois ».
 
-### Activer l'alerte e-mail (préparée par le lot 3B2, rien n'est activé)
+### Activer l'alerte e-mail (préparée par le lot 3B2)
 
-Trois morceaux, tous inertes tant que le fondateur ne les active pas : **la sonnette** (`20261124150100`, schéma `ntanova_supabase` : toutes les cinq minutes, un POST vide vers le service ; sans `pg_net` et sans ses deux secrets, elle ne fait rien et ne note aucun passage) ; **le service** (`supabase/functions/alerte-messages/`, pas déployé) ; **la boîte existante**, dont les réglages restent à brancher. Aucune nouvelle boîte ni offre à commander. Le service ne reçoit que la référence et la nature, jamais un message, un nom, une école ou une coordonnée ; son journal ne porte que des codes et des nombres. Le courrier contient la référence, la nature et un lien `#demandes/<référence>`.
+Trois morceaux, tous inertes tant que le fondateur ne les active pas : **la sonnette** (`20261124150100`, schéma `ntanova_supabase` : toutes les cinq minutes, un POST vide vers le service ; sans `pg_net` et sans ses deux secrets, elle ne fait rien et ne note aucun passage) ; **le service** (`supabase/functions/alerte-messages/`) ; **la boîte existante**, dont les réglages restent à brancher. Aucune nouvelle boîte ni offre à commander. Le service ne reçoit que la référence et la nature, jamais un message, un nom, une école ou une coordonnée ; son journal ne porte que des codes et des nombres. Le courrier contient la référence, la nature et un lien `#demandes/<référence>`.
 
 Chaque étape est un geste du fondateur, sur ordre, pendant la recette ; aucune valeur ne s'écrit dans git, un ticket ou une conversation :
 
