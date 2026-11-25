@@ -210,6 +210,21 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+/* Lot 5 (25/11/2026) : « À l'essai », dans la légende des états de « Pour les écoles » ; aucun service ne le porte aujourd'hui. */
+.etiquette-essai {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1.5px solid var(--preuve-ecole);
+  border-radius: var(--rayon-pilule);
+  background: var(--fond-releve);
+  color: var(--preuve-ecole);
+  font-family: var(--police-interface);
+  font-size: var(--taille-mention);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .etiquette-exemple,
 .etiquette-prepare {
   display: inline-flex;

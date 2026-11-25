@@ -9,8 +9,8 @@
 //   `/pour-les-ecoles/` ne change pas ;
 // - le pied : quatre groupes (Chercher, Pour les écoles, Comprendre nos informations, NTanova), sans lien vers une page qui
 //   n'existe pas encore : écrire et signaler passent par WhatsApp jusqu'aux formulaires du lot 3, « Ajouter mon école » mène à
-//   la page des écoles comme sur les pages de lieu ; « Outils en préparation » attend sa page (lot 5) ; on ne dit jamais
-//   « toutes les écoles ». Lot 4 (24/11) : « Toutes les villes » (`/villes/`) remplace la liste des villes, comme la planche ;
+//   la page des écoles comme sur les pages de lieu ; « Outils en préparation » (lot 5, 25/11) ouvre une présentation, jamais un
+//   logiciel ; on ne dit jamais « toutes les écoles ». Lot 4 (24/11) : « Toutes les villes » (`/villes/`) remplace la liste des villes, comme la planche ;
 //   chaque ville reste à un geste, et le pied ne grandit plus avec l'annuaire.
 // Le logo reste celui de la charte (les trois barres et leur contour, 30/10).
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
@@ -33,6 +33,7 @@ import {
 import { jourDuCongo } from '../modele/date-declaration';
 import { dateCourte } from '../modele/pointe-noire';
 import { porte } from '../modele/liens-demandes';
+import { LIEN_OUTILS } from '../modele/services-ecoles';
 import { LIEN_VILLES } from '../modele/villes';
 import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
 import { formulairesOuverts } from './formulaires/ouverture';
@@ -241,6 +242,9 @@ const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === hr
               <ul aria-labelledby="pied-ecoles">
                 <li>
                   <a href="/pour-les-ecoles/">Présenter mon école</a>
+                </li>
+                <li>
+                  <a href={LIEN_OUTILS}>Outils en préparation</a>
                 </li>
                 <li>
                   {/* La même porte que les pages de lieu : la page dit comment ajouter son école. */}

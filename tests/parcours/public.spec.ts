@@ -37,6 +37,8 @@ const pagesSansJavaScript = [
   '/ecoles/institut-superieur-exemple-527064/',
   '/ecoles/ecole-de-brazzaville-exemple-731590/',
   '/pour-les-ecoles/',
+  // Refonte publique, lot 5 (25/11) : la présentation des outils en préparation.
+  '/pour-les-ecoles/outils/',
   '/a-propos/',
   // Ticket 149 : les pages qu'une administration lit.
   '/methode/',
@@ -220,7 +222,7 @@ test.describe('site public', () => {
         .getByRole('navigation', { name: 'Navigation principale' })
         .getByRole('link', { name: 'Pour les écoles' })
         .click();
-      await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toContainText('Présenter votre école');
     },
   );
 
@@ -442,21 +444,33 @@ test.describe('site public', () => {
     });
   });
 
-  test('le code de la fiche de liaison part sur WhatsApp, sans JavaScript', async ({ page }) => {
+  test('le code de la fiche de liaison : refusé s’il n’a pas quatre chiffres, mis dans un message WhatsApp sinon, sans JavaScript', async ({
+    browser,
+    baseURL,
+  }) => {
+    const contexte = await browser.newContext({ javaScriptEnabled: false, baseURL: baseURL ?? '' });
+    const page = await contexte.newPage();
+    // WhatsApp n'est jamais joint : seule son adresse compte.
+    await page.route('https://wa.me/**', (r) => r.fulfill({ body: 'WhatsApp' }));
     await page.goto('/pour-les-ecoles/');
-    // Replié : un seul bouton plein sur la page, celui qui écrit sur WhatsApp ; le code s'ouvre d'un toucher.
-    const liaison = page.locator('details.liaison');
-    await expect(liaison).not.toHaveAttribute('open', '');
-    await expect(page.getByLabel('Le code à 4 chiffres écrit dessus')).toBeHidden();
-    await liaison.getByText('Vous avez reçu une fiche de liaison ?').click();
-    await expect(page.getByLabel('Le code à 4 chiffres écrit dessus')).toBeVisible();
-    const formulaire = page.locator('form');
-    await expect(formulaire).toHaveAttribute('action', /^https:\/\/wa\.me\/\d+$/);
-    await expect(formulaire).toHaveAttribute('method', 'get');
-    await expect(page.getByLabel('Le code à 4 chiffres écrit dessus')).toHaveAttribute(
-      'name',
-      'text',
-    );
+    // Replié : il s'ouvre d'un toucher.
+    const code = page.getByLabel('Le code à 4 chiffres écrit sur la fiche');
+    await expect(code).toBeHidden();
+    await page.getByText('J’ai un code de fiche de liaison').click();
+    await expect(code).toBeVisible();
+    const continuer = page.getByRole('button', { name: 'Continuer sur WhatsApp' });
+    for (const faux of ['', '123', '12a4']) {
+      await code.fill(faux);
+      await continuer.click();
+      await expect(page).toHaveURL('/pour-les-ecoles/');
+    }
+    // Ni mot de passe, ni accès, ni confirmation : la page le dit, et le champ ne se fait pas passer pour tel.
+    await expect(code).not.toHaveAttribute('type', 'password');
+    await expect(page.locator('details.liaison')).toContainText('n’ouvre aucun accès');
+    await code.fill('4821');
+    await continuer.click();
+    await expect(page).toHaveURL(/^https:\/\/wa\.me\/\d+\?text=4821$/);
+    await contexte.close();
   });
 
   test('« Confidentialité » donne un délai pour corriger, retirer ou effacer, et dit ce que ce délai couvre', async ({

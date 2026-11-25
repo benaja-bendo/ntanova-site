@@ -130,7 +130,7 @@ La boîte de Contact et de l'annuaire dans l'administration, les retraits par é
 
 **Reste à la recette, sur ordre** : ouvrir le réglage et poser le secret d'envoi (après `db push`), un vrai téléphone et un lecteur d'écran, la relecture humaine de la confidentialité. Constat à part : en production, la page charge encore l'aide au préchargement de Vite (880 octets) qu'aucun import n'utilise ; compté dans le budget.
 
-## Lot 4 — confiance et découverte (ticket 221, PR vers `refonte/site-public`, à relire)
+## Lot 4 — confiance et découverte (ticket 221, PR 222, intégré le 25/11/2026 : `a0bdd6c`)
 
 Fiabilité des informations (`/methode/`), Données de l'annuaire (`/donnees/`), À propos (`/a-propos/`), Toutes les villes (`/villes/`, nouvelle) et une seule grammaire des mentions datées. Aucun SQL, aucun droit changé, rien d'appliqué en ligne, formulaires toujours fermés par défaut. Planches lues le 24/11 dans le lecteur publié du canevas public (version `1795558497-161f`) : `P-methode-ordi/tel` (`4e274a70`, `786856a8`), `P-villes-ordi/tel` (`b861b582`, `de9ead2f`), `P-apropos-ordi/tel` (`e7c6ec8b`, `11dd032e`), `P-fiche-ordi/tel` (`f3c4979d`, `9fd5de86`), livrables `P-L2-textes` (`4563c251`) et `P-L3-liens` (`74c87f16`) ; page Règles du canevas admin (`19160520`). Débuts d'empreintes SHA-256 ; les générateurs Python du dépôt `ntanova` n'ont pas été rejoués.
 
@@ -180,6 +180,46 @@ Le nettoyage part de `699f7c9`, dont la CI est verte. Aucun code produit, SQL, a
 La liste passe de 632 à 595 exécutions de parcours (573 téléphone, 11 tablette, 11 ordinateur), avec les 14 parcours critiques toujours présents. Les deux partitions existantes couvrent ces 595 exécutions sans perte ni doublon. Cette baisse compte les regroupements, elle ne mesure pas une baisse de couverture ni un gain de durée garanti. Les essais d'API locale et de constructions restent à lancer pour les changements qui touchent leurs contrats ; ils ne sont pas remplacés par le faux serveur.
 
 Vérifications locales de cet entretien : `pnpm verif:ci` réussi (format, lint, couleurs, types, 1 762 unitaires dans 122 fichiers, construction et poids), puis suite navigateur complète avec deux workers : 587 réussites, 8 sauts existants, aucun échec ni test instable, en 5 min 33. Les 14 parcours critiques sont identiques avant/après ; `node outils/verification-ci.ts partitions` confirme 298 + 297 exécutions. Base et essais d'API locale/constructions non rejoués : aucun code produit ni contrat n'a changé. La CI de la révision poussée reste la validation distante requise.
+
+## Lot 5 — Pour les écoles et outils en préparation (ticket 223, PR vers `refonte/site-public`, à relire)
+
+`/pour-les-ecoles/` refaite et `/pour-les-ecoles/outils/` (nouvelle). Aucun SQL, aucun droit changé, aucun script, rien d'appliqué en ligne, formulaires toujours fermés par défaut ; **aucun logiciel, compte, table, notification ou fournisseur**. Planches lues le 25/11 dans les fichiers publiés du canevas public (version `1795563959-92cd`), état Aujourd'hui : `P-ecoles-ordi/tel` (`f05dc878`, `fed98be1`), `P-outils-ordi/tel` (`a738ebb9`, `70a88c2d`), livrables `P-L2-textes` (`4563c251`), `P-L3-liens` (`74c87f16`), `P-L4` (`15473f8c`) ; page Règles du canevas admin (`af27af20`, `19160520`). Débuts d'empreintes SHA-256 ; les générateurs Python n'ont pas été rejoués, aucun canevas modifié.
+
+| Pièce | Règle |
+| --- | --- |
+| Retrouver sa fiche | formulaire GET `q` vers `/ecoles/`, `required` et `pattern` natifs, aucun script : la liste existante dit zéro, une ou plusieurs fiches. Le texte cherché n'entre dans aucune adresse de formulaire ni message WhatsApp |
+| Code de liaison | quatre chiffres (`pattern`, `maxlength`), GET vers `wa.me` (`text`) : le code s'écrit dans un message que la personne envoie. Ni mot de passe, ni accès, ni confirmation ; aucun service d'authentification |
+| États | `modele/services-ecoles.ts` : trois besoins, leurs services, trois libellés ; `EtatService.astro`. « À l'essai » ne paraît que dans la légende ; la phrase « Aucun service n'est à l'essai » se règle sur la liste |
+| Démarches | `porte` et `LienPorte.astro` : corriger (`erreur`), retirer (`retrait`), ajouter (`manque`), écrire (`contact`, sujet `ecole`), raconter (`contact`, sujet `outils`), origine `pour-les-ecoles` ; sur la page Outils, origine `outils`. Aucun code ajouté, aucun numéro de fiche transmis (la page n'en connaît pas). **Confirmer la fiche, confirmer les frais, photos et contact, mot de la direction : WhatsApp, formulaires ouverts ou non**, quatre messages distincts |
+| Accords | agir pour l'école, confirmer la fiche, publier les tarifs : trois gestes ; « Ouvrir WhatsApp n'enregistre aucun accord et ne prouve pas qui écrit » |
+| Ancres | `#referencer` (sur « Ajouter mon école », toujours visible), `#e-fiche`, `#e-com`, `#e-outils` ; `#ou-exemple` sur Outils |
+| Outils | une présentation : ni formulaire, ni bouton, ni champ. Portes d'entrée, droits, corrections, export, années, transmission : au conditionnel ou « règles que nous nous fixons », « Rien n'en est construit » ; conservation « à régler » avant tout essai, aucune durée |
+| Exemple 016 | `modele/exemple-outils.ts` : un objet, quatre récits (tableau, chronologie, reçu, aperçu famille) ; 30 000 dus, 20 000 versés (15 000 puis 5 000), 10 000 restants ; le 018 confirmé sur dérogation sans versement. Vrai texte, « Exemple » sur la ligne du nom, hors recherche, carte, plan et `llms.txt` |
+| Entrées | pied « Outils en préparation » ; accueil : « Inscriptions, frais et reçus » devient un lien, l'étiquette reste du texte ; `/pour-les-ecoles/outils/` dans `sitemap.xml` et `llms.txt` |
+| Dessins | `outils-guichet`, `outil-inscriptions`, `outil-recus`, copiés du canevas, coordonnées arrondies ; `ecole-directrice` et `demo-facade` réutilisés |
+
+Phrases de l'ancienne page retirées parce que fausses : « Rien n'est ajouté à la fiche sans votre accord » (l'enseigne, sa photo et son numéro se voient de la rue ; la question « Que publiez-vous sans notre accord ? » le dit) ; « Les photos ne sont pas encore publiées par cette démarche » ; confirmer la fiche et autoriser les frais dits d'un même geste.
+
+**Ajusté pendant le lot** : la règle des liens de `confiance.css` (`li a`) laisse `cf-lien` tranquille, pour qu'une icône et son texte restent sur une ligne ; « (ouvre WhatsApp) » était collé au mot d'avant pour un lecteur d'écran, vu par le parcours des mots collés étendu aux deux pages.
+
+**Écarts avec les planches, retenus** :
+
+- Recherche : la planche simule chargement, vide et trouvé dans la page ; ici la liste réelle répond. Sans JavaScript, `/ecoles/` ne filtre pas (limite existante) et propose les villes.
+- « Publier la fiche » devient « Confirmer la fiche » : la fiche paraît après relecture de l'équipe, sans accord ; l'accord de la direction la confirme. « Confirmer sa fiche » est ajoutée aux services et a son bouton, absent de la planche.
+- Photos : « Elles paraissent avec votre accord » n'est pas repris (aucun accord daté par image dans la base) ; le contrôle exigé est dit, avec les mots de Fiabilité.
+- « Avec le formulaire de correction » se dit seulement quand les formulaires sont ouverts ; fermés : « Sur WhatsApp ».
+- Deux ajouts utiles : « Faire retirer une information », et le bloc « Votre école n'est pas encore sur NTanova ? » qui garde `#referencer` visible (la planche n'a qu'une question repliée).
+- Le mot de la direction a sa carte et sa démarche ; la prestation de communication est au conditionnel.
+- « Au 23 nov. 2026, aucun service n'est à l'essai » perd sa date : recalculée à chaque construction, elle dirait une vérification que personne n'a faite.
+- « Deux pistes, à choisir » devient « à éprouver » ; portes et règles au conditionnel ou au futur ; « Ce que la famille verrait ».
+- L'aperçu famille et l'aperçu de fiche sont du vrai texte, pas une image avec un libellé ; tableau empilé `cf-tableau` au téléphone (libellé puis valeur), pas deux colonnes ; mentions : les pastilles de la fiche ; états : les étiquettes du site, sans rond. L'icône du reçu est celle du document ; aucune icône nouvelle.
+- « Ici, un dessin » sur la couverture d'exemple n'est pas repris : « Exemple » suffit sur la ligne du nom.
+
+**Constats hors lot, à décider** : la fiche réelle dit encore « Complétez cette fiche : photos, frais, contact. Rien n'est publié sans votre accord » (`FicheEcole.astro`), et Confidentialité que les photos « ne sont publiées qu'avec l'accord daté de la direction » : la base ne garde pas cet accord pour chaque image. Le besoin de base du lot 4 (accord daté par image) reste ouvert. `ExplorateurCarte.astro`, posé sur aucune page, écrit encore « Espace écoles ».
+
+**À relire par une personne avant la production** : « Que publiez-vous sans notre accord ? » et les trois accords ; la prestation de communication (« elle se paierait ») ; les cinq règles et « Ce qu'ils ne feront pas » (engagements sur des outils qui n'existent pas) ; les messages WhatsApp préremplis.
+
+**Preuves** : unitaires `pour-les-ecoles.test.ts` (états, comptes et jours du 016) ; `fichiers-standards` et `liens-demandes` complétés ; parcours `ecoles-et-directions.spec.ts` (recherche de plusieurs fiches à aucune, états, démarches sans accord, page Outils, 016 dans quatre récits ; deux tests de la page du 05/11 réécrits), `public.spec.ts` (code refusé puis accepté, sans JavaScript ; Outils sans script), `declaration-ecole.spec.ts` (`#referencer`), `accueil.spec.ts`, `pages-de-confiance.spec.ts` (mots collés), `mise-en-page.spec.ts` (les deux pages aux trois largeurs ; le test « gains avant l'action » réécrit), `formulaires-publics.spec.ts` ; `pnpm test:constructions` étendu aux arrivées ouvertes des deux pages. **Preuve de retrait non étendue** : ces pages n'emportent aucune donnée de fiche. Captures : `playwright.confiance.config.ts`, à 360, 390, 768 et 1 440 px dans `captures/confiance/` (hors git).
 
 ## Contrôles et livraison
 

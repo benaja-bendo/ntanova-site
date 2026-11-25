@@ -35,6 +35,11 @@ const PAGES_PRINCIPALES = [
     texte: 'Pour les écoles',
     note: 'ce qu’une direction peut faire de sa fiche',
   },
+  {
+    href: '/pour-les-ecoles/outils/',
+    texte: 'Outils en préparation',
+    note: 'deux pistes à éprouver, inscriptions, frais et reçus ; rien n’est ouvert, l’exemple est inventé',
+  },
   { href: '/a-propos/', texte: 'À propos', note: 'qui est NTanova et ce que nous publions' },
 ] as const;
 

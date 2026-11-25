@@ -1,0 +1,809 @@
+---
+// Pour les écoles, `/pour-les-ecoles/` (refonte publique, lot 5, 25/11/2026 ; canevas « Points de repère », planche « Pour les
+// écoles », 1 440 et 390 px, état Aujourd'hui). Remplace la page du 05/11 ; l'adresse et l'ancre `#referencer` ne changent pas.
+//
+// - Retrouver sa fiche : un formulaire GET vers « Les écoles » (`q`), l'annuaire publié et lui seul ; zéro, une ou plusieurs fiches se
+//   lisent là-bas. Aucun script ; le texte cherché ne passe dans aucune adresse de formulaire.
+// - Le code de la fiche de liaison : quatre chiffres, validés par le navigateur, mis dans un message WhatsApp que la personne envoie
+//   elle-même. Ni mot de passe, ni compte, ni confirmation.
+// - Corriger, retirer, ajouter, écrire : `porte`, WhatsApp tant que les formulaires sont fermés. Confirmer la fiche ou les frais,
+//   envoyer photos, contact ou mot de la direction : WhatsApp, toujours. Aucun lien n'enregistre un accord.
+// - Agir pour l'école, confirmer la fiche, publier les tarifs : trois accords, jamais confondus.
+// - Ce que la base ne garde pas n'est pas promis : pas d'accord daté par photo (Fiabilité, lot 4).
+// - Les états viennent de `modele/services-ecoles.ts` : aucun service à l'essai.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { porte, type PorteVersNtanova } from '../../modele/liens-demandes';
+import { LIEN_CONFIDENTIALITE, LIEN_METHODE } from '../../modele/pages-de-confiance';
+import {
+  BESOINS_DES_ECOLES,
+  ETATS_DE_SERVICE,
+  LIEN_OUTILS,
+  MESSAGE_RACONTER,
+  SENS_DES_ETATS,
+  servicesALEssai,
+} from '../../modele/services-ecoles';
+import { avecMessage, lienWhatsApp } from '../../modele/whatsapp';
+import CadreTelephone from '../../ui/CadreTelephone.astro';
+import ConditionsEssai from '../../ui/ConditionsEssai.astro';
+import EtatService from '../../ui/EtatService.astro';
+import Icone from '../../ui/Icone.astro';
+import LienPorte from '../../ui/LienPorte.astro';
+import MentionDatee from '../../ui/MentionDatee.astro';
+import PagePublique from '../../ui/PagePublique.astro';
+import { formulairesOuverts } from '../../ui/formulaires/ouverture';
+import IconeDuRegistre from '../../ui/icones/IconeDuRegistre.astro';
+import '../../ui/carte-pieces.css';
+import '../../ui/confiance.css';
+import '../../ui/pour-les-ecoles.css';
+
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+// Le code part seul dans le message : l'adresse WhatsApp sans texte, complétée par le formulaire.
+const liaison = lienWhatsApp(PUBLIC_WHATSAPP);
+const LIEU = 'Nom : … Ville ou localité : …';
+const depuis = 'pour-les-ecoles' as const;
+
+const corriger = porte(
+  formulairesOuverts,
+  { vers: 'erreur', depuis },
+  avecMessage(
+    whatsapp,
+    `Bonjour NTanova, je souhaite relire ou corriger la fiche de mon école. ${LIEU}`,
+  ),
+);
+const retirer = porte(
+  formulairesOuverts,
+  { vers: 'retrait', depuis },
+  avecMessage(
+    whatsapp,
+    `Bonjour NTanova, je souhaite faire retirer une information de la fiche de mon école. ${LIEU} Information : …`,
+  ),
+);
+const ajouter = porte(
+  formulairesOuverts,
+  { vers: 'manque', depuis },
+  avecMessage(whatsapp, `Bonjour NTanova, je souhaite ajouter mon école. ${LIEU}`),
+);
+const question = porte(
+  formulairesOuverts,
+  { vers: 'contact', depuis, sujet: 'ecole' },
+  avecMessage(whatsapp, 'Bonjour NTanova, une question sur mon école : '),
+);
+const raconter = porte(
+  formulairesOuverts,
+  { vers: 'contact', depuis, sujet: 'outils' },
+  avecMessage(whatsapp, MESSAGE_RACONTER),
+);
+/** Les gestes qui restent sur WhatsApp, formulaires ouverts ou non : une personne répond, relit et note la date d'un accord. */
+const surWhatsApp = (message: string): PorteVersNtanova | null => {
+  const href = avecMessage(whatsapp, message);
+  return href ? { href, parFormulaire: false } : null;
+};
+const confirmer = surWhatsApp(
+  `Bonjour NTanova, je dirige un établissement au Congo-Brazzaville et je souhaite relire et confirmer sa fiche. ${LIEU} Ma fonction : …`,
+);
+const frais = surWhatsApp(
+  `Bonjour NTanova, je souhaite confirmer les frais de mon école. ${LIEU} Période : …`,
+);
+const photos = surWhatsApp(
+  `Bonjour NTanova, je souhaite envoyer des photos ou le contact de mon école. ${LIEU}`,
+);
+const mot = surWhatsApp(
+  `Bonjour NTanova, je souhaite remettre le mot de la direction pour la fiche de mon école. ${LIEU}`,
+);
+
+const ICONE_DU_BESOIN = {
+  'e-fiche': 'corriger',
+  'e-com': 'partager',
+  'e-outils': 'missions',
+} as const;
+const iconeDe = (ancre: string) => ICONE_DU_BESOIN[ancre as keyof typeof ICONE_DU_BESOIN];
+---
+
+<PagePublique
+  titre="Pour les écoles : votre fiche, vos démarches · NTanova"
+  description="Vous dirigez un établissement au Congo-Brazzaville ? Retrouvez sa fiche, corrigez-la, confirmez-la, et lisez ce que NTanova prépare pour les écoles."
+  whatsapp={whatsapp}
+>
+  <section class="cf-verte sur-marque" aria-labelledby="titre-ecoles">
+    <div class="cadre cf-haut pe-haut">
+      <div class="cf-haut-texte">
+        <p class="cf-surtitre">Pour les écoles</p>
+        <h1 id="titre-ecoles" class="titre">
+          Présenter votre école, mieux communiquer, alléger le quotidien.
+        </h1>
+        <p class="cf-chapeau">
+          Commencez par votre fiche&nbsp;: c’est disponible. Le reste se prépare.
+        </p>
+        <form
+          class="retrouver"
+          action="/ecoles/"
+          method="get"
+          role="search"
+          aria-label="Retrouver la fiche de mon école"
+        >
+          <label for="ecoles-q">Retrouver la fiche de mon école</label>
+          <div class="retrouver-ligne">
+            <input
+              id="ecoles-q"
+              type="search"
+              name="q"
+              required
+              pattern=".*\S.*"
+              title="Écrivez le nom de l’école, puis cherchez."
+              placeholder="Nom de l’école"
+              autocomplete="off"
+              enterkeyhint="search"
+            />
+            <button class="bouton bouton-accent" type="submit">
+              <Icone nom="loupe" />
+              Chercher
+            </button>
+          </div>
+        </form>
+        {liaison && (
+          <details class="liaison">
+            <summary>
+              <span>J’ai un code de fiche de liaison</span>
+            </summary>
+            <form class="liaison-corps" action={liaison} method="get">
+              <label for="code">Le code à 4 chiffres écrit sur la fiche</label>
+              <div class="liaison-ligne">
+                <input
+                  id="code"
+                  class="champ code"
+                  name="text"
+                  inputmode="numeric"
+                  pattern="[0-9]{4}"
+                  maxlength="4"
+                  title="Le code a quatre chiffres. Relisez la fiche de liaison."
+                  autocomplete="off"
+                  required
+                />
+                <button class="bouton bouton-accent" type="submit">
+                  <Icone nom="bulle" />
+                  Continuer sur WhatsApp
+                </button>
+              </div>
+              <p>
+                Votre code s’écrit dans un message que vous envoyez vous-même. Il n’ouvre aucun
+                accès et ne confirme rien&nbsp;: NTanova vous répond pour relire la fiche avec vous.
+              </p>
+            </form>
+          </details>
+        )}
+      </div>
+      <img class="pe-dessin" src="/dessins/ecole-directrice.svg" alt="" width="520" height="400" />
+    </div>
+  </section>
+
+  <section class="cadre cf-section" aria-labelledby="titre-besoins">
+    <h2 id="titre-besoins">Trois besoins, et où nous en sommes</h2>
+    <ul class="cf-cartes cf-cartes-3 besoins">
+      {BESOINS_DES_ECOLES.map((b) => (
+        <li class="cf-carte besoin">
+          <span class="cf-rond">
+            <IconeDuRegistre nom={iconeDe(b.ancre)} />
+          </span>
+          <h3>{b.titre}</h3>
+          <ul class="services">
+            {b.services.map((s) => (
+              <li>
+                <span>{s.nom}</span> <EtatService etat={s.etat} />
+              </li>
+            ))}
+          </ul>
+          <a class="cf-lien" href={`#${b.ancre}`}>
+            En savoir plus <span class="visuellement-cache">({b.titre})</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+    <dl class="legende">
+      {ETATS_DE_SERVICE.map((e) => (
+        <div>
+          <dt>
+            <EtatService etat={e} />
+          </dt>
+          <dd>{SENS_DES_ETATS[e]}</dd>
+        </div>
+      ))}
+    </dl>
+    {servicesALEssai() === 0 && (
+      <p class="cf-note">Aucun service n’est à l’essai pour le moment.</p>
+    )}
+  </section>
+
+  <section id="e-fiche" class="cf-bande" aria-labelledby="titre-fiche">
+    <div class="cadre cf-section">
+      <div class="pe-ligne-titre">
+        <h2 id="titre-fiche">Présenter et corriger sa fiche</h2>
+        <EtatService etat="disponible" />
+      </div>
+      <ul class="cf-cartes cf-cartes-3">
+        <li class="cf-carte demarche">
+          <h3>Relire et corriger</h3>
+          <p>
+            {formulairesOuverts ? 'Avec le formulaire de correction' : 'Sur WhatsApp'}, sans compte.
+            Nous vérifions&nbsp;; la page change à la mise à jour suivante du site.
+          </p>
+          <div class="pe-actions">
+            <LienPorte porte={corriger}>Corriger ma fiche</LienPorte>
+            <LienPorte porte={retirer}>Faire retirer une information</LienPorte>
+          </div>
+        </li>
+        <li class="cf-carte demarche">
+          <h3>Confirmer vos frais</h3>
+          <p>
+            Vos frais par cycle et leur période. Nous notons votre OUI, avec sa date. Une ligne
+            modifiée attend un nouveau OUI pour paraître.
+          </p>
+          <div class="pe-actions">
+            <LienPorte porte={frais}>Confirmer mes frais</LienPorte>
+          </div>
+        </li>
+        <li class="cf-carte demarche">
+          <h3>Envoyer photos et contact</h3>
+          <p>
+            Nous contrôlons chaque photo&nbsp;: sans enfant ni personne reconnaissable. L’équipe
+            choisit celles qui paraissent. Un numéro qui n’est pas sur l’enseigne ne paraît qu’avec
+            votre accord daté.
+            {formulairesOuverts && ' Le formulaire du site ne reçoit aucune pièce jointe.'}
+          </p>
+          <div class="pe-actions">
+            <LienPorte porte={photos}>Envoyer mes photos</LienPorte>
+          </div>
+        </li>
+      </ul>
+      <p class="cf-note">
+        Ouvrir WhatsApp{formulairesOuverts && ' ou un formulaire'} n’enregistre aucun accord et ne
+        prouve pas qui écrit. Un accord se donne à une personne de NTanova, qui en note le jour.
+      </p>
+
+      <section id="referencer" class="cf-carte ajouter" aria-labelledby="titre-referencer">
+        <h3 id="titre-referencer">Votre école n’est pas encore sur NTanova&nbsp;?</h3>
+        <p>
+          Partout au Congo-Brazzaville, même si aucun relais n’est passé dans votre localité&nbsp;:
+          son nom et sa localité suffisent. La demande ne publie pas automatiquement votre
+          établissement&nbsp;: l’équipe la relit, puis décide. Avant un passage sur place, une fiche
+          que vous déclarez porte la mention «&nbsp;Déclarée par l’école&nbsp;»&nbsp;; la confirmer
+          reste une démarche à part.
+        </p>
+        <div class="pe-actions">
+          <LienPorte porte={ajouter} class="bouton bouton-secondaire">
+            Ajouter mon école
+          </LienPorte>
+        </div>
+      </section>
+
+      <h3 class="titre-accords">Trois accords, qui ne se remplacent pas</h3>
+      <ul class="cf-points accords">
+        <li class="cf-point">
+          <span class="cf-rond cf-rond-jaune">
+            <IconeDuRegistre nom="compte" />
+          </span>
+          <div>
+            <b>Agir pour l’école</b>
+            <span>
+              Nous vérifions que la personne peut parler au nom de l’école. Cela ne publie rien.
+            </span>
+          </div>
+        </li>
+        <li class="cf-point">
+          <span class="cf-rond cf-rond-jaune">
+            <Icone nom="bouclier" />
+          </span>
+          <div>
+            <b>Confirmer la fiche</b>
+            <span>
+              L’équipe relit, puis publie. La direction peut confirmer, à une date. Cela ne publie
+              aucun tarif.
+            </span>
+          </div>
+        </li>
+        <li class="cf-point">
+          <span class="cf-rond cf-rond-jaune">
+            <Icone nom="document" />
+          </span>
+          <div>
+            <b>Publier les tarifs</b>
+            <span>Seulement avec votre OUI daté, pour ces montants et cette période.</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="cadre cf-section change" aria-labelledby="titre-change">
+    <div class="change-texte">
+      <h2 id="titre-change">Ce que votre accord change</h2>
+      <p class="cf-ligne">
+        La mention «&nbsp;Confirmée par la direction&nbsp;», avec sa date. Vos frais, votre contact
+        et votre mot ont chacun leur accord.
+      </p>
+      <div class="pe-actions">
+        <LienPorte porte={confirmer} class="bouton">
+          Confirmer ma fiche
+        </LienPorte>
+      </div>
+      <h3>Nos engagements</h3>
+      <ul class="pe-coches">
+        <li>
+          <Icone nom="coche" />
+          <span>Nous ne vendons jamais la mention «&nbsp;Confirmée par la direction&nbsp;».</span>
+        </li>
+        <li>
+          <Icone nom="coche" />
+          <span>Vos frais ne paraissent, et ne changent, qu’avec votre accord daté.</span>
+        </li>
+        <li>
+          <Icone nom="coche" />
+          <span>Nous n’encaissons pas vos frais de scolarité.</span>
+        </li>
+        <li>
+          <Icone nom="coche" />
+          <span>Ni classement vendu, ni note, ni avis anonyme.</span>
+        </li>
+        <li>
+          <Icone nom="coche" />
+          <span>
+            Vous pouvez demander à corriger ou à retirer votre fiche. Le site change à sa mise à
+            jour, pas à l’envoi de votre message.
+          </span>
+        </li>
+      </ul>
+      <div class="pe-actions">
+        <a class="cf-lien" href={LIEN_METHODE}>
+          Photos, frais, numéro&nbsp;: les règles
+        </a>
+        <a class="cf-lien" href={LIEN_CONFIDENTIALITE}>
+          Vos données et vos droits
+        </a>
+      </div>
+    </div>
+    <div class="change-exemple">
+      <CadreTelephone nom="Exemple de fiche, école inventée">
+        <img
+          class="exemple-facade"
+          src="/dessins/demo-facade.svg"
+          alt=""
+          width="360"
+          height="220"
+          loading="lazy"
+        />
+        <div class="exemple-corps">
+          <p class="exemple-nom">
+            École Les{' '}
+            <span class="nom-exemple-fin">
+              Manguiers <span class="etiquette-exemple">Exemple</span>
+            </span>
+          </p>
+          <p class="texte-doux">Primaire, collège · Privée</p>
+          <MentionDatee mention="relevee" jour="2026-11-12" />
+          <MentionDatee mention="verifiee" jour="2026-11-18" />
+          <p class="exemple-frais">
+            <b>Frais</b> · OUI de l’école le <span class="insecable">18 nov. 2026</span>
+          </p>
+          <p class="texte-doux">L’itinéraire, le numéro s’il est publié, le partage.</p>
+        </div>
+      </CadreTelephone>
+      <a class="cf-lien" href="/demo/fiche-ecole/">
+        Voir la fiche de démonstration
+      </a>
+    </div>
+  </section>
+
+  <section id="e-com" class="cf-blanc" aria-labelledby="titre-com">
+    <div class="cadre cf-section">
+      <h2 id="titre-com">Mieux communiquer</h2>
+      <ul class="cf-cartes cf-cartes-3">
+        <li class="cf-carte demarche">
+          <EtatService etat="disponible" />
+          <h3>Partager votre fiche</h3>
+          <p>Chaque fiche a un lien court et une image pour WhatsApp et Facebook.</p>
+        </li>
+        <li class="cf-carte demarche">
+          <EtatService etat="disponible" />
+          <h3>Le mot de la direction</h3>
+          <p>
+            Quelques phrases, telles que vous les remettez, avec leur date. Sur une fiche confirmée
+            seulement.
+          </p>
+          <div class="pe-actions">
+            <LienPorte porte={mot}>Remettre notre mot</LienPorte>
+          </div>
+        </li>
+        <li class="cf-carte demarche">
+          <EtatService etat="preparation" />
+          <h3>Des visuels et des contenus</h3>
+          <p>
+            Une prestation payante, à définir avec l’école&nbsp;: ce qui est livré, quand, et à quel
+            prix, écrits avant de commencer.
+          </p>
+        </li>
+      </ul>
+      <div class="cf-cartes cf-cartes-2">
+        <div class="cf-carte cf-carte-forte">
+          <h3>Une prestation de communication</h3>
+          <p>
+            Elle se paierait. Elle serait signalée comme telle, à part des fiches et des résultats.
+          </p>
+        </div>
+        <div class="cf-carte cf-carte-forte">
+          <h3>Ce qu’elle ne changerait jamais</h3>
+          <p>Une information, une mention, l’ordre des résultats.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="e-outils" class="cf-verte sur-marque" aria-labelledby="titre-outils">
+    <div class="cadre cf-section">
+      <div class="cf-tete">
+        <p>
+          <EtatService etat="preparation" />
+        </p>
+        <h2 id="titre-outils">Gérer des tâches du quotidien</h2>
+        <p class="cf-ligne">Deux pistes, à éprouver avec les écoles.</p>
+      </div>
+      <ul class="cf-cartes cf-cartes-2">
+        <li class="cf-carte piste">
+          <img
+            src="/dessins/outil-inscriptions.svg"
+            alt=""
+            width="280"
+            height="200"
+            loading="lazy"
+          />
+          <div>
+            <h3>Inscriptions</h3>
+            <p>De la demande à la liste des inscrits.</p>
+          </div>
+        </li>
+        <li class="cf-carte piste">
+          <img src="/dessins/outil-recus.svg" alt="" width="280" height="200" loading="lazy" />
+          <div>
+            <h3>Frais et reçus</h3>
+            <p>Ce qui est dû, versé, et ce qui reste.</p>
+          </div>
+        </li>
+      </ul>
+      <div class="portes">
+        <p>
+          <b>Trois portes d’entrée envisagées, pas une seule&nbsp;:</b>
+        </p>
+        <ul>
+          <li>
+            <IconeDuRegistre nom="maison" />
+            <span>une demande depuis la fiche</span>
+          </li>
+          <li>
+            <IconeDuRegistre nom="compte" />
+            <span>une saisie au secrétariat</span>
+          </li>
+          <li>
+            <Icone nom="liste" />
+            <span>l’import des élèves déjà inscrits</span>
+          </li>
+        </ul>
+      </div>
+      <div class="pe-actions">
+        <a class="bouton bouton-accent" href={LIEN_OUTILS}>
+          Voir les deux pistes
+        </a>
+        <LienPorte porte={raconter}>Nous raconter votre dernière rentrée</LienPorte>
+      </div>
+      <p class="cf-note">
+        Raconter n’engage à rien et n’ouvre aucun service. N’écrivez ni nom ni document d’élève.
+      </p>
+    </div>
+  </section>
+
+  <section class="cadre cf-section" aria-labelledby="titre-conditions">
+    <div class="cf-tete">
+      <h2 id="titre-conditions">Avant un essai, tout est écrit</h2>
+      <p class="cf-ligne">Quatre points, acceptés par l’école avant de commencer.</p>
+    </div>
+    <ConditionsEssai deuxColonnes />
+  </section>
+
+  <section class="cf-bande" aria-labelledby="titre-questions">
+    <div class="cadre cf-section">
+      <h2 id="titre-questions">Questions des directions</h2>
+      <div class="pe-questions">
+        <details class="pe-question">
+          <summary>Que publiez-vous sans notre accord&nbsp;?</summary>
+          <p>
+            Ce qui se voit de la rue, après relecture&nbsp;: le nom, les niveaux, le repère, la
+            position, l’enseigne, sa photo contrôlée et le numéro qui y est peint. Vos frais, votre
+            contact et le mot de la direction attendent votre accord daté. Les autres photos&nbsp;:{' '}
+            <a href={`${LIEN_METHODE}#m-photos`}>une seule règle</a>. Vous pouvez demander une
+            correction ou un retrait.
+          </p>
+        </details>
+        <details class="pe-question">
+          <summary>Qui voit le numéro de l’école&nbsp;?</summary>
+          <p>
+            Le numéro peint sur l’enseigne est déjà visible de la rue&nbsp;: nous le recopions après
+            l’avoir comparé à la photo. Un autre numéro ne paraît qu’avec votre accord daté.
+          </p>
+        </details>
+        <details class="pe-question">
+          <summary>Pourquoi nos frais ne paraissent-ils pas&nbsp;?</summary>
+          <p>
+            Ils ne paraissent qu’avec votre OUI daté. Confirmer la fiche ne suffit pas&nbsp;:
+            écrivez-nous pour confirmer vos frais.
+          </p>
+        </details>
+        <details class="pe-question">
+          <summary>Nos comptes internes seront-ils visibles&nbsp;?</summary>
+          <p>
+            Non. L’annuaire ne montre que les frais que vous annoncez. Ce qu’une famille doit ou a
+            versé resterait privé, dans un outil séparé.
+          </p>
+        </details>
+        <details class="pe-question">
+          <summary>Faut-il payer pour être bien placé&nbsp;?</summary>
+          <p>
+            Non, et ce n’est pas possible. Les écoles se rangent par nom, par date de visite ou par
+            distance.
+          </p>
+        </details>
+        <details class="pe-question">
+          <summary>Notre école n’est pas sur NTanova.</summary>
+          <p>
+            Dites-nous son nom et sa localité, partout au Congo-Brazzaville&nbsp;:{' '}
+            <a href="#referencer">ajouter mon école</a>.
+          </p>
+        </details>
+      </div>
+      {question && (
+        <div class="pe-actions">
+          <p>Une autre question&nbsp;?</p>
+          <LienPorte porte={question} class="bouton">
+            Écrire à NTanova
+          </LienPorte>
+        </div>
+      )}
+    </div>
+  </section>
+</PagePublique>
+
+<style>
+  /* Le titre de la planche est une phrase : une taille sous celle de l'accueil. */
+  .titre {
+    font-size: var(--taille-titre-public);
+  }
+  .retrouver,
+  .liaison-corps {
+    display: grid;
+    gap: var(--espace-2);
+    max-width: 34rem;
+  }
+  .retrouver label,
+  .liaison-corps label {
+    font-family: var(--police-interface);
+    font-weight: 700;
+  }
+  /* Une carte blanche posée sur le vert : le focus y reprend le vert profond (le jaune y serait illisible). */
+  .retrouver-ligne {
+    --focus: var(--marque-appuyee);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--espace-1);
+    padding: 6px;
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .retrouver-ligne input {
+    width: 100%;
+    min-width: 0;
+    min-height: var(--cible-principale);
+    padding: 0 var(--espace-3);
+    border: 0;
+    border-radius: var(--rayon-s);
+    background: var(--fond-releve);
+    color: var(--texte);
+    font: inherit;
+    font-size: 1.0625rem;
+  }
+  .retrouver-ligne input::placeholder {
+    color: var(--texte-doux);
+  }
+  .retrouver-ligne input:focus-visible {
+    outline-offset: -2px;
+  }
+  .liaison summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-3);
+    max-width: 34rem;
+    min-height: var(--cible-min);
+    list-style: none;
+    font-family: var(--police-interface);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .liaison summary span {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .liaison summary::-webkit-details-marker {
+    display: none;
+  }
+  .liaison summary::after {
+    content: '+';
+    color: var(--accent);
+    font-size: var(--taille-titre-fiche);
+    line-height: 1;
+  }
+  .liaison[open] summary::after {
+    content: '−';
+  }
+  .liaison-corps {
+    padding-block: var(--espace-2);
+  }
+  .liaison-corps p {
+    color: var(--vert-pale);
+    font-size: var(--taille-secondaire);
+  }
+  .liaison-ligne {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .code {
+    font-size: var(--taille-titre-fiche);
+    font-weight: 700;
+    letter-spacing: 0.4em;
+    text-align: center;
+  }
+
+  .besoin {
+    grid-template-rows: auto auto 1fr auto;
+  }
+  .services {
+    display: grid;
+    align-content: start;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .services li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-1) var(--espace-3);
+    padding-block: var(--espace-2);
+    border-top: 1px solid var(--trait);
+  }
+  .legende {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2) var(--espace-5);
+    margin: 0;
+    font-size: var(--taille-secondaire);
+  }
+  .legende > div {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-1) var(--espace-2);
+  }
+  .legende dd {
+    margin: 0;
+  }
+
+  .demarche {
+    grid-template-rows: auto 1fr auto;
+    justify-items: start;
+  }
+  #e-com .demarche {
+    grid-template-rows: auto auto 1fr auto;
+  }
+  .ajouter {
+    gap: var(--espace-3);
+    border-color: var(--trait-fort);
+  }
+  .ajouter p {
+    max-width: none;
+  }
+  .cf-section .titre-accords {
+    font-size: var(--taille-titre-fiche);
+  }
+
+  .change-texte,
+  .change-exemple {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-4);
+    min-width: 0;
+  }
+  .change-exemple {
+    justify-items: center;
+    align-content: center;
+    gap: var(--espace-3);
+  }
+  .exemple-facade {
+    width: 100%;
+    height: auto;
+  }
+  .exemple-corps {
+    display: grid;
+    justify-items: start;
+    gap: var(--espace-2);
+    padding: var(--espace-4);
+  }
+  .exemple-nom {
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-fiche);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .exemple-frais {
+    width: 100%;
+    padding-top: var(--espace-2);
+    border-top: 1px solid var(--trait);
+  }
+
+  .piste {
+    grid-template-columns: 110px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--espace-4);
+  }
+  .piste img {
+    width: 100%;
+    height: auto;
+  }
+  .piste h3,
+  .piste p {
+    margin: 0;
+  }
+  .portes {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .portes ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2) var(--espace-5);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .portes li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--espace-2);
+  }
+  .portes :global(.ico) {
+    color: var(--accent);
+  }
+
+  @media (min-width: 30rem) {
+    .liaison-ligne {
+      grid-template-columns: minmax(0, 9rem) auto;
+      justify-content: start;
+    }
+  }
+  @media (min-width: 48rem) {
+    .accords {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--espace-5);
+    }
+    .piste {
+      grid-template-columns: 150px minmax(0, 1fr);
+    }
+  }
+  @media (min-width: 64rem) {
+    .change {
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      align-items: center;
+      gap: var(--espace-7);
+    }
+    .services li {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

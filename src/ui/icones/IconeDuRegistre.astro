@@ -1,0 +1,20 @@
+---
+// Une icône du registre v2 (`registre.ts`, Lucide copié), écrite en HTML à la construction : aucun script. `Icone.astro` garde les
+// tracés du site public et de la carte ; ce qui n'y est pas se prend ici, jamais redessiné. Décorative : le mot à côté dit tout.
+import { ICONES, type NomIcone } from './registre';
+
+interface Props {
+  nom: NomIcone;
+  /** 20 px au lieu de 24 px. */
+  petite?: boolean;
+}
+const { nom, petite = true } = Astro.props;
+---
+
+<svg
+  class={petite ? 'ico ico-s' : 'ico'}
+  viewBox="0 0 24 24"
+  aria-hidden="true"
+  focusable="false"
+  set:html={ICONES[nom]}
+/>

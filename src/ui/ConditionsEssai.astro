@@ -1,0 +1,53 @@
+---
+// « Avant un essai, tout est écrit » : les quatre points qu'une école accepterait avant un essai (refonte publique, lot 5). Aucun
+// essai n'est ouvert : ce sont des règles posées d'avance, les mêmes sur « Pour les écoles » et sur « Outils en préparation ».
+import Icone from './Icone.astro';
+import IconeDuRegistre from './icones/IconeDuRegistre.astro';
+
+interface Props {
+  /** Deux colonnes à partir de la tablette ; une seule quand la liste est déjà dans une colonne. */
+  deuxColonnes?: boolean;
+}
+const { deuxColonnes = false } = Astro.props;
+---
+
+<ul class:list={['cf-points', { 'cf-points-2': deuxColonnes }]}>
+  <li class="cf-point">
+    <span class="cf-rond cf-rond-jaune">
+      <Icone nom="liste" />
+    </span>
+    <div>
+      <b>Le périmètre</b>
+      <span>
+        Les tâches, les classes et les personnes concernées. Ce qui reste hors de l’essai.
+      </span>
+    </div>
+  </li>
+  <li class="cf-point">
+    <span class="cf-rond cf-rond-jaune">
+      <IconeDuRegistre nom="calendrier" />
+    </span>
+    <div>
+      <b>La durée</b>
+      <span>Une date de début, une date de fin, et ce qui se passe après.</span>
+    </div>
+  </li>
+  <li class="cf-point">
+    <span class="cf-rond cf-rond-jaune">
+      <Icone nom="bulle" />
+    </span>
+    <div>
+      <b>L’accompagnement</b>
+      <span>Qui aide, par quel moyen, et sous quel délai.</span>
+    </div>
+  </li>
+  <li class="cf-point">
+    <span class="cf-rond cf-rond-jaune">
+      <Icone nom="document" />
+    </span>
+    <div>
+      <b>L’éventuel coût</b>
+      <span>S’il y en a un, il est écrit avant de commencer. Sinon, c’est écrit aussi.</span>
+    </div>
+  </li>
+</ul>

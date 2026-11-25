@@ -249,7 +249,7 @@ test.describe('l’accueil', () => {
     await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/$/);
   });
 
-  test('Pour les écoles : « Présenter mon école », un outil en préparation sans lien, « Signaler une école » sur WhatsApp', async ({
+  test('Pour les écoles : « Présenter mon école », la présentation des outils en préparation, « Signaler une école » sur WhatsApp', async ({
     page,
   }) => {
     await page.goto('/');
@@ -258,7 +258,12 @@ test.describe('l’accueil', () => {
       'href',
       '/pour-les-ecoles/',
     );
-    await expect(directions.getByRole('link')).toHaveCount(2);
+    // Lot 5 (25/11) : le lien ouvre une présentation ; « En préparation » reste du texte, à côté.
+    await expect(
+      directions.getByRole('link', { name: 'Inscriptions, frais et reçus' }),
+    ).toHaveAttribute('href', '/pour-les-ecoles/outils/');
+    await expect(directions.locator('.etiquette-prepare')).toHaveText('En préparation');
+    await expect(directions.getByRole('link')).toHaveCount(3);
     const signaler = directions.getByRole('link', { name: 'Signaler une école' });
     const adresse = (await signaler.getAttribute('href')) ?? '';
     // Le numéro vient de la configuration, jamais d'un test : seulement la forme de l'adresse.
