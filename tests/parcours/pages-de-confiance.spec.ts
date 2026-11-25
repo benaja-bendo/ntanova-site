@@ -357,6 +357,8 @@ test.describe('Confidentialité', () => {
     await expect(page.locator('#visiteurs')).toContainText(
       'NTanova ne conserve pas vos coordonnées GPS',
     );
+    // Le nombre que « Demander la vérification » garde dans le navigateur est dit (recette, 25/11).
+    await expect(page.locator('#visiteurs')).toContainText('un nombre tiré au hasard');
     // Un site sans cookie n'en dépose aucun.
     expect(await page.context().cookies()).toEqual([]);
   });

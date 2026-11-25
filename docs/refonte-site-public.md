@@ -181,7 +181,7 @@ La liste passe de 632 à 595 exécutions de parcours (573 téléphone, 11 tablet
 
 Vérifications locales de cet entretien : `pnpm verif:ci` réussi (format, lint, couleurs, types, 1 762 unitaires dans 122 fichiers, construction et poids), puis suite navigateur complète avec deux workers : 587 réussites, 8 sauts existants, aucun échec ni test instable, en 5 min 33. Les 14 parcours critiques sont identiques avant/après ; `node outils/verification-ci.ts partitions` confirme 298 + 297 exécutions. Base et essais d'API locale/constructions non rejoués : aucun code produit ni contrat n'a changé. La CI de la révision poussée reste la validation distante requise.
 
-## Lot 5 — Pour les écoles et outils en préparation (ticket 223, PR vers `refonte/site-public`, à relire)
+## Lot 5 — Pour les écoles et outils en préparation (ticket 223, PR 224, intégré le 25/11/2026 : `0d30a92`)
 
 `/pour-les-ecoles/` refaite et `/pour-les-ecoles/outils/` (nouvelle). Aucun SQL, aucun droit changé, aucun script, rien d'appliqué en ligne, formulaires toujours fermés par défaut ; **aucun logiciel, compte, table, notification ou fournisseur**. Planches lues le 25/11 dans les fichiers publiés du canevas public (version `1795563959-92cd`), état Aujourd'hui : `P-ecoles-ordi/tel` (`f05dc878`, `fed98be1`), `P-outils-ordi/tel` (`a738ebb9`, `70a88c2d`), livrables `P-L2-textes` (`4563c251`), `P-L3-liens` (`74c87f16`), `P-L4` (`15473f8c`) ; page Règles du canevas admin (`af27af20`, `19160520`). Débuts d'empreintes SHA-256 ; les générateurs Python n'ont pas été rejoués, aucun canevas modifié.
 
@@ -224,6 +224,25 @@ Phrases de l'ancienne page retirées parce que fausses : « Rien n'est ajouté �
 ### Revue du lot 5, 25/11/2026
 
 Les deux constats de texte signalés par la PR sont harmonisés pendant la revue : l’appel de la fiche ne promet plus qu’aucune information ne paraît sans accord ; il rappelle le OUI daté des frais et la relecture des envois. Confidentialité sépare les photos contrôlées des frais, du contact et du mot soumis à un accord daté, avec un lien vers les règles des photos. Aucun changement de collecte, de droit, d’accord ou de conservation ; les durées non tranchées restent à régler à la recette. Pas de nouvel essai automatique pour ces retouches de texte ; les parcours et contrôles de construction existants sont rejoués.
+
+## Lot 6 — recette complète (ticket 225, PR vers `refonte/site-public`, à relire)
+
+La recette locale de la refonte et les corrections qu'elle a demandées. Aucun SQL, aucun droit changé, rien d'appliqué en ligne, formulaires toujours fermés par défaut. Preuves, limites, textes à confirmer et procédure du lot 7 : dépôt `ntanova`, `RECETTE-LOT-06.md`.
+
+| Défaut trouvé | Correction | Protection |
+| --- | --- | --- |
+| « Où ? Brazzaville » rendait toutes les écoles publiées, Pointe-Noire comprise : `Congo-Brazzaville`, autre nom du pays, entrait dans chaque ligne de `/recherche.json`. Invisible sur le faux catalogue, dont le pays n'avait aucune autre écriture ; présent aussi en ligne pour le texte cherché | `lignesDeRecherche` n'ajoute plus les écritures du pays ; le pays écrit en entier dans « Où ? » (`ECRITURES_DU_PAYS`) ne retire aucune école | `recherche.test.ts`, `liste-ecoles.test.ts` (comparé à la migration), `accueil.spec.ts` ; le faux catalogue porte désormais les écritures de la base |
+| `mise-en-ligne.yml` ne transmettait pas `PUBLIC_FORMULAIRES` : aucune mise en ligne ne pouvait ouvrir les formulaires | la variable du dépôt est transmise ; absente ou vide, ils restent fermés ; toute autre valeur arrête la construction | `mise-en-ligne.test.ts` : chaque réglage public d'`astro.config.mjs` est transmis |
+| Formulaires ouverts, le contrôle en ligne de l'accueil passait au rouge (plus de lien WhatsApp sur l'accueil), donc la production ne serait pas partie | le contrôle accepte l'une ou l'autre porte sur l'accueil et prouve le numéro sur `/pour-les-ecoles/` | `tests/en-ligne/site.spec.ts`, joué sur les deux positions |
+| `preview_urls` absent de `wrangler.jsonc` : Wrangler garde alors le réglage du tableau de bord, et une version d'avant un retrait peut rester lisible à son adresse `workers.dev` | `workers_dev` et `preview_urls` à `false`, pour les deux sites | à constater en ligne (procédure du lot 7) |
+| `llms.txt` disait que toute fiche est vue de la rue et citait une ancienne mention | les trois origines et les quatre mentions d'aujourd'hui | `fichiers-standards.test.ts` existant |
+| Confidentialité taisait le nombre gardé par « Demander la vérification », la paie des relais, les sauvegardes chez GitHub, le courrier, et disait « un contact n'est gardé que si la direction l'accepte » (le numéro d'une école lu sur un document se garde en privé) | textes alignés sur le code ; la CNPD est nommée (loi n° 5-2025, Journal officiel n° 15-2025) | `pages-de-confiance.spec.ts` |
+| Mentions légales : adresses des hébergeurs et crédit de Protomaps entre crochets | lus sur les pages officielles le 25/11 ; crédits des dessins et des icônes | relecture humaine |
+| « Méthode » dans deux pages, « Toutes les écoles » sans script, filtre « Ville » qui nomme un département (Sangha) | « Fiabilité des informations », « Les écoles », « Ville ou département » | — |
+
+**Restent entre crochets, à confirmer par le fondateur** : statut juridique, adresse et immatriculation de l'éditeur, loi applicable ; les durées de conservation de Confidentialité ; la démarche auprès de la CNPD. Ces crochets sont déjà en ligne aujourd'hui.
+
+**Limites gardées** : la liste n'applique une recherche qu'avec JavaScript (sans lui : le total, les vingt premières cartes et les villes) ; le titre d'un département dit « à Sangha » ; le premier affichage de la carte est à 682 Ko sur 700 avec le catalogue du 25/11.
 
 ## Contrôles et livraison
 

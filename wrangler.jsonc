@@ -10,6 +10,10 @@
     "html_handling": "auto-trailing-slash",
   },
   "routes": [{ "pattern": "ntanova.com", "custom_domain": true }],
+  // Seules les deux adresses du site servent une version. Sans ces lignes, Wrangler garde le réglage du tableau de bord : une version
+  // d'avant un retrait pourrait rester lisible à son adresse `workers.dev` (recette de la refonte, 25/11/2026).
+  "workers_dev": false,
+  "preview_urls": false,
   "env": {
     // Le site d'essai : une adresse fixe, la seule déclarée chez Google pour la connexion.
     "essai": {
@@ -20,6 +24,8 @@
         "html_handling": "auto-trailing-slash",
       },
       "routes": [{ "pattern": "essai.ntanova.com", "custom_domain": true }],
+      "workers_dev": false,
+      "preview_urls": false,
     },
   },
 }

@@ -88,7 +88,7 @@ export function llmsTxt(
     '',
     '> Annuaire des écoles de la République du Congo (Congo-Brazzaville, pas la République démocratique du Congo), de la maternelle au supérieur, publiques et privées, quartier par quartier.',
     '',
-    'Des relais passent devant les écoles, photographient leur enseigne et relèvent leur position ; l’administration de NTanova vérifie chaque fiche avant de la publier. Une fiche décrit ce qui se voit de la rue à la date du relevé (nom, enseigne, position, niveaux). Les frais, le contact et le mot de la direction n’y paraissent qu’avec l’accord daté de la direction, et la fiche le dit alors (« vérifiée par la direction le … »). L’annuaire ne prétend pas recenser toutes les écoles du pays : ce qui est publié est décrit sur la page Données.',
+    'Des relais passent devant les écoles, photographient leur enseigne et relèvent leur position ; d’autres fiches sont déclarées par l’école ou ajoutées par l’équipe, sans passage sur place. L’équipe de NTanova relit chaque fiche avant de la publier. Chaque fiche porte ses mentions datées (« Vue sur place », « Déclarée par l’école », « Ajoutée par NTanova », « Confirmée par la direction »). Les frais, le contact et le mot de la direction n’y paraissent qu’avec l’accord daté de la direction. L’annuaire ne prétend pas recenser toutes les écoles du pays : ce qui est publié est décrit sur la page Données de l’annuaire.',
     '',
     '## Pages principales',
     '',

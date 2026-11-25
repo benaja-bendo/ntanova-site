@@ -1,6 +1,8 @@
 // Lot 4 bis (16/11/2026) : « Les écoles », l'état dans l'adresse, les filtres pilotés par les données et leurs compteurs.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  ECRITURES_DU_PAYS,
   ecrireEtat,
   etatVide,
   filtrer,
@@ -11,7 +13,7 @@ import {
   sortiesDuVide,
   titreDeLaListe,
 } from '../../src/modele/liste-ecoles';
-import type { LigneRecherche } from '../../src/modele/recherche';
+import { normaliser, type LigneRecherche } from '../../src/modele/recherche';
 import { cleDeLaSelection, selectionVide } from '../../src/modele/carte/vue-carte';
 
 const ligne = (
@@ -203,6 +205,22 @@ describe('« Où ? » : le lieu de la recherche de l’accueil', () => {
     expect(ids('ou=LOANDJILI')).toEqual(['a', 'b']);
     expect(ids('ou=tie tie')).toEqual(['e']);
     expect(ids('ou=Brazzaville')).toEqual(['d', 'g']);
+  });
+
+  it('le nom entier du pays, sous chacune de ses écritures, ne retire aucune école', () => {
+    for (const nom of ['Congo', 'congo-brazzaville', 'République du Congo'])
+      expect(ids(`ou=${encodeURIComponent(nom)}`)).toHaveLength(LIEUX.length);
+    expect(ids('ou=Congo-Brazzaville&q=gssj')).toEqual(['c']);
+    // Un seul de ses mots reste un lieu : Brazzaville est une ville.
+    expect(ids('ou=brazzaville')).toEqual(['d', 'g']);
+  });
+
+  it('les écritures du pays sont celles de la base', () => {
+    const sql = readFileSync('supabase/migrations/20261101200200_geo_amorcage_congo.sql', 'utf8');
+    const [, nom, alias] =
+      /values \(0, 'country', 'CG', 'CG', '([^']+)', 'congo', '\{([^}]+)\}'/.exec(sql) ?? [];
+    const deLaBase = [nom!, ...[...alias!.matchAll(/"([^"]+)"/g)].map((m) => m[1]!)];
+    expect([...ECRITURES_DU_PAYS].sort()).toEqual(deLaBase.map(normaliser).sort());
   });
 
   it('cherche aussi les autres écritures d’une zone et le quartier dit sur place', () => {

@@ -63,7 +63,11 @@ const D = {
 } as const;
 
 const DIVISIONS_BRUTES: DivisionPublique[] = [
-  division(D.congo, null, 0, 'country', 'Congo', 'congo', ['congo']),
+  {
+    ...division(D.congo, null, 0, 'country', 'Congo', 'congo', ['congo']),
+    // Comme en base : c'est l'écriture du pays qui faisait trouver Pointe-Noire à « Brazzaville » (recette, 25/11).
+    alias: ['République du Congo', 'Congo-Brazzaville'],
+  },
   division(D.pnDep, D.congo, 1, 'department', 'Pointe-Noire', 'pointe-noire', [
     'congo',
     'pointe-noire',

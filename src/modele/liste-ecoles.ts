@@ -40,7 +40,8 @@ export const GROUPES = [
 export type Groupe = (typeof GROUPES)[number];
 
 export const TITRES_DES_GROUPES: Record<Groupe, string> = {
-  ville: 'Ville',
+  // Un lieu de ce rang est un département (Sangha) ; à Pointe-Noire et à Brazzaville, il porte le nom de la ville.
+  ville: 'Ville ou département',
   arrondissement: 'Arrondissement',
   niveau: 'Niveau',
   type: 'Type',
@@ -247,6 +248,19 @@ function correspondTexte(l: LigneRecherche, mots: string[]): boolean {
   return mots.every((m) => motsDeLEcole.some((mot) => mot.startsWith(m)));
 }
 
+/** Le pays, sous ses écritures de la base, mots normalisés : écrit en entier dans « Où ? », il ne retire aucune école. */
+export const ECRITURES_DU_PAYS: readonly string[] = [
+  'congo',
+  'congo brazzaville',
+  'republique du congo',
+];
+
+/** Les mots du lieu cherché ; aucun pour le pays entier. « Brazzaville » seul reste une ville. */
+function motsDuLieuCherche(ou: string): string[] {
+  const lieu = normaliser(ou);
+  return ECRITURES_DU_PAYS.includes(lieu) ? [] : lieu.split(' ').filter(Boolean);
+}
+
 /**
  * « Où ? » : chaque mot du lieu écrit est le début d'un mot d'un lieu documenté de l'école (ses divisions, leurs autres
  * écritures, le quartier dit sur place). Le repère et le nom n'y entrent pas : « Marché » n'est pas un lieu.
@@ -282,7 +296,7 @@ function retenir(
   sauf?: Groupe | 'rayon',
 ): Trouvee[] {
   const mots = normaliser(etat.q).split(' ').filter(Boolean);
-  const motsDuLieu = normaliser(etat.ou).split(' ').filter(Boolean);
+  const motsDuLieu = motsDuLieuCherche(etat.ou);
   const choix = etat.choix;
   const out: Trouvee[] = [];
   for (const l of lignes) {

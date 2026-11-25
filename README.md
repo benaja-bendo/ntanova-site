@@ -68,7 +68,7 @@ Les contrôles en ligne se lancent aussi depuis le Mac, sans rien écrire dans l
 ```bash
 ADRESSE=https://essai.ntanova.com pnpm test:en-ligne
 ```
- Il faut, dans le dépôt GitHub, les secrets `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID`, et les variables `PUBLIC_WHATSAPP`, `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY` et `PUBLIC_GOOGLE_CLIENT_ID`.
+ Il faut, dans le dépôt GitHub, les secrets `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID`, et les variables `PUBLIC_WHATSAPP`, `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `PUBLIC_GOOGLE_CLIENT_ID`, `PUBLIC_RESPONSABLE` et `PUBLIC_CONTACT_EMAIL`. `PUBLIC_FORMULAIRES` est facultative : absente, les formulaires restent fermés ; `ouverts` les ouvre à la mise en ligne suivante.
 
 ## Les polices
 

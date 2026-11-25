@@ -81,6 +81,9 @@ test.describe('l’accueil', () => {
     // Le même nombre que la page de l'arrondissement : quatre écoles à Tié-Tié.
     expect(await nombreDeLaListe(page)).toBe(4);
     await expect(page.locator('[data-cartes] > li')).toHaveCount(4);
+    // Une ville qui est aussi dans l'autre nom du pays (« Congo-Brazzaville ») : ses écoles seules.
+    await page.goto('/ecoles/?ou=Brazzaville');
+    expect(await nombreDeLaListe(page)).toBe(1);
   });
 
   test('« Quoi ? » et « Où ? » se croisent : aucun des deux ne se perd', async ({ page }) => {
