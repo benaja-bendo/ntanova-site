@@ -231,11 +231,15 @@ function ecrituresDesZones(
   return parAdresse;
 }
 
-/** Les autres écritures de toutes les zones où se trouve l'école : sa ville, son arrondissement, le pays. */
+/**
+ * Les autres écritures des zones où se trouve l'école : sa ville, son arrondissement. Celles du pays, commun à toutes les
+ * écoles, n'y entrent pas : « Congo-Brazzaville » ferait trouver à Brazzaville une école de Pointe-Noire (recette de la
+ * refonte, 25/11). Le pays écrit en entier dans « Où ? » se lit à part (`ECRITURES_DU_PAYS`, `liste-ecoles.ts`).
+ */
 function ecrituresDeLEcole(adresse: readonly string[], ecritures: EcrituresDesZones): string[] {
   const chaine = sansRepetition(adresse);
   const trouvees: string[] = [];
-  for (let n = 1; n <= chaine.length; n++) {
+  for (let n = 2; n <= chaine.length; n++) {
     trouvees.push(...(ecritures.get(chaine.slice(0, n).join('/')) ?? []));
   }
   return trouvees;

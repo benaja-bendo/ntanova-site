@@ -234,4 +234,18 @@ describe('les données structurées de la fiche', () => {
     expect(d.telephone).toBeUndefined();
     expect(d.address).not.toHaveProperty('streetAddress');
   });
+
+  // Refonte, lot 3C : trouvé par la preuve du retrait (`tests/constructions/`). La fiche montre le contact publié avec l'accord de
+  // la direction et cache alors le numéro de l'enseigne ; les données structurées publiaient quand même ce dernier.
+  it('écrivent le téléphone que la fiche montre : le contact autorisé passe devant l’enseigne', () => {
+    const contactPublic = { numero: '242060000099', accordLe: '2026-11-04' };
+    expect(donneesEcole({ ...fiche, contactPublic }, 'https://ntanova.com/x/').telephone).toBe(
+      '+242060000099',
+    );
+    const sansEnseigne = { ...fiche, contactPublic, numeroEnseigne: null };
+    expect(donneesEcole(sansEnseigne, 'https://ntanova.com/x/').telephone).toBe('+242060000099');
+    expect(
+      JSON.stringify(donneesEcole({ ...fiche, contactPublic }, 'https://ntanova.com/x/')),
+    ).not.toContain(fiche.numeroEnseigne);
+  });
 });

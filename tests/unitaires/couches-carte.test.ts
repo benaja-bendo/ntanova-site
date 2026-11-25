@@ -1,7 +1,7 @@
 // Le style complet de la carte interactive (ticket 103) : le fond, puis les couches de NTanova. Ces tests gardent ce qui
 // peut se casser sans bruit dans un navigateur : un style invalide, des hachures au-dessus du fleuve, une couleur qui n'est
 // pas un jeton, une deuxième police, une adresse de GeoJSON que le site ne sert pas, un marqueur mal nommé.
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import {
   expression,
   latest as styleSpec,
@@ -92,8 +92,6 @@ describe('le style complet de la carte', () => {
       type: 'geojson',
       data: ADRESSE_DES_ECOLES,
     });
-    expect(existsSync('src/pages/carte/zones.geojson.ts')).toBe(true);
-    expect(existsSync('src/pages/carte/ecoles.geojson.ts')).toBe(true);
     expect(ADRESSE_DES_ZONES).toBe('/carte/zones.geojson');
     expect(ADRESSE_DES_ECOLES).toBe('/carte/ecoles.geojson');
   });

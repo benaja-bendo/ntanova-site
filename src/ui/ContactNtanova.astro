@@ -2,16 +2,24 @@
 // Qui répond, et comment lui écrire : le responsable et l'adresse de contact viennent de la configuration (jamais écrits dans
 // le code), le bouton WhatsApp du numéro de la configuration. Sans l'un d'eux, la page n'affiche pas de ligne vide.
 import { PUBLIC_CONTACT_EMAIL, PUBLIC_RESPONSABLE, PUBLIC_WHATSAPP } from 'astro:env/client';
+import { porte, type Arrivee } from '../modele/liens-demandes';
 import { lienWhatsApp } from '../modele/whatsapp';
+import { formulairesOuverts } from './formulaires/ouverture';
 
 interface Props {
+  /** Lot 3C : la porte du formulaire quand il est ouvert, et ses mots ; sans elle, la page reste sur WhatsApp. */
+  formulaire?: { arrivee: Arrivee; texte: string };
   /** Le message prérempli de WhatsApp. */
   message?: string;
   /** Le bouton WhatsApp : faux quand la page veut seulement nommer le responsable. */
   bouton?: boolean;
 }
-const { message = 'Bonjour NTanova, ', bouton = true } = Astro.props;
+const { message = 'Bonjour NTanova, ', bouton = true, formulaire } = Astro.props;
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, message);
+const entree =
+  formulaire && formulairesOuverts
+    ? porte(true, formulaire.arrivee, whatsapp)
+    : whatsapp && { href: whatsapp, parFormulaire: false };
 ---
 
 {(PUBLIC_RESPONSABLE || PUBLIC_CONTACT_EMAIL) && (
@@ -29,9 +37,9 @@ const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, message);
     )}
   </p>
 )}
-{bouton && whatsapp && (
-  <a class="bouton contact-whatsapp" href={whatsapp}>
-    Écrire à NTanova sur WhatsApp
+{bouton && entree && (
+  <a class="bouton contact-whatsapp" href={entree.href}>
+    {entree.parFormulaire ? formulaire?.texte : 'Écrire à NTanova sur WhatsApp'}
   </a>
 )}
 

@@ -42,6 +42,7 @@
 - Trois fichiers servis par le site (48 Ko), jamais un service extérieur. Une seule graisse de Source Serif 4 ; ne pas écrire `font-weight: 600`.
 - Poppins ne sert plus sur les écrans. Elle reste dans le guide du relais v4 (affiches) jusqu'à sa prochaine version.
 - Échelle écran : 12, 14, 16, 18, 22, 28 px. Texte courant et champs à 16 px. Chiffres en `tabular-nums`.
+- **Échelle des titres publics (refonte, lot 1, 24/11)** : l'accueil illustré a de grands titres, en jetons fluides : `--taille-titre-accueil` (36 px à 375, 64 px à 1 440), `--taille-section-accueil` (26 à 40 px), `--taille-chapeau-accueil` (17 à 22 px). **Lot 2 (24/11)** : S'orienter prend les mêmes jetons, comme sa planche ; aucun jeton nouveau. Les autres pages publiques gardent `--taille-titre-public` ; l'administration et l'espace relais gardent leur échelle.
 - Libellés en minuscules, 14 px. Les capitales espacées sont réservées aux surtitres de 12 px.
 
 ### Formes (v2)
@@ -70,6 +71,31 @@ Repos, survol (`@media (hover: hover)` seulement), appui (plus sombre, 1 px de c
 - « Congo-Brazzaville », jamais la RDC.
 - On **vouvoie** les familles, les directions et les relais. Seule l'administration tutoie le fondateur.
 - Des faits : ni « gratuit », ni audience, ni couverture totale. Aucune hypothèse, aucun seuil, aucun montant dans un support montré.
+
+### Site public : pièces de la refonte (lot 1, 24/11)
+
+- **En-tête** (`PagePublique.astro`) : vert profond sur toutes les pages, texte crème, focus jaune (`.sur-marque`). À partir de 48 rem, les trois entrées et le pays ; en dessous, la marque et « Menu », un `<details>` sans script dont le panneau recouvre la page. Échap ne le ferme pas (pas de script) : on retouche « Fermer ».
+- **Recherche « Quoi ? / Où ? »** (`RechercheAccueil.astro`) : une carte blanche, deux champs libellés, un bouton jaune ; sur le vert, le focus y redevient vert profond.
+- **Dessin du pays** (`DessinCongo.astro`, `modele/carte-accueil.ts`) : SVG écrit dans la page, trame en motif découpé par le contour, points jaunes et étiquettes calculés depuis le catalogue ; les étiquettes sont des liens de 44 px qui ne se chevauchent jamais.
+- **Mentions datées hors d'une fiche** (`.mention-datee-*`, `public.css`) : la grammaire de la fiche ; **étiquettes** `.etiquette-exemple` (école fictive) et `.etiquette-prepare` (service qui n'existe pas encore, jamais cliquable).
+- **S'orienter (lot 2, 24/11)** (`src/ui/orienter/`) : `ParcoursScolaire.astro`, un seul HTML lu voie par voie, placé par `grid-template-areas` en sept colonnes (64 rem et plus) ou en deux colonnes côte à côte (téléphone) ; un niveau est un lien s'il a des écoles, sinon un paragraphe ; voie générale en vert (`--marque`), technique en bleu (`--bleu-ardoise`), métiers en tirets, examens en rond jaune cerclé d'encre ; sources dans un `<details>`. `DomainesFormation.astro` : une carte-lien par groupe fourni, une carte en tirets sans lien pour un groupe vide. `ActivitesOrientation.astro` : une carte blanche sur la bande verte (le focus y redevient vert profond), tout écrit en HTML ; le script ne fait que montrer et cacher (`hidden`), annonce l'activité dans une zone `aria-live` cachée et donne le focus au titre du résultat. Sans script, la carte renvoie aux domaines et n'a aucun bouton.
+- **Formulaires Contact et annuaire (lot 3C, 24/11)** (`src/ui/formulaires/`, `formulaires.css`, au catalogue « Formulaires publics ») : `Groupe.astro` (libellé, aide, saisie, erreur dessous ; rien de coupé à la frappe, « trop long » se dit), `Choix.astro` (des lignes de 48 px sur de vraies cases, rondes ou carrées, rien de coché d'avance ; `grand` pour la nature), `Reponse.astro` (réponse demandée, puis la seule coordonnée choisie), `EtatsDEnvoi.astro` (chaque refus écrit dans la page, rouge, avec ses gestes ; le dialogue natif « nouveau message »), `Cadre.astro` (sans script, reprise, formulaire, confirmation verte). Un choix est un rectangle, jamais une pilule ; rouge pour l'erreur et l'échec, vert pour ce qui est réellement enregistré ; un numéro rappelé ne se coupe pas, une adresse longue passe à la ligne.
+- **Pages de confiance et villes (lot 4, 24/11)** (`src/ui/confiance.css`, préfixe `cf-`) : la grammaire de S'orienter pour Fiabilité, Données, À propos et Toutes les villes : haut de page illustré (`cf-haut`, titre aux jetons de l'accueil, ancres « Sur cette page » de 44 px), bandes (`cf-bande`, `cf-blanc`, `cf-verte`), cartes blanches (`cf-carte`, `cf-carte-forte`, `cf-carte-lien`), rangées d'icône dans un rond (`cf-point`, `cf-rond`), croix jaunes de « ce qui ne s'achète pas » (`cf-croix`). `cf-tableau` s'empile sous 48 rem (chaque cellule dit sa colonne par `data-l`, rôles ARIA gardés) ; `cf-chiffres` garde deux colonnes. **`MentionDatee.astro`** : la pastille d'une mention de la fiche, hors d'une fiche (icône, libellé, jour qui ne se coupe pas), au catalogue avec et sans date ; jamais une hiérarchie entre mentions. **`.etiquette-disponible`** : le troisième libellé d'état, à côté de « Exemple » et « En préparation ». **`DessinCongo seul`** : le dessin sans étiquettes ni famille, trame et légende lisibles sur la pierre.
+- **Pour les écoles et outils en préparation (lot 5, 25/11)** (`src/ui/pour-les-ecoles.css`, préfixe `pe-`, par-dessus `cf-` ; au catalogue) : haut de page vert avec le dessin posé sur le bas de la bande (`pe-haut`), engagements cochés (`pe-coches`), questions en `<details>` (`pe-question`). **`EtatService.astro`** : Disponible, À l'essai, En préparation (`.etiquette-disponible`, `.etiquette-essai`, `.etiquette-prepare`), depuis `modele/services-ecoles.ts` ; jamais cliquable, et « À l'essai » seulement dans la légende tant qu'aucun essai n'existe. **`LienPorte.astro`** : un lien vers NTanova, bulle et « (ouvre WhatsApp) » quand ce n'est pas le formulaire, rien sans porte. **`CadreTelephone.astro`** : le cadre d'un exemple autour de vrai texte, lu par tous, sans cible ; « Exemple » sur la ligne du nom. **`IconeDuRegistre.astro`** : une icône du registre v2 en HTML, pour ce que `Icone.astro` n'a pas. `ConditionsEssai.astro` : les quatre points écrits avant un essai.
+- **Dessins** : `public/dessins/`, copiés des originaux du canevas (dépôt `ntanova`, `outils/canevas-accueil/dessins/out/`), coordonnées arrondies ; images décoratives (`alt=""`), chargées au défilement sous le premier écran. Leurs couleurs sont celles de la charte, écrites dans le fichier image : `pnpm couleurs` ne garde que `src/`.
+
+### Administration : pièces des messages reçus (lot 3B2, 24/11)
+
+Dans `src/ui/v2/messages.tsx`, au catalogue (`CatalogueMessages.tsx`) :
+
+- **`CarteMessage`** : une ligne d'une file, un lien de 44 px au moins ; nature, référence, titre, une précision, des pastilles. Ni le message ni la coordonnée.
+- **`BlocMessage`, `LigneMessageEcrite`, `Journal`** : ce qui est écrit, tel quel ; l'historique en faits datés.
+- **`Encart`** (blanc, vert quand c'est fait, ambre quand il faut regarder) : version, suite, limite, clôture, alerte. **`BandeauEchec`** : un geste qui n'a pas abouti, là où l'on agissait, sans voler le focus ni effacer la saisie.
+- **`ChoixUnique`, `ChoixMultiple`, `ChoixDuJour`** : des lignes de 52 px sur des boutons natifs, rien de coché d'avance ; le jour n'est jamais futur.
+- **`ListeEtapes`** : fait, à faire maintenant, à venir, sans objet ; le mot dit l'état, pas la couleur.
+- **`FileVide`, `Squelette`** : vide et chargement se disent, une panne n'est jamais « vide ».
+- Une barre de gestes collée en bas, **un seul bouton plein : le prochain** ; un geste impossible est éteint, et une ligne dit pourquoi. Après un geste, le focus ne repart jamais en haut de page.
+- La croix et « Annuler » d'un `Dialogue`, le bouton « Règles » et l'initiale du compte font 44 px.
 
 ## 3. Les trois branches
 

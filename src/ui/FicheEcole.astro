@@ -27,7 +27,7 @@ import {
 import { dateLongue } from '../modele/pointe-noire';
 import { jourDuCongo } from '../modele/date-declaration';
 import { prochaineInscription } from '../modele/inscriptions';
-import { LIEN_METHODE } from '../modele/pages-de-confiance';
+import { LIEN_MENTIONS } from '../modele/mentions';
 import { lienWhatsApp } from '../modele/whatsapp';
 import PhotoEcole from './PhotoEcole.astro';
 import ProprietesEcole from './ProprietesEcole.astro';
@@ -306,7 +306,8 @@ const joursRestants = (n: number) =>
           ))}
         </ul>
       </div>
-      <a class="lien-methode" href={LIEN_METHODE}>
+      {/* Lot 4 (24/11) : le lien mène à l'explication des mentions, une ancre de Fiabilité des informations. */}
+      <a class="lien-methode" href={LIEN_MENTIONS}>
         Comment nous vérifions une fiche
       </a>
 
@@ -473,8 +474,8 @@ const joursRestants = (n: number) =>
         <aside class="ecoles-appel o-11" aria-labelledby="titre-dirigez">
           <h2 id="titre-dirigez">{invitationDirection(e.nom)}</h2>
           <p>
-            Complétez cette fiche&nbsp;: photos, frais, contact. Rien n’est publié sans votre
-            accord.
+            Complétez cette fiche&nbsp;: photos, frais, contact. L’équipe relit vos envois. Vos
+            frais ne paraissent qu’avec votre OUI daté.
           </p>
           <a class="bouton" href={confirmer ?? '/pour-les-ecoles/'}>
             <Icone nom="bulle" />

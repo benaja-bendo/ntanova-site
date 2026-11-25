@@ -2,6 +2,7 @@
 // Le catalogue du système de design. Réservé au développement :
 // en production, getStaticPaths ne renvoie rien et la page n'existe pas.
 import CatalogueInteractions from '../../ui/CatalogueInteractions';
+import CatalogueMessages from '../../ui/CatalogueMessages';
 import jetons from '../../ui/jetons.css?raw';
 import {
   arrondissementDessine,
@@ -25,6 +26,33 @@ import EquipementsEcole from '../../ui/EquipementsEcole.astro';
 import AdmissionEcole from '../../ui/fiche/AdmissionEcole.astro';
 import FraisDeLaFiche from '../../ui/fiche/FraisDeLaFiche.astro';
 import NouvellesEcole from '../../ui/fiche/NouvellesEcole.astro';
+import DessinCongo from '../../ui/DessinCongo.astro';
+import MentionDatee from '../../ui/MentionDatee.astro';
+// Pour les écoles et Outils en préparation (refonte, lot 5).
+import CadreTelephone from '../../ui/CadreTelephone.astro';
+import ConditionsEssai from '../../ui/ConditionsEssai.astro';
+import EtatService from '../../ui/EtatService.astro';
+import LienPorte from '../../ui/LienPorte.astro';
+import { ETATS_DE_SERVICE, SENS_DES_ETATS } from '../../modele/services-ecoles';
+import '../../ui/confiance.css';
+import '../../ui/pour-les-ecoles.css';
+import RechercheAccueil from '../../ui/RechercheAccueil.astro';
+import { carteDeLAccueil, placerLesEtiquettes } from '../../modele/carte-accueil';
+import {
+  activitesDeLaPage,
+  groupesDeLaPage,
+  niveauxDuParcours,
+} from '../../modele/orientation-catalogue';
+import type { LigneRecherche } from '../../modele/recherche';
+import ActivitesOrientation from '../../ui/orienter/ActivitesOrientation.astro';
+import DomainesFormation from '../../ui/orienter/DomainesFormation.astro';
+import ParcoursScolaire from '../../ui/orienter/ParcoursScolaire.astro';
+// Les formulaires publics (refonte, lot 3C) : les pièces des pages /contact/ et /contribuer/, sans leur script.
+import Choix from '../../ui/formulaires/Choix.astro';
+import EtatsDEnvoi from '../../ui/formulaires/EtatsDEnvoi.astro';
+import Groupe from '../../ui/formulaires/Groupe.astro';
+import Reponse from '../../ui/formulaires/Reponse.astro';
+import '../../ui/formulaires/formulaires.css';
 // Les pièces de la page carte : les mêmes feuilles que celles de /carte/, jamais une copie.
 import '../../ui/carte-pieces.css';
 
@@ -41,6 +69,40 @@ const ombres = noms.filter((n) => n.startsWith('ombre-'));
 const cycles = ['M', 'P', 'C', 'L', 'T', 'S'] as const;
 const tailles = noms.filter((n) => n.startsWith('taille-'));
 const etats = ['verifiee', 'relevee', 'attente', 'a-corriger', 'refusee', 'telephone', 'envoye'];
+
+// Le dessin de l'accueil (refonte publique, lot 1) : le pays seul, puis des villes fictives, un nom long et une ville serrée
+// contre une autre (son étiquette attend la liste « Par ville »).
+const paysSeul = carteDeLAccueil({ racines: [] });
+const dessinFictif = {
+  ...paysSeul,
+  points: [
+    { x: 53, y: 498, r: 4.2 },
+    { x: 251, y: 468, r: 5.3 },
+    { x: 296, y: 127, r: 3.5 },
+  ],
+  villes: placerLesEtiquettes([
+    {
+      nom: '[Ville Exemple]',
+      lien: '#accueil',
+      total: 12,
+      x: 53,
+      y: 498,
+      gauche: 16.9,
+      haut: 89.9,
+    },
+    {
+      nom: '[Une ville au nom très long]',
+      lien: '#accueil',
+      total: 3,
+      x: 251,
+      y: 468,
+      gauche: 54.4,
+      haut: 84.8,
+    },
+    { nom: '[Ville du nord]', lien: '#accueil', total: 1, x: 296, y: 127, gauche: 63, haut: 27.5 },
+    { nom: '[Ville serrée]', lien: '#accueil', total: 1, x: 70, y: 490, gauche: 20, haut: 88.6 },
+  ]),
+};
 
 // La carte détourée, avec des écoles et un repère fictifs : seules, en groupe, vérifiée.
 const tieTie = arrondissementDessine('tie-tie')!;
@@ -66,6 +128,39 @@ const vueArrondissement = cadreArrondissement(tieTie);
 const planArrondissement = planer(vueArrondissement.boite, fictives, vueArrondissement.projection);
 const groupe = planArrondissement.marques.find((m) => m.genre === 'groupe');
 const vueCoin = groupe && groupe.genre === 'groupe' ? cadreCoin(groupe.ecoles) : null;
+// S'orienter (refonte publique, lot 2) : des lignes fictives pour les états d'une page vide, d'un domaine à une école et
+// d'un domaine à plusieurs écoles ; le technique a son lien seulement quand une école l'enseigne.
+const ligneFictive = (
+  i: string,
+  c: LigneRecherche['c'],
+  f: LigneRecherche['f'] = [],
+): LigneRecherche => ({
+  i,
+  n: `[École ${i}]`,
+  u: '#orienter',
+  d: '[Ville]',
+  z: 'congo/ville',
+  c,
+  f,
+});
+const lignesOrienter = [
+  ligneFictive('A', ['primaire', 'college'], []),
+  ligneFictive('B', ['lycee', 'technique']),
+  ligneFictive(
+    'C',
+    ['superieur'],
+    [
+      { c: 'superieur', t: '[BTS]', m: 'informatique' },
+      { c: 'superieur', t: '[Licence]', m: 'gestion' },
+      { c: 'superieur', t: '[Master]', m: 'droit' },
+    ],
+  ),
+  ligneFictive('D', ['superieur'], [{ c: 'superieur', t: '[Licence]', m: 'gestion' }]),
+];
+const parcoursVide = niveauxDuParcours([]);
+const parcoursFictif = niveauxDuParcours(lignesOrienter);
+const groupesFictifs = groupesDeLaPage(lignesOrienter);
+const activitesFictives = activitesDeLaPage(lignesOrienter, []);
 const autour = arrondissementsDessines.map((a) => ({
   arrondissement: a,
   role: a.slug === 'tie-tie' ? ('focus' as const) : ('voisin' as const),
@@ -113,6 +208,7 @@ const autour = arrondissementsDessines.map((a) => ({
     </label>
 
     <CatalogueInteractions client:load />
+    <CatalogueMessages client:load />
 
     <h2 id="carte">La carte détourée</h2>
     <p>Un arrondissement, des écoles seules et un groupe (écoles et repère fictifs).</p>
@@ -272,6 +368,174 @@ const autour = arrondissementsDessines.map((a) => ({
             --{n}
           </span>
         ))}
+      </div>
+    </div>
+
+    <h2 id="accueil">L'accueil (refonte publique, lot 1)</h2>
+    <p>
+      La recherche « Quoi ? / Où ? » (un formulaire, sans script), le dessin du pays (vide, puis
+      avec des villes fictives), les mentions datées et les étiquettes « Exemple » et « En
+      préparation ». Le menu du téléphone est celui de l'en-tête de cette page, en dessous de 48
+      rem.
+    </p>
+    <div style="display: grid; gap: var(--espace-4)">
+      <div class="sur-marque" style="padding: var(--espace-4); background: var(--marque-appuyee)">
+        <RechercheAccueil id="catalogue" />
+      </div>
+      <div
+        class="sur-marque"
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--espace-4); padding: var(--espace-4); background: var(--marque-appuyee); color: var(--texte-sur-marque)"
+      >
+        <DessinCongo carte={paysSeul} jour="24/11" id="catalogue-vide" />
+        <DessinCongo carte={dessinFictif} jour="24/11" id="catalogue-villes" />
+      </div>
+      {/* Lot 4 : le dessin seul de « Toutes les villes », sans étiquettes ni famille. */}
+      <div style="max-width: 24rem">
+        <DessinCongo carte={dessinFictif} jour="24/11" id="catalogue-seul" seul />
+      </div>
+      {/* Lot 4 : `MentionDatee`, la pastille de la fiche hors d'une fiche, avec ou sans date, et les trois libellés d'état. */}
+      <div class="rangee">
+        <MentionDatee mention="relevee" jour="2026-11-12" />
+        <MentionDatee mention="declaree" jour="2026-11-05" />
+        <MentionDatee mention="declaree" />
+        <MentionDatee mention="ajoutee" />
+        <MentionDatee mention="verifiee" jour="2026-11-18" />
+        <span class="etiquette-exemple">Exemple</span>
+        <span class="etiquette-prepare">En préparation</span>
+        <span class="etiquette-disponible">Disponible</span>
+      </div>
+      <div style="max-width: 20rem">
+        <MentionDatee mention="verifiee" jour="2026-11-18" />
+      </div>
+    </div>
+
+    <h2 id="pour-les-ecoles">Pour les écoles et outils en préparation (refonte publique, lot 5)</h2>
+    <p>
+      Les trois états d’un service (le seul « À l’essai » du site est dans la légende), un lien vers
+      NTanova par le formulaire, par WhatsApp, puis sans porte (rien), le cadre de téléphone d’un
+      exemple, une question repliée et les conditions d’un essai.
+    </p>
+    <div style="display: grid; gap: var(--espace-4)">
+      <div class="rangee">
+        {ETATS_DE_SERVICE.map((e) => (
+          <span>
+            <EtatService etat={e} /> {SENS_DES_ETATS[e]}
+          </span>
+        ))}
+      </div>
+      <div class="pe-actions">
+        <LienPorte porte={{ href: '#pour-les-ecoles', parFormulaire: true }}>
+          Corriger ma fiche
+        </LienPorte>
+        <LienPorte porte={{ href: '#pour-les-ecoles', parFormulaire: false }}>
+          Confirmer mes frais
+        </LienPorte>
+        <LienPorte porte={{ href: '#pour-les-ecoles', parFormulaire: false }} class="bouton">
+          Écrire à NTanova
+        </LienPorte>
+        <LienPorte porte={null}>Sans porte</LienPorte>
+      </div>
+      <CadreTelephone nom="Exemple du catalogue">
+        <p style="padding: var(--espace-4)">
+          [École Exemple] <span class="etiquette-exemple">Exemple</span>
+        </p>
+      </CadreTelephone>
+      <details class="pe-question">
+        <summary>[Une question de direction ?]</summary>
+        <p>[Sa réponse, en deux phrases.]</p>
+      </details>
+      <ConditionsEssai deuxColonnes />
+    </div>
+
+    <h2 id="orienter">S'orienter (refonte publique, lot 2)</h2>
+    <p>
+      Le parcours scolaire sans aucune école (aucun lien), puis avec des écoles fictives (le
+      technique a son lien) ; les dix domaines, vides, à une école ou à plusieurs ; la carte des six
+      activités dans son état sans script (la page /orienter/ branche le script). Tous les nombres
+      sont fictifs.
+    </p>
+    <div style="display: grid; gap: var(--espace-5)">
+      <ParcoursScolaire niveaux={parcoursVide} />
+      <ParcoursScolaire niveaux={parcoursFictif} />
+      <DomainesFormation groupes={groupesFictifs} />
+      <div
+        class="sur-marque"
+        style="padding: var(--espace-4); background: var(--marque-appuyee); max-width: 36rem"
+      >
+        <ActivitesOrientation activites={activitesFictives} jour="24 nov. 2026" />
+      </div>
+    </div>
+
+    <h2 id="formulaires">Formulaires publics (refonte publique, lot 3C)</h2>
+    <p>
+      Les pièces de Contact et de « Compléter ou corriger l’annuaire » : un champ court, un texte,
+      un choix fermé en grandes lignes, un choix en rectangles, plusieurs cases, la réponse
+      demandée. Rien n’est coché d’avance. Dessous, un refus tel que la page le montre (« envois
+      fermés ») : ici il est rendu visible à la main ; sur /contact/ et /contribuer/, le script
+      choisit le bon cas. Les erreurs, la reprise et la confirmation se voient dans les parcours et
+      leurs captures (`pnpm exec playwright test -c playwright.formulaires.config.ts`).
+    </p>
+    <div class="f-page catalogue-formulaires">
+      <div class="f-champs">
+        <Choix
+          champ="nature"
+          id="cat-nature"
+          legende="Que voulez-vous nous signaler ?"
+          grand
+          options={[
+            {
+              valeur: 'absente',
+              texte: 'Une école manque',
+              detail: 'Elle existe, mais n’est pas dans l’annuaire.',
+            },
+            {
+              valeur: 'erreur',
+              texte: 'Une fiche contient une erreur',
+              detail: 'Une information est fausse ou dépassée.',
+            },
+          ]}
+        />
+        <Groupe
+          champ="nomEcole"
+          id="cat-nom"
+          libelle="Nom de l’école"
+          aide="[Une aide d’une ligne.]"
+          requis="Écrivez le nom de l’école."
+          longueur={120}
+        />
+        <Groupe
+          champ="message"
+          id="cat-message"
+          libelle="Votre message"
+          forme="texte"
+          lignes={3}
+          longueur={2000}
+        />
+        <Choix
+          champ="information"
+          id="cat-information"
+          legende="Quelle information est concernée ?"
+          options={[
+            { valeur: 'nom', texte: 'Nom' },
+            { valeur: 'frais', texte: 'Frais' },
+            { valeur: 'autre', texte: 'Autre' },
+          ]}
+        />
+        <Choix
+          champ="niveaux"
+          id="cat-niveaux"
+          legende="Niveaux, si vous les connaissez"
+          facultatif
+          plusieurs
+          options={[
+            { valeur: 'P', texte: 'Primaire' },
+            { valeur: 'C', texte: 'Collège' },
+          ]}
+        />
+        <Reponse />
+      </div>
+      <div class="catalogue-refus">
+        <EtatsDEnvoi whatsapp="#formulaires" />
       </div>
     </div>
 
@@ -513,6 +777,17 @@ const autour = arrondissementsDessines.map((a) => ({
 </script>
 
 <style is:global>
+  /* Le catalogue montre un refus que, sur la page, seul le script rend visible. */
+  .catalogue-formulaires {
+    padding: 0;
+  }
+  .catalogue-refus [data-refus],
+  .catalogue-refus [data-cas='ferme'] {
+    display: grid !important;
+  }
+  .catalogue-refus [data-geste='copier'] {
+    display: inline-flex !important;
+  }
   .pieces-carte {
     display: grid;
     gap: var(--espace-4);

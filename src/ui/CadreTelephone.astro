@@ -1,0 +1,32 @@
+---
+// Le cadre de téléphone d'un exemple (refonte publique, lot 5 ; planches « Pour les écoles » et « Outils, en préparation ») : un
+// dessin autour de vrai texte, que tout le monde lit. Rien dedans ne se touche. Le contenu dit lui-même « Exemple » sur la ligne
+// de son nom (règle du 17/11) ; `nom` le dit à qui ne voit pas le cadre.
+interface Props {
+  nom: string;
+}
+const { nom } = Astro.props;
+---
+
+<div class="cadre-telephone" role="group" aria-label={nom}>
+  <div class="cadre-telephone-ecran">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .cadre-telephone {
+    width: 100%;
+    max-width: 312px;
+    margin-inline: auto;
+    padding: 10px;
+    border-radius: 36px;
+    background: var(--texte);
+  }
+  .cadre-telephone-ecran {
+    overflow: hidden;
+    border-radius: 27px;
+    background: var(--fond-releve);
+    color: var(--texte);
+  }
+</style>

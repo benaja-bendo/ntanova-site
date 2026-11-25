@@ -1,0 +1,255 @@
+---
+// Les six activités de « S'orienter » (refonte publique, lot 2) : une carte blanche, posée sur la bande verte de la page.
+//
+// Tout est écrit ici en HTML, à la construction : les six activités, leurs pistes et l'offre de chacune. Le petit script
+// (`app/orienter/`, branché par la page : un composant ne dépend pas de `app/`) ne fait que montrer l'activité en cours, puis
+// les pistes des activités aimées ; il ne construit rien, n'écrit ni adresse, ni stockage, et n'appelle aucun réseau. Sans
+// lui, la carte le dit et renvoie aux dix domaines.
+import type { ActiviteDeLaPage } from '../../modele/orientation-catalogue';
+import { formationsEtEcoles } from '../../modele/orientation-catalogue';
+
+interface Props {
+  activites: readonly ActiviteDeLaPage[];
+  /** « 24 nov. 2026 » : le jour de l'annuaire, pour les nombres des pistes. */
+  jour: string;
+}
+const { activites, jour } = Astro.props;
+---
+
+<div class="activites" data-activites>
+  <div class="activites-sans-script" data-sans-script>
+    <p>
+      Les activités ne sont pas disponibles dans ce navigateur. Explorez les dix domaines de
+      formation, plus bas, pour trouver des écoles.
+    </p>
+    <a class="lien-fort" href="#o-domaines">
+      Voir les dix domaines
+    </a>
+  </div>
+
+  <div class="activites-question" data-question hidden>
+    <p class="activites-progression" tabindex="-1" data-progression>
+      <span>
+        Activité <span data-numero>1</span> sur {activites.length}
+      </span>
+      <span class="activites-aimez">Aimez-vous…</span>
+    </p>
+    <div class="activites-barre" aria-hidden="true">
+      <span data-barre></span>
+    </div>
+    {activites.map((a) => (
+      <figure class="activite" data-activite={a.rang} hidden={a.rang !== 0}>
+        <img src={a.dessin} alt="" width="240" height="184" loading="lazy" decoding="async" />
+        <figcaption>{a.texte}</figcaption>
+      </figure>
+    ))}
+    <p class="visuellement-cache" aria-live="polite" data-annonce></p>
+    <div class="activites-boutons" role="group" aria-label="Votre réponse" data-boutons>
+      <button type="button" class="bouton bouton-secondaire" data-reponse="non">
+        Je n’aime pas
+      </button>
+      <button type="button" class="bouton bouton-secondaire" data-reponse="peut">
+        Je ne sais pas
+      </button>
+      <button type="button" class="bouton" data-reponse="oui">
+        J’aime
+      </button>
+    </div>
+  </div>
+
+  <div class="activites-resultat" data-resultat hidden>
+    <h3 tabindex="-1" data-titre-resultat>
+      Des pistes à explorer
+    </h3>
+    <ul class="pistes">
+      {activites.map((a) => (
+        <li class="piste" data-piste={a.rang} hidden>
+          <span class="piste-pourquoi">Vous aimez&nbsp;: {a.phrase}</span>
+          {a.pistes.map((p) =>
+            p.offre.lien ? (
+              <a class="piste-lien" data-domaine={p.slug} href={p.offre.lien}>
+                {p.nom}&nbsp;: {formationsEtEcoles(p.offre, ', ')}
+              </a>
+            ) : (
+              <span class="piste-vide" data-domaine={p.slug}>
+                {p.nom}&nbsp;: pas encore de formation documentée
+              </span>
+            ),
+          )}
+          <span class="piste-vide" data-deja hidden>
+            Mêmes pistes que ci-dessus.
+          </span>
+        </li>
+      ))}
+    </ul>
+    <p data-aucune hidden>
+      Vous n’avez sélectionné aucune activité. Explorez les dix domaines, ou recommencez.
+    </p>
+    <p class="activites-note">
+      Écoles et formations documentées au {jour}. Parlez-en avec un professeur ou un conseiller.
+    </p>
+    <div class="activites-fin">
+      <button type="button" class="bouton bouton-secondaire" data-recommencer>
+        Recommencer
+      </button>
+      <a class="lien-fort" href="#o-domaines">
+        Les dix domaines
+      </a>
+    </div>
+  </div>
+</div>
+
+<style>
+  .activites {
+    display: grid;
+    gap: var(--espace-4);
+    padding: var(--espace-5);
+    border-radius: var(--rayon-l);
+    background: var(--fond-releve);
+    color: var(--texte);
+    /* La carte est blanche sur la bande verte : le focus y redevient vert profond. */
+    --focus: var(--marque-appuyee);
+  }
+  .activites [hidden] {
+    display: none !important;
+  }
+  .activites p {
+    margin: 0;
+  }
+  /* Le script en marche cache le renvoi ; s'il échoue, le renvoi revient. */
+  .activites[data-script='pret'] .activites-sans-script {
+    display: none;
+  }
+  .activites-sans-script {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .activites-question,
+  .activites-resultat {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .activites-progression {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--espace-2);
+    font-family: var(--police-interface);
+    font-weight: 700;
+  }
+  .activites-progression:focus-visible,
+  .activites-resultat h3:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 4px;
+  }
+  .activites-aimez {
+    color: var(--texte-doux);
+    font-weight: 400;
+  }
+  .activites-barre {
+    height: 6px;
+    overflow: hidden;
+    border-radius: var(--rayon-pilule);
+    background: var(--fond-bande);
+  }
+  .activites-barre span {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--marque);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .activites-barre span {
+      transition: width var(--duree) ease-out;
+    }
+  }
+  .activite {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+  }
+  .activite img {
+    display: block;
+    width: 100%;
+    max-width: 240px;
+    height: auto;
+    margin-inline: auto;
+    border-radius: var(--rayon-m);
+    background: var(--creme);
+  }
+  .activite figcaption {
+    min-height: 2.4em;
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-fiche);
+    font-weight: 700;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+  /* Les trois réponses sur une ligne, à toutes les largeurs (planche 390 px) : un mot peut passer à la ligne. */
+  .activites-boutons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--espace-2);
+  }
+  .activites-boutons .bouton {
+    min-height: 52px;
+    padding: 6px;
+  }
+  .activites-resultat h3 {
+    margin: 0;
+    font-size: var(--taille-titre-fiche);
+  }
+  .pistes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .piste {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: var(--espace-3) 0;
+    border-top: 1px solid var(--trait);
+  }
+  .piste-pourquoi,
+  .activites-note {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .piste-lien {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-family: var(--police-interface);
+    font-weight: 700;
+    text-underline-offset: 3px;
+  }
+  .piste-vide {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-min);
+    color: var(--texte-doux);
+  }
+  .activites-fin {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-3) var(--espace-5);
+  }
+  .lien-fort {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-family: var(--police-interface);
+    font-weight: 700;
+  }
+  @media (min-width: 48rem) {
+    .activites {
+      padding: var(--espace-6);
+    }
+  }
+</style>

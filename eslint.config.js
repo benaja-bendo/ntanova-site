@@ -61,7 +61,6 @@ export default defineConfig(
     'node_modules/',
     'playwright-report/',
     'test-results/',
-    'supabase/',
   ]),
   js.configs.recommended,
   tseslint.configs.recommended,
@@ -83,4 +82,9 @@ export default defineConfig(
   frontiere('app/admin', [supabase, infraInterne, versRelais, versPages]),
   // La carte interactive (ticket #103) : un îlot du navigateur, sans réseau vers autre chose que ses fichiers.
   frontiere('app/carte', [supabase, infraInterne, versRelais, versAdmin, versPages]),
+  // Les six activités de S'orienter (refonte, lot 2) : un script natif qui ne lit que le modèle. Ni base, ni réseau, ni
+  // React : aucune réponse ne quitte le navigateur.
+  frontiere('app/orienter', [supabase, versInfra, versRelais, versAdmin, versPages, react]),
+  // Les formulaires publics (refonte, lot 3C) : un script natif qui reçoit son port de la page. Ni base, ni client, ni React.
+  frontiere('app/formulaires', [supabase, versInfra, versRelais, versAdmin, versPages, react]),
 );

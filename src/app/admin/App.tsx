@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Utilisateur } from '../../modele/ports';
 import { obtenirAdaptateurs, type Adaptateurs } from '../../infra/index';
 import { useAdresse } from '../commun/adresse';
+import { CHEMIN as MESSAGES, lireReference } from '../../modele/messages-recus';
 import { Cadre, type Onglet } from './Cadre';
 import { Button } from '@/ui/shadcn/button';
 import { BoutonGoogle } from '../commun/BoutonGoogle';
@@ -14,6 +15,7 @@ import { AValider } from './AValider';
 import { Ecoles } from './Ecoles';
 import { ListeRelais } from './ListeRelais';
 import { Paie } from './Paie';
+import { MessagesRecus } from './MessagesRecus';
 import { Sante } from './Sante';
 import { Aujourdhui } from './Aujourdhui';
 import { Zones } from './Zones';
@@ -45,7 +47,11 @@ export default function App() {
   const [aValider, setAValider] = useState<number | null>(null);
   const [relaisAActiver, setRelaisAActiver] = useState<number | null>(null);
   const [ecolesPretes, setEcolesPretes] = useState<number | null>(null);
-  const [ecran = 'accueil'] = useAdresse();
+  // Les messages reçus à traiter, retraits compris (refonte, lot 3B2).
+  const [messages, setMessages] = useState<number | null>(null);
+  const [ecran = 'accueil', segment] = useAdresse();
+  // Le lien d'une alerte e-mail : la connexion dit ce qu'elle va ouvrir, et rien ne se lit avant elle.
+  const messageVise = ecran === MESSAGES ? lireReference(segment) : null;
 
   useEffect(() => {
     void obtenirAdaptateurs().then(async (a) => {
@@ -64,6 +70,7 @@ export default function App() {
 
   const compter = useCallback((n: number) => setAValider(n), []);
   const compterLesRelais = useCallback((n: number) => setRelaisAActiver(n), []);
+  const compterLesMessages = useCallback((n: number) => setMessages(n), []);
 
   // Les compteurs des onglets se lisent dès l'arrivée, quel que soit l'onglet ouvert (audit du 06/11/2026 : il fallait
   // ouvrir « À valider » pour voir son nombre), puis chaque minute et au retour sur la page. Un compteur qui ne se lit
@@ -73,12 +80,14 @@ export default function App() {
     void Promise.allSettled([
       adaptateurs.admin.vueEnsemble(1),
       adaptateurs.admin.ecolesPretes(),
-    ]).then(([vue, pretes]) => {
+      adaptateurs.admin.resumeMessages(),
+    ]).then(([vue, pretes, recus]) => {
       if (vue.status === 'fulfilled') {
         setAValider(vue.value.aValider.nombre);
         setRelaisAActiver(vue.value.relais.enAttente);
       }
       if (pretes.status === 'fulfilled') setEcolesPretes(pretes.value);
+      if (recus.status === 'fulfilled') setMessages(recus.value.aTraiter + recus.value.retraits);
     });
   }, [adaptateurs]);
 
@@ -109,7 +118,14 @@ export default function App() {
       <Accueil>
         <h1>Administration</h1>
         <p className="text-muted-foreground">
-          Connecte-toi avec le compte Google inscrit comme administrateur.
+          {messageVise ? (
+            <>
+              Connecte-toi pour ouvrir <b className="whitespace-nowrap">{messageVise}</b>, avec le
+              compte Google inscrit comme administrateur.
+            </>
+          ) : (
+            'Connecte-toi avec le compte Google inscrit comme administrateur.'
+          )}
         </p>
         <BoutonGoogle
           session={adaptateurs.session}
@@ -127,6 +143,9 @@ export default function App() {
         {acces === 'refuse' && (
           <>
             <h1>Accès refusé</h1>
+            {ecran === MESSAGES && (
+              <p>Cette page est réservée à l’administration. Aucun message n’est chargé.</p>
+            )}
             <p>
               Le compte {utilisateur.email ?? 'connecté'} n'est pas inscrit comme administrateur.
               L'inscription se fait dans l'éditeur SQL de Supabase (voir{' '}
@@ -155,6 +174,13 @@ export default function App() {
       libelle: 'À valider',
       compte: aValider,
       legende: ['envoi à valider', 'envois à valider'],
+    },
+    {
+      chemin: 'demandes',
+      libelle: 'Messages reçus',
+      compte: messages,
+      legende: ['message à traiter', 'messages à traiter'],
+      plusSurTelephone: true,
     },
     {
       chemin: 'ecoles',
@@ -189,6 +215,8 @@ export default function App() {
         <Ecoles admin={adaptateurs.admin} />
       ) : ecran === 'zones' ? (
         <Zones admin={adaptateurs.admin} />
+      ) : ecran === MESSAGES ? (
+        <MessagesRecus admin={adaptateurs.admin} surCompte={compterLesMessages} />
       ) : ecran === 'sante' ? (
         <Sante admin={adaptateurs.admin} />
       ) : ecran === 'paie' ? (

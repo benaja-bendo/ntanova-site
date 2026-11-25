@@ -155,10 +155,15 @@ const pagesPubliques = [
   ['fiche d’une école', '/ecoles/complexe-scolaire-exemple-482913/'],
   ['une ville et ses arrondissements', '/ecoles/pointe-noire/'],
   ['la page « Écoles » (recherche et autour de moi)', '/ecoles/'],
-  ['« Espace écoles »', '/pour-les-ecoles/'],
+  ['« Pour les écoles »', '/pour-les-ecoles/'],
+  // Refonte publique, lot 5 (25/11).
+  ['« Outils en préparation »', '/pour-les-ecoles/outils/'],
   ['« À propos »', '/a-propos/'],
-  ['« Méthode »', '/methode/'],
+  ['« Fiabilité des informations »', '/methode/'],
+  ['la fiche de démonstration', '/demo/fiche-ecole/'],
   ['« Données »', '/donnees/'],
+  // Refonte publique, lot 4 (24/11) : « Toutes les villes ».
+  ['« Toutes les villes »', '/villes/'],
   ['« Confidentialité »', '/confidentialite/'],
   ['« Mentions légales »', '/mentions-legales/'],
   ['page introuvable', '/cette-page-n-existe-pas/'],
@@ -181,7 +186,9 @@ async function position(page: Page, nom: string | RegExp) {
 
 test.describe('site public', () => {
   for (const [nom, adresse] of pagesPubliques) {
-    test(`${nom} : ne défile pas de côté, cibles de 44 px, textes lisibles`, async ({ page }) => {
+    test(`${nom} : cadre, cibles de 44 px et textes lisibles sans débordement`, async ({
+      page,
+    }) => {
       await page.goto(adresse);
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await aucunDefilementDeCote(page, nom);
@@ -194,12 +201,7 @@ test.describe('site public', () => {
         ).toBeGreaterThanOrEqual(44);
       }
       expect(await textesPeuLisibles(page, 'body'), nom).toEqual([]);
-    });
-
-    test(`${nom} : prend la largeur de l’écran, sans étirer ses lignes de texte`, async ({
-      page,
-    }) => {
-      await page.goto(adresse);
+      // Même page et même largeur : vérifier aussi le cadre sans refaire toute la navigation.
       const largeur = largeurDe(page);
       const cadre = page.locator('main .cadre').first();
       await expect(cadre).toBeVisible();
@@ -221,91 +223,80 @@ test.describe('site public', () => {
     });
   }
 
-  test('accueil : les trois piliers à toutes les largeurs, deux villes côte à côte, étapes visibles partout', async ({
+  test('accueil : les trois entrées dans l’en-tête dès 768 px, derrière « Menu » avant ; rien ne sort de l’écran', async ({
     page,
   }) => {
-    // Lot 3 (version 44 du canevas, décision 1A du 15/11) : plus de bouton Menu, les trois piliers restent visibles ; Carte,
-    // Méthode, Données et À propos passent au pied de page.
+    // Refonte publique, lot 1 (canevas « Points de repère », lancement du 24/11) : le menu du téléphone remplace les trois
+    // piliers toujours visibles du 15/11.
     await page.goto('/');
+    const menu = page.locator('summary.menu-bouton');
+    if (largeurDe(page) < TABLETTE) {
+      await expect(menu).toBeVisible();
+      await menu.click();
+    } else await expect(menu).toBeHidden();
     const navigation = page.getByRole('navigation', { name: 'Navigation principale' });
     await expect(navigation).toBeVisible();
     await expect(navigation.getByRole('link')).toHaveText([
       'Trouver une école',
       'S’orienter',
-      'Espace écoles',
+      'Pour les écoles',
     ]);
     await expect(navigation.getByRole('link', { name: 'Trouver une école' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    await expect(page.locator('summary', { hasText: 'Menu' })).toHaveCount(0);
     for (const lien of await navigation.getByRole('link').all()) {
       const boite = await lien.boundingBox();
-      expect(boite!.x + boite!.width, 'un pilier sort de l’écran').toBeLessThanOrEqual(
+      expect(boite!.x + boite!.width, 'une entrée sort de l’écran').toBeLessThanOrEqual(
         largeurDe(page),
       );
     }
-    // Les deux premières villes côte à côte, même au téléphone (planche « Accueil · téléphone »).
-    const [premiere, seconde] = await page.locator('section.ville-carte').all();
-    const [a, b] = await Promise.all([premiere?.boundingBox(), seconde?.boundingBox()]);
-    expect(a?.y, 'les deux villes sont sur la même ligne').toBe(b?.y);
-    // D14 : la preuve de la page, « Comment les fiches sont tenues », se lit partout.
-    await expect(
-      page.getByRole('heading', { name: 'Comment les fiches sont tenues' }),
-    ).toBeVisible();
     // Pas de mise à jour automatique : tant que ce n'est pas vrai, on ne le dit pas.
     await expect(page.getByText(/mettent la fiche à jour/)).toHaveCount(0);
     const pied = page.getByRole('contentinfo');
-    // Lot 4 bis : plus de lien « Carte » au pied, la carte est la vue Carte de « Les écoles ».
-    for (const nom of ['Méthode', 'Données', 'À propos']) {
+    for (const nom of ['Fiabilité des informations', 'Données de l’annuaire', 'À propos']) {
       await expect(pied.getByRole('link', { name: nom, exact: true })).toBeVisible();
     }
   });
 
-  test('accueil : les villes par ordre alphabétique, leurs arrondissements du plus fourni au moins fourni', async ({
+  test('accueil : les villes par ordre alphabétique, chacune avec son nombre et ses arrondissements les plus fournis', async ({
     page,
   }) => {
-    // Planche « Accueil » de la version 44 : Brazzaville, puis Pointe-Noire ; une troisième ville paraît d'elle-même. Ticket
-    // 147 : les villes, jamais leur département (Dolisie, et non le Niari). Un arrondissement sans fiche n'a pas de puce.
+    // Ticket 147 : les villes, jamais leur département (Dolisie, et non le Niari). Une troisième ville paraît d'elle-même.
     await page.goto('/');
-    await expect(page.locator('section.ville-carte .ville-lien b')).toHaveText([
+    const villes = page.getByRole('region', { name: 'Par ville' });
+    await expect(villes.locator('.ville-texte b')).toHaveText([
       'Brazzaville',
       'Dolisie',
       'Pointe-Noire',
     ]);
-    const pointeNoire = page.getByRole('region', { name: 'Pointe-Noire', exact: true });
-    await expect(pointeNoire.getByText('7 écoles sur NTanova')).toBeVisible();
-    await expect(pointeNoire.locator('.puces-lieux a')).toHaveText([
-      /Tié-Tié\s*4/,
-      /Loandjili\s*2/,
-      /Mongo-Mpoukou\s*1/,
-    ]);
-    // Le lecteur d'écran entend le nombre en mots ; la puce mène à la page de l'arrondissement.
-    await expect(pointeNoire.getByRole('link', { name: /^Tié-Tié\s*: 4 écoles$/ })).toHaveAttribute(
-      'href',
-      '/ecoles/pointe-noire/tie-tie/',
-    );
+    const pointeNoire = villes.getByRole('link', { name: /^Pointe-Noire/ });
+    await expect(pointeNoire).toContainText('7 écoles');
+    await expect(pointeNoire).toContainText('Tié-Tié, Loandjili…');
+    // Les cartes des villes ne dépassent pas l'écran, une ou plusieurs par ligne.
+    for (const carte of await villes.getByRole('link').all()) {
+      const boite = (await carte.boundingBox())!;
+      expect(boite.x + boite.width).toBeLessThanOrEqual(largeurDe(page));
+    }
   });
 
-  test('accueil : « Où ? » à droite de l’ouverture dès 1 024 px, dessous avant ; ni carte ni image au premier écran', async ({
+  test('accueil : le dessin à droite du titre dès 1 024 px, sous la recherche avant ; aucune carte interactive', async ({
     page,
   }) => {
     await page.goto('/');
-    const titre = await position(page, 'Trouvez une école au Congo-Brazzaville.');
-    const ou = await position(page, /^Où/);
+    const titre = (await page.getByRole('heading', { level: 1 }).boundingBox())!;
+    const recherche = (await page
+      .getByRole('search', { name: 'Chercher une école' })
+      .boundingBox())!;
+    const dessin = (await page.locator('.dessin-congo').boundingBox())!;
     if (largeurDe(page) >= ORDINATEUR) {
-      expect(ou.x, 'à droite du titre').toBeGreaterThanOrEqual(titre.x + titre.width);
+      expect(dessin.x, 'à droite du titre').toBeGreaterThanOrEqual(titre.x + titre.width);
     } else {
-      expect(ou.y, 'sous le titre').toBeGreaterThan(titre.y + titre.height);
+      expect(dessin.y, 'sous la recherche').toBeGreaterThan(recherche.y + recherche.height);
     }
-    // Plus de carte sur l'accueil (décision du 15/11) ; les seules images (les couvertures de « Vues sur place récemment »)
-    // sont sous le premier écran.
-    await expect(page.locator('.explorateur, #carte')).toHaveCount(0);
-    const hauteur = page.viewportSize()?.height ?? 0;
-    for (const image of await page.locator('main img').all()) {
-      const boite = await image.boundingBox();
-      expect(boite?.y ?? 0, 'une image au premier écran').toBeGreaterThanOrEqual(hauteur);
-    }
+    // La recherche se lit au premier écran, à toutes les largeurs.
+    expect(recherche.y + recherche.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    await expect(page.locator('main canvas, .explorateur, #carte')).toHaveCount(0);
   });
 
   test('liste : les écoles se rangent en grille, une fiche ne s’étire pas sur toute la page', async ({
@@ -380,34 +371,73 @@ test.describe('site public', () => {
     },
   );
 
-  test('« Espace écoles » : les gains viennent avant l’action ; à partir de 1 024 px, ce qu’on demande est à côté', async ({
-    page,
-  }) => {
-    await page.goto('/pour-les-ecoles/');
-    const gains = await position(page, 'Ce que votre école y gagne');
-    const action = await position(page, 'Confirmez ou ajoutez votre école');
-    const demandes = await position(page, 'Ce que nous vous demanderons');
-    // Partout : ce que l'école y gagne se lit avant le bouton qui écrit sur WhatsApp.
-    expect(gains.y).toBeLessThan(action.y);
-    if (largeurDe(page) >= ORDINATEUR) {
-      expect(demandes.x).toBeGreaterThan(action.x + action.width / 2);
-    } else {
-      expect(demandes.y).toBeGreaterThan(action.y);
-    }
-  });
+  // Lot 5 (25/11/2026) : les planches « Pour les écoles » et « Outils, en préparation » ; le test de la page du 05/11 (gains avant
+  // l'action, deux colonnes) est réécrit sur elles. Une seule visite par page et par largeur : ce qui change avec elle.
+  test(
+    '« Pour les écoles » et « Outils en préparation » : le titre avant son dessin ou à sa gauche, la recherche au premier écran, le tableau qui s’empile, rien ne déborde',
+    { tag: '@largeurs' },
+    async ({ page }) => {
+      for (const adresse of ['/pour-les-ecoles/', '/pour-les-ecoles/outils/']) {
+        await page.goto(adresse);
+        for (const d of await page.locator('main details').all())
+          await d.evaluate((e) => e.setAttribute('open', ''));
+        await aucunDefilementDeCote(page, adresse);
+        const petites = await page
+          .locator('main :is(a, button, summary, input)')
+          .evaluateAll((l) =>
+            l
+              .filter(
+                (e) => e.getClientRects().length > 0 && e.getBoundingClientRect().height < 43.5,
+              )
+              .map((e) => e.textContent?.trim() ?? e.tagName),
+          );
+        expect(petites, `${adresse} : des cibles sous 44 px`).toEqual([]);
+        const titre = (await page.getByRole('heading', { level: 1 }).boundingBox())!;
+        const dessin = (await page.locator('.pe-dessin').boundingBox())!;
+        if (largeurDe(page) >= ORDINATEUR)
+          expect(dessin.x).toBeGreaterThanOrEqual(titre.x + titre.width);
+        else expect(dessin.y).toBeGreaterThanOrEqual(titre.y + titre.height);
+      }
+      // Le tableau des dossiers : des cartes sur téléphone, des colonnes ensuite.
+      const ligne = page.getByRole('row', { name: /^016/ });
+      const enTete = (await ligne.getByRole('rowheader').boundingBox())!;
+      const cellule = (await ligne.getByRole('cell').first().boundingBox())!;
+      if (largeurDe(page) >= TABLETTE) expect(cellule.y).toBeLessThan(enTete.y + enTete.height);
+      else expect(cellule.y).toBeGreaterThanOrEqual(enTete.y + enTete.height - 1);
+      await page.goto('/pour-les-ecoles/');
+      await expect(
+        page.getByRole('searchbox', { name: 'Retrouver la fiche de mon école' }),
+      ).toBeInViewport();
+    },
+  );
 
-  test('« À propos » : à partir de la tablette, ce que nous faisons et ce que nous publions sont côte à côte', async ({
+  // Lot 4 (24/11/2026) : la planche « À propos » ; le test de la page courte du 08/11 est réécrit sur elle.
+  test('« À propos » : à partir de la tablette, les deux missions sont côte à côte ; sur téléphone, l’une sous l’autre', async ({
     page,
   }) => {
     await page.goto('/a-propos/');
-    const fait = await position(page, 'Ce que nous faisons');
-    const publie = await position(page, 'Ce que nous publions');
+    const familles = await position(page, /^Pour les familles$/);
+    const ecoles = await position(page, /^Pour les écoles$/);
     if (largeurDe(page) >= TABLETTE) {
-      expect(publie.y).toBe(fait.y);
-      expect(publie.x).toBeGreaterThan(fait.x);
+      expect(ecoles.y).toBe(familles.y);
+      expect(ecoles.x).toBeGreaterThan(familles.x);
     } else {
-      expect(publie.y).toBeGreaterThan(fait.y);
+      expect(ecoles.y).toBeGreaterThan(familles.y);
     }
+  });
+
+  test('« Fiabilité des informations » : le tableau champ par champ se lit sans défiler de côté, une ligne par information sur téléphone', async ({
+    page,
+  }) => {
+    await page.goto('/methode/');
+    await aucunDefilementDeCote(page, 'Fiabilité');
+    const frais = await position(page, 'Les frais publics et les comptes privés');
+    expect(frais.width).toBeGreaterThan(0);
+    const ligne = page.getByRole('row', { name: /^Position/ });
+    const enTete = await ligne.getByRole('rowheader').boundingBox();
+    const cellule = await ligne.getByRole('cell').first().boundingBox();
+    if (largeurDe(page) >= TABLETTE) expect(cellule!.y).toBeLessThan(enTete!.y + enTete!.height);
+    else expect(cellule!.y).toBeGreaterThanOrEqual(enTete!.y + enTete!.height - 1);
   });
 });
 

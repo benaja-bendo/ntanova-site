@@ -1,0 +1,746 @@
+---
+// Outils en préparation, `/pour-les-ecoles/outils/` (refonte publique, lot 5, 25/11/2026 ; canevas « Points de repère », planche
+// « Outils, en préparation », 1 440 et 390 px, état Aujourd'hui). Une présentation : deux pistes à éprouver, aucun logiciel, aucun
+// ordre entre elles, aucun compte, aucun formulaire ici.
+//
+// - L'exemple est du texte et du style : école, dossiers, dates, sommes et reçu inventés (`modele/exemple-outils.ts`), l'étiquette
+//   « Exemple » sur la ligne de leur nom (règle du 17/11). Le dossier 016 se dit quatre fois depuis un seul objet. Rien ne s'y
+//   saisit, ne s'enregistre ni ne s'exporte ; rien n'entre dans le catalogue, la recherche ou la carte.
+// - Les portes d'entrée, les droits séparés, les corrections tracées, l'export, les années, la transmission après coupure : des
+//   intentions, écrites au conditionnel ou comme des règles posées d'avance. La conservation des dossiers se fixe avant un essai.
+// - « Raconter une rentrée » : la porte de Contact, sujet et origine `outils` ; WhatsApp tant que les formulaires sont fermés.
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import {
+  CHRONOLOGIE_016,
+  DOSSIER_016,
+  DOSSIERS_EXEMPLE,
+  ECOLE_EXEMPLE,
+  PROCHAINE_016,
+  RENTREE_EXEMPLE,
+  RESTE_016,
+  jourEcrit,
+  nombre,
+  somme,
+} from '../../modele/exemple-outils';
+import { porte } from '../../modele/liens-demandes';
+import { LIEN_POUR_LES_ECOLES, MESSAGE_RACONTER } from '../../modele/services-ecoles';
+import { avecMessage, lienWhatsApp } from '../../modele/whatsapp';
+import CadreTelephone from '../../ui/CadreTelephone.astro';
+import ConditionsEssai from '../../ui/ConditionsEssai.astro';
+import EtatService from '../../ui/EtatService.astro';
+import Icone from '../../ui/Icone.astro';
+import LienPorte from '../../ui/LienPorte.astro';
+import PagePublique from '../../ui/PagePublique.astro';
+import { formulairesOuverts } from '../../ui/formulaires/ouverture';
+import IconeDuRegistre from '../../ui/icones/IconeDuRegistre.astro';
+import '../../ui/carte-pieces.css';
+import '../../ui/confiance.css';
+import '../../ui/pour-les-ecoles.css';
+
+const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
+const raconter = porte(
+  formulairesOuverts,
+  { vers: 'contact', depuis: 'outils', sujet: 'outils' },
+  avecMessage(whatsapp, MESSAGE_RACONTER),
+);
+const d = DOSSIER_016;
+const nomEcole = `${ECOLE_EXEMPLE.debut} ${ECOLE_EXEMPLE.fin}`;
+
+const QUESTIONS = [
+  ['Demande', 'Est-elle arrivée, et par où\u00a0?'],
+  ['Pièces', 'Le dossier est-il complet\u00a0?'],
+  ['Décision', 'Qui a décidé, et quoi\u00a0?'],
+  ['Paiement', 'Combien est dû, versé, restant\u00a0?'],
+  ['Inscription', 'Est-elle confirmée, par qui\u00a0?'],
+] as const;
+const COLONNES = ['Demande reçue', 'Pièces', 'Décision', 'Paiement', 'Inscription'] as const;
+---
+
+<PagePublique
+  titre="Outils en préparation : inscriptions, frais et reçus · NTanova"
+  description="Deux pistes d’outils pour les écoles du Congo-Brazzaville, inscriptions, frais et reçus. Rien n’est ouvert : un exemple inventé, les règles que nous nous fixons, et comment nous raconter votre rentrée."
+  whatsapp={whatsapp}
+>
+  <section class="cf-verte sur-marque" aria-labelledby="titre-outils">
+    <div class="cadre cf-haut pe-haut">
+      <div class="cf-haut-texte">
+        <div class="pe-ligne-titre">
+          <a class="cf-lien" href={LIEN_POUR_LES_ECOLES}>
+            <Icone nom="retour" />
+            Pour les écoles
+          </a>
+          <EtatService etat="preparation" />
+        </div>
+        <h1 id="titre-outils">Inscriptions, frais et reçus&nbsp;: deux pistes.</h1>
+        <p class="cf-chapeau">
+          Rien n’est ouvert. Nous cherchons d’abord ce qui prend vraiment du temps aux écoles.
+        </p>
+        <div class="pe-actions">
+          <LienPorte porte={raconter} class="bouton bouton-accent">
+            Raconter votre dernière rentrée
+          </LienPorte>
+          <a class="cf-lien" href="#ou-exemple">
+            Voir l’exemple
+          </a>
+        </div>
+      </div>
+      <img class="pe-dessin" src="/dessins/outils-guichet.svg" alt="" width="520" height="400" />
+    </div>
+  </section>
+
+  <section class="cf-bande" aria-labelledby="titre-portes">
+    <div class="cadre cf-section">
+      <div class="cf-tete">
+        <h2 id="titre-portes">Trois portes d’entrée</h2>
+        <p class="cf-ligne">
+          Ce que nous envisageons&nbsp;: enregistrer un élève sans que sa famille ait un compte.
+        </p>
+      </div>
+      <ul class="cf-cartes cf-cartes-3">
+        <li class="cf-carte">
+          <span class="cf-rond">
+            <IconeDuRegistre nom="maison" />
+          </span>
+          <h3>La fiche publique</h3>
+          <p>Une famille enverrait sa demande depuis la fiche.</p>
+        </li>
+        <li class="cf-carte">
+          <span class="cf-rond">
+            <IconeDuRegistre nom="compte" />
+          </span>
+          <h3>Le secrétariat</h3>
+          <p>L’école saisirait une demande venue au guichet. Aucun compte demandé à la famille.</p>
+        </li>
+        <li class="cf-carte">
+          <span class="cf-rond">
+            <Icone nom="liste" />
+          </span>
+          <h3>Une liste existante</h3>
+          <p>L’école importerait ses élèves déjà inscrits. Rien ne serait fusionné tout seul.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="ou-exemple" class="cadre cf-section" aria-labelledby="titre-cinq">
+    <div class="cf-tete">
+      <h2 id="titre-cinq">Un dossier, cinq questions distinctes</h2>
+      <p class="cf-ligne">
+        Un dossier complet peut attendre une décision. Un élève admis peut ne pas avoir payé. Une
+        inscription peut être confirmée, sur dérogation, sans être soldée.
+      </p>
+    </div>
+    <ul class="questions">
+      {QUESTIONS.map(([nom, q]) => (
+        <li class="cf-carte">
+          <b>{nom}</b> <span>{q}</span>
+        </li>
+      ))}
+    </ul>
+    <div class="exemple-tableau">
+      <h3 class="exemple-titre" id="titre-tableau">
+        <span>
+          {ECOLE_EXEMPLE.debut}{' '}
+          <span class="nom-exemple-fin">
+            {ECOLE_EXEMPLE.fin} <span class="etiquette-exemple">Exemple</span>
+          </span>
+        </span>{' '}
+        <span class="exemple-rentree">Rentrée {RENTREE_EXEMPLE}</span>
+      </h3>
+      <table class="cf-tableau dossiers" role="table" aria-labelledby="titre-tableau">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th scope="col" role="columnheader">
+              Dossier
+            </th>
+            {COLONNES.map((c) => (
+              <th scope="col" role="columnheader">
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody role="rowgroup">
+          {DOSSIERS_EXEMPLE.map((l) => (
+            <tr role="row" class:list={{ suivi: l.suivi }}>
+              <th scope="row" role="rowheader">
+                {l.dossier}
+              </th>
+              <td role="cell" data-l={COLONNES[0]}>
+                {l.recue} <span class="par">{l.par}</span>
+              </td>
+              <td role="cell" data-l={COLONNES[1]}>
+                {l.pieces}
+              </td>
+              <td role="cell" data-l={COLONNES[2]}>
+                {l.decision}
+              </td>
+              <td role="cell" data-l={COLONNES[3]}>
+                {l.paiement}
+              </td>
+              <td role="cell" data-l={COLONNES[4]}>
+                {l.inscription}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p class="cf-note">
+        École, dossiers, dates et montants inventés. Le dossier {d.numero} est suivi plus bas.
+      </p>
+    </div>
+  </section>
+
+  <section class="cf-blanc" aria-labelledby="titre-016">
+    <div class="cadre cf-section">
+      <div class="cf-tete">
+        <h2 id="titre-016">
+          Le dossier {d.numero}, du guichet à{' '}
+          <span class="nom-exemple-fin">
+            la famille <span class="etiquette-exemple">Exemple</span>
+          </span>
+        </h2>
+        <p class="cf-ligne">
+          Les mêmes faits, dans le tableau de l’école, sur le reçu et chez la famille.
+        </p>
+      </div>
+      <div class="recits">
+        <section class="recit" aria-labelledby="titre-note">
+          <h3 id="titre-note">Ce que l’école note</h3>
+          <ol class="fil">
+            {CHRONOLOGIE_016.map((e) => (
+              <li>
+                <b>{e.quand}</b> <span>{e.quoi}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+        <section class="recit" aria-labelledby="titre-recu">
+          <h3 id="titre-recu">Le reçu</h3>
+          <div class="recu">
+            <p class="recu-tete">
+              <b>Reçu n°&nbsp;{d.recu.numero}</b> <span class="etiquette-exemple">Exemple</span>
+            </p>
+            <p class="cf-note">
+              {nomEcole} · {d.recu.caisse} · {jourEcrit(d.recu.le, true)}
+            </p>
+            <dl class="recu-lignes">
+              <div class="recu-verse">
+                <dt>Versé, en espèces</dt>
+                <dd>{somme(d.recu.montant)}</dd>
+              </div>
+              {d.echeances.map((e) => (
+                <div>
+                  <dt>
+                    {e.nom} · {e.mois}
+                  </dt>
+                  <dd>
+                    {nombre(e.verse)} {e.verse === e.du ? '· soldée' : `sur ${nombre(e.du)}`}
+                  </dd>
+                </div>
+              ))}
+              <div class="recu-reste">
+                <dt>Reste à payer</dt>
+                <dd>{somme(RESTE_016)}</dd>
+              </div>
+            </dl>
+            <p class="cf-note">
+              Dossier {d.numero} · {d.classe} · sur {somme(d.du)} dus. Montants inventés pour
+              l’exemple.
+            </p>
+          </div>
+        </section>
+        <section class="recit" aria-labelledby="titre-famille">
+          <h3 id="titre-famille">Ce que la famille verrait</h3>
+          <CadreTelephone nom="Exemple d’espace famille, inventé">
+            <div class="famille-tete">
+              <p class="famille-nom">
+                Espace famille <span class="etiquette-exemple">Exemple</span>
+              </p>
+            </div>
+            <div class="famille-corps">
+              <p class="famille-jour">
+                <IconeDuRegistre nom="attente" />
+                <span>
+                  <b>
+                    Mis à jour le {jourEcrit(d.transmis.le, true)}, {d.transmis.heure}.
+                  </b>{' '}
+                  Ce que l’école saisit ensuite paraît après sa transmission.
+                </span>
+              </p>
+              <p class="famille-carte">
+                <b>
+                  Dossier {d.numero} · {d.classe}
+                </b>
+                <span>{nomEcole}</span>
+                <span>
+                  <b>Inscription confirmée</b> le {jourEcrit(d.confirmeLe)}
+                </span>
+              </p>
+              <p class="famille-carte famille-recu">
+                <span>
+                  Reçu n°&nbsp;{d.recu.numero} · {jourEcrit(d.recu.le)}
+                </span>{' '}
+                <b>{somme(d.recu.montant)}</b>
+              </p>
+              <p class="famille-carte famille-reste">
+                <span>Reste à payer sur {somme(d.du)}</span>
+                <b class="famille-somme">{somme(RESTE_016)}</b>
+                <span>
+                  {PROCHAINE_016.nom} · {PROCHAINE_016.mois}
+                </span>
+              </p>
+            </div>
+          </CadreTelephone>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="cadre cf-section" aria-labelledby="titre-frais">
+    <h2 id="titre-frais">Les frais publics et les comptes privés</h2>
+    <div class="cf-cartes cf-cartes-2">
+      <div class="cf-carte cf-carte-forte">
+        <h3>Dans l’annuaire, pour tous</h3>
+        <p>Les frais que l’école annonce, avec son OUI daté.</p>
+        <p>
+          <EtatService etat="disponible" />
+        </p>
+      </div>
+      <div class="cf-carte cf-carte-forte">
+        <h3>Dans l’outil, privé</h3>
+        <p>
+          Ce qu’une famille doit, a versé, doit encore. Jamais publié. Changer l’un ne changerait
+          pas l’autre.
+        </p>
+        <p>
+          <EtatService etat="preparation" />
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="cf-verte sur-marque" aria-labelledby="titre-regles">
+    <div class="cadre cf-section">
+      <div class="cf-tete">
+        <h2 id="titre-regles">Les cinq règles que nous nous fixons</h2>
+        <p class="cf-ligne">Ce que ces outils devront respecter. Rien n’en est construit.</p>
+      </div>
+      <ul class="cf-points regles">
+        <li class="cf-point">
+          <span class="cf-rond cf-rond-jaune">
+            <IconeDuRegistre nom="ecole" />
+          </span>
+          <div>
+            <b>L’argent va à l’école</b>
+            <span>NTanova n’encaisse jamais les frais de scolarité.</span>
+          </div>
+        </li>
+        <li class="cf-point">
+          <span class="cf-rond cf-rond-jaune">
+            <IconeDuRegistre nom="corriger" />
+          </span>
+          <div>
+            <b>Des corrections tracées</b>
+            <span>L’original, la correction, qui, quand, pourquoi.</span>
+          </div>
+        </li>
+        <li class="cf-point">
+          <span class="cf-rond cf-rond-jaune">
+            <IconeDuRegistre nom="calendrier" />
+          </span>
+          <div>
+            <b>Des années distinctes</b>
+            <span>Préparer une rentrée ne réécrira pas la précédente.</span>
+          </div>
+        </li>
+        <li class="cf-point">
+          <span class="cf-rond cf-rond-jaune">
+            <Icone nom="document" />
+          </span>
+          <div>
+            <b>Des données exportables</b>
+            <span>Dans un format que vous pourrez relire ailleurs.</span>
+          </div>
+        </li>
+        <li class="cf-point">
+          <span class="cf-rond cf-rond-jaune">
+            <IconeDuRegistre nom="cadenas" />
+          </span>
+          <div>
+            <b>Des droits séparés</b>
+            <span>Caisse, secrétariat, direction&nbsp;: chacun son rôle.</span>
+          </div>
+        </li>
+      </ul>
+      <div class="cf-carte">
+        <h3>Et la conservation des dossiers personnels&nbsp;?</h3>
+        <p>
+          C’est une autre question, à régler. Tracer une correction n’oblige pas à garder un dossier
+          pour toujours. Une règle écrite avec l’école dira, avant tout essai, la durée, ce qui est
+          effacé, et qui peut le demander.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="cadre cf-section avant">
+    <section class="avant-bloc" aria-labelledby="titre-avant">
+      <div class="cf-tete">
+        <h2 id="titre-avant">Avant un essai, tout est écrit</h2>
+        <p class="cf-ligne">Aucun essai n’est ouvert.</p>
+      </div>
+      <ConditionsEssai />
+    </section>
+    <section class="avant-bloc" aria-labelledby="titre-limites">
+      <h2 id="titre-limites">Ce qu’ils ne feront pas</h2>
+      <ul class="limites">
+        <li class="cf-croix">
+          <Icone nom="croix" />
+          <span>Encaisser l’argent des familles à la place de l’école.</span>
+        </li>
+        <li class="cf-croix">
+          <Icone nom="croix" />
+          <span>La comptabilité complète de l’école.</span>
+        </li>
+        <li class="cf-croix">
+          <Icone nom="croix" />
+          <span>Les bulletins et l’emploi du temps&nbsp;: pas pour l’instant.</span>
+        </li>
+      </ul>
+      <div class="cf-carte cf-carte-forte raconter">
+        <h3>Votre quotidien nous intéresse</h3>
+        <p>
+          Ce qui a pris du temps, ce qui a coincé. Cela n’engage à rien, ne préinscrit personne et
+          n’ouvre aucun service. N’écrivez ni nom ni document d’élève.
+        </p>
+        <div class="pe-actions">
+          <LienPorte porte={raconter} class="bouton">
+            Nous le raconter
+          </LienPorte>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="cf-bande" aria-labelledby="titre-questions">
+    <div class="cadre cf-section">
+      <h2 id="titre-questions">Questions des directions</h2>
+      <div class="pe-questions">
+        <details class="pe-question">
+          <summary>Faut-il Internet tout le temps&nbsp;?</summary>
+          <p>
+            C’est à régler avec les écoles&nbsp;: ce qui doit marcher quand la connexion ou le
+            courant coupe, et comment les données sont sauvegardées. Ce qui serait saisi hors
+            connexion ne paraîtrait en ligne qu’après sa transmission.
+          </p>
+        </details>
+        <details class="pe-question">
+          <summary>Qui voit les données des élèves&nbsp;?</summary>
+          <p>
+            Il n’y en a aucune aujourd’hui. Dans un outil, ce seraient les personnes que l’école
+            désigne, chacune selon son rôle. Ce que NTanova pourrait voir, et pourquoi, sera écrit
+            avant l’essai.
+          </p>
+        </details>
+        <details class="pe-question">
+          <summary>J’ai déjà un logiciel, ou un cahier.</summary>
+          <p>
+            Gardez-le. Nous commençons par regarder comment vous travaillez aujourd’hui, et une
+            liste d’élèves devra pouvoir être importée.
+          </p>
+        </details>
+        <details class="pe-question">
+          <summary>Faut-il que notre fiche soit confirmée&nbsp;?</summary>
+          <p>
+            Non. Un essai demanderait de vérifier que la personne peut agir pour l’école. Confirmer
+            la fiche ou publier les tarifs resteraient des accords à part.
+          </p>
+        </details>
+        <details class="pe-question">
+          <summary>Combien cela coûte-t-il&nbsp;?</summary>
+          <p>Rien n’est fixé. S’il y a un coût, il est écrit avant le début de l’essai.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+</PagePublique>
+
+<style>
+  .questions {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .questions .cf-carte {
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    align-items: baseline;
+    padding: var(--espace-3) var(--espace-4);
+  }
+  .questions b {
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+  }
+  .questions span {
+    color: var(--texte-doux);
+  }
+  .exemple-tableau {
+    display: grid;
+    gap: var(--espace-3);
+  }
+  .exemple-titre {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--espace-2);
+  }
+  .exemple-rentree {
+    color: var(--texte-doux);
+    font-family: var(--police-interface);
+    font-size: var(--taille-courante);
+  }
+  .par {
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  /* Le dossier suivi plus bas : sur téléphone, sa carte est cerclée ; sur ordinateur, sa ligne est teintée. */
+  .cf-tableau tr.suivi {
+    background: var(--jaune-pale);
+    font-weight: 700;
+  }
+  .cf-tableau tr.suivi .par {
+    font-weight: 400;
+  }
+
+  .recits {
+    display: grid;
+    gap: var(--espace-6);
+  }
+  .recit {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-4);
+    min-width: 0;
+  }
+  .fil {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .fil li {
+    position: relative;
+    display: grid;
+    padding-left: var(--espace-6);
+  }
+  .fil li::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 0;
+    width: 18px;
+    height: 18px;
+    border: 2.5px solid var(--texte);
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .fil li + li::after {
+    content: '';
+    position: absolute;
+    top: calc(-1 * var(--espace-3) - 100% + 24px);
+    bottom: calc(100% - 4px);
+    left: 8px;
+    border-left: 3px dotted var(--accent);
+  }
+  .fil b {
+    color: var(--texte-doux);
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+  }
+  .recu {
+    display: grid;
+    gap: var(--espace-3);
+    padding: var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-s);
+    background: var(--creme);
+  }
+  .recu-tete {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--espace-2);
+  }
+  .recu-tete b {
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-fiche);
+  }
+  .recu-lignes {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+  }
+  .recu-lignes > div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0 var(--espace-3);
+  }
+  .recu-lignes dd {
+    margin: 0;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .recu-lignes .recu-verse {
+    padding: var(--espace-2) var(--espace-3);
+    border-radius: var(--rayon-s);
+    background: var(--jaune-pale);
+  }
+  .recu-lignes .recu-reste {
+    padding-top: var(--espace-2);
+    border-top: 2px dashed var(--accent);
+    font-weight: 700;
+  }
+  .famille-tete {
+    padding: var(--espace-4);
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+  }
+  .famille-nom {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--espace-2);
+    font-family: var(--police-titre);
+    font-size: var(--taille-intertitre);
+    font-weight: 700;
+  }
+  .famille-tete .etiquette-exemple {
+    border-color: var(--vert-pale);
+    color: var(--vert-pale);
+  }
+  .famille-corps {
+    display: grid;
+    gap: var(--espace-3);
+    padding: var(--espace-3);
+    background: var(--fond);
+  }
+  .famille-jour {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--espace-2);
+    font-size: var(--taille-secondaire);
+  }
+  .famille-jour :global(.ico) {
+    color: var(--marque);
+  }
+  .famille-carte {
+    display: grid;
+    gap: 2px;
+    padding: var(--espace-3);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .famille-recu {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0 var(--espace-2);
+  }
+  .famille-reste {
+    border-color: var(--jaune-pale);
+    background: var(--jaune-pale);
+  }
+  .famille-somme {
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-fiche);
+  }
+
+  .regles span {
+    color: var(--vert-pale);
+  }
+  .regles .cf-rond {
+    color: var(--texte);
+  }
+  .avant-bloc {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-4);
+    min-width: 0;
+  }
+  .limites {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .limites :global(.ico) {
+    margin-top: 2px;
+    color: var(--texte);
+  }
+  .raconter {
+    gap: var(--espace-3);
+  }
+
+  @media (max-width: 47.99rem) {
+    .cf-tableau tr.suivi {
+      margin-block: var(--espace-2);
+      padding-inline: var(--espace-3);
+      border: 2px solid var(--texte);
+      border-radius: var(--rayon-m);
+    }
+  }
+  @media (min-width: 48rem) {
+    .questions {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .questions .cf-carte {
+      grid-template-columns: minmax(0, 1fr);
+      align-content: start;
+    }
+    .cf-tableau.dossiers {
+      font-size: 0.9375rem;
+    }
+    .cf-tableau.dossiers thead th:first-child,
+    .cf-tableau.dossiers thead th:nth-child(2) {
+      width: auto;
+    }
+    .cf-tableau.dossiers th:first-child {
+      padding-left: var(--espace-2);
+      white-space: nowrap;
+    }
+    .par {
+      display: block;
+    }
+    .regles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--espace-4) var(--espace-5);
+    }
+    .recits {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 64rem) {
+    .recits {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--espace-6);
+    }
+    .regles {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .regles .cf-point {
+      flex-direction: column;
+    }
+    .avant {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      gap: var(--espace-7);
+    }
+  }
+</style>

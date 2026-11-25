@@ -1,72 +1,321 @@
 ---
-// À propos : qui est NTanova (ticket 149, décision du fondateur du 08/11/2026). Les données personnelles sont sur
-// « Confidentialité », la méthode et les références officielles sur « Méthode », les chiffres et les conditions
-// d'utilisation sur « Données », l'éditeur et les hébergeurs sur « Mentions légales ». Cette page garde ce qui dit qui nous
-// sommes ; le périmètre en chiffres vit sur « Données », jamais écrit à la main ici.
+// À propos, `/a-propos/` (ticket 149, 08/11/2026 ; refonte publique, lot 4, 24/11/2026 : canevas « Points de repère », planche
+// « À propos », 1 440 et 390 px). Mission, organisation, périmètre, modèle économique, ce que NTanova ne fait jamais, et les
+// pages utiles. Quatre ancres : `#a-mission`, `#a-org`, `#a-per`, `#a-mod` ; les anciennes restent sur un titre ou une section
+// (`#ce-que-nous-faisons`, `#ce-que-nous-publions`, que visaient les fiches d'avant la Méthode, `#transparence`).
+//
+// Des faits connus et des nombres calculés depuis le catalogue publié (`modele/perimetre.ts`), jamais écrits à la main. Les
+// prestations et les outils restent « En préparation ». La planche demande deux textes que personne n'a encore établis (« qui
+// fait NTanova », « qui finance NTanova aujourd'hui ») : la page les omet, sans crochet ; la note de relecture est dans
+// `docs/refonte-site-public.md`. Rien du registre (hypothèses, seuils) n'est recopié ici. L'éditeur est sur « Mentions légales ».
+import { PUBLIC_WHATSAPP } from 'astro:env/client';
+import { obtenirSite } from '../infra/index';
+import { jourDuCongo } from '../modele/date-declaration';
+import { porte } from '../modele/liens-demandes';
 import {
   LIEN_CONFIDENTIALITE,
   LIEN_DONNEES,
   LIEN_MENTIONS_LEGALES,
   LIEN_METHODE,
 } from '../modele/pages-de-confiance';
+import { enumeration, perimetreDeLAnnuaire } from '../modele/perimetre';
+import { dateCourte } from '../modele/pointe-noire';
+import { LIEN_VILLES } from '../modele/villes';
+import { lienWhatsApp } from '../modele/whatsapp';
 import ContactNtanova from '../ui/ContactNtanova.astro';
-import PageDeTexte from '../ui/PageDeTexte.astro';
+import Icone from '../ui/Icone.astro';
+import PagePublique from '../ui/PagePublique.astro';
+import { formulairesOuverts } from '../ui/formulaires/ouverture';
+import '../ui/carte-pieces.css';
+import '../ui/confiance.css';
+
+const { arbre, ecoles } = await obtenirSite();
+const p = perimetreDeLAnnuaire(arbre, ecoles);
+const jour = dateCourte(jourDuCongo());
+const nombre = (n: number) => n.toLocaleString('fr-FR');
+const ecrire = porte(
+  formulairesOuverts,
+  { vers: 'contact', depuis: 'direct' },
+  lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, '),
+);
+
+const ANCRES = [
+  ['a-mission', 'Mission'],
+  ['a-org', 'Organisation'],
+  ['a-per', 'Périmètre'],
+  ['a-mod', 'Modèle économique'],
+] as const;
 ---
 
-<PageDeTexte
+<PagePublique
   titre="À propos : qui est NTanova · NTanova"
-  description="Qui est NTanova, ce que nous faisons pour les écoles du Congo-Brazzaville, et où lire comment les fiches sont tenues, ce qui est publié et ce que nous faisons des données."
-  surtitre="Qui est NTanova"
-  intitule={'Qui sommes-nous\u00a0?'}
+  description="Ce que NTanova fait pour les familles et les écoles du Congo-Brazzaville, comment l’annuaire est tenu, son périmètre en nombres, son modèle économique et ce qu’il ne fait jamais."
 >
-  <Fragment slot="chapeau">
-    <p class="texte-doux">
-      NTanova recense les écoles du <span class="insecable">Congo-Brazzaville</span>, quartier par
-      quartier, pour aider les familles à les trouver et les écoles à se faire connaître. Le relevé
-      avance ville après ville&nbsp;; ce qui est publié, en nombres et en dates, est sur la page{' '}
-      <a href={LIEN_DONNEES}>Données</a>.
-    </p>
-    <ContactNtanova bouton={false} />
-  </Fragment>
-
-  <section class="carte bloc" id="ce-que-nous-faisons">
-    <h2>Ce que nous faisons</h2>
-    <p>
-      Des jeunes du quartier, les relais, passent devant les écoles, photographient leur enseigne et
-      relèvent leur position. L’administration de NTanova vérifie chaque fiche avant de la publier.
-      Une direction peut ensuite confirmer sa fiche, la corriger ou la faire retirer.
-    </p>
+  <section class="cadre cf-haut" aria-labelledby="titre-a-propos">
+    <div class="cf-haut-texte">
+      <p class="cf-surtitre">À propos</p>
+      <h1 id="titre-a-propos">Choisir une école en sachant, pas en devinant.</h1>
+      <p class="cf-chapeau">
+        NTanova aide les familles à choisir et les écoles à se faire connaître.
+      </p>
+      <nav aria-label="Sur cette page">
+        <ul class="cf-ancres">
+          {ANCRES.map(([id, texte]) => (
+            <li>
+              <a href={`#${id}`}>{texte}</a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
+    <img
+      class="cf-dessin dessin-large"
+      src="/dessins/a-propos-personnages.svg"
+      alt=""
+      width="600"
+      height="250"
+    />
   </section>
 
-  <section class="carte bloc" id="ce-que-nous-publions">
-    <h2>Ce que nous publions</h2>
-    <p>
-      Pour chaque école, ce qui se voit de la rue&nbsp;: nom, enseigne, position, niveaux, numéro
-      affiché. Photos, frais, contact et mot de la direction seulement avec l’accord daté de la
-      direction. Le sens de chaque mention est expliqué dans la <a href={LIEN_METHODE}>Méthode</a>.
-    </p>
+  <section id="a-mission" class="cf-bande" aria-labelledby="titre-mission">
+    <div class="cadre cf-section">
+      <h2 id="titre-mission">Notre mission</h2>
+      <div class="cf-cartes cf-cartes-2">
+        <div class="cf-carte">
+          <h3>Pour les familles</h3>
+          <p>Trouver une école, lire des informations datées, savoir ce qu’il reste à demander.</p>
+        </div>
+        <div class="cf-carte">
+          <h3>Pour les écoles</h3>
+          <p>
+            Être trouvées pour ce qu’elles sont et corriger ce qui est dit d’elles. Des outils pour
+            alléger leur quotidien sont en préparation.
+          </p>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <section class="carte bloc large" id="transparence">
-    <h2>Pour aller plus loin</h2>
-    <ul>
-      <li>
-        <a href={LIEN_METHODE}>Méthode</a>&nbsp;: comment une fiche est relevée, datée et corrigée,
-        et ce que vaut une référence d’agrément.
+  <section id="a-org" class="cadre cf-section" aria-labelledby="ce-que-nous-faisons">
+    <h2 id="ce-que-nous-faisons">Notre organisation</h2>
+    <ul class="cf-points organisation">
+      <li class="cf-point">
+        <span class="cf-rond cf-rond-jaune">
+          <Icone nom="lieu" />
+        </span>
+        <div>
+          <b>Des relais</b>{' '}
+          <span>Ils passent devant les écoles, photographient l’enseigne et notent le jour.</span>
+        </div>
       </li>
-      <li>
-        <a href={LIEN_DONNEES}>Données</a>&nbsp;: les fiches publiées en chiffres, le jeu complet
-        sur demande, les conditions d’utilisation.
+      <li class="cf-point">
+        <span class="cf-rond cf-rond-jaune">
+          <Icone nom="oeil" />
+        </span>
+        <div>
+          <b>Une équipe</b> <span>Elle relit chaque fiche et décide de ce qui est publié.</span>
+        </div>
       </li>
-      <li>
-        <a href={LIEN_CONFIDENTIALITE}>Confidentialité</a>&nbsp;: ce que nous gardons pour nous, qui
-        reçoit quoi, vos droits.
-      </li>
-      <li>
-        <a href={LIEN_MENTIONS_LEGALES}>Mentions légales</a>&nbsp;: l’éditeur, les hébergeurs, les
-        crédits.
+      <li class="cf-point">
+        <span class="cf-rond cf-rond-jaune">
+          <Icone nom="bouclier" />
+        </span>
+        <div>
+          <b>Les directions</b> <span>Elles confirment, corrigent ou font retirer leur fiche.</span>
+        </div>
       </li>
     </ul>
-    <ContactNtanova />
+    <div class="editeur">
+      <p>
+        Qui publie le site, et qui l’héberge&nbsp;:{' '}
+        <a href={LIEN_MENTIONS_LEGALES}>Mentions légales</a>.
+      </p>
+      <ContactNtanova bouton={false} />
+    </div>
   </section>
-</PageDeTexte>
+
+  <section id="a-per" class="cf-blanc" aria-labelledby="ce-que-nous-publions">
+    <div class="cadre cf-section">
+      <h2 id="ce-que-nous-publions">Notre périmètre</h2>
+      {p.fiches > 0 ? (
+        <ul class="compteurs">
+          <li>
+            <span class="grand-nombre">{nombre(p.fiches)}</span>{' '}
+            <span>{p.fiches > 1 ? 'fiches publiées' : 'fiche publiée'}</span>
+          </li>
+          {p.villes.length > 0 && (
+            <li>
+              <span class="grand-nombre">{nombre(p.villes.length)}</span>{' '}
+              <span>
+                {p.villes.length > 1 ? 'villes' : 'ville'}&nbsp;: {enumeration(p.villes)}
+              </span>
+            </li>
+          )}
+          {p.superieur > 0 && (
+            <li>
+              <span class="grand-nombre">{nombre(p.superieur)}</span>{' '}
+              <span>{p.superieur > 1 ? 'fiches du supérieur' : 'fiche du supérieur'}</span>
+            </li>
+          )}
+        </ul>
+      ) : (
+        <p>Aucune fiche n’est encore publiée.</p>
+      )}
+      <p class="texte">
+        Le Congo-Brazzaville, de la crèche au supérieur, écoles publiques et privées, ville après
+        ville. Nombres au {jour}. L’annuaire n’est pas complet, et nous ne disons jamais quelle part
+        nous couvrons.
+      </p>
+      <p class="liens-perimetre">
+        <a class="cf-lien" href={LIEN_DONNEES}>
+          Données de l’annuaire
+        </a>
+        <a class="cf-lien" href={LIEN_METHODE}>
+          Fiabilité des informations
+        </a>
+        {p.villes.length > 0 && (
+          <a class="cf-lien" href={LIEN_VILLES}>
+            Toutes les villes
+          </a>
+        )}
+      </p>
+    </div>
+  </section>
+
+  <section id="a-mod" class="cf-bande" aria-labelledby="titre-mod">
+    <div class="cadre cf-section">
+      <div class="cf-tete">
+        <h2 id="titre-mod">Notre modèle économique</h2>
+        <p class="cf-ligne">Des écoles pourront payer des services. Jamais leur place.</p>
+      </div>
+      <div class="cf-cartes cf-cartes-3">
+        <div class="cf-carte">
+          <h3>Ouvert, sans compte</h3>
+          <p>Chercher une école, consulter une fiche, s’orienter, signaler une erreur.</p>
+          <p>Pour une école&nbsp;: relire, corriger, confirmer, faire retirer sa fiche.</p>
+          <p>
+            <span class="etiquette-disponible">Disponible</span>
+          </p>
+        </div>
+        <div class="cf-carte">
+          <h3>Payant, pour les écoles</h3>
+          <p>Des prestations de communication, signalées comme telles.</p>
+          <p>Plus tard, des outils, avec des conditions écrites avant tout essai.</p>
+          <p>
+            <span class="etiquette-prepare">En préparation</span>
+          </p>
+        </div>
+        <div class="cf-carte cf-carte-forte">
+          <h3>Jamais à vendre</h3>
+          <p>Une information, une mention, l’ordre des résultats.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cf-verte sur-marque" aria-labelledby="titre-jamais">
+    <div class="cadre cf-section">
+      <h2 id="titre-jamais">Ce que NTanova ne fait jamais</h2>
+      <ul class="cf-points cf-points-2">
+        <li class="cf-croix">
+          <Icone nom="croix" />
+          <span>Vendre la mention «&nbsp;Confirmée par la direction&nbsp;».</span>
+        </li>
+        <li class="cf-croix">
+          <Icone nom="croix" />
+          <span>Encaisser les frais de scolarité à la place d’une école.</span>
+        </li>
+        <li class="cf-croix">
+          <Icone nom="croix" />
+          <span>Publier ou changer des tarifs sans l’accord daté de l’école.</span>
+        </li>
+        <li class="cf-croix">
+          <Icone nom="croix" />
+          <span>Vendre un classement, afficher des notes ou des avis anonymes.</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="transparence" class="cadre cf-section" aria-labelledby="titre-plus-loin">
+    <h2 id="titre-plus-loin">Pour aller plus loin</h2>
+    <ul class="cf-cartes cf-cartes-2">
+      <li>
+        <a class="cf-carte cf-carte-lien" href={LIEN_METHODE}>
+          <b>Fiabilité des informations</b> <span>Sources, contrôles, dates et corrections.</span>
+        </a>
+      </li>
+      <li>
+        <a class="cf-carte cf-carte-lien" href={LIEN_DONNEES}>
+          <b>Données de l’annuaire</b> <span>Ce qui est publié, en nombres et en dates.</span>
+        </a>
+      </li>
+      <li>
+        <a class="cf-carte cf-carte-lien" href={LIEN_CONFIDENTIALITE}>
+          <b>Confidentialité</b> <span>Ce que nous gardons, et vos droits.</span>
+        </a>
+      </li>
+      {ecrire && (
+        <li>
+          <a class="cf-carte cf-carte-lien" href={ecrire.href}>
+            <b>Écrire à NTanova</b>{' '}
+            <span>{ecrire.parFormulaire ? 'Par le formulaire du site.' : 'Sur WhatsApp.'}</span>
+          </a>
+        </li>
+      )}
+    </ul>
+  </section>
+</PagePublique>
+
+<style>
+  .dessin-large {
+    max-width: 420px;
+  }
+  .organisation {
+    gap: var(--espace-4);
+  }
+  .editeur {
+    display: grid;
+    gap: var(--espace-2);
+    max-width: var(--largeur-texte);
+  }
+  .compteurs {
+    display: grid;
+    gap: var(--espace-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .compteurs li {
+    display: grid;
+    gap: var(--espace-1);
+    min-width: 0;
+  }
+  .grand-nombre {
+    color: var(--marque);
+    font-family: var(--police-titre);
+    font-size: var(--taille-titre-accueil);
+    line-height: 1;
+  }
+  .texte {
+    max-width: var(--largeur-texte);
+  }
+  .liens-perimetre {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--espace-5);
+  }
+  @media (min-width: 48rem) {
+    .organisation {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .compteurs {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 64rem) {
+    .dessin-large {
+      max-width: none;
+    }
+  }
+</style>

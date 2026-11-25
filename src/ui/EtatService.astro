@@ -1,0 +1,17 @@
+---
+// L'état d'un service pour les écoles (refonte publique, lot 5) : Disponible, À l'essai ou En préparation, et rien d'autre. Le mot
+// dit l'état, la couleur et le trait l'accompagnent ; jamais un bouton, jamais un lien (`modele/services-ecoles.ts`).
+import { libelleEtatDeService, type EtatDeService } from '../modele/services-ecoles';
+
+interface Props {
+  etat: EtatDeService;
+}
+const { etat } = Astro.props;
+const CLASSE: Record<EtatDeService, string> = {
+  disponible: 'etiquette-disponible',
+  essai: 'etiquette-essai',
+  preparation: 'etiquette-prepare',
+};
+---
+
+<span class={CLASSE[etat]}>{libelleEtatDeService[etat]}</span>

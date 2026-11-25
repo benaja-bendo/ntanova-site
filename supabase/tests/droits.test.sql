@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(60);
+select plan(70);
 
 -- Mise en place (rôle postgres) -----------------------------------------------------------------------------------------
 
@@ -177,6 +177,34 @@ select is((select count(*)::int from information_schema.role_table_grants
              and table_name not in ('campus_cycles', 'campus_programs', 'lots', 'echanges')), 0,
   'L''API ne supprime ni institution, ni campus, ni relevé, ni photo, ni mission (seuls cycles, formations, lots et échanges)');
 select ok(not has_schema_privilege('authenticated', 'prive', 'usage'), 'L''API ne peut même pas ouvrir le schéma privé');
+
+-- Les messages reçus (refonte publique, lot 3B1) : qui peut quoi, fonction par fonction ----------------------------------------------------
+
+create function pg_temp.fonctions(p_role text) returns text language sql as $$
+  select string_agg(p.proname, ',' order by p.proname collate "C") from pg_proc p
+  where p.pronamespace = 'public'::regnamespace and (p.proname ~ 'public_request' or p.proname ~ 'removal') and has_function_privilege(p_role, p.oid, 'execute') $$;
+select is(pg_temp.fonctions('anon'), 'issue_public_request_pass,send_public_request', 'Un visiteur : un laissez-passer et un envoi, rien d''autre');
+select is(pg_temp.fonctions('service_role'), 'claim_public_request_notices,report_public_request_notice', 'Le service d''annonce : réserver et marquer, rien d''autre');
+select is(pg_temp.fonctions('authenticated'),
+  'attach_public_request,close_public_request,decide_public_request,fail_removal,issue_public_request_pass,list_public_requests,open_public_request,public_request_overview,record_public_request_reply,record_removal,record_removal_publication,record_removal_seen,redirect_public_request,reopen_public_request,restore_public_request,retry_public_request_notice,send_public_request,set_public_request_waiting,target_removal,verify_removal',
+  'Un compte connecté peut les appeler ; chacune exige ensuite l''administration');
+select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname ~ 'public_request' or p.proname ~ 'removal')
+             and (not p.prosecdef or not coalesce('search_path=""' = any (p.proconfig), false))), 0, 'Toutes portent leur chemin de recherche vide');
+select is((select string_agg(p.proname, ',') from pg_proc p
+           where p.pronamespace = 'public'::regnamespace and has_function_privilege('anon', p.oid, 'execute')
+             and exists (select 1 from unnest(p.proargnames) a where a ~ 'reference')), null, 'Aucune fonction ouverte à un visiteur ne prend une référence');
+select is((select string_agg(p.proname, ',') from pg_proc p, unnest(array['anon', 'authenticated', 'service_role']) r
+           where p.pronamespace = 'prive'::regnamespace and (p.proname ~ 'public_request' or p.proname ~ 'removal' or p.proname in ('photo_is_public', 'campus_display_name'))
+             and has_function_privilege(r, p.oid, 'execute')), null, 'Aucun rôle de l''API n''exécute une fonction privée des messages');
+select is((select count(*)::int from information_schema.role_table_grants
+           where grantee in ('anon', 'authenticated', 'public', 'service_role') and table_schema = 'prive' and table_name ~ 'public_request'), 0,
+  'Aucun rôle de l''API, pas même le service, n''a de droit sur les tables des messages');
+select is((select count(*)::int from pg_class c where c.relnamespace = 'prive'::regnamespace and c.relname ~ 'public_request' and c.relkind = 'r' and not c.relrowsecurity), 0,
+  'La RLS est active sur chacune, sans règle');
+select ok(not has_schema_privilege('service_role', 'prive', 'usage'), 'Le service ne peut pas ouvrir le schéma privé');
+select is((select count(*)::int from pg_class c, unnest(array['anon', 'authenticated', 'service_role']) r
+           where c.relnamespace = 'prive'::regnamespace and c.relname ~ 'public_request' and c.relkind = 'S' and has_sequence_privilege(r, c.oid, 'usage')), 0,
+  'Ni sur leurs séquences');
 
 select * from finish();
 rollback;

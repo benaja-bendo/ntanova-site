@@ -1,0 +1,243 @@
+---
+// La fiche de démonstration (refonte publique, lot 1, 24/11/2026 ; choix 5 du lancement) : à quoi ressemble une fiche, sur une
+// école inventée. Elle le dit en tête et sur la ligne du nom (« Exemple », règle du 17/11). Elle n'est ni dans le catalogue,
+// ni dans `/recherche.json`, ni dans le plan du site, ni indexée (`noindex` ici, `X-Robots-Tag` dans `public/_headers`).
+// Aucun numéro, aucune position, aucun bouton qui écrive : les actions d'une vraie fiche sont décrites, pas simulées. La vraie
+// fiche reste `FicheEcole.astro` ; cette page n'en reprend que la grammaire (mentions datées, « À savoir », frais avec OUI).
+import Icone from '../../ui/Icone.astro';
+import PagePublique from '../../ui/PagePublique.astro';
+import { LIEN_MENTIONS, ORDRE_DES_MENTIONS, SENS_DES_MENTIONS } from '../../modele/mentions';
+import MentionDatee from '../../ui/MentionDatee.astro';
+// Le trait des icônes (`.ico`), comme sur les autres pages publiques.
+import '../../ui/carte-pieces.css';
+---
+
+<PagePublique
+  titre="Fiche de démonstration (école fictive) · NTanova"
+  description="Un exemple de fiche d'école sur NTanova, avec une école inventée : niveaux, repère, mentions datées et frais confirmés."
+  nonIndexee
+>
+  <div class="cadre demo">
+    <p class="demo-bandeau" role="note">
+      <Icone nom="info" />
+      <span>
+        <b>Fiche de démonstration.</b> Cette école n’existe pas&nbsp;: elle montre ce qu’une fiche
+        peut contenir. Rien ici n’est enregistré ni envoyé.
+      </span>
+    </p>
+
+    <header class="demo-tete">
+      <img src="/dessins/demo-facade.svg" alt="" width="240" height="150" />
+      <div class="demo-titre">
+        <p class="demo-lieu">Quartier imaginaire · Congo-Brazzaville</p>
+        <h1>
+          École Les{' '}
+          <span class="nom-exemple-fin">
+            Manguiers <span class="etiquette-exemple">Exemple</span>
+          </span>
+        </h1>
+        <p class="texte-doux">Primaire, collège · Privée</p>
+        <ul class="demo-mentions" aria-label="Mentions de la fiche">
+          <MentionDatee balise="li" mention="relevee" jour="2026-11-12" />
+          <MentionDatee balise="li" mention="verifiee" jour="2026-11-18" />
+        </ul>
+      </div>
+    </header>
+
+    <div class="demo-corps">
+      <section class="demo-bloc" aria-labelledby="titre-savoir">
+        <h2 id="titre-savoir">À savoir</h2>
+        <dl class="demo-proprietes">
+          <div>
+            <dt>Niveaux</dt>
+            <dd>Primaire, collège</dd>
+          </div>
+          <div>
+            <dt>Type</dt>
+            <dd>Privée</dd>
+          </div>
+          <div>
+            <dt>Repère</dt>
+            <dd>Sur une vraie fiche&nbsp;: ce qu’on voit en arrivant, relevé sur place.</dd>
+          </div>
+          <div>
+            <dt>Numéro</dt>
+            <dd>Sur une vraie fiche, seulement si l’école a donné son accord pour le publier.</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="demo-bloc" aria-labelledby="titre-frais">
+        <h2 id="titre-frais">Frais</h2>
+        <p class="demo-frais">OUI de l’école le 18&nbsp;nov.&nbsp;2026</p>
+        <p class="texte-doux">
+          Des frais ne paraissent que lorsque l’école a dit oui, par écrit, à une date. Sans ce oui,
+          la fiche n’en montre aucun.
+        </p>
+      </section>
+
+      <section class="demo-bloc" aria-labelledby="titre-mentions">
+        <h2 id="titre-mentions">Les mentions et leurs dates</h2>
+        {/* Lot 4 : les mots et les pastilles de la fiche réelle (`modele/mentions.ts`), et le lien vers leur explication. */}
+        <ul class="demo-liste">
+          {ORDRE_DES_MENTIONS.map((m) => (
+            <li>
+              <MentionDatee mention={m} /> {SENS_DES_MENTIONS[m]}
+            </li>
+          ))}
+        </ul>
+        <a class="lien-fort" href={LIEN_MENTIONS}>
+          Fiabilité des informations
+          <Icone nom="suite" />
+        </a>
+      </section>
+
+      <section class="demo-bloc" aria-labelledby="titre-actions">
+        <h2 id="titre-actions">Sur une vraie fiche</h2>
+        <ul class="demo-liste">
+          <li>L’itinéraire jusqu’à l’école, quand sa position est relevée.</li>
+          <li>Son numéro, s’il est publié avec son accord.</li>
+          <li>Le partage de la fiche, sur WhatsApp ou ailleurs.</li>
+        </ul>
+        <a class="bouton demo-suite" href="/ecoles/">
+          Voir les écoles de l’annuaire
+        </a>
+      </section>
+    </div>
+  </div>
+</PagePublique>
+
+<style>
+  .demo {
+    display: grid;
+    gap: var(--espace-5);
+    padding-top: var(--espace-5);
+    padding-bottom: var(--espace-7);
+  }
+  .demo-bandeau {
+    display: flex;
+    gap: var(--espace-3);
+    max-width: none;
+    margin: 0;
+    padding: var(--espace-3) var(--espace-4);
+    border: 2px dashed var(--texte-doux);
+    border-radius: var(--rayon-m);
+    background: var(--jaune-pale);
+  }
+  .demo-bandeau :global(svg) {
+    flex: none;
+    width: 22px;
+    height: 22px;
+  }
+  .demo-tete {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .demo-tete img {
+    width: 100%;
+    max-width: 28rem;
+    height: auto;
+    border-radius: var(--rayon-l);
+  }
+  .demo-titre {
+    display: grid;
+    gap: var(--espace-2);
+  }
+  .demo-titre p {
+    margin: 0;
+  }
+  .demo-lieu {
+    color: var(--texte-doux);
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .demo-titre h1 {
+    margin: 0;
+    font-size: var(--taille-titre-public);
+  }
+  .demo-mentions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .demo-corps {
+    display: grid;
+    gap: var(--espace-4);
+  }
+  .demo-bloc {
+    display: grid;
+    align-content: start;
+    gap: var(--espace-3);
+    padding: var(--espace-4);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-m);
+    background: var(--fond-releve);
+  }
+  .demo-bloc h2 {
+    margin: 0;
+    font-size: var(--taille-intertitre);
+  }
+  .demo-bloc p {
+    margin: 0;
+  }
+  .demo-proprietes {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+  }
+  .demo-proprietes dt {
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .demo-proprietes dd {
+    margin: 0;
+  }
+  .demo-frais {
+    justify-self: start;
+    padding: 2px 10px;
+    border-radius: var(--rayon-s);
+    background: var(--jaune-pale);
+    font-weight: 700;
+  }
+  .demo-liste {
+    display: grid;
+    gap: var(--espace-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .demo-liste :global(.mention-datee) {
+    margin-right: var(--espace-1);
+  }
+  .lien-fort {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    gap: 6px;
+    min-height: var(--cible-min);
+    color: var(--marque);
+    font-family: var(--police-interface);
+    font-weight: 700;
+  }
+  .lien-fort :global(svg) {
+    width: 18px;
+    height: 18px;
+  }
+  .demo-suite {
+    justify-self: start;
+  }
+  @media (min-width: 48rem) {
+    .demo-tete {
+      grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+      align-items: center;
+    }
+    .demo-corps {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>

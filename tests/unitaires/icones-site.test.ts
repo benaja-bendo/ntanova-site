@@ -1,8 +1,8 @@
 // L'icône du site dans les résultats Google (constat du 09/11/2026) : Google n'avait aucun favicon pour ntanova.com, alors que
 // celui d'un autre site du fondateur s'affichait. Le seul fichier déclaré était `favicon.svg`, dont le cadre (163 × 125) n'est
 // pas carré, sans `.ico`, sans PNG, sans icône tactile. Google exige un favicon carré (1:1), en multiple de 48 px, que son
-// robot sait relire. Ces tests gardent les fichiers et les balises du `<head>` public ; ils ne disent pas quand Google
-// rafraîchira son affichage (jours ou semaines, c'est à lui).
+// robot sait relire. Ces tests gardent les fichiers ; les balises rendues sont vérifiées dans public.spec.ts.
+// Ils ne disent pas quand Google rafraîchira son affichage (jours ou semaines, c'est à lui).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ICONES_SITE } from '../../src/modele/icones';
@@ -75,11 +75,5 @@ describe('les icônes du site public', () => {
     expect(cadre).toHaveLength(4);
     expect(cadre?.[2]).toBeGreaterThan(0);
     expect(cadre?.[2]).toBe(cadre?.[3]);
-  });
-
-  it('la page publique les écrit toutes, et ne déclare plus le SVG rectangulaire comme icône', () => {
-    const gabarit = readFileSync('src/ui/PagePublique.astro', 'utf8');
-    expect(gabarit).toContain('ICONES_SITE');
-    expect(gabarit).not.toMatch(/rel="icon"\s+href="\/favicon\.svg"/);
   });
 });

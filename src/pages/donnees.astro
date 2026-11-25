@@ -1,14 +1,23 @@
 ---
-// Données (ticket 149, décision du fondateur du 08/11/2026) : des statistiques ouvertes, en nombres et en dates, jamais en
-// pourcentage (le nombre total d'écoles du pays est inconnu) ; pas de téléchargement libre ; l'export complet est remis sur
-// demande aux ministères, aux chercheurs et aux partenaires ; les conditions d'utilisation. Les chiffres sont calculés à la
-// construction du site et datés de cette construction.
+// Données de l'annuaire, `/donnees/` (ticket 149, décision du fondateur du 08/11/2026 ; refonte publique, lot 4, 24/11/2026,
+// harmonisée avec « Fiabilité des informations ») : des statistiques ouvertes, en nombres et en dates, jamais en pourcentage
+// (le nombre total d'écoles du pays est inconnu) ; pas de téléchargement libre ; l'export complet est remis sur demande aux
+// ministères, aux chercheurs et aux partenaires ; les conditions d'utilisation.
+//
+// Lot 4 : les mentions se comptent comme elles s'affichent, côte à côte (une fiche vue sur place puis confirmée compte dans les
+// deux) ; trois dates distinctes : la construction du site, les dates des mentions, la dernière modification d'une fiche. Une
+// date absente reste absente. Les anciennes ancres restent (`#fiches`, `#cycles`, `#preuves` sur le titre des mentions,
+// `#fraicheur`, `#photos-references`, `#export`, `#conditions`).
 import { obtenirSite } from '../infra/index';
-import { dateLongue } from '../modele/pointe-noire';
+import { LIEN_MENTIONS } from '../modele/mentions';
 import { LIEN_METHODE } from '../modele/pages-de-confiance';
+import { dateLongue } from '../modele/pointe-noire';
 import { statistiquesOuvertes } from '../modele/statistiques-ouvertes';
 import ContactNtanova from '../ui/ContactNtanova.astro';
-import PageDeTexte from '../ui/PageDeTexte.astro';
+import MentionDatee from '../ui/MentionDatee.astro';
+import PagePublique from '../ui/PagePublique.astro';
+import '../ui/carte-pieces.css';
+import '../ui/confiance.css';
 
 const site = await obtenirSite();
 const s = statistiquesOuvertes({
@@ -18,72 +27,106 @@ const s = statistiquesOuvertes({
 });
 /** « 6 novembre 2026 », d'un jour `AAAA-MM-JJ`. */
 const jourLong = (jour: string) => dateLongue(`${jour}T12:00:00Z`);
+const nombre = (n: number) => n.toLocaleString('fr-FR');
 
 // Un jour par ligne, les 31 plus récents ; le reste en une ligne, pour que la table reste lisible quand les fiches seront nombreuses.
 const JOURS_MONTRES = 31;
 const jours = s.parJour.slice(0, JOURS_MONTRES);
-const plusAnciennes = s.parJour.slice(JOURS_MONTRES).reduce((n, j) => n + j.fiches, 0);
+const plusAnciens = s.parJour.slice(JOURS_MONTRES).reduce((n, j) => n + j.fiches, 0);
 const classeDuLieu = (profondeur: number) =>
   profondeur === 2 ? 'sous-lieu' : profondeur >= 3 ? 'sous-sous-lieu' : undefined;
+const confirmees = s.mentions.parMention.find((m) => m.mention === 'verifiee')?.fiches ?? 0;
+const datees = s.datesDesMentions.filter((d) => d.fiches > 0);
+
+const ANCRES = [
+  ['fiches', 'Fiches'],
+  ['mentions', 'Mentions'],
+  ['fraicheur', 'Dates'],
+  ['photos-references', 'Photos et références'],
+  ['export', 'Sur demande'],
+  ['conditions', 'Conditions'],
+] as const;
 ---
 
-<PageDeTexte
-  titre="Données : ce que NTanova a publié · NTanova"
-  description="Les fiches d’école publiées par NTanova, en nombres et en dates : par lieu, par cycle, par preuve, avec leur fraîcheur. Export complet sur demande, conditions d’utilisation."
-  surtitre="Transparence"
-  intitule="Ce que NTanova a publié"
+<PagePublique
+  titre="Données de l’annuaire : ce que NTanova a publié · NTanova"
+  description="Les fiches d’école publiées par NTanova, en nombres et en dates : par lieu, par cycle, par mention, avec leurs dates. Export complet sur demande, conditions d’utilisation."
 >
-  <Fragment slot="chapeau">
-    <p class="texte-doux">
-      Des nombres et des dates, jamais un pourcentage&nbsp;: le nombre total d’écoles du
-      Congo-Brazzaville est inconnu, et NTanova ne dit pas quelle part des écoles il couvre.
-    </p>
-    <p>
-      Chiffres arrêtés au <strong>{jourLong(s.construiteLe)}</strong>, jour de la dernière
-      construction du site. Une fiche publiée ensuite n’y est pas encore comptée.
-    </p>
-  </Fragment>
-
-  <section class="carte bloc" id="fiches">
-    <h2>Fiches publiées</h2>
-    <p>
-      <strong>{s.fiches}</strong> {s.fiches > 1 ? 'fiches publiées' : 'fiche publiée'} au total.
-    </p>
-    {s.lieux.length > 0 ? (
-      <table>
-        <caption>Par lieu</caption>
-        <thead>
-          <tr>
-            <th scope="col">Lieu</th>
-            <th scope="col" class="nombre">
-              Fiches
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {s.lieux.map((l) => (
-            <tr>
-              <th scope="row" class={classeDuLieu(l.profondeur)}>
-                <a href={l.lien}>{l.nom}</a>
-              </th>
-              <td class="nombre">{l.fiches}</td>
-            </tr>
+  <section class="cadre cf-haut haut-donnees" aria-labelledby="titre-donnees">
+    <div class="cf-haut-texte">
+      <p class="cf-surtitre">Données de l’annuaire</p>
+      <h1 id="titre-donnees">Ce que NTanova a publié</h1>
+      <p class="cf-chapeau">
+        Des nombres et des dates, jamais un pourcentage&nbsp;: le nombre total d’écoles du
+        Congo-Brazzaville est inconnu, et NTanova ne dit pas quelle part des écoles il couvre.
+      </p>
+      <p class="construction">
+        Chiffres arrêtés au <strong>{jourLong(s.construiteLe)}</strong>, jour de la dernière
+        construction du site. Une fiche publiée ensuite n’y est pas encore comptée.
+      </p>
+      <nav aria-label="Sur cette page">
+        <ul class="cf-ancres">
+          {ANCRES.map(([id, texte]) => (
+            <li>
+              <a href={`#${id}`}>{texte}</a>
+            </li>
           ))}
-        </tbody>
-      </table>
-    ) : (
-      <p>Aucun lieu n’a encore de fiche publiée.</p>
-    )}
-    <p class="texte-doux">
-      Un lieu qui en contient d’autres compte leurs fiches&nbsp;: les lignes ne s’additionnent pas.
-      Un lieu absent n’a aucune fiche publiée.
-    </p>
+        </ul>
+      </nav>
+    </div>
   </section>
 
-  <section class="carte bloc" id="cycles">
-    <h2>Par cycle</h2>
+  <section id="fiches" class="cf-bande" aria-labelledby="titre-fiches">
+    <div class="cadre cf-section deux">
+      <div class="cf-tete">
+        <h2 id="titre-fiches">Fiches publiées</h2>
+        <p class="total">
+          <strong>{nombre(s.fiches)}</strong> {s.fiches > 1 ? 'fiches publiées' : 'fiche publiée'}{' '}
+          au total.
+        </p>
+        <p class="cf-note">
+          Un lieu qui en contient d’autres compte leurs fiches&nbsp;: les lignes ne s’additionnent
+          pas. Un lieu absent n’a aucune fiche publiée.
+        </p>
+      </div>
+      {s.lieux.length > 0 ? (
+        <table class="cf-chiffres">
+          <caption>Par lieu</caption>
+          <thead>
+            <tr>
+              <th scope="col">Lieu</th>
+              <th scope="col" class="nombre">
+                Fiches
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {s.lieux.map((l) => (
+              <tr>
+                <th scope="row" class={classeDuLieu(l.profondeur)}>
+                  <a href={l.lien}>{l.nom}</a>
+                </th>
+                <td class="nombre">{nombre(l.fiches)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p>Aucun lieu n’a encore de fiche publiée.</p>
+      )}
+    </div>
+  </section>
+
+  <section id="cycles" class="cadre cf-section deux" aria-labelledby="titre-cycles">
+    <div class="cf-tete">
+      <h2 id="titre-cycles">Par cycle</h2>
+      <p class="cf-note">
+        Une fiche compte dans chaque cycle qu’elle enseigne&nbsp;: la somme dépasse le nombre de
+        fiches.
+      </p>
+    </div>
     {s.parCycle.length > 0 ? (
-      <table>
+      <table class="cf-chiffres">
         <caption>Fiches par cycle enseigné</caption>
         <thead>
           <tr>
@@ -97,7 +140,7 @@ const classeDuLieu = (profondeur: number) =>
           {s.parCycle.map((c) => (
             <tr>
               <th scope="row">{c.libelle}</th>
-              <td class="nombre">{c.fiches}</td>
+              <td class="nombre">{nombre(c.fiches)}</td>
             </tr>
           ))}
         </tbody>
@@ -105,165 +148,312 @@ const classeDuLieu = (profondeur: number) =>
     ) : (
       <p>Aucun cycle n’est encore renseigné.</p>
     )}
-    <p class="texte-doux">
-      Une fiche compte dans chaque cycle qu’elle enseigne&nbsp;: la somme dépasse le nombre de
-      fiches.
-    </p>
   </section>
 
-  <section class="carte bloc" id="preuves">
-    <h2>Par preuve</h2>
-    <table>
-      <caption>Fiches par preuve la plus forte</caption>
-      <thead>
-        <tr>
-          <th scope="col">Preuve</th>
-          <th scope="col" class="nombre">
-            Fiches
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {s.parPreuve.map((p) => (
-          <tr>
-            <th scope="row">{p.libelle}</th>
-            <td class="nombre">{p.fiches}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-    <p class="texte-doux">
-      Chaque fiche est comptée une fois, à sa preuve la plus forte. Le sens de chaque preuve est
-      dans la <a href={`${LIEN_METHODE}#mentions`}>Méthode</a>.
-    </p>
-  </section>
-
-  <section class="carte bloc" id="fraicheur">
-    <h2>Fraîcheur</h2>
-    {s.preuveLaPlusRecente && s.preuveLaPlusAncienne ? (
-      <>
+  <section id="mentions" class="cf-blanc" aria-labelledby="preuves">
+    <div class="cadre cf-section deux">
+      <div class="cf-tete">
+        <h2 id="preuves">Par mention</h2>
         <p>
-          La preuve la plus récente date du <strong>{jourLong(s.preuveLaPlusRecente)}</strong>, la
-          plus ancienne du <strong>{jourLong(s.preuveLaPlusAncienne)}</strong>.
-          {s.derniereMiseAJour && (
-            <> La dernière modification d’une fiche date du {jourLong(s.derniereMiseAJour)}.</>
-          )}
+          Une fiche peut porter plusieurs mentions et compte alors dans chacune&nbsp;: les lignes ne
+          s’additionnent pas. Les trois premières disent d’où vient la fiche&nbsp;; «&nbsp;Confirmée
+          par la direction&nbsp;» s’y ajoute quand la direction a donné son accord daté. Ce n’est
+          pas un classement.
         </p>
-        <table>
-          <caption>Fiches par jour de leur preuve la plus forte</caption>
+        {confirmees > 0 && (
+          <p>
+            Sur {nombre(confirmees)}{' '}
+            {confirmees > 1
+              ? 'fiches confirmées par leur direction'
+              : 'fiche confirmée par sa direction'}
+            , {nombre(s.mentions.confirmeesEtVues)}{' '}
+            {s.mentions.confirmeesEtVues > 1 ? 'sont aussi vues' : 'est aussi vue'} sur place.
+          </p>
+        )}
+        <p class="cf-note">
+          Ce que dit chaque mention&nbsp;: <a href={LIEN_MENTIONS}>Fiabilité des informations</a>.
+        </p>
+      </div>
+      <table class="cf-chiffres">
+        <caption>Fiches par mention</caption>
+        <thead>
+          <tr>
+            <th scope="col">Mention</th>
+            <th scope="col" class="nombre">
+              Fiches
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {s.mentions.parMention.map((m) => (
+            <tr>
+              <th scope="row">
+                <MentionDatee mention={m.mention} />
+              </th>
+              <td class="nombre">{nombre(m.fiches)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="fraicheur" class="cadre cf-section" aria-labelledby="titre-dates">
+    <div class="cf-tete">
+      <h2 id="titre-dates">Les dates</h2>
+      <p class="cf-ligne">Trois dates, qui ne se remplacent pas.</p>
+    </div>
+    <dl class="trois-dates">
+      <div class="cf-carte">
+        <dt>Construction du site</dt>
+        <dd>{jourLong(s.construiteLe)}</dd>
+      </div>
+      <div class="cf-carte">
+        <dt>Dernière modification d’une fiche</dt>
+        <dd>{s.derniereMiseAJour ? jourLong(s.derniereMiseAJour) : 'Aucune fiche publiée'}</dd>
+      </div>
+      <div class="cf-carte">
+        <dt>Dates des mentions</dt>
+        <dd>Le jour du passage, de la déclaration ou de l’accord, sur chaque fiche.</dd>
+      </div>
+    </dl>
+    {datees.length > 0 ? (
+      <div class="deux">
+        <table class="cf-chiffres">
+          <caption>Dates des mentions</caption>
           <thead>
             <tr>
-              <th scope="col">Jour</th>
-              <th scope="col" class="nombre">
-                Fiches
-              </th>
+              <th scope="col">Mention</th>
+              <th scope="col">Dates</th>
             </tr>
           </thead>
           <tbody>
-            {jours.map((j) => (
+            {datees.map((d) => (
               <tr>
-                <th scope="row">{jourLong(j.jour)}</th>
-                <td class="nombre">{j.fiches}</td>
+                <th scope="row">
+                  <MentionDatee mention={d.mention} />
+                </th>
+                <td>
+                  {d.laPlusRecente && d.laPlusAncienne
+                    ? d.laPlusRecente === d.laPlusAncienne
+                      ? `Le ${jourLong(d.laPlusRecente)}`
+                      : `Du ${jourLong(d.laPlusAncienne)} au ${jourLong(d.laPlusRecente)}`
+                    : 'Aucun jour connu'}
+                  {d.sansDate > 0 && (
+                    <span class="sans-date">
+                      {nombre(d.sansDate)}{' '}
+                      {d.sansDate > 1 ? 'fiches sans jour connu' : 'fiche sans jour connu'}
+                    </span>
+                  )}
+                </td>
               </tr>
             ))}
-            {plusAnciennes > 0 && (
-              <tr>
-                <th scope="row">Plus anciennes</th>
-                <td class="nombre">{plusAnciennes}</td>
-              </tr>
-            )}
           </tbody>
         </table>
-      </>
+        {jours.length > 0 && (
+          <table class="cf-chiffres">
+            <caption>Fiches par jour de mention</caption>
+            <thead>
+              <tr>
+                <th scope="col">Jour</th>
+                <th scope="col" class="nombre">
+                  Fiches
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {jours.map((j) => (
+                <tr>
+                  <th scope="row">{jourLong(j.jour)}</th>
+                  <td class="nombre">{nombre(j.fiches)}</td>
+                </tr>
+              ))}
+              {plusAnciens > 0 && (
+                <tr>
+                  <th scope="row">Jours plus anciens</th>
+                  <td class="nombre">{nombre(plusAnciens)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
     ) : (
-      <p>Aucune fiche n’a encore de preuve datée.</p>
+      <p>Aucune fiche n’a encore de mention datée.</p>
     )}
-    {s.sansDate > 0 && (
-      <p class="texte-doux">
-        {s.sansDate} {s.sansDate > 1 ? 'fiches n’ont' : 'fiche n’a'} pas de jour connu.
+    <p class="cf-note">
+      Une fiche compte à chaque jour où elle a reçu une mention (vue un jour, confirmée un
+      autre&nbsp;: deux jours). «&nbsp;Ajoutée par NTanova&nbsp;» ne porte pas de date sur la fiche
+      {s.sansMentionDatee > 0 &&
+        ` : ${nombre(s.sansMentionDatee)} ${s.sansMentionDatee > 1 ? 'fiches n’ont' : 'fiche n’a'} aucune mention datée`}
+      .
+    </p>
+  </section>
+
+  <section id="photos-references" class="cf-bande" aria-labelledby="titre-photos">
+    <div class="cadre cf-section">
+      <h2 id="titre-photos">Photos et références</h2>
+      <ul class="cf-cartes cf-cartes-2">
+        <li class="cf-carte">
+          <span class="grand-nombre">{nombre(s.avecPhoto)}</span>{' '}
+          <span>
+            {s.avecPhoto > 1 ? 'fiches montrent' : 'fiche montre'} au moins une photo
+            contrôlée&nbsp;: l’enseigne, la couverture ou la galerie.
+          </span>
+        </li>
+        <li class="cf-carte">
+          <span class="grand-nombre">{nombre(s.avecReference)}</span>{' '}
+          <span>
+            {s.avecReference > 1 ? 'fiches citent' : 'fiche cite'} une référence officielle. Ce
+            n’est pas le nombre d’écoles agréées&nbsp;: voir{' '}
+            <a href={`${LIEN_METHODE}#references`}>les références officielles</a>.
+          </span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="export" class="cadre cf-section" aria-labelledby="titre-export">
+    <h2 id="titre-export">Le jeu complet, sur demande</h2>
+    <div class="texte">
+      <p>
+        NTanova ne propose pas de téléchargement libre. Le jeu complet est remis,{' '}
+        <strong>sur demande</strong>, aux ministères, aux chercheurs et aux partenaires, sous
+        convention&nbsp;: les fiches publiées, leurs mentions et leurs dates, avec l’identifiant
+        NTanova à six chiffres de chaque école, aux formats CSV et GeoJSON. Rien de privé n’y
+        figure.
       </p>
-    )}
+      <p>
+        Il comprend deux fichiers&nbsp;: les <strong>écoles</strong> (les données de NTanova) et les{' '}
+        <strong>zones</strong> (limites tirées d’OpenStreetMap, sous licence ODbL, voir ci-dessous).
+        Pour le demander, dites qui vous êtes et ce que vous voulez en faire.
+      </p>
+      <ContactNtanova
+        message="Bonjour NTanova, je voudrais demander le jeu de données complet. Je suis : [qui] ; pour : [usage]. "
+        formulaire={{
+          arrivee: { vers: 'contact', sujet: 'donnees', depuis: 'direct' },
+          texte: 'Demander le jeu complet',
+        }}
+      />
+      <h3>Ce que le site charge lui-même</h3>
+      <p>
+        Pour fonctionner, le site charge trois fichiers de données&nbsp;: la recherche, les écoles
+        de la carte et les zones de la carte. Un navigateur peut les lire, comme il lit chaque
+        fiche. Ils ne sont pas proposés en téléchargement et ne portent aucune licence
+        d’utilisation&nbsp;: les conditions ci-dessous s’appliquent à eux comme au reste.
+      </p>
+    </div>
   </section>
 
-  <section class="carte bloc" id="photos-references">
-    <h2>Photos et références</h2>
-    <ul>
-      <li>
-        <strong>{s.avecPhoto}</strong> {s.avecPhoto > 1 ? 'fiches ont' : 'fiche a'} une photo
-        publique.
-      </li>
-      <li>
-        <strong>{s.avecReference}</strong> {s.avecReference > 1 ? 'fiches citent' : 'fiche cite'}{' '}
-        une référence officielle. Ce n’est pas le nombre d’écoles agréées&nbsp;: voir la{' '}
-        <a href={`${LIEN_METHODE}#references`}>Méthode</a>.
-      </li>
-    </ul>
+  <section id="conditions" class="cf-blanc" aria-labelledby="titre-conditions">
+    <div class="cadre cf-section texte">
+      <h2 id="titre-conditions">Conditions d’utilisation</h2>
+      <h3>Ce que vous pouvez faire</h3>
+      <ul>
+        <li>Consulter les fiches, partager le lien d’une fiche.</li>
+        <li>
+          Citer une fiche ou un chiffre en nommant la source&nbsp;: «&nbsp;NTanova, ntanova.com,
+          données du {jourLong(s.construiteLe)}&nbsp;».
+        </li>
+      </ul>
+      <h3>Ce que vous ne pouvez pas faire sans convention écrite avec NTanova</h3>
+      <ul>
+        <li>
+          Copier les fiches de façon systématique ou automatique pour les republier, les revendre ou
+          constituer une autre base.
+        </li>
+        <li>
+          Utiliser les numéros de téléphone publiés pour du démarchage commercial. La loi
+          n°&nbsp;29-2019 interdit la prospection sans consentement préalable (article&nbsp;21).
+        </li>
+        <li>
+          Laisser croire que NTanova est un service de l’État, ou qu’une administration a validé les
+          fiches.
+        </li>
+        <li>Modifier les données en les attribuant à NTanova.</li>
+      </ul>
+      <h3>Les limites de quartiers, d’arrondissements et de villes</h3>
+      <p>
+        Elles viennent d’OpenStreetMap&nbsp;: © les contributeurs d’OpenStreetMap, données sous
+        licence ODbL 1.0 (
+        <a href="https://opendatacommons.org/licenses/odbl/1-0/">texte de la licence</a>,{' '}
+        <a href="https://www.openstreetmap.org/copyright">droit d’auteur d’OpenStreetMap</a>).
+        NTanova les simplifie à 10&nbsp;mètres près. Elles restent réutilisables selon cette
+        licence, y compris cette version simplifiée&nbsp;: avec le crédit, et sous la même licence
+        pour toute base qui en dérive. Le fichier des zones porte cette mention.
+      </p>
+      <h3>Sans garantie</h3>
+      <p>
+        Les informations sont celles que NTanova a relevées ou reçues à la date indiquée sur chaque
+        fiche. Elles ont pu changer depuis, et NTanova ne garantit ni qu’elles soient complètes, ni
+        qu’elles soient exactes à un jour donné.
+      </p>
+    </div>
   </section>
+</PagePublique>
 
-  <section class="carte bloc large" id="export">
-    <h2>Le jeu complet, sur demande</h2>
-    <p>
-      NTanova ne propose pas de téléchargement libre. Le jeu complet est remis,{' '}
-      <strong>sur demande</strong>, aux ministères, aux chercheurs et aux partenaires, sous
-      convention&nbsp;: les fiches publiées, leurs preuves et leurs dates, avec l’identifiant
-      NTanova à six chiffres de chaque école, aux formats CSV et GeoJSON. Rien de privé n’y figure.
-    </p>
-    <p>
-      Il comprend deux fichiers&nbsp;: les <strong>écoles</strong> (les données de NTanova) et les{' '}
-      <strong>zones</strong> (limites tirées d’OpenStreetMap, sous licence ODbL, voir ci-dessous).
-      Pour le demander, dites qui vous êtes et ce que vous voulez en faire.
-    </p>
-    <ContactNtanova message="Bonjour NTanova, je voudrais demander le jeu de données complet. Je suis : [qui] ; pour : [usage]. " />
-    <h3>Ce que le site charge lui-même</h3>
-    <p>
-      Pour fonctionner, le site charge trois fichiers de données&nbsp;: la recherche, les écoles de
-      la carte et les zones de la carte. Un navigateur peut les lire, comme il lit chaque fiche. Ils
-      ne sont pas proposés en téléchargement et ne portent aucune licence d’utilisation&nbsp;: les
-      conditions ci-dessous s’appliquent à eux comme au reste.
-    </p>
-  </section>
-
-  <section class="carte bloc large" id="conditions">
-    <h2>Conditions d’utilisation</h2>
-    <h3>Ce que vous pouvez faire</h3>
-    <ul>
-      <li>Consulter les fiches, partager le lien d’une fiche.</li>
-      <li>
-        Citer une fiche ou un chiffre en nommant la source&nbsp;: «&nbsp;NTanova, ntanova.com,
-        données du {jourLong(s.construiteLe)}&nbsp;».
-      </li>
-    </ul>
-    <h3>Ce que vous ne pouvez pas faire sans convention écrite avec NTanova</h3>
-    <ul>
-      <li>
-        Copier les fiches de façon systématique ou automatique pour les republier, les revendre ou
-        constituer une autre base.
-      </li>
-      <li>
-        Utiliser les numéros de téléphone publiés pour du démarchage commercial. La loi
-        n°&nbsp;29-2019 interdit la prospection sans consentement préalable (article&nbsp;21).
-      </li>
-      <li>
-        Laisser croire que NTanova est un service de l’État, ou qu’une administration a validé les
-        fiches.
-      </li>
-      <li>Modifier les données en les attribuant à NTanova.</li>
-    </ul>
-    <h3>Les limites de quartiers, d’arrondissements et de villes</h3>
-    <p>
-      Elles viennent d’OpenStreetMap&nbsp;: © les contributeurs d’OpenStreetMap, données sous
-      licence ODbL 1.0 (
-      <a href="https://opendatacommons.org/licenses/odbl/1-0/">texte de la licence</a>,{' '}
-      <a href="https://www.openstreetmap.org/copyright">droit d’auteur d’OpenStreetMap</a>). NTanova
-      les simplifie à 10&nbsp;mètres près. Elles restent réutilisables selon cette licence, y
-      compris cette version simplifiée&nbsp;: avec le crédit, et sous la même licence pour toute
-      base qui en dérive. Le fichier des zones porte cette mention.
-    </p>
-    <h3>Sans garantie</h3>
-    <p>
-      Les informations sont celles que NTanova a relevées à la date indiquée sur chaque fiche. Elles
-      ont pu changer depuis, et NTanova ne garantit ni qu’elles soient complètes, ni qu’elles soient
-      exactes à un jour donné.
-    </p>
-  </section>
-</PageDeTexte>
+<style>
+  .haut-donnees {
+    padding-bottom: var(--espace-5);
+  }
+  .construction {
+    margin: 0;
+    max-width: var(--largeur-texte);
+  }
+  .total {
+    font-size: var(--taille-intertitre);
+  }
+  .texte {
+    display: grid;
+    gap: var(--espace-3);
+    max-width: var(--largeur-texte);
+  }
+  .texte ul {
+    display: grid;
+    gap: var(--espace-1);
+    margin: 0;
+    padding-left: var(--espace-5);
+  }
+  .trois-dates {
+    display: grid;
+    gap: var(--espace-3);
+    margin: 0;
+  }
+  .trois-dates dt {
+    color: var(--texte-doux);
+    font-family: var(--police-interface);
+    font-size: var(--taille-secondaire);
+    font-weight: 700;
+  }
+  .trois-dates dd {
+    margin: 0;
+    font-weight: 700;
+  }
+  .sans-date {
+    display: block;
+    color: var(--texte-doux);
+    font-size: var(--taille-secondaire);
+  }
+  .grand-nombre {
+    color: var(--marque);
+    font-family: var(--police-titre);
+    font-size: var(--taille-section-accueil);
+    line-height: 1;
+  }
+  .deux {
+    display: grid;
+    gap: var(--espace-5);
+    align-items: start;
+  }
+  @media (min-width: 48rem) {
+    .trois-dates {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 64rem) {
+    .deux {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--espace-7);
+    }
+  }
+</style>

@@ -11,6 +11,7 @@ import {
   normaliser,
   type LigneRecherche,
 } from '../../src/modele/recherche';
+import { filtrer, lireEtat } from '../../src/modele/liste-ecoles';
 import type { DomainePublic, EcolePubliee, FormationPublique } from '../../src/modele/ports';
 
 function ecole(id: string, nom: string, reste: Partial<EcolePubliee> = {}): EcolePubliee {
@@ -412,6 +413,9 @@ describe('les filtres avancés de la recherche (audit du 05/11/2026, D8)', () =>
 describe('les autres écritures des zones se cherchent (audit du 07/11/2026)', () => {
   const TIE = ['congo', 'pointe-noire', 'pointe-noire', 'tie-tie'];
   const zones = [
+    // Le pays, avec ses vraies écritures (migration 20261101200200) : « Congo-Brazzaville » ne doit pas faire trouver à
+    // Brazzaville une école de Pointe-Noire (recette de la refonte, 25/11).
+    { adresse: ['congo'], alias: ['République du Congo', 'Congo-Brazzaville'] },
     { adresse: ['congo', 'pointe-noire'], alias: ['Pointe Noire ville'] },
     { adresse: ['congo', 'pointe-noire', 'pointe-noire'], alias: ['PN'] },
     { adresse: TIE, alias: ['Tietie', 'Tié Tié'] },
@@ -424,7 +428,7 @@ describe('les autres écritures des zones se cherchent (audit du 07/11/2026)', (
   });
   const lignes = lignesDeRecherche([dansTie, ailleurs], zones);
 
-  it('l’école porte les écritures de toutes les zones où elle se trouve, sans les afficher', () => {
+  it('l’école porte les écritures des zones où elle se trouve (pas celles du pays, commun à toutes), sans les afficher', () => {
     expect(lignes[0]?.a).toBe('Pointe Noire ville PN Tietie Tié Tié');
     expect(lignes[0]?.d).toBe('Congo › Pointe-Noire › Tié-Tié');
   });
@@ -441,6 +445,12 @@ describe('les autres écritures des zones se cherchent (audit du 07/11/2026)', (
   it('« tietie » trouve les écoles de Tié-Tié, et seulement elles', () => {
     expect(chercher(lignes, { texte: 'tietie' }).map((r) => r.ligne.i)).toEqual(['t']);
     expect(chercher(lignes, { texte: 'collège pn' }).map((r) => r.ligne.i)).toEqual(['t']);
+  });
+
+  it('« Brazzaville » ne trouve que ses écoles : l’autre nom du pays n’en ajoute pas', () => {
+    expect(chercher(lignes, { texte: 'brazzaville' }).map((r) => r.ligne.i)).toEqual(['a']);
+    const ou = lireEtat(new URLSearchParams('ou=Brazzaville'));
+    expect(filtrer(lignes, ou).map((t) => t.ligne.i)).toEqual(['a']);
   });
 
   it('sans les écritures, la même recherche ne trouve rien', () => {

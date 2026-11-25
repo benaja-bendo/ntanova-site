@@ -211,6 +211,27 @@
 .liste-sorties .bouton {
   width: 100%;
 }
+/* Lot 1 de la refonte : corriger le lieu de « Où ? » quand il ne trouve rien. */
+.liste-lieu {
+  display: grid;
+  gap: var(--espace-1);
+}
+.liste-lieu[hidden] {
+  display: none;
+}
+.liste-lieu label {
+  font-family: var(--police-interface);
+  font-weight: 700;
+}
+.liste-lieu-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+}
+.liste-lieu-ligne .champ {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
 
 /* La feuille « Filtres » (téléphone, et vue Carte sur ordinateur) */
 .liste-filtres {

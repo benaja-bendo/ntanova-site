@@ -10,7 +10,7 @@ Le site de NTanova : l'annuaire public des écoles de la République du Congo (*
 
 Demande du fondateur : une livraison complète du nouveau site public, préparée par lots successifs. Exception temporaire au circuit habituel : `refonte/site-public`, issue du `main` consolidé, reçoit les PR de lots ; elle sera fusionnée dans `main` puis supprimée après recette et ordre de livraison. Une branche courte par lot, **PR vers `refonte/site-public`** ; aucune livraison de production lot par lot. Le dépôt documentaire reste sur `main`.
 
-Contrat technique : `docs/refonte-site-public.md`. Plan et prompt de lancement dans le dépôt documentaire : `~/Desktop/NTANOVA/docs/produit/2026-11-24-refonte-site-public/`. **Préparer cette branche ne lance aucun lot.** Aucun code neuf ni migration n'accompagne cette préparation. Les propositions de la maquette ne remplacent une décision datée qu'après lancement explicite du lot qui les énumère.
+Contrat technique, lot par lot : `docs/refonte-site-public.md`. **Lots 1 à 6 intégrés à `refonte/site-public`** (PR 212, 214, 216, 218, 220, 222, 224 et 226, `14630a2`). **Lot 7, livraison unique (ticket 227)** : la PR globale vers `main` part de cette branche ; fusion et production sur ordre distinct du fondateur. L'état constaté (sauvegarde, migrations, essai, courrier, réglages des formulaires) est dans `RELEVE-LOT-07.md`, jamais à supposer d'ici. Ce que la refonte change, en bref : en-tête et pied partagés, accueil illustré, recherche `q` + `ou` ; `/orienter/` (cinq sections, six activités, dix domaines) ; `/contact/` et `/contribuer/`, **fermés sauf si `PUBLIC_FORMULAIRES` vaut `ouverts` et que la base a un secret d'envoi** ; « Messages reçus » dans l'administration ; `/methode/`, `/donnees/`, `/a-propos/`, `/villes/` ; `/pour-les-ecoles/` et ses outils, présentés comme en préparation. Plan, procédure et relevé dans le dépôt documentaire : `~/Desktop/NTANOVA/docs/produit/2026-11-24-refonte-site-public/`. Les propositions de la maquette ne remplacent une décision datée qu'après lancement explicite du lot qui les énumère.
 
 ## Où on en est (16/11/2026)
 
@@ -39,8 +39,20 @@ pnpm dev               # http://localhost:4321 ; catalogue du design : /dev/cata
 - **`pnpm verif`** : format, lint (frontières), couleurs, types, unitaires, construction (elle exporte le guide du relais : `pnpm exec playwright install chromium`), poids. **Rien n'est fini sans elle.** La CI lance `pnpm verif:ci` (catalogue fictif).
 - **`pnpm test:parcours`** : Playwright sur le site construit avec le faux serveur, servi par wrangler (port 4329, ou `PLAYWRIGHT_PORT`). Android 360 px ; quelques specs aussi à 768 et 1 280 px (`playwright.config.ts`). En travaillant : `pnpm test:parcours:preparer` après chaque changement, puis `pnpm test:parcours:exec tests/parcours/<fichier>.spec.ts`. Sous charge, des parcours de carte échouent et passent seuls. « Trois fiches hors ligne, le réseau revient, tout est parti » ne s'affaiblit jamais.
 - **`pnpm base:tests`** : pgTAP (`supabase/tests/`) sur la base locale (Docker ; `pnpm base:reset` après une migration).
+- **À la main, jamais en CI** (refonte, lot 3C) : `pnpm test:constructions` (quatre constructions du faux catalogue dans un dossier temporaire : `PUBLIC_FORMULAIRES` fermé puis ouvert, un retrait cherché dans chaque fichier produit) ; `pnpm test:api-locale` (l'adaptateur des formulaires contre la pile locale, refusée si elle n'est pas `127.0.0.1` ; elle part d'une base sans secret d'envoi et la laisse ainsi).
 - **Contrat avec la base** (`tests/unitaires/contrat-schema.test.ts`) : tout ce que `src/infra/supabase/` appelle existe dans les migrations ; une migration qui renomme ou retire change l'adaptateur dans le même commit.
 - **CI** (`verif.yml`, chaque PR et `main`) : `verif`, `base`, deux lots de parcours ; verdict **Validation complète**.
+
+### Tests proportionnés (fondateur, 25/11/2026)
+
+- **Avant d'ajouter un test, chercher la couverture existante.** Nommer le défaut qu'il détecterait en plus ; compléter le test existant quand il protège déjà ce comportement. Ni un fichier par lot, ni un nombre de tests à atteindre.
+- **Choisir le niveau le moins coûteux qui reproduit réellement le risque** : règle de calcul en unitaire, droits et contraintes dans la base, interaction dans le navigateur. Plusieurs niveaux se justifient pour des risques distincts : validation à l'écran et refus d'un appel direct, par exemple. Un faux serveur ne prouve pas le fonctionnement de la vraie API ; rejouer les essais locaux concernés si son contrat ou son adaptateur change.
+- **Tester le résultat et les contrats publics.** Ne pas exiger un nom de variable, une chaîne dans le code source, une classe CSS ou une structure interne si le comportement rendu suffit. Les contrôles statiques de sécurité, de frontières et de budgets restent légitimes ; ils complètent les essais réels.
+- **Entretenir les tests avec le code** : conserver, modifier, regrouper ou supprimer les doublons et les attentes abandonnées. Pour chaque suppression, indiquer la protection conservée et où elle est vérifiée, ou la décision qui l'a rendue obsolète. Git garde l'historique. Ne jamais retirer un test seulement parce qu'il échoue.
+- **Éviter les exécutions répétées** : réunir les contrôles complémentaires d'une même page quand cela évite une navigation et ne crée pas de dépendance entre tests. Répéter une largeur seulement si elle change le comportement ou la mise en page ; garder les cas limites qui protègent des risques différents.
+- **Un correctif de bug reproduit son défaut avant correction**, dans un test existant ou nouveau. Une retouche de texte ou de style n'impose pas un nouveau parcours si les contrôles existants suffisent. Un test instable se diagnostique : ni attente arbitraire ni assertion affaiblie pour le faire passer.
+- **Pendant l'itération, contrôles ciblés ; avant la PR, `pnpm verif:ci` et parcours concernés**, suite complète si le changement touche un socle partagé ou la suite de tests. La CI complète reste requise. Les protections de collecte hors ligne, de droits, de confidentialité, d'accord daté et d'envoi sans doublon restent prioritaires ; téléphone réel et recette visuelle complètent l'automatisation.
+- **Compte rendu de PR** : risques protégés, couverture réutilisée, tests ajoutés/modifiés/supprimés et raison, commandes et résultats réellement obtenus. Le nombre de tests ne remplace pas cette explication. Utiliser le modèle de PR du dépôt.
 
 ## Architecture
 
@@ -53,7 +65,7 @@ src/ui/         jetons, composants (CSS du site, shadcn, v2), sans appel réseau
 supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parcours · outils/ contrôles maison
 ```
 
-- **Frontières gardées par ESLint** (`eslint.config.js`, testé par `frontieres.test.ts`) : changer l'import, jamais la règle. `@supabase/*` seulement dans `src/infra/` ; `app/` et `pages/` reçoivent les adaptateurs par `src/infra/index.ts` ; `modele/` sans React ni `infra` ni `ui` ; relais et admin ne dépendent pas l'un de l'autre (pas de `Relais.tsx` dans l'admin). Ce que le gabarit public montre sur chaque page (les villes du pied) passe par `src/middleware.ts` et `Astro.locals`.
+- **Frontières gardées par ESLint** (`eslint.config.js`, testé par `frontieres.test.ts`) : changer l'import, jamais la règle. `@supabase/*` seulement dans `src/infra/` ; `app/` et `pages/` reçoivent les adaptateurs par `src/infra/index.ts` ; `modele/` sans React ni `infra` ni `ui` ; relais et admin ne dépendent pas l'un de l'autre (pas de `Relais.tsx` dans l'admin). Ce que le gabarit public montrerait sur chaque page depuis le catalogue passerait par un `src/middleware.ts` et `Astro.locals` (retirés au lot 4 de la refonte : le pied ne liste plus les villes).
 - **Les ports** (`src/modele/ports.ts`) portent le nom de leur future route REST : le jour d'un serveur, seul `src/infra/` change. Le faux serveur implémente chaque geste nouveau, sinon les parcours ne le voient pas.
 
 ### L'espace relais : ce qui ne s'affaiblit jamais
@@ -72,6 +84,8 @@ supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parco
 - **Listes fermées** : domaines SQL copiés dans `src/modele/listes.ts` (un test les compare), libellés dans `libelles.ts`. Une liste ne bloque personne (case de sortie, rien de coché d'avance, lecture tolérante) ; on ne retire ni ne renomme une valeur. Ajouter : `alter domain … add constraint … not valid` (`niveau` sert dans un tableau).
 - Jamais de position inventée. Photos : chemins relatifs, privées tant que l'administration ne les a pas contrôlées. Données d'exemple fictives ; les vraies écoles entrent par `outils/importer-ecoles.ts` puis l'administration, jamais par git.
 - Migrations appliquées depuis le Mac du fondateur (`pnpm exec supabase db push --linked`, après une sauvegarde), **avant** toute construction qui les lit ; jamais par la CI.
+- **Les messages reçus** (Contact, annuaire ; refonte, lots 3B1, 3B2 et 3C, pas encore en ligne) : tout dans `prive`, envoyés par `send_public_request(json)` seulement (en POST JSON brut par `fetch`, jamais `.rpc` nommé ; `55000` = envois fermés), lus par l'administration seule (`#demandes`) ; rien d'écrit par une personne dans une erreur, un journal, une liste ou une adresse. Lister n'ouvre rien, ouvrir fige, chaque geste porte `row_version`. Le service d'alerte (`supabase/functions/alerte-messages/`) est préparé, jamais déployé sans ordre. `supabase/schema.md`, « Les messages reçus ».
+- Un « introuvable » que l'écran doit lire lève **`PT404`** : PostgREST 14 rend `P0002` en 500, comme une panne.
 - **Deux lignes rouges** : la confiance ne s'achète pas (« Confirmée par la direction » exige un accord daté) ; NTanova n'encaisse jamais les frais de scolarité.
 
 ## Secrets
@@ -94,7 +108,8 @@ supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parco
 - Un ton factuel : ni « gratuit », ni audience inventée, aucune phrase qui se fait passer pour un parent. Des nombres, jamais un objectif ni un seuil de mesure.
 - Aucune donnée personnelle dans le dépôt. Le numéro WhatsApp vient de `PUBLIC_WHATSAPP`, jamais écrit dans le code (un parcours ne l'attend jamais en dur).
 - L'administration ne promet ni nuit ni heure de mise en ligne : « à la prochaine mise à jour du site ».
-- Aucun lien public vers un lieu sans fiche publiée (`lieuxAvecEcoles`, 16/11) ; sa page existe, en `noindex` (08/11). Le lien vers `/pour-les-ecoles/` s'appelle « Espace écoles », comme le pilier (l'adresse change au lot 6, l'ancienne renverra en 301).
+- Aucun lien public vers un lieu sans fiche publiée (`lieuxAvecEcoles`, 16/11) ; sa page existe, en `noindex` (08/11). Le lien vers `/pour-les-ecoles/` s'appelle « Pour les écoles » (refonte, lot 1, 24/11 ; avant : « Espace écoles ») ; la Méthode s'affiche « Fiabilité des informations » ; les adresses ne changent pas. Jamais « toutes les écoles » dans un texte public.
+- Une école fictive (la démonstration) n'entre jamais dans le catalogue, la recherche ou le plan du site : elle porte « Exemple » sur la ligne de son nom.
 
 ## Budgets des pages
 
@@ -103,6 +118,8 @@ supabase/       migrations, règles d'accès, pgTAP · tests/ unitaires et parco
   - la vue Carte de `/ecoles/` (lot 4 bis) : script de la page 20 Ko, îlot MapLibre 500 Ko servis, premier affichage 700 Ko sans les images `loading="lazy"` ; `/carte/` n'est plus qu'un renvoi ;
   - « Partager » sur une fiche : un script de 2 Ko au plus, sinon un lien WhatsApp.
   - la visionneuse des photos (fiche et page des photos, fondateur, 19/11) : un `<dialog>` natif et un script de 2 Ko au plus ; les grandes images (`grande`, 1 080 px, 90 Ko) n'ont de `src` qu'à l'ouverture. Jamais shadcn ni React sur le site public.
+  - `/orienter/` (refonte, lot 2, 24/11) : l'amorce des six activités, chargée avec la page, et le script des réponses, chargé à l'approche ou au premier geste ; **10 Ko gzip au plus pour tout le JavaScript de la page**, imports suivis ; premier affichage sous 200 Ko. Aucune réponse dans l'adresse, un stockage, un cookie ou le réseau.
+  - `/contact/` et `/contribuer/` (refonte, lot 3C, 24/11) : un script natif partagé, **10 Ko gzip au plus par page, imports statiques et à la demande compris** (le faux serveur des parcours mis à part) ; premier affichage sous 200 Ko. Le texte écrit ne va que dans `sessionStorage` et le corps de l'envoi : jamais dans une adresse, un journal, un cookie ou `localStorage`.
 - **À venir (fondateur, 15/11)** : calculateur, test d'orientation et Comparer s'affichent d'abord en HTML et CSS dans les 200 Ko ; leur JavaScript ne se charge qu'à la demande (script natif ou îlot `client:visible`), déclaré à `pnpm poids`.
 
 ## Budget GitHub Actions (fondateur, 05/11/2026)
@@ -120,7 +137,7 @@ Le quota s'est épuisé le 05/11 et a bloqué une mise en production : chaque mi
 
 ## Façon de travailler
 
-- Une tâche = un ticket du projet GitHub n° 29 : état des lieux, go du fondateur (rien n'est codé avant), PR « Fixes #N », tests d'abord, compte rendu (fait, vérifié, pas vérifié). Un bug corrigé arrive avec un test qui échoue sans le correctif.
+- Une tâche = un ticket du projet GitHub n° 29 : état des lieux, go du fondateur (rien n'est codé avant), PR « Fixes #N », vérification adaptée au risque (voir « Tests proportionnés »), compte rendu (fait, vérifié, pas vérifié). Un bug corrigé arrive avec un test qui échoue sans le correctif ; une couverture existante peut suffire aux autres changements.
 - **Un regard critique à chaque étape** : croiser maquette, ticket et code avec le contexte et dire ce qui ne colle pas ; ne jamais recopier une maquette telle quelle.
 - **Un test protège une décision, pas un ancien écran** (fondateur, 16/11/2026) : quand une planche de la version 44 contredit un test ou une ancienne route, la planche gagne ; réécrire le test et le dire dans le compte rendu. La charte (cibles de 44 px, logo, poids des pages) reste au-dessus des planches. **Quand la planche renverse une décision datée du registre** (exemple : couverture dessinée et « plus de petit plan », 08/11), lister d'abord les renversements au fondateur et attendre son accord avant de coder (16/11).
 - **Git** : jamais de code poussé directement sur `main` ; une branche courte par tâche, une PR, une fusion en un seul commit, la branche supprimée ; un seul clone. Commits en français, préfixe court (`site:`, `relais:`, `admin:`, `base:`, `ui:`, `outils:`, `docs:`).

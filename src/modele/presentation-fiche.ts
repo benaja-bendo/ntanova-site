@@ -3,8 +3,9 @@
  * DOM, ni Astro.
  */
 import type { NomIcone } from './carte/icones';
-import { libelleDiplome, libelleRythme } from './libelles';
+import { libelleDiplome, libelleProvenance, libelleRythme, type Provenance } from './libelles';
 import { listes, type Valeur } from './listes';
+import { GENRE_DE_LA_MENTION, ICONE_DE_LA_MENTION, mentionsDe } from './mentions';
 import { dateCourte } from './pointe-noire';
 import type { EcolePubliee, FormationPublique } from './ports';
 
@@ -37,32 +38,29 @@ export function preuvesDeLaFiche(
     'etat' | 'verifieeLe' | 'origine' | 'declareeLe' | 'releveeLe' | 'situeeLe'
   >,
 ): PreuveDeFiche[] {
-  const date = (jour: string | null | undefined) => (jour ? ` · ${dateCourte(jour)}` : '');
-  const confirmee = e.etat === 'verifiee';
-  const declaree = e.origine === 'school';
+  // Refonte publique, lot 4 (24/11/2026) : les mentions viennent de `mentionsDe`, la grammaire commune du site ; la fiche garde
+  // son ordre et ses pastilles (l'accord d'abord, puis la déclaration, puis le passage).
+  const mentions = mentionsDe(e);
+  const porte = (m: Provenance) => mentions.find((x) => x.mention === m);
+  const date = (jour: string | null) => (jour ? ` · ${dateCourte(`${jour}T12:00:00Z`)}` : '');
   const preuves: PreuveDeFiche[] = [];
-  if (confirmee)
-    preuves.push({
-      genre: 'direction',
-      icone: 'bouclier',
-      texte: `Confirmée par la direction${date(e.verifieeLe)}`,
-    });
-  if (declaree)
-    preuves.push({
-      genre: 'ecole',
-      icone: 'document',
-      texte: `Déclarée par l’école${date(e.declareeLe)}`,
-    });
-  if (e.releveeLe)
-    preuves.push({ genre: 'terrain', icone: 'oeil', texte: `Vue sur place${date(e.releveeLe)}` });
-  if (!e.releveeLe && !declaree)
+  for (const m of ['verifiee', 'declaree', 'relevee'] as const) {
+    const mention = porte(m);
+    if (mention)
+      preuves.push({
+        genre: GENRE_DE_LA_MENTION[m] as PreuveDeFiche['genre'],
+        icone: ICONE_DE_LA_MENTION[m],
+        texte: `${mention.libelle}${date(mention.jour)}`,
+      });
+  }
+  if (porte('ajoutee'))
     preuves.push({
       genre: 'vide',
       icone: null,
       // 17/11 : la mention de l'épingle en tirets ; elle part dès qu'un relais passe.
-      texte: 'Ajoutée par NTanova · pas encore vue sur place',
+      texte: `${libelleProvenance.ajoutee} · pas encore vue sur place`,
     });
-  else if (!confirmee)
+  else if (!porte('verifiee'))
     preuves.push({
       genre: 'vide',
       icone: 'bouclierVide',

@@ -21,7 +21,9 @@ import {
   groupesAffiches,
   LIBELLES_DES_CYCLES,
 } from '../../modele/liste-ecoles';
+import { porte } from '../../modele/liens-demandes';
 import { avecMessage, lienWhatsApp } from '../../modele/whatsapp';
+import { formulairesOuverts } from '../../ui/formulaires/ouverture';
 import Icone from '../../ui/Icone.astro';
 import Marque from '../../ui/Marque.astro';
 import PagePublique from '../../ui/PagePublique.astro';
@@ -32,7 +34,12 @@ import { PAR_PAGE } from '../../app/carte/liste-ecoles';
 
 const site = await obtenirSite();
 const whatsapp = lienWhatsApp(PUBLIC_WHATSAPP, 'Bonjour NTanova, ');
-const manque = avecMessage(whatsapp, 'Bonjour NTanova, une école manque : ');
+// La recherche n'est jamais recopiée dans l'adresse du formulaire (lot 3C) : aucun nom n'y passe.
+const manque = porte(
+  formulairesOuverts,
+  { vers: 'manque', depuis: 'ecoles' },
+  avecMessage(whatsapp, 'Bonjour NTanova, une école manque : '),
+);
 const lignes = site.recherche;
 const domaines = new Map(site.domaines.map((d) => [d.slug, d.nom]));
 const etat = etatVide();
@@ -193,9 +200,29 @@ const villesDuPied = villesDeLAccueil(site.arbre);
           <h2>Aucune école ne répond à tous ces choix</h2>
           <p>Retirez un choix&nbsp;:</p>
           <ul class="liste-sorties" data-sorties></ul>
+          {/* Lot 1 de la refonte : un lieu de « Où ? » qui ne trouve rien se corrige ici, sans perdre les autres choix. */}
+          <form class="liste-lieu" data-modifier-lieu action="/ecoles/" method="get" hidden>
+            <label for="liste-ou">Modifier le lieu</label>
+            <div class="liste-lieu-ligne">
+              <input
+                id="liste-ou"
+                class="champ"
+                type="search"
+                name="ou"
+                autocomplete="off"
+                placeholder="Ville, arrondissement, quartier"
+              />
+              <button class="bouton bouton-secondaire" type="submit">
+                Chercher
+              </button>
+            </div>
+          </form>
           {manque && (
             <p>
-              Une école manque&nbsp;? <a href={manque}>Dites-le-nous sur WhatsApp</a>
+              Une école manque&nbsp;?{' '}
+              <a href={manque.href}>
+                {manque.parFormulaire ? 'Dites-le-nous' : 'Dites-le-nous sur WhatsApp'}
+              </a>
             </p>
           )}
         </div>
@@ -212,7 +239,7 @@ const villesDuPied = villesDeLAccueil(site.arbre);
         </p>
         <noscript>
           <p class="liste-sans-js">
-            Toutes les écoles, ville par ville&nbsp;:
+            Les écoles, ville par ville&nbsp;:
             {villesDuPied.map((v, i) => (
               <>
                 {i > 0 && ' · '}

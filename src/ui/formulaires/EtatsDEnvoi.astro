@@ -1,0 +1,119 @@
+---
+// Ce que la page dit quand un envoi n'aboutit pas, et la saisie qui reste. Tous les textes sont ici ; le script montre le bon.
+// Jamais « enregistré » sans la réponse du serveur, jamais « pas parti » quand on ne sait pas, aucun renvoi automatique.
+import Icone from '../Icone.astro';
+import { REGLAGES } from '../../modele/demandes';
+
+interface Props {
+  whatsapp: string | null;
+}
+const { whatsapp } = Astro.props;
+
+/** Les gestes utiles de chaque cas ; WhatsApp est toujours proposé quand il existe. */
+const CAS: { cas: string; titre: string; texte: string; gestes: string }[] = [
+  {
+    cas: 'non_confirme',
+    titre: 'L’envoi n’est pas confirmé.',
+    texte:
+      'La connexion a été interrompue. Ce que vous avez écrit est toujours là : réessayez. Un envoi déjà reçu n’est pas enregistré deux fois.',
+    gestes: 'reessayer',
+  },
+  {
+    cas: 'ferme',
+    titre: 'Ce formulaire ne reçoit pas encore d’envois.',
+    texte:
+      'Rien n’est enregistré. Votre texte est gardé ici : copiez-le, puis envoyez-le-nous autrement.',
+    gestes: 'copier',
+  },
+  {
+    cas: 'trop_d_envois',
+    titre: 'L’envoi n’est pas enregistré.',
+    texte:
+      'Beaucoup de messages sont partis de cette connexion en peu de temps. Votre texte est gardé ici : réessayez dans une heure.',
+    gestes: 'reessayer copier',
+  },
+  {
+    cas: 'plafond',
+    titre: 'L’envoi n’est pas enregistré.',
+    texte:
+      'Le service a reçu trop de messages aujourd’hui. Votre texte est gardé ici : copiez-le, ou réessayez demain.',
+    gestes: 'reessayer copier',
+  },
+  {
+    cas: 'expiree',
+    titre: 'Cette page est trop ancienne pour envoyer.',
+    texte: `Cet envoi n’est pas enregistré : la page a plus de ${REGLAGES.validiteJours} jours. Votre texte est gardé ici.`,
+    gestes: 'nouveau copier',
+  },
+  {
+    cas: 'expiree_connue',
+    titre: 'Ce texte n’est pas enregistré.',
+    texte: `Cette page est ouverte depuis plus de ${REGLAGES.validiteJours} jours. Votre texte est gardé ici.`,
+    gestes: 'nouveau copier',
+  },
+  {
+    cas: 'limite_atteinte',
+    titre: 'Ce dernier texte n’est pas enregistré.',
+    texte: 'Trop de modifications ont été envoyées depuis cette page. Votre texte est gardé ici.',
+    gestes: 'nouveau copier',
+  },
+  {
+    cas: 'cle_deja_utilisee',
+    titre: 'Ce texte n’est pas enregistré.',
+    texte: 'Une autre demande est déjà partie de cette page. Votre texte est gardé ici.',
+    gestes: 'nouveau copier',
+  },
+  {
+    cas: 'ecole_inconnue',
+    titre: 'Cette fiche n’est plus publiée.',
+    texte:
+      'Rien n’est enregistré pour l’instant. Écrivez le nom de l’école concernée, puis envoyez : tout le reste est gardé.',
+    gestes: '',
+  },
+];
+---
+
+<div class="f-retour f-retour-echec" data-refus role="alert" tabindex="-1" hidden>
+  {CAS.map((c) => (
+    <div class="f-retour-texte" data-cas={c.cas} data-gestes={c.gestes} hidden>
+      <h2>{c.titre}</h2>
+      <p>{c.texte}</p>
+    </div>
+  ))}
+  <p data-refus-enregistree hidden>
+    Est déjà enregistrée&nbsp;: <b class="f-reference" data-refus-reference></b>
+  </p>
+  <div class="f-gestes">
+    <button class="bouton" type="button" data-geste="nouveau" hidden>
+      Envoyer comme nouveau message
+    </button>
+    <button class="bouton" type="button" data-geste="reessayer" hidden>
+      Réessayer
+    </button>
+    <button class="bouton bouton-secondaire" type="button" data-geste="copier" hidden>
+      Copier mon texte
+    </button>
+    {whatsapp && (
+      <a class="bouton bouton-secondaire" href={whatsapp}>
+        <Icone nom="bulle" />
+        Écrire sur WhatsApp
+      </a>
+    )}
+  </div>
+  <p class="f-aide" role="status" data-copie></p>
+</div>
+
+<dialog class="f-dialogue" data-dialogue aria-labelledby="f-dialogue-titre">
+  <h2 id="f-dialogue-titre">Envoyer comme un nouveau message&nbsp;?</h2>
+  <p>
+    Il aura sa propre référence. Si un envoi plus ancien avait été reçu, l’équipe en verra deux.
+  </p>
+  <div class="f-gestes">
+    <button class="bouton" type="button" data-dialogue-oui>
+      Oui, envoyer un nouveau message
+    </button>
+    <button class="bouton bouton-secondaire" type="button" data-dialogue-non>
+      Annuler
+    </button>
+  </div>
+</dialog>

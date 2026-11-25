@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
+import { ICONES_SITE } from '../../src/modele/icones';
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
     Object.defineProperty(navigator, 'connection', {
@@ -36,9 +37,9 @@ const pagesSansJavaScript = [
   '/ecoles/institut-superieur-exemple-527064/',
   '/ecoles/ecole-de-brazzaville-exemple-731590/',
   '/pour-les-ecoles/',
+  // Refonte publique, lot 5 (25/11) : la présentation des outils en préparation.
+  '/pour-les-ecoles/outils/',
   '/a-propos/',
-  // Lot 3 : le deuxième pilier, en attendant les questions du lot 5.
-  '/orienter/',
   // Ticket 149 : les pages qu'une administration lit.
   '/methode/',
   '/donnees/',
@@ -46,8 +47,9 @@ const pagesSansJavaScript = [
   '/mentions-legales/',
 ];
 
-// Ticket 146 : « Écoles » a repris « Rechercher » et « Autour de moi » ; c'est la seule page publique qui filtre.
-const pagesAvecJavaScript = ['/ecoles/'];
+// Ticket 146 : « Écoles » a repris « Rechercher » et « Autour de moi ». Refonte publique, lot 2 (24/11) : « S'orienter » a le
+// petit script de ses six activités (orienter.spec.ts vérifie le reste de la page sans JavaScript).
+const pagesAvecJavaScript = ['/ecoles/', '/orienter/'];
 
 // Les fiches d'école : sans JavaScript, sauf le petit script inline du bouton « Partager » (quatrième exception de poids).
 const fichesDEcole = [
@@ -81,10 +83,43 @@ async function pageLisible(page: Page, baseURL: string | undefined, adresse: str
   }
 }
 
+const meta = (page: Page, propriete: string) =>
+  page.locator(`meta[property="${propriete}"]`).getAttribute('content');
+
+/** Le partage se contrôle sur la page déjà ouverte : aucune seconde navigation pour les mêmes 21 pages. */
+async function verifierPartage(page: Page, request: APIRequestContext) {
+  expect(await meta(page, 'og:title')).toBeTruthy();
+  expect(await meta(page, 'og:description')).toBeTruthy();
+  expect(await meta(page, 'og:url')).toMatch(/^https:\/\/ntanova\.com\//);
+  const image = await meta(page, 'og:image');
+  expect(image).toMatch(/^https:\/\/ntanova\.com\/partage\/.+\.png$/);
+  const reponse = await request.get(new URL(image ?? '').pathname);
+  expect(reponse.status()).toBe(200);
+  expect(reponse.headers()['content-type']).toContain('image/png');
+  expect((await reponse.body()).length).toBeLessThan(300_000);
+}
+
 test.describe('site public', () => {
   for (const adresse of pagesSansJavaScript) {
-    test(`${adresse} : HTML lisible, 360 px, cibles de 44 px`, async ({ page, baseURL }) => {
+    test(`${adresse} : HTML lisible, ressources, cibles de 44 px et partage`, async ({
+      page,
+      baseURL,
+      request,
+    }) => {
       await pageLisible(page, baseURL, adresse);
+      await verifierPartage(page, request);
+      if (adresse === '/') {
+        // Vérifier les balises servies, plutôt que le nom de la variable dans le gabarit Astro.
+        const icones = await page
+          .locator('link[rel="icon"], link[rel="apple-touch-icon"]')
+          .evaluateAll((liens) =>
+            liens.map((lien) => ({
+              rel: lien.getAttribute('rel'),
+              href: lien.getAttribute('href'),
+            })),
+          );
+        expect(icones).toEqual(ICONES_SITE.map(({ rel, href }) => ({ rel, href })));
+      }
       // L'accueil n'a plus de carte depuis le lot 3 : plus de script non plus.
       const scripts = page.locator('script:not([type="application/ld+json"])');
       if (!fichesDEcole.includes(adresse)) {
@@ -124,13 +159,14 @@ test.describe('site public', () => {
   }
 
   test(
-    'de l’accueil à la fiche d’une école, puis vers « Espace écoles »',
+    'de l’accueil à la fiche d’une école, puis vers « Pour les écoles »',
     { tag: '@critique' },
     async ({ page }) => {
       await page.goto('/');
-      await expect(page.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ })).toBeVisible();
-      await expect(page.getByRole('link', { name: /^Brazzaville.*1 école/ })).toBeVisible();
-      await page.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ }).click();
+      const villes = page.getByRole('region', { name: 'Par ville' });
+      await expect(villes.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ })).toBeVisible();
+      await expect(villes.getByRole('link', { name: /^Brazzaville.*1 école/ })).toBeVisible();
+      await villes.getByRole('link', { name: /^Pointe-Noire.*7 écoles/ }).click();
 
       // La ville : le département de même nom n'a pas de page à lui ; ses arrondissements en sont les zones.
       await expect(page).toHaveURL(/\/ecoles\/pointe-noire\/$/);
@@ -178,12 +214,15 @@ test.describe('site public', () => {
         '[Complexe scolaire Exemple], à [Quartier], Tié-Tié, Pointe-Noire :',
       );
       expect(description).not.toContain('Congo');
-      // Ce que NTanova demande se lit sur « Espace écoles » (/pour-les-ecoles/), le troisième pilier de l'en-tête.
+      // Ce que NTanova demande se lit sur « Pour les écoles » (/pour-les-ecoles/), la troisième entrée de l'en-tête (derrière
+      // « Menu » au téléphone, refonte publique, lot 1).
+      const menu = page.locator('summary.menu-bouton');
+      if (await menu.isVisible()) await menu.click();
       await page
         .getByRole('navigation', { name: 'Navigation principale' })
-        .getByRole('link', { name: 'Espace écoles' })
+        .getByRole('link', { name: 'Pour les écoles' })
         .click();
-      await expect(page.getByRole('heading', { name: 'Vous dirigez une école ?' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toContainText('Présenter votre école');
     },
   );
 
@@ -191,14 +230,22 @@ test.describe('site public', () => {
     test('le pays, la ville, l’arrondissement, le quartier : chaque niveau mène au suivant', async ({
       page,
     }) => {
-      // Ticket 147 : le pays n'a plus de page. Lot 4 bis : `/ecoles/` n'a plus « Ville par ville » ; l'accueil et le pied de
-      // page mènent aux trois zones qui ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
+      // Ticket 147 : le pays n'a plus de page. Lot 4 bis : `/ecoles/` n'a plus « Ville par ville » ; l'accueil et « Toutes les
+      // villes » (lot 4, le lien du pied) mènent aux trois zones qui ont des fiches : Pointe-Noire, Brazzaville, le Niari (Dolisie).
       await page.goto('/ecoles/');
-      const pied = page.getByRole('contentinfo').getByRole('list', { name: 'Trouver une école' });
-      await expect(pied.getByRole('link')).toHaveCount(4);
+      await page
+        .getByRole('contentinfo')
+        .getByRole('list', { name: 'Chercher' })
+        .getByRole('link', { name: 'Toutes les villes' })
+        .click();
+      await expect(
+        page
+          .getByRole('region', { name: 'Avec des fiches' })
+          .getByRole('link', { name: /^(Brazzaville|Dolisie|Pointe-Noire) \d+ écoles?$/ }),
+      ).toHaveCount(3);
       await page.goto('/');
       await page
-        .getByRole('main')
+        .getByRole('region', { name: 'Par ville' })
         .getByRole('link', { name: /^Pointe-Noire.*7 écoles/ })
         .click();
       await page.getByRole('link', { name: /Loandjili.*Arrondissement 4.*2 écoles/ }).click();
@@ -397,34 +444,33 @@ test.describe('site public', () => {
     });
   });
 
-  test('le code de la fiche de liaison part sur WhatsApp, sans JavaScript', async ({ page }) => {
-    await page.goto('/pour-les-ecoles/');
-    // Replié : un seul bouton plein sur la page, celui qui écrit sur WhatsApp ; le code s'ouvre d'un toucher.
-    const liaison = page.locator('details.liaison');
-    await expect(liaison).not.toHaveAttribute('open', '');
-    await expect(page.getByLabel('Le code à 4 chiffres écrit dessus')).toBeHidden();
-    await liaison.getByText('Vous avez reçu une fiche de liaison ?').click();
-    await expect(page.getByLabel('Le code à 4 chiffres écrit dessus')).toBeVisible();
-    const formulaire = page.locator('form');
-    await expect(formulaire).toHaveAttribute('action', /^https:\/\/wa\.me\/\d+$/);
-    await expect(formulaire).toHaveAttribute('method', 'get');
-    await expect(page.getByLabel('Le code à 4 chiffres écrit dessus')).toHaveAttribute(
-      'name',
-      'text',
-    );
-  });
-
-  test('« À propos » dit ce qui est publié et renvoie la loi et les droits vers « Confidentialité »', async ({
-    page,
+  test('le code de la fiche de liaison : refusé s’il n’a pas quatre chiffres, mis dans un message WhatsApp sinon, sans JavaScript', async ({
+    browser,
+    baseURL,
   }) => {
-    await page.goto('/a-propos/');
-    await expect(page.getByRole('heading', { name: 'Ce que nous publions' })).toBeVisible();
-    await expect(page.getByText(/loi congolaise/)).toHaveCount(0);
-    await page.goto('/confidentialite/');
-    await expect(
-      page.getByRole('heading', { name: 'Ce que nous publions et ce que nous gardons' }),
-    ).toBeVisible();
-    await expect(page.getByText(/loi congolaise n°\s29-2019 du 10\soctobre 2019/)).toBeVisible();
+    const contexte = await browser.newContext({ javaScriptEnabled: false, baseURL: baseURL ?? '' });
+    const page = await contexte.newPage();
+    // WhatsApp n'est jamais joint : seule son adresse compte.
+    await page.route('https://wa.me/**', (r) => r.fulfill({ body: 'WhatsApp' }));
+    await page.goto('/pour-les-ecoles/');
+    // Replié : il s'ouvre d'un toucher.
+    const code = page.getByLabel('Le code à 4 chiffres écrit sur la fiche');
+    await expect(code).toBeHidden();
+    await page.getByText('J’ai un code de fiche de liaison').click();
+    await expect(code).toBeVisible();
+    const continuer = page.getByRole('button', { name: 'Continuer sur WhatsApp' });
+    for (const faux of ['', '123', '12a4']) {
+      await code.fill(faux);
+      await continuer.click();
+      await expect(page).toHaveURL('/pour-les-ecoles/');
+    }
+    // Ni mot de passe, ni accès, ni confirmation : la page le dit, et le champ ne se fait pas passer pour tel.
+    await expect(code).not.toHaveAttribute('type', 'password');
+    await expect(page.locator('details.liaison')).toContainText('n’ouvre aucun accès');
+    await code.fill('4821');
+    await continuer.click();
+    await expect(page).toHaveURL(/^https:\/\/wa\.me\/\d+\?text=4821$/);
+    await contexte.close();
   });
 
   test('« Confidentialité » donne un délai pour corriger, retirer ou effacer, et dit ce que ce délai couvre', async ({
@@ -502,28 +548,6 @@ test.describe('site public', () => {
 
 // Ticket #101 : un lien partagé sur WhatsApp montre l'école (OpenGraph, image construite avec le site, JSON-LD).
 test.describe('le partage d’un lien', () => {
-  const meta = (page: import('@playwright/test').Page, propriete: string) =>
-    page.locator(`meta[property="${propriete}"]`).getAttribute('content');
-
-  for (const adresse of pagesSansJavaScript) {
-    test(`${adresse} : titre, description, adresse canonique et image de partage`, async ({
-      page,
-      request,
-    }) => {
-      await page.goto(adresse);
-      expect(await meta(page, 'og:title')).toBeTruthy();
-      expect(await meta(page, 'og:description')).toBeTruthy();
-      expect(await meta(page, 'og:url')).toMatch(/^https:\/\/ntanova\.com\//);
-      const image = await meta(page, 'og:image');
-      expect(image).toMatch(/^https:\/\/ntanova\.com\/partage\/.+\.png$/);
-      // L'image existe dans le site construit, et c'est un PNG léger.
-      const reponse = await request.get(new URL(image ?? '').pathname);
-      expect(reponse.status()).toBe(200);
-      expect(reponse.headers()['content-type']).toContain('image/png');
-      expect((await reponse.body()).length).toBeLessThan(300_000);
-    });
-  }
-
   test('une fiche a son image, sa preuve dans la description, et ses données schema.org, sans rien de privé', async ({
     page,
   }) => {

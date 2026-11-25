@@ -19,14 +19,15 @@ import {
   phraseDeCompte,
   type PageDivision,
 } from '../modele/geo-divisions';
+import type { PorteVersNtanova } from '../modele/liens-demandes';
 import BasculeVue from './BasculeVue.astro';
 import EtatVide from './EtatVide.astro';
 import ListeEcoles from './ListeEcoles.astro';
 
 interface Props {
   page: PageDivision;
-  /** « Une école manque ? » : le lien WhatsApp, s'il est configuré. */
-  manque: string | null;
+  /** « Une école manque ? » : le formulaire quand il est ouvert (lot 3C), sinon le lien WhatsApp, s'il est configuré. */
+  manque: PorteVersNtanova | null;
 }
 const { page, manque } = Astro.props;
 
@@ -112,7 +113,12 @@ const carte = lienCarteDuLieu({
 
       <div class="encadre-pointille">
         <p>Une partie du territoire n’est pas encore relevée.</p>
-        {manque && <a href={manque}>Une école manque&nbsp;? Dites-le-nous sur WhatsApp</a>}
+        {manque && (
+          <a href={manque.href}>
+            Une école manque&nbsp;?{' '}
+            {manque.parFormulaire ? 'Dites-le-nous' : 'Dites-le-nous sur WhatsApp'}
+          </a>
+        )}
         <a class="chercher" href="/pour-les-ecoles/#referencer">
           Ajouter mon école
         </a>
@@ -127,7 +133,16 @@ const carte = lienCarteDuLieu({
       titre="Aucune école publiée pour l’instant."
       detail={`Vous connaissez ou vous dirigez une école ${lieu}\u00a0? Écrivez-nous : nous la noterons pour le prochain passage.`}
       actions={[{ texte: 'Voir les écoles déjà publiées', url: '/ecoles/' }]}
-      manque={manque ? { texte: 'Une école manque\u00a0? Écrire sur WhatsApp', url: manque } : null}
+      manque={
+        manque
+          ? {
+              texte: manque.parFormulaire
+                ? 'Une école manque\u00a0? Dites-le-nous'
+                : 'Une école manque\u00a0? Écrire sur WhatsApp',
+              url: manque.href,
+            }
+          : null
+      }
       etiquette="Aucune école publiée"
     />
   )}

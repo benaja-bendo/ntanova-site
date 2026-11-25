@@ -1,0 +1,88 @@
+---
+// La réponse demandée, sa coordonnée, le nom : un choix de la personne, rien de coché d'avance. Un seul champ paraît, celui du choix.
+// Un retrait demande toujours où répondre : « Non, merci » n'y existe pas.
+import Choix from './Choix.astro';
+import Groupe from './Groupe.astro';
+
+interface Props {
+  /** Les natures de la page : le Contact n'en a qu'une. */
+  annuaire?: boolean;
+}
+const { annuaire = false } = Astro.props;
+const sansRetrait = annuaire ? 'aucune absente erreur' : undefined;
+const options = [
+  { valeur: 'non', texte: 'Non, merci', ...(sansRetrait ? { natures: sansRetrait } : {}) },
+  { valeur: 'whatsapp', texte: 'Oui, sur WhatsApp' },
+  { valeur: 'email', texte: 'Oui, par e-mail' },
+];
+---
+
+<Choix
+  champ="reponse"
+  id="reponse"
+  legende="Voulez-vous une réponse ?"
+  court="Réponse"
+  options={options}
+  requis={
+    annuaire
+      ? 'Dites si vous voulez une réponse, et où vous joindre.'
+      : 'Dites si vous voulez une réponse.'
+  }
+>
+  <Fragment slot="legende">
+    <span data-natures={annuaire ? 'aucune absente erreur' : undefined}>
+      Voulez-vous une réponse&nbsp;?
+    </span>
+    {annuaire && <span data-natures="retrait">Où vous répondre pour cette demande&nbsp;?</span>}
+  </Fragment>
+  <Fragment slot="aide">
+    {annuaire && (
+      <p class="f-aide" data-natures="retrait">
+        Nécessaire ici, pour vérifier la demande et vous dire ce qui a été fait.
+      </p>
+    )}
+  </Fragment>
+</Choix>
+<Groupe
+  champ="coordonnee"
+  id="numero"
+  libelle="Votre numéro WhatsApp"
+  court="Votre numéro"
+  aide="Il sert seulement à vous répondre. Il n’est jamais publié."
+  type="tel"
+  autocomplete="tel"
+  etroit
+  requis="Écrivez votre numéro, ou choisissez une autre réponse."
+  format="Ce numéro semble incomplet : 9 chiffres commençant par 0, ou l’indicatif du pays (+242…)."
+  longueur={254}
+  data-si-reponse="whatsapp"
+/>
+<Groupe
+  champ="coordonnee"
+  id="courriel"
+  libelle="Votre adresse e-mail"
+  court="Adresse e-mail"
+  aide="Elle sert seulement à vous répondre. Elle n’est jamais publiée."
+  type="email"
+  autocomplete="email"
+  etroit
+  requis="Écrivez votre adresse, ou choisissez une autre réponse."
+  format="Cette adresse semble incomplète. Exemple : prenom@exemple.com"
+  longueur={254}
+  data-si-reponse="email"
+/>
+<p class="f-aide" data-si-reponse="non">
+  {annuaire
+    ? 'Votre signalement est quand même examiné.'
+    : 'Votre message sera lu. Sans adresse ni numéro, nous ne pourrons pas vous répondre.'}
+</p>
+<Groupe
+  champ="nomPersonne"
+  id="nom-personne"
+  libelle="Votre nom"
+  facultatif
+  autocomplete="name"
+  etroit
+  longueur={80}
+  data-si-reponse={annuaire ? 'whatsapp email' : undefined}
+/>

@@ -10,6 +10,7 @@
  * Purs : ni base, ni Astro. Les pages `src/pages/llms.txt.ts` et `src/pages/.well-known/security.txt.ts` les construisent.
  */
 import { ecolesSous, lienDivision, lienEcole, type PageDivision } from './geo-divisions';
+import { PAGE_CONTACT, PAGE_CONTRIBUER } from './liens-demandes';
 import { PAGES_DE_TRANSPARENCE } from './pages-de-confiance';
 import type { EcolePubliee } from './ports';
 
@@ -20,15 +21,41 @@ const PAGES_PRINCIPALES = [
     note: 'toutes les fiches publiées, en liste ou sur la carte',
   },
   {
+    href: '/villes/',
+    texte: 'Toutes les villes',
+    note: 'les villes qui ont des fiches, leurs arrondissements et leurs nombres',
+  },
+  {
+    href: '/orienter/',
+    texte: 'S’orienter',
+    note: 'le parcours scolaire, six activités pour trouver des pistes, dix domaines de formation',
+  },
+  {
     href: '/pour-les-ecoles/',
-    texte: 'Espace écoles',
+    texte: 'Pour les écoles',
     note: 'ce qu’une direction peut faire de sa fiche',
+  },
+  {
+    href: '/pour-les-ecoles/outils/',
+    texte: 'Outils en préparation',
+    note: 'deux pistes à éprouver, inscriptions, frais et reçus ; rien n’est ouvert, l’exemple est inventé',
   },
   { href: '/a-propos/', texte: 'À propos', note: 'qui est NTanova et ce que nous publions' },
 ] as const;
 
+/** Contact et l'annuaire (refonte, lot 3C) : annoncés seulement quand leurs liens sont ouverts. */
+const PAGES_POUR_ECRIRE = [
+  { href: PAGE_CONTACT, texte: 'Contact', note: 'écrire à NTanova, sans compte' },
+  {
+    href: PAGE_CONTRIBUER,
+    texte: 'Compléter ou corriger l’annuaire',
+    note: 'signaler une école absente, une erreur, une information à retirer',
+  },
+] as const;
+
 const NOTES_TRANSPARENCE: Record<string, string> = {
-  '/methode/': 'comment une fiche est relevée, datée et corrigée',
+  '/methode/':
+    'd’où viennent les fiches, ce que disent leurs mentions datées, comment les corriger',
   '/donnees/': 'les fiches publiées en chiffres et les conditions d’utilisation',
   '/confidentialite/': 'ce que NTanova garde pour elle et les droits de chacun',
   '/mentions-legales/': 'l’éditeur et les hébergeurs',
@@ -53,6 +80,7 @@ export function llmsTxt(
   base: string,
   lieux: readonly PageDivision[],
   ecoles: readonly EcolePubliee[],
+  formulairesOuverts = false,
 ): string {
   const url = (chemin: string) => new URL(chemin, base).href;
   const lignes: string[] = [
@@ -60,12 +88,14 @@ export function llmsTxt(
     '',
     '> Annuaire des écoles de la République du Congo (Congo-Brazzaville, pas la République démocratique du Congo), de la maternelle au supérieur, publiques et privées, quartier par quartier.',
     '',
-    'Des relais passent devant les écoles, photographient leur enseigne et relèvent leur position ; l’administration de NTanova vérifie chaque fiche avant de la publier. Une fiche décrit ce qui se voit de la rue à la date du relevé (nom, enseigne, position, niveaux). Les frais, le contact et le mot de la direction n’y paraissent qu’avec l’accord daté de la direction, et la fiche le dit alors (« vérifiée par la direction le … »). L’annuaire ne prétend pas recenser toutes les écoles du pays : ce qui est publié est décrit sur la page Données.',
+    'Des relais passent devant les écoles, photographient leur enseigne et relèvent leur position ; d’autres fiches sont déclarées par l’école ou ajoutées par l’équipe, sans passage sur place. L’équipe de NTanova relit chaque fiche avant de la publier. Chaque fiche porte ses mentions datées (« Vue sur place », « Déclarée par l’école », « Ajoutée par NTanova », « Confirmée par la direction »). Les frais, le contact et le mot de la direction n’y paraissent qu’avec l’accord daté de la direction. L’annuaire ne prétend pas recenser toutes les écoles du pays : ce qui est publié est décrit sur la page Données de l’annuaire.',
     '',
     '## Pages principales',
     '',
     `- ${lien('Accueil', url('/'))}`,
-    ...PAGES_PRINCIPALES.map((p) => `- ${lien(p.texte, url(p.href))} : ${p.note}`),
+    ...[...PAGES_PRINCIPALES, ...(formulairesOuverts ? PAGES_POUR_ECRIRE : [])].map(
+      (p) => `- ${lien(p.texte, url(p.href))} : ${p.note}`,
+    ),
     ...PAGES_DE_TRANSPARENCE.map(
       (p) =>
         `- ${lien(p.texte, url(p.href))}${NOTES_TRANSPARENCE[p.href] ? ` : ${NOTES_TRANSPARENCE[p.href]}` : ''}`,

@@ -1,5 +1,6 @@
 // Les statistiques ouvertes de la page « Données » (ticket 149) : des nombres et des dates, jamais un pourcentage, sans rien
-// de privé, calculées à la construction et datées de cette construction.
+// de privé, calculées à la construction et datées de cette construction. Lot 4 de la refonte (24/11/2026) : les mentions se
+// comptent côte à côte, plus « à la preuve la plus forte » ; trois dates distinctes (construction, mentions, modification).
 import { describe, expect, it } from 'vitest';
 import type { PageDivision } from '../../src/modele/geo-divisions';
 import type { EcolePubliee } from '../../src/modele/ports';
@@ -102,39 +103,67 @@ describe('les statistiques ouvertes', () => {
     ]);
   });
 
-  it('compte les fiches par preuve, les quatre preuves toujours, même à zéro', () => {
-    expect(stats.parPreuve).toEqual([
-      { preuve: 'verifiee', libelle: 'Confirmée par la direction', fiches: 1 },
-      { preuve: 'relevee', libelle: 'Vue sur place', fiches: 2 },
-      { preuve: 'declaree', libelle: 'Déclarée par l’école', fiches: 1 },
-      { preuve: 'ajoutee', libelle: 'Ajoutée par NTanova', fiches: 1 },
+  it('compte les fiches par mention, les quatre toujours, même à zéro : une fiche vue puis confirmée compte dans les deux', () => {
+    // c est vue sur place le 3 et confirmée le 7 : elle compte dans les deux. d est déclarée, e ajoutée.
+    expect(stats.mentions.parMention).toEqual([
+      { mention: 'relevee', libelle: 'Vue sur place', fiches: 3 },
+      { mention: 'declaree', libelle: 'Déclarée par l’école', fiches: 1 },
+      { mention: 'ajoutee', libelle: 'Ajoutée par NTanova', fiches: 1 },
+      { mention: 'verifiee', libelle: 'Confirmée par la direction', fiches: 1 },
     ]);
+    expect(stats.mentions.confirmeesEtVues).toBe(1);
+    const somme = stats.mentions.parMention.reduce((n, m) => n + m.fiches, 0);
+    expect(somme).toBeGreaterThan(stats.fiches);
     const sansConfirmee = statistiquesOuvertes({ racines: [pays], ecoles: [a, b], construiteLe });
-    expect(sansConfirmee.parPreuve[0]).toEqual({
-      preuve: 'verifiee',
+    expect(sansConfirmee.mentions.parMention[3]).toEqual({
+      mention: 'verifiee',
       libelle: 'Confirmée par la direction',
       fiches: 0,
     });
+    expect(JSON.stringify(stats)).not.toMatch(/plus forte|plus faible/);
   });
 
-  it('date la preuve la plus forte de chaque fiche, à l’heure du Congo, du plus récent au plus ancien', () => {
-    // b : passage le 2 novembre à 23 h 30 UTC = le 3 novembre à 0 h 30 à Brazzaville ; a : le 6 ; c : confirmée le 7 (son passage du 3
-    // ne compte pas : la preuve la plus forte l'emporte) ; d : déclarée le 5 ; e : ajoutée le 4.
+  it('date chaque mention à l’heure du Congo, compte une fiche à chacun de ses jours, et laisse sans date ce qui n’en a pas', () => {
+    // b : passage le 2 novembre à 23 h 30 UTC = le 3 novembre à 0 h 30 à Brazzaville ; a : le 6 ; c : passage le 3 et accord le 7
+    // (deux jours) ; d : déclarée le 5 ; e : ajoutée, sans date de mention (le jour où l'équipe l'a située n'en est pas une).
     expect(stats.parJour).toEqual([
       { jour: '2026-11-07', fiches: 1 },
       { jour: '2026-11-06', fiches: 1 },
       { jour: '2026-11-05', fiches: 1 },
-      { jour: '2026-11-04', fiches: 1 },
-      { jour: '2026-11-03', fiches: 1 },
+      { jour: '2026-11-03', fiches: 2 },
     ]);
-    expect(stats.preuveLaPlusRecente).toBe('2026-11-07');
-    expect(stats.preuveLaPlusAncienne).toBe('2026-11-03');
-    expect(stats.sansDate).toBe(0);
+    expect(
+      stats.datesDesMentions.map((d) => [d.mention, d.laPlusAncienne, d.laPlusRecente]),
+    ).toEqual([
+      ['relevee', '2026-11-03', '2026-11-06'],
+      ['declaree', '2026-11-05', '2026-11-05'],
+      ['verifiee', '2026-11-07', '2026-11-07'],
+    ]);
+    expect(stats.sansMentionDatee).toBe(1);
   });
 
   it('dit combien de fiches ont une photo publique ou citent une référence officielle', () => {
     expect(stats.avecPhoto).toBe(1);
     expect(stats.avecReference).toBe(1);
+  });
+
+  it('compte comme photo publique la couverture et la galerie, pas seulement l’enseigne (lot 4)', () => {
+    const media = { id: 'm', sujet: 'batiment', legende: null, prisLe: null } as const;
+    const avecCouverture = ecole({
+      id: 'f',
+      medias: { logo: null, couverture: media, galerie: [] },
+    });
+    const avecGalerie = ecole({
+      id: 'g',
+      medias: { logo: null, couverture: null, galerie: [media] },
+    });
+    const logoSeul = ecole({ id: 'h', medias: { logo: media, couverture: null, galerie: [] } });
+    const s2 = statistiquesOuvertes({
+      racines: [],
+      ecoles: [avecCouverture, avecGalerie, logoSeul],
+      construiteLe,
+    });
+    expect(s2.avecPhoto).toBe(2);
   });
 
   it('dit le jour de la dernière modification et le jour de la construction, à l’heure du Congo', () => {
@@ -154,7 +183,9 @@ describe('les statistiques ouvertes', () => {
     expect(vide.lieux).toEqual([]);
     expect(vide.parCycle).toEqual([]);
     expect(vide.parJour).toEqual([]);
-    expect(vide.preuveLaPlusRecente).toBeNull();
+    expect(vide.mentions.parMention.map((m) => m.fiches)).toEqual([0, 0, 0, 0]);
+    expect(vide.datesDesMentions.every((d) => d.laPlusRecente === null)).toBe(true);
+    expect(vide.sansMentionDatee).toBe(0);
     expect(vide.derniereMiseAJour).toBeNull();
   });
 

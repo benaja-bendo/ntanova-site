@@ -1,3 +1,5 @@
+import { listesDesDemandes } from './listes-demandes';
+
 /**
  * Les listes fermées, copie de celles de la base (domaines SQL des migrations, dont
  * 20261031010000_tables.sql, 20261031190000_types_niveaux_programme.sql et
@@ -150,6 +152,37 @@ export const listes = {
   class_size_band: ['moins_de_20', '20_a_34', '35_a_49', '50_et_plus', 'autre'],
   family_demand_kind: ['verification', 'orientation'],
   orientation_profile: ['bepc', 'bac', 'adulte', 'autre'],
+  // Les messages reçus par Contact et l'annuaire (refonte publique, lot 3B1, migration 20261124140000). Celles qu'un formulaire public
+  // montre sont dans leur propre fichier : le script d'une page publique n'emporte pas toutes les listes du pays.
+  ...listesDesDemandes,
+  public_request_state: ['recue', 'indesirable', 'ouverte', 'en_attente', 'close'],
+  public_request_reply_state: ['non_demandee', 'a_faire', 'faite', 'impossible'],
+  public_request_decision: [
+    'existe',
+    'deja_presente',
+    'introuvable',
+    'non_retenue',
+    'retenue',
+    'fiche_juste',
+    'traitee',
+    'a_l_annuaire',
+    'au_retrait',
+    'indesirable',
+    'retiree',
+    'impossible_a_verifier',
+    'reorientee',
+  ],
+  public_removal_check: ['numero', 'direction', 'autre'],
+  public_removal_target: ['contact_public', 'numero_enseigne', 'photo', 'fiche', 'texte'],
+  public_notice_state: ['a_envoyer', 'en_cours', 'envoyee', 'abandonnee'],
+  public_notice_error: [
+    'connexion',
+    'authentification',
+    'refus_temporaire',
+    'refus_definitif',
+    'delai',
+    'configuration',
+  ],
 } as const;
 
 export type Liste = keyof typeof listes;

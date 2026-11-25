@@ -1,0 +1,212 @@
+---
+// Le dessin de l'accueil (refonte publique, lot 1, 24/11/2026) : le Congo-Brazzaville en points, un point jaune là où une
+// école publiée a sa fiche, une étiquette par ville (un vrai lien vers sa page), et la famille du canevas. Une illustration
+// en SVG écrit dans la page : ni carte interactive, ni script, ni tuile. Les points et les villes viennent du catalogue
+// (`modele/carte-accueil.ts`) ; la liste « Par ville » de l'accueil dit la même chose sans le dessin.
+import type { CarteDeLAccueil } from '../modele/carte-accueil';
+import { compterEcoles } from '../modele/geo-divisions';
+
+interface Props {
+  carte: CarteDeLAccueil;
+  /** « 24/11 » : le jour de l'annuaire, à côté de chaque nombre. */
+  jour: string;
+  /** Le préfixe des identifiants du motif et du contour, pour deux dessins dans une même page (le catalogue). */
+  id?: string;
+  /**
+   * Lot 4 (« Toutes les villes ») : sans les étiquettes des villes ni la famille, le dessin seul, sur le fond clair de la page
+   * (trame et légende foncées, légende sous le dessin). La page liste déjà les villes en liens : deux fois le même lien serait
+   * du bruit au clavier.
+   */
+  seul?: boolean;
+}
+const { carte, jour, id = 'congo', seul = false } = Astro.props;
+const [x0, y0, largeur, hauteur] = carte.boite;
+const demi = carte.pas / 2;
+---
+
+<figure class:list={['dessin-congo', { 'dessin-seul': seul }]}>
+  <div class="dessin-cadre" style={`aspect-ratio: ${largeur} / ${hauteur}`}>
+    <svg
+      class="dessin-carte"
+      viewBox={`${x0} ${y0} ${largeur} ${hauteur}`}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <pattern
+          id={`${id}-trame`}
+          width={carte.pas}
+          height={carte.pas}
+          x={-demi}
+          y={-demi}
+          patternUnits="userSpaceOnUse"
+        >
+          <circle class="dessin-trame" cx={demi} cy={demi} r={carte.rayon}></circle>
+        </pattern>
+        <clipPath id={`${id}-pays`}>
+          <polygon points={carte.contour}></polygon>
+        </clipPath>
+      </defs>
+      <rect
+        x={x0}
+        y={y0}
+        width={largeur}
+        height={hauteur}
+        fill={`url(#${id}-trame)`}
+        clip-path={`url(#${id}-pays)`}
+      ></rect>
+      {carte.points.map((p) => (
+        <circle class="dessin-ecoles" cx={p.x} cy={p.y} r={p.r} />
+      ))}
+      {carte.villes.map((v) => (
+        <circle class="dessin-halo" cx={v.x} cy={v.y} r="20" />
+      ))}
+    </svg>
+    {!seul &&
+      carte.villes.map((v) => (
+        <a
+          class={`dessin-ville dessin-${v.place}`}
+          href={v.lien}
+          style={`left: ${v.gauche}%; top: ${v.haut}%`}
+        >
+          <b>{v.nom}</b>
+          <span>
+            {compterEcoles(v.total)} · {jour}
+          </span>
+        </a>
+      ))}
+    {!seul && (
+      <img
+        class="dessin-famille"
+        src="/dessins/accueil-famille.svg"
+        alt=""
+        width="252"
+        height="300"
+        decoding="async"
+      />
+    )}
+  </div>
+  <figcaption class="dessin-legende">
+    <span class="dessin-pastille" aria-hidden="true"></span>
+    Un point jaune&nbsp;: au moins une école y a sa fiche.
+  </figcaption>
+</figure>
+
+<style>
+  .dessin-congo {
+    position: relative;
+    margin: 0;
+  }
+  .dessin-cadre {
+    position: relative;
+    width: 100%;
+  }
+  .dessin-carte {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .dessin-trame {
+    fill: var(--vert-pale);
+    fill-opacity: 0.42;
+  }
+  .dessin-ecoles {
+    fill: var(--accent);
+  }
+  .dessin-halo {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-dasharray: 2 5;
+    stroke-linecap: round;
+  }
+  /* L'étiquette d'une ville : un lien de 44 px au moins, posé à côté de son point, jamais dessus. */
+  .dessin-ville {
+    position: absolute;
+    z-index: 1;
+    display: grid;
+    align-content: center;
+    min-height: var(--cible-min);
+    padding: 2px var(--espace-2);
+    border-radius: var(--rayon-s);
+    background: var(--marque-appuyee);
+    color: var(--texte-sur-marque);
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .dessin-ville b {
+    font-family: var(--police-interface);
+    font-size: 0.9375rem;
+  }
+  .dessin-ville span {
+    color: var(--vert-pale);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (hover: hover) {
+    .dessin-ville:hover b {
+      text-decoration: underline;
+    }
+  }
+  .dessin-ville:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 2px;
+  }
+  .dessin-droite-milieu {
+    transform: translate(14px, -50%);
+  }
+  .dessin-gauche-milieu {
+    transform: translate(calc(-100% - 14px), -50%);
+  }
+  .dessin-droite-haut {
+    transform: translate(6px, calc(-100% - 10px));
+  }
+  .dessin-gauche-haut {
+    transform: translate(calc(-100% - 6px), calc(-100% - 10px));
+  }
+  .dessin-droite-bas {
+    transform: translate(6px, 10px);
+  }
+  .dessin-gauche-bas {
+    transform: translate(calc(-100% - 6px), 10px);
+  }
+  .dessin-famille {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 38%;
+    height: auto;
+    pointer-events: none;
+  }
+  .dessin-legende {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    gap: var(--espace-2);
+    max-width: 48%;
+    color: var(--vert-pale);
+    font-size: var(--taille-secondaire);
+    line-height: 1.35;
+  }
+  /* Lot 4 : le dessin seul, sur la pierre : une trame lisible, la légende en texte doux, sous le pays. */
+  .dessin-seul .dessin-trame {
+    fill: var(--marque);
+    fill-opacity: 0.22;
+  }
+  .dessin-seul .dessin-legende {
+    position: static;
+    max-width: none;
+    margin-top: var(--espace-3);
+    color: var(--texte-doux);
+  }
+  .dessin-pastille {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    margin-top: 3px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+</style>

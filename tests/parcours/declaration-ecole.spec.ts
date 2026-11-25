@@ -47,10 +47,12 @@ test('public : origine déclarée datée, sans preuve terrain et porte ouverte a
   await expect(page.locator('.preuves')).not.toContainText('Vue sur place');
   await expect(page.getByText('Confirmée par la direction', { exact: true })).toHaveCount(0);
   await page.goto('/pour-les-ecoles/#referencer');
-  const section = page.getByRole('region', { name: 'Confirmez ou ajoutez votre école' });
+  // Lot 5 de la refonte (25/11) : l'ancre reste, sur « Ajouter mon école » ; confirmer sa fiche est une démarche à part.
+  const section = page.getByRole('region', { name: /Votre école n.est pas encore sur NTanova/ });
+  await expect(section).toBeInViewport();
   await expect(section).toContainText('Partout au Congo-Brazzaville');
   await expect(section).toContainText('ne publie pas automatiquement');
-  await expect(section.getByRole('link', { name: 'Écrire sur WhatsApp' })).toHaveAttribute(
+  await expect(section.getByRole('link', { name: 'Ajouter mon école' })).toHaveAttribute(
     'href',
     /wa.me/,
   );

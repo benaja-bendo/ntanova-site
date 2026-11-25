@@ -68,6 +68,8 @@ import { niveauxConnus, typeConnu, type Valeur } from '../../modele/listes';
 import { jourABrazzaville, prochainVendredi } from '../../modele/paie';
 import { etatDesPlanches } from './scenario-planches';
 import { etatDesPlanchesAdmin } from './scenario-admin';
+import { creerMessagesFaux } from './messages';
+import { messagesDesPlanches } from './scenario-messages';
 import {
   ErreurDecision,
   ErreurRejet,
@@ -471,6 +473,7 @@ const etatInitial = (): Etat => ({
   autresReleves: [],
 });
 
+const CLE_MESSAGES = 'ntanova-faux-messages';
 // `?scenario=planches` dans l'adresse (serveur local du fondateur) : on repart des états des planches v2.
 if (
   typeof location !== 'undefined' &&
@@ -481,6 +484,7 @@ if (
     new URLSearchParams(location.search).get('scenario') ?? '',
   );
   localStorage.removeItem(CLE);
+  localStorage.removeItem(CLE_MESSAGES);
 }
 
 function lireEtat(): Etat {
@@ -1330,7 +1334,44 @@ function creerEntree(
   return { statut: 'creee', institutionId, campusIds, message: null };
 }
 
+/** Les messages reçus (refonte, lot 3B2) : ce qu'ils demandent aux fiches de ce faux serveur. */
+const messagesRecus = creerMessagesFaux({
+  reseau,
+  garde: () => localStorage.getItem(CLE_MESSAGES),
+  garder: (etat) => localStorage.setItem(CLE_MESSAGES, etat),
+  panne: () => localStorage.getItem('ntanova-faux-messages-panne'),
+  estAdmin: () => lireEtat().admin,
+  ecole: (id) => {
+    const c = lireEtat().campus[id];
+    return c
+      ? {
+          nom: c.etiquette ? `${c.nom} — ${c.etiquette}` : c.nom,
+          publication: c.publication,
+          contactPublic: Boolean(c.contactPublic),
+          numeroEnseigne: Boolean(c.numeroEnseigne),
+        }
+      : null;
+  },
+  photoDeLEcole: (ecoleId, photoId) => {
+    const e = lireEtat();
+    return (
+      photosAcceptees(e, ecoleId).some((p) => p.id === photoId) ||
+      (e.medias ?? []).some((m) => m.id === photoId && m.campusId === ecoleId)
+    );
+  },
+  photoPublique: (photoId) => {
+    const e = lireEtat();
+    return (
+      Object.keys(e.campus).some((id) => etatPhotoFaux(e, id).retenueId === photoId) ||
+      (e.medias ?? []).some((m) => m.id === photoId && m.publique)
+    );
+  },
+  depart: () =>
+    localStorage.getItem('ntanova-faux-scenario') === 'admin' ? messagesDesPlanches() : null,
+});
+
 const admin: PortAdministration = {
+  ...messagesRecus,
   async suisAdmin() {
     await reseau();
     return lireEtat().admin;

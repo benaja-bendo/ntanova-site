@@ -175,6 +175,7 @@ create extension postgis  with schema extensions;
 create extension pg_trgm  with schema extensions;
 create extension unaccent with schema extensions;
 create extension ltree    with schema extensions;
+create extension pgcrypto with schema extensions;   -- le sceau des envois (lot 3B1)
 create role anon          nologin noinherit;
 create role authenticated nologin noinherit;
 create role service_role  nologin noinherit;   -- nommé dans les droits d'un export fait depuis Supabase
@@ -193,7 +194,7 @@ psql "$URL_DU_CONTENEUR/ntanova" -f ntanova.sql
 - **L'API** : un PostgREST (`PGRST_DB_SCHEMAS=public`, `PGRST_DB_ANON_ROLE=anon`) devant la base. L'identité d'une requête est celle de son jeton : `public.current_user_id()` lit `request.jwt.claims` (ou `request.jwt.claim.sub`), comme le font PostgREST et Supabase, avec un rôle `authenticated` ou `anon`. La pile Supabase auto-hébergée (Docker) convient telle quelle ; un autre serveur demande de remplacer `src/infra/supabase/` par un adaptateur du même port (`src/modele/ports.ts` ne change pas).
 - **Les comptes** : tout serveur d'identité appelle `public.register_relay(id, google_sub, prénom)` à la première connexion ; l'administrateur s'inscrit dans `prive.admins`.
 - **Les photos** : la base ne garde qu'un chemin relatif (`field_submission_photos.storage_path`, par exemple `<relevé>/<photo>.webp`) ; une contrainte refuse tout ce qui ressemble à une adresse de serveur. Le fichier va dans le stockage de son choix (S3, MinIO, un dossier), au même chemin. Le seau `releves` et ses règles sont dans la couche Supabase, qu'on remplace. Le relais relit les fichiers de **ses** relevés (le dossier du fichier est un de ses relevés), jamais ceux d'un autre ; il lit leur chemin par `my_submission_photos`, jamais la table des photos.
-- **Ce qui est propre à Supabase** (le déclencheur sur `auth.users`, le seau et ses règles) tient dans une migration, `20261101200900_supabase_couche.sql`, dont chaque instruction est gardée : sur un PostgreSQL sans `auth` ni `storage`, elle ne fait rien.
+- **Ce qui est propre à Supabase** (le déclencheur sur `auth.users`, le seau et ses règles) tient dans une migration, `20261101200900_supabase_couche.sql`, dont chaque instruction est gardée : sur un PostgreSQL sans `auth` ni `storage`, elle ne fait rien. De même la planification de la purge des messages, `20261124140400_messages_supabase_couche.sql` : sans `pg_cron`, un ordonnanceur (cron, systemd) appelle chaque jour `select prive.purge_public_requests()`.
 
 ## Sauvegarder et restaurer (ticket #81)
 
@@ -235,7 +236,70 @@ done < photos.txt
 
 **Essayé le 03/11/2026** (script contre la pile locale de Supabase) : la clé secrète `sb_secret_…` est acceptée **dans `apikey` seul** pour lire les photos ; l'archive ne se lit qu'avec la clé privée ; la base se restaure sans erreur dans un PostgreSQL 17 + PostGIS ordinaire, avec des comptes identiques sur les 23 tables ; une photo effacée du stockage revient **identique à l'octet près**. **Pas encore essayé** : une exécution sur GitHub (la connexion par le pooleur, la clé acceptée par la passerelle en ligne) ; le premier lancement à la main, après les secrets, le prouve.
 
+### Restaurer sans faire réapparaître une information retirée (procédure manuelle, 24/11/2026)
+
+Une sauvegarde ramène ce qui avait été retiré après elle (un numéro, une photo, une fiche), des messages déjà purgés, et l'ancien secret d'envoi. **Rien ne le détecte** : c'est le fondateur qui suit ces étapes, dans l'ordre, et les note. Aucune référence reçue par e-mail ne dit ce qu'il faut retirer. Tant que l'étape 6 n'est pas faite, **aucune mise en ligne**.
+
+1. **Suspendre la construction** avant toute restauration réelle, la planifiée du lundi comprise, et ne pas toucher au site en ligne : il reste la dernière version publique connue.
+
+   ```bash
+   gh workflow disable mise-en-ligne.yml --repo benaja-bendo/ntanova-site
+   ```
+
+   Garder aussi sa dernière construction (l'artefact `site` de la dernière mise en ligne, 7 jours) : elle dit ce qui était public si le site ne se lit plus.
+2. **Restaurer en isolation** : dans le conteneur à soi (étapes 1 à 4 de « Le conteneur à soi »), jamais directement dans la base que le site lit.
+3. **Sortir toutes les fiches de la publication**, puis purger et fermer les envois (les laissez-passer d'avant la perte cessent de valoir) :
+
+   ```sql
+   update public.campuses set publication = 'prete' where publication = 'publiee';
+   select prive.purge_public_requests();
+   delete from prive.public_request_secrets;   -- fermés ; rouvrir à la fin, étape 7
+   ```
+
+4. **Comparer, fiche par fiche**, la base restaurée à la dernière version publique (le site en ligne, sinon l'artefact) : numéro affiché, contact public, photos, nom, fiche entière. Ce que la base montre et que le site ne montre plus est un retrait ou une correction à refaire, dans Écoles. Rejouer aussi les retraits connus : `select * from prive.erasures order by at desc` (jusqu'à la date de la sauvegarde), et les demandes de retrait ouvertes (`select * from public.list_public_requests('retraits')`).
+5. **Republier une fiche seulement une fois vérifiée** (« Publier », dans Écoles). Sans version publique lisible ni journal exploitable : chaque fiche reste hors publication jusqu'à sa relecture.
+6. **Noter** dans le registre : la date de la sauvegarde, qui a vérifié, combien de fiches, ce qui a été refait. Puis l'ordre de remise en ligne, écrit.
+7. **Sur Supabase**, rejouer la couche que la copie n'emporte pas (`supabase_layer`, seau, planifications) : `20261101200900_supabase_couche.sql`, les migrations `*_supabase_couche*` et `20261124140400_messages_supabase_couche.sql` puis `20261124150100_messages_alerte_supabase.sql`, qui se rejouent sans doublon ; reposer les secrets du service d'annonce s'il existe. Rouvrir : `gh workflow enable mise-en-ligne.yml`. Les formulaires, en dernier, avec un secret neuf : `select prive.renew_public_request_secret(p_revoke => true);`.
+
+Les personnes qui ont écrit entre la sauvegarde et la perte ne sont plus connues : le fondateur communique lui-même, aucun bandeau ne se publie seul. **Essayé le 24/11/2026 sur des données inventées** (banc PostgreSQL 16 jetable, `pg_dump` des deux schémas) : sans la procédure le numéro retiré réapparaît et l'ancien laissez-passer vaut encore ; avec elle, non. **Pas essayé** : un artefact réel de GitHub avec la clé privée du fondateur.
+
 **Limites** : une copie par nuit (on peut perdre jusqu'à 24 heures de relevés) ; pas de restauration à un instant précis ; trente jours d'historique. Le plan Pro de Supabase (sauvegardes quotidiennes gérées) reste la solution propre quand l'argent entre ; cette copie, elle, se restaure sur n'importe quel PostgreSQL.
+
+### Le ménage des durées (à la main, en janvier et en juillet)
+
+Confidentialité dit combien de temps chaque donnée est gardée (durées acceptées par le fondateur le 25/11/2026) et qu'un ménage est fait **deux fois par an**. Rien ne l'automatise, sauf les messages des formulaires (`prive.purge_public_requests()`). Un ménage sauté rend la page fausse. Faire d'abord la sauvegarde du jour. Premier ménage : janvier 2027 (le journal technique seul) ; les photos et les demandes n'arrivent à leur terme qu'à partir de novembre 2027.
+
+Regarder, sans rien effacer (éditeur SQL) :
+
+```sql
+select 'journal technique' as quoi, count(*) from public.erreurs
+ where recu_le < now() - interval '3 months'
+union all
+select 'demandes de vérification', count(*) from public.family_demands
+ where created_at < now() - interval '12 months'
+union all
+select 'fiches retirées', count(*) from public.campuses
+ where publication = 'retiree' and replaced_by_campus_id is null
+   and retired_at < now() - interval '12 months'
+union all
+select 'photos non publiées', count(*) from public.field_submission_photos p
+ where p.received_at < now() - interval '12 months' and not p.is_public
+   and not exists (select 1 from public.campus_media m where m.source_photo_id = p.id)
+   and not exists (select 1 from prive.campus_photo_choices h where h.photo_id = p.id)
+union all
+select 'relais partis', count(*) from public.relais r
+  join prive.relay_identity i on i.relay_id = r.id
+ where coalesce((select max(s.received_at) from public.field_submissions s where s.relay_id = r.id), r.cree_le)
+       < now() - interval '12 months';
+```
+
+Effacer, une fois les nombres relus :
+
+1. **Journal et demandes** : `delete from public.erreurs where recu_le < now() - interval '3 months';` puis `delete from public.family_demands where created_at < now() - interval '12 months';`
+2. **Fiches retirées** : administration, corbeille puis suppression définitive (`trash_campus`, `purge_campus`), qui emporte ses photos et ses contacts.
+3. **Photos non publiées** : `erase_photo` puis le fichier du stockage, une photo à la fois. Ne jamais effacer une photo dont une image publiée est tirée (`campus_media.source_photo_id` est en cascade : l'image publiée partirait avec elle) ; la requête ci-dessus les écarte.
+4. **Relais partis** : pour chacun, `delete from prive.relay_identity where relay_id = '…';` et `update public.relais set prenom = 'Relais parti', google_sub = null, statut = 'suspendu' where id = '…';`, puis son compte dans Authentication. **La paie reste dix ans** (`payout_*`, `prive.relay_payment_details`) : ne pas supprimer la ligne de `relais`.
+5. **WhatsApp et boîte de courrier** : les échanges dont le dernier message a plus de douze mois. L'accord d'une école y est peut-être écrit : la base n'en garde que la date et le canal.
 
 ## Les tests
 
@@ -384,3 +448,95 @@ Décisions du fondateur du 15/11 (`ntanova`, `docs/produit/2026-11-15-site-publi
 Toutes les fonctions qui écrivent passent par `exiger_gestion_site` (l'administration aujourd'hui, le compte de la direction à l'étape C). Places et effectifs ont leur historique privé, `prive.campus_detail_history`. Les listes `opening_state`, `class_size_band`, `family_demand_kind` et `orientation_profile` sont recopiées dans `src/modele/listes.ts`.
 
 Tests : `supabase/tests/lot_1_site_public.test.sql` (39 contrôles). `frais_ecole` et `frais_manques_nouvelles_admission` notent désormais le OUI de l'école avant de lire les frais en visiteur ; `droits` ajoute `campus_class_sizes`, `campus_openings` et `public_verification_demands` à ce que le visiteur lit. **Lot 2 (16/11), l'administration** : les frais envoient toujours `p_billed_months` et ne réécrivent que les lignes qui changent (une ligne inchangée garde son OUI) ; « Noter le OUI de l'école » appelle `confirm_school_fees` ; le tiroir d'une formation du supérieur écrit `accepted_bac_tracks` ; la rubrique « Places et effectifs » de la fiche ; « Aujourd'hui » lit `family_demands` sur 30 jours (jamais `device_day_key`). `merge_campuses` retire le doublon sans toucher à ses places ni à ses effectifs : ils restent sur la fiche retirée, invisibles du public ; les redire sur la fiche gardée.
+
+## Les messages reçus (Contact, annuaire) — 24/11/2026, lots 3B1 et 3B2 de la refonte, tickets 215 et 217
+
+Migrations `20261124140000` à `20261124140400` (3B1) : le socle privé des messages ; `20261124150000` et `20261124150100` (3B2) : ce que l'administration lit en plus, et la sonnette de l'alerte. **L'état en ligne** (appliquées ou non, envois ouverts ou fermés, alerte active ou non) se lit dans la base et dans `RELEVE-LOT-07.md` du dépôt documentaire, pas ici. Les formulaires `/contact/` et `/contribuer/` (lot 3C, ticket 219, sans migration) appellent les deux portes publiques ci-dessous par `fetch` (`src/infra/supabase/demandes-publiques.ts`) ; ils restent fermés par `PUBLIC_FORMULAIRES` et, en base, par l'absence de secret d'envoi. À ne pas confondre avec `family_demands`, qui compte des recherches sans nom.
+
+| Table (`prive`) | Rôle |
+| --- | --- |
+| `public_requests` | un message, d'une des quatre natures (`contact`, `absente`, `erreur`, `retrait`) ; sa référence (`C-`, `A-`, `R-`), l'empreinte de sa clé d'envoi (jamais la clé), son état (`recue` → `ouverte` ⇄ `en_attente` → `close`, ou `indesirable`), sa décision, sa réponse (canal et jour, jamais les échanges) |
+| `public_request_versions` | ce que la personne a écrit, révision par révision (jsonb contrôlé, 8 Ko) ; `late` : arrivée après une plus récente, jamais courante |
+| `public_request_events` | ce qui s'est passé : un mot d'une liste, une date ; jamais ce que la personne a écrit |
+| `public_request_notices` | l'annonce à envoyer, écrite avec le message ; bail de 5 minutes, même `message_id` à chaque essai |
+| `public_request_removals` | les étapes d'un retrait : vérifiée comment, quelle cible, retiré, mise en ligne demandée, constaté sur les deux adresses |
+| `public_request_counters`, `public_request_salts` | les bornes, par connexion (empreinte salée du jour) et pour l'ensemble ; effacés à 48 h |
+| `public_request_secrets` | le secret qui scelle l'heure d'un envoi : tiré par la base, renouvelé chaque mois, jamais lu. **Vide au départ : les envois sont fermés** |
+| `public_request_settings` | les valeurs de départ, une ligne ; une migration les change |
+| `public_request_runs` | le dernier passage des annonces et de la purge |
+
+**Fermés tant que le fondateur n'ouvre pas.** Appliquer les migrations n'ouvre rien : sans secret, aucun laissez-passer, donc aucun envoi, et la purge quotidienne n'en crée pas. Ouvrir (recette, sur ordre) : `select prive.renew_public_request_secret();` dans l'éditeur SQL. Fermer : `delete from prive.public_request_secrets;`.
+
+**Envoyer, deux portes publiques.** `issue_public_request_pass()` rend une clé, **l'heure du serveur** et un sceau HMAC ; elle n'écrit rien. `send_public_request(json)` (un seul paramètre, sans nom : `{ key, issued_at, seal, revision, kind, request, trap }`) enregistre en une transaction et rend `{ code, reference?, previous_reference?, errors? }`, jamais un contenu. Elle ne s'appelle pas par GET. Le paramètre sans nom n'est pas un détail : avec des paramètres nommés, PostgREST 14 décode le corps dans PostgreSQL, et un caractère `\u0000` dans un message y recopiait une cinquantaine de signes dans le journal du serveur (constaté le 24/11, en local).
+
+| Situation | Code | Écrit |
+| --- | --- | --- |
+| clé inconnue, laissez-passer valable | `enregistree` | message, version, annonce |
+| même révision et même texte, texte courant, ou suite déjà reçue (même expiré) | `deja_enregistree` | rien |
+| plus récente, jamais ouverte | `mise_a_jour` | version, courante |
+| plus récente et déjà ouverte ; ou révision déjà reçue avec un autre texte | `suite` (deux références) | un message relié, son annonce |
+| plus ancienne, jamais reçue | `version_ancienne` | version, jamais courante |
+| laissez-passer expiré (7 jours), faux, absent | `expiree` | rien |
+| contenu refusé · fiche retirée · autre nature sous la même clé | `refusee` · `ecole_inconnue` · `cle_deja_utilisee` | rien |
+| 8 écritures ou 3 suites sous la clé | `limite_atteinte` | une date, une seule fois |
+| connexion : 20 créations ou suites, 60 écritures par heure · ensemble : 300 et 1 000 par jour de Brazzaville | `trop_d_envois` · `plafond` | rien |
+
+- **Revenir à un ancien texte est une vraie modification** : on ne répond « déjà enregistrée » qu'à un texte courant, à la même révision, ou à une suite. La référence d'un refus est celle de ce qui est **déjà** en base.
+- **La validité (7 jours) est plus courte que la plus courte conservation (30 jours)** : une contrainte de `public_request_settings` refuse l'inverse. C'est pourquoi **aucune empreinte** n'est gardée après la purge : une ancienne requête ne recrée rien.
+- **Une connexion ne se compte que si son adresse est prouvée.** `trusted_connection_header` est **nul** : aucun en-tête n'a été constaté infalsifiable (l'exemple de Supabase lit le premier élément de `x-forwarded-for`, qu'un client peut écrire). Tant qu'il est nul, seules les bornes par clé et par jour tiennent. **Essai restant** (lot 3B2, en ligne, sur ordre) : constater l'en-tête réellement reçu, puis le nommer par une migration. Une valeur qui n'est pas une seule adresse est ignorée.
+- **Les erreurs attendues sont des réponses** ; une contrainte violée est capturée : la ligne refusée ne s'écrit jamais dans un journal. Ordre des verrous : la clé, la ligne, les compteurs (connexion puis ensemble, écritures puis créations).
+
+**Administration** (`exiger_admin_session`, jamais `exiger_gestion_site`) : `list_public_requests` (ni texte, ni coordonnée : lire une liste n'ouvre rien), `open_public_request` (**ouvrir fige** la version lue, dans la même transaction ; une contrainte l'interdit ensuite), `attach_public_request`, `decide_public_request`, `redirect_public_request` (une demande reliée, avec de quoi répondre ; l'originale reste), `set_public_request_waiting`, `record_public_request_reply`, `close_public_request`, `reopen_public_request`, `restore_public_request`, `retry_public_request_notice`, `public_request_overview`. Chaque geste porte le `row_version` lu : s'il a changé, `PT409` et rien n'est écrasé. Décider ne crée, ne corrige et ne publie rien. « Indésirable » range 30 jours, à compter de ce geste.
+
+**Ce que le lot 3B2 ajoute** (`20261124150000`), sans nouvelle architecture :
+
+- `list_public_requests(p_tab, p_limit, p_before, p_kind)` : le filtre par nature porte sur la file entière, page par page (filtrer la première page à l'écran cachait les suivantes) ; la file `alertes` réunit les messages dont l'alerte échoue ou est abandonnée, sans les ouvrir. L'ancienne signature est supprimée : deux signatures feraient hésiter PostgREST.
+- `public_request_overview` rend aussi `closed`, `removals_closed` et `notices_waiting` : des nombres et des dates, jamais une référence.
+- **Un message introuvable lève `PT404`, plus `P0002`.** PostgREST 14 rend `P0002` en **500 « Something went wrong »** et tient la phrase pour une panne : un message effacé par la purge passait pour un serveur cassé (constaté le 24/11, en local). `PT404` se rend en 404, avec sa phrase. Une cinquantaine d'autres migrations lèvent encore `P0002` : constat noté, hors de ce lot, pas vérifié en ligne.
+
+**Un retrait** : `verify_removal` (le numéro concerné, la direction connue, ou une autre vérification notée en une ligne ; pour la fiche entière, un numéro ne suffit pas ; aucune pièce d'identité ; le doute : « en attente ») ou `fail_removal` → `target_removal` → `record_removal` (**refusé tant que la base publie encore la cible**, et il la nomme ; écrit `prive.erasures`, `what = 'public_info'`) → `record_removal_publication` → `record_removal_seen` (les **deux** adresses) → la réponse → clore. Le retrait lui-même se fait par les fonctions existantes ; rien ne lance une mise en ligne.
+
+**Annonces** : `claim_public_request_notices` et `report_public_request_notice`, au seul `service_role`, qui ne voit que la référence et la nature. Nouvel essai à 5, 15, 60 minutes puis toutes les heures ; abandonnée, visible et relançable 24 h après son premier essai. Au moins un essai, jamais « exactement une fois ».
+
+### Activer l'alerte e-mail (préparée par le lot 3B2)
+
+Trois morceaux, tous inertes tant que le fondateur ne les active pas : **la sonnette** (`20261124150100`, schéma `ntanova_supabase` : toutes les cinq minutes, un POST vide vers le service ; sans `pg_net` et sans ses deux secrets, elle ne fait rien et ne note aucun passage) ; **le service** (`supabase/functions/alerte-messages/`) ; **la boîte existante**, dont les réglages restent à brancher. Aucune nouvelle boîte ni offre à commander. Le service ne reçoit que la référence et la nature, jamais un message, un nom, une école ou une coordonnée ; son journal ne porte que des codes et des nombres. Le courrier contient la référence, la nature et un lien `#demandes/<référence>`.
+
+Chaque étape est un geste du fondateur, sur ordre, pendant la recette ; aucune valeur ne s'écrit dans git, un ticket ou une conversation :
+
+1. **Constater avant tout** que le port 465 sort d'une fonction en ligne (aucune page de la documentation lue le 24/11 ne le garantit ; 25 et 587 sont fermés). S'il ne sort pas, s'arrêter là et choisir autrement : rien n'est perdu, les messages restent dans la boîte de l'administration.
+2. Utiliser la boîte existante, avec un mot de passe d'application ; aucune nouvelle adresse nécessaire.
+3. Une clé secrète **propre au service**, dans le tableau de bord Supabase (API keys, nom `alerte_messages`) : elle se révoque seule. La clé `default` n'est jamais prise à sa place.
+4. Un jeton de 32 signes au moins, tiré au hasard, propre à la sonnette.
+5. Les secrets de la fonction, depuis un fichier **hors du dépôt**, effacé ensuite : `ALERTE_JETON`, `ALERTE_SMTP_HOTE`, `ALERTE_SMTP_UTILISATEUR`, `ALERTE_SMTP_MOT_DE_PASSE`, `ALERTE_DESTINATAIRE` (et `ALERTE_EXPEDITEUR` s'il diffère de l'utilisateur). Puis la fonction :
+
+   ```bash
+   pnpm exec supabase secrets set --env-file <fichier hors du dépôt>
+   ```
+
+   ```bash
+   pnpm exec supabase functions deploy alerte-messages
+   ```
+
+   `verify_jwt = false` vient de `supabase/config.toml` : la fonction vérifie elle-même le jeton, avant tout travail (401 sans lui, 503 s'il manque un réglage).
+6. L'extension et les deux secrets de la base, dans l'éditeur SQL :
+
+   ```sql
+   create extension if not exists pg_net with schema extensions;
+   select vault.create_secret('<adresse de la fonction>', 'ntanova_alerte_url');   -- https://<projet>.supabase.co/functions/v1/alerte-messages
+   select vault.create_secret('<le jeton>', 'ntanova_alerte_jeton');
+   ```
+
+7. **Essayer** : `select ntanova_supabase.ring_public_request_notices();` doit rendre `sonnee` ; l'administration cesse alors de dire « pas activées » au passage suivant. Puis un vrai message d'essai, lu dans la boîte.
+
+**Couper, tout de suite** : `delete from vault.secrets where name = 'ntanova_alerte_jeton';` (la sonnette se tait) ; révoquer la clé `alerte_messages` (le service ne lit plus rien). Les messages continuent d'arriver dans l'administration.
+
+Ce que le service garantit : au moins un essai, le même `Message-ID` à chaque reprise (un doublon se reconnaît), un courrier par message jusqu'à 20 dans l'heure, puis un seul courrier groupé par passage, sans perdre une référence, 100 secondes au plus par passage, un bail repris après 5 minutes. Une réponse du serveur de courrier devient un **code** d'une liste fermée, jamais son texte. Si le serveur accepte puis que la connexion se coupe, l'annonce repart : mieux vaut deux alertes qu'aucune.
+
+**Purge** : `prive.purge_public_requests()`, 12 mois après clôture, 30 jours pour un indésirable, avec versions, historique, annonce et suivi ; une suite perd son lien et reste. Rejouable, une à la fois. Planifiée à 1 h 40 UTC par `pg_cron`, dans la couche Supabase seulement. Le journal `prive.erasures` ne bouge pas. Les sauvegardes gardent un message purgé jusqu'à 30 jours de plus.
+
+**Droits** : aucun rôle de l'API n'a de droit sur ces tables (RLS active, sans règle) ; `droits.test.sql` garde la liste exacte des fonctions par rôle. Aucune fonction ouverte à un visiteur ne prend une référence.
+
+**Tests** : `messages_envoi` (130), `messages_traitement` (141), `messages_annonces_et_purge` (74), `messages_concurrence` (29 : de vraies connexions lâchées ensemble, par `dblink` ; ce fichier écrit pour de bon dans la base **locale** et retire ce qu'il a écrit), `messages_administration` (36, lot 3B2), plus `droits`, `portabilite` et `supabase_couche` (la sonnette : inerte, puis ce qu'elle envoie une fois configurée, défait par le `rollback`). L'heure est un paramètre des fonctions privées `*_at`, jamais des portes publiques. Côté code : `src/modele/demandes.ts`, comparé aux migrations par `tests/unitaires/demandes.test.ts`.
+
+**Correction de revue, 24/11** : relancer une annonce prend le verrou du message avant celui de l'annonce, comme la purge. L'ordre inverse bloquait les deux transactions : la relance attendait le message pour écrire son historique, la purge attendait l'annonce. Le test de concurrence force cette rencontre, échoue sans le correctif et vérifie que la purge suivante efface le message après la relance. Le calcul du sceau est déclaré `stable`, comme `convert_to` qu'il appelle, plutôt que `immutable`.

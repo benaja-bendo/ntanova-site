@@ -391,6 +391,13 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# L'alerte e-mail des messages reçus (refonte, lot 3B2), déployée et activée sur ordre du fondateur seulement. La plateforme ne vérifie pas de jeton de
+# connexion, la fonction vérifie elle-même celui de la sonnette (`porte.ts`) avant tout travail.
+[functions.alerte-messages]
+verify_jwt = false
+entrypoint = "./functions/alerte-messages/index.ts"
+import_map = "./functions/alerte-messages/deno.json"
+
 [analytics]
 # NTanova : coupé en local, inutilisé (et le conteneur des journaux échoue au démarrage).
 enabled = false
