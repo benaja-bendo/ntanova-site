@@ -14,7 +14,7 @@ import ContactNtanova from '../ui/ContactNtanova.astro';
 import { formulairesOuverts } from '../ui/formulaires/ouverture';
 import PageDeTexte from '../ui/PageDeTexte.astro';
 
-const TEXTE_DU = '24 novembre 2026';
+const TEXTE_DU = '25 novembre 2026';
 
 // Les données gardées, une par ligne : pourquoi, qui les voit, combien de temps. Les durées restent à fixer par le fondateur.
 const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree: string }[] = [
@@ -28,10 +28,18 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
   },
   {
     nom: 'Ce que l’école accepte de publier',
-    quoi: 'Photos, frais, contact, mot de la direction.',
+    quoi: 'Frais, contact, mot de la direction.',
     pourquoi: 'Informer les familles.',
     qui: 'Tout le monde, avec l’accord daté de la direction.',
     duree: 'Tant que l’accord vaut ; retiré à votre demande.',
+  },
+  {
+    nom: 'Les photos publiées',
+    quoi: 'Photo de l’enseigne, couverture et photos du lieu retenues par l’équipe.',
+    pourquoi: 'Montrer l’établissement aux familles.',
+    qui: 'Tout le monde, après contrôle : sans enfant ni personne reconnaissable.',
+    duree:
+      'Tant que la photo est publiée ; retirée à votre demande. [Durée de conservation après un retrait : à fixer.]',
   },
   {
     nom: 'Le contact privé de la direction',
@@ -117,10 +125,11 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
     <h2>Ce que nous publions et ce que nous gardons</h2>
     <p>
       Pour chaque école, nous publions ce qui se voit de la rue&nbsp;: nom, enseigne, position,
-      niveaux, numéro écrit sur l’enseigne. Photos, frais, contact et mot de la direction ne sont
-      publiés qu’avec l’accord daté de la direction. Une fiche décrit un établissement, pas une
-      personne&nbsp;; un numéro de téléphone peut pourtant se rapporter à une personne, et vous
-      pouvez demander qu’il soit retiré.
+      niveaux, numéro écrit sur l’enseigne. Frais, contact et mot de la direction ne sont publiés
+      qu’avec l’accord daté de la direction. Les photos sont contrôlées une à une, sans enfant ni
+      personne reconnaissable&nbsp;: <a href={`${LIEN_METHODE}#m-photos`}>les règles des photos</a>.
+      Une fiche décrit un établissement, pas une personne&nbsp;; un numéro de téléphone peut
+      pourtant se rapporter à une personne, et vous pouvez demander qu’il soit retiré.
     </p>
     <ul class="registre">
       {DONNEES.map((d) => (

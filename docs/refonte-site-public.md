@@ -215,11 +215,15 @@ Phrases de l'ancienne page retirées parce que fausses : « Rien n'est ajouté �
 - L'aperçu famille et l'aperçu de fiche sont du vrai texte, pas une image avec un libellé ; tableau empilé `cf-tableau` au téléphone (libellé puis valeur), pas deux colonnes ; mentions : les pastilles de la fiche ; états : les étiquettes du site, sans rond. L'icône du reçu est celle du document ; aucune icône nouvelle.
 - « Ici, un dessin » sur la couverture d'exemple n'est pas repris : « Exemple » suffit sur la ligne du nom.
 
-**Constats hors lot, à décider** : la fiche réelle dit encore « Complétez cette fiche : photos, frais, contact. Rien n'est publié sans votre accord » (`FicheEcole.astro`), et Confidentialité que les photos « ne sont publiées qu'avec l'accord daté de la direction » : la base ne garde pas cet accord pour chaque image. Le besoin de base du lot 4 (accord daté par image) reste ouvert. `ExplorateurCarte.astro`, posé sur aucune page, écrit encore « Espace écoles ».
+**Constats initiaux de la PR** : l'appel de la fiche réelle disait « Rien n'est publié sans votre accord » (`FicheEcole.astro`), et Confidentialité que les photos « ne sont publiées qu'avec l'accord daté de la direction ». Ces deux textes sont harmonisés par la revue ci-dessous. Le besoin de base du lot 4 (accord daté par image) reste ouvert ; aucune migration n'est ajoutée. `ExplorateurCarte.astro`, posé sur aucune page, écrit encore « Espace écoles ».
 
 **À relire par une personne avant la production** : « Que publiez-vous sans notre accord ? » et les trois accords ; la prestation de communication (« elle se paierait ») ; les cinq règles et « Ce qu'ils ne feront pas » (engagements sur des outils qui n'existent pas) ; les messages WhatsApp préremplis.
 
 **Preuves** : unitaires `pour-les-ecoles.test.ts` (états, comptes et jours du 016) ; `fichiers-standards` et `liens-demandes` complétés ; parcours `ecoles-et-directions.spec.ts` (recherche de plusieurs fiches à aucune, états, démarches sans accord, page Outils, 016 dans quatre récits ; deux tests de la page du 05/11 réécrits), `public.spec.ts` (code refusé puis accepté, sans JavaScript ; Outils sans script), `declaration-ecole.spec.ts` (`#referencer`), `accueil.spec.ts`, `pages-de-confiance.spec.ts` (mots collés), `mise-en-page.spec.ts` (les deux pages aux trois largeurs ; le test « gains avant l'action » réécrit), `formulaires-publics.spec.ts` ; `pnpm test:constructions` étendu aux arrivées ouvertes des deux pages. **Preuve de retrait non étendue** : ces pages n'emportent aucune donnée de fiche. Captures : `playwright.confiance.config.ts`, à 360, 390, 768 et 1 440 px dans `captures/confiance/` (hors git).
+
+### Revue du lot 5, 25/11/2026
+
+Les deux constats de texte signalés par la PR sont harmonisés pendant la revue : l’appel de la fiche ne promet plus qu’aucune information ne paraît sans accord ; il rappelle le OUI daté des frais et la relecture des envois. Confidentialité sépare les photos contrôlées des frais, du contact et du mot soumis à un accord daté, avec un lien vers les règles des photos. Aucun changement de collecte, de droit, d’accord ou de conservation ; les durées non tranchées restent à régler à la recette. Pas de nouvel essai automatique pour ces retouches de texte ; les parcours et contrôles de construction existants sont rejoués.
 
 ## Contrôles et livraison
 
