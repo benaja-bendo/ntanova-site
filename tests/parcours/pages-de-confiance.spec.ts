@@ -190,9 +190,13 @@ test.describe('Fiabilité des informations', () => {
     await page.goto('/methode/');
     const photos = page.locator('#m-photos');
     await expect(photos).toContainText('douze au plus');
-    // Les mots du contrôle que la base exige de chaque image (`child_free_checked_at`), rien de plus.
+    // Contrôle inchangé ; l'exception du 25/11 concerne une illustration sur l'enseigne, pas une personne sur les lieux.
+    await expect(photos).toContainText('Aucune image n’est publique avant d’être contrôlée.');
     await expect(photos).toContainText(
-      'Aucune image n’est publique avant d’être contrôlée : sans enfant ni personne reconnaissable.',
+      'Aucun enfant présent sur les lieux, aucune autre personne reconnaissable.',
+    );
+    await expect(photos).toContainText(
+      'Une affiche ou une illustration déjà présente sur l’enseigne de l’école peut apparaître dans sa photo.',
     );
     await expect(photos).not.toContainText(/nette|donnée personnelle/i);
     // La base ne garde pas la source d'une fiche ajoutée par l'équipe : la page n'en promet pas.

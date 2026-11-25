@@ -14,6 +14,7 @@
 import { PUBLIC_WHATSAPP } from 'astro:env/client';
 import { porte, type PorteVersNtanova } from '../../modele/liens-demandes';
 import { LIEN_CONFIDENTIALITE, LIEN_METHODE } from '../../modele/pages-de-confiance';
+import { REGLE_PHOTOS_PERSONNES, REGLE_PHOTOS_ENSEIGNE } from '../../modele/photos-publiques';
 import {
   BESOINS_DES_ECOLES,
   ETATS_DE_SERVICE,
@@ -244,7 +245,7 @@ const iconeDe = (ancre: string) => ICONE_DU_BESOIN[ancre as keyof typeof ICONE_D
         <li class="cf-carte demarche">
           <h3>Envoyer photos et contact</h3>
           <p>
-            Nous contrôlons chaque photo&nbsp;: sans enfant ni personne reconnaissable. L’équipe
+            Nous contrôlons chaque photo. {REGLE_PHOTOS_PERSONNES} {REGLE_PHOTOS_ENSEIGNE} L’équipe
             choisit celles qui paraissent. Un numéro qui n’est pas sur l’enseigne ne paraît qu’avec
             votre accord daté.
             {formulairesOuverts && ' Le formulaire du site ne reçoit aucune pièce jointe.'}

@@ -16,6 +16,7 @@
 // les autres durées se tiennent à la main (supabase/schema.md, « Le ménage des durées »), et la page le dit.
 import { DELAI_DROITS_JOURS, LIEN_METHODE, LIEN_DONNEES } from '../modele/pages-de-confiance';
 import { REGLAGES } from '../modele/demandes';
+import { REGLE_PHOTOS_PERSONNES, REGLE_PHOTOS_ENSEIGNE } from '../modele/photos-publiques';
 import ContactNtanova from '../ui/ContactNtanova.astro';
 import { formulairesOuverts } from '../ui/formulaires/ouverture';
 import PageDeTexte from '../ui/PageDeTexte.astro';
@@ -43,7 +44,7 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
     nom: 'Les photos publiées',
     quoi: 'Photo de l’enseigne, couverture et photos du lieu retenues par l’équipe.',
     pourquoi: 'Montrer l’établissement aux familles.',
-    qui: 'Tout le monde, après contrôle : sans enfant ni personne reconnaissable.',
+    qui: 'Tout le monde, après contrôle de chaque photo (voir les règles ci-dessous).',
     duree:
       'Tant que la photo est publiée ; retirée à votre demande. Après un retrait, gardée 12 mois, puis effacée ; plus tôt si vous le demandez.',
   },
@@ -141,10 +142,10 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
     <p>
       Pour chaque école, nous publions ce qui se voit de la rue&nbsp;: nom, enseigne, position,
       niveaux, numéro écrit sur l’enseigne. Frais, contact et mot de la direction ne sont publiés
-      qu’avec l’accord daté de la direction. Les photos sont contrôlées une à une, sans enfant ni
-      personne reconnaissable&nbsp;: <a href={`${LIEN_METHODE}#m-photos`}>les règles des photos</a>.
-      Une fiche décrit un établissement, pas une personne&nbsp;; un numéro de téléphone peut
-      pourtant se rapporter à une personne, et vous pouvez demander qu’il soit retiré.
+      qu’avec l’accord daté de la direction. Les photos sont contrôlées une à une&nbsp;:{' '}
+      <a href={`${LIEN_METHODE}#m-photos`}>les règles des photos</a>. Une fiche décrit un
+      établissement, pas une personne&nbsp;; un numéro de téléphone peut pourtant se rapporter à une
+      personne, et vous pouvez demander qu’il soit retiré.
     </p>
     <ul class="registre">
       {DONNEES.map((d) => (
@@ -264,9 +265,10 @@ const DONNEES: { nom: string; quoi: string; pourquoi: string; qui: string; duree
   <section class="carte bloc" id="enfants">
     <h2>Les enfants</h2>
     <p>
-      Le site ne contient aucune donnée sur des élèves. Nous demandons aux relais de ne jamais
-      photographier un enfant&nbsp;; une photo qui en montre un n’est pas publiée.
+      Le site ne contient aucun dossier individuel d’élève. Nous demandons aux relais de ne jamais
+      photographier un enfant présent sur les lieux. {REGLE_PHOTOS_PERSONNES}
     </p>
+    <p>{REGLE_PHOTOS_ENSEIGNE}</p>
   </section>
 
   <section class="carte bloc large" id="droits">

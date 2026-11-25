@@ -13,7 +13,7 @@
 // - le numéro de l'enseigne et le contact publié avec l'accord de la direction se distinguent sur la fiche ;
 // - des frais ne paraissent qu'avec le OUI daté ; l'agrément est cité, sans garantie, « document pas encore vu » quand l'école
 //   le cite seulement ;
-// - les photos : contrôlées avant d'être publiques (« aucun enfant, aucune personne reconnaissable », `child_free_checked_at`,
+// - les photos : contrôlées avant d'être publiques (personnes présentes sur place, `child_free_checked_at`,
 //   le seul contrôle que la base exige de chaque image), douze au plus en galerie, jamais une photo de travail. La planche
 //   dit aussi « nette, sans donnée personnelle » (une case de la seule photo d'enseigne) et « couverture choisie et galerie :
 //   avec l'accord daté de l'école » ; la base ne garde ni l'un ni l'autre pour chaque image : la page ne le promet pas ;
@@ -37,6 +37,7 @@ import {
   LIEN_DONNEES,
 } from '../modele/pages-de-confiance';
 import { dateCourte } from '../modele/pointe-noire';
+import { REGLE_PHOTOS_PERSONNES, REGLE_PHOTOS_ENSEIGNE } from '../modele/photos-publiques';
 import { avecMessage, lienWhatsApp } from '../modele/whatsapp';
 import { formulairesOuverts } from '../ui/formulaires/ouverture';
 import Icone from '../ui/Icone.astro';
@@ -404,8 +405,8 @@ const signaler = porte(
           <div>
             <b>Contrôle de chaque photo</b>
             <span>
-              Aucune image n’est publique avant d’être contrôlée&nbsp;: sans enfant ni personne
-              reconnaissable.
+              Aucune image n’est publique avant d’être contrôlée. {REGLE_PHOTOS_PERSONNES}{' '}
+              {REGLE_PHOTOS_ENSEIGNE}
             </span>
           </div>
         </li>

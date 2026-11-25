@@ -4,6 +4,7 @@
 import { lienEcole } from '../../modele/geo-divisions';
 import { libelleSujetMedia } from '../../modele/libelles';
 import type { EcolePubliee } from '../../modele/ports';
+import { REGLE_PHOTOS_PERSONNES, REGLE_PHOTOS_ENSEIGNE } from '../../modele/photos-publiques';
 import { cheminMedia } from '../../modele/vitrine';
 import Visionneuse from './Visionneuse.astro';
 interface Props {
@@ -42,7 +43,9 @@ const galerie = e.medias?.galerie ?? [];
       </li>
     ))}
   </ul>
-  <p class="doux">Photos contrôlées par NTanova : aucun enfant, aucune personne reconnaissable.</p>
+  <p class="doux">
+    Photos contrôlées par NTanova. {REGLE_PHOTOS_PERSONNES} {REGLE_PHOTOS_ENSEIGNE}
+  </p>
   <Visionneuse galerie={galerie} nom={e.nom} />
 </section>
 

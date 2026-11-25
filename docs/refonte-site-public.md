@@ -2,6 +2,12 @@
 
 Le fondateur demande une livraison unique, construite par lots courts. Ce document fixe le circuit de code ; les réflexions produit restent dans le dépôt `ntanova`.
 
+## Revue finale du 25 novembre 2026
+
+Le fondateur autorise la fusion globale et la production après revue (PR 228). Dernier correctif : les textes de Fiabilité, Confidentialité, Pour les écoles et des photos distinguent les personnes présentes sur les lieux d'une affiche ou illustration déjà présente sur l'enseigne. Cette précision applique son choix daté de conserver l'enseigne ; aucun contrôle, accord, droit, média ou objet de base n'est modifié. La légende d'une photo renvoie aux mêmes règles. Le parcours existant de Fiabilité est adapté, sans nouveau fichier de tests.
+
+Les preuves de livraison et l'état final sont consignés dans `REVUE-LOT-07.md` du dépôt documentaire. La déclaration CNPD reste à faire, selon le choix consigné du fondateur ; la publication ne la remplace pas. L'en-tête de connexion reste non éprouvé et sa borne inactive. La vision d'une fiche d'école pouvant servir de site vitrine est une suite à cadrer, sans fonctionnalité supplémentaire dans cette livraison.
+
 ## Branches et fin de tâche
 
 - `main` reste la seule branche durable et la base de production.

@@ -9,6 +9,12 @@ export interface PhotoPublique {
 export const BUDGET_PHOTO_PUBLIQUE = 32 * 1024;
 export const cheminPhotoPublique = (p: PhotoPublique): string => `/photos/${p.id}.webp`;
 
+// Précision du fondateur du 25/11/2026 : une illustration sur l'enseigne n'est pas une personne présente sur place.
+export const REGLE_PHOTOS_PERSONNES =
+  'Aucun enfant présent sur les lieux, aucune autre personne reconnaissable.';
+export const REGLE_PHOTOS_ENSEIGNE =
+  'Une affiche ou une illustration déjà présente sur l’enseigne de l’école peut apparaître dans sa photo.';
+
 // L'administration : pilotage de la photo publique d'une école ----------------------------------------------------------
 
 /**
