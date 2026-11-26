@@ -544,9 +544,45 @@ export const compterLesEcoles = (n: number): string =>
 export const ecolesAffichees = (montrees: number, total: number): string =>
   `${montrees.toLocaleString('fr-FR')} sur ${total.toLocaleString('fr-FR')} ${total > 1 ? 'écoles affichées' : 'école affichée'}`;
 
+/** Au-delà, les mots en trop ne sont plus essayés un à un (2⁶ recherches au plus). */
+const MOTS_ESSAYES = 6;
+
+/** Les parties de `n` mots qui en gardent `k`, dans l'ordre : celle qui garde les premiers mots d'abord. */
+function parties(n: number, k: number): number[][] {
+  if (k === 0) return [[]];
+  const out: number[][] = [];
+  for (let i = 0; i <= n - k; i++)
+    for (const reste of parties(n - i - 1, k - 1)) out.push([i, ...reste.map((j) => j + i + 1)]);
+  return out;
+}
+
+/**
+ * Plusieurs mots qui ne vont pas ensemble (retour d'un relais, 26/11/2026 : le nom de l'école et un quartier dit autrement
+ * que sur sa fiche) : les plus grandes parties du texte qui trouvent encore une école, deux au plus, celle qui garde les
+ * premiers mots d'abord (le nom, d'ordinaire).
+ */
+function sortiesDuTexte(
+  lignes: readonly LigneRecherche[],
+  etat: EtatListe,
+  pres: Point | null,
+): { libelle: string; etat: EtatListe; nombre: number }[] {
+  const mots = etat.q.trim().split(/\s+/).filter(Boolean);
+  if (mots.length < 2 || mots.length > MOTS_ESSAYES) return [];
+  for (let k = mots.length - 1; k >= 1; k--) {
+    const trouvees = parties(mots.length, k).flatMap((garde) => {
+      const q = garde.map((i) => mots[i]).join(' ');
+      const nombre = filtrer(lignes, { ...etat, q }, pres).length;
+      return nombre > 0 ? [{ libelle: `Chercher « ${q} »`, etat: { ...etat, q }, nombre }] : [];
+    });
+    if (trouvees.length > 0) return trouvees.slice(0, 2);
+  }
+  return [];
+}
+
 /**
  * Les sorties d'un résultat vide : retirer un choix, chacune avec ce qu'elle débloque, la plus utile d'abord (planche
- * « 0 résultat »). Le texte cherché compte comme un choix.
+ * « 0 résultat »). Le texte cherché compte comme un choix. Quand il a plusieurs mots, les parties qui trouvent encore une
+ * école passent devant : elles gardent ce qu'on cherchait.
  */
 export function sortiesDuVide(
   lignes: readonly LigneRecherche[],
@@ -554,6 +590,7 @@ export function sortiesDuVide(
   pres: Point | null,
   domaines: ReadonlyMap<string, string> = new Map(),
 ): { libelle: string; etat: EtatListe; nombre: number }[] {
+  const duTexte = sortiesDuTexte(lignes, etat, pres);
   const sorties: { libelle: string; etat: EtatListe; nombre: number }[] = [];
   const essayer = (libelle: string, suivant: EtatListe) => {
     const nombre = filtrer(lignes, suivant, pres).length;
@@ -569,5 +606,5 @@ export function sortiesDuVide(
       });
   if (etat.rayonM !== null) essayer('Retirer le rayon', { ...etat, rayonM: null });
   if (etat.cadre) essayer('Retirer la zone de la carte', { ...etat, cadre: null });
-  return sorties.sort((a, b) => b.nombre - a.nombre).slice(0, 3);
+  return [...duTexte, ...sorties.sort((a, b) => b.nombre - a.nombre)].slice(0, 3);
 }

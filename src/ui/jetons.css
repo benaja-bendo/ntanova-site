@@ -97,6 +97,8 @@
   --fond-appui: var(--vert-pale); /* encre 12,8:1, encre-75 5,9:1, vert 6,2:1 */
   --repere-arrivee: var(--jaune-pale); /* encre 14,1:1, encre-75 6,5:1 */
   --repere-arrivee-sur-marque: var(--vert); /* crème 7,2:1, vert pâle 6,2:1 */
+  /* Retours du 26/11 : sous une entrée de l'en-tête, le survol annonce en pâle le trait que l'entrée courante porte en jaune. */
+  --survol-sur-marque: var(--vert-pale);
 
   /* Les statuts doux (v2) : des alias, aucune valeur nouvelle. Vert, jaune, rouge gardent le même sens partout. */
   --statut-succes-fond: var(--vert-pale);

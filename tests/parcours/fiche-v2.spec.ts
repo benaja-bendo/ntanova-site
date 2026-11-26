@@ -1,7 +1,14 @@
 // La fiche d'une école, v2 (ticket 165, lot A, 13/11/2026) : canevas « Fiche d'école » et ses états vides.
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const COMPLETE = '/ecoles/groupe-scolaire-exemple-158427/';
+/** Les rubriques qui portent le trait vert, tel qu'il s'affiche. */
+const soulignees = (page: Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('nav[aria-label="Aller à une rubrique"] a')]
+      .filter((a) => getComputedStyle(a).boxShadow !== 'none')
+      .map((a) => a.innerText.trim()),
+  );
 const NUE = '/ecoles/ecole-ajoutee-exemple-639158/';
 const SUPERIEUR = '/ecoles/institut-superieur-exemple-527064/';
 
@@ -69,7 +76,15 @@ test('une fiche complète : logo, couverture, ligne d’identité, rubriques en 
       return haut.getBoundingClientRect().top - lien.closest('nav')!.getBoundingClientRect().bottom;
     });
     expect(ecart, cible).toBeGreaterThanOrEqual(0);
+    // Retours du fondateur (26/11/2026) : le trait vert restait sous la première rubrique, quelle que soit celle touchée.
+    const titre = await a.innerText();
+    await expect.poll(() => soulignees(page), { message: cible }).toEqual([titre]);
   }
+  // Sur ordinateur, deux colonnes : le trait suit la rubrique touchée, pas celle de la colonne voisine (« Formations »
+  // soulignait « Frais » avec le suivi du défilement).
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await rubriques.first().click();
+  await expect.poll(() => soulignees(page)).toEqual(['Formations']);
   const frais = page.getByRole('region', { name: 'Frais déclarés par l’école' });
   await expect(frais.getByRole('listitem').first()).toContainText('Maternelle');
   await expect(frais).toContainText('CP1 à CM2');

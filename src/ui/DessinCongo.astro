@@ -58,10 +58,19 @@ const demi = carte.pas / 2;
       {carte.points.map((p) => (
         <circle class="dessin-ecoles" cx={p.x} cy={p.y} r={p.r} />
       ))}
-      {carte.villes.map((v) => (
-        <circle class="dessin-halo" cx={v.x} cy={v.y} r="20" />
-      ))}
+      {seul && carte.villes.map((v) => <circle class="dessin-halo" cx={v.x} cy={v.y} r="20" />)}
     </svg>
+    {/* Retours du fondateur (26/11) : sur l'accueil, un cercle part de chaque ville, comme sur la planche, pour dire que
+        l'annuaire vit. Un battement régulier mais espacé : une vague d'une ville à l'autre, puis le calme. */}
+    {!seul &&
+      carte.villes.map((v, i) => (
+        <span
+          class="dessin-pouls"
+          aria-hidden="true"
+          style={`left: ${v.gauche}%; top: ${v.haut}%; --retard: ${0.6 + Math.min(i, 5) * 0.5}s`}
+        />
+      ))}
+    {/* L'étiquette : le nom et le nombre, sans cadre ni date (la date est dite une fois, dans la légende). */}
     {!seul &&
       carte.villes.map((v) => (
         <a
@@ -70,9 +79,7 @@ const demi = carte.pas / 2;
           style={`left: ${v.gauche}%; top: ${v.haut}%`}
         >
           <b>{v.nom}</b>
-          <span>
-            {compterEcoles(v.total)} · {jour}
-          </span>
+          <span>{compterEcoles(v.total)}</span>
         </a>
       ))}
     {!seul && (
@@ -88,7 +95,10 @@ const demi = carte.pas / 2;
   </div>
   <figcaption class="dessin-legende">
     <span class="dessin-pastille" aria-hidden="true"></span>
-    Un point jaune&nbsp;: au moins une école y a sa fiche.
+    <span>
+      Un point jaune&nbsp;: au moins une école y a sa fiche.
+      {!seul && <span class="dessin-jour">Nombres au {jour}.</span>}
+    </span>
   </figcaption>
 </figure>
 
@@ -120,19 +130,67 @@ const demi = carte.pas / 2;
     stroke-dasharray: 2 5;
     stroke-linecap: round;
   }
-  /* L'étiquette d'une ville : un lien de 44 px au moins, posé à côté de son point, jamais dessus. */
+  /*
+   * Le cercle d'une ville (planche « Accueil », `pouls`) : posé, il entoure le point. Fondateur, 26/11 : un battement
+   * continu, régulier et espacé, pour un côté vivant, pas pour appeler l'œil. Toutes les 8 s, une onde part de chaque ville,
+   * l'une après l'autre (une vague d'une demi-seconde par ville), dure 2 s, puis 6 s de calme. Le cercle posé (`::before`)
+   * ne bouge pas ; l'onde est un second cercle (`::after`). Opacité et échelle seulement : le navigateur l'anime sans
+   * repeindre la page. Sans mouvement demandé, aucune onde.
+   */
+  .dessin-pouls {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -11px;
+    pointer-events: none;
+  }
+  .dessin-pouls::before,
+  .dessin-pouls::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+  }
+  .dessin-pouls::before {
+    opacity: 0.55;
+  }
+  .dessin-pouls::after {
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .dessin-pouls::after {
+      animation: dessin-pouls 8s ease-out var(--retard, 0s) infinite;
+    }
+  }
+  @keyframes dessin-pouls {
+    0% {
+      opacity: 1;
+      transform: scale(0.6);
+    }
+    25%,
+    100% {
+      opacity: 0;
+      transform: scale(2.4);
+    }
+  }
+  /* L'étiquette d'une ville : un lien de 44 px au moins, posé à côté de son point, jamais dessus. Retours du fondateur
+     (26/11) : sans cadre ni date, le nom et le nombre se posent sur le dessin ; un liseré du vert du fond les détache des
+     points de la trame. */
   .dessin-ville {
     position: absolute;
     z-index: 1;
     display: grid;
     align-content: center;
     min-height: var(--cible-min);
-    padding: 2px var(--espace-2);
+    padding: 2px var(--espace-1);
     border-radius: var(--rayon-s);
-    background: var(--marque-appuyee);
     color: var(--texte-sur-marque);
     line-height: 1.2;
     text-decoration: none;
+    text-shadow:
+      0 0 3px var(--marque-appuyee),
+      0 0 6px var(--marque-appuyee);
     white-space: nowrap;
   }
   .dessin-ville b {
@@ -143,6 +201,9 @@ const demi = carte.pas / 2;
     color: var(--vert-pale);
     font-size: 0.8125rem;
     font-variant-numeric: tabular-nums;
+  }
+  .dessin-jour {
+    display: block;
   }
   @media (hover: hover) {
     .dessin-ville:hover b {

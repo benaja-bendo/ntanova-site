@@ -543,6 +543,25 @@ test.describe('site public', () => {
     await expect(page.getByRole('heading', { name: 'Page introuvable' })).toBeVisible();
     // Une école retirée n'a plus de page : rien d'elle n'est dit, pas même son nom.
     await expect(page.getByText(/n'est plus publiée/)).toBeVisible();
+    // Une page courte n'a pas de « Remonter », même tout en bas.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect(page.getByRole('link', { name: 'Remonter' })).toBeHidden();
+  });
+
+  // Retours du fondateur (26/11/2026) : sur une page longue, un bouton pour remonter, qui paraît en descendant, sans script.
+  test('« Remonter » paraît sur une page longue une fois descendu, et ramène en haut', async ({
+    page,
+  }) => {
+    await page.goto('/pour-les-ecoles/');
+    const remonter = page.getByRole('link', { name: 'Remonter' });
+    await expect(remonter).toBeHidden();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect(remonter).toBeVisible();
+    const boite = await remonter.boundingBox();
+    expect(boite?.height).toBeGreaterThanOrEqual(44);
+    await remonter.click();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(remonter).toBeHidden();
   });
 });
 

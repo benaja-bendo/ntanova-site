@@ -263,6 +263,28 @@ describe('« Où ? » : le lieu de la recherche de l’accueil', () => {
     expect(sorties[0]?.etat.ou).toBe('');
   });
 
+  // Retour d'un relais (26/11/2026) : « j'écris le nom, j'écris le quartier », et rien. Chaque mot doit se trouver dans la
+  // même école ; un quartier dit autrement que sur la fiche vide la liste. La première sortie garde les premiers mots (le
+  // nom, d'ordinaire), la dernière retire tout le texte.
+  it('un nom et un quartier qui ne vont pas ensemble : la première sortie garde le nom', () => {
+    const etat = lireEtat(new URLSearchParams('q=Bacongo%20Loandjili'));
+    expect(filtrer(LIEUX, etat)).toEqual([]);
+    const sorties = sortiesDuVide(LIEUX, etat, null);
+    expect(sorties.map((s) => [s.libelle, s.nombre])).toEqual([
+      ['Chercher « Bacongo »', 2],
+      ['Chercher « Loandjili »', 2],
+      ['Retirer « Bacongo Loandjili »', LIEUX.length],
+    ]);
+    expect(sorties[0]?.etat.q).toBe('Bacongo');
+    // Trois mots dont un seul de trop : on garde les deux qui vont ensemble.
+    const trois = sortiesDuVide(
+      LIEUX,
+      lireEtat(new URLSearchParams('q=Lycée Bacongo Mpita')),
+      null,
+    );
+    expect(trois[0]?.libelle).toBe('Chercher « Lycée Bacongo »');
+  });
+
   it('la carte se recadre quand le lieu change, et ne montre plus le pays entier', () => {
     const sans = etatVide();
     const avec = { ...etatVide(), ou: 'ngoyo' };
