@@ -108,7 +108,9 @@ export function demarrerListe(racine: HTMLElement): void {
     ]
       .filter(Boolean)
       .join(' · ');
-    // Le résultat vide : chaque sortie dit combien d'écoles elle débloque, la plus utile d'abord.
+    // Le résultat vide : chaque sortie dit combien d'écoles elle débloque, la plus utile d'abord. Sur téléphone, la vue
+    // Carte le montre aussi, au-dessus de la carte (retour d'un relais, 26/11/2026 : elle ne le montrait pas).
+    racine.dataset.resultat = trouvees.length === 0 ? 'vide' : 'trouve';
     if (trouvees.length === 0) {
       const sorties = sortiesDuVide(tout, etat, pres, domaines);
       vide.hidden = false;

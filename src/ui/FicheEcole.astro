@@ -1014,10 +1014,67 @@ const joursRestants = (n: number) =>
     white-space: nowrap;
     -webkit-tap-highlight-color: transparent;
   }
-  /* La première rubrique est soulignée, comme sur la planche. */
+  /*
+   * Le trait vert suit la rubrique où l'on est (retours du fondateur, 26/11 : il restait sous la première rubrique, quelle que
+   * soit celle touchée). Avant toute rubrique, la première, comme sur la planche. Une barre de rubriques, pas des onglets :
+   * la fiche se lit d'un fil, rien n'est caché. Aucun script.
+   * - Téléphone, une colonne : Chrome suit le défilement lui-même (`scroll-target-group`, `:target-current`).
+   * - Ailleurs, le trait va sur la dernière rubrique touchée (`:target`) : sur ordinateur, les deux colonnes trompent le suivi
+   *   (la colonne de droite remonte avec la gauche : « Formations » soulignait « Frais ») ; et Safari ou Firefox ne l'ont pas.
+   *   Les mêmes règles, deux fois : une condition ne peut pas réunir une largeur et un navigateur.
+   */
   .rubriques a:first-child {
     color: var(--marque);
     box-shadow: inset 0 -3px 0 var(--marque);
+  }
+  @media (max-width: 63.99rem) {
+    .rubriques {
+      scroll-target-group: auto;
+    }
+    .rubriques a:target-current {
+      color: var(--marque);
+      box-shadow: inset 0 -3px 0 var(--marque);
+    }
+    @supports selector(:target-current) {
+      .rubriques:has(a:target-current) a:first-child:not(:target-current) {
+        color: var(--texte-doux);
+        box-shadow: none;
+      }
+    }
+    @supports not selector(:target-current) {
+      .fiche:has(:global(:is(#formations, #admission, #ecole, #photos, #frais, #nouvelles):target))
+        .rubriques
+        a:first-child {
+        color: var(--texte-doux);
+        box-shadow: none;
+      }
+      .fiche:has(:global(#formations:target)) .rubriques a[href='#formations'],
+      .fiche:has(:global(#admission:target)) .rubriques a[href='#admission'],
+      .fiche:has(:global(#ecole:target)) .rubriques a[href='#ecole'],
+      .fiche:has(:global(#photos:target)) .rubriques a[href='#photos'],
+      .fiche:has(:global(#frais:target)) .rubriques a[href='#frais'],
+      .fiche:has(:global(#nouvelles:target)) .rubriques a[href='#nouvelles'] {
+        color: var(--marque);
+        box-shadow: inset 0 -3px 0 var(--marque);
+      }
+    }
+  }
+  @media (min-width: 64rem) {
+    .fiche:has(:global(:is(#formations, #admission, #ecole, #photos, #frais, #nouvelles):target))
+      .rubriques
+      a:first-child {
+      color: var(--texte-doux);
+      box-shadow: none;
+    }
+    .fiche:has(:global(#formations:target)) .rubriques a[href='#formations'],
+    .fiche:has(:global(#admission:target)) .rubriques a[href='#admission'],
+    .fiche:has(:global(#ecole:target)) .rubriques a[href='#ecole'],
+    .fiche:has(:global(#photos:target)) .rubriques a[href='#photos'],
+    .fiche:has(:global(#frais:target)) .rubriques a[href='#frais'],
+    .fiche:has(:global(#nouvelles:target)) .rubriques a[href='#nouvelles'] {
+      color: var(--marque);
+      box-shadow: inset 0 -3px 0 var(--marque);
+    }
   }
   @media (hover: hover) {
     .rubriques a:hover {

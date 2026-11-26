@@ -170,7 +170,9 @@ export async function ouvrirLaCarte(o: OuvertureDeLaCarte) {
       type: 'FeatureCollection',
       features,
     });
-    o.zone.dataset.aucune = features.length === 0 ? 'oui' : 'non';
+    // « Aucune de ces écoles n'a de position » seulement quand des écoles répondent (retour d'un relais, 26/11/2026 : la carte
+    // le disait aussi d'une recherche qui ne trouvait rien ; le résultat vide et ses sorties le disent alors, `liste-ecoles.ts`).
+    o.zone.dataset.aucune = trouvees.length > 0 && features.length === 0 ? 'oui' : 'non';
     // Carte cachée (vue Liste) : elle n'a pas de taille ; le cadrage attend son retour à l'écran.
     if (o.zone.clientWidth === 0) return;
     carte.resize();

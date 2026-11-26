@@ -189,6 +189,67 @@ const villesDuPied = villesDeLAccueil(site.arbre);
       </aside>
 
       <div class="liste-resultats">
+        {/* Retours du fondateur (26/11) : beaucoup se trompent sur la page et ne voient pas la carte. Trois repères, ouverts à
+            la première visite ; « Compris » les replie, et le navigateur s'en souvient (rien n'en part). Un `<details>` : il
+            s'ouvre et se replie sans script ; le script écrit juste après ne fait que s'en souvenir, avant l'affichage. */}
+        <details class="guide-ecoles" data-guide open>
+          <summary>
+            <Icone nom="info" />
+            <span>Comment chercher</span>
+            <span class="guide-replier" aria-hidden="true">
+              Compris
+            </span>
+            <span class="guide-deplier" aria-hidden="true">
+              <Icone nom="bas" />
+            </span>
+          </summary>
+          <ul class="guide-points">
+            <li>
+              <Icone nom="loupe" />
+              <p>
+                <b>Chercher</b>&nbsp;: un nom, un sigle, un quartier ou un repère. Un ou deux mots
+                suffisent.
+              </p>
+            </li>
+            <li>
+              <Icone nom="reglages" />
+              <p>
+                <b>Filtres</b>&nbsp;: la ville, le niveau, la formation, le type d’école, ou autour
+                de vous.
+              </p>
+            </li>
+            <li>
+              <Icone nom="plan" />
+              <div>
+                <p>
+                  <b>Liste ou Carte</b>&nbsp;: les mêmes écoles, aux mêmes filtres.
+                </p>
+                <a class="guide-carte" href="/ecoles/?vue=carte" data-vue="carte">
+                  Voir la carte
+                </a>
+              </div>
+            </li>
+          </ul>
+        </details>
+        <script is:inline>
+          (function () {
+            const guide = document.currentScript.previousElementSibling;
+            const cle = 'ntanova-guide-ecoles';
+            // Sans stockage (navigation privée, données effacées), le guide reste ouvert : rien d'autre ne change.
+            try {
+              if (localStorage.getItem(cle) === 'replie') guide.open = false;
+            } catch {
+              return;
+            }
+            guide.addEventListener('toggle', function () {
+              try {
+                localStorage.setItem(cle, guide.open ? 'ouvert' : 'replie');
+              } catch {
+                return;
+              }
+            });
+          })();
+        </script>
         <div class="resultats-tete">
           <p class="texte-doux liste-message" role="status" data-message></p>
         </div>
@@ -199,7 +260,7 @@ const villesDuPied = villesDeLAccueil(site.arbre);
         </ul>
         <div class="liste-vide" data-vide hidden>
           <h2>Aucune école ne répond à tous ces choix</h2>
-          <p>Retirez un choix&nbsp;:</p>
+          <p>Essayez plutôt&nbsp;:</p>
           <ul class="liste-sorties" data-sorties></ul>
           {/* Lot 1 de la refonte : un lieu de « Où ? » qui ne trouve rien se corrige ici, sans perdre les autres choix. */}
           <form class="liste-lieu" data-modifier-lieu action="/ecoles/" method="get" hidden>

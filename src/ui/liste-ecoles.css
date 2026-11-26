@@ -174,6 +174,89 @@
 .liste-message:empty {
   display: none;
 }
+
+/* « Comment chercher » (retours du fondateur, 26/11) : trois repères sur la page, ouverts à la première visite, en vue Liste.
+   Replié, il ne garde qu'une ligne pour se rouvrir. */
+.guide-ecoles {
+  border: 1px solid var(--trait);
+  border-radius: var(--rayon-m);
+  background: var(--fond-releve);
+}
+.guide-ecoles > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: var(--cible-min);
+  padding: 0 var(--espace-3);
+  color: var(--marque);
+  font-family: var(--police-interface);
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.guide-ecoles > summary::-webkit-details-marker {
+  display: none;
+}
+.guide-ecoles > summary:focus-visible {
+  outline: var(--epaisseur-focus) solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--rayon-m);
+}
+.guide-ecoles > summary:active {
+  background: var(--fond-appui);
+}
+.guide-replier,
+.guide-deplier {
+  margin-left: auto;
+}
+.guide-replier {
+  font-size: var(--taille-secondaire);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.guide-ecoles:not([open]) .guide-replier,
+.guide-ecoles[open] .guide-deplier {
+  display: none;
+}
+.guide-points {
+  display: grid;
+  gap: var(--espace-3);
+  margin: 0;
+  padding: 0 var(--espace-3) var(--espace-3);
+  list-style: none;
+}
+.guide-points li {
+  display: flex;
+  gap: var(--espace-2);
+  align-items: flex-start;
+}
+.guide-points .ico {
+  flex: none;
+  margin-top: 2px;
+  color: var(--marque);
+}
+.guide-points p {
+  font-size: var(--taille-secondaire);
+  line-height: 1.45;
+}
+/* Un lien à part entière, sur sa ligne : 44 px à toucher, comme toute cible du site. */
+.guide-carte {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cible-min);
+  color: var(--marque);
+  font-size: var(--taille-secondaire);
+  font-weight: 700;
+}
+.liste-ecoles[data-vue-actuelle='carte'] .guide-ecoles {
+  display: none;
+}
+@media (min-width: 48rem) {
+  .guide-points {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 .cartes-liste {
   display: grid;
   gap: var(--espace-3);
@@ -526,6 +609,13 @@ body.filtres-ouverts {
 .liste-ecoles[data-vue-actuelle='carte'] .liste-resultats,
 .liste-ecoles[data-vue-actuelle='carte'] .liste-tri {
   display: none;
+}
+/* Une recherche qui ne trouve rien : la vue Carte garde ses sorties au-dessus de la carte (retour d'un relais, 26/11). */
+@media (max-width: 63.99rem) {
+  .liste-ecoles[data-vue-actuelle='carte'][data-resultat='vide'] .liste-resultats {
+    display: block;
+    margin-bottom: var(--espace-3);
+  }
 }
 .liste-ecoles[data-vue-actuelle='carte'] .zone-carte {
   display: block;

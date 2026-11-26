@@ -365,10 +365,11 @@ const couleurDeLaBarre = lireJeton(jetons, 'fond-entete');
   .entrees a[aria-current='page'] {
     box-shadow: inset 0 -3px 0 var(--accent);
   }
+  /* Un seul repère sous les entrées (fondateur, 26/11) : le survol n'ajoute plus un soulignement blanc au trait jaune ; il
+     annonce, sous les autres entrées, un trait plus fin et pâle à la même place. L'entrée courante ne bouge pas. */
   @media (hover: hover) {
-    .entrees a:hover {
-      text-decoration: underline;
-      text-underline-offset: 4px;
+    .entrees a:not([aria-current='page']):hover {
+      box-shadow: inset 0 -2px 0 var(--survol-sur-marque);
     }
   }
 

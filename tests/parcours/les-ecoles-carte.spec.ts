@@ -69,6 +69,23 @@ test.describe('la vue Carte', () => {
     await expect(cartes(page).first()).toBeVisible();
   });
 
+  // Retour d'un relais (26/11/2026) : le nom et le quartier ensemble ne trouvaient rien ; la carte disait « Aucune de ces
+  // écoles n'a de position sur la carte », sans aucune sortie, et seule la Liste montrait quoi faire.
+  test('une recherche qui ne trouve rien garde ses sorties sur la vue Carte, sans parler de position', async ({
+    page,
+  }) => {
+    await page.goto('/ecoles/?q=gse%20zzzz&vue=carte');
+    await expect(page.locator('[data-zone-carte]')).toHaveAttribute('data-etat', 'prete', {
+      timeout: 30_000,
+    });
+    const vide = page.locator('[data-vide]');
+    await expect(vide).toBeVisible();
+    await expect(page.locator('.zone-carte-aucune')).toBeHidden();
+    await vide.getByRole('button', { name: /Chercher « gse » · 1 école/ }).click();
+    await expect(page).toHaveURL(/\?q=gse&vue=carte$/);
+    await expect(vide).toBeHidden();
+  });
+
   test('/carte/?ecole=… rouvre l’école sur la vue Carte', async ({ page }) => {
     await page.goto('/carte/?ecole=482913');
     await expect(page).toHaveURL(/\/ecoles\//);
