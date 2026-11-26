@@ -4,7 +4,8 @@
 //
 //   node outils/tracer-les-contours.ts <ensemble> <migration.sql> [--reponse=<fichier.json>]
 //
-// <ensemble> : `brazzaville` (la commune et ses neuf arrondissements). <migration.sql> : le fichier à écrire, dans
+// <ensemble> : `brazzaville` (la commune et ses neuf arrondissements) ou `hinda` (le district de Hinda, Kouilou ; ticket
+// 232). <migration.sql> : le fichier à écrire, dans
 // `supabase/migrations/`. Avec `--reponse=<fichier.json>`, l'outil relit la réponse d'Overpass déjà téléchargée si le
 // fichier existe (il travaille alors sans réseau, et refait la même migration), sinon il la télécharge et l'y garde.
 //
@@ -45,6 +46,11 @@ export interface ContourAttendu {
   nom: string;
   /** Le numéro d'ordre d'un arrondissement ; rien pour la commune. */
   ordre?: number;
+  /**
+   * Le niveau (`admin_level`) et le nom exacts de la relation, quand ils ne suivent pas ceux de Brazzaville (commune au
+   * niveau 5, « X (commune) » ; arrondissement au niveau 6, « X (arrondissement N) »). Le district de Hinda : niveau 6, « Hinda ».
+   */
+  osm?: { niveau: string; nom: string };
 }
 
 /** Les ensembles que l'outil sait tirer. */
@@ -91,6 +97,20 @@ export const ENSEMBLES: Record<string, readonly ContourAttendu[]> = {
     },
     { relation: 16370647, chemin: 'congo.brazzaville.brazzaville.djiri', nom: 'Djiri', ordre: 9 },
   ],
+  hinda: [
+    {
+      relation: 3223110,
+      chemin: 'congo.kouilou.hinda',
+      nom: 'Hinda',
+      osm: { niveau: '6', nom: 'Hinda' },
+    },
+  ],
+};
+
+/** Pourquoi chaque ensemble est tiré : la décision qui l'a demandé, recopiée en tête de sa migration. */
+export const MOTIFS: Record<string, string> = {
+  brazzaville: 'ticket 113, décision D3 du fondateur, 03/11/2026',
+  hinda: 'ticket 232, accord du fondateur du 26/11/2026',
 };
 
 /** Un membre d'une relation tel qu'Overpass le donne avec `out geom`. */
@@ -188,16 +208,17 @@ export function verifierNom(relation: Relation, attendu: ContourAttendu): void {
       `La relation ${attendu.relation} n’est pas une limite administrative (boundary=${tags.boundary ?? 'absent'}).`,
     );
   }
-  const niveau = attendu.ordre === undefined ? '5' : '6';
+  const niveau = attendu.osm?.niveau ?? (attendu.ordre === undefined ? '5' : '6');
   if (tags.admin_level !== niveau) {
     throw new Error(
       `La relation ${attendu.relation} est au niveau ${tags.admin_level ?? 'absent'}, ${niveau} attendu.`,
     );
   }
   const nomAttendu =
-    attendu.ordre === undefined
+    attendu.osm?.nom ??
+    (attendu.ordre === undefined
       ? `${attendu.nom} (commune)`
-      : `${attendu.nom} (arrondissement ${attendu.ordre})`;
+      : `${attendu.nom} (arrondissement ${attendu.ordre})`);
   if (sansAccent(tags.name ?? '') !== sansAccent(nomAttendu)) {
     throw new Error(
       `La relation ${attendu.relation} s’appelle « ${tags.name ?? ''} » ; « ${nomAttendu} » était attendu.`,
@@ -289,13 +310,16 @@ const guillemet = (texte: string) => `'${texte.replaceAll("'", "''")}'`;
 /** La migration de données : un `update` par division, puis un contrôle qui échoue si une division manque. */
 export function migrationSql(
   entrees: readonly { attendu: ContourAttendu; contour: MultiPolygone }[],
-  infos: { date: string; horodatage?: string | undefined },
+  infos: { date: string; horodatage?: string | undefined; motif?: string | undefined },
 ): string {
+  const motif = infos.motif ?? MOTIFS.brazzaville;
   const lignes = [
-    `-- Les contours de ${entrees.length} divisions, tirés d'OpenStreetMap (ticket 113, décision D3 du fondateur, 03/11/2026) :`,
+    entrees.length === 1
+      ? `-- Le contour d'une division, tiré d'OpenStreetMap (${motif}) :`
+      : `-- Les contours de ${entrees.length} divisions, tirés d'OpenStreetMap (${motif}) :`,
     `-- © les contributeurs d'OpenStreetMap, licence ODbL. Chaque relation est dite dans \`osm_relation\` et dans \`source\`, avec la`,
     `-- date de la base (${infos.horodatage ?? infos.date}). Simplifiés à ${TOLERANCE_M} m près et arrondis au mètre : un contour simplifié`,
-    `-- sert à situer une école dans son arrondissement, pas à mesurer. Rien n'est ouvert aux relais ni mis sur la carte.`,
+    `-- sert à situer une école dans sa division, pas à mesurer. Rien n'est ouvert aux relais ni mis sur la carte.`,
     `--`,
     `-- Généré par outils/tracer-les-contours.ts : ne pas le modifier à la main.`,
     ``,
@@ -319,7 +343,9 @@ export function migrationSql(
     `begin`,
     `  if (select count(*) from public.geo_divisions`,
     `      where path::text in (${chemins}) and boundary is not null and osm_relation is not null) <> ${entrees.length} then`,
-    `    raise exception 'Les ${entrees.length} contours ne sont pas tous en place : une division manque ou n''a pas pris son contour.';`,
+    entrees.length === 1
+      ? `    raise exception 'Le contour n''est pas en place : la division manque ou n''a pas pris son contour.';`
+      : `    raise exception 'Les ${entrees.length} contours ne sont pas tous en place : une division manque ou n''a pas pris son contour.';`,
     `  end if;`,
     `end`,
     `$$;`,
@@ -374,6 +400,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     );
     return { attendu, contour };
   });
-  writeFileSync(sortie, migrationSql(entrees, { date, horodatage }));
+  writeFileSync(sortie, migrationSql(entrees, { date, horodatage, motif: MOTIFS[nomEnsemble!] }));
   console.log(`Migration écrite : ${sortie}`);
 }

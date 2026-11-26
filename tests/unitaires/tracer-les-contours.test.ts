@@ -5,6 +5,7 @@ import {
   contourDeRelation,
   ENSEMBLES,
   migrationSql,
+  MOTIFS,
   requeteOverpass,
   TOLERANCE_M,
   verifierNom,
@@ -160,6 +161,25 @@ describe('les relations attendues', () => {
     expect(() => verifierNom(mauvais, ouenze)).toThrow(/arrondissement 5/);
   });
 
+  it('Hinda : un district, reconnu à son niveau et à son nom d’OpenStreetMap, pas à ceux d’une commune', () => {
+    const hinda = ENSEMBLES.hinda!;
+    expect(hinda.map((c) => [c.relation, c.chemin])).toEqual([[3223110, 'congo.kouilou.hinda']]);
+    const district = { boundary: 'administrative', admin_level: '6' };
+    expect(() =>
+      verifierNom(relation([], { ...district, name: 'Hinda' }), hinda[0]!),
+    ).not.toThrow();
+    expect(() =>
+      verifierNom(relation([], { ...district, admin_level: '5', name: 'Hinda' }), hinda[0]!),
+    ).toThrow(/niveau 5, 6 attendu/);
+    expect(() =>
+      verifierNom(relation([], { ...district, name: 'Hinda (commune)' }), hinda[0]!),
+    ).toThrow(/« Hinda » était attendu/);
+  });
+
+  it('chaque ensemble dit la décision qui l’a demandé', () => {
+    expect(Object.keys(MOTIFS).sort()).toEqual(Object.keys(ENSEMBLES).sort());
+  });
+
   it('refuse une relation qui n’est pas une limite administrative', () => {
     const commune = ENSEMBLES.brazzaville![0]!;
     expect(() =>
@@ -229,5 +249,16 @@ describe('la migration de données', () => {
   it('échoue bruyamment si une division manque : le nombre de contours posés est vérifié', () => {
     expect(sql).toMatch(/raise exception/);
     expect(sql).toMatch(/<> 2/);
+  });
+
+  it('une seule division : sa migration dit sa décision et compte un contour', () => {
+    const une = migrationSql([{ attendu: ENSEMBLES.hinda![0]!, contour }], {
+      date: '26/11/2026',
+      motif: MOTIFS.hinda,
+    });
+    expect(une).toMatch(/^-- Le contour d'une division, tiré d'OpenStreetMap \(ticket 232, /);
+    expect(une).toMatch(/where path::text = 'congo\.kouilou\.hinda'/);
+    expect(une).toMatch(/osm_relation = 3223110/);
+    expect(une).toMatch(/<> 1/);
   });
 });

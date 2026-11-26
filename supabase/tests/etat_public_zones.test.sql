@@ -40,8 +40,10 @@ select throws_ok($$update public.geo_divisions set public_status = 'complet' whe
 
 -- Les points des villes, sourcés -----------------------------------------------------------------------------------------------------
 
-select is((select count(*)::int from public.geo_divisions where position is not null and level = 2), 2,
-  'Deux villes ont un point : Pointe-Noire et Brazzaville');
+-- Pointe-Noire et Brazzaville ont reçu leur point le 03/11 ; Kintélé, Oyo, Nkayi et Hinda le 26/11 (ticket 232, leur test).
+select is((select count(*)::int from public.geo_divisions
+           where position is not null and (position_source !~ 'OpenStreetMap' or position_verified_on is null)), 0,
+  'Chaque point de ville vient d''OpenStreetMap et dit quand il a été lu');
 select ok((select position_source ~ 'OpenStreetMap' and position_verified_on = date '2026-11-03'
            from public.geo_divisions where path::text = 'congo.pointe_noire.pointe_noire'),
   'Le point de Pointe-Noire dit d''où il vient et quand');
