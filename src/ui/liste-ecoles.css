@@ -628,6 +628,10 @@ body.filtres-ouverts {
 body[data-vue='carte'] .pied {
   display: none;
 }
+/* « Remonter » n'a rien à faire sur la carte, qui ne défile pas (retours du 26/11). */
+body[data-vue='carte'] .remonter {
+  display: none;
+}
 
 @media (min-width: 48rem) {
   .cartes-liste {

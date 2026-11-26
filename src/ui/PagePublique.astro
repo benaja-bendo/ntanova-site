@@ -55,6 +55,8 @@ interface Props {
   donnees?: Record<string, unknown>;
   /** Le type Open Graph : `article` pour une page qui décrit une école, `website` sinon (l'accueil a des données, lot 1). */
   typeOg?: 'website' | 'article';
+  /** Le bouton « Remonter » des pages longues ; `false` sur un formulaire, où il couvrirait un champ ou l'envoi. */
+  remonter?: boolean;
 }
 const {
   titre,
@@ -65,6 +67,7 @@ const {
   image = { chemin: IMAGE_PARTAGE_SITE, alt: 'NTanova : les écoles près de chez vous' },
   donnees,
   typeOg = donnees ? 'article' : 'website',
+  remonter = true,
 } = Astro.props;
 // Les adresses absolues que demandent les aperçus de lien : celles de ntanova.com (`site` d'astro.config.mjs).
 const absolue = (chemin: string) => new URL(chemin, Astro.site ?? Astro.url).href;
@@ -307,10 +310,89 @@ const couleurDeLaBarre = lireJeton(jetons, 'fond-entete');
         </div>
       </div>
     </footer>
+    {/* Retours du fondateur (26/11) : sur une page longue, un bouton pour remonter. Il paraît après deux écrans et demi de
+        défilement, sans script ; « #top » ramène en haut du document, la page glisse si le téléphone l'accepte. */}
+    {remonter && (
+      <a class="remonter" href="#top">
+        <Icone nom="bas" />
+        Remonter
+      </a>
+    )}
   </body>
 </html>
 
 <style>
+  /*
+   * « Remonter » (retours du fondateur, 26/11 ; règles de Nielsen Norman Group) : un seul bouton par page, en bas à droite,
+   * l'icône avec un mot, 48 px à toucher. Il paraît une fois deux écrans et demi parcourus, donc seulement sur une page de
+   * plus de trois écrans et demi ; il ne fait pas défiler seul. Sans script : son apparition suit le défilement
+   * (`animation-timeline: scroll()`) ; un navigateur qui ne le sait pas ne le montre pas, rien d'autre ne change. Un liseré
+   * clair le détache d'une bande verte. Sous la feuille « Filtres » (z-index 50), au-dessus des cartes de la page.
+   */
+  .remonter {
+    position: fixed;
+    right: max(var(--espace-4), env(safe-area-inset-right));
+    bottom: max(var(--espace-4), env(safe-area-inset-bottom));
+    z-index: 40;
+    display: none;
+    align-items: center;
+    gap: var(--espace-1);
+    min-height: var(--cible-principale);
+    padding: 0 var(--espace-4) 0 var(--espace-3);
+    border-radius: var(--rayon-s);
+    background: var(--marque-appuyee);
+    box-shadow:
+      0 0 0 2px var(--fond-releve),
+      var(--ombre-flottante);
+    color: var(--texte-sur-marque);
+    font-family: var(--police-interface);
+    font-weight: 700;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .remonter :global(.ico) {
+    transform: rotate(180deg);
+  }
+  /* Propriétés écrites une à une : la construction réunissait `animation` et `animation-timeline` en un raccourci que les
+     navigateurs refusent (le bouton restait affiché en haut de page). */
+  @supports (animation-timeline: scroll()) {
+    .remonter {
+      display: inline-flex;
+      animation-name: remonter-paraitre;
+      animation-fill-mode: both;
+      animation-timing-function: linear;
+      animation-timeline: scroll(root);
+      animation-range: 250vh 270vh;
+    }
+  }
+  @keyframes remonter-paraitre {
+    from {
+      opacity: 0;
+      visibility: hidden;
+    }
+    to {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+  @media (hover: hover) {
+    .remonter:hover {
+      background: var(--marque);
+    }
+  }
+  .remonter:active {
+    background: var(--marque);
+  }
+  .remonter:focus-visible {
+    outline: var(--epaisseur-focus) solid var(--focus);
+    outline-offset: 3px;
+  }
+  @media print {
+    .remonter {
+      display: none;
+    }
+  }
+
   /* L'en-tête vert de toutes les pages publiques (canevas « Points de repère », 23/11) : on navigue. La bulle du pays et le
      menu s'ouvrent dessous et passent au-dessus de la page (la carte, ses commandes). */
   .entete {
