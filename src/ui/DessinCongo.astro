@@ -61,13 +61,13 @@ const demi = carte.pas / 2;
       {seul && carte.villes.map((v) => <circle class="dessin-halo" cx={v.x} cy={v.y} r="20" />)}
     </svg>
     {/* Retours du fondateur (26/11) : sur l'accueil, un cercle part de chaque ville, comme sur la planche, pour dire que
-        l'annuaire vit ; quelques battements, puis il reste posé (un mouvement de plus de 5 s doit pouvoir s'arrêter). */}
+        l'annuaire vit. Un battement régulier mais espacé : une vague d'une ville à l'autre, puis le calme. */}
     {!seul &&
       carte.villes.map((v, i) => (
         <span
           class="dessin-pouls"
           aria-hidden="true"
-          style={`left: ${v.gauche}%; top: ${v.haut}%; --retard: ${Math.min(i, 3) * 0.3}s`}
+          style={`left: ${v.gauche}%; top: ${v.haut}%; --retard: ${0.6 + Math.min(i, 5) * 0.5}s`}
         />
       ))}
     {/* L'étiquette : le nom et le nombre, sans cadre ni date (la date est dite une fois, dans la légende). */}
@@ -130,31 +130,48 @@ const demi = carte.pas / 2;
     stroke-dasharray: 2 5;
     stroke-linecap: round;
   }
-  /* Le cercle qui part d'une ville (planche « Accueil », `pouls`) : posé, il entoure le point ; au chargement il bat deux
-     fois, les villes l'une après l'autre, et s'arrête avant 5 s. Sans mouvement demandé, il reste posé. */
+  /*
+   * Le cercle d'une ville (planche « Accueil », `pouls`) : posé, il entoure le point. Fondateur, 26/11 : un battement
+   * continu, régulier et espacé, pour un côté vivant, pas pour appeler l'œil. Toutes les 8 s, une onde part de chaque ville,
+   * l'une après l'autre (une vague d'une demi-seconde par ville), dure 2 s, puis 6 s de calme. Le cercle posé (`::before`)
+   * ne bouge pas ; l'onde est un second cercle (`::after`). Opacité et échelle seulement : le navigateur l'anime sans
+   * repeindre la page. Sans mouvement demandé, aucune onde.
+   */
   .dessin-pouls {
     position: absolute;
     width: 22px;
     height: 22px;
     margin: -11px 0 0 -11px;
-    border: 2px solid var(--accent);
-    border-radius: 50%;
-    opacity: 0.55;
     pointer-events: none;
   }
+  .dessin-pouls::before,
+  .dessin-pouls::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+  }
+  .dessin-pouls::before {
+    opacity: 0.55;
+  }
+  .dessin-pouls::after {
+    opacity: 0;
+  }
   @media (prefers-reduced-motion: no-preference) {
-    .dessin-pouls {
-      animation: dessin-pouls 2s ease-out var(--retard, 0s) 2;
+    .dessin-pouls::after {
+      animation: dessin-pouls 8s ease-out var(--retard, 0s) infinite;
     }
   }
   @keyframes dessin-pouls {
     0% {
-      opacity: 0.9;
+      opacity: 1;
       transform: scale(0.6);
     }
+    25%,
     100% {
       opacity: 0;
-      transform: scale(2.2);
+      transform: scale(2.4);
     }
   }
   /* L'étiquette d'une ville : un lien de 44 px au moins, posé à côté de son point, jamais dessus. Retours du fondateur
