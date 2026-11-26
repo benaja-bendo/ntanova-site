@@ -66,6 +66,8 @@
 
 Repos, survol (`@media (hover: hover)` seulement), appui (plus sombre, 1 px de course), focus (anneau de 3 px décalé de 2), désactivé, chargement (`aria-busy`, roue, libellé « Envoi… », largeur inchangée), erreur. Mouvement : 120 ms, jamais indispensable, respecte `prefers-reduced-motion`.
 
+**Site public, lot A « Mouvement natif » (26/11)** (`public.css`, CSS seul) : tout ce qui se touche a son appui (`:active`), au doigt comme à la souris ; une carte ou une pastille pas encore choisie prend `--fond-appui` et le bord `--marque`, un bouton garde sa course d'un pixel ; là où cet appui existe, et là seulement, le reflet gris d'Android part (`-webkit-tap-highlight-color: transparent`). Sous `prefers-reduced-motion: no-preference` : défilement fluide vers les ancres, transitions de 120 ms en sortie douce (l'appui est immédiat, le retour glisse), et la section atteinte qui s'éclaire (`--repere-arrivee`, vert `--repere-arrivee-sur-marque` sur une bande verte) puis s'estompe. Chaque cible d'ancre garde une marge au-dessus (3,5 rem sous la barre des rubriques de la fiche). La barre d'Android prend `--fond-entete` (`theme-color`, lu à la construction).
+
 ### Écriture
 
 - « Congo-Brazzaville », jamais la RDC.

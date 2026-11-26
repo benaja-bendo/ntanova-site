@@ -53,6 +53,13 @@ test.describe('l’accueil', () => {
       'href',
       '/pour-les-ecoles/',
     );
+    // Lot A (26/11/2026) : sur Android, la barre du navigateur prend la couleur de l'en-tête.
+    const barre = (await page.locator('meta[name="theme-color"]').getAttribute('content'))!;
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(barre.slice(i, i + 2), 16));
+    await expect(page.locator('header.entete')).toHaveCSS(
+      'background-color',
+      `rgb(${r}, ${g}, ${b})`,
+    );
   });
 
   test('« Quoi ? » seul : la liste cherche le mot, et le parent arrive sur la fiche', async ({

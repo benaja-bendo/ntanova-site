@@ -18,6 +18,8 @@
   text-align: center;
   text-decoration: none;
   cursor: pointer;
+  /* L'appui (`:active`) remplace le reflet gris d'Android (lot A, 26/11). */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Le survol n'existe qu'avec une souris (v2, 12/11) : au doigt, l'appui seul répond, d'un pixel de course. */
@@ -317,12 +319,23 @@ textarea.champ {
   font-size: var(--taille-secondaire);
   font-weight: 700;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .pastille-choix[aria-pressed='true'] {
   border-color: var(--marque);
   background: var(--vert-pale);
   color: var(--marque-appuyee);
+}
+
+/* L'appui (lot A, 26/11) : un pixel de course ; une pastille pas encore choisie prend le fond pâle sous le doigt, une pastille
+   choisie garde ses couleurs (son texte crème ne se lirait pas sur le pâle). */
+.pastille-choix:active {
+  transform: translateY(1px);
+}
+.pastille-choix:not([aria-pressed='true']):active {
+  border-color: var(--marque);
+  background: var(--fond-appui);
 }
 
 .case {

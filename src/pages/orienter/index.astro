@@ -400,6 +400,7 @@ const colonnes = [QUESTIONS.slice(0, moitie), QUESTIONS.slice(moitie)];
     background: var(--fond-releve);
     color: var(--texte);
     text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .situation-texte {
     display: flex;
@@ -444,6 +445,11 @@ const colonnes = [QUESTIONS.slice(0, moitie), QUESTIONS.slice(moitie)];
       text-decoration: underline;
       text-underline-offset: 3px;
     }
+  }
+  /* L'appui, au doigt comme à la souris (lot A, 26/11). */
+  .situation:active {
+    border-color: var(--marque);
+    background: var(--fond-appui);
   }
 
   /* Les activités : le texte sur le vert, l'outil dans sa carte blanche. */

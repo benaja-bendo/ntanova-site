@@ -18,6 +18,7 @@ import './jetons.css';
 import './base.css';
 import './composants.css';
 import './public.css';
+import jetons from './jetons.css?raw';
 import Icone from './Icone.astro';
 import Marque from './Marque.astro';
 import { ICONES_SITE } from '../modele/icones';
@@ -30,6 +31,7 @@ import {
   LIEN_METHODE,
   PAGES_DE_TRANSPARENCE,
 } from '../modele/pages-de-confiance';
+import { lireJeton } from '../modele/carte/jetons';
 import { jourDuCongo } from '../modele/date-declaration';
 import { dateCourte } from '../modele/pointe-noire';
 import { porte } from '../modele/liens-demandes';
@@ -98,6 +100,9 @@ const ajouter = porte(
   '/pour-les-ecoles/#referencer',
 );
 const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === href)!.texte;
+// Lot A (26/11/2026) : sur Android, la barre du navigateur prend la couleur de l'en-tête, lue dans les jetons à la construction.
+// Le site n'a qu'un thème, clair ; l'en-tête est vert dans les deux réglages du téléphone : une seule valeur.
+const couleurDeLaBarre = lireJeton(jetons, 'fond-entete');
 ---
 
 <!doctype html>
@@ -105,6 +110,7 @@ const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === hr
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content={couleurDeLaBarre} />
     <title>{titre}</title>
     <meta name="description" content={description} />
     {renvoi && (
@@ -310,7 +316,7 @@ const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === hr
   .entete {
     position: relative;
     z-index: 30;
-    background: var(--marque-appuyee);
+    background: var(--fond-entete);
     color: var(--texte-sur-marque);
   }
   .entete-cadre {
@@ -471,6 +477,11 @@ const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === hr
     font-weight: 700;
     list-style: none;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* L'appui (lot A, 26/11) : le bouton s'éclaircit d'un vert, la crème reste lisible (7,2:1). */
+  .menu-bouton:active {
+    background: var(--marque);
   }
   .menu-ouvrir,
   .menu-fermer {
@@ -511,9 +522,14 @@ const pageDe = (href: string) => PAGES_DE_TRANSPARENCE.find((p) => p.href === hr
     font-size: 1.125rem;
     font-weight: 700;
     text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .menu-entrees a[aria-current='page'] {
     color: var(--accent);
+  }
+  .menu-entrees a:active {
+    text-decoration: underline;
+    text-underline-offset: 4px;
   }
   .menu-pays {
     margin: 0;

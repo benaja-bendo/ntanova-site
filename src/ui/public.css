@@ -1,5 +1,52 @@
 /* Les classes communes aux pages publiques (sans JavaScript). Jetons seulement. */
 
+/*
+ * Lot A « Mouvement natif » (26/11/2026, ticket 230) : du CSS seul, aucun script. Tout mouvement attend que le téléphone
+ * n'ait pas demandé moins d'animations ; 120 ms, sortie douce ; aucun ne retarde une lecture ni une action.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  /* Une ancre glisse jusqu'à sa section au lieu d'y sauter. Les scripts publics ne font défiler que leurs propres boîtes. */
+  html {
+    scroll-behavior: smooth;
+  }
+  /* Un changement d'état (appui, choix, survol) s'adoucit. L'appui est immédiat ; c'est le retour qui glisse. */
+  :where(a[href], button, summary, label) {
+    transition:
+      background-color var(--duree) ease-out,
+      border-color var(--duree) ease-out,
+      color var(--duree) ease-out,
+      box-shadow var(--duree) ease-out,
+      transform var(--duree) ease-out;
+  }
+  :where(a[href], button, summary, label):active {
+    transition-duration: 0s;
+  }
+  /* La section atteinte s'éclaire, puis s'estompe : l'œil sait où il est arrivé. L'éclairage commence au toucher et tient
+     1,7 s, le temps du plus long glissé mesuré (1,5 s à 360 px, 12 écrans plus bas), puis s'estompe en 1,1 s. */
+  :target {
+    animation: repere-arrivee 2.8s ease-out;
+  }
+}
+@keyframes repere-arrivee {
+  0%,
+  60% {
+    background-color: var(--repere-arrivee);
+  }
+}
+
+/* Le titre atteint ne colle pas au bord de l'écran. La fiche garde 3,5 rem sous sa barre collante (`FicheEcole.astro`). */
+main [id] {
+  scroll-margin-top: var(--espace-4);
+}
+
+/*
+ * Au doigt, un double toucher sur une commande n'agrandit pas la page : le toucher part tout de suite. Le pincement reste.
+ * Le reflet gris d'Android, lui, ne part que là où un appui (`:active`) le remplace, dans chaque composant.
+ */
+:where(a[href], button, summary, label) {
+  touch-action: manipulation;
+}
+
 .surtitre-public {
   margin: 0;
   color: var(--erreur);
@@ -78,13 +125,20 @@
   font-weight: 700;
 }
 
-/* Deux classes : depuis la refonte (15/11), cette feuille peut se charger avant celle de `.bouton`, qui l'emportait. */
+/* Deux classes : depuis la refonte (15/11), cette feuille peut se charger avant celle de `.bouton`, qui l'emportait. Le survol
+   n'existe qu'à la souris (lot A, 26/11) : au doigt, il restait collé ; l'appui garde la course d'un pixel de `.bouton`. */
 .bouton.bouton-accent,
-.bouton.bouton-accent:hover,
 .bouton.bouton-accent:active {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--texte);
+}
+@media (hover: hover) {
+  .bouton.bouton-accent:hover {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--texte);
+  }
 }
 
 /* Ce qui manque encore à une fiche : des pastilles en pointillés. */

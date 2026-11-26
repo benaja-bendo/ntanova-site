@@ -257,6 +257,14 @@ const signaler = porte(
       text-decoration: underline;
     }
   }
+  /* L'appui, au doigt comme à la souris (lot A, 26/11). */
+  .ville-lien {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ville-lien:active b {
+    color: var(--marque-appuyee);
+    text-decoration: underline;
+  }
   .ville-dep {
     margin: 0;
     color: var(--texte-doux);

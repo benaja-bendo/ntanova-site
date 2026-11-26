@@ -201,9 +201,17 @@ const carte = lienCarteDuLieu({
     background: var(--fond-releve);
     color: var(--texte);
     text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
   }
-  .zone:hover {
+  /* Le survol seulement à la souris : au doigt, il restait collé ; l'appui répond à tous (lot A, 26/11). */
+  @media (hover: hover) {
+    .zone:hover {
+      border-color: var(--marque);
+    }
+  }
+  .zone:active {
     border-color: var(--marque);
+    background: var(--fond-appui);
   }
   .zone-nom {
     font-family: var(--police-titre);

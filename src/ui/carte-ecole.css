@@ -94,6 +94,7 @@
   background: var(--fond-releve);
   color: var(--texte);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .carte-ecole-colonne {
   flex-direction: column;
@@ -125,6 +126,11 @@
   .carte-ecole:hover {
     border-color: var(--marque);
   }
+}
+/* Au doigt, la carte répond tout de suite (lot A, 26/11) : en 3G, la fiche peut mettre un moment à venir. */
+.carte-ecole:active {
+  border-color: var(--marque);
+  background: var(--fond-appui);
 }
 .carte-ecole-nom {
   font-family: var(--police-titre);

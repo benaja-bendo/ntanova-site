@@ -16,6 +16,7 @@ import { villesDeLAccueil } from '../../modele/accueil';
 import { compterEcoles } from '../../modele/geo-divisions';
 import {
   compterLesEcoles,
+  ecolesAffichees,
   etatVide,
   filtrer,
   groupesAffiches,
@@ -235,7 +236,7 @@ const villesDuPied = villesDeLAccueil(site.arbre);
           Afficher {Math.min(trouvees.length - PAR_PAGE, PAR_PAGE)} de plus
         </button>
         <p class="texte-doux liste-affiche" data-affiche>
-          {premieres.length} sur {trouvees.length} écoles affichées
+          {ecolesAffichees(premieres.length, trouvees.length)}
         </p>
         <noscript>
           <p class="liste-sans-js">

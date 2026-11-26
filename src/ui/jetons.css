@@ -88,6 +88,15 @@
   --focus: var(--vert-profond);
   --focus-sur-marque: var(--jaune); /* 6,2:1 sur le vert profond */
   --erreur: var(--rouge-texte);
+  /*
+   * Lot A « Mouvement natif » (26/11/2026, ticket 230) : l'en-tête public et la barre du navigateur (`theme-color`, lue à la
+   * construction), le fond d'une carte ou d'une pastille sous le doigt, la section atteinte par une ancre qui s'éclaire un
+   * instant (sur une bande vert profond, elle s'éclaircit en vert).
+   */
+  --fond-entete: var(--marque-appuyee);
+  --fond-appui: var(--vert-pale); /* encre 12,8:1, encre-75 5,9:1, vert 6,2:1 */
+  --repere-arrivee: var(--jaune-pale); /* encre 14,1:1, encre-75 6,5:1 */
+  --repere-arrivee-sur-marque: var(--vert); /* crème 7,2:1, vert pâle 6,2:1 */
 
   /* Les statuts doux (v2) : des alias, aucune valeur nouvelle. Vert, jaune, rouge gardent le même sens partout. */
   --statut-succes-fond: var(--vert-pale);
@@ -281,9 +290,10 @@
   --epaisseur-focus: 3px;
 }
 
-/* Sur une surface verte, le focus passe au jaune (v2). */
+/* Sur une surface verte, le focus passe au jaune (v2), et la section atteinte s'éclaircit en vert (lot A, 26/11). */
 .admin-cote,
 .bandeau-prive,
 .sur-marque {
   --focus: var(--focus-sur-marque);
+  --repere-arrivee: var(--repere-arrivee-sur-marque);
 }

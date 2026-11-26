@@ -14,6 +14,7 @@ import { htmlFiltres } from '../../modele/filtres-html';
 import type { Point } from '../../modele/geo';
 import {
   compterLesEcoles,
+  ecolesAffichees,
   ecrireEtat,
   filtrer,
   groupesAffiches,
@@ -95,7 +96,7 @@ export function demarrerListe(racine: HTMLElement): void {
     plus.hidden = reste <= 0;
     plus.textContent = `Afficher ${Math.min(reste, PAR_PAGE)} de plus`;
     affiche.hidden = trouvees.length === 0;
-    affiche.textContent = `${visibles.length} sur ${compterLesEcoles(trouvees.length).replace(' écoles', '')} écoles affichées`;
+    affiche.textContent = ecolesAffichees(visibles.length, trouvees.length);
     titre.textContent = titreDeLaListe(etat, tout);
     const confirmees = trouvees.filter((t) => t.ligne.v).length;
     sousTitre.textContent = [

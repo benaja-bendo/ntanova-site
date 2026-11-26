@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   ECRITURES_DU_PAYS,
+  ecolesAffichees,
   ecrireEtat,
   etatVide,
   filtrer,
@@ -166,6 +167,13 @@ describe('les mots de la page', () => {
       'Lycées et supérieur',
     );
     expect(titreDeLaListe(etatVide(), LIGNES)).toBe('Les écoles');
+  });
+
+  // Lot A (26/11/2026) : « 1 sur 1 école écoles affichées » quand la liste ne trouvait qu'une école.
+  it('la ligne sous la liste s’accorde au nombre d’écoles trouvées', () => {
+    expect(ecolesAffichees(1, 1)).toBe('1 sur 1 école affichée');
+    expect(ecolesAffichees(20, 35)).toBe('20 sur 35 écoles affichées');
+    expect(ecolesAffichees(20, 1234)).toBe('20 sur 1\u202f234 écoles affichées');
   });
 
   it('un résultat vide propose des sorties, la plus utile d’abord', () => {

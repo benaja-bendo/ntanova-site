@@ -94,10 +94,16 @@
   color: var(--marque);
   font-weight: 700;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .liste-vue[aria-pressed='true'] {
   background: var(--marque);
   color: var(--texte-sur-marque);
+}
+/* L'appui (lot A, 26/11) : la vue pas encore choisie prend le fond pâle sous le doigt. */
+.liste-vue:not([aria-pressed='true']):active {
+  background: var(--fond-appui);
+  color: var(--marque-appuyee);
 }
 
 /* La barre : « Filtres », les choix faits, puis les villes et les niveaux pour aller vite. Elle défile au doigt. */
@@ -279,6 +285,11 @@
   color: var(--texte);
   font-size: 1.5rem;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.filtres-fermer:active {
+  border-color: var(--marque);
+  background: var(--fond-appui);
 }
 .filtres-corps {
   flex: 1;

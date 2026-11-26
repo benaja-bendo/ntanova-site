@@ -146,4 +146,12 @@ const titre = (s: EcolePubliee) => s.etiquette ?? etendueDesNiveaux(s.niveaux) ?
       text-decoration: underline;
     }
   }
+  /* L'appui, au doigt comme à la souris (lot A, 26/11) ; le site où l'on est n'est pas un lien. */
+  a.site {
+    -webkit-tap-highlight-color: transparent;
+  }
+  a.site:active {
+    border-color: var(--marque);
+    background: var(--fond-appui);
+  }
 </style>

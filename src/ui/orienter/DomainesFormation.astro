@@ -55,6 +55,9 @@ const { groupes } = Astro.props;
     color: var(--texte);
     text-decoration: none;
   }
+  a.domaine {
+    -webkit-tap-highlight-color: transparent;
+  }
   .domaine img {
     display: block;
     width: 100%;
@@ -99,6 +102,11 @@ const { groupes } = Astro.props;
       text-decoration: underline;
       text-underline-offset: 3px;
     }
+  }
+  /* L'appui, au doigt comme à la souris (lot A, 26/11) ; un domaine sans école n'est pas un lien. */
+  a.domaine:active {
+    border-color: var(--marque);
+    background: var(--fond-appui);
   }
   @media (min-width: 48rem) {
     .domaines {

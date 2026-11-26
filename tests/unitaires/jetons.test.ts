@@ -38,13 +38,23 @@ describe('le fond et les filets', () => {
     expect(contraste(jeton('trait-fort'), jeton('fond-releve'))).toBeGreaterThanOrEqual(7);
   });
 
-  it('les textes restent lisibles sur le fond et sur la bande', () => {
-    for (const fond of ['fond', 'fond-bande', 'fond-releve']) {
+  // Lot A (26/11/2026) : aussi sous le doigt (`fond-appui`) et sur la section atteinte par une ancre (`repere-arrivee`).
+  it('les textes restent lisibles sur le fond, sur la bande, sous le doigt et à l’arrivée d’une ancre', () => {
+    for (const fond of ['fond', 'fond-bande', 'fond-releve', 'fond-appui', 'repere-arrivee']) {
       expect(contraste(jeton('texte'), jeton(fond))).toBeGreaterThanOrEqual(7);
       expect(contraste(jeton('texte-doux'), jeton(fond))).toBeGreaterThanOrEqual(4.5);
       expect(contraste(jeton('marque'), jeton(fond))).toBeGreaterThanOrEqual(4.5);
       expect(contraste(jeton('erreur'), jeton(fond))).toBeGreaterThanOrEqual(4.5);
     }
+  });
+});
+
+describe('le vert de l’en-tête et des bandes', () => {
+  it('la crème se lit sur l’en-tête et sur une bande verte qui s’éclaircit à l’arrivée d’une ancre', () => {
+    expect(contraste(jeton('texte-sur-marque'), jeton('fond-entete'))).toBeGreaterThanOrEqual(7);
+    expect(
+      contraste(jeton('texte-sur-marque'), jeton('repere-arrivee-sur-marque')),
+    ).toBeGreaterThanOrEqual(7);
   });
 });
 
