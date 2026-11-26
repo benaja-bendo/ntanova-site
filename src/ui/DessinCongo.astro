@@ -149,6 +149,16 @@ const demi = carte.pas / 2;
       text-decoration: underline;
     }
   }
+  /* L'appui (lot A, 26/11) : l'étiquette s'éclaircit d'un vert, la crème reste lisible (7,2:1). */
+  .dessin-ville {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dessin-ville:active {
+    background: var(--marque);
+  }
+  .dessin-ville:active b {
+    text-decoration: underline;
+  }
   .dessin-ville:focus-visible {
     outline: var(--epaisseur-focus) solid var(--focus);
     outline-offset: 2px;

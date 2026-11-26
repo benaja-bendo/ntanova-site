@@ -355,6 +355,7 @@
   min-height: var(--cible-min);
   height: 100%;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .cf-carte-lien b {
   color: var(--texte);
@@ -374,4 +375,9 @@
   .cf-carte-lien:hover b {
     text-decoration: underline;
   }
+}
+/* L'appui, au doigt comme à la souris (lot A, 26/11). */
+.cf-carte-lien:active {
+  border-color: var(--marque);
+  background: var(--fond-appui);
 }

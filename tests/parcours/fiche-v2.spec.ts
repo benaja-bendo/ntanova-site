@@ -59,6 +59,16 @@ test('une fiche complète : logo, couverture, ligne d’identité, rubriques en 
   for (const a of await rubriques.all()) {
     const cible = (await a.getAttribute('href'))!.slice(1);
     await expect(page.locator(`#${cible}`)).toHaveCount(1);
+    // Lot A (26/11/2026) : la rubrique atteinte s'arrête sous la barre collante, jamais dessous (Formations, Photos, Frais
+    // et Nouvelles y passaient). Le toucher part de la page, pour mesurer à la fin du défilement, glissé ou non.
+    const ecart = await a.evaluate(async (lien) => {
+      const fin = new Promise((fini) => addEventListener('scrollend', fini, { once: true }));
+      (lien as HTMLAnchorElement).click();
+      await fin;
+      const haut = document.getElementById(lien.getAttribute('href')!.slice(1))!;
+      return haut.getBoundingClientRect().top - lien.closest('nav')!.getBoundingClientRect().bottom;
+    });
+    expect(ecart, cible).toBeGreaterThanOrEqual(0);
   }
   const frais = page.getByRole('region', { name: 'Frais déclarés par l’école' });
   await expect(frais.getByRole('listitem').first()).toContainText('Maternelle');

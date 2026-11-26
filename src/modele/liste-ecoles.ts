@@ -538,6 +538,13 @@ export const compterLesEcoles = (n: number): string =>
   n === 0 ? 'Aucune école' : n === 1 ? '1 école' : `${n.toLocaleString('fr-FR')} écoles`;
 
 /**
+ * La ligne sous la liste, accordée au total : « 20 sur 35 écoles affichées », « 1 sur 1 école affichée ». Une seule écriture
+ * pour la page construite et le script (lot A, 26/11/2026 : le script écrivait « 1 sur 1 école écoles affichées »).
+ */
+export const ecolesAffichees = (montrees: number, total: number): string =>
+  `${montrees.toLocaleString('fr-FR')} sur ${total.toLocaleString('fr-FR')} ${total > 1 ? 'écoles affichées' : 'école affichée'}`;
+
+/**
  * Les sorties d'un résultat vide : retirer un choix, chacune avec ce qu'elle débloque, la plus utile d'abord (planche
  * « 0 résultat »). Le texte cherché compte comme un choix.
  */

@@ -923,7 +923,9 @@ const joursRestants = (n: number) =>
   .o-13 {
     order: 13;
   }
-  [id] {
+  /* Une rubrique atteinte s'arrête sous la barre collante, y compris celles des blocs inclus (Formations, Frais, Admission,
+     Photos, Nouvelles : lot A, 26/11, elles passaient dessous). */
+  .fiche :global([id]) {
     scroll-margin-top: 3.5rem;
   }
 
@@ -1010,6 +1012,7 @@ const joursRestants = (n: number) =>
     font-weight: 700;
     text-decoration: none;
     white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
   }
   /* La première rubrique est soulignée, comme sur la planche. */
   .rubriques a:first-child {
@@ -1020,6 +1023,10 @@ const joursRestants = (n: number) =>
     .rubriques a:hover {
       color: var(--marque);
     }
+  }
+  .rubriques a:active {
+    color: var(--marque-appuyee);
+    box-shadow: inset 0 -3px 0 var(--marque-appuyee);
   }
   .dossiers-ouverts {
     display: grid;

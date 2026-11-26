@@ -287,10 +287,18 @@
   text-align: left;
   text-decoration: none;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.ligne-ecole:hover {
+/* Le survol seulement à la souris : au doigt, il restait collé ; l'appui répond à tous (lot A, 26/11). */
+@media (hover: hover) {
+  .ligne-ecole:hover {
+    border-color: var(--marque);
+    background: var(--fond-appui);
+  }
+}
+.ligne-ecole:active {
   border-color: var(--marque);
-  background: var(--vert-pale);
+  background: var(--fond-appui);
 }
 .ligne-corps {
   display: flex;

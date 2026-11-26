@@ -58,9 +58,19 @@ const { liste, carte, actuelle } = Astro.props;
     font-weight: 700;
     text-decoration: none;
   }
-  a.bascule-choix:hover {
-    color: var(--marque);
-    text-decoration: underline;
+  /* Le survol seulement à la souris : au doigt, il restait collé ; l'appui répond à tous (lot A, 26/11). */
+  a.bascule-choix {
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (hover: hover) {
+    a.bascule-choix:hover {
+      color: var(--marque);
+      text-decoration: underline;
+    }
+  }
+  a.bascule-choix:active {
+    background: var(--fond-appui);
+    color: var(--marque-appuyee);
   }
   .bascule-choix[aria-current='page'] {
     background: var(--marque);

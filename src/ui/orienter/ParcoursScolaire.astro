@@ -303,6 +303,19 @@ const SOURCES = [
       text-underline-offset: 3px;
     }
   }
+  /* L'appui, au doigt comme à la souris (lot A, 26/11) : le niveau garde la couleur de sa voie. */
+  a.noeud[href],
+  a.voie {
+    -webkit-tap-highlight-color: transparent;
+  }
+  a.noeud[href]:active {
+    background: var(--fond-appui);
+  }
+  a.noeud[href]:active b,
+  a.voie:active {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
   .noeud-technique {
     border-color: var(--bleu-ardoise);
   }

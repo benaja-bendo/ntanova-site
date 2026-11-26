@@ -671,6 +671,7 @@ const donnees = {
     background: var(--fond-releve);
     color: var(--texte);
     text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .exemple img {
     display: block;
@@ -706,6 +707,13 @@ const donnees = {
       text-decoration: underline;
     }
   }
+  /* L'appui, au doigt comme à la souris (lot A, 26/11) : les cartes de l'accueil répondent tout de suite. */
+  .exemple:active,
+  .profil:active,
+  .ville:active {
+    border-color: var(--marque);
+    background: var(--fond-appui);
+  }
 
   /* S'orienter : cinq situations, chacune une ligne de la liste qu'elle ouvre. */
   .orienter-grille {
@@ -734,6 +742,7 @@ const donnees = {
     background: var(--fond-releve);
     color: var(--texte);
     text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .profil-texte {
     display: grid;
@@ -831,6 +840,7 @@ const donnees = {
     background: var(--fond-releve);
     color: var(--texte);
     text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .ville img,
   .ville-sans-dessin {
