@@ -62,6 +62,19 @@
 - Une donnée, une icône, toujours la même. Toujours avec un mot ; seule exception : fermer, chercher, revenir, agrandir, avec un nom accessible.
 - Pas d'emoji. Sur la carte publique, les lettres de cycle seules (08/11).
 
+### Le rond d'une école (fondateur, 27/11 ; remplace la règle du 12/11)
+
+`src/modele/rond-ecole.ts` décide, `src/ui/rond-ecole.css` dessine (chaque page règle `--diametre`), partout où le rond paraît : cartes de la liste, de la carte, de l'accueil et d'« Écoles proches », fiche, et la fiche d'administration, qui dit ce que la page montre sans logo.
+
+| L'école | Le rond |
+| --- | --- |
+| un logo public | le logo, inchangé |
+| un sigle, sans logo | rond vert profond, le dessin d'école au-dessus du sigle ; sur un petit rond, un sigle long laisse la place au dessin seul |
+| ni logo ni sigle | la couleur du plus haut cycle, le dessin à la place de la lettre |
+| aucun cycle connu | disque gris, le dessin |
+
+Le dessin est l'icône « school » de Tabler (contour, MIT), copiée dans `src/modele/carte/icones.ts` (`ecoleToque`). Jamais le logo de NTanova. Ce rond ne vaut pas un logo : la jauge de la fiche le réclame toujours. Les disques de cycle (lignes d'une ville, épingles de la carte) gardent leurs lettres : ils disent un cycle, pas une école.
+
 ### États (tout élément interactif)
 
 Repos, survol (`@media (hover: hover)` seulement), appui (plus sombre, 1 px de course), focus (anneau de 3 px décalé de 2), désactivé, chargement (`aria-busy`, roue, libellé « Envoi… », largeur inchangée), erreur. Mouvement : 120 ms, jamais indispensable, respecte `prefers-reduced-motion`.

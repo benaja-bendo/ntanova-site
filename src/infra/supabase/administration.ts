@@ -12,6 +12,7 @@ import type { AgrementEnregistre } from '../../modele/agrement';
 import type { MotDirection } from '../../modele/mot-direction';
 import { lireVueEnsemble } from '../../modele/vue-ensemble';
 import { lireEtatPhotoPublique, ROLES_PUBLIABLES } from '../../modele/photos-publiques';
+import { CLES_A_GARDER } from '../../modele/comparaison-fiche';
 import type {
   AdmissionASaisir,
   GenrePreuve,
@@ -83,6 +84,9 @@ const versProgramme = (f: Omit<FormationSaisie, 'cycle'> & { cycle?: string }) =
 const versCorrections = (c: CorrectionEcole) => ({
   ...(c.nom !== undefined ? { sign_name: c.nom } : {}),
   ...(c.sigle !== undefined ? { acronym: c.sigle } : {}),
+  // Ticket 236 : l'année complète l'école ; l'e-mail devient un contact privé du site.
+  ...(c.anneeCreation !== undefined ? { founded_year: c.anneeCreation } : {}),
+  ...(c.email ? { sign_email: c.email } : {}),
   ...(c.typeEcole !== undefined ? { school_kind: c.typeEcole } : {}),
   ...(c.niveaux !== undefined ? { levels: c.niveaux } : {}),
   ...(c.programme !== undefined ? { curriculum_note: c.programme } : {}),
@@ -92,12 +96,13 @@ const versCorrections = (c: CorrectionEcole) => ({
 
 const lireCorrections = (c: Record<string, unknown>): CorrectionEcole => ({
   ...(typeof c.sign_name === 'string' ? { nom: c.sign_name } : {}),
-  ...(typeof c.acronym === 'string' ? { sigle: c.acronym } : {}),
+  ...('acronym' in c ? { sigle: c.acronym as string | null } : {}),
   ...(typeof c.school_kind === 'string' ? { typeEcole: typeConnu(c.school_kind) } : {}),
   ...(Array.isArray(c.levels) ? { niveaux: niveauxConnus(c.levels) } : {}),
   ...('curriculum_note' in c ? { programme: c.curriculum_note as string | null } : {}),
   ...('landmark' in c ? { repere: c.landmark as string | null } : {}),
   ...('sign_phone' in c ? { numeroEnseigne: c.sign_phone as string | null } : {}),
+  ...(typeof c.founded_year === 'number' ? { anneeCreation: c.founded_year } : {}),
 });
 
 /** Une école à créer, dans la forme que lit la base (`create_catalog_entry`). */
@@ -571,6 +576,8 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
             }
           : null,
         relaisId: r.relay_id,
+        // Ticket 236 : l'école que la fiche corrigée a créée ou complétée ; la correction la met à jour.
+        campusCorrige: r.kind === 'correction' ? (origine?.campusId ?? null) : null,
         recuLe: r.received_at,
         prisLe: r.taken_at,
         type: r.kind,
@@ -790,9 +797,10 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         submission_id: string | null;
         submission_taken_at: string | null;
         relay_first_name: string | null;
-        kind?: 'personne' | 'numero_ecole';
+        kind?: 'personne' | 'numero_ecole' | 'email_ecole';
         read_on?: LuSur | null;
         illegible?: boolean;
+        email?: string | null;
       }>(await supabase().rpc('contacts_of_campus', { p_campus: ecoleId }));
       return lignes.map((c) => ({
         id: c.id,
@@ -811,7 +819,20 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         genre: c.kind ?? 'personne',
         luSur: c.read_on ?? null,
         illisible: c.illegible ?? false,
+        // Ticket 236 : seul le contact « e-mail de l'école » en porte un.
+        ...(c.email ? { email: c.email } : {}),
       }));
+    },
+
+    // Ticket 236.
+    async ajouterEmailEcole(ecoleId, email, luSur) {
+      const { data, error } = await supabase().rpc('add_school_email', {
+        p_campus: ecoleId,
+        p_email: email,
+        p_read_on: luSur,
+      });
+      decider(error);
+      return data as string;
     },
 
     // Ticket 205 (A8, A19).
@@ -871,7 +892,12 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
     },
 
     async accepter(id, decision: DecisionAcceptation = {}) {
-      const corrections = versCorrections(decision.corrections ?? {});
+      // Ticket 236 : les valeurs actuelles à garder partent avec les corrections (`keep`).
+      const garder = (decision.garder ?? []).map((champ) => CLES_A_GARDER[champ]);
+      const corrections = {
+        ...versCorrections(decision.corrections ?? {}),
+        ...(garder.length > 0 ? { keep: garder } : {}),
+      };
       const avecCorrections = Object.keys(corrections).length > 0;
       const position = decision.position ?? null;
       const faits = decision.faits ?? [];
@@ -1618,7 +1644,9 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       const institution = (c as { institution_id: string } | null)?.institution_id;
       const { data, error } = await supabase()
         .from('campus_media')
-        .select('id, kind, subject, caption, storage_path, thumb_path, child_free_checked_at, is_public, source, source_note')
+        .select(
+          'id, kind, subject, caption, storage_path, thumb_path, child_free_checked_at, is_public, source, source_note, source_photo_id',
+        )
         .or(`campus_id.eq.${ecoleId}${institution ? `,institution_id.eq.${institution}` : ''}`)
         .order('kind')
         .order('sort_order');
@@ -1634,6 +1662,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         is_public: boolean;
         source: MediaAdmin['source'];
         source_note?: string | null;
+        source_photo_id?: string | null;
       }[];
       const chemins = lignes.map((l) => l.thumb_path ?? l.storage_path);
       const { data: urls } = chemins.length
@@ -1650,6 +1679,7 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         publique: l.is_public,
         source: l.source,
         origine: l.source_note ?? null,
+        photoDuReleve: l.source_photo_id ?? null,
       }));
     },
 
@@ -1805,19 +1835,49 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
       return typeof data === 'string' ? data : '';
     },
 
-    async publierEcole(ecoleId) {
-      const { error } = await supabase().rpc('publish_campus', { p_campus: ecoleId });
+    // Ticket 236 : le refus et les mots de la direction, lus avant de publier.
+    async alertesDePublication(ecoleIds) {
+      if (ecoleIds.length === 0) return [];
+      const lignes = lireListe<{
+        campus_id: string;
+        submission_id: string;
+        taken_at: string;
+        refused: boolean;
+        word: string | null;
+        relay_first_name: string | null;
+      }>(await supabase().rpc('publication_warnings', { p_campuses: ecoleIds }));
+      return lignes.map((l) => ({
+        ecoleId: l.campus_id,
+        releveId: l.submission_id,
+        releveLe: l.taken_at,
+        refus: l.refused,
+        mot: l.word,
+        relais: l.relay_first_name,
+      }));
+    },
+
+    async publierEcole(ecoleId, options) {
+      const { error } = await supabase().rpc('publish_campus', {
+        p_campus: ecoleId,
+        ...(options?.malgreLeRefus ? { p_despite_refusal: true } : {}),
+      });
       decider(error);
     },
 
-    async publierDivision(divisionId) {
-      const { data, error } = await supabase().rpc('publish_division', { p_division: divisionId });
+    async publierDivision(divisionId, malgreLeRefus = []) {
+      const { data, error } = await supabase().rpc('publish_division', {
+        p_division: divisionId,
+        ...(malgreLeRefus.length > 0 ? { p_despite_refusal: malgreLeRefus } : {}),
+      });
       decider(error);
       return Number(data ?? 0);
     },
 
-    async publierLot(lotId) {
-      const { data, error } = await supabase().rpc('publish_batch', { p_batch: lotId });
+    async publierLot(lotId, malgreLeRefus = []) {
+      const { data, error } = await supabase().rpc('publish_batch', {
+        p_batch: lotId,
+        ...(malgreLeRefus.length > 0 ? { p_despite_refusal: malgreLeRefus } : {}),
+      });
       decider(error);
       return Number(data ?? 0);
     },
@@ -1900,6 +1960,11 @@ export function creerPortAdministration(supabase: () => SupabaseClient): PortAdm
         p_proof_photo: frais.photoPreuve ?? null,
         // Lot 2 (15/11) : toujours envoyés ; sinon une modification les effacerait.
         p_billed_months: frais.periode === 'mois' ? (frais.moisFactures ?? null) : null,
+        // Ticket 236 : envoyés quand ils sont dits ; absents, la base les laisse vides (ses valeurs par défaut).
+        ...(frais.reinscription != null ? { p_re_registration: frais.reinscription } : {}),
+        ...(frais.cantine != null
+          ? { p_canteen: frais.cantine, p_canteen_period: frais.periodeCantine ?? null }
+          : {}),
       });
       decider(error);
       return data as string;

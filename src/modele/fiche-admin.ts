@@ -88,6 +88,8 @@ export interface MediaAdmin {
   source: Valeur<'media_source'>;
   /** Ticket 205 (A34) : d'où vient l'image (un lien, la page Facebook…), privé ; nul : pas dit. */
   origine?: string | null;
+  /** Ticket 236 : la photo d'un relevé que l'image reprend telle quelle ; nul pour un fichier ajouté. */
+  photoDuReleve?: string | null;
 }
 
 /** Ce que l'administration envoie pour une image : déjà réduite dans le navigateur, avec sa miniature. */

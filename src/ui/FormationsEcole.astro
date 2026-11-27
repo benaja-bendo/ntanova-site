@@ -17,7 +17,7 @@ import {
 } from '../modele/presentation-fiche';
 import { NIVEAUX_AVEC_FORMATIONS } from '../modele/fiche';
 import { lienWhatsApp } from '../modele/whatsapp';
-import { francsCFA, montantFrais } from '../modele/frais-ecole';
+import { francsCFA, montantCantine, montantFrais } from '../modele/frais-ecole';
 import { periodeCourte } from '../modele/presentation-fiche';
 import Icone from './Icone.astro';
 import LigneAgrement from './LigneAgrement.astro';
@@ -141,6 +141,12 @@ const serieDansLeTitre = (f: FormationPublique) =>
                             : null,
                           fraisDe(f)?.inscription != null
                             ? `inscription ${francsCFA(fraisDe(f)!.inscription!)}`
+                            : null,
+                          fraisDe(f)?.reinscription != null
+                            ? `réinscription ${francsCFA(fraisDe(f)!.reinscription!)}`
+                            : null,
+                          fraisDe(f) && montantCantine(fraisDe(f)!)
+                            ? `cantine ${montantCantine(fraisDe(f)!)}`
                             : null,
                           f.delivrePar ? `diplôme délivré par ${f.delivrePar}` : null,
                         ]

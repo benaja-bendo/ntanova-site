@@ -2,6 +2,7 @@
  * La carte d'une école et sa vignette (lot 4 et lot 4 bis, 16/11/2026) : une seule feuille, globale, parce que le même HTML
  * est posé à la construction (`CarteEcole.astro`) et dans le navigateur (`modele/carte-ecole.ts`). Couleurs : jetons seulement.
  */
+@import './rond-ecole.css';
 /* La vignette adaptée choisit sa source ; c'est l'image qui se place dans la carte. */
 .carte-ecole picture {
   display: contents;
@@ -24,40 +25,34 @@
   align-items: center;
   justify-content: center;
 }
-/* Le rond de la planche : 56 px dans une carte en colonne, 40 px dans une carte en ligne. */
+/* Le rond de la planche : 56 px dans une carte en colonne, 40 px dans une carte en ligne. Sans logo, le dessin d'école
+   (`rond-ecole.css`). */
 .vignette-rond {
+  --diametre: 56px;
   display: inline-flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: var(--diametre);
+  height: var(--diametre);
   overflow: hidden;
   border-radius: 50%;
 }
 .vignette-adaptee .vignette-rond {
-  width: 40px;
-  height: 40px;
+  --diametre: 40px;
 }
-.vignette-sigle {
-  padding: 4px;
-  background: var(--marque-appuyee);
-  color: var(--texte-sur-marque);
-  font-family: var(--police-titre);
-  font-size: 0.9375rem;
-  font-weight: 700;
-  line-height: 1;
-  text-align: center;
-  overflow-wrap: anywhere;
+.vignette-adaptee .vignette-rond.sigle-moyen .rond-texte {
+  font-size: calc(var(--diametre) * 0.2);
 }
-.vignette-adaptee .vignette-sigle {
-  font-size: 0.6875rem;
+/* Un sigle trop long pour le rond ne se lit pas : la carte l'écrit déjà après le nom ; le dessin reste seul. */
+.vignette-rond.sigle-tres-long .rond-texte,
+.vignette-adaptee .vignette-rond.sigle-long .rond-texte {
+  display: none;
 }
-.vignette-cycle {
-  font-size: 1.375rem;
-}
-.vignette-adaptee .vignette-cycle {
-  font-size: 1.125rem;
+.vignette-rond.sigle-tres-long .rond-dessin,
+.vignette-adaptee .vignette-rond.sigle-long .rond-dessin {
+  width: 58%;
+  height: 58%;
 }
 .vignette-logo {
   background: var(--fond-releve);
@@ -72,14 +67,14 @@
     aspect-ratio: 400 / 208;
   }
   .vignette-adaptee .vignette-rond {
-    width: 56px;
-    height: 56px;
+    --diametre: 56px;
   }
-  .vignette-adaptee .vignette-sigle {
-    font-size: 0.9375rem;
+  .vignette-adaptee .vignette-rond.sigle-long .rond-texte {
+    display: block;
   }
-  .vignette-adaptee .vignette-cycle {
-    font-size: 1.375rem;
+  .vignette-adaptee .vignette-rond.sigle-long .rond-dessin {
+    width: 40%;
+    height: 40%;
   }
 }
 

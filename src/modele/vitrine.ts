@@ -3,11 +3,11 @@
  * Pur : ni DOM, ni Astro. Chaque fonction dit ce que la page écrit, et surtout ce qu'elle tait : une rubrique sans donnée
  * n'existe pas (ni bloc vide, ni lien dans la barre des rubriques), une date passée ne s'annonce plus.
  */
-import type { FraisEcole } from './frais-ecole';
+import { francsCFA, periodesCantine, type FraisEcole, type PeriodeCantine } from './frais-ecole';
 import { libelleNiveau } from './libelles';
-import { cycleLePlusEleve } from './carte/cycles';
 import type { Valeur } from './listes';
 import type { EcolePubliee } from './ports';
+import { rondSansLogo, type RondSansLogo } from './rond-ecole';
 
 // Les données ------------------------------------------------------------------------------------------------------------
 
@@ -83,22 +83,12 @@ export const VIGNETTES_SUR_LA_FICHE = 3;
 export const estDuSuperieur = (e: Pick<EcolePubliee, 'niveaux'>): boolean =>
   e.niveaux.length > 0 && e.niveaux.every((n) => n === 'superieur' || n === 'technique');
 
-/**
- * Le rond de l'école : son logo ; sinon son sigle dans un cercle vert foncé (décision du 12/11) ; sinon la lettre du
- * cycle le plus élevé, dans sa couleur, comme aujourd'hui ; sinon un disque gris, sans lettre.
- */
-export type RondEcole =
-  | { genre: 'logo'; media: MediaPublic }
-  | { genre: 'sigle'; texte: string }
-  | { genre: 'cycle'; lettre: string }
-  | { genre: 'vide' };
+/** Le rond de l'école : son logo ; sinon le dessin d'école de `rond-ecole.ts` (« option C », 27/11/2026). */
+export type RondEcole = { genre: 'logo'; media: MediaPublic } | RondSansLogo;
 
 export function rondDeLEcole(e: Pick<EcolePubliee, 'medias' | 'sigle' | 'niveaux'>): RondEcole {
   if (e.medias?.logo) return { genre: 'logo', media: e.medias.logo };
-  const sigle = e.sigle?.trim();
-  if (sigle) return { genre: 'sigle', texte: sigle };
-  const lettre = cycleLePlusEleve(e.niveaux)?.lettre;
-  return lettre ? { genre: 'cycle', lettre } : { genre: 'vide' };
+  return rondSansLogo(e.sigle, e.niveaux);
 }
 
 /** « Maternelle à collège » : le premier et le dernier niveau du site, ou le seul. */
@@ -232,11 +222,40 @@ export function lignesDeFraisDeLEcole(frais: FraisEcole[]): FraisEcole[] {
     );
 }
 
+/** Une somme dite sur les lignes : une seule si toutes ont la même, sinon une fourchette « selon le cycle ». */
+export interface Fourchette {
+  min: number;
+  max: number;
+}
+const fourchette = (sommes: (number | null | undefined)[]): Fourchette | null => {
+  const dites = sommes.filter((x): x is number => typeof x === 'number');
+  return dites.length === 0 ? null : { min: Math.min(...dites), max: Math.max(...dites) };
+};
+
+/** « 10 000 FCFA », ou « 10 000 à 15 000 FCFA ». */
+export const fourchetteEnMots = ({ min, max }: Fourchette): string =>
+  min === max
+    ? francsCFA(min)
+    : `${new Intl.NumberFormat('fr-FR').format(min)} à ${francsCFA(max)}`;
+
 /** L'inscription : une seule somme si toutes les lignes ont la même, sinon une fourchette « selon le cycle ». */
-export function inscriptionDesFrais(frais: FraisEcole[]): { min: number; max: number } | null {
-  const sommes = frais.map((f) => f.inscription).filter((x): x is number => x !== null);
-  if (sommes.length === 0) return null;
-  return { min: Math.min(...sommes), max: Math.max(...sommes) };
+export const inscriptionDesFrais = (frais: FraisEcole[]): Fourchette | null =>
+  fourchette(frais.map((f) => f.inscription));
+
+/** Ticket 236 : la réinscription, comme l'inscription. */
+export const reinscriptionDesFrais = (frais: FraisEcole[]): Fourchette | null =>
+  fourchette(frais.map((f) => f.reinscription));
+
+/** Ticket 236 : la cantine, une ligne par période dite (jour, mois, trimestre, année). */
+export function cantineDesFrais(
+  frais: FraisEcole[],
+): { periode: PeriodeCantine; montant: Fourchette }[] {
+  return (Object.keys(periodesCantine) as PeriodeCantine[]).flatMap((periode) => {
+    const montant = fourchette(
+      frais.filter((f) => f.periodeCantine === periode).map((f) => f.cantine),
+    );
+    return montant ? [{ periode, montant }] : [];
+  });
 }
 
 /** La date la plus récente des lignes, et si toutes viennent de l'école sans photo (« dit par l'école »). */

@@ -7,6 +7,14 @@ export const periodesFrais = {
   autre: 'Autre période',
 } as const;
 export type PeriodeFrais = keyof typeof periodesFrais;
+/** Ticket 236 : la période de la cantine, comme `campus_fees.canteen_period`. */
+export const periodesCantine = {
+  jour: 'Par jour',
+  mois: 'Par mois',
+  trimestre: 'Par trimestre',
+  annee: 'Par année',
+} as const;
+export type PeriodeCantine = keyof typeof periodesCantine;
 export interface FraisASaisir {
   cycle: Valeur<'niveau'>;
   minimum: number;
@@ -25,6 +33,10 @@ export interface FraisASaisir {
   formationId?: string | null;
   /** Lot 2 du site public (15/11) : les mois facturés dans l'année, pour des frais au mois (1 à 12) ; nul : pas dit. */
   moisFactures?: number | null;
+  /** Ticket 236 : la réinscription (élève déjà inscrit) et la cantine avec sa période ; publiques avec le même OUI. */
+  reinscription?: number | null;
+  cantine?: number | null;
+  periodeCantine?: PeriodeCantine | null;
 }
 export interface FraisEcole extends FraisASaisir {
   id: string;
@@ -58,6 +70,10 @@ export interface SaisieFrais {
   moisFactures?: string;
   /** Ticket 199 (A23) : « à partir de » le minimum, sans maximum. */
   aPartirDe?: boolean;
+  /** Ticket 236 : la réinscription, la cantine et sa période, telles que tapées ; vides : pas dites. */
+  reinscription?: string;
+  cantine?: string;
+  periodeCantine?: string;
 }
 export const saisieFraisVide = (): SaisieFrais => ({
   cycle: '',
@@ -73,6 +89,9 @@ export const saisieFraisVide = (): SaisieFrais => ({
   classe: '',
   photoPreuve: null,
   moisFactures: '',
+  reinscription: '',
+  cantine: '',
+  periodeCantine: '',
 });
 export const saisieDeFrais = (f: FraisEcole): SaisieFrais => ({
   ...f,
@@ -87,6 +106,9 @@ export const saisieDeFrais = (f: FraisEcole): SaisieFrais => ({
   classe: f.classe ?? '',
   photoPreuve: f.photoPreuve ?? null,
   moisFactures: f.moisFactures == null ? '' : String(f.moisFactures),
+  reinscription: f.reinscription == null ? '' : String(f.reinscription),
+  cantine: f.cantine == null ? '' : String(f.cantine),
+  periodeCantine: f.periodeCantine ?? '',
 });
 /** Les limites des champs d'une ligne (celles de la base), et leur nom dans un message. */
 const LIMITES = {
@@ -127,7 +149,12 @@ export function lireFraisEcole(
     maximum = s.aPartirDe ? null : s.maximum.trim() === '' ? minimum : entier(s.maximum),
     inscription = s.inscription.trim() === '' ? null : entier(s.inscription),
     moisTapes = (s.moisFactures ?? '').trim(),
-    mois = moisTapes === '' ? null : entier(moisTapes);
+    mois = moisTapes === '' ? null : entier(moisTapes),
+    reTapee = (s.reinscription ?? '').trim(),
+    reinscription = reTapee === '' ? null : entier(reTapee),
+    cantineTapee = (s.cantine ?? '').trim(),
+    cantine = cantineTapee === '' ? null : entier(cantineTapee),
+    periodeCantine = s.periodeCantine ?? '';
   let erreur: string | null;
   if (!listes.niveau.includes(s.cycle as Valeur<'niveau'>)) erreur = 'Choisis le cycle concerné.';
   else if (
@@ -145,6 +172,10 @@ export function lireFraisEcole(
   // Les mois facturés ne valent que pour des frais au mois : une autre période les laisse de côté (la base les refuse).
   else if (s.periode === 'mois' && moisTapes !== '' && (mois === null || mois < 1 || mois > 12))
     erreur = 'Les mois facturés vont de 1 à 12.';
+  else if ((reTapee !== '' && reinscription === null) || (cantineTapee !== '' && cantine === null))
+    erreur = 'La réinscription et la cantine sont des montants entiers en FCFA.';
+  else if (cantine !== null && !Object.hasOwn(periodesCantine, periodeCantine))
+    erreur = 'Dis la cantine par jour, mois, trimestre ou année.';
   else if (!dateDeclareeValide(s.declaresLe, aujourdHui))
     erreur = 'Indique la date réelle de déclaration, pas une date future.';
   else if (!s.declarationConfirmee)
@@ -168,6 +199,9 @@ export function lireFraisEcole(
           photoPreuve: s.photoPreuve ?? null,
           formationId: s.formationId ?? null,
           moisFactures: s.periode === 'mois' ? mois : null,
+          reinscription,
+          cantine,
+          periodeCantine: cantine === null ? null : (periodeCantine as PeriodeCantine),
         },
   };
 }
@@ -190,6 +224,9 @@ export function ligneChangee(avant: FraisEcole, apres: FraisASaisir): boolean {
     'classe',
     'formationId',
     'moisFactures',
+    'reinscription',
+    'cantine',
+    'periodeCantine',
   ] as const;
   return cles.some((c) => (avant[c] ?? null) !== (apres[c] ?? null));
 }
@@ -286,6 +323,13 @@ export function inscriptionLaPlusFrequente(frais: readonly FraisEcole[]): number
 /** Une saisie de montant en FCFA (« 25 000 ») : l'entier, ou null. */
 export const lireMontant = (s: string): number | null => entier(s);
 export const francsCFA = (n: number): string => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
+/** « 15 000 FCFA par mois » ; rien quand la cantine n'est pas dite. */
+export const montantCantine = (
+  f: Pick<FraisASaisir, 'cantine' | 'periodeCantine'>,
+): string | null =>
+  f.cantine == null || !f.periodeCantine
+    ? null
+    : `${francsCFA(f.cantine)} ${periodesCantine[f.periodeCantine].toLocaleLowerCase('fr')}`;
 export const montantFrais = (f: Pick<FraisASaisir, 'minimum' | 'maximum'>): string =>
   f.maximum === null
     ? `à partir de ${francsCFA(f.minimum)}`

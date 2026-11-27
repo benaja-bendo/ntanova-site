@@ -107,7 +107,8 @@ test('« En bref » dit le sigle et le nom du site ; la fiche prend le sigle pou
   await expect(form).toBeHidden();
   await fermerLeTiroir(page);
   const fiche = page.locator('article[aria-label^="Fiche de "]');
-  await expect(fiche.getByText('IDS', { exact: true })).toBeVisible();
+  // Le titre : le rond sans logo (ticket 236) écrit aussi le sigle.
+  await expect(fiche.getByRole('paragraph').filter({ hasText: /^IDS$/ })).toBeVisible();
   await expect(
     fiche.getByRole('paragraph').filter({ hasText: /^\[Institut Deux Sites\]$/ }),
   ).toBeVisible();

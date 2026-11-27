@@ -1,7 +1,9 @@
 /**
  * « Est-ce une école connue ? » (lot 3 du cahier, planche « Est-ce une école connue ? ») : avant d'accepter une nouvelle fiche,
  * la base compare son nom (sans « complexe », « scolaire », « école »…) et sa position aux écoles connues et aux fiches en
- * attente (`similar_schools`). Elle propose ; l'administration confirme. Quatre états, deux boutons au plus, jamais de fusion :
+ * attente (`similar_schools`). Depuis le ticket 236, l'écran relit ces candidats : « autre site » et « déjà dans la base »
+ * demandent un mot distinctif commun, pesé selon la distance (`modele/autre-site.ts`). Elle propose ; l'administration
+ * confirme. Quatre états, deux boutons au plus, jamais de fusion :
  * - même endroit : « Compléter sa fiche » (`update_campus`) ou « Non, une autre école » ;
  * - même nom plus loin : « Oui, nouveau site » (`new_campus` de cette école) ou « Non, autre école » ;
  * - autre nom tout près : une école voisine ; « Même lieu » (décision du fondateur, 13/11) crée une nouvelle école et note
@@ -12,6 +14,7 @@ import { v2 } from '@/ui/v2/classes';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import type { Cible } from '../../modele/acceptation';
+import { affinerLesCandidats } from '../../modele/autre-site';
 import { distanceEnMots } from '../../modele/deja-sur-ntanova';
 import type { EcoleSimilaire } from '../../modele/fiche-admin';
 import type { Point } from '../../modele/geo';
@@ -34,6 +37,7 @@ export function EcoleConnue({
   reponseDuRelais,
   cible,
   choisir,
+  lieux,
 }: {
   admin: PortAdministration;
   releveId: string;
@@ -42,8 +46,10 @@ export function EcoleConnue({
   reponseDuRelais: Valeur<'reponse_doublon'> | null;
   cible: Cible;
   choisir: (c: Cible) => void;
+  /** Les mots des lieux connus : ils ne distinguent pas une école. */
+  lieux: ReadonlySet<string>;
 }) {
-  const [candidats, setCandidats] = useState<EcoleSimilaire[] | null>(null);
+  const [recus, setCandidats] = useState<EcoleSimilaire[] | null>(null);
   useEffect(() => {
     let vivant = true;
     admin
@@ -55,7 +61,8 @@ export function EcoleConnue({
     };
   }, [admin, nom, position, releveId]);
 
-  if (candidats === null) return null;
+  if (recus === null) return null;
+  const candidats = affinerLesCandidats(nom, recus, lieux);
   // Le premier site connu : la base les range du plus sûr au moins sûr. Un relevé en attente se dit, sans geste.
   const site = candidats.find((c) => c.genre === 'campus');
   const enAttente = candidats.find((c) => c.genre === 'releve');
@@ -167,7 +174,7 @@ export function EcoleConnue({
       </div>
       {gestes.length > 0 && (
         <div
-          className="flex gap-2.5 max-lg:w-full max-lg:[&>button]:flex-1"
+          className="flex flex-wrap gap-2.5 max-lg:w-full max-lg:[&>button]:flex-1"
           role="group"
           aria-label="Ta réponse"
         >

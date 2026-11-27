@@ -15,6 +15,7 @@ import {
   versEntree,
   type FormulaireCreation,
 } from '../../modele/creation-ecole';
+import { affinerLesCandidats, motsDeLieux } from '../../modele/autre-site';
 import type { Erreurs } from '../../modele/fiche';
 import { sansCycle } from '../../modele/formations';
 import { cheminLisible } from '../../modele/geo-divisions';
@@ -197,7 +198,12 @@ function FormulaireUne({
           lirePosition(champs.position),
           null,
         );
-        const meme = proches.find(
+        // Ticket 236 : un mot distinctif commun, pesé selon la distance ; un nom de lieu ne suffit pas.
+        const lieux = motsDeLieux([
+          ...divisions.flatMap((d) => [d.nom, ...d.aliases]),
+          champs.quartier,
+        ]);
+        const meme = affinerLesCandidats(champs.nom, proches, lieux).find(
           (c) =>
             c.genre === 'campus' &&
             c.institutionId !== null &&

@@ -73,6 +73,8 @@ export const ICONES = {
     'M4 18h11M19 18h1',
   ],
   comparer: ['M4 8h14l-3-3M20 16H6l3 3'],
+  // Le rond d'une école sans logo (« option C », 27/11/2026) : Tabler « school » (MIT), d'icones.js.org.
+  ecoleToque: ['M22 9l-10 -4l-10 4l10 4l10 -4v6', 'M6 10.6v5.4a6 3 0 0 0 12 0v-5.4'],
 } as const;
 
 export type NomIcone = keyof typeof ICONES;

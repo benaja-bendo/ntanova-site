@@ -2,7 +2,9 @@ import {
   carteDeMission,
   envoyerSansBonus,
   ouvrirGestion,
+  ouvrirLaFiche,
   toutEstEnvoye,
+  uneFicheEnvoyee,
   ouvrirLesEcoles,
   ficheOuverte,
 } from './aides';
@@ -74,6 +76,17 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   await page.goto('/admin/#valider');
   await page.getByRole('link', { name: /\[École à situer, nom exact\]/ }).click();
   await expect(page.getByText('Contre-visite', { exact: true }).first()).toBeVisible();
+  // Ticket 236 : la position manquante se remplit ; le nom ne change que si on le choisit.
+  const comparaison = page.getByRole('region', { name: 'Ce qui change sur la fiche' });
+  await expect(
+    comparaison
+      .getByRole('group', { name: 'Position' })
+      .getByRole('button', { name: 'Ajouter', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await comparaison
+    .getByRole('group', { name: 'Nom de l’école' })
+    .getByRole('button', { name: 'Remplacer' })
+    .click();
   await page.getByRole('button', { name: 'Accepter', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText(/est mise à jour/);
   await ouvrirLesEcoles(page);
@@ -86,4 +99,60 @@ test('une école à situer, confiée à un relais, est relevée sur place puis p
   ).toBeVisible();
   // Le quartier et l'arrondissement du même nom ne s'affichent qu'une fois.
   await expect(publiee).toContainText('Tié-Tié');
+});
+
+// Ticket 236 (27/11) : quand la direction a dit non, publier le redit, avec le jour, et demande une confirmation ; rien
+// n'est bloqué pour toujours.
+test('publier après un refus de la direction demande une confirmation, ligne par ligne ou d’un coup', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(90_000);
+  await uneFicheEnvoyee(page, context);
+  await ouvrirLaFiche(page);
+  await page.getByRole('button', { name: 'Accepter', exact: true }).click();
+  await expect(page.getByRole('status')).toHaveText(/l’école est prête/);
+  // Le relais avait noté un refus ; une seconde école prête, sans rien à signaler.
+  await page.evaluate(() => {
+    const cle = 'ntanova-faux-serveur';
+    const e = JSON.parse(localStorage.getItem(cle) ?? '{}') as {
+      releves: Record<string, { direction: string }>;
+      campus: Record<string, Record<string, unknown>>;
+    };
+    for (const r of Object.values(e.releves)) r.direction = 'refus';
+    const modele = Object.values(e.campus).find((c) => c['nom'] === '[École 1]')!;
+    const id = '00000000-0000-4000-8000-0000000000d4';
+    e.campus[id] = { ...modele, id, institutionId: id, nom: '[École 2]' };
+    localStorage.setItem(cle, JSON.stringify(e));
+  });
+  await ouvrirLesEcoles(page);
+  const etat = () =>
+    page.evaluate(() => {
+      const e = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
+        campus: Record<string, { nom: string; publication: string }>;
+      };
+      return Object.fromEntries(
+        Object.values(e.campus)
+          .filter((c) => /\[École \d\]/.test(c.nom))
+          .map((c) => [c.nom, c.publication]),
+      );
+    });
+
+  await page.getByRole('button', { name: 'Publier les 2 d’un coup' }).click();
+  const avant = page.getByRole('alertdialog', { name: /Avant de publier/ });
+  await expect(avant).toContainText('[École 1]');
+  await expect(avant).toContainText('La direction a dit non');
+  await avant.getByRole('button', { name: 'Publier l’autre' }).click();
+  await expect.poll(etat).toEqual({ '[École 1]': 'prete', '[École 2]': 'publiee' });
+
+  const publier = page
+    .getByRole('row', { name: /\[École 1\]/ })
+    .getByRole('button', { name: 'Publier', exact: true });
+  await publier.click();
+  await avant.getByRole('button', { name: 'Ne pas publier' }).click();
+  await expect(avant).toHaveCount(0);
+  expect((await etat())['[École 1]']).toBe('prete');
+  await publier.click();
+  await avant.getByRole('button', { name: 'Publier malgré ce refus' }).click();
+  await expect.poll(etat).toEqual({ '[École 1]': 'publiee', '[École 2]': 'publiee' });
 });

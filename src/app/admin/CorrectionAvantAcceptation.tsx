@@ -1,25 +1,34 @@
 import { v2 } from '@/ui/v2/classes';
 import { useEffect, useRef, useState } from 'react';
 import {
-  erreursFormulaireEcole,
-  formulaireDe,
-  versCorrection,
-  type FormulaireEcole,
+  erreursRelecture,
+  formulaireDeRelecture,
+  versCorrectionDeRelecture,
+  type AvantRelecture,
+  type ModeDeRelecture,
+  type ValeursRelues,
 } from '../../modele/correction-ecole';
-import type { CorrectionEcole, DetailReleve } from '../../modele/ports';
+import type { CorrectionEcole, EcoleVue } from '../../modele/ports';
 import type { Erreurs } from '../../modele/fiche';
 import { Bouton, Dialogue } from '@/ui/v2/admin';
+import { Champ } from '@/ui/v2/formulaire';
 import { ChampsFiche } from './ChampsFiche';
 
 /** Une préparation locale : seule l’acceptation écrit les valeurs dans la base. */
 export function CorrectionAvantAcceptation({
-  fiche,
+  avant,
+  mode,
+  ecole,
   correction,
   surChangement,
   surEdition,
   demande = 0,
 }: {
-  fiche: DetailReleve;
+  /** Les valeurs du relevé. */
+  avant: AvantRelecture;
+  mode: ModeDeRelecture;
+  /** L'école complétée, ou un site de l'école qui en reçoit un : ce qu'elle a déjà ne se saisit pas ici. */
+  ecole: Pick<EcoleVue, 'sigle' | 'anneeCreation' | 'etiquette'> | null;
   correction: CorrectionEcole;
   surChangement: (valeurs: CorrectionEcole) => void;
   surEdition: (edition: boolean) => void;
@@ -27,13 +36,12 @@ export function CorrectionAvantAcceptation({
   demande?: number;
 }) {
   const formulaire = useRef<HTMLFormElement>(null);
-  const avant = { ...fiche, nom: fiche.nomEnseigne };
   const [edition, setEdition] = useState(false);
-  const [champs, setChamps] = useState<FormulaireEcole>(() => formulaireDe(avant));
+  const [champs, setChamps] = useState<ValeursRelues>(() => formulaireDeRelecture(avant, {}));
   const [erreurs, setErreurs] = useState<Erreurs>({});
   useEffect(() => {
     if (!edition) return;
-    // Après l'ouverture du tiroir (Radix pose d'abord le focus sur « Fermer ») : le premier champ, le nom.
+    // Après l'ouverture du tiroir (Radix pose d'abord le focus sur « Fermer ») : le premier champ.
     const t = setTimeout(
       () => formulaire.current?.querySelector<HTMLInputElement>('input')?.focus(),
       50,
@@ -44,7 +52,7 @@ export function CorrectionAvantAcceptation({
   useEffect(() => {
     if (demande === derniereDemande.current) return;
     derniereDemande.current = demande;
-    setChamps(formulaireDe({ ...avant, ...correction }));
+    setChamps(formulaireDeRelecture(avant, correction));
     setErreurs({});
     setEdition(true);
     surEdition(true);
@@ -56,6 +64,16 @@ export function CorrectionAvantAcceptation({
   };
   // Planche : rien ne se voit tant qu'on ne corrige pas ; « Corriger » ou « Différent » ouvre le tiroir.
   if (!edition) return null;
+  const changer = (valeurs: Partial<ValeursRelues>) => setChamps((c) => ({ ...c, ...valeurs }));
+  // Le sigle et l'année d'une école déjà connue ne se remplacent pas ; un site déjà nommé garde son nom.
+  const sigleConnu = mode !== 'nouvelle' ? ecole?.sigle?.trim() : undefined;
+  const anneeConnue = mode !== 'nouvelle' ? ecole?.anneeCreation : undefined;
+  const nomDuSiteConnu = mode === 'completer' ? ecole?.etiquette?.trim() : undefined;
+  const dejaLa = [
+    sigleConnu ? `le sigle « ${sigleConnu} »` : null,
+    anneeConnue ? `l’année ${anneeConnue}` : null,
+    nomDuSiteConnu ? `le nom du site « ${nomDuSiteConnu} »` : null,
+  ].filter(Boolean);
   return (
     <Dialogue
       titre="Corriger avant d’accepter"
@@ -71,7 +89,7 @@ export function CorrectionAvantAcceptation({
         noValidate
         onSubmit={(ev) => {
           ev.preventDefault();
-          const trouvees = erreursFormulaireEcole(champs);
+          const trouvees = erreursRelecture(champs);
           setErreurs(trouvees);
           if (Object.keys(trouvees).length) {
             requestAnimationFrame(() =>
@@ -79,18 +97,97 @@ export function CorrectionAvantAcceptation({
             );
             return;
           }
-          surChangement(versCorrection(avant, champs));
+          surChangement(versCorrectionDeRelecture(avant, champs));
           fermer();
         }}
       >
         <p className={v2.mention}>
           Enregistrées avec l’acceptation ; le relevé du relais est conservé.
         </p>
+        {mode === 'nouveau_site' && (
+          <p className={v2.mention}>Le nom et le type restent ceux de l’école.</p>
+        )}
+        {dejaLa.length > 0 && (
+          <p className={v2.mention}>
+            L’école a déjà {dejaLa.join(', ')} : cela se change dans « Écoles ».
+          </p>
+        )}
         <ChampsFiche
           champs={champs}
           erreurs={erreurs}
-          changer={(valeurs) => setChamps((c) => ({ ...c, ...valeurs }))}
+          changer={changer}
+          sansNomNiType={mode === 'nouveau_site'}
+          apresNom={
+            <>
+              {!sigleConnu && (
+                <Champ libelle="Sigle" facultatif erreur={erreurs.sigle}>
+                  {(a) => (
+                    <input
+                      {...a}
+                      className={v2.champ}
+                      type="text"
+                      autoComplete="off"
+                      value={champs.sigle}
+                      onChange={(ev) => changer({ sigle: ev.target.value })}
+                    />
+                  )}
+                </Champ>
+              )}
+              {!nomDuSiteConnu && (
+                <Champ
+                  libelle="Nom de ce site"
+                  facultatif
+                  erreur={erreurs.etiquette}
+                  aide="Par exemple « Annexe » : il distingue les sites d’une même école."
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      className={v2.champ}
+                      type="text"
+                      autoComplete="off"
+                      value={champs.etiquette}
+                      onChange={(ev) => changer({ etiquette: ev.target.value })}
+                    />
+                  )}
+                </Champ>
+              )}
+            </>
+          }
         />
+        {!anneeConnue && (
+          <Champ libelle="Année de création" facultatif erreur={erreurs.anneeCreation}>
+            {(a) => (
+              <input
+                {...a}
+                className={v2.champ}
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={4}
+                value={champs.anneeCreation}
+                onChange={(ev) => changer({ anneeCreation: ev.target.value })}
+              />
+            )}
+          </Champ>
+        )}
+        <Champ
+          libelle="E-mail lu sur l’enseigne"
+          facultatif
+          erreur={erreurs.email}
+          aide="Privé : jamais publié. Il rejoint les contacts de l’école."
+        >
+          {(a) => (
+            <input
+              {...a}
+              className={v2.champ}
+              type="email"
+              autoComplete="off"
+              value={champs.email}
+              onChange={(ev) => changer({ email: ev.target.value })}
+            />
+          )}
+        </Champ>
         <div className={v2.actions}>
           <Bouton type="submit">Utiliser ces valeurs</Bouton>
           {Object.keys(correction).length > 0 && (

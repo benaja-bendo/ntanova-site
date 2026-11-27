@@ -2,7 +2,7 @@
  * « Frais par classe » (planche « Frais, avec le prospectus ») : on recopie ce que dit le prospectus, ligne par ligne. À
  * gauche, le prospectus photographié par un relais (photo de travail, jamais publique) ; à droite, l'année scolaire, la
  * date de déclaration, les mois facturés et le tableau des lignes (cycle, classe, montant, période, inscription,
- * « Illisible ? »). Une ligne illisible n'est jamais publiée : « Demander … » l'ajoute à ce qui manque, demandée à l'école.
+ * réinscription et cantine (ticket 236), « Illisible ? »). Une ligne illisible n'est jamais publiée : « Demander … » l'ajoute à ce qui manque, demandée à l'école.
  *
  * Lot 2 du site public (15/11) : une ligne enregistrée ne paraît sur le site qu'avec **le OUI écrit de l'école**, noté ici
  * avec son jour (« Noter le OUI de l'école », `confirmerFraisEcole`). Modifier une ligne le lui retire : seules les lignes
@@ -32,9 +32,12 @@ import {
   ligneChangee,
   lireFraisEcole,
   moisFacturesDesLignes,
+  montantCantine,
   montantFrais,
+  periodesCantine,
   periodesFrais,
   type FraisEcole as Frais,
+  type PeriodeCantine,
 } from '../../modele/frais-ecole';
 import { libelleNiveau } from '../../modele/libelles';
 import { dateCourte, dateLongue, jourEtMois } from '../../modele/pointe-noire';
@@ -51,6 +54,11 @@ interface Ligne {
   montant: string;
   periode: string;
   inscription: string;
+  /** Ticket 236 : la réinscription, la cantine et sa période ; `autres` : les champs montrés sur la ligne. */
+  reinscription: string;
+  cantine: string;
+  periodeCantine: string;
+  autres: boolean;
   illisible: boolean;
   /** Ticket 199 (A23) : « à partir de » le montant, sans plafond. */
   aPartirDe: boolean;
@@ -77,11 +85,33 @@ const nouvelle = (cycle = ''): Ligne => ({
   montant: '',
   periode: 'mois',
   inscription: '',
+  reinscription: '',
+  cantine: '',
+  periodeCantine: '',
+  autres: false,
   illisible: false,
   aPartirDe: false,
   formationId: null,
   avant: null,
 });
+
+const enTexte = (n: number | null | undefined) => (n == null ? '' : String(n));
+/** La colonne est étroite : la période de la cantine s'écrit court. */
+const periodeCourteDeCantine: Record<PeriodeCantine, string> = {
+  jour: '/ jour',
+  mois: '/ mois',
+  trimestre: '/ trim.',
+  annee: '/ an',
+};
+/** Ce que le OUI couvre en plus du montant d'une ligne. */
+const sommesAPart = (f: Frais) =>
+  [
+    f.inscription === null ? null : `inscription ${francsCFA(f.inscription)}`,
+    f.reinscription == null ? null : `réinscription ${francsCFA(f.reinscription)}`,
+    montantCantine(f) ? `cantine ${montantCantine(f)}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
 /** La ligne a-t-elle été retouchée à l'écran depuis son enregistrement ? */
 const retouchee = (l: Ligne) =>
@@ -92,7 +122,10 @@ const retouchee = (l: Ligne) =>
   l.classe !== (l.avant.classe ?? '') ||
   l.montant !== montantEnTexte(l.avant) ||
   l.periode !== l.avant.periode ||
-  l.inscription !== (l.avant.inscription === null ? '' : String(l.avant.inscription));
+  l.inscription !== enTexte(l.avant.inscription) ||
+  l.reinscription !== enTexte(l.avant.reinscription) ||
+  l.cantine !== enTexte(l.avant.cantine) ||
+  l.periodeCantine !== (l.avant.periodeCantine ?? '');
 
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 
@@ -129,7 +162,11 @@ export function FraisEcole({
           classe: f.classe ?? '',
           montant: montantEnTexte(f),
           periode: f.periode,
-          inscription: f.inscription === null ? '' : String(f.inscription),
+          inscription: enTexte(f.inscription),
+          reinscription: enTexte(f.reinscription),
+          cantine: enTexte(f.cantine),
+          periodeCantine: f.periodeCantine ?? '',
+          autres: false,
           illisible: false,
           aPartirDe: f.maximum === null,
           formationId: f.formationId ?? null,
@@ -216,6 +253,9 @@ export function FraisEcole({
           periode: l.periode,
           precisionPeriode: '',
           inscription: l.inscription,
+          reinscription: l.reinscription,
+          cantine: l.cantine,
+          periodeCantine: l.periodeCantine,
           anneeScolaire: annee,
           declaresLe,
           note,
@@ -540,6 +580,7 @@ export function FraisEcole({
                             </b>
                             <span className="text-sm text-muted-foreground">
                               inscription {l.inscription.trim() || '—'}
+                              {l.reinscription.trim() || l.cantine.trim() ? ' · et autres' : ''}
                             </span>
                           </span>
                         )}
@@ -612,13 +653,67 @@ export function FraisEcole({
                       </select>
                     </td>
                     <td role="cell" className="px-2 py-1.5">
-                      <input
-                        aria-label="Inscription (FCFA)"
-                        className={champ}
-                        inputMode="numeric"
-                        value={l.inscription}
-                        onChange={(e) => changer(l.cle, { inscription: e.target.value })}
-                      />
+                      {/* Chaque somme dit son nom une fois remplie : le titre de la colonne ne suffit pas à trois champs. */}
+                      <label className="flex flex-col gap-1">
+                        <span className="text-xs font-bold text-muted-foreground lg:sr-only">
+                          Inscription
+                        </span>
+                        <input
+                          aria-label="Inscription (FCFA)"
+                          className={champ}
+                          inputMode="numeric"
+                          value={l.inscription}
+                          onChange={(e) => changer(l.cle, { inscription: e.target.value })}
+                        />
+                      </label>
+                      {/* Ticket 236 : la réinscription et la cantine, quand une affiche les dit. */}
+                      {l.autres || l.reinscription || l.cantine ? (
+                        <span className="mt-1.5 flex flex-col gap-1.5">
+                          <label className="flex flex-col gap-1">
+                            <span className="text-xs font-bold text-muted-foreground">
+                              Réinscription
+                            </span>
+                            <input
+                              aria-label="Réinscription (FCFA)"
+                              className={champ}
+                              inputMode="numeric"
+                              value={l.reinscription}
+                              onChange={(e) => changer(l.cle, { reinscription: e.target.value })}
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1">
+                            <span className="text-xs font-bold text-muted-foreground">Cantine</span>
+                            <input
+                              aria-label="Cantine (FCFA)"
+                              className={champ}
+                              inputMode="numeric"
+                              value={l.cantine}
+                              onChange={(e) => changer(l.cle, { cantine: e.target.value })}
+                            />
+                          </label>
+                          <select
+                            aria-label="Cantine, par"
+                            className={champ}
+                            value={l.periodeCantine}
+                            onChange={(e) => changer(l.cle, { periodeCantine: e.target.value })}
+                          >
+                            <option value="">/ ?</option>
+                            {Object.keys(periodesCantine).map((k) => (
+                              <option key={k} value={k}>
+                                {periodeCourteDeCantine[k as PeriodeCantine]}
+                              </option>
+                            ))}
+                          </select>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className={cn(v2.lien, 'mt-1 min-h-9 text-left text-[13px]')}
+                          onClick={() => changer(l.cle, { autres: true })}
+                        >
+                          +&nbsp;Réinscription, cantine
+                        </button>
+                      )}
                     </td>
                     <td role="cell" className="px-2 py-1.5">
                       <button
@@ -740,6 +835,9 @@ export function FraisEcole({
                 <li key={f.id}>
                   <b>{f.classe?.trim() || libelleNiveau[f.cycle]}</b> : {montantFrais(f)}{' '}
                   {(periodesFrais[f.periode] ?? '').toLocaleLowerCase('fr')}
+                  {sommesAPart(f) && (
+                    <span className="block text-sm text-muted-foreground">{sommesAPart(f)}</span>
+                  )}
                 </li>
               ))}
             {dossierEnAttente.map((d) => (

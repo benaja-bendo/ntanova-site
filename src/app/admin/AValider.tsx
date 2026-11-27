@@ -15,8 +15,12 @@ import {
   type Cible,
   type PositionSaisie,
 } from '../../modele/acceptation';
+import { motsDeLieux } from '../../modele/autre-site';
+import { seraPris, type ChoixDeFiche } from '../../modele/comparaison-fiche';
+import { comparerAvecLEcole, decisionDAcceptation, relectureDe } from '../../modele/relecture';
+import { ComparaisonDeFiche, NouveauSite } from './AvantApres';
 import { arrondissementDeLaPosition } from '../../modele/carte/plan';
-import { lireChampPosition } from '../../modele/correction-ecole';
+import { correctionsDuMode, lireChampPosition } from '../../modele/correction-ecole';
 import { ageDe, trierParAnciennete } from '../../modele/age';
 import { peutParaitreSurLeSite } from '../../modele/photos-publiques';
 import { ON_Y_VOIT } from '../../modele/fiche';
@@ -41,9 +45,9 @@ import type {
   ContactDirection,
   DomainePublic,
   CorrectionEcole,
-  DecisionAcceptation,
   DetailReleve,
   DivisionVue,
+  EcoleVue,
   FaitGarde,
   FormationSaisie,
   PhotoVue,
@@ -695,6 +699,27 @@ function Photos({
   );
 }
 
+/** Après une correction, ce que le relais avait noté reste lisible (ticket 236). */
+function ValeurDuRelais({
+  releve,
+  retenue,
+  libelle = 'Relevé',
+}: {
+  releve: string | null | undefined;
+  retenue: string | null | undefined;
+  libelle?: string;
+}) {
+  if ((releve?.trim() ?? '') === (retenue?.trim() ?? '')) return null;
+  return (
+    <span className="text-[13px] font-normal text-muted-foreground [overflow-wrap:anywhere]">
+      {libelle} : {releve?.trim() || 'rien'}
+    </span>
+  );
+}
+
+const niveauxDits = (niveaux: readonly Valeur<'niveau'>[]) =>
+  niveaux.map((n) => libelleNiveau[n]).join(', ');
+
 // Le détail d'un envoi -----------------------------------------------------------------------
 
 function Detail({
@@ -752,6 +777,16 @@ function Detail({
   const [garderBonus, setGarderBonus] = useState(true);
   const [editionInformations, setEditionInformations] = useState(false);
   const [formations, setFormations] = useState<FormationSaisie[]>([]);
+  // Ticket 236 : les écoles connues (la fiche qu'on complète, les noms de lieux) et, pour elle, ce qu'on garde.
+  const [ecoles, setEcoles] = useState<EcoleVue[] | null>(null);
+  const [choixDeFiche, setChoixDeFiche] = useState<ChoixDeFiche>({});
+  useEffect(() => {
+    if (lectureSeule) return;
+    admin
+      .ecoles()
+      .then(setEcoles)
+      .catch((e: unknown) => setErreur(messageErreur(e)));
+  }, [admin, lectureSeule]);
 
   const chargerPhotos = useCallback(() => {
     admin
@@ -820,15 +855,23 @@ function Detail({
     );
   }
 
-  const nouvelleEcole =
-    cible.mode === 'nouvelle' &&
-    !detail.essai &&
-    (detail.type !== 'correction' || detail.corrigeUneFicheEnAttente);
-  const retenues = nouvelleEcole ? corrections : {};
+  // Ce qu'on corrige avant d'accepter, selon la cible (ticket 236) ; une décision prise montre ce qui avait été retenu.
+  const relecture = lectureSeule ? null : relectureDe(detail, cible);
+  const ecoleVisee =
+    relecture?.mode === 'completer'
+      ? (ecoles?.find((e) => e.id === relecture.campusId) ?? null)
+      : null;
+  const sitesDAccueil =
+    relecture?.mode === 'nouveau_site'
+      ? (ecoles?.filter((e) => e.institutionId === relecture.institutionId && !e.corbeille) ?? [])
+      : [];
+  const accueil = sitesDAccueil[0] ?? null;
+  const retenues: CorrectionEcole = lectureSeule
+    ? (detail.revision?.valeurs ?? {})
+    : relecture
+      ? correctionsDuMode(corrections, relecture.mode, ecoleVisee ?? accueil)
+      : {};
   const valeurs = { ...detail, ...retenues, nomEnseigne: retenues.nom ?? detail.nomEnseigne };
-  const formationsRetenues = retenues.niveaux
-    ? formations.filter((f) => retenues.niveaux?.includes(f.cycle))
-    : formations;
   const position = detail.position;
   // Sur le lot d'entraînement, on se forme n'importe où : ni la zone ni le secteur ne disent rien.
   const enZoneOuverte = detail.essai ? null : detail.enZoneOuverte;
@@ -859,64 +902,62 @@ function Detail({
   const faitsBonus = faitsProposes(detail);
   const faitsGardes = garderBonus ? faitsBonus : [];
   const prospectus = photos.find((p) => p.role === 'brochure') ?? null;
-  const decision = (): DecisionAcceptation => {
-    const base: DecisionAcceptation = {
-      formations: formationsRetenues,
-      ...(faitsGardes.length > 0 ? { faits: faitsGardes } : {}),
-      ...((divisionRequise || divisionFacultative) && divisionId !== '' ? { divisionId } : {}),
-      ...(saisie?.position ? { position: saisie.position } : {}),
-    };
-    // Une correction d'une école déjà créée met l'école à jour : la base sait laquelle. Celle d'une fiche pas encore
-    // acceptée se traite comme une nouvelle fiche (ticket #89).
-    if (detail.type === 'correction' && !detail.corrigeUneFicheEnAttente) return {};
-    switch (cible.mode) {
-      case 'nouvelle':
-        return {
-          ...base,
-          corrections: {
-            // Le sigle lu par le relais remplit celui de la nouvelle école, sauf si l'administration l'a corrigé.
-            ...(detail.sigle && retenues.sigle === undefined ? { sigle: detail.sigle } : {}),
-            ...(choixNumero === 'retire' ? { ...retenues, numeroEnseigne: null } : retenues),
-          },
-          mode: 'new_institution',
-          etiquette: null,
-          ...(cible.memeLieuQue ? { memeLieuQue: cible.memeLieuQue } : {}),
-        };
-      case 'new_campus':
-        return {
-          ...base,
-          mode: 'new_campus',
-          institutionId: cible.institutionId,
-          etiquette: null,
-        };
-      case 'update_campus':
-        return { ...base, mode: 'update_campus', campusId: cible.campusId };
-      case 'add_cycle':
-        return { ...base, mode: 'add_cycle', campusId: cible.campusId };
-    }
-  };
+  const differences =
+    ecoleVisee && ecoles
+      ? comparerAvecLEcole(detail, corrections, saisie?.position ?? null, ecoleVisee, ecoles)
+      : [];
+  const decision = () =>
+    decisionDAcceptation(
+      detail,
+      cible,
+      {
+        formations,
+        faits: faitsGardes,
+        divisionId:
+          (divisionRequise || divisionFacultative) && divisionId !== '' ? divisionId : null,
+        position: saisie?.position ?? null,
+        corrections,
+        choixNumero,
+      },
+      {
+        completer: ecoleVisee ? { ecole: ecoleVisee, differences, choix: choixDeFiche } : null,
+        accueil,
+      },
+    );
+  const formationsRetenues = lectureSeule ? formations : (decision().formations ?? formations);
 
-  // Ce qui manque pour accepter : l'écran le dit, le bouton ne se grise jamais sans un mot (ticket #89).
-  const numeroCorrige = retenues.numeroEnseigne !== undefined;
-  const aConfirmer = numeroAConfirmer(valeurs, numeroCorrige);
+  // Ce qui manque pour accepter : l'écran le dit, le bouton ne se grise jamais sans un mot (ticket #89). En complétant une
+  // fiche, le numéro du relevé ne se confirme que s'il va être repris.
+  const numeroRepris = differences.some(
+    (d) => d.champ === 'numeroEnseigne' && seraPris(d, choixDeFiche),
+  );
+  const aConfirmer =
+    relecture?.mode === 'completer' && !numeroRepris
+      ? null
+      : numeroAConfirmer(valeurs, retenues.numeroEnseigne !== undefined);
+  const fichePasLue =
+    relecture?.mode === 'completer' && !ecoleVisee
+      ? ecoles === null
+        ? 'La fiche à compléter se charge…'
+        : 'La fiche à compléter est introuvable : recharge la page.'
+      : null;
   const manque =
     ceQuiManquePourAccepter(detail, cible, divisionId, saisie) ??
+    fichePasLue ??
     ceQuiManqueDuNumero(aConfirmer, choixNumero);
   const cibleIncomplete = manque !== null;
-  // « Pas sur la photo » : une nouvelle école naît sans numéro (la décision le dit à la base). Pour une implantation ou une
-  // mise à jour, le numéro du relais remplace celui de l'école : on remet aussitôt après l'acceptation celui qu'elle avait
-  // (aucun pour une nouvelle implantation).
+  // « Pas sur la photo » : une nouvelle école ou un nouveau site naît sans numéro, une fiche complétée garde le sien (la
+  // décision le dit à la base). Des niveaux ajoutés peuvent recevoir le numéro du relais : on le remet aussitôt comme avant.
   const accepterLaFiche = async () => {
-    const retirerApres =
-      aConfirmer !== null && choixNumero === 'retire' && cible.mode !== 'nouvelle';
-    const ecoleConnue =
-      cible.mode === 'update_campus' || cible.mode === 'add_cycle' ? cible.campusId : null;
-    const ancien =
-      retirerApres && ecoleConnue !== null
-        ? ((await admin.ecoles()).find((e) => e.id === ecoleConnue)?.numeroEnseigne ?? null)
+    const ecoleDesNiveaux =
+      aConfirmer !== null && choixNumero === 'retire' && cible.mode === 'add_cycle'
+        ? cible.campusId
         : null;
+    const ancien = ecoleDesNiveaux
+      ? ((await admin.ecoles()).find((e) => e.id === ecoleDesNiveaux)?.numeroEnseigne ?? null)
+      : null;
     const campusId = await admin.accepter(id, decision());
-    if (!retirerApres) return;
+    if (!ecoleDesNiveaux) return;
     try {
       await admin.modifierEcole(campusId, { numeroEnseigne: ancien });
     } catch {
@@ -942,13 +983,13 @@ function Detail({
     : null;
   return (
     <section
-      className="grid min-w-0 flex-1 grid-cols-1 [grid-template-areas:'photo'_'encart'_'faits'_'liste'_'bonus'_'pied'] lg:[grid-template-areas:'tete'_'encart'_'photo'_'faits'_'liste'_'bonus'_'pied'] xl:grid-cols-2 xl:gap-x-4 xl:[grid-template-areas:'tete_tete'_'encart_encart'_'photo_faits'_'liste_faits'_'bonus_faits'_'pied_pied'] [&>*]:mb-4"
+      className="grid min-w-0 flex-1 grid-cols-1 [grid-template-areas:'photo'_'encart'_'compare'_'faits'_'liste'_'bonus'_'pied'] lg:[grid-template-areas:'tete'_'encart'_'compare'_'photo'_'faits'_'liste'_'bonus'_'pied'] xl:grid-cols-2 xl:gap-x-4 xl:[grid-template-areas:'tete_tete'_'encart_encart'_'compare_compare'_'photo_faits'_'liste_faits'_'bonus_faits'_'pied_pied'] [&>*]:mb-4"
       aria-label="Envoi sélectionné"
     >
       <div className="flex flex-wrap items-start gap-x-4 gap-y-2 [grid-area:tete] max-lg:sr-only">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="m-0 font-serif text-[26px] leading-tight font-bold">
-            {detail.nomEnseigne}
+            {valeurs.nomEnseigne}
           </h2>
           <p className="m-0 text-sm text-muted-foreground">
             {detail.relais} · reçue {quand(detail.prisLe)}
@@ -977,9 +1018,45 @@ function Detail({
             position={detail.position}
             reponseDuRelais={detail.reponseDoublon}
             cible={cible}
-            choisir={setCible}
+            choisir={(c) => {
+              setCible(c);
+              setChoixDeFiche({});
+            }}
+            lieux={motsDeLieux([
+              ...divisions.flatMap((d) => [d.nom, ...d.aliases]),
+              ...(ecoles ?? []).map((e) => e.quartier),
+            ])}
           />
         </div>
+      )}
+
+      {ecoleVisee && (
+        <ComparaisonDeFiche
+          ecole={ecoleVisee}
+          differences={differences}
+          choix={choixDeFiche}
+          choisir={(champ, valeur) => setChoixDeFiche((c) => ({ ...c, [champ]: valeur }))}
+          numeroRetire={choixNumero === 'retire'}
+          nomIgnore={
+            !ecoleVisee.verifieeLe &&
+            valeurs.nomEnseigne.trim() !== ecoleVisee.nom.trim() &&
+            (ecoles ?? []).filter((e) => e.institutionId === ecoleVisee.institutionId).length > 1
+          }
+        />
+      )}
+      {relecture?.mode === 'nouveau_site' && (
+        <NouveauSite
+          sites={sitesDAccueil}
+          nom={corrections.etiquette ?? ''}
+          changer={(etiquette) =>
+            setCorrections((c) => {
+              const suite = { ...c };
+              if (etiquette) suite.etiquette = etiquette;
+              else delete suite.etiquette;
+              return suite;
+            })
+          }
+        />
       )}
 
       <Photos
@@ -1000,7 +1077,8 @@ function Detail({
           <div className={ligneFait}>
             <dt className={libelleFait}>Nom de l'établissement</dt>
             <dd>{valeurs.nomEnseigne}</dd>
-            {nouvelleEcole && !lectureSeule && (
+            <ValeurDuRelais releve={detail.nomEnseigne} retenue={valeurs.nomEnseigne} />
+            {relecture?.mode === 'nouvelle' && (
               <span
                 className="flex flex-wrap gap-2 pt-1"
                 role="group"
@@ -1028,17 +1106,30 @@ function Detail({
               </span>
             )}
           </div>
-          {detail.sigle && (
+          {(detail.sigle || valeurs.sigle) && (
             <div className={ligneFait}>
               <dt className={libelleFait}>Sigle</dt>
-              <dd>{detail.sigle}</dd>
+              <dd>{valeurs.sigle || '—'}</dd>
+              <ValeurDuRelais releve={detail.sigle} retenue={valeurs.sigle} />
             </div>
           )}
+          {relecture?.mode === 'nouvelle' && corrections.etiquette && (
+            <div className={ligneFait}>
+              <dt className={libelleFait}>Nom de ce site</dt>
+              <dd>{corrections.etiquette}</dd>
+            </div>
+          )}
+          {retenues.anneeCreation ? (
+            <div className={ligneFait}>
+              <dt className={libelleFait}>Année de création</dt>
+              <dd>{retenues.anneeCreation}</dd>
+            </div>
+          ) : null}
           <div className={ligneFait}>
             <dt className={libelleFait}>Type</dt>
             <dd className="flex items-baseline justify-between gap-3">
               <span>{libelleTypeEcole[valeurs.typeEcole]}</span>
-              {nouvelleEcole && !lectureSeule && (
+              {relecture && relecture.mode !== 'nouveau_site' && (
                 <button
                   type="button"
                   className="shrink-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4 max-lg:flex max-lg:size-10 max-lg:items-center max-lg:justify-center max-lg:rounded-md max-lg:border max-lg:border-input max-lg:text-foreground max-lg:no-underline"
@@ -1050,12 +1141,16 @@ function Detail({
                 </button>
               )}
             </dd>
+            <ValeurDuRelais
+              releve={libelleTypeEcole[detail.typeEcole]}
+              retenue={libelleTypeEcole[valeurs.typeEcole]}
+            />
           </div>
           <div className={ligneFait}>
             <dt className={libelleFait}>Niveaux</dt>
             <dd className="flex items-baseline justify-between gap-3">
-              <span>{valeurs.niveaux.map((n) => libelleNiveau[n]).join(', ') || '—'}</span>
-              {nouvelleEcole && !lectureSeule && (
+              <span>{niveauxDits(valeurs.niveaux) || '—'}</span>
+              {relecture && (
                 <button
                   type="button"
                   className="shrink-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[15px] font-normal text-primary underline underline-offset-4 max-lg:flex max-lg:size-10 max-lg:items-center max-lg:justify-center max-lg:rounded-md max-lg:border max-lg:border-input max-lg:text-foreground max-lg:no-underline"
@@ -1067,6 +1162,10 @@ function Detail({
                 </button>
               )}
             </dd>
+            <ValeurDuRelais
+              releve={niveauxDits(detail.niveaux)}
+              retenue={niveauxDits(valeurs.niveaux)}
+            />
           </div>
           {avecFormations && (
             <div className={ligneFait}>
@@ -1095,10 +1194,11 @@ function Detail({
               </dd>
             </div>
           )}
-          {detail.programme && (
+          {(detail.programme || valeurs.programme) && (
             <div className={ligneFait}>
               <dt className={libelleFait}>Programme</dt>
-              <dd>{detail.programme}</dd>
+              <dd>{valeurs.programme || '—'}</dd>
+              <ValeurDuRelais releve={detail.programme} retenue={valeurs.programme} />
             </div>
           )}
           {(detail.programmesVus !== null || detail.programmesEnPhoto) && (
@@ -1155,6 +1255,10 @@ function Detail({
                 </span>
               )}
             </dd>
+            <ValeurDuRelais
+              releve={detail.numeroEnseigne ? afficherTelephone(detail.numeroEnseigne) : null}
+              retenue={valeurs.numeroEnseigne ? afficherTelephone(valeurs.numeroEnseigne) : null}
+            />
             {numeroSuspect && (
               <span className="text-[13px] font-bold text-bonus">
                 {numeroSuspect.chiffres} chiffres après +242 : un numéro congolais en a 9. Relis-le
@@ -1168,7 +1272,9 @@ function Detail({
                   {choixNumero === 'verifie'
                     ? 'Public, avec un bouton « Appeler ».'
                     : choixNumero === 'retire'
-                      ? 'Ne sera pas publié.'
+                      ? ecoleVisee?.numeroEnseigne
+                        ? 'La fiche garde son numéro.'
+                        : 'Ne sera pas publié.'
                       : 'Pour ne pas le publier : accepte, puis retire-le dans la fiche de l’école.'}
                 </span>
               )}
@@ -1205,12 +1311,17 @@ function Detail({
             <span className="text-[13px] text-muted-foreground">
               {[
                 detail.precisionM !== null ? `précision ${Math.round(detail.precisionM)} m` : null,
-                detail.repere ? `repère : ${detail.repere}` : null,
+                valeurs.repere ? `repère : ${valeurs.repere}` : null,
                 horsDuSecteur ? `hors du secteur de ${detail.relais}` : null,
               ]
                 .filter(Boolean)
                 .join(' · ')}
             </span>
+            <ValeurDuRelais
+              libelle="Repère du relevé"
+              releve={detail.repere}
+              retenue={valeurs.repere}
+            />
             {!lectureSeule && saisiePossible && (
               <ChampPosition
                 valeur={positionTexte}
@@ -1265,7 +1376,27 @@ function Detail({
               </button>
             </dd>
           </div>
+          {retenues.email && (
+            <div className={ligneFait}>
+              <dt className={libelleFait}>E-mail (privé, jamais publié)</dt>
+              <dd className="[overflow-wrap:anywhere]">{retenues.email}</dd>
+            </div>
+          )}
         </dl>
+        {relecture && (
+          <div className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3">
+            <button
+              type="button"
+              className={v2.boutonSecondaire}
+              onClick={() => setDemandeCorrection((n) => n + 1)}
+            >
+              Corriger avant d’accepter
+            </button>
+            <span className="text-[13px] text-muted-foreground">
+              Sigle, nom du site, année et e-mail (privé) se notent là.
+            </span>
+          </div>
+        )}
       </section>
 
       {(faitsBonus.length > 0 || detail.remarque) && (
@@ -1326,9 +1457,11 @@ function Detail({
         </p>
       ) : (
         <>
-          {nouvelleEcole && (
+          {relecture && (
             <CorrectionAvantAcceptation
-              fiche={detail}
+              avant={{ ...detail, nom: detail.nomEnseigne }}
+              mode={relecture.mode}
+              ecole={ecoleVisee ?? accueil}
               correction={corrections}
               surChangement={setCorrections}
               surEdition={setEditionInformations}
@@ -1352,7 +1485,9 @@ function Detail({
                     void agir(
                       'acceptation',
                       accepterLaFiche,
-                      cible.mode === 'update_campus' || cible.mode === 'add_cycle'
+                      relecture?.mode === 'completer' ||
+                        cible.mode === 'update_campus' ||
+                        cible.mode === 'add_cycle'
                         ? 'La fiche de l’école est mise à jour. Si elle était déjà en ligne, la correction paraît après la prochaine mise à jour du site ; sinon, publie-la depuis « Écoles ».'
                         : ACCEPTEE,
                     )
@@ -1416,6 +1551,10 @@ function Detail({
                   )
                 ) : detail.essai ? (
                   'Lot d’essai : cette fiche ne sera jamais publiée.'
+                ) : relecture?.mode === 'completer' ? (
+                  'Accepter complète la fiche : ce que tu gardes ne change pas.'
+                ) : relecture?.mode === 'nouveau_site' ? (
+                  'Accepter crée le site sans le publier.'
                 ) : (
                   'Accepter crée l’école sans la publier.'
                 )}

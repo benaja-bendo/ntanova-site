@@ -1,7 +1,9 @@
 // La fiche d'une école, v2 (13/11) : ce qu'elle écrit, et surtout ce qu'elle tait (aucun bloc vide, aucune date passée).
 import { describe, expect, it } from 'vitest';
+import { htmlCarteEcole } from '../../src/modele/carte-ecole';
 import type { FraisEcole } from '../../src/modele/frais-ecole';
 import type { EcolePubliee } from '../../src/modele/ports';
+import { longueurDuSigle } from '../../src/modele/rond-ecole';
 import {
   admissionAMontrer,
   calendrierAMontrer,
@@ -9,6 +11,8 @@ import {
   dossiersOuverts,
   ficheCourte,
   inscriptionDesFrais,
+  cantineDesFrais,
+  reinscriptionDesFrais,
   libelleLigneDeFrais,
   ligneDIdentite,
   lignesDeFraisDeLEcole,
@@ -26,7 +30,7 @@ const JOUR = '2026-11-13';
 const media = { id: 'm1', sujet: 'logo' as const, legende: null, prisLe: null };
 
 describe('le rond de l’école', () => {
-  it('son logo d’abord, puis son sigle, puis la lettre de son cycle le plus élevé, sinon rien', () => {
+  it('son logo d’abord, puis son sigle, puis la couleur de son cycle le plus élevé, sinon le disque gris', () => {
     expect(
       rondDeLEcole({
         medias: { logo: media, couverture: null, galerie: [] },
@@ -43,6 +47,30 @@ describe('le rond de l’école', () => {
       lettre: 'C',
     });
     expect(rondDeLEcole({ niveaux: [] })).toEqual({ genre: 'vide' });
+  });
+
+  // « Option C » (27/11) : sans logo, le dessin d'école remplace la lettre ; la carte d'une liste et la fiche écrivent le
+  // même HTML. Un sigle est un texte de l'administration : il reste échappé, et sa longueur choisit la taille des lettres.
+  it('sans logo, la carte d’une école dessine le rond : sigle, cycle ou disque gris, jamais de lettre', () => {
+    const carte = (sigle: string, niveaux: EcolePubliee['niveaux']) =>
+      htmlCarteEcole(
+        { i: 'e1', n: 'École', u: '/e/', d: '', z: '', c: niveaux, f: [], si: sigle },
+        { forme: 'ligne' },
+      );
+    expect(carte('GSE', ['primaire'])).toMatch(
+      /vignette-rond rond-dessine rond-sigle sigle-court[\s\S]*<svg class="rond-dessin"[\s\S]*<span class="rond-texte">GSE<\/span>/,
+    );
+    const sansSigle = carte('', ['maternelle', 'college']);
+    expect(sansSigle).toMatch(/vignette-rond rond-dessine disque rond-cycle c-C[^>]*><svg/);
+    expect(sansSigle).not.toContain('rond-texte');
+    expect(carte('', [])).toMatch(/vignette-rond rond-dessine disque rond-vide[^>]*><svg/);
+    expect(carte('<b>"X"', ['primaire'])).toContain('&lt;b&gt;&quot;X&quot;</span>');
+    expect(['ABCD', 'ABCDEF', 'ABCDEFGHI', 'ABCDEFGHIJ'].map(longueurDuSigle)).toEqual([
+      'court',
+      'moyen',
+      'long',
+      'tres-long',
+    ]);
   });
 });
 
@@ -183,6 +211,23 @@ describe('les frais', () => {
       inscriptionDesFrais([frais({ inscription: 5000 }), frais({ inscription: 9000 }), frais({})]),
     ).toEqual({ min: 5000, max: 9000 });
     expect(inscriptionDesFrais([frais({})])).toBeNull();
+  });
+  it('la réinscription comme l’inscription ; la cantine, une somme ou une fourchette par période (ticket 236)', () => {
+    expect(reinscriptionDesFrais([frais({ reinscription: 3000 }), frais({})])).toEqual({
+      min: 3000,
+      max: 3000,
+    });
+    expect(
+      cantineDesFrais([
+        frais({ cantine: 12000, periodeCantine: 'mois' }),
+        frais({ cantine: 500, periodeCantine: 'jour' }),
+        frais({ cantine: 9000, periodeCantine: 'mois' }),
+        frais({}),
+      ]),
+    ).toEqual([
+      { periode: 'jour', montant: { min: 500, max: 500 } },
+      { periode: 'mois', montant: { min: 9000, max: 12000 } },
+    ]);
   });
   it('la source : la date la plus récente ; « sur le prospectus » seulement si toutes les lignes en viennent', () => {
     expect(

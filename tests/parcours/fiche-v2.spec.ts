@@ -19,7 +19,7 @@ test('une fiche nue reste digne : son rond, son nom, et une seule carte « Vous 
 }) => {
   await page.goto(NUE);
   await expect(page.locator('.fiche-couverture')).toHaveCount(0);
-  await expect(page.locator('.disque-fiche')).toHaveText('P');
+  await expect(page.locator('.rond-ecole')).toHaveClass(/rond-cycle c-P/);
   // Aucune rubrique vide : ni barre, ni bloc.
   await expect(page.getByRole('navigation', { name: 'Aller à une rubrique' })).toHaveCount(0);
   for (const nom of [

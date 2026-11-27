@@ -456,6 +456,8 @@ export interface DetailReleve extends ReleveAValider {
    * correction n'a pas les siens (ticket #89).
    */
   corrigeUneFicheEnAttente: boolean;
+  /** Ticket 236 : l'école que la fiche corrigée a créée ou complétée (une correction la met à jour) ; nul sinon. */
+  campusCorrige?: string | null;
   /** Vrai : `position` est celle de la fiche d'origine (la correction n'en a pas). */
   positionDeLaFicheDOrigine: boolean;
   /**
@@ -575,6 +577,8 @@ export interface DecisionAcceptation {
    * voisin est noté sur la nouvelle (`set_campus_same_place`). Jamais une fusion.
    */
   memeLieuQue?: string | null;
+  /** Ticket 236 : en complétant une fiche (`update_campus`), les valeurs actuelles que l'administration garde. */
+  garder?: import('./comparaison-fiche').ChampAGarder[];
 }
 
 /**
@@ -613,9 +617,13 @@ export interface ContactEcole extends Omit<ContactDirection, 'releveId'> {
   releveLe: string | null;
   /** Le prénom du relais qui l'a rencontrée. */
   relais: string | null;
-  /** Ticket 205 (A8, A19) : une personne, ou le numéro de l'école lu sur un document (privé, sans accord de personne). */
-  genre?: 'personne' | 'numero_ecole';
+  /**
+   * Ticket 205 (A8, A19) : une personne, ou le numéro de l'école lu sur un document (privé, sans accord de personne) ;
+   * ticket 236 : son adresse e-mail, privée elle aussi.
+   */
+  genre?: 'personne' | 'numero_ecole' | 'email_ecole';
   luSur?: import('./contacts').LuSur | null;
+  email?: string | null;
   /** Le numéro est illisible en partie : la lecture est dans `note`. */
   illisible?: boolean;
 }
@@ -811,6 +819,8 @@ export interface CorrectionEcole {
   nom?: string;
   /** v2 (13/11) : le sigle de l'école, qui remplit celui de la nouvelle école. */
   sigle?: string | null;
+  /** Ticket 236 : l'e-mail lu sur l'enseigne, à l'acceptation seulement : un contact privé du site, jamais publié. */
+  email?: string | null;
   /** Ticket 203 (A4) : le nom du site (« Site 2 · Mpita »), propre à ce site. */
   etiquette?: string | null;
   /** Ticket 205 (A21) : l'année de création, le site web et la page Facebook de l'école (tous ses sites). */
@@ -907,6 +917,19 @@ export interface GainVu {
   motifAnnulation: string | null;
 }
 
+/**
+ * Ticket 236 : un relevé accepté d'un site où la direction a refusé (« refus » à la rencontre), ou un mot d'elle noté par le
+ * relais. Privé : lu avant de publier, jamais sur le site public.
+ */
+export interface AlertePublication {
+  ecoleId: string;
+  releveId: string;
+  releveLe: string;
+  refus: boolean;
+  mot: string | null;
+  relais: string | null;
+}
+
 /** Les messages reçus (refonte, lot 3B2) ont leur propre contrat : `PortMessages`, dans `messages-recus.ts`. */
 export interface PortAdministration extends PortMessages {
   /** Le rôle vient de la base, pas de Google. `GET /moi` */
@@ -951,6 +974,12 @@ export interface PortAdministration extends PortMessages {
   ajouterContactEcole(ecoleId: string, contact: ContactASaisir): Promise<string>;
   /** Ticket 205 (A8, A19) : le numéro de l'école, lu sur un document ou sur l'enseigne ; illisible, il se garde en mots. */
   ajouterNumeroEcole(ecoleId: string, numero: import('./contacts').NumeroEcole): Promise<string>;
+  /** Ticket 236 : l'adresse e-mail de l'école, lue sur l'enseigne ou un document ; privée. `add_school_email` */
+  ajouterEmailEcole(
+    ecoleId: string,
+    email: string,
+    luSur: import('./contacts').LuSur,
+  ): Promise<string>;
   /** Corrige une personne : tous ses champs sont redonnés. `PUT /admin/contacts/{id}` */
   corrigerContact(contactId: string, contact: ContactASaisir): Promise<void>;
   /** Transforme le relevé en institution, campus ou cycle. Rend le campus. `POST /admin/releves/{id}/decision` */
@@ -1112,12 +1141,20 @@ export interface PortAdministration extends PortMessages {
     divisionId?: string | null,
     source?: import('./fiche-admin').SourcePosition | null,
   ): Promise<string>;
-  /** Un campus prêt (ou retiré) passe en ligne. `POST /admin/ecoles/{id}/publication` */
-  publierEcole(ecoleId: string): Promise<void>;
-  /** Tous les campus prêts d'une division et de ce qu'elle contient ; rend leur nombre. */
-  publierDivision(divisionId: string): Promise<number>;
-  /** Les campus prêts relevés dans un lot ; rend leur nombre. */
-  publierLot(lotId: string): Promise<number>;
+  /**
+   * Ticket 236 : avant de publier, les relevés acceptés de ces sites où la direction a refusé, ou a laissé un mot au relais,
+   * le plus récent d'abord. Privé. `GET /admin/publication/avertissements`
+   */
+  alertesDePublication(ecoleIds: string[]): Promise<AlertePublication[]>;
+  /**
+   * Un campus prêt (ou retiré) passe en ligne. Après un refus ou un mot de la direction, il faut `malgreLeRefus`, la
+   * confirmation explicite. `POST /admin/ecoles/{id}/publication`
+   */
+  publierEcole(ecoleId: string, options?: { malgreLeRefus?: boolean }): Promise<void>;
+  /** Les campus prêts d'une division et de ce qu'elle contient, sauf les avertis non confirmés ; rend leur nombre. */
+  publierDivision(divisionId: string, malgreLeRefus?: string[]): Promise<number>;
+  /** Les campus prêts relevés dans un lot, sauf les avertis non confirmés ; rend leur nombre. */
+  publierLot(lotId: string, malgreLeRefus?: string[]): Promise<number>;
   /** Retirer du site, avec un motif. `POST /admin/ecoles/{id}/retrait` */
   retirerEcole(ecoleId: string, motif: Valeur<'motif_retrait'>, note: string | null): Promise<void>;
   /**

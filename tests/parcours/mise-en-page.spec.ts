@@ -841,10 +841,17 @@ test('nouvelle école : corriger avant d’accepter, conserver l’original et r
   await niveaux.getByRole('button', { name: 'Collège', exact: true }).click();
   await edition.getByLabel('Repère', { exact: false }).fill('En face du marché');
   await edition.getByLabel("Numéro sur l'enseigne").fill('06 123 45 67');
+  // Ticket 236 : le sigle, et l'e-mail lu sur l'enseigne, qui reste privé.
+  await edition.getByLabel(/^Sigle/).fill('EC');
+  await edition.getByLabel(/^E-mail lu sur l’enseigne/).fill('contact@exemple.cg');
   await edition.getByRole('button', { name: 'Utiliser ces valeurs' }).click();
-  // Planche : les faits montrent les valeurs retenues ; le relevé du relais reste tel quel.
+  // Planche : les faits montrent les valeurs retenues ; le relevé du relais reste lisible.
   const retenues = page.getByRole('region', { name: 'Partie publique' });
   await expect(retenues).toContainText('[École corrigée]');
+  await expect(retenues).toContainText('Relevé : [École 1]');
+  // Ticket 236 : « Où » dit le repère corrigé, plus celui du relevé.
+  await expect(retenues).toContainText('repère : En face du marché');
+  await expect(retenues).toContainText('E-mail (privé, jamais publié)');
   await expect(retenues).toContainText('Collège');
   await context.setOffline(true);
   await accepter.click();
@@ -855,7 +862,10 @@ test('nouvelle école : corriger avant d’accepter, conserver l’original et r
   await expect(page.getByRole('status')).toContainText('prête');
   await page.getByRole('button', { name: 'Décidées', exact: true }).click();
   await page.getByRole('link', { name: /\[École 1\]/ }).click();
-  await expect(page.getByRole('region', { name: 'Partie publique' })).toBeVisible();
+  // Une fois décidée, la fiche montre ce qui a été retenu.
+  await expect(page.getByRole('region', { name: 'Partie publique' })).toContainText(
+    'repère : En face du marché',
+  );
   await ouvrirLesEcoles(page);
   await expect(page.getByRole('heading', { name: 'Écoles', exact: true })).toBeVisible();
   await expect(page.getByText('[École corrigée]', { exact: true }).first()).toBeVisible();
@@ -871,7 +881,16 @@ test('nouvelle école : corriger avant d’accepter, conserver l’original et r
     typeEcole: 'publique',
     numeroEnseigne: '242061234567',
     repere: 'En face du marché',
+    sigle: 'EC',
   });
+  expect(
+    await page.evaluate(() => {
+      const e = JSON.parse(localStorage.getItem('ntanova-faux-serveur') ?? '{}') as {
+        contacts: Record<string, { genre?: string; email?: string }>;
+      };
+      return Object.values(e.contacts).filter((c) => c.genre === 'email_ecole');
+    }),
+  ).toEqual([expect.objectContaining({ email: 'contact@exemple.cg' })]);
 });
 
 test('nouvelle école : annuler une saisie ou reprendre le relevé ne conserve aucune correction', async ({

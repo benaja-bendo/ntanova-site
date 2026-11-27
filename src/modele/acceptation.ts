@@ -188,14 +188,14 @@ export function ceQuiManqueDuNumero(
 }
 
 /**
- * Peut-on ne pas publier le numéro ? Oui dans tous les cas où l'on sait quelle école l'accueille. Une correction d'une
- * école déjà créée ne le dit pas avant l'acceptation : on ne retire rien alors, de peur d'effacer un numéro déjà vérifié
- * (« Écoles › Gérer la fiche » le retire après).
+ * Peut-on ne pas publier le numéro ? Oui dès qu'on sait quelle école l'accueille : une nouvelle école, un site choisi, ou
+ * l'école que la fiche corrigée a créée (ticket 236). Sans elle, on ne retire rien, de peur d'effacer un numéro déjà
+ * vérifié (« Écoles › Gérer la fiche » le retire après).
  */
 export function numeroPeutEtreRetire(
-  fiche: Pick<DetailReleve, 'type' | 'corrigeUneFicheEnAttente'>,
+  fiche: Pick<DetailReleve, 'type' | 'corrigeUneFicheEnAttente' | 'campusCorrige'>,
 ): boolean {
-  return !(fiche.type === 'correction' && !fiche.corrigeUneFicheEnAttente);
+  return !(fiche.type === 'correction' && !fiche.corrigeUneFicheEnAttente && !fiche.campusCorrige);
 }
 
 // Avant d'accepter (ticket #95) --------------------------------------------------------------------------------------------
