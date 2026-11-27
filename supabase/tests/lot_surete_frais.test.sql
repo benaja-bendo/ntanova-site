@@ -2,7 +2,7 @@
 -- ligne de frais « à partir de » n'a pas de maximum (A23) ; les lignes gardent l'ordre de leur saisie (A14).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(28);
 
 select public.register_relay('00000000-0000-4000-8000-0000000002d1', 'google-sf-admin', '[Admin]');
 insert into prive.admins(id) values ('00000000-0000-4000-8000-0000000002d1');
@@ -87,6 +87,29 @@ select lives_ok($$select public.set_school_fee('f2200000-0000-4000-8000-00000000
 select is((select string_agg(level_label, ',' order by created_at, id) from public.campus_fees
            where campus_id = 'f2200000-0000-4000-8000-000000000001'),
   'Licence 1,Licence 2,Licence 3', 'Les lignes gardent l''ordre de leur saisie, même modifiées');
+
+-- Ticket 236 (27/11) : la réinscription et la cantine suivent la même règle que les frais --------------------------------------
+select throws_ok($$select public.set_school_fee('f2200000-0000-4000-8000-000000000001', null, 'superieur', 70000, 70000, 'mois', null, null,
+    null, current_date - 2, null, 'Master 1', p_canteen => 15000)$$, '22023', null, 'Une cantine sans sa période est refusée');
+select lives_ok($$select public.set_school_fee('f2200000-0000-4000-8000-000000000001', null, 'superieur', 70000, 70000, 'mois', null, null,
+    null, current_date - 2, null, 'Master 1', p_re_registration => 30000, p_canteen => 15000, p_canteen_period => 'mois')$$,
+  'Une ligne avec réinscription et cantine');
+set local role anon;
+select is((select count(*)::int from public.campus_fees where re_registration is not null or canteen is not null), 0,
+  'Sans le OUI, le public ne lit ni la réinscription ni la cantine');
+set local role authenticated;
+select public.confirm_school_fees('f2200000-0000-4000-8000-000000000001', current_date - 1);
+set local role anon;
+select is((select re_registration || '|' || canteen || '|' || canteen_period from public.campus_fees where level_label = 'Master 1'),
+  '30000|15000|mois', 'Avec le OUI, le public les lit');
+set local role authenticated;
+select public.set_school_fee('f2200000-0000-4000-8000-000000000001',
+    (select id from public.campus_fees where level_label = 'Master 1'), 'superieur', 70000, 70000, 'mois', null, null,
+    null, current_date - 2, null, 'Master 1', p_re_registration => 30000, p_canteen => 16000, p_canteen_period => 'mois');
+select ok((select confirmed_on is null from public.campus_fees where level_label = 'Master 1'), 'Une cantine changée perd le OUI');
+set local role anon;
+select is((select count(*)::int from public.campus_fees where level_label = 'Master 1'), 0,
+  'Et la ligne quitte le site jusqu''au prochain OUI');
 
 select * from finish();
 rollback;

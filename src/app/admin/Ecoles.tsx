@@ -17,6 +17,7 @@ import { ContactPublic } from './ContactPublic';
 import { AgrementEcole } from './AgrementEcole';
 import { InscriptionsEcole } from './InscriptionsEcole';
 import { MotDirectionEcole } from './MotDirectionEcole';
+import { ConfirmationAvantPublication } from './AvantPublication';
 /**
  * Les écoles et leur cycle de vie (supabase/schema.md, « Le cycle de vie ») :
  * à situer → prête → publiée → retirée (→ publiée). Publier est un geste à part :
@@ -39,9 +40,11 @@ import {
 } from '../../modele/correction-ecole';
 import type { Erreurs } from '../../modele/fiche';
 import { cheminLisible } from '../../modele/geo-divisions';
+import { libellesDesSites } from '../../modele/sites-ecole';
 import { libelleNiveau, libelleTypeEcole, libelleTypeMission } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
 import type {
+  AlertePublication,
   DivisionVue,
   ApercuSuppression,
   EcoleVue,
@@ -106,12 +109,10 @@ function LigneEcole({
   surChangement,
   pleinEcran = false,
   site = false,
-  rangSite = 0,
 }: {
   e: EcoleVue;
   /** Une ligne de site, sous le nom de son école (l'école a plusieurs sites). */
   site?: boolean;
-  rangSite?: number;
   ecoles: EcoleVue[];
   relais: RelaisVu[];
   divisions: DivisionVue[];
@@ -124,6 +125,11 @@ function LigneEcole({
   const etat = etatDe(e);
   // Lot G : l'école voisine au même lieu (même portail), notée depuis « Est-ce une école connue ? ».
   const memeLieu = e.memeLieuQue ? (ecoles.find((x) => x.id === e.memeLieuQue) ?? null) : null;
+  // Ticket 236 : les sites d'une même école se distinguent, nommés ou non.
+  const libellesDeLEcole = libellesDesSites(
+    ecoles.filter((x) => x.institutionId === e.institutionId && !x.corbeille),
+  );
+  const libelleDuSite = libellesDeLEcole.get(e.id) ?? e.etiquette ?? 'Site sans nom';
   const [declencheur, setDeclencheur] = useState<HTMLElement | null>(null);
   const [operation, setOperation] = useState(false);
   const [relaisId, setRelaisId] = useState(e.confiee?.relaisId ?? relais[0]?.id ?? '');
@@ -195,6 +201,40 @@ function LigneEcole({
     }
   };
 
+  // Ticket 236 : après un refus ou un mot de la direction, publier demande une confirmation, avec le jour et le mot.
+  const [alertes, setAlertes] = useState<AlertePublication[] | null>(null);
+  const estPubliee = `${e.nom} est publiée. ${EN_LIGNE}`;
+  const publier = async () => {
+    setEnCours(true);
+    setErreur(null);
+    try {
+      const vues = await admin.alertesDePublication([e.id]);
+      if (vues.length > 0) {
+        setAlertes(vues);
+        return;
+      }
+      await admin.publierEcole(e.id);
+      setMode(null);
+      surChangement(estPubliee);
+    } catch (err) {
+      setErreur(message(err));
+    } finally {
+      setEnCours(false);
+    }
+  };
+  const confirmationDePublication = alertes && (
+    <ConfirmationAvantPublication
+      ecoles={[{ id: e.id, nom: e.nom }]}
+      alertes={alertes}
+      enCours={enCours}
+      fermer={() => setAlertes(null)}
+      publier={() => {
+        setAlertes(null);
+        void agir(() => admin.publierEcole(e.id, { malgreLeRefus: true }), estPubliee);
+      }}
+    />
+  );
+
   const autres = ecoles.filter((x) => x.id !== e.id && x.publication !== 'retiree');
   // v2 (13/11) : « C'est un site de… » : une ligne par école (pas par site), jamais celle de ce site.
   const ecolesCibles = [
@@ -254,7 +294,7 @@ function LigneEcole({
                 !x.corbeille &&
                 x.formations > 0,
             )
-            .map((x) => ({ id: x.id, nom: x.etiquette ?? 'Site sans nom' }))}
+            .map((x) => ({ id: x.id, nom: libellesDeLEcole.get(x.id) ?? 'Site sans nom' }))}
           admin={admin}
           surChangement={signaler}
         />
@@ -988,13 +1028,7 @@ function LigneEcole({
           }
           publier={
             etat === 'prete' || (etat === 'retiree' && !e.retrait?.remplaceePar) ? (
-              <Bouton
-                enCours={enCours}
-                texteEnCours="Publication…"
-                onClick={() =>
-                  void agir(() => admin.publierEcole(e.id), `${e.nom} est publiée. ${EN_LIGNE}`)
-                }
-              >
+              <Bouton enCours={enCours} texteEnCours="Publication…" onClick={() => void publier()}>
                 {etat === 'retiree' ? 'Republier' : 'Publier'}
               </Bouton>
             ) : etat === 'a_situer' ? (
@@ -1022,6 +1056,7 @@ function LigneEcole({
             {contenuGestion}
           </Dialogue>
         )}
+        {confirmationDePublication}
       </article>
     );
   }
@@ -1036,9 +1071,7 @@ function LigneEcole({
         className={v2.petit}
         enCours={enCours}
         texteEnCours="Publication…"
-        onClick={() =>
-          void agir(() => admin.publierEcole(e.id), `${e.nom} est publiée. ${EN_LIGNE}`)
-        }
+        onClick={() => void publier()}
       >
         Publier
       </Bouton>
@@ -1096,7 +1129,7 @@ function LigneEcole({
   return (
     <div
       role="row"
-      aria-label={site ? `${nomDuSite(e)}` : e.nom}
+      aria-label={site ? nomDuSite({ nom: e.nom, etiquette: libelleDuSite }) : e.nom}
       className={cn(
         'grid items-center border-t border-border lg:grid-cols-[minmax(0,2.3fr)_1fr_1.4fr_1.1fr_1fr_auto]',
         'max-lg:grid-cols-[minmax(0,1fr)_auto] max-lg:gap-x-3 max-lg:gap-y-0.5 max-lg:px-4 max-lg:py-3',
@@ -1111,7 +1144,7 @@ function LigneEcole({
             site ? 'text-[15px] font-bold' : 'font-serif text-[17px] font-bold',
           )}
         >
-          {site ? (rangSite ? `${e.etiquette ?? `Site ${rangSite}`}` : e.etiquette) : e.nom}
+          {site ? libelleDuSite : e.nom}
         </a>
         {!site && memeLieu && (
           <span className="block text-[13px] text-muted-foreground">
@@ -1182,6 +1215,12 @@ function LigneEcole({
             {contenuGestion}
           </Dialogue>
         )}
+        {erreur && !mode && (
+          <span className={cn(v2.erreur, 'mt-1 block text-left')} role="alert">
+            {erreur}
+          </span>
+        )}
+        {confirmationDePublication}
       </div>
     </div>
   );
@@ -1559,6 +1598,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
   const [erreur, setErreur] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const [signalees, setSignalees] = useState<AlertePublication[] | null>(null);
   const [ajout, setAjout] = useState(false);
   // 17/11 : le message d'une fiche ne suit pas sur la fiche d'un autre site.
   const [adresseDeLAnnonce, setAdresseDeLAnnonce] = useState(`${sousAdresse}/${zoneDeLAdresse}`);
@@ -1685,13 +1725,32 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
     return tous.length > 1 ? tous : vus;
   });
   const pretes = (ecoles ?? []).filter((e) => etatDe(e) === 'prete');
+  // Ticket 236 : « Publier les N d'un coup » montre d'abord les écoles dont la direction a dit non ou laissé un mot.
   const publierToutes = async () => {
     setEnCours(true);
     setErreur(null);
+    try {
+      const alertes = await admin.alertesDePublication(pretes.map((e) => e.id));
+      if (alertes.length > 0) {
+        setSignalees(alertes);
+        setEnCours(false);
+        return;
+      }
+    } catch (err) {
+      setErreur(message(err));
+      setEnCours(false);
+      return;
+    }
+    await publierEcoles(pretes, new Set());
+  };
+  const publierEcoles = async (liste: EcoleVue[], malgre: Set<string>) => {
+    setEnCours(true);
+    setErreur(null);
+    setSignalees(null);
     let n = 0;
     try {
-      for (const e of pretes) {
-        await admin.publierEcole(e.id);
+      for (const e of liste) {
+        await admin.publierEcole(e.id, { malgreLeRefus: malgre.has(e.id) });
         n++;
       }
       setAnnonce(
@@ -1704,7 +1763,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
       charger();
     }
   };
-  const ligne = (e: EcoleVue, extra: { site?: boolean; rangSite?: number } = {}) => (
+  const ligne = (e: EcoleVue, extra: { site?: boolean } = {}) => (
     <LigneEcole
       key={e.id}
       e={e}
@@ -1897,7 +1956,7 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
                   </div>
                   <div role="cell" className="max-lg:hidden" />
                 </div>
-                {sites.map((x, i) => ligne(x, { site: true, rangSite: i + 1 }))}
+                {sites.map((x) => ligne(x, { site: true }))}
                 <div role="row" className="border-t border-border px-4 py-3 lg:pl-9">
                   <button
                     type="button"
@@ -1944,6 +2003,30 @@ export function Ecoles({ admin }: { admin: PortAdministration }) {
           </Bouton>
         )}
       </div>
+      {signalees &&
+        (() => {
+          const ids = new Set(signalees.map((a) => a.ecoleId));
+          const aVoir = pretes.filter((e) => ids.has(e.id));
+          return (
+            <ConfirmationAvantPublication
+              ecoles={aVoir.map((e) => ({
+                id: e.id,
+                nom: e.etiquette ? `${e.nom} — ${e.etiquette}` : e.nom,
+              }))}
+              alertes={signalees}
+              autres={pretes.length - aVoir.length}
+              enCours={enCours}
+              fermer={() => setSignalees(null)}
+              publier={() => void publierEcoles(pretes, ids)}
+              publierLesAutres={() =>
+                void publierEcoles(
+                  pretes.filter((e) => !ids.has(e.id)),
+                  new Set(),
+                )
+              }
+            />
+          );
+        })()}
 
       {ajout && (
         <Dialogue

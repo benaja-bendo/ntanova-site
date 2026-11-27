@@ -55,6 +55,9 @@ import Reponse from '../../ui/formulaires/Reponse.astro';
 import '../../ui/formulaires/formulaires.css';
 // Les pièces de la page carte : les mêmes feuilles que celles de /carte/, jamais une copie.
 import '../../ui/carte-pieces.css';
+import '../../ui/carte-ecole.css';
+import { htmlCarteEcole } from '../../modele/carte-ecole';
+import { htmlRondSansLogo, rondSansLogo } from '../../modele/rond-ecole';
 
 export function getStaticPaths() {
   return import.meta.env.DEV ? [{ params: { page: 'catalogue' } }] : [];
@@ -582,6 +585,67 @@ const autour = arrondissementsDessines.map((a) => ({
       />
     </div>
 
+    <h2 id="rond-ecole">Le rond d’une école sans logo (« option C », 27/11)</h2>
+    <p>
+      Le dessin au-dessus du sigle, sinon la couleur du plus haut cycle, sinon le disque gris. Aux
+      tailles des cartes (40 et 56 px) et de la fiche (80 et 100 px).
+    </p>
+    <ul style="display: grid; gap: var(--espace-4); padding: 0; list-style: none">
+      {(
+        [
+          ['EPL', ['maternelle', 'primaire']],
+          ['GSPLA', ['primaire', 'college']],
+          ['CSPLACE', ['college', 'lycee']],
+          ['ISTAPOLE-PN', ['superieur']],
+          ['', ['maternelle']],
+          ['', ['primaire']],
+          ['', ['college']],
+          ['', ['lycee']],
+          ['', ['technique']],
+          ['', ['superieur']],
+          ['', []],
+        ] as const
+      ).map(([sigle, niveaux]) => (
+        <li style="display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-4)">
+          <code style="width: 14rem">
+            {sigle || 'sans sigle'} · {niveaux.join(', ') || 'aucun niveau'}
+          </code>
+          {[40, 56, 80, 100].map((d) => (
+            <span
+              style={`--diametre: ${d}px; display: inline-flex`}
+              set:html={htmlRondSansLogo(rondSansLogo(sigle, [...niveaux]), 'catalogue-rond')}
+            />
+          ))}
+        </li>
+      ))}
+    </ul>
+    <ul style="display: grid; gap: var(--espace-3); max-width: 22rem; padding: 0; list-style: none">
+      {(
+        [
+          ['ISTAPOLE-PN', ['superieur']],
+          ['EPL', ['maternelle', 'primaire']],
+          ['', ['college']],
+          ['', []],
+        ] as const
+      ).map(([sigle, niveaux], i) => (
+        <li
+          set:html={htmlCarteEcole(
+            {
+              i: `rond-${i}`,
+              n: 'École d’exemple au nom assez long pour passer sur deux lignes',
+              u: '#rond-ecole',
+              d: 'Pointe-Noire',
+              z: 'congo/pointe-noire',
+              c: [...niveaux],
+              f: [],
+              ...(sigle ? { si: sigle } : {}),
+            },
+            { forme: 'ligne' },
+          )}
+        />
+      ))}
+    </ul>
+
     <h2 id="fiche-v2">Les rubriques de la fiche v2 (13/11)</h2>
     <p>Chacune disparaît sans donnée : aucun état vide n’est dessiné.</p>
     <div style="display: grid; gap: var(--espace-5); max-width: var(--largeur-texte)">
@@ -636,6 +700,9 @@ const autour = arrondissementsDessines.map((a) => ({
             periode: 'mois',
             precisionPeriode: null,
             inscription: 10000,
+            reinscription: 5000,
+            cantine: 12000,
+            periodeCantine: 'mois',
             anneeScolaire: '2026-2027',
             declaresLe: '2026-11-04',
             note: null,

@@ -130,3 +130,23 @@ test('4 et 5. plusieurs images d’un coup, chacune sa légende ; la rubrique «
   await expect(photos.getByRole('button', { name: 'Image de la fiche : [Image A]' })).toBeVisible();
   await expect(photos.getByRole('button', { name: 'Image de la fiche : [Image B]' })).toBeVisible();
 });
+
+// Ticket 236 : un logo remis en SVG est converti en image dans le navigateur ; le stockage ne reçoit jamais de SVG.
+test('un logo en SVG est accepté et converti avant l’envoi', async ({ page }) => {
+  test.setTimeout(60_000);
+  await laFiche(page);
+  await page.getByRole('button', { name: 'Ajouter le logo' }).filter({ visible: true }).click();
+  const form = page.getByRole('form', { name: 'Ajouter une image' });
+  await form.getByLabel('Le fichier').setInputFiles({
+    name: 'logo.svg',
+    mimeType: 'image/svg+xml',
+    buffer: Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"><circle cx="60" cy="40" r="30"/></svg>',
+    ),
+  });
+  await form.getByLabel(/Sans enfant/).check();
+  await form.getByRole('button', { name: 'Ajouter l’image' }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Image ajoutée et publiée' }),
+  ).toHaveCount(1);
+});

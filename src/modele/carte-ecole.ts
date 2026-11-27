@@ -7,21 +7,16 @@
  * - `colonne` : la vignette en haut (accueil, grille de la liste sur ordinateur) ;
  * - `ligne` : la vignette carrée à gauche sur téléphone, en haut à partir de 48 rem (liste, « Écoles proches »).
  */
-import { cycleLePlusEleve, lettresDesCycles } from './carte/cycles';
+import { lettresDesCycles } from './carte/cycles';
 import { ICONES, type NomIcone } from './carte/icones';
+import { echapper } from './echapper';
 import { distanceCourte } from './fiche-mince';
 import { ligneDeRecherche } from './ligne-ecole';
 import { dateCourte } from './pointe-noire';
 import type { LigneRecherche } from './recherche';
+import { htmlRondSansLogo, rondSansLogo } from './rond-ecole';
 
-const ECHAPPES: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-};
-export const echapper = (texte: string): string => texte.replace(/[&<>"']/g, (c) => ECHAPPES[c]!);
+export { echapper };
 
 /** Une icône, comme `Icone.astro` (petite, décorative). */
 export const htmlIcone = (nom: NomIcone): string =>
@@ -48,15 +43,9 @@ function vignette(l: LigneRecherche, forme: 'colonne' | 'ligne', prioritaire: bo
     return `<img class="vignette-ecole vignette-large" src="${echapper(l.vl)}" alt="" width="400" height="208"${chargement} decoding="async">`;
   }
   const classe = `vignette-ecole vignette-vide ${forme === 'ligne' ? 'vignette-adaptee' : 'vignette-large'}`;
-  let rond = '';
-  if (l.lg)
-    rond = `<span class="vignette-rond vignette-logo"><img src="${echapper(l.lg)}" alt="" width="100" height="100" loading="lazy"></span>`;
-  else if (l.si) rond = `<span class="vignette-rond vignette-sigle">${echapper(l.si)}</span>`;
-  else {
-    const lettre = cycleLePlusEleve(l.c)?.lettre;
-    if (lettre)
-      rond = `<span class="disque c-${lettre} vignette-rond vignette-cycle">${lettre}</span>`;
-  }
+  const rond = l.lg
+    ? `<span class="vignette-rond vignette-logo"><img src="${echapper(l.lg)}" alt="" width="100" height="100" loading="lazy"></span>`
+    : htmlRondSansLogo(rondSansLogo(l.si, l.c), 'vignette-rond');
   return `<span class="${classe}" aria-hidden="true">${rond}</span>`;
 }
 

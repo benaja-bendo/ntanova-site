@@ -143,7 +143,9 @@ test.describe('la correction d’une école déjà créée, par un relais sans s
 
     const accepter = page.getByRole('button', { name: 'Accepter la correction' });
     await expect(accepter).toBeEnabled();
+    // Ticket 236 : l'école créée se complète, avant et après sous les yeux ; l'écran le dit, plus « l'école est prête ».
+    await expect(page.getByRole('region', { name: 'Ce qui change sur la fiche' })).toBeVisible();
     await accepter.click();
-    await expect(page.getByRole('status')).toHaveText(/Acceptée/);
+    await expect(page.getByRole('status')).toHaveText(/est mise à jour/);
   });
 });

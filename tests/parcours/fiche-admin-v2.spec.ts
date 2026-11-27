@@ -84,7 +84,7 @@ test('les images : chaque vide se dit ; un fichier se prépare, se publie s’il
 }) => {
   await gerer(page, 'Images');
   const images = page.getByRole('region', { name: 'Images de l’école' });
-  await expect(images).toContainText('Pas de logo : la page montre le sigle');
+  await expect(images).toContainText('Pas de logo : la page montre un rond avec un dessin d’école');
   await expect(images).toContainText('Pas de couverture : la page montre la bannière dessinée');
   const form = images.getByRole('form', { name: 'Ajouter une image' });
   await form.getByLabel('C’est').selectOption('gallery');

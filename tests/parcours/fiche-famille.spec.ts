@@ -11,12 +11,15 @@ const INSTITUT = '/ecoles/institut-superieur-exemple-527064/';
 const BRAZZAVILLE = '/ecoles/ecole-de-brazzaville-exemple-731590/';
 
 test.describe('la fiche d’une école', () => {
-  test('le disque est celui du cycle le plus élevé, et chaque niveau a sa puce colorée', async ({
+  // « Option C » (27/11) : sans logo ni sigle, le rond dit le cycle par sa couleur, avec le dessin d'école à la place de la lettre.
+  test('le rond prend la couleur du cycle le plus élevé, et chaque niveau a sa puce colorée', async ({
     page,
   }) => {
     await page.goto(COMPLEXE);
-    await expect(page.locator('.fiche-identite .disque-fiche')).toHaveText('P');
-    await expect(page.locator('.fiche-identite .disque-fiche')).toHaveClass(/c-P/);
+    const rond = page.locator('.fiche-identite .rond-ecole');
+    await expect(rond).toHaveClass(/rond-cycle c-P/);
+    await expect(rond.locator('svg')).toHaveCount(1);
+    await expect(rond).toHaveText('');
     const puces = page.getByRole('list', { name: 'Niveaux et type d’école' }).getByRole('listitem');
     await expect(puces).toHaveText([/^M\s*Maternelle$/, /^P\s*Primaire$/, 'Privée']);
     await expect(puces.nth(0).locator('.disque')).toHaveClass(/c-M/);
@@ -49,10 +52,14 @@ test.describe('la fiche d’une école', () => {
     ).toHaveCount(0);
   });
 
-  test('une école sans niveau noté a un disque gris, sans lettre ni puce', async ({ page }) => {
+  test('une école sans niveau noté a un disque gris avec le dessin, sans puce', async ({
+    page,
+  }) => {
     await page.goto(SANS_DETAIL);
-    await expect(page.locator('.fiche-identite .disque-fiche')).toHaveText('');
-    await expect(page.locator('.fiche-identite .disque-fiche')).not.toHaveClass(/c-/);
+    const rond = page.locator('.fiche-identite .rond-ecole');
+    await expect(rond).toHaveClass(/rond-vide/);
+    await expect(rond).not.toHaveClass(/c-[A-Z]/);
+    await expect(rond.locator('svg')).toHaveCount(1);
     await expect(page.getByRole('list', { name: 'Niveaux et type d’école' })).toHaveCount(0);
   });
 
@@ -108,7 +115,7 @@ test.describe('le canevas du 08/11/2026 (ticket 148)', () => {
     await page.goto('/ecoles/ecole-sans-detail-exemple-270846/');
     await expect(page.locator('.fiche-couverture')).toHaveCount(0);
     await expect(page.locator('main')).not.toContainText('Pas encore de photo');
-    await expect(page.locator('.disque-fiche, .rond-ecole')).toHaveCount(1);
+    await expect(page.locator('.rond-ecole')).toHaveCount(1);
   });
 
   test('le fil d’Ariane remonte les lieux qui ont une page', async ({ page }) => {

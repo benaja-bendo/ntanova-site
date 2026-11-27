@@ -83,6 +83,7 @@ import {
   type FraisDeDossier,
   type FormationSaisie,
   type PortAdministration,
+  type AlertePublication,
   type PortRelais,
   type PortSession,
   type Profil,
@@ -258,10 +259,11 @@ type ContactFaux = ContactAEnvoyer & {
   precisionFonction?: string | null;
   source?: 'relais' | 'administration';
   recuLe?: string;
-  /** Ticket 205 (A8, A19) : le numéro de l'école, lu sur un document. */
-  genre?: 'personne' | 'numero_ecole';
+  /** Ticket 205 (A8, A19) : le numéro de l'école, lu sur un document ; ticket 236 : son adresse e-mail. */
+  genre?: 'personne' | 'numero_ecole' | 'email_ecole';
   luSur?: LuSur | null;
   illisible?: boolean;
+  email?: string | null;
 };
 
 /** Les personnes notées pour une fiche, la première reçue d'abord. */
@@ -270,6 +272,72 @@ function personnesDe(e: Etat, releveId: string): [string, ContactFaux][] {
 }
 
 const TROIS_PERSONNES = 'Une fiche a trois personnes à contacter au plus.';
+
+/** Comme `add_school_email` : une adresse complète, privée, jamais deux fois pour le même site. */
+function noterEmail(etat: Etat, ecoleId: string, email: string, luSur: LuSur): string {
+  const adresse = email.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(adresse) || adresse.length > 254)
+    throw new ErreurDecision('Cette adresse e-mail ne semble pas complète.');
+  const deja = Object.entries(etat.contacts).find(
+    ([, c]) =>
+      c.genre === 'email_ecole' &&
+      c.ecoleId === ecoleId &&
+      c.email?.toLowerCase() === adresse.toLowerCase(),
+  );
+  if (deja) return deja[0];
+  const id = crypto.randomUUID();
+  etat.contacts[id] = {
+    releveId: '',
+    ecoleId,
+    fonction: null,
+    nom: null,
+    whatsapp: null,
+    accord: false,
+    accordLe: null,
+    note: null,
+    source: 'administration',
+    recuLe: new Date().toISOString(),
+    genre: 'email_ecole',
+    luSur,
+    email: adresse,
+  };
+  return id;
+}
+
+/** Comme `publication_warnings` : les relevés acceptés d'un site (et ceux qu'ils corrigent) avec un refus ou un mot. */
+function alertesDe(e: Etat, ecoleId: string): AlertePublication[] {
+  const fiches = new Set<string>();
+  for (const r of Object.values(e.releves)) {
+    const d = e.decisions[r.id];
+    if (d?.statut !== 'accepte' || d.ecoleId !== ecoleId) continue;
+    for (
+      let c: string | null | undefined = r.id;
+      c && !fiches.has(c);
+      c = e.releves[c]?.corrigeReleveId
+    )
+      fiches.add(c);
+  }
+  return [...fiches]
+    .flatMap((id) => {
+      const r = e.releves[id];
+      if (!r) return [];
+      const mots = Object.values(e.contacts)
+        .filter((c) => c.releveId === id && (c.source ?? 'relais') === 'relais')
+        .map((c) => c.note?.trim())
+        .filter((m): m is string => !!m);
+      const refus = r.direction === 'refus';
+      if (!refus && mots.length === 0) return [];
+      return (mots.length > 0 ? mots : [null]).map((mot) => ({
+        ecoleId,
+        releveId: id,
+        releveLe: r.prisLe,
+        refus,
+        mot,
+        relais: e.relaisDesReleves?.[id] ?? '[Prénom]',
+      }));
+    })
+    .sort((a, b) => b.releveLe.localeCompare(a.releveLe));
+}
 
 interface Etat {
   /** Lot 2 du site public (15/11) : les demandes des familles, sans nom ni numéro (comme `family_demands`). */
@@ -1407,6 +1475,10 @@ const admin: PortAdministration = {
     return {
       ...ligne,
       revision: d.revision ?? null,
+      campusCorrige:
+        r.type === 'correction' && r.corrigeReleveId
+          ? (e.decisions[r.corrigeReleveId]?.ecoleId ?? null)
+          : null,
       lot: herite.lot,
       relaisId: MOI,
       prisLe: r.prisLe,
@@ -1605,14 +1677,26 @@ const admin: PortAdministration = {
           genre: c.genre ?? 'personne',
           luSur: c.luSur ?? null,
           illisible: c.illisible ?? false,
+          email: c.email ?? null,
         };
       })
       .sort(
         (a, b) =>
+          Number(a.genre === 'email_ecole') - Number(b.genre === 'email_ecole') ||
           Number(a.genre === 'numero_ecole') - Number(b.genre === 'numero_ecole') ||
           Number(!a.whatsapp) - Number(!b.whatsapp) ||
           b.recuLe.localeCompare(a.recuLe),
       );
+  },
+  // Ticket 236 : comme `add_school_email`.
+  async ajouterEmailEcole(ecoleId, email, luSur) {
+    await reseau();
+    if (!(ecoleId in lireEtat().campus)) throw new ErreurDecision('Site introuvable.');
+    let id = '';
+    ecrire((etat) => {
+      id = noterEmail(etat, ecoleId, email, luSur);
+    });
+    return id;
   },
   // Ticket 205 : comme `add_school_number`.
   async ajouterNumeroEcole(ecoleId, n) {
@@ -1739,8 +1823,23 @@ const admin: PortAdministration = {
     const mode =
       choix.mode ??
       (cible ? 'update_campus' : choix.institutionId ? 'new_campus' : 'new_institution');
-    if (Object.keys(corrections).length && mode !== 'new_institution')
-      throw new ErreurDecision('Les corrections avant acceptation concernent une nouvelle école.');
+    // Comme la base (ticket 236) : ce qu'on garde ne vaut qu'en complétant ; un nouveau site ne change ni nom ni type.
+    const garder = new Set(choix.garder ?? []);
+    if (garder.size > 0 && mode !== 'update_campus')
+      throw new ErreurDecision(
+        'On ne garde des valeurs actuelles qu’en complétant une fiche existante.',
+      );
+    if (Object.keys(corrections).length && mode === 'add_cycle')
+      throw new ErreurDecision(
+        'Ajouter des niveaux ne corrige rien : choisis « Compléter sa fiche ».',
+      );
+    if (
+      mode === 'new_campus' &&
+      (corrections.nom !== undefined || corrections.typeEcole !== undefined)
+    )
+      throw new ErreurDecision(
+        'Le nom et le type d’un nouveau site sont ceux de l’école : change-les dans sa fiche.',
+      );
     if ((mode === 'update_campus' || mode === 'add_cycle') && !cible) {
       throw new ErreurDecision('Il faut dire quel campus mettre à jour.');
     }
@@ -1824,41 +1923,60 @@ const admin: PortAdministration = {
       const visee = e.campus[campusId];
       if (mode === 'update_campus' || mode === 'add_cycle') {
         if (visee && releve) {
-          if (mode === 'update_campus') {
-            // Comme la base : « Pas indiqué » et « aucun niveau » n'effacent rien ; une école à situer devient prête.
-            visee.nom = visee.etiquette ? visee.nom : releve.nomEnseigne;
-            visee.position = releve.position ?? visee.position;
-            if (positionSaisie && divisionSituee) {
-              visee.position = positionSaisie;
-              visee.divisionId = divisionSituee.id;
+          const freres = Object.values(e.campus).filter(
+            (c) => c.institutionId === visee.institutionId,
+          );
+          // Une école confirmée par la direction ne change plus par un relevé.
+          if (!visee.verifieeLe) {
+            if (mode === 'update_campus') {
+              // Comme la base : une valeur gardée ne bouge pas ; « Pas indiqué » n'efface rien.
+              if (!garder.has('nom') && freres.length === 1) visee.nom = releve.nomEnseigne;
+              if (!garder.has('position')) visee.position = releve.position ?? visee.position;
+              if (!garder.has('typeEcole') && releve.typeEcole !== 'non_indique')
+                visee.typeEcole = releve.typeEcole;
+              if (!garder.has('programme'))
+                visee.programme = releve.programme ?? visee.programme ?? null;
+              if (!garder.has('repere')) visee.repere = releve.repere ?? visee.repere ?? null;
+              if (!garder.has('numeroEnseigne'))
+                visee.numeroEnseigne = releve.numeroEnseigne ?? visee.numeroEnseigne ?? null;
+              visee.etiquette = visee.etiquette ?? choix.etiquette ?? null;
+            } else {
+              visee.repere = visee.repere ?? releve.repere;
+              visee.numeroEnseigne = visee.numeroEnseigne ?? releve.numeroEnseigne;
             }
-            if (releve.typeEcole !== 'non_indique') visee.typeEcole = releve.typeEcole;
-            visee.programme = releve.programme ?? visee.programme ?? null;
+            if (!garder.has('niveaux')) {
+              let niveaux: string[] = [...new Set([...(visee.niveaux ?? []), ...releve.niveaux])];
+              // Une correction dit la vérité : un niveau coché à tort, sans formation, disparaît.
+              if (releve.type === 'correction' && releve.niveaux.length > 0)
+                niveaux = niveaux.filter(
+                  (n) =>
+                    (releve.niveaux as string[]).includes(n) ||
+                    (visee.formations ?? []).some((f) => f.cycle === n),
+                );
+              visee.niveaux = niveaux;
+            }
           }
-          visee.niveaux = [...new Set([...(visee.niveaux ?? []), ...releve.niveaux])];
-          visee.repere = visee.repere ?? releve.repere;
-          // Comme la base : une mise à jour prend le numéro du relais s'il en a saisi un (`coalesce(r.sign_phone, k.sign_phone)`) ;
-          // les niveaux ajoutés à une implantation gardent le sien (`coalesce(k.sign_phone, r.sign_phone)`).
-          visee.numeroEnseigne =
-            mode === 'update_campus'
-              ? (releve.numeroEnseigne ?? visee.numeroEnseigne ?? null)
-              : (visee.numeroEnseigne ?? releve.numeroEnseigne);
+          if (positionSaisie && divisionSituee) {
+            visee.position = positionSaisie;
+            visee.divisionId = divisionSituee.id;
+          }
           visee.divisionId = visee.divisionId ?? division?.id ?? null;
           if (visee.publication === 'brouillon') visee.publication = 'prete';
           visee.confieeA = null;
           visee.noteMission = null;
         }
       } else if (releve) {
-        const institution =
+        const soeur =
           mode === 'new_campus'
-            ? (Object.values(e.campus).find((c) => c.institutionId === choix.institutionId)?.nom ??
-              releve.nomEnseigne)
-            : releve.nomEnseigne;
+            ? Object.values(e.campus).find((c) => c.institutionId === choix.institutionId)
+            : undefined;
         e.campus[campusId] = {
           id: campusId,
           institutionId: choix.institutionId ?? crypto.randomUUID(),
-          nom: institution,
+          nom: soeur?.nom ?? releve.nomEnseigne,
           etiquette: choix.etiquette ?? null,
+          sigle: soeur?.sigle ?? null,
+          anneeCreation: soeur?.anneeCreation ?? null,
           quartier: null,
           publication: 'prete',
           origine: 'field',
@@ -1868,13 +1986,25 @@ const admin: PortAdministration = {
           noteMission: null,
           genreMission: 'verify',
           lotId: lotRetenu,
-          typeEcole: releve.typeEcole,
+          typeEcole: soeur?.typeEcole ?? releve.typeEcole,
           niveaux: releve.niveaux,
           programme: releve.programme,
           repere: releve.repere,
           numeroEnseigne: releve.numeroEnseigne,
           formations: [],
         };
+      }
+      // Le sigle et l'année de l'école ne remplissent qu'un vide, pour tous ses sites.
+      const ici = e.campus[campusId];
+      if (ici && releve) {
+        const ecole = Object.values(e.campus).filter((c) => c.institutionId === ici.institutionId);
+        const sigle = releve.sigle?.trim();
+        if (sigle && !garder.has('sigle') && !ecole.some((c) => c.sigle))
+          for (const c of ecole) c.sigle = sigle;
+        const annee = corrections.anneeCreation ?? null;
+        if (annee !== null && !ecole.some((c) => c.anneeCreation))
+          for (const c of ecole) c.anneeCreation = annee;
+        if (corrections.email) noterEmail(e, campusId, corrections.email, 'enseigne');
       }
       const campus = e.campus[campusId];
       if (campus && choix.formations?.length) {
@@ -1892,10 +2022,13 @@ const admin: PortAdministration = {
       const dejaAcceptee = Object.entries(e.decisions).some(
         ([autre, d]) => autre !== id && d.statut === 'accepte' && d.ecoleId === campusId,
       );
+      // La trace de la décision ne garde jamais l'e-mail, privé.
+      const { email: _prive, ...trace } = corrections;
+      void _prive;
       e.decisions[id] = {
         ...avant,
-        revision: Object.keys(corrections).length
-          ? { valeurs: corrections, le: new Date().toISOString(), auteur: MOI }
+        revision: Object.keys(trace).length
+          ? { valeurs: trace, le: new Date().toISOString(), auteur: MOI }
           : null,
         statut: 'accepte',
         ecoleId: campusId,
@@ -2623,6 +2756,7 @@ const admin: PortAdministration = {
           publique: m.publique,
           source: m.photoDuReleve ? 'terrain' : 'administration',
           origine: m.origine ?? null,
+          photoDuReleve: m.photoDuReleve ?? null,
         },
       ];
     });
@@ -2695,9 +2829,20 @@ const admin: PortAdministration = {
     });
     return division.nom;
   },
-  async publierEcole(ecoleId) {
+  async alertesDePublication(ecoleIds) {
     await reseau();
-    const ecole = lireEtat().campus[ecoleId];
+    const e = lireEtat();
+    return ecoleIds.flatMap((id) => alertesDe(e, id));
+  },
+  async publierEcole(ecoleId, options) {
+    await reseau();
+    const e0 = lireEtat();
+    const ecole = e0.campus[ecoleId];
+    if (!options?.malgreLeRefus && alertesDe(e0, ecoleId).length > 0) {
+      throw new ErreurDecision(
+        'La direction a dit non, ou a laissé un mot au relais : relis-le, puis confirme la publication.',
+      );
+    }
     if (
       !ecole ||
       !['prete', 'retiree'].includes(ecole.publication) ||
@@ -2711,7 +2856,7 @@ const admin: PortAdministration = {
       Object.assign(e.campus[ecoleId] ?? {}, { publication: 'publiee', retrait: null }),
     );
   },
-  async publierDivision(divisionId) {
+  async publierDivision(divisionId, malgreLeRefus = []) {
     await reseau();
     const e0 = lireEtat();
     const racine = e0.divisions[divisionId];
@@ -2721,6 +2866,7 @@ const admin: PortAdministration = {
         const d = ecole.divisionId ? e.divisions[ecole.divisionId] : null;
         const dedans =
           racine && d && (d.chemin === racine.chemin || d.chemin.startsWith(`${racine.chemin}.`));
+        if (alertesDe(e, ecole.id).length > 0 && !malgreLeRefus.includes(ecole.id)) continue;
         if (ecole.publication === 'prete' && ecole.position && dedans) {
           ecole.publication = 'publiee';
           n++;
@@ -2729,11 +2875,12 @@ const admin: PortAdministration = {
     });
     return n;
   },
-  async publierLot(lotId) {
+  async publierLot(lotId, malgreLeRefus = []) {
     await reseau();
     let n = 0;
     ecrire((e) => {
       for (const ecole of Object.values(e.campus)) {
+        if (alertesDe(e, ecole.id).length > 0 && !malgreLeRefus.includes(ecole.id)) continue;
         if (ecole.publication === 'prete' && ecole.lotId === lotId) {
           ecole.publication = 'publiee';
           n++;

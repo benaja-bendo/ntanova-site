@@ -13,6 +13,14 @@ import {
   type PositionSaisie,
 } from '../../src/modele/acceptation';
 import { afficherTelephone } from '../../src/modele/telephone';
+import {
+  correctionsDuMode,
+  erreursRelecture,
+  formulaireDeRelecture,
+  versCorrectionDeRelecture,
+} from '../../src/modele/correction-ecole';
+import { comparerAvecLEcole, decisionDAcceptation, relectureDe } from '../../src/modele/relecture';
+import type { DetailReleve, EcoleVue } from '../../src/modele/ports';
 
 // Accepter une fiche (ticket #89). Le bouton « Accepter » ne se grise jamais sans dire pourquoi, et une correction d'une
 // fiche pas encore acceptée (le relais qui reprend sa photo après un « à corriger ») hérite de la position de la fiche
@@ -500,6 +508,14 @@ describe('le numéro de l’enseigne, avant d’accepter', () => {
     expect(numeroPeutEtreRetire({ type: 'correction', corrigeUneFicheEnAttente: false })).toBe(
       false,
     );
+    // Ticket 236 : l'école corrigée est connue, on sait quel numéro elle garde.
+    expect(
+      numeroPeutEtreRetire({
+        type: 'correction',
+        corrigeUneFicheEnAttente: false,
+        campusCorrige: 'campus-1',
+      }),
+    ).toBe(true);
   });
 });
 
@@ -657,6 +673,220 @@ describe('la position saisie sur la fiche (ticket 144)', () => {
       expect(ligne(entree, 'position')).toMatchObject({ etat: 'bloque' });
       expect(ligne(entree, 'position')?.texte).toMatch(/illisible/);
       expect(avantDAccepter(entree).bloque).toBe(true);
+    });
+  });
+});
+
+// Ticket 236 (27/11) : corriger avant d'accepter dans les trois cas, comparer avant de compléter, et ce qui part vers la base.
+
+/** Un relevé complet d'une école fictive. */
+const releve = (champs: Partial<DetailReleve> = {}) =>
+  ({
+    essai: false,
+    type: 'releve',
+    corrigeUneFicheEnAttente: false,
+    nomEnseigne: '[École A, nom relevé]',
+    sigle: 'EAR',
+    typeEcole: 'privee',
+    niveaux: ['primaire', 'college'],
+    programme: null,
+    repere: 'Derrière le marché',
+    numeroEnseigne: '242050000002',
+    position: { latitude: -4.8001, longitude: 11.9 },
+    ...champs,
+  }) as DetailReleve;
+
+/** La fiche que NTanova a déjà. */
+const connue = (champs: Partial<EcoleVue> = {}) =>
+  ({
+    id: 'c1',
+    institutionId: 'i1',
+    nom: '[École A]',
+    sigle: null,
+    anneeCreation: null,
+    etiquette: null,
+    typeEcole: 'privee',
+    niveaux: ['primaire'],
+    programme: 'Programme officiel',
+    repere: 'En face de la pharmacie',
+    numeroEnseigne: '242050000001',
+    position: { latitude: -4.8, longitude: 11.9 },
+    verifieeLe: null,
+    ...champs,
+  }) as EcoleVue;
+
+const rien = {
+  formations: [],
+  faits: [],
+  divisionId: null,
+  position: null,
+  corrections: {},
+  choixNumero: null,
+};
+
+describe('ce qu’on relit avant d’accepter (ticket 236)', () => {
+  const f = releve();
+  it('les trois cas se corrigent ; ni le lot d’essai ni les niveaux ajoutés', () => {
+    expect(relectureDe(f, { mode: 'nouvelle' })).toEqual({ mode: 'nouvelle' });
+    expect(relectureDe(f, { mode: 'new_campus', institutionId: 'i1' })).toEqual({
+      mode: 'nouveau_site',
+      institutionId: 'i1',
+    });
+    expect(relectureDe(f, { mode: 'update_campus', campusId: 'c1' })).toEqual({
+      mode: 'completer',
+      campusId: 'c1',
+    });
+    expect(relectureDe(f, { mode: 'add_cycle', campusId: 'c1' })).toBeNull();
+    expect(relectureDe(releve({ essai: true }), { mode: 'nouvelle' })).toBeNull();
+  });
+
+  it('la correction d’une école déjà créée la complète, quelle que soit la cible', () => {
+    const c = releve({ type: 'correction', campusCorrige: 'c1' });
+    expect(relectureDe(c, { mode: 'nouvelle' })).toEqual({ mode: 'completer', campusId: 'c1' });
+    // L'école introuvable : la base la reconnaît seule, comme avant.
+    const perdue = releve({ type: 'correction', campusCorrige: null });
+    expect(relectureDe(perdue, { mode: 'nouvelle' })).toBeNull();
+    expect(
+      decisionDAcceptation(perdue, { mode: 'nouvelle' }, rien, { completer: null, accueil: null }),
+    ).toEqual({});
+  });
+
+  it('le formulaire : un e-mail incomplet est refusé, seul ce qui change part', () => {
+    const avant = { ...f, nom: f.nomEnseigne };
+    const champs = formulaireDeRelecture(avant, {});
+    expect(champs).toMatchObject({ sigle: 'EAR', etiquette: '', anneeCreation: '', email: '' });
+    expect(erreursRelecture({ ...champs, email: 'contact@' })).toHaveProperty('email');
+    expect(
+      versCorrectionDeRelecture(avant, {
+        ...champs,
+        sigle: '',
+        etiquette: ' Annexe ',
+        anneeCreation: '2012',
+        email: 'contact@exemple.cg',
+      }),
+    ).toEqual({
+      sigle: null,
+      etiquette: 'Annexe',
+      anneeCreation: 2012,
+      email: 'contact@exemple.cg',
+    });
+  });
+
+  it('un nouveau site ne change ni le nom ni le type ; le sigle et l’année de l’école restent', () => {
+    expect(
+      correctionsDuMode(
+        { nom: 'Autre', typeEcole: 'publique', sigle: 'XX', anneeCreation: 2000, etiquette: 'A' },
+        'nouveau_site',
+        { sigle: 'EA', anneeCreation: null },
+      ),
+    ).toEqual({ anneeCreation: 2000 });
+  });
+});
+
+describe('compléter une fiche sans rien écraser (ticket 236)', () => {
+  const f = releve();
+  const ecole = connue();
+  const differences = comparerAvecLEcole(f, {}, null, ecole, [ecole]);
+
+  it('chaque valeur qui change se montre ; un vide se remplit, une valeur déjà là se remplace', () => {
+    expect(differences.map((d) => [d.champ, d.ajout])).toEqual([
+      ['nom', false],
+      ['sigle', true],
+      ['niveaux', true],
+      ['repere', false],
+      ['numeroEnseigne', false],
+      ['position', false],
+    ]);
+    // Le programme que le relevé ne dit pas n'efface pas celui de la fiche.
+    expect(differences.some((d) => d.champ === 'programme')).toBe(false);
+    // Une école à plusieurs sites : son nom ne se change pas d'ici. Confirmée : seuls ses vides se remplissent.
+    expect(
+      comparerAvecLEcole(f, {}, null, ecole, [ecole, ecole]).some((d) => d.champ === 'nom'),
+    ).toBe(false);
+    expect(
+      comparerAvecLEcole(f, {}, null, connue({ verifieeLe: '2026-11-01' }), [ecole]).map(
+        (d) => d.champ,
+      ),
+    ).toEqual(['sigle']);
+  });
+
+  const decider = (choix = {}, choixNumero: 'retire' | 'verifie' | null = null) =>
+    decisionDAcceptation(
+      f,
+      { mode: 'update_campus', campusId: 'c1' },
+      {
+        ...rien,
+        formations: [
+          { cycle: 'college', titre: 'Troisième' },
+          { cycle: 'primaire', titre: 'CM2' },
+        ] as never,
+        choixNumero,
+      },
+      { completer: { ecole, differences, choix }, accueil: null },
+    );
+
+  it('sans choix : les vides se remplissent, tout le reste est gardé', () => {
+    const d = decider();
+    expect(d).toMatchObject({ mode: 'update_campus', campusId: 'c1', corrections: {} });
+    expect(d.garder).toEqual([
+      'nom',
+      'typeEcole',
+      'programme',
+      'repere',
+      'numeroEnseigne',
+      'position',
+    ]);
+    expect(d.formations?.map((x) => x.cycle)).toEqual(['college', 'primaire']);
+  });
+
+  it('« Remplacer » ne vaut que pour la ligne choisie ; « Ne pas ajouter » retire aussi la formation', () => {
+    const d = decider({ repere: 'prendre', niveaux: 'garder' });
+    expect(d.garder).not.toContain('repere');
+    expect(d.garder).toContain('niveaux');
+    expect(d.formations?.map((x) => x.cycle)).toEqual(['primaire']);
+  });
+
+  it('un numéro remplacé puis dit absent de la photo : la fiche garde le sien', () => {
+    expect(decider({ numeroEnseigne: 'prendre' }).garder).not.toContain('numeroEnseigne');
+    expect(decider({ numeroEnseigne: 'prendre' }, 'retire').garder).toContain('numeroEnseigne');
+  });
+
+  it('une valeur corrigée mais gardée ne part pas comme retenue ; le nom du site et l’année suivent le choix', () => {
+    const corrections = { repere: 'Autre repère', etiquette: 'Annexe', anneeCreation: 2012 };
+    const avec = comparerAvecLEcole(f, corrections, null, ecole, [ecole]);
+    const d = decisionDAcceptation(
+      f,
+      { mode: 'update_campus', campusId: 'c1' },
+      { ...rien, corrections },
+      { completer: { ecole, differences: avec, choix: { etiquette: 'garder' } }, accueil: null },
+    );
+    expect(d.corrections).toEqual({ anneeCreation: 2012 });
+    expect(d.etiquette).toBeNull();
+  });
+});
+
+describe('une nouvelle école et un nouveau site (ticket 236)', () => {
+  const f = releve();
+  const visee = { completer: null, accueil: null };
+
+  it('le nom du site et l’e-mail partent avec la décision ; « pas sur la photo » retire le numéro', () => {
+    const saisie = {
+      ...rien,
+      corrections: { etiquette: ' Annexe ', email: 'contact@exemple.cg' },
+      choixNumero: 'retire' as const,
+    };
+    expect(
+      decisionDAcceptation(f, { mode: 'new_campus', institutionId: 'i1' }, saisie, visee),
+    ).toMatchObject({
+      mode: 'new_campus',
+      institutionId: 'i1',
+      etiquette: 'Annexe',
+      corrections: { email: 'contact@exemple.cg', numeroEnseigne: null },
+    });
+    expect(decisionDAcceptation(f, { mode: 'nouvelle' }, saisie, visee)).toMatchObject({
+      mode: 'new_institution',
+      etiquette: 'Annexe',
+      corrections: { sigle: 'EAR', email: 'contact@exemple.cg', numeroEnseigne: null },
     });
   });
 });

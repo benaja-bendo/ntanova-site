@@ -42,7 +42,7 @@ export function Pastille({
   );
 }
 
-const couleurDuCycle: Record<string, string> = {
+export const couleurDuCycle: Record<string, string> = {
   M: 'bg-cycle-m',
   P: 'bg-cycle-p',
   C: 'bg-cycle-c',

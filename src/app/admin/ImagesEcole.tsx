@@ -1,13 +1,15 @@
 import { v2 } from '@/ui/v2/classes';
 import { useCallback, useEffect, useState } from 'react';
 import { placesLibres, type MediaAdmin } from '../../modele/fiche-admin';
-import { libelleSujetMedia } from '../../modele/libelles';
+import { libelleRolePhotoCourt, libelleSujetMedia } from '../../modele/libelles';
 import { listes, type Valeur } from '../../modele/listes';
-import type { PortAdministration } from '../../modele/ports';
+import { dateLongue } from '../../modele/pointe-noire';
+import type { PhotoVue, PortAdministration } from '../../modele/ports';
 import { Bouton } from '@/ui/v2/admin';
 import { Champ } from '@/ui/v2/formulaire';
-import { ImageIllisible, preparerImage } from '../commun/image';
+import { estSvg, ImageIllisible, preparerImage, svgVersPng } from '../commun/image';
 import { messageErreur } from './ChampPosition';
+import { RetoucherPhoto } from './RetoucherPhoto';
 
 const GENRES: { valeur: Valeur<'media_kind'>; libelle: string }[] = [
   { valeur: 'logo', libelle: 'Logo' },
@@ -60,6 +62,19 @@ export function ImagesEcole({
   const [source, setSource] = useState('');
   // Le champ « Le fichier » se vide en renaissant (un champ de fichier ne se vide pas par sa valeur).
   const [champFichier, setChampFichier] = useState(0);
+  // Ticket 236 : les enseignes et vues du bâtiment des relevés acceptés, qu'on peut retoucher.
+  const [photos, setPhotos] = useState<PhotoVue[]>([]);
+  const [aRetoucher, setARetoucher] = useState<PhotoVue | null>(null);
+  useEffect(() => {
+    let vivant = true;
+    admin
+      .photosEcole(ecoleId)
+      .then((p) => vivant && setPhotos(p.filter((x) => x.adresse)))
+      .catch(() => vivant && setPhotos([]));
+    return () => {
+      vivant = false;
+    };
+  }, [admin, ecoleId]);
   const lire = useCallback(() => admin.mediasDeLEcole(ecoleId), [admin, ecoleId]);
   useEffect(() => {
     let vivant = true;
@@ -117,7 +132,8 @@ export function ImagesEcole({
     try {
       for (const [i, f] of fichiers.entries()) {
         setEtape('preparation');
-        const image = await preparerImage(f);
+        // Ticket 236 : un logo SVG est converti ici, avant l'envoi ; le stockage ne reçoit jamais de SVG.
+        const image = await preparerImage(genre === 'logo' && estSvg(f) ? await svgVersPng(f) : f);
         setEtape('envoi');
         const document = genre === 'document';
         await admin.ajouterMedia(ecoleId, {
@@ -166,6 +182,23 @@ export function ImagesEcole({
     }
   };
 
+  if (aRetoucher)
+    return (
+      <section className={v2.pileSerree} aria-label="Images de l’école">
+        <RetoucherPhoto
+          photo={aRetoucher}
+          ecoleId={ecoleId}
+          admin={admin}
+          medias={medias}
+          fermer={() => setARetoucher(null)}
+          surChangement={async (texte) => {
+            await relire(texte);
+            setPhotos((await admin.photosEcole(ecoleId)).filter((x) => x.adresse));
+          }}
+        />
+      </section>
+    );
+
   return (
     <section className={v2.pileSerree} aria-label="Images de l’école">
       {GENRES.map(({ valeur, libelle }) => {
@@ -179,7 +212,7 @@ export function ImagesEcole({
             {liste.length === 0 ? (
               <p className={v2.mention}>
                 {valeur === 'logo'
-                  ? 'Pas de logo : la page montre le sigle, ou la lettre du cycle.'
+                  ? 'Pas de logo : la page montre un rond avec un dessin d’école, et le sigle s’il y en a un.'
                   : valeur === 'cover'
                     ? 'Pas de couverture : la page montre la bannière dessinée.'
                     : valeur === 'document'
@@ -266,6 +299,32 @@ export function ImagesEcole({
         );
       })}
 
+      {photos.length > 0 && (
+        <div className={v2.pileSerree}>
+          <h3>Photos du relais</h3>
+          <p className={v2.mention}>
+            Pour en tirer le logo, flouter une zone ou recadrer avant de publier.
+          </p>
+          <ul
+            className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 [&_img]:aspect-[4/3] [&_img]:w-full [&_img]:rounded-md [&_img]:object-cover"
+            aria-label="Photos du relais"
+          >
+            {photos.map((p) => (
+              <li key={p.id} className="flex flex-col gap-1">
+                <img src={p.adresse!} alt={libelleRolePhotoCourt[p.role]} />
+                <span className={v2.mentionBloc}>
+                  {libelleRolePhotoCourt[p.role]}
+                  {p.prisLe ? ` · ${dateLongue(p.prisLe)}` : ''}
+                </span>
+                <button type="button" className={v2.lien} onClick={() => setARetoucher(p)}>
+                  Retoucher
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <form
         className={v2.motifPile}
         aria-label="Ajouter une image"
@@ -324,7 +383,9 @@ export function ImagesEcole({
           aide={
             plusieurs
               ? 'JPEG, PNG ou WebP ; plusieurs d’un coup si tu veux. Chacun est réduit avant l’envoi.'
-              : 'JPEG, PNG ou WebP ; il est réduit avant l’envoi.'
+              : genre === 'logo'
+                ? 'JPEG, PNG, WebP ou SVG (converti en image avant l’envoi) ; il est réduit avant l’envoi.'
+                : 'JPEG, PNG ou WebP ; il est réduit avant l’envoi.'
           }
         >
           {(a) => (
@@ -334,7 +395,7 @@ export function ImagesEcole({
               className={v2.champ}
               type="file"
               multiple={plusieurs}
-              accept="image/jpeg,image/png,image/webp"
+              accept={`image/jpeg,image/png,image/webp${genre === 'logo' ? ',image/svg+xml,.svg' : ''}`}
               onChange={(ev) => choisir([...(ev.target.files ?? [])])}
             />
           )}

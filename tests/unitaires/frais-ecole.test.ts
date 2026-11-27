@@ -126,6 +126,25 @@ describe('frais : mois facturés et OUI de l’école (lot 2 du site public)', (
     expect(ligneChangee(avant, { ...pareille, photoPreuve: 'ph1' })).toBe(false);
   });
 
+  it('lit la réinscription et la cantine (ticket 236), la cantine avec sa période ; les changer réécrit la ligne', () => {
+    const lire = (champs: object) => lireFraisEcole({ ...base, ...champs }, '2026-11-04');
+    expect(
+      lire({ reinscription: '5 000', cantine: '12 000', periodeCantine: 'mois' }).frais,
+    ).toMatchObject({ reinscription: 5000, cantine: 12000, periodeCantine: 'mois' });
+    expect(lire({ cantine: '12000' }).erreur).toBe(
+      'Dis la cantine par jour, mois, trimestre ou année.',
+    );
+    expect(lire({ reinscription: 'gratuite' }).erreur).toMatch(/réinscription et la cantine/);
+    // Une période sans montant ne dit rien.
+    expect(lire({ periodeCantine: 'jour' }).frais).toMatchObject({
+      cantine: null,
+      periodeCantine: null,
+    });
+    const avant = ligne();
+    expect(ligneChangee(avant, { ...avant, reinscription: 5000 })).toBe(true);
+    expect(ligneChangee(avant, { ...avant, cantine: 500, periodeCantine: 'jour' })).toBe(true);
+  });
+
   it('dit où en est le OUI : aucune ligne, des lignes qui l’attendent, toutes confirmées', () => {
     expect(etatDuOui([])).toEqual({ etat: 'vide' });
     expect(

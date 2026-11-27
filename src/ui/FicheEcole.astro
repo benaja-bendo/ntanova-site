@@ -6,7 +6,8 @@
 // Aucun JavaScript, sauf un script de moins de 2 Ko pour « Partager » (partage du téléphone, ou copie du lien) : sans lui, le
 // bouton est un lien WhatsApp. Une institution à plusieurs campus a une fiche par campus, qui renvoient l'une vers l'autre.
 import './carte-pieces.css';
-import { cycleLePlusEleve, lettresDesCycles } from '../modele/carte/cycles';
+import './rond-ecole.css';
+import { lettresDesCycles } from '../modele/carte/cycles';
 import {
   ligneDeLieu,
   lienCourt,
@@ -58,6 +59,7 @@ import {
   rondDeLEcole,
   rubriquesDeLaFiche,
 } from '../modele/vitrine';
+import { htmlRondSansLogo } from '../modele/rond-ecole';
 
 interface Props {
   e: EcolePubliee;
@@ -107,8 +109,7 @@ const itineraire =
     ? `https://www.google.com/maps/dir/?api=1&destination=${e.latitude},${e.longitude}`
     : null;
 
-// Le disque de l'école (le cycle le plus élevé, comme son épingle) et la puce de chaque niveau : même lettre, même couleur.
-const lettreEcole = cycleLePlusEleve(e.niveaux)?.lettre ?? '';
+// La puce de chaque niveau : la lettre et la couleur de son cycle, comme les épingles.
 const classeDisque = (lettre: string) => (lettre ? `disque c-${lettre}` : 'disque');
 const puces = e.niveaux.map((n) => ({ libelle: libelleNiveau[n], lettre: lettresDesCycles([n]) }));
 // « Cours du jour et du soir » : utile à qui travaille, donc seulement là où l'on choisit une filière.
@@ -247,14 +248,8 @@ const joursRestants = (n: number) =>
               height="100"
             />
           </span>
-        ) : rond.genre === 'sigle' ? (
-          <span class="rond-ecole rond-sigle" aria-hidden="true">
-            {rond.texte}
-          </span>
         ) : (
-          <span class={`${classeDisque(lettreEcole)} disque-fiche`} aria-hidden="true">
-            {lettreEcole}
-          </span>
+          <Fragment set:html={htmlRondSansLogo(rond, 'rond-ecole')} />
         )}
         <div class="fiche-titres">
           <h1>{e.nom}</h1>
@@ -761,12 +756,6 @@ const joursRestants = (n: number) =>
     gap: var(--espace-2);
     min-width: 0;
   }
-  .disque-fiche {
-    width: 80px;
-    height: 80px;
-    font-size: 2rem;
-    box-shadow: 0 0 0 4px var(--fond);
-  }
   /* La ligne sous le nom : « Site 1 · Maternelle à collège · CSLP · depuis 2009 », puis le lieu (téléphone). */
   .fiche-ligne {
     display: flex;
@@ -958,27 +947,21 @@ const joursRestants = (n: number) =>
   .fiche-tete.sans-couverture {
     margin-top: 0;
   }
-  .rond-ecole {
+  /* Le rond de l'école : son logo, ou le dessin d'école posé par le HTML partagé (`rond-ecole.css`), d'où `:global`. */
+  .fiche :global(.rond-ecole) {
+    --diametre: 80px;
     display: inline-flex;
+    flex: none;
     align-items: center;
     justify-content: center;
-    width: 80px;
-    height: 80px;
+    width: var(--diametre);
+    height: var(--diametre);
     overflow: hidden;
     border-radius: 50%;
     box-shadow: 0 0 0 4px var(--fond);
-    background: var(--fond-releve);
   }
-  .rond-sigle {
-    padding: var(--espace-1);
-    background: var(--marque-appuyee);
-    color: var(--texte-sur-marque);
-    font-family: var(--police-titre);
-    font-size: 1.125rem;
-    font-weight: 700;
-    line-height: 1;
-    text-align: center;
-    overflow-wrap: anywhere;
+  .rond-logo {
+    background: var(--fond-releve);
   }
   .rond-logo img {
     width: 100%;
@@ -1322,15 +1305,13 @@ const joursRestants = (n: number) =>
       align-items: flex-start;
       gap: var(--espace-5);
     }
-    .fiche-nom > .rond-ecole,
-    .fiche-nom > .disque-fiche {
+    .fiche-nom > :global(.rond-ecole) {
       margin-top: -50px;
     }
     .fiche-tete.sans-couverture {
       padding-left: 0;
     }
-    .fiche-tete.sans-couverture .fiche-nom > .rond-ecole,
-    .fiche-tete.sans-couverture .fiche-nom > .disque-fiche {
+    .fiche-tete.sans-couverture .fiche-nom > :global(.rond-ecole) {
       margin-top: 0;
     }
     .fiche-tete.sans-couverture > .rangee-puces,
@@ -1345,18 +1326,9 @@ const joursRestants = (n: number) =>
       gap: var(--espace-1);
       padding-top: var(--espace-2);
     }
-    .disque-fiche,
-    .rond-ecole {
-      flex: none;
-      width: 100px;
-      height: 100px;
+    .fiche :global(.rond-ecole) {
+      --diametre: 100px;
       box-shadow: 0 0 0 6px var(--fond);
-    }
-    .disque-fiche {
-      font-size: 2.5rem;
-    }
-    .rond-sigle {
-      font-size: 1.625rem;
     }
     .fiche-tete > .rangee-puces,
     .fiche-tete > .lien-methode,

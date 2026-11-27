@@ -130,7 +130,7 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     expect(await numeroDeLEcole(page, /\[École 1\]/)).toBe('+242 05 987 65 43');
   });
 
-  test('une école connue mise à jour : « pas sur la photo » lui garde le numéro qu’elle avait', async ({
+  test('une fiche complétée garde son numéro : sans choix, comme après « Remplacer » puis « pas sur la photo »', async ({
     page,
     context,
   }) => {
@@ -165,21 +165,30 @@ test.describe('numéro de l’enseigne : à vérifier sur la photo avant d’acc
     await page.getByRole('link', { name: 'Missions' }).click();
     await toutEstEnvoye(page, 15_000);
 
-    // L'administration compare : le numéro n'est pas sur la photo.
+    // L'administration compare (ticket 236, 27/11) : sans choix, la fiche garde son nom et son numéro ; rien à confirmer.
     await page.goto('/admin/#valider');
     await page.getByRole('link', { name: /\[École à situer, nom exact\]/ }).click();
     await expect(
       page.getByRole('region', { name: 'Partie publique' }).getByText('+242 05 111 22 33'),
     ).toBeVisible();
+    const comparaison = page.getByRole('region', { name: 'Ce qui change sur la fiche' });
+    await expect(comparaison).toContainText('Aujourd’hui : +242 06 000 00 09');
+    const question = page.getByRole('group', { name: 'Le numéro, sur la photo ?' });
     const accepter = page.getByRole('button', { name: 'Accepter', exact: true });
-    await expect(accepter).toBeDisabled();
-    await page
-      .getByRole('group', { name: 'Le numéro, sur la photo ?' })
-      .getByRole('button', { name: 'Non', exact: true })
+    await expect(accepter).toBeEnabled();
+    await expect(question).toHaveCount(0);
+    // « Remplacer » : il faut alors dire s'il est sur la photo ; « Non » garde celui de la fiche.
+    await comparaison
+      .getByRole('group', { name: 'Numéro sur l’enseigne' })
+      .getByRole('button', { name: 'Remplacer' })
       .click();
+    await expect(accepter).toBeDisabled();
+    await question.getByRole('button', { name: 'Non', exact: true }).click();
+    await expect(comparaison).toContainText('Pas sur la photo : il ne sera pas repris.');
     await accepter.click();
     await expect(page.getByRole('status')).toHaveText(/est mise à jour/);
 
-    expect(await numeroDeLEcole(page, /\[École à situer, nom exact\]/)).toBe('+242 06 000 00 09');
+    // Ni le numéro, ni le nom pour lequel rien n'a été choisi.
+    expect(await numeroDeLEcole(page, /\[École à situer\]/)).toBe('+242 06 000 00 09');
   });
 });

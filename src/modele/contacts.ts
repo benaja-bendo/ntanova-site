@@ -177,3 +177,30 @@ export function lireNumeroEcole(s: NumeroEcoleSaisi): {
 export function libelleNumeroEcole(c: Pick<ContactEcole, 'luSur'>): string {
   return c.luSur ? `Numéro de l’école · ${luSurCourt[c.luSur]}` : 'Numéro de l’école';
 }
+
+// Ticket 236 (27/11) : l'adresse e-mail de l'école, privée elle aussi ---------------------------------------------------
+
+/** Une adresse complète, comme la base la vérifie. */
+export const emailComplet = (adresse: string): boolean =>
+  adresse.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(adresse);
+
+export interface EmailEcoleSaisi {
+  email: string;
+  luSur: LuSur | '';
+}
+
+export function lireEmailEcole(s: EmailEcoleSaisi): {
+  lu: { email: string; luSur: LuSur } | null;
+  erreur: string | null;
+} {
+  if (!s.luSur) return { lu: null, erreur: 'Dis où l’adresse a été lue.' };
+  const email = s.email.trim();
+  if (!emailComplet(email))
+    return { lu: null, erreur: 'Cette adresse e-mail ne semble pas complète.' };
+  return { lu: { email, luSur: s.luSur }, erreur: null };
+}
+
+/** « E-mail de l'école · lu sur l'enseigne » */
+export function libelleEmailEcole(c: Pick<ContactEcole, 'luSur'>): string {
+  return c.luSur ? `E-mail de l’école · ${luSurCourt[c.luSur]}` : 'E-mail de l’école';
+}

@@ -28,6 +28,9 @@ import { nomEquipementCourt } from '../../modele/equipements-ecole';
 import { afficherTelephone } from '../../modele/telephone';
 import { etatDuOuiAvecDossier } from '../../modele/frais-ecole';
 import { jourDuCongo } from '../../modele/date-declaration';
+import { rondSansLogo } from '../../modele/rond-ecole';
+import { libellesDesSites } from '../../modele/sites-ecole';
+import { ApercuRond } from '@/ui/v2/rond';
 import { ecrirePosition } from '../../modele/coordonnees';
 import { libelleSourcePosition } from '../../modele/fiche-admin';
 import { annonceEnCours, nomDeClasse, trierParClasse } from '../../modele/places-effectifs';
@@ -40,10 +43,17 @@ import {
   libelleTypeEcole,
   libelleTypeMission,
 } from '../../modele/libelles';
-import type { ContactEcole, EcoleVue, PhotoVue, PortAdministration } from '../../modele/ports';
+import type {
+  AlertePublication,
+  ContactEcole,
+  EcoleVue,
+  PhotoVue,
+  PortAdministration,
+} from '../../modele/ports';
 import { jour } from '../../ui/composants';
 import type { Valeur } from '../../modele/listes';
 import { CarteContacts } from './ContactsEcole';
+import { MotsDeLaDirection, unRefus } from './AvantPublication';
 
 export type RubriqueFiche =
   | 'completer'
@@ -162,6 +172,7 @@ export function FicheEcole({
   /** L'aperçu et « ⋯ » : sur ordinateur, en haut de la fiche ; sur téléphone, dans la barre verte. */
   gestes: ReactNode;
 }) {
+  const libelles = libellesDesSites(sites.filter((x) => !x.corbeille));
   // Une école retirée du site (ou à la corbeille) ne se modifie plus : on la republie (ou la restaure) d'abord.
   const figee = etat === 'retiree' || etat === 'corbeille';
   // La place des gestes dans la barre verte (Cadre) : lue au rendu, et relue par React après le montage.
@@ -177,6 +188,8 @@ export function FicheEcole({
   const [nouvelles, setNouvelles] = useState<NouvelleAdmin[]>([]);
   // 16/11 : les contacts privés de l'école (toutes les fiches de relais du site, et ceux notés par l'administration).
   const [contacts, setContacts] = useState<ContactEcole[] | null>(null);
+  // Ticket 236 : un refus ou un mot de la direction se relit sur la fiche, avant comme après la publication.
+  const [alertes, setAlertes] = useState<AlertePublication[]>([]);
   useEffect(() => {
     let vivant = true;
     const garder =
@@ -189,6 +202,7 @@ export function FicheEcole({
     garder(setTravail, [] as PhotoVue[])(admin.photosDeTravail(e.id));
     garder(setNouvelles, [] as NouvelleAdmin[])(admin.nouvellesDeLEcole(e.id));
     garder(setContacts, [] as ContactEcole[])(admin.contactsDeLEcole(e.id));
+    garder(setAlertes, [] as AlertePublication[])(admin.alertesDePublication([e.id]));
     return () => {
       vivant = false;
     };
@@ -316,6 +330,17 @@ export function FicheEcole({
             <span className={pastilleEtat[etat]}>{libelleEtat[etat]}</span>
             {e.verifieeLe && <span className={v2.pastilleSucces}>Confirmée par la direction</span>}
           </p>
+          {/* 27/11 : sans logo public, ce que la page montre à sa place. Ce rond n'est pas un logo : la jauge ne le compte pas. */}
+          {medias !== null && !logo && (
+            <p className="m-0 flex items-center gap-3 text-sm text-muted-foreground">
+              <ApercuRond rond={rondSansLogo(e.sigle, e.niveaux)} />
+              <span>
+                {medias.some((m) => m.genre === 'logo')
+                  ? 'Le logo n’est pas public : la page montre ce rond.'
+                  : 'Sans logo, la page montre ce rond.'}
+              </span>
+            </p>
+          )}
           {/* 17/11 : une position recopiée d'un autre site se corrige ici (le tiroir « Position »). */}
           {e.position && (
             <p className="m-0 text-sm text-muted-foreground">
@@ -356,7 +381,11 @@ export function FicheEcole({
                 aria-current={x.id === e.id ? 'page' : undefined}
                 className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-input bg-card px-3.5 text-sm font-bold whitespace-nowrap text-foreground no-underline aria-[current=page]:border-2 aria-[current=page]:border-primary aria-[current=page]:bg-succes aria-[current=page]:text-primary-strong"
               >
-                {[x.etiquette ?? (sites.length > 1 ? 'Site' : null), etendue(x.niveaux)]
+                {/* Ticket 236 : deux sites sans nom se distinguent par leur quartier ou leur repère. */}
+                {[
+                  sites.length > 1 ? (libelles.get(x.id) ?? x.etiquette ?? 'Site') : x.etiquette,
+                  etendue(x.niveaux),
+                ]
                   .filter(Boolean)
                   .join(' · ')}
               </a>
@@ -369,6 +398,20 @@ export function FicheEcole({
               Un site
             </a>
           </nav>
+          {alertes.length > 0 && (
+            <section
+              className="flex flex-col gap-2 rounded-xl border-2 border-ambre bg-attention p-4"
+              aria-label="Ce qu’a dit la direction"
+            >
+              <MotsDeLaDirection alertes={alertes} />
+              <p className="m-0 text-sm text-muted-foreground">
+                Privé, jamais publié.
+                {etat === 'publiee' && unRefus(alertes)
+                  ? ' Cette école est en ligne : retire-la du site si elle ne veut pas paraître.'
+                  : ''}
+              </p>
+            </section>
+          )}
           {publier && <div className="flex flex-wrap gap-2.5">{publier}</div>}
         </div>
 

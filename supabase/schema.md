@@ -100,7 +100,7 @@ Tout est d'abord **retiré**, puis donné table par table (`20261101200800`) : e
 
 ## Corriger une nouvelle école avant l’acceptation
 
-Dans « À valider », « Corriger avant d’accepter » prépare le nom, le type, les niveaux, le programme, le repère ou le numéro public. « Utiliser ces valeurs » reste local : seule l’acceptation enregistre. Les champs et leurs contrôles sont partagés avec l’onglet « Écoles » ; une implantation déjà connue se modifie depuis cet onglet.
+Dans « À valider », « Corriger avant d’accepter » prépare le nom, le type, les niveaux, le programme, le repère ou le numéro public ; depuis le 27/11 (ticket 236), aussi pour un nouveau site et une fiche qu’on complète, avec le sigle, le nom du site, l’année de création et l’e-mail (voir « Retours du 27/11 »). « Utiliser ces valeurs » reste local : seule l’acceptation enregistre. Les champs et leurs contrôles sont partagés avec l’onglet « Écoles ».
 
 `accept_reviewed_submission` reprend les paramètres de `accept_submission`, plus `p_changes` (les champs de relevé explicitement corrigés). Les valeurs corrigées servent à créer l’institution et son campus, dans la même transaction que la décision. Le relevé du relais reste intact, ainsi que sa position, sa date et ses photos. `submission_reviews` garde les valeurs retenues, `reviewed_by` et `reviewed_at`, fournis par le serveur : lecture et insertion réservées à l’administration, aucune réécriture. La suppression du relevé efface aussi cette trace. La révision se relit dans « Décidées » avec l’original.
 
@@ -540,3 +540,16 @@ Ce que le service garantit : au moins un essai, le même `Message-ID` à chaque 
 **Tests** : `messages_envoi` (130), `messages_traitement` (141), `messages_annonces_et_purge` (74), `messages_concurrence` (29 : de vraies connexions lâchées ensemble, par `dblink` ; ce fichier écrit pour de bon dans la base **locale** et retire ce qu'il a écrit), `messages_administration` (36, lot 3B2), plus `droits`, `portabilite` et `supabase_couche` (la sonnette : inerte, puis ce qu'elle envoie une fois configurée, défait par le `rollback`). L'heure est un paramètre des fonctions privées `*_at`, jamais des portes publiques. Côté code : `src/modele/demandes.ts`, comparé aux migrations par `tests/unitaires/demandes.test.ts`.
 
 **Correction de revue, 24/11** : relancer une annonce prend le verrou du message avant celui de l'annonce, comme la purge. L'ordre inverse bloquait les deux transactions : la relance attendait le message pour écrire son historique, la purge attendait l'annonce. Le test de concurrence force cette rencontre, échoue sans le correctif et vérifie que la purge suivante efface le message après la relance. Le calcul du sceau est déclaré `stable`, comme `convert_to` qu'il appelle, plutôt que `immutable`.
+
+## Retours du 27/11 (ticket 236)
+
+Trois migrations, à appliquer dans cet ordre, après une sauvegarde et **avant** de mettre en ligne l'administration qui les lit. Les anciens appels gardent leur sens.
+
+| Migration | Ce qu'elle fait |
+| --- | --- |
+| `20261127100000_acceptation_corrections_et_email` | `prive.direction_contacts` gagne `email` et le genre `email_ecole` ; `add_school_email(site, adresse, lu sur)` (administration) ; `contacts_of_campus` rend aussi l'e-mail. `accept_reviewed_submission` (mêmes paramètres) lit dans `p_changes` `founded_year`, `sign_email` (un contact **privé**, jamais dans la trace de la décision) et, en complétant une fiche, `keep` : les valeurs actuelles à garder (`sign_name`, `school_kind`, `levels`, `curriculum_note`, `landmark`, `sign_phone`, `position`, `acronym`). Les corrections valent pour les trois modes (pas `add_cycle`) ; un nouveau site ne change ni le nom ni le type de l'école ; le nom du site, le sigle et l'année ne remplissent qu'un vide. L'administration envoie en `keep` tout ce qu'elle n'a pas choisi de prendre. |
+| `20261127100100_frais_reinscription_et_cantine` | `campus_fees.re_registration`, `canteen`, `canteen_period` (`jour`, `mois`, `trimestre`, `annee` ; montant et période ensemble) ; `set_school_fee` les reçoit (ancienne signature retirée, nouveaux paramètres facultatifs). Publics sous le même OUI ; les changer l'efface. |
+| `20261127100200_publication_et_refus_de_la_direction` | `publication_warnings(sites)` (administration) : le refus (`direction_seen = 'refus'`) ou le mot du relais des relevés acceptés d'un site et de ceux qu'ils corrigent, privé. `publish_campus(site, p_despite_refusal)` refuse un site signalé sans confirmation ; `publish_division` et `publish_batch` le sautent sauf s'il est nommé. Rien n'est bloqué pour toujours. |
+
+Tests : `corrections_avant_acceptation.test.sql`, `lot_surete_frais.test.sql`, `publication_refus_de_la_direction.test.sql`.
+

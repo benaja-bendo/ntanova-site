@@ -52,6 +52,11 @@ test('frais : les mois facturés, puis le OUI daté de l’école ; un montant m
   await premiere.getByLabel('Classe', { exact: true }).fill('CP1');
   await premiere.getByLabel('Montant (FCFA)').fill('20 000');
   await premiere.getByLabel('Période', { exact: true }).selectOption('mois');
+  // Ticket 236 : une affiche dit aussi la réinscription et la cantine ; elles attendent le même OUI.
+  await premiere.getByRole('button', { name: '+ Réinscription, cantine' }).click();
+  await premiere.getByLabel('Réinscription (FCFA)').fill('5 000');
+  await premiere.getByLabel('Cantine (FCFA)').fill('12 000');
+  await premiere.getByLabel('Cantine, par').selectOption('mois');
   // Ticket 199 (A2) : le jour de la déclaration n'est jamais pré-rempli ; sans lui, rien ne part.
   await expect(frais.getByLabel('Déclarés par l’école le')).toHaveValue('');
   await frais.getByRole('button', { name: 'Enregistrer 1 ligne publiable' }).click();
@@ -75,6 +80,7 @@ test('frais : les mois facturés, puis le OUI daté de l’école ; un montant m
   await oui.getByRole('button', { name: 'Noter le OUI de l’école' }).click();
   const fenetre = page.getByRole('alertdialog', { name: 'Noter le OUI de l’école' });
   await expect(fenetre).toContainText('CP1');
+  await expect(fenetre).toContainText('réinscription 5 000 FCFA · cantine 12 000 FCFA par mois');
   await fenetre.getByLabel('Le jour où l’école a répondu OUI').fill(jourDuCongo(2));
   await fenetre.getByRole('button', { name: 'Noter le OUI', exact: true }).click();
   await expect(fenetre.getByRole('alert')).toHaveText(

@@ -1,12 +1,20 @@
 ---
 // « Frais par an » du supérieur (lot 3, planche « Fiche publique · supérieur ») : une ligne par diplôme (« BTS : [min] à [max]
-// FCFA »), tirée des frais de chaque formation, puis l'inscription et la source. Le détail se lit sur chaque formation.
-import { francsCFA } from '../../modele/frais-ecole';
+// FCFA »), tirée des frais de chaque formation, puis l'inscription, la réinscription, la cantine (ticket 236) et la source.
+// Le détail se lit sur chaque formation.
+import { francsCFA, periodesCantine } from '../../modele/frais-ecole';
 import { libelleDiplome } from '../../modele/libelles';
 import { listes } from '../../modele/listes';
 import { dateLongue } from '../../modele/pointe-noire';
 import type { EcolePubliee } from '../../modele/ports';
-import { anneeDesFrais, sourceDesFrais } from '../../modele/vitrine';
+import {
+  anneeDesFrais,
+  cantineDesFrais,
+  fourchetteEnMots,
+  inscriptionDesFrais,
+  reinscriptionDesFrais,
+  sourceDesFrais,
+} from '../../modele/vitrine';
 interface Props {
   e: EcolePubliee;
 }
@@ -33,7 +41,14 @@ const parDiplome = listes.diploma_kind
     };
   })
   .filter((x): x is { libelle: string; montant: string } => x !== null);
-const inscriptions = lignes.map((f) => f.inscription).filter((n): n is number => n != null);
+const aPart = [
+  { libelle: 'Inscription', somme: inscriptionDesFrais(lignes) },
+  { libelle: 'Réinscription', somme: reinscriptionDesFrais(lignes) },
+  ...cantineDesFrais(lignes).map((c) => ({
+    libelle: `Cantine, ${periodesCantine[c.periode].toLocaleLowerCase('fr')}`,
+    somme: c.montant,
+  })),
+].flatMap(({ libelle, somme }) => (somme ? [{ libelle, somme }] : []));
 const annee = anneeDesFrais(lignes);
 const source = sourceDesFrais(lignes);
 ---
@@ -51,16 +66,12 @@ const source = sourceDesFrais(lignes);
           <b>{l.montant}</b>
         </li>
       ))}
-      {inscriptions.length > 0 && (
+      {aPart.map(({ libelle, somme }) => (
         <li>
-          <span>Inscription</span>
-          <b>
-            {Math.min(...inscriptions) === Math.max(...inscriptions)
-              ? francsCFA(inscriptions[0]!)
-              : `${nombre(Math.min(...inscriptions))} à ${francsCFA(Math.max(...inscriptions))}`}
-          </b>
+          <span>{libelle}</span>
+          <b>{fourchetteEnMots(somme)}</b>
         </li>
-      )}
+      ))}
     </ul>
     {source && (
       <p class="doux">

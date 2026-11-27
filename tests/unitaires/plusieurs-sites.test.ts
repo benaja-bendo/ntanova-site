@@ -9,6 +9,7 @@ import {
   versCorrectionIdentite,
 } from '../../src/modele/correction-ecole';
 import { formationsACopier, titreDeFiche } from '../../src/modele/fiche-admin';
+import { libellesDesSites } from '../../src/modele/sites-ecole';
 
 function fausseApi(rpc: Record<string, unknown> = {}, tables: Record<string, unknown[]> = {}) {
   const appels: { nom: string; arguments: unknown[] }[] = [];
@@ -121,5 +122,47 @@ describe('plusieurs sites : l’adaptateur de l’administration', () => {
       nom: 'copy_campus_programs',
       arguments: [{ p_from: 'c1', p_to: 'c2', p_programs: ['p1', 'p2'] }],
     });
+  });
+});
+
+describe('deux sites sans nom se distinguent (ticket 236)', () => {
+  const site = (id: string, champs: Record<string, string | null> = {}) => ({
+    id,
+    etiquette: null,
+    quartier: null,
+    repere: null,
+    division: null,
+    ...champs,
+  });
+
+  it('le nom, sinon le quartier, sinon le repère, sinon la division, sinon le rang', () => {
+    const libelles = libellesDesSites([
+      site('a', { etiquette: 'Annexe', quartier: '[Quartier 1]' }),
+      site('b', { quartier: '[Quartier 1]', repere: 'En face du marché' }),
+      site('c', { quartier: '[Quartier 2]' }),
+      site('d'),
+    ]);
+    expect([...libelles.values()]).toEqual([
+      'Annexe',
+      'Site · [Quartier 1]',
+      'Site · [Quartier 2]',
+      'Site 4',
+    ]);
+  });
+
+  it('un même quartier : le repère, coupé entre deux mots ; rien qui sépare : le rang', () => {
+    const libelles = libellesDesSites([
+      site('a', {
+        quartier: '[Quartier]',
+        repere: 'Derrière la grande station-service, au bout de la deuxième avenue',
+      }),
+      site('b', { quartier: '[Quartier]', repere: 'En face du marché' }),
+      site('c', { division: '[Ville]' }),
+      site('d', { division: '[Ville]' }),
+    ]);
+    expect(libelles.get('a')).toBe('Site · Derrière la grande station-service, au…');
+    expect(libelles.get('b')).toBe('Site · En face du marché');
+    expect(libelles.get('c')).toBe('Site 3 · [Ville]');
+    expect(libelles.get('d')).toBe('Site 4 · [Ville]');
   });
 });

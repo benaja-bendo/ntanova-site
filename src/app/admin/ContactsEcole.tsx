@@ -11,14 +11,17 @@ import { v2 } from '@/ui/v2/classes';
 import { Bouton } from '@/ui/v2/admin';
 import { IconeAjouter, IconeCadenas, IconeMessage, IconeTelephone } from '@/ui/shadcn/icones';
 import {
+  libelleEmailEcole,
   libelleLuSur,
   libelleNumeroEcole,
   libellePersonne,
+  lireEmailEcole,
   lireNumeroEcole,
   personneVide,
   provenanceContact,
   versContactASaisir,
   versPersonneSaisie,
+  type EmailEcoleSaisi,
   type LuSur,
   type NumeroEcoleSaisi,
   type PersonneSaisie,
@@ -131,8 +134,24 @@ function NumeroDeLEcole({ c }: { c: ContactEcole }) {
   );
 }
 
+/** Ticket 236 : l'adresse e-mail de l'école, privée ; « Écrire » ouvre la messagerie. */
+function EmailDeLEcole({ c }: { c: ContactEcole }) {
+  return (
+    <li className="flex flex-col gap-1.5 border-t border-border py-3">
+      <b className="text-[15px]">{libelleEmailEcole(c)}</b>
+      <span className="text-[17px] font-bold [overflow-wrap:anywhere]">{c.email}</span>
+      <a className={cn(v2.boutonSecondairePetit, 'h-10 w-fit text-sm')} href={`mailto:${c.email}`}>
+        <IconeMessage className="size-4" aria-hidden />
+        Écrire
+      </a>
+      <span className={v2.mention}>{provenanceContact(c)}</span>
+    </li>
+  );
+}
+
 function Personne({ c }: { c: ContactEcole }) {
   if (c.genre === 'numero_ecole') return <NumeroDeLEcole c={c} />;
+  if (c.genre === 'email_ecole') return <EmailDeLEcole c={c} />;
   const whatsapp = c.whatsapp ? lienWhatsApp(c.whatsapp) : null;
   return (
     <li className="flex flex-col gap-1.5 border-t border-border py-3">
@@ -173,9 +192,100 @@ function Personne({ c }: { c: ContactEcole }) {
 }
 
 type Edition =
-  { mode: 'ajout' } | { mode: 'numero' } | { mode: 'correction'; contact: ContactEcole } | null;
+  | { mode: 'ajout' }
+  | { mode: 'numero' }
+  | { mode: 'email' }
+  | { mode: 'correction'; contact: ContactEcole }
+  | null;
 
 const NUMERO_VIDE: NumeroEcoleSaisi = { numero: '', luSur: '', illisible: false, lecture: '' };
+
+/** « Lu sur » : où l'information a été lue, rien de choisi d'avance. */
+function ChampLuSur({ valeur, changer }: { valeur: LuSur | ''; changer: (v: LuSur | '') => void }) {
+  return (
+    <Champ libelle="Lu sur">
+      {(a) => (
+        <select
+          {...a}
+          className={v2.champ}
+          value={valeur}
+          onChange={(ev) => changer(ev.target.value as LuSur | '')}
+        >
+          <option value="">Choisir</option>
+          {(Object.keys(libelleLuSur) as LuSur[]).map((x) => (
+            <option key={x} value={x}>
+              {libelleLuSur[x]}
+            </option>
+          ))}
+        </select>
+      )}
+    </Champ>
+  );
+}
+
+/** Ticket 236 : « Ajouter l'e-mail de l'école » : privé, jamais publié. */
+function FormulaireEmailEcole({
+  enregistrer,
+  annuler,
+}: {
+  enregistrer: (lu: { email: string; luSur: LuSur }) => Promise<void>;
+  annuler: () => void;
+}) {
+  const [s, setS] = useState<EmailEcoleSaisi>({ email: '', luSur: '' });
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+  const envoyer = async () => {
+    const { lu, erreur: refus } = lireEmailEcole(s);
+    if (!lu) return setErreur(refus);
+    setErreur(null);
+    setEnCours(true);
+    try {
+      await enregistrer(lu);
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  };
+  return (
+    <form
+      className={v2.motif}
+      aria-label="E-mail de l’école"
+      noValidate
+      onSubmit={(ev) => {
+        ev.preventDefault();
+        void envoyer();
+      }}
+    >
+      <ChampLuSur valeur={s.luSur} changer={(luSur) => setS({ ...s, luSur })} />
+      <Champ libelle="Adresse e-mail" aide="Privée : jamais publiée.">
+        {(a) => (
+          <input
+            {...a}
+            className={v2.champ}
+            type="email"
+            autoComplete="off"
+            value={s.email}
+            onChange={(ev) => setS({ ...s, email: ev.target.value })}
+          />
+        )}
+      </Champ>
+      {erreur && (
+        <p className={v2.erreurLarge} role="alert">
+          {erreur}
+        </p>
+      )}
+      <div className={v2.actionsLarge}>
+        <Bouton type="submit" enCours={enCours}>
+          Enregistrer l’e-mail
+        </Bouton>
+        <button type="button" className={v2.boutonSecondaire} disabled={enCours} onClick={annuler}>
+          Annuler
+        </button>
+      </div>
+    </form>
+  );
+}
 
 /** Ticket 205 (A8, A19) : « Ajouter le numéro de l'école » : où il a été lu, rien de choisi d'avance. */
 function FormulaireNumeroEcole({
@@ -211,23 +321,7 @@ function FormulaireNumeroEcole({
         void envoyer();
       }}
     >
-      <Champ libelle="Lu sur">
-        {(a) => (
-          <select
-            {...a}
-            className={v2.champ}
-            value={s.luSur}
-            onChange={(ev) => setS({ ...s, luSur: ev.target.value as LuSur | '' })}
-          >
-            <option value="">Choisir</option>
-            {(Object.keys(libelleLuSur) as LuSur[]).map((x) => (
-              <option key={x} value={x}>
-                {libelleLuSur[x]}
-              </option>
-            ))}
-          </select>
-        )}
-      </Champ>
+      <ChampLuSur valeur={s.luSur} changer={(luSur) => setS({ ...s, luSur })} />
       <label className={v2.case}>
         <input
           type="checkbox"
@@ -376,17 +470,25 @@ export function GererContacts({
               className="flex flex-col gap-1 border-b border-border px-4 py-3 last:border-b-0"
             >
               <span className="flex items-start justify-between gap-2">
-                <b>{c.genre === 'numero_ecole' ? libelleNumeroEcole(c) : libellePersonne(c)}</b>
+                <b>
+                  {c.genre === 'numero_ecole'
+                    ? libelleNumeroEcole(c)
+                    : c.genre === 'email_ecole'
+                      ? libelleEmailEcole(c)
+                      : libellePersonne(c)}
+                </b>
                 <span className={v2.pastilleNeutre}>
                   {c.source === 'relais' ? 'Relais' : 'Administration'}
                 </span>
               </span>
-              <span className="font-bold">
-                {c.whatsapp
-                  ? afficherTelephone(c.whatsapp)
-                  : c.genre === 'numero_ecole'
-                    ? 'Illisible en partie'
-                    : 'Pas de numéro'}
+              <span className="font-bold [overflow-wrap:anywhere]">
+                {c.genre === 'email_ecole'
+                  ? c.email
+                  : c.whatsapp
+                    ? afficherTelephone(c.whatsapp)
+                    : c.genre === 'numero_ecole'
+                      ? 'Illisible en partie'
+                      : 'Pas de numéro'}
               </span>
               <span className={v2.mention}>{provenanceContact(c)}</span>
               {c.note && <span className="text-sm italic">« {c.note} »</span>}
@@ -411,7 +513,7 @@ export function GererContacts({
                 </span>
               ) : (
                 <span className="flex flex-wrap gap-x-4">
-                  {c.genre !== 'numero_ecole' && (
+                  {(!c.genre || c.genre === 'personne') && (
                     <button
                       type="button"
                       className={v2.lien}
@@ -433,7 +535,23 @@ export function GererContacts({
           ))}
         </ul>
       )}
-      {edition?.mode === 'numero' ? (
+      {edition?.mode === 'email' ? (
+        <FormulaireEmailEcole
+          enregistrer={async ({ email, luSur }) => {
+            setErreur(null);
+            surOccupation(true);
+            try {
+              await admin.ajouterEmailEcole(ecoleId, email, luSur);
+              surChangement('L’e-mail de l’école est noté (privé).');
+              await relire();
+              setEdition(null);
+            } finally {
+              surOccupation(false);
+            }
+          }}
+          annuler={() => setEdition(null)}
+        />
+      ) : edition?.mode === 'numero' ? (
         <FormulaireNumeroEcole
           enregistrer={async (saisie) => {
             const { numero } = lireNumeroEcole(saisie);
@@ -481,6 +599,17 @@ export function GererContacts({
         >
           <IconeAjouter className="size-4" aria-hidden />
           Ajouter le numéro de l’école
+        </button>
+      )}
+      {!edition && (
+        <button
+          type="button"
+          className={cn(v2.boutonSecondairePetit, 'w-fit')}
+          onClick={() => setEdition({ mode: 'email' })}
+          disabled={contacts === null}
+        >
+          <IconeAjouter className="size-4" aria-hidden />
+          Ajouter l’e-mail de l’école
         </button>
       )}
     </div>

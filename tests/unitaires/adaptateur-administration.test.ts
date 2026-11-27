@@ -419,6 +419,26 @@ describe('l’adaptateur Supabase de l’administration', () => {
               submission_taken_at: null,
               relay_first_name: null,
             },
+            // Ticket 236 : l'e-mail de l'école, privé.
+            {
+              id: 'p3',
+              role: null,
+              role_detail: null,
+              name: null,
+              whatsapp: null,
+              contact_agreement: false,
+              agreement_at: null,
+              said_note: null,
+              received_at: '2026-11-27T09:00:00Z',
+              source: 'administration',
+              submission_id: null,
+              submission_taken_at: null,
+              relay_first_name: null,
+              kind: 'email_ecole',
+              read_on: 'enseigne',
+              illegible: false,
+              email: 'contact@exemple.cg',
+            },
           ],
           error: null,
         },
@@ -461,6 +481,13 @@ describe('l’adaptateur Supabase de l’administration', () => {
           luSur: null,
           illisible: false,
         },
+        expect.objectContaining({
+          id: 'p3',
+          genre: 'email_ecole',
+          luSur: 'enseigne',
+          email: 'contact@exemple.cg',
+          whatsapp: null,
+        }),
       ]);
       expect(appels[0]).toEqual({ nom: 'contacts_of_campus', arguments: { p_campus: 'c1' } });
     });

@@ -12,12 +12,15 @@ export function ChampsFiche({
   erreurs,
   changer,
   apresNom,
+  sansNomNiType = false,
 }: {
   champs: FormulaireEcole;
   erreurs: Erreurs;
   changer: (nouveaux: Partial<FormulaireEcole>) => void;
   /** Ticket 203 (A4) : « En bref » ajoute le sigle et le nom du site sous le nom. */
   apresNom?: ReactNode;
+  /** Ticket 236 : un nouveau site garde le nom et le type de l'école. */
+  sansNomNiType?: boolean;
 }) {
   const basculerNiveau = (n: Valeur<'niveau'>) =>
     changer({
@@ -27,35 +30,39 @@ export function ChampsFiche({
     });
   return (
     <>
-      <Champ libelle="Nom" erreur={erreurs.nom}>
-        {(a) => (
-          <input
-            {...a}
-            className={v2.champ}
-            type="text"
-            autoComplete="off"
-            value={champs.nom}
-            onChange={(ev) => changer({ nom: ev.target.value })}
-          />
-        )}
-      </Champ>
+      {!sansNomNiType && (
+        <Champ libelle="Nom" erreur={erreurs.nom}>
+          {(a) => (
+            <input
+              {...a}
+              className={v2.champ}
+              type="text"
+              autoComplete="off"
+              value={champs.nom}
+              onChange={(ev) => changer({ nom: ev.target.value })}
+            />
+          )}
+        </Champ>
+      )}
       {apresNom}
-      <Champ libelle="Type d'école" erreur={erreurs.typeEcole}>
-        {(a) => (
-          <select
-            {...a}
-            className={v2.champ}
-            value={champs.typeEcole}
-            onChange={(ev) => changer({ typeEcole: ev.target.value as Valeur<'type_ecole'> })}
-          >
-            {(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => (
-              <option key={t} value={t}>
-                {libelleTypeEcole[t]}
-              </option>
-            ))}
-          </select>
-        )}
-      </Champ>
+      {!sansNomNiType && (
+        <Champ libelle="Type d'école" erreur={erreurs.typeEcole}>
+          {(a) => (
+            <select
+              {...a}
+              className={v2.champ}
+              value={champs.typeEcole}
+              onChange={(ev) => changer({ typeEcole: ev.target.value as Valeur<'type_ecole'> })}
+            >
+              {(Object.keys(libelleTypeEcole) as Valeur<'type_ecole'>[]).map((t) => (
+                <option key={t} value={t}>
+                  {libelleTypeEcole[t]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Champ>
+      )}
       <div className={v2.large}>
         <Choix
           legende="Niveaux"

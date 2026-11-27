@@ -4,6 +4,7 @@
  * L'administration tutoie le fondateur.
  */
 import { z } from 'zod';
+import { emailComplet } from './contacts';
 import { erreursDe, type Erreurs } from './fiche';
 import { listes, niveauxConnus, type Valeur } from './listes';
 import { lirePosition } from './coordonnees';
@@ -166,6 +167,91 @@ export function versCorrectionIdentite(
     if (facebook !== (avant.facebook ?? null)) correction.facebook = facebook;
   }
   return correction;
+}
+
+// Ticket 236 (27/11) : les valeurs relues avant d'accepter ---------------------------------------------------------------
+
+/**
+ * Ce qu'on corrige avant d'accepter : une nouvelle école, un nouveau site d'une école connue, ou une fiche qu'on complète.
+ * Un nouveau site ne change ni le nom ni le type de l'école ; le sigle et l'année ne remplissent que ce qu'elle n'a pas.
+ */
+export type ModeDeRelecture = 'nouvelle' | 'nouveau_site' | 'completer';
+
+/** L'e-mail lu sur l'enseigne est privé : il devient un contact du site, jamais une donnée publique. */
+export interface ValeursRelues extends FormulaireEcole {
+  sigle: string;
+  etiquette: string;
+  anneeCreation: string;
+  email: string;
+}
+
+export type AvantRelecture = Pick<
+  EcoleVue,
+  'nom' | 'typeEcole' | 'niveaux' | 'programme' | 'repere' | 'numeroEnseigne'
+> & { sigle?: string | null | undefined };
+
+/** Le formulaire part des valeurs retenues : celles du relevé, puis les corrections déjà préparées. */
+export function formulaireDeRelecture(
+  avant: AvantRelecture,
+  correction: CorrectionEcole,
+): ValeursRelues {
+  const retenu = { ...avant, ...correction };
+  return {
+    ...formulaireDe(retenu),
+    sigle: retenu.sigle ?? '',
+    etiquette: correction.etiquette ?? '',
+    anneeCreation: correction.anneeCreation ? String(correction.anneeCreation) : '',
+    email: correction.email ?? '',
+  };
+}
+
+export function erreursRelecture(champs: ValeursRelues, aujourdHui?: string): Erreurs {
+  const email = champs.email.trim();
+  return {
+    ...erreursFormulaireEcole(champs),
+    ...erreursIdentite(champs, aujourdHui),
+    ...(email && !emailComplet(email)
+      ? { email: 'Cette adresse e-mail ne semble pas complète.' }
+      : {}),
+  };
+}
+
+/** Ce qui diffère du relevé : seul cela part vers la base. Le sigle vidé efface celui que le relais a lu. */
+export function versCorrectionDeRelecture(
+  avant: AvantRelecture,
+  champs: ValeursRelues,
+): CorrectionEcole {
+  const correction: CorrectionEcole = versCorrection(avant, champs);
+  const sigle = champs.sigle.trim() || null;
+  if (sigle !== (avant.sigle ?? null)) correction.sigle = sigle;
+  const etiquette = champs.etiquette.trim();
+  if (etiquette) correction.etiquette = etiquette;
+  const annee = champs.anneeCreation.trim();
+  if (annee) correction.anneeCreation = Number(annee);
+  const email = champs.email.trim();
+  if (email) correction.email = email;
+  return correction;
+}
+
+/**
+ * Les corrections qui partent avec la décision, selon son mode. Le nom du site voyage à part (`etiquette` de la décision) ;
+ * le sigle et l'année d'une école déjà connue ne remplacent jamais les siens.
+ */
+export function correctionsDuMode(
+  correction: CorrectionEcole,
+  mode: ModeDeRelecture,
+  ecole: { sigle?: string | null | undefined; anneeCreation?: number | null | undefined } | null,
+): CorrectionEcole {
+  const c: CorrectionEcole = { ...correction };
+  delete c.etiquette;
+  if (mode === 'nouvelle') return c;
+  if (mode === 'nouveau_site') {
+    delete c.nom;
+    delete c.typeEcole;
+  }
+  if (ecole?.sigle?.trim()) delete c.sigle;
+  if (ecole?.anneeCreation) delete c.anneeCreation;
+  return c;
 }
 
 // Le champ « Position » ----------------------------------------------------------------
