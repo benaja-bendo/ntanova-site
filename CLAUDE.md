@@ -3,7 +3,7 @@
 Le site de NTanova : l'annuaire public des écoles de la République du Congo (**Congo-Brazzaville, pas la RDC**), l'espace des relais qui relèvent les écoles sur le terrain, et l'administration. Dépôt privé `benaja-bendo/ntanova-site`.
 
 - **Les relais collectent partout au Congo-Brazzaville** (fondateur, 04/11/2026). Collecter, accepter et publier sont trois gestes distincts : rien ne se publie seul. Lots, secteurs et états de la carte n'interdisent jamais une collecte.
-- Ce dépôt ne contient que le code. Stratégie, hypothèses et seuils vivent dans le dépôt privé `ntanova` : **n'en recopier aucun ici**.
+- Ce dépôt ne contient que le code. Stratégie, hypothèses et seuils vivent dans le dépôt privé `ntanova` : **n'en recopier aucun ici**. Pour la page publique, l’espace écoles et les futurs outils, consulter le [cap actuel](https://github.com/benaja-bendo/ntanova/blob/main/docs/produit/2026-11-25-fiche-ecole-site-vitrine.md#cap-actuel).
 - Ce fichier ne garde que l'état actuel, l'architecture et les règles actives. **Le détail de chaque livraison, ticket par ticket : `docs/archive/2026-11-15-claude-md-avant-compression/`** (son `INDEX.md` dit où chercher).
 
 ## Refonte publique livrée le 25/11/2026
